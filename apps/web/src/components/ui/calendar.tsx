@@ -63,19 +63,22 @@ function createCaptionComponentFactory({
       }),
     ) as React.HTMLAttributes<HTMLDivElement>;
     // Handle different possible structures from react-day-picker
-    let displayMonthProp: Date;
+    // (v9+ passes { date: Date } while older versions may pass { month: Date }).
+    let displayMonthProp: Date | undefined;
     if (calendarMonth instanceof Date) {
       displayMonthProp = calendarMonth;
-    } else if (
-      calendarMonth &&
-      typeof calendarMonth === "object" &&
-      "month" in calendarMonth &&
-      calendarMonth.month instanceof Date
-    ) {
-      displayMonthProp = calendarMonth.month;
-    } else {
-      // Fallback to state month
-      displayMonthProp = month;
+    } else if (calendarMonth && typeof calendarMonth === "object") {
+      if (
+        "date" in calendarMonth &&
+        calendarMonth.date instanceof Date
+      ) {
+        displayMonthProp = calendarMonth.date;
+      } else if (
+        "month" in calendarMonth &&
+        calendarMonth.month instanceof Date
+      ) {
+        displayMonthProp = calendarMonth.month;
+      }
     }
 
     // Use month state as fallback if displayMonthProp is not available

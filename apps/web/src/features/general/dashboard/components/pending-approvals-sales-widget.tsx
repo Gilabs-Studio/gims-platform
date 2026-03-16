@@ -26,6 +26,7 @@ import type { SalesQuotation } from "@/features/sales/quotation/types";
 import type { SalesOrder } from "@/features/sales/order/types";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
 import type { CustomerInvoice } from "@/features/sales/invoice/types";
+import { formatDate as formatDateUtil } from "@/lib/utils";
 
 const PER_PAGE = 8;
 type SalesTab = "quotation" | "order" | "delivery" | "invoice";
@@ -34,17 +35,13 @@ function formatIDR(amount: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
-    notation: "compact",
-    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDateUtil(dateStr);
 }
 
 interface RowSkeletonProps {

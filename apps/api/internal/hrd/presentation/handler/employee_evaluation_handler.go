@@ -10,11 +10,14 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type EmployeeEvaluationHandler struct {
 	usecase usecase.EmployeeEvaluationUsecase
 }
+
+const invalidEmployeeEvaluationRequestBodyMessage = "Invalid request body"
 
 // NewEmployeeEvaluationHandler creates a new instance of EmployeeEvaluationHandler
 func NewEmployeeEvaluationHandler(usecase usecase.EmployeeEvaluationUsecase) *EmployeeEvaluationHandler {
@@ -74,7 +77,7 @@ func (h *EmployeeEvaluationHandler) GetFormData(c *gin.Context) {
 func (h *EmployeeEvaluationHandler) Create(c *gin.Context) {
 	var req dto.CreateEmployeeEvaluationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", invalidEmployeeEvaluationRequestBodyMessage, err.Error(), nil)
 		return
 	}
 
@@ -94,7 +97,7 @@ func (h *EmployeeEvaluationHandler) Update(c *gin.Context) {
 
 	var req dto.UpdateEmployeeEvaluationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", invalidEmployeeEvaluationRequestBodyMessage, err.Error(), nil)
 		return
 	}
 
@@ -114,7 +117,7 @@ func (h *EmployeeEvaluationHandler) UpdateStatus(c *gin.Context) {
 
 	var req dto.SubmitEvaluationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", invalidEmployeeEvaluationRequestBodyMessage, err.Error(), nil)
 		return
 	}
 
@@ -138,6 +141,50 @@ func (h *EmployeeEvaluationHandler) Delete(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, gin.H{"message": "Employee evaluation deleted successfully"}, nil)
+}
+
+// AuditTrail retrieves paginated audit trail rows for an employee evaluation.
+// GET /hrd/employee-evaluations/:id/audit-trail
+func (h *EmployeeEvaluationHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	items, total, err := h.usecase.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	meta.Pagination.TotalPages = totalPages
+	meta.Pagination.HasNext = page < totalPages
+	meta.Pagination.HasPrev = page > 1
+
+	response.SuccessResponse(c, items, meta)
 }
 
 // handleEmployeeEvaluationError handles errors and returns appropriate HTTP responses

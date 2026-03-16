@@ -158,7 +158,7 @@ export function UserMenuAttendance() {
       // Not late, clock in directly
       executeClockIn(checkInType);
     },
-    [today?.is_late, executeClockIn]
+    [today?.is_late, executeClockIn, setPendingClockInType, setShowCameraDialog, setShowLateReasonDialog]
   );
 
   const handleLateReasonConfirm = useCallback(
@@ -168,7 +168,7 @@ export function UserMenuAttendance() {
       }
       setShowLateReasonDialog(false);
     },
-    [pendingClockInType, executeClockIn]
+    [pendingClockInType, executeClockIn, setShowLateReasonDialog]
   );
 
   const handleCameraConfirm = useCallback(
@@ -178,7 +178,7 @@ export function UserMenuAttendance() {
       }
       setShowCameraDialog(false);
     },
-    [pendingClockInType, executeClockIn]
+    [pendingClockInType, executeClockIn, setShowCameraDialog]
   );
 
   const handleClockOut = useCallback(async () => {

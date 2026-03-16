@@ -182,6 +182,27 @@ interface PaginationMeta {
   has_prev: boolean;
 }
 
+export interface EvaluationAuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface EvaluationAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata: Record<string, unknown>;
+  user?: EvaluationAuditTrailUser | null;
+  created_at: string;
+}
+
+export type EvaluationAuditTrailParams = {
+  page?: number;
+  per_page?: number;
+};
+
 export interface EvaluationGroupListResponse {
   success: boolean;
   data: EvaluationGroup[];
@@ -229,6 +250,16 @@ export interface EmployeeEvaluationListResponse {
 export interface EmployeeEvaluationSingleResponse {
   success: boolean;
   data: EmployeeEvaluation;
+  timestamp: string;
+  request_id: string;
+}
+
+export interface EvaluationAuditTrailListResponse {
+  success: boolean;
+  data: EvaluationAuditTrailEntry[];
+  meta?: {
+    pagination?: PaginationMeta;
+  };
   timestamp: string;
   request_id: string;
 }

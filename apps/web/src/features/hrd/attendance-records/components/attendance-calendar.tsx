@@ -2,7 +2,15 @@
 
 import { useMemo } from "react";
 import { format, isSameDay, isSameMonth, startOfWeek, addDays } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  CheckCircle2,
+  XCircle,
+  FileText,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent } from "../types";
@@ -19,16 +27,23 @@ interface AttendanceCalendarProps {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const STATUS_DOT_COLORS: Record<string, string> = {
-  PRESENT: "bg-success",
-  LATE: "bg-warning",
-  ABSENT: "bg-destructive",
-  LEAVE: "bg-primary",
-  HALF_DAY: "bg-purple",
-  HOLIDAY: "bg-successteal",
-  WFH: "bg-cyan",
-  OFF_DAY: "bg-mutedgray",
-};
+function getDayBreakdown(dayEvents: readonly CalendarEvent[]) {
+  return dayEvents.reduce(
+    (acc, event) => {
+      if (event.status === "PRESENT" || event.status === "WFH") {
+        acc.present += 1;
+      } else if (event.status === "LATE") {
+        acc.late += 1;
+      } else if (event.status === "ABSENT") {
+        acc.absent += 1;
+      } else if (event.status === "LEAVE") {
+        acc.leave += 1;
+      }
+      return acc;
+    },
+    { present: 0, late: 0, absent: 0, leave: 0 }
+  );
+}
 
 export function AttendanceCalendar({
   currentDate,
@@ -39,6 +54,8 @@ export function AttendanceCalendar({
   onToday,
   onDateClick,
 }: AttendanceCalendarProps) {
+  const t = useTranslations("hrd.attendance");
+
   // Generate calendar grid
   const calendarDays = useMemo(() => {
     const start = startOfWeek(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1), {
@@ -67,18 +84,17 @@ export function AttendanceCalendar({
   }, [events]);
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Calendar Header */}
-      <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+    <div className="flex h-full flex-col border border-border rounded-xl bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-xl font-semibold tracking-tight">
             {format(currentDate, "MMMM yyyy")}
           </h2>
           <Button
             variant="outline"
             size="sm"
             onClick={onToday}
-            className="h-8"
+            className="h-8 cursor-pointer"
           >
             Today
           </Button>
@@ -89,7 +105,7 @@ export function AttendanceCalendar({
             variant="ghost"
             size="icon"
             onClick={onPreviousMonth}
-            className="h-8 w-8"
+            className="h-8 w-8 cursor-pointer"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -97,30 +113,27 @@ export function AttendanceCalendar({
             variant="ghost"
             size="icon"
             onClick={onNextMonth}
-            className="h-8 w-8"
+            className="h-8 w-8 cursor-pointer"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full">
-          {/* Weekday Headers */}
-          <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-[980px]">
+          <div className="grid grid-cols-7 border-b border-border">
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
-                className="border-r border-border px-3 py-2 text-center text-xs font-normal text-muted-foreground last:border-r-0"
+                className="border-r border-border px-3 py-3 text-center text-xs font-medium text-muted-foreground last:border-r-0"
               >
                 {day}
               </div>
             ))}
           </div>
 
-          {/* Calendar Days */}
-          <div className="grid h-[calc(100%-2.5rem)] grid-cols-7 grid-rows-6">
+          <div className="grid min-h-[640px] grid-cols-7">
             {calendarDays.map((day, index) => {
               const dateKey = format(day, "yyyy-MM-dd");
               const dayEvents = eventsByDate.get(dateKey) || [];
@@ -128,71 +141,89 @@ export function AttendanceCalendar({
               const isToday = isSameDay(day, new Date());
               const hasEvents = dayEvents.length > 0;
               const holiday = holidays?.get(dateKey);
-
-              // Get unique statuses for this day to show different colored dots
-              const statusCounts = dayEvents.reduce((acc, event) => {
-                acc[event.status] = (acc[event.status] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>);
+              const dayBreakdown = getDayBreakdown(dayEvents);
+              const dayLabel = holiday
+                ? t("status.HOLIDAY")
+                : hasEvents
+                  ? t("calendar.workDay")
+                  : t("calendar.nonWorkDay");
 
               return (
                 <button
                   key={`${dateKey}-${index}`}
                   onClick={() => onDateClick(day)}
                   className={cn(
-                    "relative border-b border-r border-border bg-background p-3 text-left transition-colors hover:bg-muted/50 last:border-r-0 cursor-pointer",
-                    !isCurrentMonth && "bg-muted/20",
-                    hasEvents && "hover:bg-accent/10"
+                    "min-h-[132px] flex flex-col border-b border-r border-border px-3 py-3 text-left transition-colors hover:bg-muted/20 cursor-pointer last:border-r-0",
+                    !isCurrentMonth && "text-muted-foreground/40",
+                    isToday && "bg-muted/20"
                   )}
                 >
-                  {/* Date Number */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex w-full items-start justify-between">
                     <span
                       className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-full text-sm",
+                        "flex h-8 w-8 items-center justify-center rounded-full text-base font-semibold",
                         isToday && "bg-primary text-primary-foreground font-semibold",
-                        !isCurrentMonth && "text-muted-foreground"
+                        !isToday && isCurrentMonth && "text-foreground",
+                        !isToday && !isCurrentMonth && "text-muted-foreground"
                       )}
                     >
                       {format(day, "d")}
                     </span>
-                    {hasEvents && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {dayEvents.length}
-                      </span>
-                    )}
+
+                    {hasEvents && isCurrentMonth ? (
+                      <div className="flex items-center gap-2 text-[11px] font-semibold">
+                        {dayBreakdown.present > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-success">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {dayBreakdown.present}
+                          </span>
+                        )}
+
+                        {dayBreakdown.late > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-warning">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {dayBreakdown.late}
+                          </span>
+                        )}
+
+                        {dayBreakdown.absent > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-destructive">
+                            <XCircle className="h-3.5 w-3.5" />
+                            {dayBreakdown.absent}
+                          </span>
+                        )}
+
+                        {dayBreakdown.leave > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-blue-500">
+                            <FileText className="h-3.5 w-3.5" />
+                            {dayBreakdown.leave}
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
-                  {/* Holiday Badge */}
-                  {holiday && isCurrentMonth && (
-                    <div className="mt-1">
-                      <span className="inline-block max-w-full truncate rounded-sm bg-destructive px-1 py-0.5 text-[9px] font-semibold leading-none text-destructive dark:bg-destructive/40 dark:text-destructive">
-                        {holiday.name}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Status Indicators - Colored Dots */}
-                  {hasEvents && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {Object.entries(statusCounts).map(([status, count]) => (
-                        <div
-                          key={status}
-                          className="flex items-center gap-1"
-                        >
-                          <div
-                            className={cn(
-                              "h-2 w-2 rounded-full",
-                              STATUS_DOT_COLORS[status] ?? "bg-mutedgray"
-                            )}
-                          />
-                          {count > 1 && (
-                            <span className="text-[9px] text-muted-foreground">
-                              {count}
-                            </span>
+                  {isCurrentMonth && (
+                    <div className="mt-auto pt-4 space-y-1">
+                      <div className="flex items-center text-[11px] font-medium tracking-wide">
+                        <span
+                          className={cn(
+                            holiday
+                              ? "text-destructive font-medium"
+                              : hasEvents
+                                ? "text-success font-medium"
+                                : "text-muted-foreground/60"
                           )}
-                        </div>
-                      ))}
+                        >
+                          {dayLabel}
+                        </span>
+                      </div>
+
+                      {holiday ? (
+                        <p className="line-clamp-2 text-[10px] leading-tight text-muted-foreground">
+                          {holiday.name}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </button>

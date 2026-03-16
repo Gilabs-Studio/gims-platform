@@ -27,7 +27,7 @@ export function formatCurrency(
 
 export function formatDate(
   date: Date | string | null | undefined,
-  locale: string = "id-ID"
+  locale: string = "en-GB"
 ): string {
   if (!date) return "";
   let dateObj: Date;

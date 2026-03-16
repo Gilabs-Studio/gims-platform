@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -67,11 +67,7 @@ function dateToISO(date: Date): string {
 }
 
 function formatDateLabel(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
@@ -485,8 +481,8 @@ export function UpCountryCostList() {
                     />
                   </TableCell>
                   <TableCell className="text-muted-foreground">{item.location ?? "-"}</TableCell>
-                  <TableCell>{new Date(item.start_date).toLocaleDateString()}</TableCell>
-                  <TableCell>{new Date(item.end_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(item.start_date)}</TableCell>
+                  <TableCell>{formatDate(item.end_date)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums font-semibold">
                     {formatCurrency(item.total_amount)}
                   </TableCell>

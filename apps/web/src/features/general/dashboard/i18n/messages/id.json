@@ -29,20 +29,49 @@
       "itemsSold": "terjual"
     },
     "trackOrders": {
-      "title": "Lacak Status Pesanan",
-      "subtitle": "Analisis pertumbuhan dan perubahan pola pengunjung",
+      "title": "Lacak Sales Order",
+      "subtitle": "Pantau sales order saat ini beserta dokumen pemenuhannya",
       "newOrder": "Pesanan Baru",
       "onProgress": "Diproses",
       "completed": "Selesai",
       "return": "Dikembalikan",
       "filterOrders": "Cari pesanan...",
-      "columns": "Kolom",
       "id": "ID",
       "customerName": "Nama Pelanggan",
       "issueDate": "Tanggal",
       "amount": "Jumlah",
       "status": "Status",
-      "export": "Ekspor"
+      "export": "Ekspor",
+      "fulfillment": {
+        "delivered": "terkirim",
+        "pending": "menunggu",
+        "remaining": "sisa"
+      },
+      "columns": {
+        "code": "Kode",
+        "status": "Status",
+        "fulfillment": "Pemenuhan",
+        "do": "DO",
+        "invoice": "Invoice",
+        "totalAmount": "Total Nilai"
+      }
+    },
+    "trackPurchaseOrders": {
+      "title": "Lacak Purchase Order",
+      "subtitle": "Pantau purchase order beserta dokumen penerimaan dan invoice terkait",
+      "columns": {
+        "code": "Kode",
+        "status": "Status",
+        "fulfillment": "Pemenuhan",
+        "gr": "GR",
+        "invoice": "Invoice",
+        "totalAmount": "Total Nilai"
+      },
+      "fulfillment": {
+        "received": "diterima",
+        "pending": "menunggu",
+        "remaining": "sisa"
+      }
     },
     "widgetPicker": {
       "title": "Tambah Widget",

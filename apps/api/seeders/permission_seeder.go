@@ -469,6 +469,7 @@ func SeedPermissions() error {
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
 		{"/hrd/evaluation", "evaluation.update", "Edit Evaluations", "EDIT", "evaluation"},
 		{"/hrd/evaluation", "evaluation.delete", "Delete Evaluations", "DELETE", "evaluation"},
+		{"/hrd/evaluation", "evaluation.audit_trail", "View Evaluation Audit Trail", "VIEW", "evaluation_audit"},
 
 		{"/hrd/recruitment", "recruitment.read", "View Recruitment", "VIEW", "recruitment"},
 		{"/hrd/recruitment", "recruitment.create", "Create Recruitment", "CREATE", "recruitment"},

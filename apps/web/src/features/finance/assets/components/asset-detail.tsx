@@ -32,6 +32,7 @@ import type { Asset, AssetDepreciation, AssetTransaction } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
+import { formatDate as formatDateUtil } from "@/lib/utils";
 
 function formatNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return "-";
@@ -40,9 +41,7 @@ function formatNumber(value: number | null | undefined) {
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDateUtil(value) || value;
 }
 
 function getStatusVariant(status: Asset["status"]) {

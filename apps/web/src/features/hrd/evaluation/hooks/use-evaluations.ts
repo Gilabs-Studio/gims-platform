@@ -21,6 +21,7 @@ import type {
   EvaluationGroupListResponse,
   EmployeeEvaluation,
   EmployeeEvaluationListResponse,
+  EvaluationAuditTrailParams,
 } from "../types";
 
 // ---- Query Keys ----
@@ -31,6 +32,8 @@ export const evaluationGroupKeys = {
   list: (params?: ListEvaluationGroupsParams) => [...evaluationGroupKeys.lists(), params] as const,
   details: () => [...evaluationGroupKeys.all, "detail"] as const,
   detail: (id: string) => [...evaluationGroupKeys.details(), id] as const,
+  auditTrail: (id: string, params?: EvaluationAuditTrailParams) =>
+    [...evaluationGroupKeys.all, "audit-trail", id, params] as const,
 };
 
 export const evaluationCriteriaKeys = {
@@ -50,6 +53,8 @@ export const employeeEvaluationKeys = {
   details: () => [...employeeEvaluationKeys.all, "detail"] as const,
   detail: (id: string) => [...employeeEvaluationKeys.details(), id] as const,
   formData: () => [...employeeEvaluationKeys.all, "form-data"] as const,
+  auditTrail: (id: string, params?: EvaluationAuditTrailParams) =>
+    [...employeeEvaluationKeys.all, "audit-trail", id, params] as const,
 };
 
 // ---- Evaluation Group Hooks ----
@@ -65,6 +70,18 @@ export function useEvaluationGroup(id: string, options?: { enabled?: boolean }) 
   return useQuery({
     queryKey: evaluationGroupKeys.detail(id),
     queryFn: () => evaluationGroupService.getById(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useEvaluationGroupAuditTrail(
+  id: string,
+  params?: EvaluationAuditTrailParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: evaluationGroupKeys.auditTrail(id, params),
+    queryFn: () => evaluationGroupService.auditTrail(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
@@ -105,6 +122,7 @@ export function useUpdateEvaluationGroup() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.auditTrail(variables.id) });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
@@ -117,8 +135,9 @@ export function useDeleteEvaluationGroup() {
 
   return useMutation({
     mutationFn: (id: string) => evaluationGroupService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.auditTrail(id) });
     },
   });
 }
@@ -149,10 +168,11 @@ export function useCreateEvaluationCriteria() {
 
   return useMutation({
     mutationFn: (data: CreateEvaluationCriteriaData) => evaluationCriteriaService.create(data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.lists() });
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.auditTrail(variables.evaluation_group_id) });
     },
   });
 }
@@ -167,6 +187,7 @@ export function useUpdateEvaluationCriteria() {
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: [...evaluationGroupKeys.all, "audit-trail"] });
     },
   });
 }
@@ -179,6 +200,7 @@ export function useDeleteEvaluationCriteria() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: evaluationCriteriaKeys.all });
       queryClient.invalidateQueries({ queryKey: evaluationGroupKeys.all });
+      queryClient.invalidateQueries({ queryKey: [...evaluationGroupKeys.all, "audit-trail"] });
     },
   });
 }
@@ -196,6 +218,18 @@ export function useEmployeeEvaluation(id: string, options?: { enabled?: boolean 
   return useQuery({
     queryKey: employeeEvaluationKeys.detail(id),
     queryFn: () => employeeEvaluationService.getById(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useEmployeeEvaluationAuditTrail(
+  id: string,
+  params?: EvaluationAuditTrailParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: employeeEvaluationKeys.auditTrail(id, params),
+    queryFn: () => employeeEvaluationService.auditTrail(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
@@ -244,6 +278,7 @@ export function useUpdateEmployeeEvaluation() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.auditTrail(variables.id) });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.lists() });
@@ -256,8 +291,9 @@ export function useDeleteEmployeeEvaluation() {
 
   return useMutation({
     mutationFn: (id: string) => employeeEvaluationService.delete(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.auditTrail(id) });
     },
   });
 }
@@ -271,6 +307,7 @@ export function useUpdateEmployeeEvaluationStatus() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: employeeEvaluationKeys.auditTrail(variables.id) });
     },
   });
 }

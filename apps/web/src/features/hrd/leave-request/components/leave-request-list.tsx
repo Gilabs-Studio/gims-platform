@@ -23,6 +23,7 @@ import { LeaveRequestDetailModal } from "./leave-request-detail-modal";
 import type { LeaveRequest, LeaveRequestStatus } from "../types";
 import { formatDate } from "@/lib/utils";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -366,8 +367,25 @@ export function LeaveRequestList() {
             ) : (
               leaves.map((leave) => (
                 <TableRow key={leave.id}>
-                  <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(leave)}>
-                    {leave.employee_name || "-"}
+                  <TableCell>
+                    {canView ? (
+                      <button
+                        onClick={() => handleView(leave)}
+                        className="flex items-center gap-3 text-primary hover:underline cursor-pointer text-left"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback dataSeed={leave.employee_name || "employee"} />
+                        </Avatar>
+                        <span className="font-medium">{leave.employee_name || "-"}</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback dataSeed={leave.employee_name || "employee"} />
+                        </Avatar>
+                        <span className="font-medium">{leave.employee_name || "-"}</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>{leave.leave_type || "-"}</TableCell>
                   <TableCell>{formatDate(leave.start_date)}</TableCell>

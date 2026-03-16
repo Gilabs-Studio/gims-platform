@@ -27,7 +27,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { NumericInput } from "@/components/ui/numeric-input";
 
@@ -65,11 +65,7 @@ function dateToISO(date: Date): string {
 }
 
 function formatDateButtonLabel(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-  return parsed.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 interface DatePickerFieldProps {

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -38,9 +38,7 @@ import { BudgetDetailModal } from "./budget-detail-modal";
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
@@ -84,7 +82,7 @@ function InlineUtilBar({ planned, used }: { planned: number; used: number }) {
     percent >= 90 ? "bg-destructive" : percent >= 70 ? "bg-warning" : percent >= 50 ? "bg-secondary" : "bg-success";
 
   return (
-    <div className="min-w-[80px] space-y-1">
+    <div className="min-w-20 space-y-1">
       <div className="flex justify-between text-xs">
         <span className="font-mono tabular-nums">{formatCurrency(used)}</span>
         <span className="text-muted-foreground">{Math.round(percent)}%</span>

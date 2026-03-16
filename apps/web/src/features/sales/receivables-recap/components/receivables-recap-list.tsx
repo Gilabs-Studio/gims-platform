@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { useReceivablesRecap, useReceivablesSummary } from "../hooks/use-receivables-recap";
 import { receivablesRecapService } from "../services/receivables-recap-service";
 
@@ -202,7 +202,7 @@ export function ReceivablesRecapList() {
                     <AgingBadge category={row.aging_category} />
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {new Date(row.last_transaction).toLocaleDateString("id-ID")}
+                    {formatDate(row.last_transaction)}
                   </TableCell>
                 </TableRow>
               ))
