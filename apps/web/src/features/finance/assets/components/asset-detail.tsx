@@ -9,10 +9,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-import { useFinanceAsset, useApproveFinanceAssetTransaction } from "../hooks/use-finance-assets";
+import {
+  useFinanceAsset,
+  useApproveFinanceAssetTransaction,
+} from "../hooks/use-finance-assets";
 import type { Asset, AssetDepreciation, AssetTransaction } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
@@ -74,8 +89,14 @@ export function AssetDetail({ id }: { id: string }) {
     setActionOpen(true);
   };
 
-  const depreciations = useMemo<AssetDepreciation[]>(() => asset?.depreciations ?? [], [asset?.depreciations]);
-  const transactions = useMemo<AssetTransaction[]>(() => asset?.transactions ?? [], [asset?.transactions]);
+  const depreciations = useMemo<AssetDepreciation[]>(
+    () => asset?.depreciations ?? [],
+    [asset?.depreciations],
+  );
+  const transactions = useMemo<AssetTransaction[]>(
+    () => asset?.transactions ?? [],
+    [asset?.transactions],
+  );
 
   const handleApprove = async (txId: string) => {
     try {
@@ -97,7 +118,11 @@ export function AssetDetail({ id }: { id: string }) {
   }
 
   if (isError || !asset) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return (
+      <div className="text-center py-8 text-destructive">
+        {tCommon("error")}
+      </div>
+    );
   }
 
   return (
@@ -113,9 +138,13 @@ export function AssetDetail({ id }: { id: string }) {
             <h1 className="text-2xl font-bold tracking-tight truncate">
               {asset.code} - {asset.name}
             </h1>
-            <Badge variant={getStatusVariant(asset.status)}>{t(`status.${asset.status}`)}</Badge>
+            <Badge variant={getStatusVariant(asset.status)}>
+              {t(`status.${asset.status}`)}
+            </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{t("detail.subtitle")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("detail.subtitle")}
+          </p>
         </div>
 
         {canUpdate && asset.status === "active" && (
@@ -127,19 +156,34 @@ export function AssetDetail({ id }: { id: string }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("depreciate")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => handleAction("depreciate")}
+              >
                 {t("actions.depreciate")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("transfer")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => handleAction("transfer")}
+              >
                 {t("actions.transfer")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("revalue")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => handleAction("revalue")}
+              >
                 {t("actions.revalue")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("adjust")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => handleAction("adjust")}
+              >
                 {t("actions.adjust")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => handleAction("dispose")}>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => handleAction("dispose")}
+              >
                 {t("actions.dispose")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -160,11 +204,26 @@ export function AssetDetail({ id }: { id: string }) {
             <CardTitle>{t("detail.sections.basic")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label={t("fields.category")} value={asset.category?.name ?? "-"} />
-            <InfoRow label={t("fields.location")} value={asset.location?.name ?? "-"} />
-            <InfoRow label={t("fields.acquisitionDate")} value={formatDate(asset.acquisition_date)} />
-            <InfoRow label={t("fields.acquisitionCost")} value={formatNumber(asset.acquisition_cost)} />
-            <InfoRow label={t("fields.salvageValue")} value={formatNumber(asset.salvage_value)} />
+            <InfoRow
+              label={t("fields.category")}
+              value={asset.category?.name ?? "-"}
+            />
+            <InfoRow
+              label={t("fields.location")}
+              value={asset.location?.name ?? "-"}
+            />
+            <InfoRow
+              label={t("fields.acquisitionDate")}
+              value={formatDate(asset.acquisition_date)}
+            />
+            <InfoRow
+              label={t("fields.acquisitionCost")}
+              value={formatNumber(asset.acquisition_cost)}
+            />
+            <InfoRow
+              label={t("fields.salvageValue")}
+              value={formatNumber(asset.salvage_value)}
+            />
           </CardContent>
         </Card>
 
@@ -173,11 +232,26 @@ export function AssetDetail({ id }: { id: string }) {
             <CardTitle>{t("detail.sections.values")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <InfoRow label={t("fields.accumulatedDepreciation")} value={formatNumber(asset.accumulated_depreciation)} />
-            <InfoRow label={t("fields.bookValue")} value={formatNumber(asset.book_value)} />
-            <InfoRow label={t("detail.fields.createdAt")} value={formatDate(asset.created_at)} />
-            <InfoRow label={t("detail.fields.updatedAt")} value={formatDate(asset.updated_at)} />
-            <InfoRow label={t("detail.fields.disposedAt")} value={formatDate(asset.disposed_at ?? null)} />
+            <InfoRow
+              label={t("fields.accumulatedDepreciation")}
+              value={formatNumber(asset.accumulated_depreciation)}
+            />
+            <InfoRow
+              label={t("fields.bookValue")}
+              value={formatNumber(asset.book_value)}
+            />
+            <InfoRow
+              label={t("detail.fields.createdAt")}
+              value={formatDate(asset.created_at)}
+            />
+            <InfoRow
+              label={t("detail.fields.updatedAt")}
+              value={formatDate(asset.updated_at)}
+            />
+            <InfoRow
+              label={t("detail.fields.disposedAt")}
+              value={formatDate(asset.disposed_at ?? null)}
+            />
           </CardContent>
         </Card>
       </div>
@@ -197,9 +271,15 @@ export function AssetDetail({ id }: { id: string }) {
                     <TableHead>{t("detail.depreciation.period")}</TableHead>
                     <TableHead>{t("detail.depreciation.date")}</TableHead>
                     <TableHead>{t("detail.depreciation.method")}</TableHead>
-                    <TableHead className="text-right">{t("detail.depreciation.amount")}</TableHead>
-                    <TableHead className="text-right">{t("detail.depreciation.accumulated")}</TableHead>
-                    <TableHead className="text-right">{t("detail.depreciation.bookValue")}</TableHead>
+                    <TableHead className="text-right">
+                      {t("detail.depreciation.amount")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("detail.depreciation.accumulated")}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t("detail.depreciation.bookValue")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -208,9 +288,15 @@ export function AssetDetail({ id }: { id: string }) {
                       <TableCell>{d.period}</TableCell>
                       <TableCell>{formatDate(d.depreciation_date)}</TableCell>
                       <TableCell>{d.method}</TableCell>
-                      <TableCell className="text-right">{formatNumber(d.amount)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(d.accumulated)}</TableCell>
-                      <TableCell className="text-right">{formatNumber(d.book_value)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(d.amount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(d.accumulated)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(d.book_value)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -236,7 +322,9 @@ export function AssetDetail({ id }: { id: string }) {
                     <TableHead>{t("detail.transactions.type")}</TableHead>
                     <TableHead>{t("detail.transactions.amount")}</TableHead>
                     <TableHead>{t("detail.transactions.status")}</TableHead>
-                    <TableHead>{t("detail.transactions.description")}</TableHead>
+                    <TableHead>
+                      {t("detail.transactions.description")}
+                    </TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -247,9 +335,13 @@ export function AssetDetail({ id }: { id: string }) {
                       <TableCell>{tr.type}</TableCell>
                       <TableCell>{formatNumber(tr.amount)}</TableCell>
                       <TableCell>
-                        <Badge variant={getTxStatusVariant(tr.status)}>{tr.status}</Badge>
+                        <Badge variant={getTxStatusVariant(tr.status)}>
+                          {tr.status}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="whitespace-normal">{tr.description}</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {tr.description}
+                      </TableCell>
                       <TableCell className="text-right">
                         {tr.status === "DRAFT" && canApprove && (
                           <Button
