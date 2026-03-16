@@ -21,11 +21,13 @@ import {
   transferAssetSchema,
   revalueAssetSchema,
   adjustAssetSchema,
+  sellAssetSchema,
   type DepreciateAssetValues,
   type DisposeAssetValues,
   type TransferAssetValues,
   type RevalueAssetValues,
   type AdjustAssetValues,
+  type SellAssetValues,
 } from "../schemas/asset.schema";
 import type { Asset } from "../types";
 import {
@@ -33,10 +35,11 @@ import {
   useDisposeFinanceAsset,
   useTransferFinanceAsset,
   useRevalueFinanceAsset,
-  useAdjustFinanceAsset
+  useAdjustFinanceAsset,
+  useSellFinanceAsset,
 } from "../hooks/use-finance-assets";
 
-type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
+type ActionMode = "depreciate" | "transfer" | "dispose" | "sell" | "revalue" | "adjust";
 
 type Props = {
   open: boolean;
@@ -53,6 +56,7 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
   const disposeMutation = useDisposeFinanceAsset();
   const revalueMutation = useRevalueFinanceAsset();
   const adjustMutation = useAdjustFinanceAsset();
+  const sellMutation = useSellFinanceAsset();
 
   const { data: locationsData } = useFinanceAssetLocations({ page: 1, per_page: 100, sort_by: "name", sort_dir: "asc" });
   const locationOptions = locationsData?.data ?? [];
@@ -86,6 +90,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     [],
   );
 
+  const defaultSell: SellAssetValues = useMemo(
+    () => ({ disposal_date: new Date().toISOString().slice(0, 10), sale_amount: 0, description: "" }),
+    [],
+  );
+
   const depreciateForm = useForm<DepreciateAssetValues>({
     resolver: zodResolver(depreciateAssetSchema),
     defaultValues: defaultDepreciate,
@@ -111,6 +120,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     defaultValues: defaultAdjust,
   });
 
+  const sellForm = useForm<SellAssetValues>({
+    resolver: zodResolver(sellAssetSchema),
+    defaultValues: defaultSell,
+  });
+
   const transferLocationId = useWatch({
     control: transferForm.control,
     name: "location_id",
@@ -123,13 +137,15 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     if (mode === "dispose") disposeForm.reset(defaultDispose);
     if (mode === "revalue") revalueForm.reset(defaultRevalue);
     if (mode === "adjust") adjustForm.reset(defaultAdjust);
-  }, [open, mode, defaultDepreciate, defaultTransfer, defaultDispose, defaultRevalue, defaultAdjust, depreciateForm, transferForm, disposeForm, revalueForm, adjustForm]);
+    if (mode === "sell") sellForm.reset(defaultSell);
+  }, [open, mode, defaultDepreciate, defaultTransfer, defaultDispose, defaultRevalue, defaultAdjust, defaultSell, depreciateForm, transferForm, disposeForm, revalueForm, adjustForm, sellForm]);
 
   const isSubmitting = depreciateMutation.isPending ||
     transferMutation.isPending ||
     disposeMutation.isPending ||
     revalueMutation.isPending ||
-    adjustMutation.isPending;
+    adjustMutation.isPending ||
+    sellMutation.isPending;
 
   const submitDepreciate = async (values: DepreciateAssetValues) => {
     const id = asset?.id ?? "";
@@ -201,12 +217,32 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     }
   };
 
+  const submitSell = async (values: SellAssetValues) => {
+    const id = asset?.id ?? "";
+    if (!id) return;
+    try {
+      await sellMutation.mutateAsync({
+        id,
+        data: {
+          disposal_date: values.disposal_date,
+          sale_amount: values.sale_amount,
+          description: values.description ?? "",
+        },
+      });
+      toast.success(t("toast.done"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
   const title =
     mode === "depreciate" ? t("dialogs.depreciateTitle") :
       mode === "transfer" ? t("dialogs.transferTitle") :
-        mode === "revalue" ? t("dialogs.revalueTitle") :
-          mode === "adjust" ? t("dialogs.adjustTitle") :
-            t("dialogs.disposeTitle");
+        mode === "sell" ? t("dialogs.sellTitle") :
+          mode === "revalue" ? t("dialogs.revalueTitle") :
+            mode === "adjust" ? t("dialogs.adjustTitle") :
+              t("dialogs.disposeTitle");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -354,6 +390,37 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
             <div className="space-y-2">
               <Label htmlFor="adjust_description">{t("dialogs.description")}</Label>
               <Textarea id="adjust_description" rows={4} {...adjustForm.register("description")} />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.cancel")}
+              </Button>
+              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+                {t("dialogs.submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {mode === "sell" && (
+          <form className="space-y-4" onSubmit={sellForm.handleSubmit(submitSell)}>
+            <div className="space-y-2">
+              <Label htmlFor="sell_disposal_date">{t("fields.disposalDate")}</Label>
+              <Input id="sell_disposal_date" type="date" {...sellForm.register("disposal_date")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sell_sale_amount">{t("dialogs.saleAmount")}</Label>
+              <Input id="sell_sale_amount" type="number" step="0.01" {...sellForm.register("sale_amount", { valueAsNumber: true })} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sell_description">{t("dialogs.description")}</Label>
+              <Textarea id="sell_description" rows={4} {...sellForm.register("description")} />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button

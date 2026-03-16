@@ -2,11 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, TrendingDown } from "lucide-react";
+import { Archive, CheckCircle2, CircleDashed, DollarSign, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Link } from "@/i18n/routing";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +21,9 @@ import type { Asset } from "../types";
 import { useDeleteFinanceAsset, useFinanceAssets } from "../hooks/use-finance-assets";
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
+import { AssetDetailModal } from "./asset-detail-modal";
 
-type ActionMode = "depreciate" | "transfer" | "dispose" | "revalue" | "adjust";
+type ActionMode = "depreciate" | "transfer" | "dispose" | "sell" | "revalue" | "adjust";
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -32,6 +32,20 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       return (
         <Badge variant="success" className="text-xs font-medium">
           <CheckCircle2 className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "inactive":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium">
+          <CircleDashed className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "sold":
+      return (
+        <Badge variant="outline" className="text-xs font-medium text-blue-600">
+          <DollarSign className="h-3 w-3 mr-1" />
           {t(`status.${status}`)}
         </Badge>
       );
@@ -84,6 +98,9 @@ export function AssetsList() {
   const [actionOpen, setActionOpen] = useState(false);
   const [actionMode, setActionMode] = useState<ActionMode>("depreciate");
   const [actionAsset, setActionAsset] = useState<Asset | null>(null);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailAssetId, setDetailAssetId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useFinanceAssets({
     page,
@@ -172,12 +189,16 @@ export function AssetsList() {
               rows.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>
-                    <Link
-                      href={`/finance/assets/${item.id}`}
-                      className="hover:underline cursor-pointer"
+                    <button
+                      type="button"
+                      className="hover:underline cursor-pointer text-left font-mono"
+                      onClick={() => {
+                        setDetailAssetId(item.id);
+                        setDetailOpen(true);
+                      }}
                     >
                       {item.code}
-                    </Link>
+                    </button>
                   </TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.category?.name ?? "-"}</TableCell>
@@ -261,6 +282,19 @@ export function AssetsList() {
                         )}
                         {canUpdate && item.status === "active" && (
                           <DropdownMenuItem
+                            className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            onClick={() => {
+                              setActionMode("sell");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            {t("actions.sell")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => {
                               setActionMode("dispose");
@@ -324,6 +358,24 @@ export function AssetsList() {
           } catch {
             toast.error(t("toast.failed"));
           }
+        }}
+      />
+
+      <AssetDetailModal
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        assetId={detailAssetId}
+        onEdit={(asset) => {
+          setDetailOpen(false);
+          setFormMode("edit");
+          setEditing(asset);
+          setFormOpen(true);
+        }}
+        onAction={(mode, asset) => {
+          setDetailOpen(false);
+          setActionMode(mode as ActionMode);
+          setActionAsset(asset);
+          setActionOpen(true);
         }}
       />
     </div>

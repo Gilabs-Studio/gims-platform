@@ -11,6 +11,11 @@ export const financeAssetsId = {
       depreciation: "Jadwal depresiasi",
       transactions: "Transaksi",
     },
+    tabs: {
+      overview: "Ringkasan",
+      depreciations: "Depresiasi",
+      transactions: "Transaksi",
+    },
     fields: {
       createdAt: "Dibuat pada",
       updatedAt: "Diperbarui pada",
@@ -33,11 +38,14 @@ export const financeAssetsId = {
   search: "Cari aset...",
   status: {
     active: "Aktif",
+    inactive: "Tidak Aktif",
+    sold: "Terjual",
     disposed: "Dilepas",
   },
   fields: {
     code: "Kode",
     name: "Nama",
+    description: "Deskripsi",
     category: "Kategori",
     location: "Lokasi",
     acquisitionDate: "Tanggal perolehan",
@@ -57,6 +65,7 @@ export const financeAssetsId = {
     depreciate: "Depresiasi",
     transfer: "Transfer",
     dispose: "Lepas",
+    sell: "Jual",
     revalue: "Revaluasi",
     adjust: "Penyesuaian",
   },
@@ -70,9 +79,13 @@ export const financeAssetsId = {
     depreciateTitle: "Depresiasi Aset",
     transferTitle: "Transfer Aset",
     disposeTitle: "Lepas Aset",
+    sellTitle: "Jual Aset",
+    revalueTitle: "Revaluasi Aset",
+    adjustTitle: "Penyesuaian Aset",
     submit: "Proses",
     cancel: "Batal",
     description: "Deskripsi",
+    saleAmount: "Nilai jual",
   },
   toast: {
     created: "Aset dibuat",
