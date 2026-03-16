@@ -132,6 +132,8 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		&finance.AssetBudget{},
+		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
