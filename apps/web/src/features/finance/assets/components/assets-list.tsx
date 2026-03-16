@@ -2,7 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Archive, CheckCircle2, CircleDashed, DollarSign, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, TrendingDown } from "lucide-react";
+import {
+  Archive,
+  ArrowRightLeft,
+  CheckCircle2,
+  CircleDashed,
+  DollarSign,
+  Eye,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,20 +26,41 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import type { Asset } from "../types";
-import { useDeleteFinanceAsset, useFinanceAssets } from "../hooks/use-finance-assets";
+import {
+  useDeleteFinanceAsset,
+  useFinanceAssets,
+} from "../hooks/use-finance-assets";
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 import { AssetDetailModal } from "./asset-detail-modal";
 
-type ActionMode = "depreciate" | "transfer" | "dispose" | "sell" | "revalue" | "adjust";
+type ActionMode =
+  | "depreciate"
+  | "transfer"
+  | "dispose"
+  | "sell"
+  | "revalue"
+  | "adjust";
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -114,7 +151,11 @@ export function AssetsList() {
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return (
+      <div className="text-center py-8 text-destructive">
+        {tCommon("error")}
+      </div>
+    );
   }
 
   return (
@@ -164,8 +205,12 @@ export function AssetsList() {
               <TableHead>{t("fields.name")}</TableHead>
               <TableHead>{t("fields.category")}</TableHead>
               <TableHead>{t("fields.location")}</TableHead>
-              <TableHead>{t("fields.bookValue")}</TableHead>
-              <TableHead>{t("fields.accumulatedDepreciation")}</TableHead>
+              <TableHead className="text-right">
+                {t("fields.bookValue")}
+              </TableHead>
+              <TableHead className="text-right">
+                {t("fields.accumulatedDepreciation")}
+              </TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead />
             </TableRow>
@@ -181,7 +226,10 @@ export function AssetsList() {
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   -
                 </TableCell>
               </TableRow>
@@ -203,21 +251,35 @@ export function AssetsList() {
                   <TableCell>{item.name}</TableCell>
                   <TableCell>{item.category?.name ?? "-"}</TableCell>
                   <TableCell>{item.location?.name ?? "-"}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.book_value)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">
+                    {formatCurrency(item.book_value)}
+                  </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatCurrency(item.accumulated_depreciation)}
                   </TableCell>
-                  <TableCell>
-                    {getStatusBadge(item.status, t)}
-                  </TableCell>
+                  <TableCell>{getStatusBadge(item.status, t)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="cursor-pointer">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="cursor-pointer"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setDetailAssetId(item.id);
+                            setDetailOpen(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t("actions.view")}
+                        </DropdownMenuItem>
                         {canUpdate && (
                           <DropdownMenuItem
                             className="cursor-pointer"
@@ -253,6 +315,7 @@ export function AssetsList() {
                               setActionOpen(true);
                             }}
                           >
+                            <ArrowRightLeft className="h-4 w-4 mr-2" />
                             {t("actions.transfer")}
                           </DropdownMenuItem>
                         )}
@@ -265,6 +328,7 @@ export function AssetsList() {
                               setActionOpen(true);
                             }}
                           >
+                            <TrendingUp className="h-4 w-4 mr-2" />
                             {t("actions.revalue")}
                           </DropdownMenuItem>
                         )}
@@ -277,6 +341,7 @@ export function AssetsList() {
                               setActionOpen(true);
                             }}
                           >
+                            <SlidersHorizontal className="h-4 w-4 mr-2" />
                             {t("actions.adjust")}
                           </DropdownMenuItem>
                         )}
@@ -336,9 +401,19 @@ export function AssetsList() {
         }}
       />
 
-      <AssetForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} initialData={editing} />
+      <AssetForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        mode={formMode}
+        initialData={editing}
+      />
 
-      <AssetActionsDialogs open={actionOpen} onOpenChange={setActionOpen} mode={actionMode} asset={actionAsset} />
+      <AssetActionsDialogs
+        open={actionOpen}
+        onOpenChange={setActionOpen}
+        mode={actionMode}
+        asset={actionAsset}
+      />
 
       <DeleteDialog
         open={!!deleting}

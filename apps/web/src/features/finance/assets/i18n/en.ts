@@ -94,5 +94,6 @@ export const financeAssetsEn = {
   },
   placeholders: {
     select: "Select...",
+    selectDate: "Select date",
   },
 };

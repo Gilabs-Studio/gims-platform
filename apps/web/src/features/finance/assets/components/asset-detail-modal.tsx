@@ -11,6 +11,9 @@ import {
   Pencil,
   TrendingDown,
   DollarSign,
+  ArrowRightLeft,
+  TrendingUp,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import {
@@ -185,18 +188,21 @@ export function AssetDetailModal({
                         className="cursor-pointer"
                         onClick={() => onAction?.("transfer", asset)}
                       >
+                        <ArrowRightLeft className="h-4 w-4 mr-2" />
                         {t("actions.transfer")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onClick={() => onAction?.("revalue", asset)}
                       >
+                        <TrendingUp className="h-4 w-4 mr-2" />
                         {t("actions.revalue")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer"
                         onClick={() => onAction?.("adjust", asset)}
                       >
+                        <SlidersHorizontal className="h-4 w-4 mr-2" />
                         {t("actions.adjust")}
                       </DropdownMenuItem>
                       <DropdownMenuItem

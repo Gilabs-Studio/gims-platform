@@ -96,5 +96,6 @@ export const financeAssetsId = {
   },
   placeholders: {
     select: "Pilih...",
+    selectDate: "Pilih tanggal",
   },
 };

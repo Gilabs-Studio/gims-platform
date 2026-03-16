@@ -3,15 +3,28 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 
@@ -38,8 +51,15 @@ import {
   useAdjustFinanceAsset,
   useSellFinanceAsset,
 } from "../hooks/use-finance-assets";
+import { DatePicker } from "./date-picker";
 
-type ActionMode = "depreciate" | "transfer" | "dispose" | "sell" | "revalue" | "adjust";
+type ActionMode =
+  | "depreciate"
+  | "transfer"
+  | "dispose"
+  | "sell"
+  | "revalue"
+  | "adjust";
 
 type Props = {
   open: boolean;
@@ -48,7 +68,12 @@ type Props = {
   asset: Asset | null;
 };
 
-export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) {
+export function AssetActionsDialogs({
+  open,
+  onOpenChange,
+  mode,
+  asset,
+}: Props) {
   const t = useTranslations("financeAssets");
 
   const depreciateMutation = useDepreciateFinanceAsset();
@@ -58,7 +83,12 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
   const adjustMutation = useAdjustFinanceAsset();
   const sellMutation = useSellFinanceAsset();
 
-  const { data: locationsData } = useFinanceAssetLocations({ page: 1, per_page: 100, sort_by: "name", sort_dir: "asc" });
+  const { data: locationsData } = useFinanceAssetLocations({
+    page: 1,
+    per_page: 100,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
   const locationOptions = locationsData?.data ?? [];
 
   const defaultDepreciate: DepreciateAssetValues = useMemo(
@@ -76,22 +106,37 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
   );
 
   const defaultDispose: DisposeAssetValues = useMemo(
-    () => ({ disposal_date: new Date().toISOString().slice(0, 10), description: "" }),
+    () => ({
+      disposal_date: new Date().toISOString().slice(0, 10),
+      description: "",
+    }),
     [],
   );
 
   const defaultRevalue: RevalueAssetValues = useMemo(
-    () => ({ new_cost: asset?.acquisition_cost ?? 0, transaction_date: new Date().toISOString().slice(0, 10), description: "" }),
+    () => ({
+      new_cost: asset?.acquisition_cost ?? 0,
+      transaction_date: new Date().toISOString().slice(0, 10),
+      description: "",
+    }),
     [asset?.acquisition_cost],
   );
 
   const defaultAdjust: AdjustAssetValues = useMemo(
-    () => ({ amount: 0, transaction_date: new Date().toISOString().slice(0, 10), description: "" }),
+    () => ({
+      amount: 0,
+      transaction_date: new Date().toISOString().slice(0, 10),
+      description: "",
+    }),
     [],
   );
 
   const defaultSell: SellAssetValues = useMemo(
-    () => ({ disposal_date: new Date().toISOString().slice(0, 10), sale_amount: 0, description: "" }),
+    () => ({
+      disposal_date: new Date().toISOString().slice(0, 10),
+      sale_amount: 0,
+      description: "",
+    }),
     [],
   );
 
@@ -138,9 +183,25 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     if (mode === "revalue") revalueForm.reset(defaultRevalue);
     if (mode === "adjust") adjustForm.reset(defaultAdjust);
     if (mode === "sell") sellForm.reset(defaultSell);
-  }, [open, mode, defaultDepreciate, defaultTransfer, defaultDispose, defaultRevalue, defaultAdjust, defaultSell, depreciateForm, transferForm, disposeForm, revalueForm, adjustForm, sellForm]);
+  }, [
+    open,
+    mode,
+    defaultDepreciate,
+    defaultTransfer,
+    defaultDispose,
+    defaultRevalue,
+    defaultAdjust,
+    defaultSell,
+    depreciateForm,
+    transferForm,
+    disposeForm,
+    revalueForm,
+    adjustForm,
+    sellForm,
+  ]);
 
-  const isSubmitting = depreciateMutation.isPending ||
+  const isSubmitting =
+    depreciateMutation.isPending ||
     transferMutation.isPending ||
     disposeMutation.isPending ||
     revalueMutation.isPending ||
@@ -151,7 +212,10 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     const id = asset?.id ?? "";
     if (!id) return;
     try {
-      await depreciateMutation.mutateAsync({ id, data: { as_of_date: values.as_of_date } });
+      await depreciateMutation.mutateAsync({
+        id,
+        data: { as_of_date: values.as_of_date },
+      });
       toast.success(t("toast.done"));
       onOpenChange(false);
     } catch {
@@ -184,7 +248,10 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
     try {
       await disposeMutation.mutateAsync({
         id,
-        data: { disposal_date: values.disposal_date, description: values.description ?? "" },
+        data: {
+          disposal_date: values.disposal_date,
+          description: values.description ?? "",
+        },
       });
       toast.success(t("toast.done"));
       onOpenChange(false);
@@ -237,12 +304,17 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
   };
 
   const title =
-    mode === "depreciate" ? t("dialogs.depreciateTitle") :
-      mode === "transfer" ? t("dialogs.transferTitle") :
-        mode === "sell" ? t("dialogs.sellTitle") :
-          mode === "revalue" ? t("dialogs.revalueTitle") :
-            mode === "adjust" ? t("dialogs.adjustTitle") :
-              t("dialogs.disposeTitle");
+    mode === "depreciate"
+      ? t("dialogs.depreciateTitle")
+      : mode === "transfer"
+        ? t("dialogs.transferTitle")
+        : mode === "sell"
+          ? t("dialogs.sellTitle")
+          : mode === "revalue"
+            ? t("dialogs.revalueTitle")
+            : mode === "adjust"
+              ? t("dialogs.adjustTitle")
+              : t("dialogs.disposeTitle");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -252,10 +324,24 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         </DialogHeader>
 
         {mode === "depreciate" && (
-          <form className="space-y-4" onSubmit={depreciateForm.handleSubmit(submitDepreciate)}>
+          <form
+            className="space-y-4"
+            onSubmit={depreciateForm.handleSubmit(submitDepreciate)}
+          >
             <div className="space-y-2">
               <Label htmlFor="as_of_date">{t("fields.asOfDate")}</Label>
-              <Input id="as_of_date" type="date" {...depreciateForm.register("as_of_date")} />
+              <Controller
+                name="as_of_date"
+                control={depreciateForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="as_of_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -267,7 +353,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
@@ -275,19 +365,28 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         )}
 
         {mode === "transfer" && (
-          <form className="space-y-4" onSubmit={transferForm.handleSubmit(submitTransfer)}>
+          <form
+            className="space-y-4"
+            onSubmit={transferForm.handleSubmit(submitTransfer)}
+          >
             <div className="space-y-2">
               <Label>{t("fields.location")}</Label>
               <Select
                 value={transferLocationId || ""}
-                onValueChange={(v) => transferForm.setValue("location_id", v, { shouldDirty: true })}
+                onValueChange={(v) =>
+                  transferForm.setValue("location_id", v, { shouldDirty: true })
+                }
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("placeholders.select")} />
                 </SelectTrigger>
                 <SelectContent>
                   {locationOptions.map((l) => (
-                    <SelectItem key={l.id} value={l.id} className="cursor-pointer">
+                    <SelectItem
+                      key={l.id}
+                      value={l.id}
+                      className="cursor-pointer"
+                    >
                       {l.name}
                     </SelectItem>
                   ))}
@@ -295,12 +394,29 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="transfer_date">{t("fields.transferDate")}</Label>
-              <Input id="transfer_date" type="date" {...transferForm.register("transfer_date")} />
+              <Label htmlFor="adjust_date">{t("fields.transactionDate")}</Label>
+              <Controller
+                name="transaction_date"
+                control={adjustForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="adjust_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="transfer_description">{t("dialogs.description")}</Label>
-              <Textarea id="transfer_description" rows={4} {...transferForm.register("description")} />
+              <Label htmlFor="transfer_description">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="transfer_description"
+                rows={4}
+                {...transferForm.register("description")}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -312,7 +428,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
@@ -320,14 +440,36 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         )}
 
         {mode === "dispose" && (
-          <form className="space-y-4" onSubmit={disposeForm.handleSubmit(submitDispose)}>
+          <form
+            className="space-y-4"
+            onSubmit={disposeForm.handleSubmit(submitDispose)}
+          >
             <div className="space-y-2">
-              <Label htmlFor="disposal_date">{t("fields.disposalDate")}</Label>
-              <Input id="disposal_date" type="date" {...disposeForm.register("disposal_date")} />
+              <Label htmlFor="sell_disposal_date">
+                {t("fields.disposalDate")}
+              </Label>
+              <Controller
+                name="disposal_date"
+                control={sellForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="sell_disposal_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dispose_description">{t("dialogs.description")}</Label>
-              <Textarea id="dispose_description" rows={4} {...disposeForm.register("description")} />
+              <Label htmlFor="dispose_description">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="dispose_description"
+                rows={4}
+                {...disposeForm.register("description")}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -339,7 +481,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
@@ -347,18 +493,51 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         )}
 
         {mode === "revalue" && (
-          <form className="space-y-4" onSubmit={revalueForm.handleSubmit(submitRevalue)}>
+          <form
+            className="space-y-4"
+            onSubmit={revalueForm.handleSubmit(submitRevalue)}
+          >
             <div className="space-y-2">
               <Label htmlFor="revalue_new_cost">{t("fields.newCost")}</Label>
-              <Input id="revalue_new_cost" type="number" {...revalueForm.register("new_cost", { valueAsNumber: true })} />
+              <Controller
+                name="new_cost"
+                control={revalueForm.control}
+                render={({ field }) => (
+                  <NumericInput
+                    id="revalue_new_cost"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="0"
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="revalue_date">{t("fields.transactionDate")}</Label>
-              <Input id="revalue_date" type="date" {...revalueForm.register("transaction_date")} />
+              <Label htmlFor="revalue_date">
+                {t("fields.transactionDate")}
+              </Label>
+              <Controller
+                name="transaction_date"
+                control={revalueForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="revalue_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="revalue_description">{t("dialogs.description")}</Label>
-              <Textarea id="revalue_description" rows={4} {...revalueForm.register("description")} />
+              <Label htmlFor="revalue_description">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="revalue_description"
+                rows={4}
+                {...revalueForm.register("description")}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -370,7 +549,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
@@ -378,18 +561,49 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         )}
 
         {mode === "adjust" && (
-          <form className="space-y-4" onSubmit={adjustForm.handleSubmit(submitAdjust)}>
+          <form
+            className="space-y-4"
+            onSubmit={adjustForm.handleSubmit(submitAdjust)}
+          >
             <div className="space-y-2">
               <Label htmlFor="adjust_amount">{t("fields.amount")}</Label>
-              <Input id="adjust_amount" type="number" {...adjustForm.register("amount", { valueAsNumber: true })} />
+              <Controller
+                name="amount"
+                control={adjustForm.control}
+                render={({ field }) => (
+                  <NumericInput
+                    id="adjust_amount"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="0"
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="adjust_date">{t("fields.transactionDate")}</Label>
-              <Input id="adjust_date" type="date" {...adjustForm.register("transaction_date")} />
+              <Controller
+                name="transaction_date"
+                control={adjustForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="adjust_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="adjust_description">{t("dialogs.description")}</Label>
-              <Textarea id="adjust_description" rows={4} {...adjustForm.register("description")} />
+              <Label htmlFor="adjust_description">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="adjust_description"
+                rows={4}
+                {...adjustForm.register("description")}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -401,7 +615,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
@@ -409,18 +627,53 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
         )}
 
         {mode === "sell" && (
-          <form className="space-y-4" onSubmit={sellForm.handleSubmit(submitSell)}>
+          <form
+            className="space-y-4"
+            onSubmit={sellForm.handleSubmit(submitSell)}
+          >
             <div className="space-y-2">
-              <Label htmlFor="sell_disposal_date">{t("fields.disposalDate")}</Label>
-              <Input id="sell_disposal_date" type="date" {...sellForm.register("disposal_date")} />
+              <Label htmlFor="sell_disposal_date">
+                {t("fields.disposalDate")}
+              </Label>
+              <Controller
+                name="disposal_date"
+                control={sellForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="sell_disposal_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sell_sale_amount">{t("dialogs.saleAmount")}</Label>
-              <Input id="sell_sale_amount" type="number" step="0.01" {...sellForm.register("sale_amount", { valueAsNumber: true })} />
+              <Label htmlFor="sell_sale_amount">
+                {t("dialogs.saleAmount")}
+              </Label>
+              <Controller
+                name="sale_amount"
+                control={sellForm.control}
+                render={({ field }) => (
+                  <NumericInput
+                    id="sell_sale_amount"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="0"
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sell_description">{t("dialogs.description")}</Label>
-              <Textarea id="sell_description" rows={4} {...sellForm.register("description")} />
+              <Label htmlFor="sell_description">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="sell_description"
+                rows={4}
+                {...sellForm.register("description")}
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button
@@ -432,7 +685,11 @@ export function AssetActionsDialogs({ open, onOpenChange, mode, asset }: Props) 
               >
                 {t("dialogs.cancel")}
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
                 {t("dialogs.submit")}
               </Button>
             </DialogFooter>
