@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/auth/domain/dto"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/events"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
@@ -141,12 +141,17 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		// Calculate expires in (seconds)
 		expiresIn := int(u.jwtManager.AccessTokenTTL().Seconds())
 
+		// Resolve Employee ID
+		var employeeID string
+		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
+
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:          user.ID,
 			Email:       user.Email,
 			Name:        user.Name,
 			AvatarURL:   user.AvatarURL,
+			EmployeeID:  employeeID,
 			Role:        roleCode,
 			RoleName:    roleName,
 			Permissions: permissions,
@@ -307,12 +312,17 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		expiresIn := int(u.jwtManager.AccessTokenTTL().Seconds())
 
+		// Resolve Employee ID
+		var employeeID string
+		_ = u.db.Table("employees").Select("id").Where("user_id = ? AND deleted_at IS NULL", user.ID).Row().Scan(&employeeID)
+
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
 			ID:          user.ID,
 			Email:       user.Email,
 			Name:        user.Name,
 			AvatarURL:   user.AvatarURL,
+			EmployeeID:  employeeID,
 			Role:        roleCode,
 			RoleName:    roleName,
 			Permissions: permissions,

@@ -83,6 +83,7 @@ export function MapPickerModal({
               <MapPickerInner
                 initialPosition={initialPosition}
                 onCoordinateSelect={handleCoordinateSelect}
+                defaultZoom={10}
               />
             )}
           </div>

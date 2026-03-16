@@ -39,21 +39,21 @@ export function EducationTimeline({
   const getDegreeColor = (degree: DegreeLevel) => {
     switch (degree) {
       case "DOCTORATE":
-        return "bg-purple-500";
+        return "bg-purple";
       case "MASTER":
-        return "bg-indigo-500";
+        return "bg-primary";
       case "BACHELOR":
-        return "bg-blue-500";
+        return "bg-primary";
       case "DIPLOMA":
-        return "bg-cyan-500";
+        return "bg-cyan";
       case "SENIOR_HIGH":
-        return "bg-emerald-500";
+        return "bg-success";
       case "JUNIOR_HIGH":
-        return "bg-amber-500";
+        return "bg-warning";
       case "ELEMENTARY":
-        return "bg-orange-500";
+        return "bg-warning";
       default:
-        return "bg-gray-400";
+        return "bg-mutedgray";
     }
   };
 
@@ -132,8 +132,8 @@ export function EducationTimeline({
                           <Badge
                             className={
                               education.is_completed
-                                ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
-                                : "bg-blue-500/15 text-blue-700 border-blue-500/20"
+                                ? "bg-success/15 text-success border-emerald-500/20"
+                                : "bg-primary/15 text-primary border-blue-500/20"
                             }
                           >
                             {education.is_completed
@@ -194,7 +194,7 @@ export function EducationTimeline({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer font-medium"
+                            className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer font-medium"
                           >
                             <Download className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="truncate max-w-[300px]">
@@ -223,7 +223,7 @@ export function EducationTimeline({
                               variant="ghost"
                               size="sm"
                               onClick={() => onDelete(education)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                              className="text-destructive hover:text-destructive hover:bg-red-50 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" />
                               {t("education.actions.delete")}

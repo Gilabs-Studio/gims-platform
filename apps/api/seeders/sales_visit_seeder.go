@@ -29,12 +29,12 @@ func SeedSalesVisit() error {
 
 	// Get required reference data
 	var employees []orgModels.Employee
-	if err := db.Where("is_approved = ?", true).Find(&employees).Error; err != nil {
+	if err := db.Where("is_active = ?", true).Find(&employees).Error; err != nil {
 		log.Printf("Warning: Failed to fetch employees: %v", err)
 		return err
 	}
 	if len(employees) == 0 {
-		log.Println("Warning: No approved employees found. Please seed employees first.")
+		log.Println("Warning: No active employees found. Please seed employees first.")
 		return nil
 	}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,8 @@ import {
 import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-invoices";
 import { useProducts } from "@/features/master-data/product/hooks/use-products";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useOrders } from "@/features/sales/order/hooks/use-orders";
+import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
+import { useCustomerInvoiceDPs } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import type { CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -25,9 +26,10 @@ export interface UseInvoiceFormProps {
   open: boolean;
   onClose: () => void;
   defaultSalesOrderId?: string;
+  defaultDeliveryOrderId?: string;
 }
 
-export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: UseInvoiceFormProps) {
+export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId }: UseInvoiceFormProps) {
   const isEdit = !!invoice;
   const t = useTranslations("invoice");
   const createInvoice = useCreateInvoice();
@@ -59,13 +61,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
 
   const paymentTerms = useMemo(() => {
     const data = paymentTermsData?.data ?? [];
-    return sortOptions(data, (a) => a.code ? `${a.code} - ${a.name}` : a.name);
+    return sortOptions(data, (a) => a.name);
   }, [paymentTermsData?.data]);
 
   const orders = useMemo(() => {
     const data = ordersData?.data ?? [];
     return sortOptions(data, (a) => a.code);
   }, [ordersData?.data]);
+
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
@@ -96,6 +99,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
           invoice_date: new Date().toISOString().split("T")[0],
           type: "regular",
           sales_order_id: defaultSalesOrderId ?? undefined,
+          delivery_order_id: defaultDeliveryOrderId ?? undefined,
           tax_rate: 11,
           delivery_cost: 0,
           other_cost: 0,
@@ -104,7 +108,6 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
   });
 
   const {
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -112,10 +115,72 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     getValues,
   } = form;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "items",
   });
+
+  // Watch sales_order_id to auto-fill related fields (create mode only)
+  const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
+  const lastAutoFilledSORef = useRef<string | undefined>(undefined);
+
+  const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
+    enabled: !isEdit && open && !!watchedSalesOrderId,
+  });
+
+  // Fetch DP invoices linked to the selected SO for DP detection
+  const { data: dpInvoicesData } = useCustomerInvoiceDPs(
+    { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
+    { enabled: open && !!watchedSalesOrderId },
+  );
+
+  // Compute detected down payments and financial summary
+  const detectedDownPayments = useMemo(() => {
+    const list = dpInvoicesData?.data ?? [];
+    // Only include paid/partial/approved DPs
+    return list.filter((dp) => {
+      const status = (dp.status ?? "").toLowerCase();
+      return status === "paid" || status === "partial" || status === "approved";
+    });
+  }, [dpInvoicesData?.data]);
+
+  const dpSummary = useMemo(() => {
+    const totalDP = detectedDownPayments.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
+    const orderTotal = selectedOrderData?.data?.total_amount ?? 0;
+    const amountDue = Math.max(0, orderTotal - totalDP);
+    return { totalDP, orderTotal, amountDue };
+  }, [detectedDownPayments, selectedOrderData?.data?.total_amount]);
+
+  // Auto-fill payment terms + items from selected SO
+  useEffect(() => {
+    if (isEdit || !open || !watchedSalesOrderId) return;
+    if (lastAutoFilledSORef.current === watchedSalesOrderId) return;
+    if (!selectedOrderData?.data) return;
+
+    const order = selectedOrderData.data;
+    lastAutoFilledSORef.current = watchedSalesOrderId;
+
+    if (order.payment_terms_id) {
+      setValue("payment_terms_id", order.payment_terms_id);
+    }
+    if (order.tax_rate != null) {
+      setValue("tax_rate", order.tax_rate);
+    }
+    if (order.delivery_cost != null) {
+      setValue("delivery_cost", order.delivery_cost);
+    }
+    if (order.items && order.items.length > 0) {
+      replace(
+        order.items.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount ?? 0,
+          hpp_amount: 0,
+        }))
+      );
+    }
+  }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -156,6 +221,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     if (!open) {
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
+      lastAutoFilledSORef.current = undefined;
       return;
     }
 
@@ -213,13 +279,14 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
         invoice_date: new Date().toISOString().split("T")[0],
         type: "regular",
         sales_order_id: defaultSalesOrderId ?? undefined,
+        delivery_order_id: defaultDeliveryOrderId ?? undefined,
         tax_rate: 11,
         delivery_cost: 0,
         other_cost: 0,
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0, hpp_amount: 0 }],
       });
     }
-  }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId]);
+  }, [open, isEdit, fullInvoiceData, reset, defaultSalesOrderId, defaultDeliveryOrderId]);
 
   const saveToLocalStorage = (data: CreateInvoiceFormData | UpdateInvoiceFormData) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -393,5 +460,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId }: 
     openQuickCreate,
     closeQuickCreate,
     handlePaymentTermCreated,
+    detectedDownPayments,
+    dpSummary,
   };
 }

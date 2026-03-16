@@ -20,7 +20,7 @@ func SeedFinanceSprint12() error {
 	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable + UpCountryCost + YearEndClosing.
 	coaSeeds := []financeModels.ChartOfAccount{
 		{Code: "1100", Name: "Accounts Receivable", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "11100", Name: "Cash on Hand", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "11100", Name: "Cash on Hand", Type: financeModels.AccountTypeCashBank, IsActive: true},
 		{Code: "11400", Name: "Merchandise Inventory", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "11800", Name: "VAT Input", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1500", Name: "Fixed Assets", Type: financeModels.AccountTypeAsset, IsActive: true},
@@ -40,7 +40,10 @@ func SeedFinanceSprint12() error {
 
 	for i := range coaSeeds {
 		if err := db.
-			Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoNothing: true}).
+			Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "code"}},
+				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
+			}).
 			Create(&coaSeeds[i]).Error; err != nil {
 			log.Printf("Warning: Failed to create COA %s: %v", coaSeeds[i].Code, err)
 		}

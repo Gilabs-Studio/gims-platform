@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
+  FileText,
   Trash2,
   CheckCircle2,
   XCircle,
@@ -49,6 +50,8 @@ import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderAuditTrailContent } from "./purchase-order-audit-trail";
 import { PurchaseOrderForm } from "./purchase-order-form";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
+import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 
 interface PurchaseOrderDetailProps {
   readonly open: boolean;
@@ -66,6 +69,9 @@ export function PurchaseOrderDetail({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [isSIFormOpen, setIsSIFormOpen] = useState(false);
+  const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
+  const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("general");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
@@ -81,6 +87,7 @@ export function PurchaseOrderDetail({
   const canReject = useUserPermission("purchase_order.reject");
   const canClose = useUserPermission("purchase_order.close");
   const canPrint = useUserPermission("purchase_order.print");
+  const canCreateSI = useUserPermission("supplier_invoice.create");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
   const canAuditTrail = useUserPermission("purchase_order.audit_trail");
@@ -182,7 +189,7 @@ export function PurchaseOrderDetail({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -216,7 +223,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -228,7 +235,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -240,7 +247,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -252,10 +259,21 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleClose}
                     disabled={closeMutation.isPending}
-                    className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
                     title={t("actions.close")}
                   >
                     <Lock className="h-4 w-4" />
+                  </Button>
+                )}
+                {status === "APPROVED" && canCreateSI && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSIFormOpen(true)}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.createSI")}
+                  >
+                    <FileText className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -555,9 +573,28 @@ export function PurchaseOrderDetail({
         <PurchaseOrderPrintDialog
           open={isPrintOpen}
           onClose={() => setIsPrintOpen(false)}
-          purchaseOrderId={purchaseOrderId}
+          orderId={purchaseOrderId}
         />
       )}
+
+      <SupplierInvoiceFormDialog
+        open={isSIFormOpen}
+        onOpenChange={(open) => setIsSIFormOpen(open)}
+        defaultPurchaseOrderId={purchaseOrderId}
+        onSuccess={(invoiceId) => {
+          setSelectedSIId(invoiceId);
+          setIsSIDetailOpen(true);
+        }}
+      />
+
+      <SupplierInvoiceDetail
+        open={isSIDetailOpen}
+        onClose={() => {
+          setIsSIDetailOpen(false);
+          setSelectedSIId(null);
+        }}
+        invoiceId={selectedSIId}
+      />
     </>
   );
 }

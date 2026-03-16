@@ -165,6 +165,17 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 			return ErrPurchasePaymentConflict
 		}
 
+		// Prevent duplicate payment creation for the same invoice.
+		var existingPaymentCount int64
+		if err := tx.Model(&models.PurchasePayment{}).
+			Where("supplier_invoice_id = ?", inv.ID).
+			Count(&existingPaymentCount).Error; err != nil {
+			return err
+		}
+		if existingPaymentCount > 0 {
+			return ErrPurchasePaymentConflict
+		}
+
 		var ba coreModels.BankAccount
 		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
@@ -196,6 +207,14 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}
+
+		if err := tx.Model(&inv).Updates(map[string]interface{}{
+			"status":     models.SupplierInvoiceStatusWaitingPayment,
+			"updated_at": apptime.Now(),
+		}).Error; err != nil {
+			return err
+		}
+
 		createdID = p.ID
 		return nil
 	})
@@ -220,12 +239,73 @@ func (uc *purchasePaymentUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if existing.Status != models.PurchasePaymentStatusPending {
-		return ErrPurchasePaymentConflict
-	}
-	if err := uc.repo.Delete(ctx, id); err != nil {
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var pay models.PurchasePayment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if pay.Status != models.PurchasePaymentStatusPending {
+			return ErrPurchasePaymentConflict
+		}
+
+		var inv models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrSupplierInvoiceNotFound
+			}
+			return err
+		}
+
+		type sumRow struct{ Total float64 }
+		var row sumRow
+		if err := tx.Model(&models.PurchasePayment{}).
+			Select("COALESCE(SUM(amount),0) as total").
+			Where("supplier_invoice_id = ?", inv.ID).
+			Where("status = ?", models.PurchasePaymentStatusConfirmed).
+			Scan(&row).Error; err != nil {
+			return err
+		}
+
+		totalSettled := row.Total + inv.DownPaymentAmount
+		restoredStatus := models.SupplierInvoiceStatusUnpaid
+		if totalSettled > 0 {
+			restoredStatus = models.SupplierInvoiceStatusPartial
+		}
+		if totalSettled >= inv.Amount-0.0001 {
+			restoredStatus = models.SupplierInvoiceStatusPaid
+		}
+
+		updateData := map[string]interface{}{
+			"status":           restoredStatus,
+			"paid_amount":      row.Total,
+			"remaining_amount": math.Max(0, inv.Amount-totalSettled),
+			"updated_at":       apptime.Now(),
+		}
+		if restoredStatus == models.SupplierInvoiceStatusPaid {
+			now := apptime.Now()
+			updateData["payment_at"] = &now
+		} else {
+			updateData["payment_at"] = nil
+		}
+
+		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&pay).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrPurchasePaymentNotFound
+		}
 		return err
 	}
+
 	uc.auditService.Log(ctx, "purchase_payment.delete", id, map[string]interface{}{"before": existing})
 	return nil
 }
@@ -257,7 +337,7 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			}
 			return err
 		}
-		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial {
+		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial && inv.Status != models.SupplierInvoiceStatusWaitingPayment {
 			return ErrPurchasePaymentConflict
 		}
 

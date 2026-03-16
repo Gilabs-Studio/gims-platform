@@ -1,7 +1,6 @@
 package mapper
 
 import (
-
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -21,6 +20,7 @@ func ToTaskResponse(task *models.Task) dto.TaskResponse {
 		CustomerID:  task.CustomerID,
 		ContactID:   task.ContactID,
 		DealID:      task.DealID,
+		LeadID:      task.LeadID,
 		CreatedBy:   task.CreatedBy,
 		CreatedAt:   task.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
 		UpdatedAt:   task.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
@@ -74,6 +74,13 @@ func ToTaskResponse(task *models.Task) dto.TaskResponse {
 		}
 	}
 
+	if task.Lead != nil {
+		resp.Lead = &dto.TaskLeadInfo{
+			ID: task.Lead.ID, Code: task.Lead.Code,
+			FirstName: task.Lead.FirstName, LastName: task.Lead.LastName,
+		}
+	}
+
 	if len(task.Reminders) > 0 {
 		resp.Reminders = ToReminderResponseList(task.Reminders)
 	}
@@ -86,6 +93,44 @@ func ToTaskResponseList(tasks []models.Task) []dto.TaskResponse {
 	result := make([]dto.TaskResponse, 0, len(tasks))
 	for i := range tasks {
 		result = append(result, ToTaskResponse(&tasks[i]))
+	}
+	return result
+}
+
+// ToTaskSummaryResponse converts a Task model to a compact TaskSummaryResponse
+func ToTaskSummaryResponse(task *models.Task) dto.TaskSummaryResponse {
+	resp := dto.TaskSummaryResponse{
+		ID:       task.ID,
+		Title:    task.Title,
+		Type:     task.Type,
+		Status:   task.Status,
+		Priority: task.Priority,
+	}
+
+	if task.DueDate != nil {
+		d := task.DueDate.Format("2006-01-02")
+		resp.DueDate = &d
+		if task.Status != string(models.TaskStatusCompleted) && task.Status != string(models.TaskStatusCancelled) {
+			resp.IsOverdue = task.DueDate.Before(apptime.Now())
+		}
+	}
+
+	if task.AssignedEmployee != nil {
+		resp.AssignedEmployee = &dto.TaskEmployeeInfo{
+			ID:           task.AssignedEmployee.ID,
+			EmployeeCode: task.AssignedEmployee.EmployeeCode,
+			Name:         task.AssignedEmployee.Name,
+		}
+	}
+
+	return resp
+}
+
+// ToTaskSummaryResponseList converts a slice of Task models to summary responses
+func ToTaskSummaryResponseList(tasks []models.Task) []dto.TaskSummaryResponse {
+	result := make([]dto.TaskSummaryResponse, 0, len(tasks))
+	for i := range tasks {
+		result = append(result, ToTaskSummaryResponse(&tasks[i]))
 	}
 	return result
 }

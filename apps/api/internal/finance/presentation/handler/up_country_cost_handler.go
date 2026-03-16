@@ -85,6 +85,70 @@ func (h *UpCountryCostHandler) List(c *gin.Context) {
 	})
 }
 
+func (h *UpCountryCostHandler) GetStats(c *gin.Context) {
+	stats, err := h.uc.GetStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
+func (h *UpCountryCostHandler) Submit(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *UpCountryCostHandler) ManagerApprove(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.uc.ManagerApprove(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *UpCountryCostHandler) ManagerReject(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.RejectUpCountryCostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	res, err := h.uc.ManagerReject(c.Request.Context(), id, req.Comment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *UpCountryCostHandler) FinanceApprove(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.uc.FinanceApprove(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *UpCountryCostHandler) MarkPaid(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.uc.MarkPaid(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func (h *UpCountryCostHandler) Approve(c *gin.Context) {
 	id := c.Param("id")
 	res, err := h.uc.Approve(c.Request.Context(), id)
@@ -94,3 +158,4 @@ func (h *UpCountryCostHandler) Approve(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+

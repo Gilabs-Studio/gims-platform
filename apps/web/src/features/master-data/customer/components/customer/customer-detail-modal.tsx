@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Phone, Landmark, Users } from "lucide-react";
+import { MapPin, Edit, Phone, Landmark, Users, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,68 +11,42 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
 import { useCustomer } from "../../hooks/use-customers";
 import type { Customer } from "../../types";
+import { formatWhatsAppLink } from "@/lib/utils";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import { CustomerBankList } from "./customer-bank-list";
 
 interface CustomerDetailModalProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly customer?: Customer | null;
+  readonly customerId?: string | null;
   readonly onEdit?: (customer: Customer) => void;
-}
-
-function InfoRow({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value?: React.ReactNode;
-  icon?: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <div className="py-1.5 border-b border-border/40 last:border-0">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5 flex items-center gap-1">
-        {Icon && <Icon className="h-3 w-3 shrink-0" />}
-        {label}
-      </span>
-      <span className="text-xs font-medium wrap-break-word">{value ?? "-"}</span>
-    </div>
-  );
-}
-
-function GroupBox({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-md border bg-muted/20 p-3 space-y-0.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-        {title}
-      </p>
-      {children}
-    </div>
-  );
 }
 
 export function CustomerDetailModal({
   open,
   onOpenChange,
   customer,
+  customerId,
   onEdit,
 }: CustomerDetailModalProps) {
   const t = useTranslations("customer.customer");
   const tContact = useTranslations("crmContact");
-  const [activeTab, setActiveTab] = useState("details");
+
+  // Permission-based features (must be stable across renders)
+  const canManageBanks = useUserPermission("customer.update");
 
   // Always fetch fresh detail when modal opens so relationships are populated
-  const { data: detailRes, isLoading } = useCustomer(customer?.id ?? "", {
-    enabled: open && !!customer?.id,
+  const activeCustomerId = customerId ?? customer?.id ?? "";
+
+  const { data: detailRes, isLoading } = useCustomer(activeCustomerId, {
+    enabled: open && !!activeCustomerId,
   });
 
   const entity = detailRes?.data ?? customer;
@@ -104,253 +77,366 @@ export function CustomerDetailModal({
     entity.default_tax_rate != null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => {
-      if (v) setActiveTab("details");
-      onOpenChange(v);
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         size="xl"
-        className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+        className="max-h-[90vh] overflow-y-auto"
       >
-        {/* Header */}
-        <DialogHeader className="px-5 pt-5 pb-4 shrink-0">
-          <div className="flex items-start gap-4">
-            <div className="flex-1 min-w-0">
-              <DialogTitle className="text-base font-semibold leading-tight truncate">
+        <DialogHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <DialogTitle className="text-xl mb-2">
                 {entity.name}
               </DialogTitle>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {entity.code}
-              </p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <div className="flex items-center gap-3">
                 <Badge
                   variant={entity.is_active ? "default" : "secondary"}
-                  className="h-5 text-[10px]"
+                  className="text-xs font-medium"
                 >
                   {entity.is_active ? t("common.active") : t("common.inactive")}
                 </Badge>
                 {entity.customer_type && (
-                  <Badge variant="outline" className="h-5 text-[10px]">
+                  <Badge variant="outline" className="text-xs font-medium">
                     {entity.customer_type.name}
                   </Badge>
+                )}
+                {entity.code && (
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {entity.code}
+                  </span>
                 )}
               </div>
             </div>
 
-            {onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 cursor-pointer"
-                onClick={() => {
-                  onEdit(entity);
-                  onOpenChange(false);
-                }}
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" />
-                {t("common.edit")}
-              </Button>
-            )}
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    onEdit(entity);
+                    onOpenChange(false);
+                  }}
+                  className="cursor-pointer"
+                  title={t("common.edit")}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
-        {/* Tab navigation */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="px-5 pt-0">
-          <TabsList className="w-full">
-            <TabsTrigger value="details" className="cursor-pointer">
-              {t("common.viewDetails")}
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="cursor-pointer">
-              <Users className="h-3.5 w-3.5 mr-1.5" />
-              {tContact("tab")}
-              {(entity.contacts_count ?? 0) > 0 && (
-                <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px]">
-                  {entity.contacts_count}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Contacts tab content */}
-        {activeTab === "contacts" && entity.id && (
-          <div className="overflow-y-auto flex-1 px-5 py-4">
-            <CustomerContactsTab customerId={entity.id} />
+        {isLoading ? (
+          <div className="space-y-4 py-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-64 w-full" />
           </div>
-        )}
+        ) : (
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList>
+              <TabsTrigger value="details">{t("common.viewDetails")}</TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {tContact("tab")}
+                {(entity.contacts_count ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {entity.contacts_count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="banks" className="flex items-center gap-1.5">
+                <Landmark className="h-3.5 w-3.5" />
+                {t("sections.bankAccounts")}
+                {(entity.bank_accounts?.length ?? 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
+                    {entity.bank_accounts?.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Details tab content */}
-        <div className={`overflow-y-auto flex-1 px-5 py-4 space-y-4 ${activeTab !== "details" ? "hidden" : ""}`}>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : (
-            <>
-              {/* Basic Info + Location */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <GroupBox title={t("sections.basicInfo")}>
-                  <InfoRow label={t("form.contactPerson")} value={entity.contact_person} />
-                  <InfoRow label={t("form.email")} value={entity.email} />
-                  <InfoRow label={t("form.website")} value={entity.website} />
-                  <InfoRow label={t("form.npwp")} value={entity.npwp} />
-                </GroupBox>
+            <TabsContent value="details" className="space-y-6 py-4">
+              {/* Basic Info */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">{t("sections.basicInfo")}</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.contactPerson")}</TableCell>
+                        <TableCell>{entity.contact_person ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.email")}</TableCell>
+                        <TableCell>
+                          {entity.email ? (
+                            <a 
+                              href={`mailto:${entity.email}`}
+                              className="text-primary text-sm cursor-pointer hover:underline"
+                            >
+                              {entity.email}
+                            </a>
+                          ) : "-"}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.website")}</TableCell>
+                        <TableCell>
+                          {entity.website ? (
+                            <a
+                              href={entity.website.startsWith("http") ? entity.website : `https://${entity.website}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-sm text-primary hover:underline cursor-pointer"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                Visit Link
+                            </a>
+                          ) : "-"}
+                        </TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
+                        <TableCell>{entity.npwp ?? "-"}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
 
-                <GroupBox title={t("sections.address")}>
-                  <InfoRow label={t("form.address")} icon={MapPin} value={entity.address} />
-                  <InfoRow label={t("form.province")} value={province?.name} />
-                  <InfoRow label={t("form.city")} value={city?.name} />
-                  <InfoRow label={t("form.district")} value={district?.name} />
-                  <InfoRow label={t("form.village")} value={village?.name} />
-                  {areaText && <InfoRow label={t("form.fullArea")} value={areaText} />}
-                </GroupBox>
+              <Separator />
+
+              {/* Address */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  {t("sections.address")}
+                </h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.address")}</TableCell>
+                        <TableCell colSpan={3} className="whitespace-pre-wrap">{entity.address ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.province")}</TableCell>
+                        <TableCell>{province?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.city")}</TableCell>
+                        <TableCell>{city?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.district")}</TableCell>
+                        <TableCell>{district?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.village")}</TableCell>
+                        <TableCell>{village?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      {areaText && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("form.fullArea")}</TableCell>
+                          <TableCell colSpan={3}>{areaText}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               {/* Coordinates */}
               {(entity.latitude != null || entity.longitude != null) && (
-                <GroupBox title={t("sections.coordinates")}>
-                  <InfoRow
-                    label={t("form.latitude")}
-                    value={
-                      entity.latitude != null ? (
-                        <span className="font-mono text-xs">
-                          {Number(entity.latitude).toFixed(6)}
-                        </span>
-                      ) : undefined
-                    }
-                  />
-                  <InfoRow
-                    label={t("form.longitude")}
-                    value={
-                      entity.longitude != null ? (
-                        <span className="font-mono text-xs">
-                          {Number(entity.longitude).toFixed(6)}
-                        </span>
-                      ) : undefined
-                    }
-                  />
-                  {entity.latitude != null && entity.longitude != null && (
-                    <InfoRow
-                      label="Google Maps"
-                      value={
-                        <a
-                          href={`https://maps.google.com/?q=${entity.latitude},${entity.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline underline-offset-2 text-xs"
-                        >
-                          Open in Maps
-                        </a>
-                      }
-                    />
-                  )}
-                </GroupBox>
-              )}
-
-              {/* Phone Numbers */}
-              {entity.phone_numbers && entity.phone_numbers.length > 0 && (
-                <GroupBox title={t("sections.phoneNumbers")}>
-                  <div className="space-y-1.5 pt-1">
-                    {entity.phone_numbers.map((phone) => (
-                      <div
-                        key={phone.id}
-                        className="flex items-center justify-between rounded border bg-background px-3 py-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <span className="text-xs font-medium">{phone.phone_number}</span>
-                          {phone.label && (
-                            <span className="text-xs text-muted-foreground">({phone.label})</span>
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3">{t("sections.coordinates")}</h3>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell className="font-medium bg-muted/50 w-48">{t("form.latitude")}</TableCell>
+                            <TableCell>
+                              {entity.latitude != null ? (
+                                <span className="font-mono">{Number(entity.latitude).toFixed(6)}</span>
+                              ) : "-"}
+                            </TableCell>
+                            <TableCell className="font-medium bg-muted/50 w-48">{t("form.longitude")}</TableCell>
+                            <TableCell>
+                              {entity.longitude != null ? (
+                                <span className="font-mono">{Number(entity.longitude).toFixed(6)}</span>
+                              ) : "-"}
+                            </TableCell>
+                          </TableRow>
+                          {entity.latitude != null && entity.longitude != null && (
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50">Google Maps</TableCell>
+                              <TableCell colSpan={3}>
+                                <a
+                                  href={`https://maps.google.com/?q=${entity.latitude},${entity.longitude}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  Open in Maps
+                                </a>
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </div>
-                        {phone.is_primary && (
-                          <Badge variant="default" className="h-4 text-[9px] px-1.5">
-                            Primary
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </GroupBox>
+                </>
               )}
 
-              {/* Bank Accounts */}
-              {entity.bank_accounts && entity.bank_accounts.length > 0 && (
-                <GroupBox title={t("sections.bankAccounts")}>
-                  <div className="space-y-1.5 pt-1">
-                    {entity.bank_accounts.map((bank) => (
-                      <div
-                        key={bank.id}
-                        className="flex items-start justify-between rounded border bg-background px-3 py-2"
-                      >
-                        <div className="flex items-start gap-2">
-                          <Landmark className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <p className="text-xs font-medium">{bank.account_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {bank.bank?.name ?? ""} · {bank.account_number}
-                              {bank.branch ? ` · ${bank.branch}` : ""}
-                            </p>
+              {/* Advanced Properties */}
+              {(((entity.phone_numbers ?? []).length > 0) || ((entity.bank_accounts ?? []).length > 0) || hasSalesDefaults) && (
+                <>
+                  <Separator />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Phone Numbers && Bank Accounts */}
+                    <div className="space-y-6">
+                      {(entity.phone_numbers ?? []).length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Phone className="h-4 w-4" />
+                            {t("sections.phoneNumbers")}
+                          </h3>
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableBody>
+                                {entity.phone_numbers?.map((phone) => (
+                                  <TableRow key={phone.id}>
+                                    <TableCell>
+                                      <a
+                                        href={formatWhatsAppLink(phone.phone_number)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary text-sm cursor-pointer hover:underline font-medium"
+                                      >
+                                        {phone.phone_number}
+                                      </a>
+                                    </TableCell>
+                                    <TableCell className="text-sm">{phone.label ?? "-"}</TableCell>
+                                    <TableCell className="text-right">
+                                      {phone.is_primary && (
+                                        <Badge variant="secondary" className="text-[10px]">Primary</Badge>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
                           </div>
                         </div>
-                        {bank.is_primary && (
-                          <Badge variant="default" className="h-4 text-[9px] px-1.5 shrink-0">
-                            Primary
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </GroupBox>
-              )}
+                      )}
 
-              {/* Sales Defaults */}
-              {hasSalesDefaults && (
-                <GroupBox title={t("sections.salesDefaults")}>
-                  {entity.default_business_type && (
-                    <InfoRow
-                      label={t("form.defaultBusinessType")}
-                      value={entity.default_business_type.name}
-                    />
-                  )}
-                  {entity.default_area && (
-                    <InfoRow
-                      label={t("form.defaultArea")}
-                      value={entity.default_area.name}
-                    />
-                  )}
-                  {entity.default_sales_rep && (
-                    <InfoRow
-                      label={t("form.defaultSalesRep")}
-                      value={entity.default_sales_rep.name}
-                    />
-                  )}
-                  {entity.default_payment_terms && (
-                    <InfoRow
-                      label={t("form.defaultPaymentTerms")}
-                      value={entity.default_payment_terms.name}
-                    />
-                  )}
-                  {entity.default_tax_rate != null && (
-                    <InfoRow
-                      label={t("form.defaultTaxRate")}
-                      value={`${entity.default_tax_rate}%`}
-                    />
-                  )}
-                </GroupBox>
+                      {(entity.bank_accounts ?? []).length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                            <Landmark className="h-4 w-4" />
+                            {t("sections.bankAccounts")}
+                          </h3>
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableBody>
+                                {entity.bank_accounts?.map((bank) => (
+                                  <TableRow key={bank.id}>
+                                    <TableCell>
+                                      <p className="font-medium">{bank.account_name}</p>
+                                      <p className="text-sm text-muted-foreground">{bank.bank?.name}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                      <p>{bank.account_number}</p>
+                                      {bank.currency?.code && <p className="text-sm text-muted-foreground">{bank.currency.code}</p>}
+                                      {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {bank.is_primary && (
+                                        <Badge variant="secondary" className="text-[10px]">Primary</Badge>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sales Defaults */}
+                    {hasSalesDefaults && (
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-sm font-semibold mb-3">{t("sections.salesDefaults")}</h3>
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableBody>
+                                {entity.default_business_type && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50 w-48">{t("form.defaultBusinessType")}</TableCell>
+                                    <TableCell>{entity.default_business_type.name}</TableCell>
+                                  </TableRow>
+                                )}
+                                {entity.default_area && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultArea")}</TableCell>
+                                    <TableCell>{entity.default_area.name}</TableCell>
+                                  </TableRow>
+                                )}
+                                {entity.default_sales_rep && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultSalesRep")}</TableCell>
+                                    <TableCell>{entity.default_sales_rep.name}</TableCell>
+                                  </TableRow>
+                                )}
+                                {entity.default_payment_terms && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultPaymentTerms")}</TableCell>
+                                    <TableCell>{entity.default_payment_terms.name}</TableCell>
+                                  </TableRow>
+                                )}
+                                {entity.default_tax_rate != null && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultTaxRate")}</TableCell>
+                                    <TableCell>{entity.default_tax_rate}%</TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
 
               {/* Notes */}
               {entity.notes && (
-                <GroupBox title={t("form.notes")}>
-                  <p className="text-xs whitespace-pre-wrap pt-1">{entity.notes}</p>
-                </GroupBox>
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3">{t("form.notes")}</h3>
+                    <div className="p-4 border rounded-lg bg-muted/10">
+                      <p className="whitespace-pre-wrap">{entity.notes}</p>
+                    </div>
+                  </div>
+                </>
               )}
-            </>
-          )}
-        </div>
+            </TabsContent>
+
+            <TabsContent value="banks" className="py-4">
+              {entity.id && (
+                <CustomerBankList
+                  customerId={entity.id}
+                  banks={entity.bank_accounts ?? []}
+                  isReadOnly={!canManageBanks}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="contacts" className="py-4">
+              {entity.id && <CustomerContactsTab customerId={entity.id} />}
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );

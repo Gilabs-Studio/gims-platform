@@ -11,11 +11,13 @@ import (
 // CRM Settings UUIDs (hex-only: 0-9, a-f)
 const (
 	// Pipeline Stages (prefix: ca)
-	PipelineStageQualificationID = "ca000001-0000-0000-0000-000000000001"
-	PipelineStageProposalID      = "ca000001-0000-0000-0000-000000000002"
-	PipelineStageNegotiationID   = "ca000001-0000-0000-0000-000000000003"
-	PipelineStageClosedWonID     = "ca000001-0000-0000-0000-000000000004"
-	PipelineStageClosedLostID    = "ca000001-0000-0000-0000-000000000005"
+	PipelineStageQualificationID  = "ca000001-0000-0000-0000-000000000001"
+	PipelineStageNeedsAnalysisID  = "ca000001-0000-0000-0000-000000000006"
+	PipelineStageDemoID           = "ca000001-0000-0000-0000-000000000007"
+	PipelineStageProposalID       = "ca000001-0000-0000-0000-000000000002"
+	PipelineStageNegotiationID    = "ca000001-0000-0000-0000-000000000003"
+	PipelineStageClosedWonID      = "ca000001-0000-0000-0000-000000000004"
+	PipelineStageClosedLostID     = "ca000001-0000-0000-0000-000000000005"
 
 	// Lead Sources (prefix: cb)
 	LeadSourceWebsiteID    = "cb000001-0000-0000-0000-000000000001"
@@ -23,12 +25,13 @@ const (
 	LeadSourceColdCallID   = "cb000001-0000-0000-0000-000000000003"
 	LeadSourceExhibitionID = "cb000001-0000-0000-0000-000000000004"
 	LeadSourceSocialMediaID = "cb000001-0000-0000-0000-000000000005"
+	LeadSourceGoogleMapsID = "cb000001-0000-0000-0000-000000000006"
+	LeadSourceLinkedInID   = "cb000001-0000-0000-0000-000000000007"
 
-	// Lead Statuses (prefix: cc)
+	// Lead Statuses (prefix: cc) — "Proposal Sent" removed (tracked in pipeline stages)
 	LeadStatusNewID       = "cc000001-0000-0000-0000-000000000001"
 	LeadStatusContactedID = "cc000001-0000-0000-0000-000000000002"
 	LeadStatusQualifiedID = "cc000001-0000-0000-0000-000000000003"
-	LeadStatusProposalID  = "cc000001-0000-0000-0000-000000000004"
 	LeadStatusConvertedID = "cc000001-0000-0000-0000-000000000005"
 	LeadStatusLostID      = "cc000001-0000-0000-0000-000000000006"
 
@@ -194,12 +197,36 @@ func seedPipelineStages() error {
 			Description: "Initial qualification of the lead or opportunity",
 		},
 		{
+			ID:          PipelineStageNeedsAnalysisID,
+			Name:        "Needs Analysis",
+			Code:        "NEEDS_ANALYSIS",
+			Order:       2,
+			Color:       "#06B6D4",
+			Probability: 35,
+			IsWon:       false,
+			IsLost:      false,
+			IsActive:    true,
+			Description: "Analyzing prospect's specific needs and requirements",
+		},
+		{
+			ID:          PipelineStageDemoID,
+			Name:        "Demo",
+			Code:        "DEMO",
+			Order:       3,
+			Color:       "#14B8A6",
+			Probability: 50,
+			IsWon:       false,
+			IsLost:      false,
+			IsActive:    true,
+			Description: "Product or service demonstration to the prospect",
+		},
+		{
 			ID:          PipelineStageProposalID,
 			Name:        "Proposal",
 			Code:        "PROPOSAL",
-			Order:       2,
+			Order:       4,
 			Color:       "#F59E0B",
-			Probability: 50,
+			Probability: 65,
 			IsWon:       false,
 			IsLost:      false,
 			IsActive:    true,
@@ -209,9 +236,9 @@ func seedPipelineStages() error {
 			ID:          PipelineStageNegotiationID,
 			Name:        "Negotiation",
 			Code:        "NEGOTIATION",
-			Order:       3,
+			Order:       5,
 			Color:       "#8B5CF6",
-			Probability: 75,
+			Probability: 80,
 			IsWon:       false,
 			IsLost:      false,
 			IsActive:    true,
@@ -221,7 +248,7 @@ func seedPipelineStages() error {
 			ID:          PipelineStageClosedWonID,
 			Name:        "Closed Won",
 			Code:        "CLOSED_WON",
-			Order:       4,
+			Order:       6,
 			Color:       "#10B981",
 			Probability: 100,
 			IsWon:       true,
@@ -233,7 +260,7 @@ func seedPipelineStages() error {
 			ID:          PipelineStageClosedLostID,
 			Name:        "Closed Lost",
 			Code:        "CLOSED_LOST",
-			Order:       5,
+			Order:       7,
 			Color:       "#EF4444",
 			Probability: 0,
 			IsWon:       false,
@@ -263,6 +290,8 @@ func seedLeadSources() error {
 		{ID: LeadSourceColdCallID, Name: "Cold Call", Code: "COLD_CALL", Description: "Lead from outbound cold calling", Order: 3, IsActive: true},
 		{ID: LeadSourceExhibitionID, Name: "Exhibition", Code: "EXHIBITION", Description: "Lead from trade show or exhibition", Order: 4, IsActive: true},
 		{ID: LeadSourceSocialMediaID, Name: "Social Media", Code: "SOCIAL_MEDIA", Description: "Lead from social media channels", Order: 5, IsActive: true},
+		{ID: LeadSourceGoogleMapsID, Name: "Google Maps Scraping", Code: "GOOGLE_MAPS", Description: "Lead generated via n8n Google Maps scraping", Order: 6, IsActive: true},
+		{ID: LeadSourceLinkedInID, Name: "LinkedIn Scraping", Code: "LINKEDIN", Description: "Lead generated via n8n LinkedIn scraping", Order: 7, IsActive: true},
 	}
 
 	for _, source := range sources {
@@ -282,10 +311,9 @@ func seedLeadStatuses() error {
 	statuses := []crm.LeadStatus{
 		{ID: LeadStatusNewID, Name: "New", Code: "NEW", Description: "Newly created lead", Score: 10, Color: "#3B82F6", Order: 1, IsActive: true, IsDefault: true, IsConverted: false},
 		{ID: LeadStatusContactedID, Name: "Contacted", Code: "CONTACTED", Description: "Lead has been contacted", Score: 30, Color: "#F59E0B", Order: 2, IsActive: true, IsDefault: false, IsConverted: false},
-		{ID: LeadStatusQualifiedID, Name: "Qualified", Code: "QUALIFIED", Description: "Lead is qualified for opportunity", Score: 50, Color: "#8B5CF6", Order: 3, IsActive: true, IsDefault: false, IsConverted: false},
-		{ID: LeadStatusProposalID, Name: "Proposal Sent", Code: "PROPOSAL_SENT", Description: "Proposal has been sent to lead", Score: 70, Color: "#06B6D4", Order: 4, IsActive: true, IsDefault: false, IsConverted: false},
-		{ID: LeadStatusConvertedID, Name: "Converted", Code: "CONVERTED", Description: "Lead has been converted to customer", Score: 100, Color: "#10B981", Order: 5, IsActive: true, IsDefault: false, IsConverted: true},
-		{ID: LeadStatusLostID, Name: "Lost", Code: "LOST", Description: "Lead has been lost", Score: 0, Color: "#EF4444", Order: 6, IsActive: true, IsDefault: false, IsConverted: false},
+		{ID: LeadStatusQualifiedID, Name: "Qualified", Code: "QUALIFIED", Description: "Lead is qualified for opportunity", Score: 60, Color: "#8B5CF6", Order: 3, IsActive: true, IsDefault: false, IsConverted: false},
+		{ID: LeadStatusConvertedID, Name: "Converted", Code: "CONVERTED", Description: "Lead has been converted to pipeline/deal", Score: 100, Color: "#10B981", Order: 4, IsActive: true, IsDefault: false, IsConverted: true},
+		{ID: LeadStatusLostID, Name: "Lost", Code: "LOST", Description: "Lead has been lost", Score: 0, Color: "#EF4444", Order: 5, IsActive: true, IsDefault: false, IsConverted: false},
 	}
 
 	for _, status := range statuses {

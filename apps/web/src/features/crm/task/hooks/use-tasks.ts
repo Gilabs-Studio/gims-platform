@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taskService } from "../services/task-service";
+import { scheduleKeys } from "../../schedule/hooks/use-schedules";
 import type {
   TaskListParams,
   CreateTaskData,
@@ -50,6 +51,7 @@ export function useCreateTask() {
     mutationFn: (data: CreateTaskData) => taskService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
     },
   });
 }
@@ -61,6 +63,7 @@ export function useUpdateTask() {
       taskService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
     },
   });
 }
@@ -100,6 +103,16 @@ export function useMarkTaskInProgress() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => taskService.markInProgress(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: taskKeys.all });
+    },
+  });
+}
+
+export function useCancelTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => taskService.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
     },
@@ -155,5 +168,24 @@ export function useDeleteReminder() {
       queryClient.invalidateQueries({ queryKey: taskKeys.reminders(variables.taskId) });
       queryClient.invalidateQueries({ queryKey: taskKeys.details() });
     },
+  });
+}
+
+// Scoped task queries for lead/deal detail tabs
+export function useTasksByLead(leadId: string, params?: TaskListParams) {
+  return useQuery({
+    queryKey: taskKeys.list({ lead_id: leadId, per_page: 20, ...params }),
+    queryFn: () => taskService.list({ lead_id: leadId, per_page: 20, ...params }),
+    enabled: !!leadId,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useTasksByDeal(dealId: string, params?: TaskListParams) {
+  return useQuery({
+    queryKey: taskKeys.list({ deal_id: dealId, per_page: 20, ...params }),
+    queryFn: () => taskService.list({ deal_id: dealId, per_page: 20, ...params }),
+    enabled: !!dealId,
+    staleTime: 2 * 60 * 1000,
   });
 }

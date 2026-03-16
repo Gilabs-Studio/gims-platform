@@ -79,6 +79,7 @@ export const navigationConfig: NavItem[] = [
         url: "/master-data/payment-courier",
         icon: "credit-card",
         children: [
+          { name: "Currencies", url: "/master-data/currencies", icon: "coins", permission: "currency.read" },
           { name: "Payment Terms", url: "/master-data/payment-terms", icon: "clock", permission: "payment_term.read" },
           { name: "Courier Agencies", url: "/master-data/courier-agencies", icon: "truck", permission: "courier_agency.read" },
           { name: "SO Sources", url: "/master-data/so-sources", icon: "file-text", permission: "so_source.read" },
@@ -112,7 +113,7 @@ export const navigationConfig: NavItem[] = [
       { name: "Purchase Orders", url: "/purchase/purchase-orders", icon: "shopping-cart", permission: "purchase_order.read" },
       { name: "Goods Receipt", url: "/purchase/goods-receipt", icon: "package", permission: "goods_receipt.read" },
       { name: "Supplier Invoices", url: "/purchase/supplier-invoices", icon: "receipt", permission: "supplier_invoice.read" },
-      { name: "Down Payments", url: "/purchase/supplier-invoice-down-payments", icon: "banknote", permission: "supplier_invoice_dp.read" },
+      { name: "Supplier Invoices DP", url: "/purchase/supplier-invoice-down-payments", icon: "banknote", permission: "supplier_invoice_dp.read" },
       { name: "Payments", url: "/purchase/payments", icon: "credit-card", permission: "purchase_payment.read" },
     ],
   },
@@ -221,9 +222,7 @@ export const navigationConfig: NavItem[] = [
     children: [
       { name: "Leads", url: "/crm/leads", icon: "users", permission: "crm_lead.read" },
       { name: "Pipeline", url: "/crm/pipeline", icon: "kanban", permission: "crm_deal.read" },
-      { name: "Activities", url: "/crm/activities", icon: "activity", permission: "crm_activity.read" },
       { name: "Tasks", url: "/crm/tasks", icon: "check-square", permission: "crm_task.read" },
-      { name: "Schedules", url: "/crm/schedules", icon: "calendar", permission: "crm_schedule.read" },
       { name: "Visit Reports", url: "/crm/visits", icon: "map-pin", permission: "crm_visit.read" },
       { name: "Area Mapping", url: "/crm/area-mapping", icon: "map", permission: "crm_area_mapping.read" },
       { name: "Route Optimization", url: "/crm/routes", icon: "route", permission: "crm_route.read" },
@@ -257,7 +256,7 @@ export const navigationConfig: NavItem[] = [
         permission: "report_sales_overview.read",
       },
       {
-        name: "Product Analysis",
+        name: "Top Product",
         url: "/reports/product-analysis",
         icon: "bar-chart-3",
         permission: "report_product_analysis.read",

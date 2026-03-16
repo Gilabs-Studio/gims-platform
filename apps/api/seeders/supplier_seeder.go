@@ -1,8 +1,10 @@
 package seeders
 
 import (
+	"fmt"
 	"log"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm/clause"
@@ -11,6 +13,15 @@ import (
 // SeedSupplier seeds sample supplier master data
 func SeedSupplier() error {
 	db := database.DB
+	var currencies []coreModels.Currency
+	if err := db.Where("is_active = ?", true).Find(&currencies).Error; err != nil {
+		return err
+	}
+	currencyCodeToID := map[string]string{}
+	for _, currency := range currencies {
+		currencyCodeToID[currency.Code] = currency.ID
+	}
+	defaultCurrencyID := currencyCodeToID["IDR"]
 
 	// 1. Seed Supplier Types
 	log.Println("Seeding supplier types...")
@@ -159,24 +170,31 @@ func SeedSupplier() error {
 			for j := range phones {
 				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&phones[j])
 			}
+		}
 
-			// Add sample bank account
-			var bca models.Bank
-			if db.Where("code = ?", "BCA").First(&bca).Error == nil {
-				bankAccount := models.SupplierBank{
-					SupplierID:    suppliers[i].ID,
-					BankID:        bca.ID,
-					AccountNumber: "1234567890",
-					AccountName:   "PT Pharma Distributor Indonesia",
-					Branch:        "KCP Jababeka",
-					IsPrimary:     true,
-				}
-				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&bankAccount)
+		var bank models.Bank
+		preferredCodes := []string{"BCA", "MANDIRI", "BNI", "BRI", "CIMB", "DANAMON", "PERMATA"}
+		preferredCode := preferredCodes[i%len(preferredCodes)]
+		if db.Where("code = ?", preferredCode).First(&bank).Error != nil {
+			if err := db.Where("is_active = ?", true).First(&bank).Error; err != nil {
+				continue
 			}
+		}
+
+		bankAccount := models.SupplierBank{
+			SupplierID:    suppliers[i].ID,
+			BankID:        bank.ID,
+			CurrencyID:    &defaultCurrencyID,
+			AccountNumber: fmt.Sprintf("7777000000%02d", i+1),
+			AccountName:   suppliers[i].Name,
+			Branch:        "Main Branch",
+			IsPrimary:     true,
+		}
+		if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&bankAccount).Error; err != nil {
+			log.Printf("Warning: failed to seed supplier bank for %s: %v", suppliers[i].Name, err)
 		}
 	}
 
 	log.Println("Supplier data seeded successfully!")
 	return nil
 }
-

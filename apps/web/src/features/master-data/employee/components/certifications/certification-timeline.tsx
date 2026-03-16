@@ -40,13 +40,13 @@ function getCertStatus(cert: EmployeeCertification): CertStatus {
 function getStatusColor(status: CertStatus) {
   switch (status) {
     case "valid":
-      return "bg-emerald-500";
+      return "bg-success";
     case "expiring_soon":
-      return "bg-yellow-500";
+      return "bg-warning";
     case "expired":
-      return "bg-red-500";
+      return "bg-destructive";
     case "no_expiry":
-      return "bg-gray-400";
+      return "bg-mutedgray";
   }
 }
 
@@ -73,20 +73,20 @@ function StatusBadge({
   const badgeMap: Record<CertStatus, { className: string; key: string }> = {
     valid: {
       className:
-        "bg-emerald-500/15 text-emerald-700 border-emerald-500/20",
+        "bg-success/15 text-success border-emerald-500/20",
       key: "certification.status.valid",
     },
     expiring_soon: {
       className:
-        "bg-yellow-500/15 text-yellow-700 border-yellow-500/20",
+        "bg-warning/15 text-warning border-yellow-500/20",
       key: "certification.status.expiringSoon",
     },
     expired: {
-      className: "bg-red-500/15 text-red-700 border-red-500/20",
+      className: "bg-destructive/15 text-destructive border-red-500/20",
       key: "certification.status.expired",
     },
     no_expiry: {
-      className: "bg-gray-500/15 text-gray-700 border-gray-500/20",
+      className: "bg-mutedgray text-muted-foreground border-gray-500/20",
       key: "certification.status.noExpiry",
     },
   };
@@ -218,7 +218,7 @@ export function CertificationTimeline({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer font-medium"
+                            className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer font-medium"
                           >
                             <Download className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="truncate max-w-[300px]">
@@ -247,7 +247,7 @@ export function CertificationTimeline({
                               variant="ghost"
                               size="sm"
                               onClick={() => onDelete(cert)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                              className="text-destructive hover:text-destructive hover:bg-red-50 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1" />
                               {t("certification.actions.delete")}

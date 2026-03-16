@@ -17,11 +17,12 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 	if model == nil {
 		return nil
 	}
-	return &dto.BankAccountResponse{
+	response := &dto.BankAccountResponse{
 		ID:               model.ID,
 		Name:             model.Name,
 		AccountNumber:    model.AccountNumber,
 		AccountHolder:    model.AccountHolder,
+		CurrencyID:       model.CurrencyID,
 		Currency:         model.Currency,
 		ChartOfAccountID: model.ChartOfAccountID,
 		VillageID:        model.VillageID,
@@ -31,6 +32,19 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 		CreatedAt:        model.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        model.UpdatedAt.Format(time.RFC3339),
 	}
+	if model.CurrencyDetail != nil {
+		response.CurrencyDetail = &dto.CurrencyResponse{
+			ID:            model.CurrencyDetail.ID,
+			Code:          model.CurrencyDetail.Code,
+			Name:          model.CurrencyDetail.Name,
+			Symbol:        model.CurrencyDetail.Symbol,
+			DecimalPlaces: model.CurrencyDetail.DecimalPlaces,
+			IsActive:      model.CurrencyDetail.IsActive,
+			CreatedAt:     model.CurrencyDetail.CreatedAt,
+			UpdatedAt:     model.CurrencyDetail.UpdatedAt,
+		}
+	}
+	return response
 }
 
 func (m *BankAccountMapper) ToResponseList(items []models.BankAccount) []*dto.BankAccountResponse {

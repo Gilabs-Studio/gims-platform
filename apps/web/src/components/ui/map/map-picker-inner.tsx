@@ -33,17 +33,18 @@ L.Icon.Default.mergeOptions({
 interface MapPickerInnerProps {
   readonly initialPosition: [number, number];
   readonly onCoordinateSelect: (lat: number, lng: number) => void;
+  readonly defaultZoom?: number;
 }
 
 /**
  * Syncs the map view when the initial position changes (e.g. dialog re-opens
  * at a different location).
  */
-function MapSync({ position }: { readonly position: [number, number] }) {
+function MapSync({ position, defaultZoom }: { readonly position: [number, number]; readonly defaultZoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(position, map.getZoom());
-  }, [map, position]);
+    map.setView(position, map.getZoom() !== defaultZoom ? map.getZoom() : defaultZoom);
+  }, [map, position, defaultZoom]);
   return null;
 }
 
@@ -95,6 +96,7 @@ function ClickHandler({
 export default function MapPickerInner({
   initialPosition,
   onCoordinateSelect,
+  defaultZoom = 13,
 }: MapPickerInnerProps) {
   // Delay rendering interactive children until the map reports ready.
   // This prevents React StrictMode's double-invoke from attempting to add/
@@ -105,7 +107,7 @@ export default function MapPickerInner({
   return (
     <MapContainer
       center={initialPosition}
-      zoom={13}
+      zoom={defaultZoom}
       className="h-full w-full"
       scrollWheelZoom
       touchZoom
@@ -119,7 +121,7 @@ export default function MapPickerInner({
       />
       {mapReady && (
         <>
-          <MapSync position={initialPosition} />
+          <MapSync position={initialPosition} defaultZoom={defaultZoom} />
           <ClickHandler
             initialPosition={initialPosition}
             onCoordinateSelect={onCoordinateSelect}

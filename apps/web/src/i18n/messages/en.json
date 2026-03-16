@@ -44,13 +44,21 @@
     "print": "Print",
     "filterBy": "Filter by",
     "status": "Status",
+    "workflow": "Workflow",
+    "financial": "Financial",
     "supplierInvoice": "Supplier Invoice",
     "supplierInvoiceDP": "Supplier Invoice Down Payment",
     "purchasePayment": "Purchase Payment",
     "purchaseRequisition": "Purchase Requisition",
     "purchaseOrder": "Purchase Order",
     "goodsReceipt": "Goods Receipt",
-    "createdBy": "Created by"
+    "createdBy": "Created by",
+    "days": "days",
+    "validationError": "Please check the form for errors",
+    "myActivities": "My Activities",
+    "add": "Add",
+    "remove": "Remove",
+    "detail": "Detail"
   },
   "notFound": {
     "label": "404",

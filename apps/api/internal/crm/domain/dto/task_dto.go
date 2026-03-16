@@ -11,6 +11,7 @@ type CreateTaskRequest struct {
 	CustomerID  *string `json:"customer_id" binding:"omitempty,uuid"`
 	ContactID   *string `json:"contact_id" binding:"omitempty,uuid"`
 	DealID      *string `json:"deal_id" binding:"omitempty,uuid"`
+	LeadID      *string `json:"lead_id" binding:"omitempty,uuid"`
 }
 
 // UpdateTaskRequest represents the request to update a task (all pointers for partial update)
@@ -24,6 +25,7 @@ type UpdateTaskRequest struct {
 	CustomerID  *string `json:"customer_id" binding:"omitempty,uuid"`
 	ContactID   *string `json:"contact_id" binding:"omitempty,uuid"`
 	DealID      *string `json:"deal_id" binding:"omitempty,uuid"`
+	LeadID      *string `json:"lead_id" binding:"omitempty,uuid"`
 }
 
 // AssignTaskRequest represents the request to assign a task
@@ -51,6 +53,8 @@ type TaskResponse struct {
 	Contact     *TaskContactInfo  `json:"contact,omitempty"`
 	DealID      *string           `json:"deal_id"`
 	Deal        *TaskDealInfo     `json:"deal,omitempty"`
+	LeadID      *string           `json:"lead_id"`
+	Lead        *TaskLeadInfo     `json:"lead,omitempty"`
 	IsOverdue   bool              `json:"is_overdue"`
 	CreatedBy   *string           `json:"created_by"`
 	CreatedAt   string            `json:"created_at"`
@@ -86,12 +90,19 @@ type TaskDealInfo struct {
 	Name string `json:"name"`
 }
 
+// TaskLeadInfo holds compact lead info for task responses
+type TaskLeadInfo struct {
+	ID        string `json:"id"`
+	Code      string `json:"code"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+}
+
 // TaskFormDataResponse returns dropdown options for task forms
 type TaskFormDataResponse struct {
 	Employees []TaskEmployeeOption `json:"employees"`
-	Customers []TaskCustomerOption `json:"customers"`
-	Contacts  []TaskContactOption  `json:"contacts"`
 	Deals     []TaskDealOption     `json:"deals"`
+	Leads     []TaskLeadOption     `json:"leads"`
 }
 
 // TaskEmployeeOption represents an employee option for task forms
@@ -101,25 +112,30 @@ type TaskEmployeeOption struct {
 	Name         string `json:"name"`
 }
 
-// TaskCustomerOption represents a customer option for task forms
-type TaskCustomerOption struct {
-	ID   string `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
-}
-
-// TaskContactOption represents a contact option for task forms
-type TaskContactOption struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
 // TaskDealOption represents a deal option for task forms
 type TaskDealOption struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
 	Name string `json:"name"`
+}
+
+// TaskLeadOption represents a lead option for task forms
+type TaskLeadOption struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// TaskSummaryResponse is a compact task representation for lead/deal detail responses
+type TaskSummaryResponse struct {
+	ID               string            `json:"id"`
+	Title            string            `json:"title"`
+	Type             string            `json:"type"`
+	Status           string            `json:"status"`
+	Priority         string            `json:"priority"`
+	DueDate          *string           `json:"due_date"`
+	IsOverdue        bool              `json:"is_overdue"`
+	AssignedEmployee *TaskEmployeeInfo `json:"assigned_employee,omitempty"`
 }
 
 // CreateReminderRequest represents the request to create a reminder

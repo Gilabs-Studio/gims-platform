@@ -25,12 +25,15 @@ export function useWarehouseList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Warehouse | null>(null);
   const [detailItem, setDetailItem] = useState<Warehouse | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Set when BE rejects delete with WAREHOUSE_HAS_STOCK (422)
+  const [blockedDeleteId, setBlockedDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useWarehouses({
     page,
@@ -58,16 +61,26 @@ export function useWarehouseList() {
     setDetailOpen(true);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteId) return;
-
-    try {
-      await deleteMutation.mutateAsync(deleteId);
-      toast.success(t("warehouse.deleteSuccess"));
-      setDeleteId(null);
-    } catch {
-      toast.error("Failed to delete warehouse");
-    }
+    const idToDelete = deleteId;
+    // Close the confirm dialog immediately before mutation settles
+    setDeleteId(null);
+    deleteMutation.mutate(idToDelete, {
+      onSuccess: () => {
+        toast.success(t("deleteSuccess"));
+      },
+      onError: (error: unknown) => {
+        // BE returns 422 WAREHOUSE_HAS_STOCK when inventory still exists
+        const code = (error as { response?: { data?: { error?: { code?: string } } } })
+          ?.response?.data?.error?.code;
+        if (code === "WAREHOUSE_HAS_STOCK") {
+          setBlockedDeleteId(idToDelete);
+        } else {
+          toast.error(t("deleteError"));
+        }
+      },
+    });
   };
 
   const handleDialogClose = () => {
@@ -85,6 +98,7 @@ export function useWarehouseList() {
       editingItem,
       detailItem,
       deleteId,
+      blockedDeleteId,
     },
     actions: {
       setSearch,
@@ -92,6 +106,7 @@ export function useWarehouseList() {
       setPageSize,
       setDetailOpen,
       setDeleteId,
+      setBlockedDeleteId,
       handleCreate,
       handleEdit,
       handleViewDetail,

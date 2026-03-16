@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MapPin, Eye, Edit, Trash2, Users, Phone, Mail, Loader2 } from "lucide-react";
+import { Landmark, MapPin, Eye, Edit, Trash2, Users, Phone, Mail, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -129,6 +129,7 @@ export function CustomerCard({
   canDelete,
 }: CustomerCardProps) {
   const contactsCount = customer.contacts_count ?? 0;
+  const primaryBank = customer.bank_accounts?.find((b) => b.is_primary) ?? customer.bank_accounts?.[0];
 
   return (
     <div
@@ -178,6 +179,13 @@ export function CustomerCard({
               </Tooltip>
             )}
           </div>
+          {primaryBank && (
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <Landmark className="h-3 w-3 shrink-0" />
+              {primaryBank.bank?.name ?? "Bank"} - {primaryBank.account_number}
+              {primaryBank.currency?.code ? ` (${primaryBank.currency.code})` : ""}
+            </p>
+          )}
         </div>
       </div>
 
@@ -201,7 +209,7 @@ export function CustomerCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors"
+            className="p-1.5 rounded-full hover:bg-accent text-warning hover:text-warning transition-colors"
             title={t("common.edit")}
           >
             <Edit className="h-3.5 w-3.5" />
@@ -213,7 +221,7 @@ export function CustomerCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-red-500 hover:text-red-600 transition-colors"
+            className="p-1.5 rounded-full hover:bg-accent text-destructive hover:text-destructive transition-colors"
             title={t("common.delete")}
           >
             <Trash2 className="h-3.5 w-3.5" />

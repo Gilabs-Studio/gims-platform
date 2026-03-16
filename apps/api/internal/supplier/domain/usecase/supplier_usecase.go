@@ -115,6 +115,7 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 			ID:            uuid.New().String(),
 			SupplierID:    supplier.ID,
 			BankID:        bank.BankID,
+			CurrencyID:    &bank.CurrencyID,
 			AccountNumber: bank.AccountNumber,
 			AccountName:   bank.AccountName,
 			Branch:        bank.Branch,
@@ -375,6 +376,7 @@ func (u *supplierUsecase) AddBankAccount(ctx context.Context, supplierID string,
 		ID:            uuid.New().String(),
 		SupplierID:    supplierID,
 		BankID:        req.BankID,
+		CurrencyID:    &req.CurrencyID,
 		AccountNumber: req.AccountNumber,
 		AccountName:   req.AccountName,
 		Branch:        req.Branch,
@@ -389,6 +391,7 @@ func (u *supplierUsecase) AddBankAccount(ctx context.Context, supplierID string,
 		ID:            bank.ID,
 		SupplierID:    bank.SupplierID,
 		BankID:        bank.BankID,
+		CurrencyID:    bank.CurrencyID,
 		AccountNumber: bank.AccountNumber,
 		AccountName:   bank.AccountName,
 		Branch:        bank.Branch,
@@ -402,6 +405,9 @@ func (u *supplierUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 	bank := &models.SupplierBank{ID: id}
 	if req.BankID != "" {
 		bank.BankID = req.BankID
+	}
+	if req.CurrencyID != "" {
+		bank.CurrencyID = &req.CurrencyID
 	}
 	if req.AccountNumber != "" {
 		bank.AccountNumber = req.AccountNumber
@@ -423,6 +429,7 @@ func (u *supplierUsecase) UpdateBankAccount(ctx context.Context, id string, req 
 	return dto.SupplierBankResponse{
 		ID:            bank.ID,
 		BankID:        bank.BankID,
+		CurrencyID:    bank.CurrencyID,
 		AccountNumber: bank.AccountNumber,
 		AccountName:   bank.AccountName,
 		Branch:        bank.Branch,

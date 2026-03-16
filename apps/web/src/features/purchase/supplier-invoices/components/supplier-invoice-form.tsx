@@ -30,6 +30,7 @@ import {
   useSupplierInvoiceAddData,
   useUpdateSupplierInvoice,
 } from "../hooks/use-supplier-invoices";
+import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import {
   supplierInvoiceSchema,
   type SupplierInvoiceFormData,
@@ -39,6 +40,17 @@ import {
 type PaymentTermOption = { id: string; name: string; code?: string };
 type ProductRef = { id?: string; name?: string; code?: string };
 
+// Purchase Order item shape (narrowed) used when mapping PO -> invoice items
+type POItem = {
+  product_id: string;
+  product?: ProductRef | null;
+  quantity: number;
+  price: number;
+  discount?: number | null;
+};
+
+type InvoiceItem = SupplierInvoiceFormData["items"][number];
+
 type QuickCreateType = "paymentTerm" | null;
 
 const NONE_VALUE = "__none__";
@@ -47,10 +59,16 @@ export function SupplierInvoiceFormDialog({
   open,
   onOpenChange,
   invoiceId,
+  defaultPurchaseOrderId,
+  defaultGoodsReceiptId,
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
+  defaultPurchaseOrderId?: string | null;
+  defaultGoodsReceiptId?: string | null;
+  onSuccess?: (invoiceId: string) => void;
 }) {
   const t = useTranslations("supplierInvoice");
   const isEdit = !!invoiceId;
@@ -62,6 +80,7 @@ export function SupplierInvoiceFormDialog({
 
   const addDataQuery = useSupplierInvoiceAddData({ enabled: open });
   const detailQuery = useSupplierInvoice(invoiceId ?? "", { enabled: open && isEdit });
+  const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
 
   const createMutation = useCreateSupplierInvoice();
   const updateMutation = useUpdateSupplierInvoice();
@@ -69,7 +88,7 @@ export function SupplierInvoiceFormDialog({
   const form = useForm<SupplierInvoiceFormData>({
     resolver: zodResolver(supplierInvoiceSchema),
     defaultValues: {
-      purchase_order_id: "",
+      goods_receipt_id: "",
       payment_terms_id: "",
       invoice_number: "",
       invoice_date: "",
@@ -92,21 +111,28 @@ export function SupplierInvoiceFormDialog({
     return list;
   }, [paymentTerms, detailQuery.data?.data?.payment_terms]);
 
-  const selectedPOId = form.watch("purchase_order_id");
+  const selectedGRId = form.watch("goods_receipt_id");
   const setFormValue = form.setValue;
 
-  const selectedPO = useMemo(() => {
-    if (!addData?.purchase_orders?.length || !selectedPOId) return null;
-    return addData.purchase_orders.find((po) => po.id === selectedPOId) ?? null;
-  }, [addData?.purchase_orders, selectedPOId]);
+  const filteredGRs = useMemo(() => {
+    const all = addData?.goods_receipts ?? [];
+    if (!defaultPurchaseOrderId) return all;
+    return all.filter((gr) => gr.purchase_order?.id === defaultPurchaseOrderId);
+  }, [addData?.goods_receipts, defaultPurchaseOrderId]);
+
+  const selectedGR = useMemo(() => {
+    if (!addData?.goods_receipts?.length || !selectedGRId) return null;
+    return addData.goods_receipts.find((gr) => gr.id === selectedGRId) ?? null;
+  }, [addData?.goods_receipts, selectedGRId]);
 
   useEffect(() => {
     if (!open) return;
     setActiveTab("basic");
 
     if (!isEdit) {
-      form.reset({
-        purchase_order_id: "",
+      // Base initial values
+      const initial: SupplierInvoiceFormData = {
+        goods_receipt_id: defaultGoodsReceiptId ?? "",
         payment_terms_id: "",
         invoice_number: "",
         invoice_date: "",
@@ -115,8 +141,37 @@ export function SupplierInvoiceFormDialog({
         delivery_cost: 0,
         other_cost: 0,
         notes: null,
-        items: [],
-      });
+        items: [] as InvoiceItem[],
+      };
+
+      // If opened from a PO without a preselected GR, try to auto-fill from PO
+      if (defaultPurchaseOrderId && !defaultGoodsReceiptId) {
+        // If there's exactly one GR for that PO, select it so the GR-based autofill runs
+        if (filteredGRs.length === 1) {
+          initial.goods_receipt_id = filteredGRs[0].id;
+        } else {
+          const po = poQuery.data?.success ? poQuery.data.data : null;
+          if (po) {
+            initial.payment_terms_id = (po.payment_terms as PaymentTermOption | undefined)?.id ?? "";
+            initial.tax_rate = po.tax_rate ?? 0;
+            initial.delivery_cost = po.delivery_cost ?? 0;
+            initial.other_cost = po.other_cost ?? 0;
+            initial.items = (po.items ?? []).map((it) => {
+              const prod = it.product as ProductRef | undefined;
+              return {
+                product_id: it.product_id,
+                product_name: prod?.name ?? "",
+                product_code: prod?.code ?? "",
+                quantity: it.quantity,
+                price: it.price,
+                discount: it.discount ?? 0,
+              };
+            });
+          }
+        }
+      }
+
+      form.reset(initial);
       return;
     }
 
@@ -124,7 +179,7 @@ export function SupplierInvoiceFormDialog({
     if (!detail) return;
 
     form.reset({
-      purchase_order_id: detail.purchase_order?.id ?? "",
+      goods_receipt_id: detail.goods_receipt?.id ?? "",
       payment_terms_id: detail.payment_terms?.id ?? "",
       invoice_number: detail.invoice_number,
       invoice_date: detail.invoice_date,
@@ -142,21 +197,28 @@ export function SupplierInvoiceFormDialog({
         discount: it.discount,
       })),
     });
-  }, [open, isEdit, detailQuery.data, form]);
+  }, [open, isEdit, detailQuery.data, form, defaultGoodsReceiptId, defaultPurchaseOrderId, filteredGRs, poQuery.data]);
 
   useEffect(() => {
-    if (!open || isEdit || !selectedPO) return;
+    if (!open || isEdit || !selectedGR) return;
     setFormValue(
       "items",
-      selectedPO.items.map((it) => ({
+      selectedGR.items.map((it) => ({
         product_id: it.product?.id ?? "",
-        quantity: it.quantity,
+        product_name: it.product?.name ?? "",
+        product_code: it.product?.code ?? "",
+        quantity: it.quantity_remaining,
         price: it.price,
         discount: 0,
-      })),
+      })).filter(it => it.quantity > 0),
       { shouldValidate: true },
     );
-  }, [open, isEdit, selectedPO, setFormValue]);
+    // Auto-fill payment terms from the GR's linked PO when not already set
+    const currentPT = form.getValues("payment_terms_id");
+    if (!currentPT && selectedGR.default_payment_terms_id) {
+      setFormValue("payment_terms_id", selectedGR.default_payment_terms_id, { shouldValidate: true });
+    }
+  }, [open, isEdit, selectedGR, setFormValue, form]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
     form.setValue("payment_terms_id", item.id, { shouldValidate: true });
@@ -195,12 +257,16 @@ export function SupplierInvoiceFormDialog({
         const response = await updateMutation.mutateAsync({ id: invoiceId, data: cleaned });
         if (!response.success) throw new Error(response.error ?? "update_failed");
         toast.success(t("toast.updated"));
+        onOpenChange(false);
       } else {
         const response = await createMutation.mutateAsync(cleaned);
         if (!response.success) throw new Error(response.error ?? "create_failed");
         toast.success(t("toast.created"));
+        onOpenChange(false);
+        if (response.data?.id) {
+          onSuccess?.(response.data.id);
+        }
       }
-      onOpenChange(false);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -221,19 +287,40 @@ export function SupplierInvoiceFormDialog({
             <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
           </TabsList>
 
-          <form className="space-y-6 mt-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <form
+            className="space-y-6 mt-4"
+            onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              // If there are validation errors, switch to the tab containing the first error
+              if (!errors) return;
+              // Basic tab fields
+              const basicFields = ["goods_receipt_id", "payment_terms_id", "invoice_number", "invoice_date", "due_date"];
+              const errorKeys = Object.keys(errors || {}) as string[];
+              // If any basic field has error, focus basic tab
+              if (errorKeys.some((k) => basicFields.includes(k))) {
+                setActiveTab("basic");
+                return;
+              }
+              // If items has errors, focus items tab
+              if (errorKeys.includes("items")) {
+                setActiveTab("items");
+                return;
+              }
+              // Default to basic
+              setActiveTab("basic");
+            })}
+          >
             <TabsContent value="basic" className="space-y-4 mt-0">
               <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
                 <FileText className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-medium">{t("sections.invoiceInfo") || "Invoice Info"}</h3>
               </div>
 
-              {/* Purchase Order — full width */}
+              {/* Goods Receipt — full width */}
               <Field orientation="vertical">
-                <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                <FieldLabel>{t("fields.goodsReceipt") || "Goods Receipt"}</FieldLabel>
                 <Select
-                  value={selectedPOId}
-                  onValueChange={(value) => setFormValue("purchase_order_id", value, { shouldValidate: true })}
+                  value={selectedGRId}
+                  onValueChange={(value) => setFormValue("goods_receipt_id", value, { shouldValidate: true })}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
@@ -241,16 +328,21 @@ export function SupplierInvoiceFormDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                    {(addData?.purchase_orders ?? []).map((po) => (
-                      <SelectItem key={po.id} value={po.id} className="cursor-pointer">{po.code}</SelectItem>
+                  {filteredGRs.map((gr) => (
+                      <SelectItem key={gr.id} value={gr.id} className="cursor-pointer">
+                        {gr.code}{gr.purchase_order ? ` (PO: ${gr.purchase_order.code})` : ""}{gr.supplier ? ` - ${gr.supplier.name}` : ""}
+                      </SelectItem>
                     ))}
-                    {isEdit && detailQuery.data?.data?.purchase_order && !(addData?.purchase_orders ?? []).some((x) => x.id === detailQuery.data?.data?.purchase_order?.id) && (
-                      <SelectItem value={detailQuery.data.data.purchase_order.id} className="cursor-pointer">
-                        {detailQuery.data.data.purchase_order.code}
+                    {isEdit && detailQuery.data?.data?.goods_receipt && !filteredGRs.some((x) => x.id === detailQuery.data?.data?.goods_receipt?.id) && (
+                      <SelectItem value={detailQuery.data.data.goods_receipt.id} className="cursor-pointer">
+                        {detailQuery.data.data.goods_receipt.code}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.goods_receipt_id && (
+                  <p className="text-sm text-destructive mt-1">{form.formState.errors.goods_receipt_id.message}</p>
+                )}
               </Field>
 
               {/* Payment Terms + Invoice Number — paired row */}
@@ -272,6 +364,9 @@ export function SupplierInvoiceFormDialog({
                       />
                     )}
                   />
+                  {form.formState.errors.payment_terms_id && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.payment_terms_id.message}</p>
+                  )}
                 </Field>
 
                 <Field orientation="vertical">
@@ -281,6 +376,9 @@ export function SupplierInvoiceFormDialog({
                     onChange={(e) => setFormValue("invoice_number", e.target.value, { shouldValidate: true })}
                     disabled={isBusy}
                   />
+                  {form.formState.errors.invoice_number && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_number.message}</p>
+                  )}
                 </Field>
               </div>
 
@@ -317,6 +415,9 @@ export function SupplierInvoiceFormDialog({
                       </Popover>
                     )}
                   />
+                  {form.formState.errors.invoice_date && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_date.message}</p>
+                  )}
                 </Field>
 
                 <Field orientation="vertical">
@@ -350,6 +451,9 @@ export function SupplierInvoiceFormDialog({
                       </Popover>
                     )}
                   />
+                  {form.formState.errors.due_date && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.due_date.message}</p>
+                  )}
                 </Field>
               </div>
 
@@ -430,8 +534,8 @@ export function SupplierInvoiceFormDialog({
                                             <div className="col-span-2">
                                                 <FieldLabel>{t("items.fields.product")}</FieldLabel>
                                                 <div className="mt-1 p-2 rounded-md bg-muted/50 text-sm">
-                                                    <p className="font-medium">{(row as { product_code?: string; product_name?: string }).product_code || row.product_id}</p>
-                                                    <p className="text-xs text-muted-foreground">{(row as { product_code?: string; product_name?: string }).product_name || ""}</p>
+                                                    <p className="font-medium">{(row as { product_code?: string; product_name?: string }).product_name || (row as { product_code?: string }).product_code || row.product_id}</p>
+                                                    <p className="text-xs text-muted-foreground">{(row as { product_code?: string }).product_code ?? ""}</p>
                                                 </div>
                                             </div>
 
@@ -439,6 +543,7 @@ export function SupplierInvoiceFormDialog({
                                                 <FieldLabel>{t("items.fields.quantity")}</FieldLabel>
                                                 <NumericInput
                                                     value={row.quantity ?? 0}
+                                                    max={selectedGR?.items.find(x => x.product?.id === row.product_id)?.quantity_remaining}
                                                     onChange={(v) => {
                                                       const items = form.getValues("items");
                                                       items[idx] = { ...items[idx], quantity: v ?? 0 };
@@ -525,15 +630,22 @@ export function SupplierInvoiceFormDialog({
                     <Button type="button" variant="outline" onClick={() => setActiveTab("basic")} className="cursor-pointer">
                         {t("actions.back") || "Back"}
                     </Button>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
-                            {t("actions.cancel")}
-                        </Button>
-                        <Button type="submit" disabled={isBusy} className="cursor-pointer">
-                            <ButtonLoading loading={isBusy}>
-                                {t("actions.save")}
-                            </ButtonLoading>
-                        </Button>
+                    <div className="flex flex-col items-end gap-2">
+                        {form.formState.errors.items && (
+                          <p className="text-sm text-destructive">
+                            {(form.formState.errors.items as { message?: string }).message ?? "At least one item is required"}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy} className="cursor-pointer">
+                                {t("actions.cancel")}
+                            </Button>
+                            <Button type="submit" disabled={isBusy} className="cursor-pointer">
+                                <ButtonLoading loading={isBusy}>
+                                    {t("actions.save")}
+                                </ButtonLoading>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </TabsContent>

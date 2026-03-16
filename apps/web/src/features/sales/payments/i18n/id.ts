@@ -10,6 +10,7 @@ export const salesPaymentId = {
   },
   actions: {
     create: "Buat",
+    change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
     view: "Lihat",
@@ -26,11 +27,17 @@ export const salesPaymentId = {
     cash: "Tunai",
   },
   form: {
+    amountLockedHint: "Jumlah sudah diisi otomatis dan tidak dapat diubah.",
+    amountHandledBySystem: "Jumlah ditentukan dan diproses oleh sistem.",
+    amountRequired: "Jumlah diperlukan.",
     title: "Buat Pembayaran",
     submit: "Simpan",
     cancel: "Batal",
   },
   fields: {
+    code: "Pembayaran #",
+    downPayment: "Down Payment",
+    paymentDetails: "Detail Pembayaran",
     invoice: "Invoice",
     bankAccount: "Rekening Bank",
     paymentDate: "Tanggal Pembayaran",
@@ -42,6 +49,7 @@ export const salesPaymentId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
   overview: {
     title: "Ringkasan Tagihan",
@@ -73,6 +81,9 @@ export const salesPaymentId = {
       print: "Cetak",
     },
   },
+
+  notFound: "Tidak ada pembayaran",
+  forbidden: "Anda tidak memiliki izin untuk melihat pembayaran.",
 
   // Print dialog
   print: "Cetak",

@@ -49,6 +49,7 @@ func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.S
 		Preload("Village.District.City.Province").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
+		Preload("BankAccounts.Currency").
 		First(&supplier, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -126,7 +127,8 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 		Preload("District").
 		Preload("SupplierType").
 		Preload("PhoneNumbers").
-		Preload("BankAccounts.Bank")
+		Preload("BankAccounts.Bank").
+		Preload("BankAccounts.Currency")
 
 	if err := query.Find(&suppliers).Error; err != nil {
 		return nil, 0, err

@@ -65,6 +65,8 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
         return {
           name: b.name ?? "",
           description: b.description ?? "",
+          department: b.department ?? "",
+          fiscal_year: b.fiscal_year ?? "",
           start_date: (b.start_date ?? "").slice(0, 10) || todayISO(),
           end_date: (b.end_date ?? "").slice(0, 10) || todayISO(),
           items: (b.items ?? []).map((it) => ({
@@ -79,6 +81,8 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
     return {
       name: "",
       description: "",
+      department: "",
+      fiscal_year: String(new Date().getFullYear()),
       start_date: todayISO(),
       end_date: todayISO(),
       items: [{ chart_of_account_id: "", amount: 0, memo: "" }],
@@ -105,6 +109,8 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
       const payload = {
         name: values.name,
         description: values.description ?? "",
+        department: values.department ?? undefined,
+        fiscal_year: values.fiscal_year ?? undefined,
         start_date: values.start_date,
         end_date: values.end_date,
         items: values.items.map((it) => ({
@@ -142,35 +148,62 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
             <Skeleton className="h-40 w-full" />
           </div>
         ) : (
-          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">{t("fields.name")}</Label>
-                <Input id="name" {...form.register("name")} />
+          <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+            {/* Section: Budget Header */}
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-muted-foreground border-b pb-1">{t("form.headerSection")}</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">{t("fields.name")}</Label>
+                  <Input id="name" {...form.register("name")} placeholder={t("fields.name")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">{t("fields.description")}</Label>
+                  <Input id="description" {...form.register("description")} placeholder={t("fields.description")} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">{t("fields.description")}</Label>
-                <Input id="description" {...form.register("description")} />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">{t("fields.department")}</Label>
+                  <Input
+                    id="department"
+                    {...form.register("department")}
+                    placeholder={t("placeholders.department")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fiscal_year">{t("fields.fiscalYear")}</Label>
+                  <Input
+                    id="fiscal_year"
+                    {...form.register("fiscal_year")}
+                    placeholder={t("placeholders.fiscalYear")}
+                    maxLength={4}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start_date">{t("fields.startDate")}</Label>
+                  <Input id="start_date" type="date" {...form.register("start_date")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end_date">{t("fields.endDate")}</Label>
+                  <Input id="end_date" type="date" {...form.register("end_date")} />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start_date">{t("fields.startDate")}</Label>
-                <Input id="start_date" type="date" {...form.register("start_date")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="end_date">{t("fields.endDate")}</Label>
-                <Input id="end_date" type="date" {...form.register("end_date")} />
-              </div>
-            </div>
-
-            <div className="rounded-md border">
-              <div className="flex items-center justify-between p-3 border-b">
-                <div className="text-sm font-medium">{t("title")}</div>
+            {/* Section: Budget Lines */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b pb-1">
+                <p className="text-sm font-semibold text-muted-foreground">{t("form.linesSection")}</p>
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   className="cursor-pointer"
                   onClick={() => append({ chart_of_account_id: "", amount: 0, memo: "" })}
                 >
@@ -179,7 +212,7 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
                 </Button>
               </div>
 
-              <div className="p-3 space-y-3">
+              <div className="space-y-3">
                 {fields.map((f, idx) => (
                   <div key={f.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     <div className="md:col-span-6 space-y-1">

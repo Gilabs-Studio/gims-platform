@@ -123,4 +123,25 @@ export const dealService = {
     );
     return response.data;
   },
+
+  softDeleteItem: async (
+    dealId: string,
+    itemId: string
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete<ApiResponse<null>>(
+      `${BASE_URL}/${dealId}/items/${itemId}`
+    );
+    return response.data;
+  },
+
+  restoreItem: async (
+    dealId: string,
+    itemId: string
+  ): Promise<ApiResponse<null>> => {
+    const response = await apiClient.post<ApiResponse<null>>(
+      `${BASE_URL}/${dealId}/items/${itemId}/restore`,
+      {}
+    );
+    return response.data;
+  },
 };

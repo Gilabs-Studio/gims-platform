@@ -12,6 +12,7 @@ import (
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
+	general "github.com/gilabs/gims/api/internal/general/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
@@ -112,6 +113,7 @@ func AutoMigrate() error {
 		&core.CourierAgency{},
 		&core.SOSource{},
 		&core.LeaveType{},
+		&core.Currency{},
 		&core.BankAccount{},
 		// Finance entities (Sprint 10)
 		&finance.ChartOfAccount{},
@@ -215,6 +217,7 @@ func AutoMigrate() error {
 		&crm.Contact{},
 		// CRM Lead entity (Sprint 19)
 		&crm.Lead{},
+		&crm.LeadProductItem{},
 		// CRM Deal entities (Sprint 20)
 		&crm.Deal{},
 		&crm.DealProductItem{},
@@ -231,6 +234,8 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
+		// General: user dashboard layout preferences
+		&general.DashboardLayout{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

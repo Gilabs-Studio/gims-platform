@@ -1,5 +1,5 @@
 export const supplierInvoiceDPEn = {
-  title: "Supplier Invoice Down Payments",
+  title: "Supplier Invoice DP",
   description: "Create down payment invoices for purchase orders.",
   search: "Search by code, invoice number...",
   toast: {
@@ -34,6 +34,7 @@ export const supplierInvoiceDPEn = {
   },
   sections: {
     invoiceInfo: "Invoice Info",
+    poDetail: "Purchase Order Detail",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -42,6 +43,14 @@ export const supplierInvoiceDPEn = {
     amount: "Amount",
     notes: "Notes",
     status: "Status",
+    supplier: "Supplier",
+    orderDate: "Order Date",
+    totalAmount: "Total Amount",
+    product: "Product",
+    quantity: "Qty",
+    price: "Price",
+    subtotal: "Subtotal",
+    items: "Items",
   },
   columns: {
     code: "Code",
@@ -51,9 +60,12 @@ export const supplierInvoiceDPEn = {
     dueDate: "Due Date",
     purchaseOrder: "PO",
     amount: "Amount",
+    remainingAmount: "Remaining",
     status: "Status",
     createdAt: "Created At",
   },
+  notFound: "No down payment invoices found",
+  paidAmount: "Paid",
   status: {
     draft: "Draft",
     submitted: "Submitted",
@@ -61,11 +73,13 @@ export const supplierInvoiceDPEn = {
     rejected: "Rejected",
     cancelled: "Cancelled",
     unpaid: "Unpaid",
+    waiting_payment: "Waiting Payment",
     partial: "Partial",
     paid: "Paid",
   },
   actions: {
     create: "Create",
+    createPayment: "Create Payment",
     export: "Export",
     view: "View",
     edit: "Edit",
@@ -82,6 +96,11 @@ export const supplierInvoiceDPEn = {
   placeholders: {
     select: "Select...",
     pickDate: "Pick a date",
+  },
+  common: {
+    view: "View",
+    cancel: "Cancel",
+    error: "Something went wrong",
   },
   // Print dialog
   print: "Print",

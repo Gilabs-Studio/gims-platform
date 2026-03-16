@@ -5,7 +5,6 @@ export const goodsReceiptId = {
   toast: {
     created: "Penerimaan barang berhasil dibuat",
     updated: "Penerimaan barang berhasil diperbarui",
-    confirmed: "Penerimaan barang berhasil dikonfirmasi",
     submitted: "Penerimaan barang berhasil diajukan untuk persetujuan",
     approved: "Penerimaan barang berhasil disetujui",
     rejected: "Penerimaan barang ditolak",
@@ -54,6 +53,7 @@ export const goodsReceiptId = {
     workflowHistory: "Riwayat Alur Kerja",
   },
   fields: {
+    code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Tanggal Terima",
     supplier: "Supplier",
@@ -72,6 +72,7 @@ export const goodsReceiptId = {
       product: "Produk",
       orderedQty: "Dipesan",
       receivedQty: "Diterima",
+      remainingQty: "Sisa",
       notes: "Catatan",
     },
   },
@@ -88,9 +89,9 @@ export const goodsReceiptId = {
     draft: "Draft",
     submitted: "Diajukan",
     approved: "Disetujui",
+    partial: "Parsial",
     closed: "Ditutup",
     rejected: "Ditolak",
-    confirmed: "Terkonfirmasi",
   },
   actions: {
     create: "Buat",

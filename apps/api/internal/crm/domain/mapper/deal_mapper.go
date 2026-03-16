@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -9,30 +11,32 @@ import (
 // ToDealResponse converts a Deal model to DealResponse DTO
 func ToDealResponse(deal *models.Deal) dto.DealResponse {
 	resp := dto.DealResponse{
-		ID:              deal.ID,
-		Code:            deal.Code,
-		Title:           deal.Title,
-		Description:     deal.Description,
-		Status:          string(deal.Status),
-		PipelineStageID: deal.PipelineStageID,
-		Value:           deal.Value,
-		Probability:     deal.Probability,
-		CloseReason:     deal.CloseReason,
-		CustomerID:      deal.CustomerID,
-		ContactID:       deal.ContactID,
-		AssignedTo:      deal.AssignedTo,
-		LeadID:          deal.LeadID,
-		BudgetConfirmed: deal.BudgetConfirmed,
-		BudgetAmount:    deal.BudgetAmount,
-		AuthConfirmed:   deal.AuthConfirmed,
-		AuthPerson:      deal.AuthPerson,
-		NeedConfirmed:   deal.NeedConfirmed,
-		NeedDescription: deal.NeedDescription,
-		TimeConfirmed:   deal.TimeConfirmed,
-		Notes:           deal.Notes,
-		CreatedBy:       deal.CreatedBy,
-		CreatedAt:       deal.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
-		UpdatedAt:       deal.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
+		ID:                   deal.ID,
+		Code:                 deal.Code,
+		Title:                deal.Title,
+		Description:          deal.Description,
+		Status:               string(deal.Status),
+		PipelineStageID:      deal.PipelineStageID,
+		Value:                deal.Value,
+		Probability:          deal.Probability,
+		CloseReason:          deal.CloseReason,
+		CustomerID:           deal.CustomerID,
+		ContactID:            deal.ContactID,
+		AssignedTo:           deal.AssignedTo,
+		LeadID:               deal.LeadID,
+		BankAccountID:        deal.BankAccountID,
+		BankAccountReference: deal.BankAccountReference,
+		BudgetConfirmed:      deal.BudgetConfirmed,
+		BudgetAmount:         deal.BudgetAmount,
+		AuthConfirmed:        deal.AuthConfirmed,
+		AuthPerson:           deal.AuthPerson,
+		NeedConfirmed:        deal.NeedConfirmed,
+		NeedDescription:      deal.NeedDescription,
+		TimeConfirmed:        deal.TimeConfirmed,
+		Notes:                deal.Notes,
+		CreatedBy:            deal.CreatedBy,
+		CreatedAt:            deal.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		UpdatedAt:            deal.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
 	}
 
 	if deal.ExpectedCloseDate != nil {
@@ -72,12 +76,45 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 		}
 	}
 
+	// If no customer linked but the deal has lead info, expose a snapshot
+	// of the potential customer (no customer ID) so UI can display prospect name.
+	if resp.Customer == nil && deal.Lead != nil {
+		name := deal.Lead.CompanyName
+		if name == "" {
+			name = strings.TrimSpace(deal.Lead.FirstName + " " + deal.Lead.LastName)
+		}
+		if name != "" {
+			resp.Customer = &dto.DealCustomerInfo{
+				ID:   "",
+				Code: deal.Lead.Code,
+				Name: name,
+			}
+		}
+	}
+
 	if deal.Contact != nil {
 		resp.Contact = &dto.DealContactInfo{
 			ID:    deal.Contact.ID,
 			Name:  deal.Contact.Name,
 			Phone: deal.Contact.Phone,
 			Email: deal.Contact.Email,
+		}
+	}
+
+	// If no contact linked but lead has person info, expose a snapshot contact
+	if resp.Contact == nil && deal.Lead != nil {
+		contactName := strings.TrimSpace(deal.Lead.FirstName + " " + deal.Lead.LastName)
+		if contactName == "" && deal.Lead.CompanyName != "" {
+			// fallback to company as contact name when person not provided
+			contactName = deal.Lead.CompanyName
+		}
+		if contactName != "" || deal.Lead.Phone != "" || deal.Lead.Email != "" {
+			resp.Contact = &dto.DealContactInfo{
+				ID:    "",
+				Name:  contactName,
+				Phone: deal.Lead.Phone,
+				Email: deal.Lead.Email,
+			}
 		}
 	}
 
@@ -96,6 +133,13 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 			FirstName:   deal.Lead.FirstName,
 			LastName:    deal.Lead.LastName,
 			CompanyName: deal.Lead.CompanyName,
+			Phone:       deal.Lead.Phone,
+			Email:       deal.Lead.Email,
+			Address:     deal.Lead.Address,
+			City:        deal.Lead.City,
+			Province:    deal.Lead.Province,
+			Latitude:    deal.Lead.Latitude,
+			Longitude:   deal.Lead.Longitude,
 		}
 	}
 
@@ -114,7 +158,13 @@ func ToDealResponse(deal *models.Deal) dto.DealResponse {
 			DiscountAmount:  item.DiscountAmount,
 			Subtotal:        item.Subtotal,
 			Notes:           item.Notes,
+			InterestLevel:   item.InterestLevel,
+			IsDeleted:       item.DeletedAt.Valid,
 		})
+	}
+
+	if len(deal.Tasks) > 0 {
+		resp.Tasks = ToTaskSummaryResponseList(deal.Tasks)
 	}
 
 	return resp

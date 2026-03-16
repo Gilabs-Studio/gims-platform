@@ -237,7 +237,7 @@ export function NonTradePayablesList() {
                         )}
                         {item.status === "DRAFT" && canApprove && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => handleApprove(item.id)}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -246,7 +246,7 @@ export function NonTradePayablesList() {
                         )}
                         {item.status === "APPROVED" && canApprove && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => setPaying(item)}
                           >
                             <Banknote className="h-4 w-4 mr-2" />

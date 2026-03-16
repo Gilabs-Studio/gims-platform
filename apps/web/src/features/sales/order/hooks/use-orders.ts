@@ -111,10 +111,33 @@ export function useUpdateOrderStatus() {
       id: string;
       data: UpdateSalesOrderStatusData;
     }) => orderService.updateStatus(id, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: orderKeys.detail(variables.id),
+    onMutate: async (variables) => {
+      const { id, data } = variables;
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+
+      const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
+
+      // Optimistically update list entries
+      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: data.status } : order)),
+        };
       });
+
+      return { previous };
+    },
+    onError: (_err, _variables, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(orderKeys.lists(), context.previous);
+      }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
   });
@@ -126,8 +149,28 @@ export function useApproveOrder() {
 
   return useMutation({
     mutationFn: (id: string) => orderService.approve(id),
-    onSuccess: (_, id) => {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+      const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
+      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: "approved" } : order)),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _id, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(orderKeys.lists(), context.previous);
+      }
+    },
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
     },
   });

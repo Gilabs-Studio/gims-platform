@@ -1,6 +1,6 @@
 export const supplierInvoiceId = {
   title: "Faktur Supplier",
-  description: "Buat faktur untuk purchase order yang sudah disetujui.",
+  description: "Buat faktur dari goods receipt yang sudah ditutup.",
   search: "Cari berdasarkan kode, nomor faktur...",
   toast: {
     created: "Faktur supplier berhasil dibuat",
@@ -24,6 +24,7 @@ export const supplierInvoiceId = {
   },
   sections: {
     invoiceInfo: "Informasi Faktur",
+    supplier: "Supplier",
     financial: "Ringkasan Keuangan",
   },
   auditTrail: {
@@ -52,6 +53,8 @@ export const supplierInvoiceId = {
   },
   fields: {
     purchaseOrder: "Purchase Order",
+    goodsReceipt: "Goods Receipt",
+    supplier: "Supplier",
     paymentTerms: "Termin Pembayaran",
     invoiceNumber: "Nomor Faktur",
     invoiceDate: "Tanggal Faktur",
@@ -82,6 +85,7 @@ export const supplierInvoiceId = {
     invoiceDate: "Tanggal",
     dueDate: "Jatuh Tempo",
     purchaseOrder: "PO",
+    goodsReceipt: "GR",
     downPayment: "Ref DP",
     supplier: "Supplier",
     amount: "Total",
@@ -94,6 +98,7 @@ export const supplierInvoiceId = {
     status: "Status",
     notFound: "Tidak ada faktur supplier",
   },
+  notFound: "Tidak ada faktur supplier",
   status: {
     draft: "Draft",
     submitted: "Diajukan",
@@ -101,6 +106,7 @@ export const supplierInvoiceId = {
     rejected: "Ditolak",
     cancelled: "Dibatalkan",
     unpaid: "Belum Dibayar",
+    waiting_payment: "Menunggu Pembayaran",
     partial: "Sebagian",
     paid: "Lunas",
   },
@@ -110,7 +116,7 @@ export const supplierInvoiceId = {
     view: "Lihat",
     edit: "Ubah",
     delete: "Hapus",
-    pending: "Aktifkan",
+    pending: "Tutup",
     submit: "Ajukan",
     approve: "Setujui",
     reject: "Tolak",

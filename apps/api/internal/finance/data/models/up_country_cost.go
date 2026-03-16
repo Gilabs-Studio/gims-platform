@@ -10,8 +10,12 @@ import (
 type UpCountryCostStatus string
 
 const (
-	UpCountryCostStatusDraft    UpCountryCostStatus = "draft"
-	UpCountryCostStatusApproved UpCountryCostStatus = "approved"
+	UpCountryCostStatusDraft           UpCountryCostStatus = "draft"
+	UpCountryCostStatusSubmitted       UpCountryCostStatus = "submitted"
+	UpCountryCostStatusManagerApproved UpCountryCostStatus = "manager_approved"
+	UpCountryCostStatusFinanceApproved UpCountryCostStatus = "finance_approved"
+	UpCountryCostStatusPaid            UpCountryCostStatus = "paid"
+	UpCountryCostStatusRejected        UpCountryCostStatus = "rejected"
 )
 
 type UpCountryCost struct {
@@ -21,12 +25,30 @@ type UpCountryCost struct {
 	Location  string              `gorm:"type:varchar(255)" json:"location"`
 	StartDate time.Time           `gorm:"type:date;not null" json:"start_date"`
 	EndDate   time.Time           `gorm:"type:date;not null" json:"end_date"`
-	Status    UpCountryCostStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
+	Status    UpCountryCostStatus `gorm:"type:varchar(30);default:'draft';index" json:"status"`
 	Notes     string              `gorm:"type:text" json:"notes"`
 
 	Employees []UpCountryCostEmployee `gorm:"foreignKey:UpCountryCostID;constraint:OnDelete:CASCADE" json:"employees,omitempty"`
 	Items     []UpCountryCostItem     `gorm:"foreignKey:UpCountryCostID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
 
+	// Submission tracking
+	SubmittedAt *time.Time `json:"submitted_at"`
+	SubmittedBy *string    `gorm:"type:uuid" json:"submitted_by"`
+
+	// Manager approval tracking
+	ManagerApprovedAt *time.Time `json:"manager_approved_at"`
+	ManagerApprovedBy *string    `gorm:"type:uuid" json:"manager_approved_by"`
+	ManagerComment    string     `gorm:"type:text" json:"manager_comment"`
+
+	// Finance approval tracking
+	FinanceApprovedAt *time.Time `json:"finance_approved_at"`
+	FinanceApprovedBy *string    `gorm:"type:uuid" json:"finance_approved_by"`
+
+	// Payment tracking
+	PaidAt *time.Time `json:"paid_at"`
+	PaidBy *string    `gorm:"type:uuid" json:"paid_by"`
+
+	// Legacy fields (kept for backward compatibility)
 	ApprovedAt *time.Time `json:"approved_at"`
 	ApprovedBy *string    `gorm:"type:uuid" json:"approved_by"`
 
@@ -84,6 +106,7 @@ type UpCountryCostItem struct {
 	CostType        CostType `gorm:"type:varchar(50);not null" json:"cost_type"`
 	Description     string   `gorm:"type:text" json:"description"`
 	Amount          float64  `gorm:"type:numeric(18,2);default:0" json:"amount"`
+	ExpenseDate     *time.Time `gorm:"type:date" json:"expense_date"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

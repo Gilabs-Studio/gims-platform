@@ -59,8 +59,8 @@ type PipelineSummaryData struct {
 
 // ForecastData holds weighted deal forecast
 type ForecastData struct {
-	TotalWeightedValue float64        `json:"total_weighted_value"`
-	TotalDeals         int64          `json:"total_deals"`
+	TotalWeightedValue float64         `json:"total_weighted_value"`
+	TotalDeals         int64           `json:"total_deals"`
 	ByStage            []StageForecast `json:"by_stage"`
 }
 
@@ -88,6 +88,8 @@ type DealRepository interface {
 	GetForecast(ctx context.Context) (*ForecastData, error)
 	DeleteItemsByDealID(ctx context.Context, dealID string) error
 	CreateItems(ctx context.Context, items []models.DealProductItem) error
+	SoftDeleteItemByID(ctx context.Context, itemID, dealID string) error
+	RestoreItemByID(ctx context.Context, itemID, dealID string) error
 	GetLastHistoryByDealID(ctx context.Context, dealID string) (*models.DealHistory, error)
 }
 
@@ -112,8 +114,12 @@ func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal,
 		Preload("Contact").
 		Preload("AssignedEmployee").
 		Preload("Lead").
-		Preload("Items").
+		Preload("Items", func(db *gorm.DB) *gorm.DB { return db.Unscoped().Order("created_at ASC") }).
 		Preload("Items.Product").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Order("CASE WHEN status IN ('pending','in_progress') THEN 0 ELSE 1 END, due_date ASC NULLS LAST").Limit(20)
+		}).
+		Preload("Tasks.AssignedEmployee").
 		First(&deal, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -227,7 +233,7 @@ func (r *dealRepository) Update(ctx context.Context, deal *models.Deal) error {
 			"pipeline_stage_id", "title", "description", "status",
 			"value", "probability",
 			"expected_close_date", "actual_close_date", "close_reason",
-			"customer_id", "contact_id", "assigned_to",
+			"customer_id", "contact_id", "assigned_to", "lead_id", "bank_account_id", "bank_account_reference",
 			"budget_confirmed", "budget_amount",
 			"auth_confirmed", "auth_person",
 			"need_confirmed", "need_description",
@@ -270,6 +276,13 @@ func (r *dealRepository) GetLastHistoryByDealID(ctx context.Context, dealID stri
 }
 
 func (r *dealRepository) DeleteItemsByDealID(ctx context.Context, dealID string) error {
+	// Hard-delete previously soft-deleted items to prevent unbounded accumulation
+	if err := r.db.Unscoped().WithContext(ctx).
+		Where("deal_id = ? AND deleted_at IS NOT NULL", dealID).
+		Delete(&models.DealProductItem{}).Error; err != nil {
+		return err
+	}
+	// Soft-delete currently active items so they appear struck-through in the detail view
 	return r.db.WithContext(ctx).Where("deal_id = ?", dealID).Delete(&models.DealProductItem{}).Error
 }
 
@@ -278,6 +291,16 @@ func (r *dealRepository) CreateItems(ctx context.Context, items []models.DealPro
 		return nil
 	}
 	return r.db.WithContext(ctx).Create(&items).Error
+}
+
+func (r *dealRepository) SoftDeleteItemByID(ctx context.Context, itemID, dealID string) error {
+	return r.db.WithContext(ctx).Where("id = ? AND deal_id = ?", itemID, dealID).Delete(&models.DealProductItem{}).Error
+}
+
+func (r *dealRepository) RestoreItemByID(ctx context.Context, itemID, dealID string) error {
+	return r.db.Unscoped().WithContext(ctx).Model(&models.DealProductItem{}).
+		Where("id = ? AND deal_id = ?", itemID, dealID).
+		Update("deleted_at", nil).Error
 }
 
 func (r *dealRepository) GetPipelineSummary(ctx context.Context) (*PipelineSummaryData, error) {

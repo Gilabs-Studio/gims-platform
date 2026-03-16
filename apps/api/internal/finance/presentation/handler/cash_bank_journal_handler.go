@@ -97,6 +97,29 @@ func (h *CashBankJournalHandler) List(c *gin.Context) {
 	response.SuccessResponse(c, items, meta)
 }
 
+func (h *CashBankJournalHandler) ListLines(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	res, total, err := h.uc.ListLines(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_BANK_LIST_LINES_FAILED", err.Error(), nil, nil)
+		return
+	}
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, res, meta)
+}
+
 func (h *CashBankJournalHandler) Post(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.Post(c.Request.Context(), id)

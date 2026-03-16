@@ -27,6 +27,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/master-data/uom",
   "/master-data/procurement-types",
   "/master-data/warehouses",
+  "/master-data/currencies",
   "/master-data/payment-terms",
   "/master-data/courier-agencies",
   "/master-data/so-sources",
@@ -47,6 +48,7 @@ const VALID_DASHBOARD_ROUTES = [
   // Stock routes
   "/stock/inventory",
   "/stock/movements",
+  "/stock/movements/create",
   "/stock/opname",
   // Finance routes
   "/finance/coa",

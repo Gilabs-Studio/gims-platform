@@ -56,7 +56,7 @@ export function MarketingHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Link href="/login">
+          <Link href="/login" prefetch={false}>
             <Button
               variant="ghost"
               size="sm"
@@ -65,7 +65,7 @@ export function MarketingHeader() {
               Sign in
             </Button>
           </Link>
-          <Link href="/login">
+          <Link href="/login" prefetch={false}>
             <Button size="sm" className="cursor-pointer">
               Get started
             </Button>

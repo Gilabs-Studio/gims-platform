@@ -123,7 +123,7 @@ export function EmployeeEvaluationDetailModal({
         <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500" />
+              <Star className="h-5 w-5 text-warning" />
               {t("evaluation.detail")}
             </DialogTitle>
           </DialogHeader>
@@ -206,7 +206,7 @@ export function EmployeeEvaluationDetailModal({
                   {/* Overall Score */}
                   <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
-                      <Star className="h-8 w-8 text-amber-500" />
+                      <Star className="h-8 w-8 text-warning" />
                       <div>
                         <p className="text-2xl font-bold">
                           {displayEvaluation.overall_score > 0

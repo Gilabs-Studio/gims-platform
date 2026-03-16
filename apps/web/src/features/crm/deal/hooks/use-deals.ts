@@ -272,3 +272,25 @@ export function useStockCheck(dealId: string, enabled = false) {
     staleTime: 60 * 1000,
   });
 }
+
+export function useSoftDeleteDealItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ dealId, itemId }: { dealId: string; itemId: string }) =>
+      dealService.softDeleteItem(dealId, itemId),
+    onSuccess: (_result, { dealId }) => {
+      qc.invalidateQueries({ queryKey: dealKeys.detail(dealId) });
+    },
+  });
+}
+
+export function useRestoreDealItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ dealId, itemId }: { dealId: string; itemId: string }) =>
+      dealService.restoreItem(dealId, itemId),
+    onSuccess: (_result, { dealId }) => {
+      qc.invalidateQueries({ queryKey: dealKeys.detail(dealId) });
+    },
+  });
+}

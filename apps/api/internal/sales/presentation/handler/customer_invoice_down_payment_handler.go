@@ -231,6 +231,33 @@ func (h *CustomerInvoiceDownPaymentHandler) Pending(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Approve handles POST /sales/customer-invoice-down-payments/:id/approve
+func (h *CustomerInvoiceDownPaymentHandler) Approve(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Approve(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrCustomerInvoiceNotFound {
+			errors.NotFoundResponse(c, "customer_invoice_down_payment", id)
+			return
+		}
+		if err == usecase.ErrCustomerInvoiceConflict {
+			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /sales/customer-invoice-down-payments/:id/audit-trail
 func (h *CustomerInvoiceDownPaymentHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

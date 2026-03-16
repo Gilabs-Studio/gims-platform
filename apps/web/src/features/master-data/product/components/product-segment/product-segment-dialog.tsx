@@ -19,12 +19,14 @@ export interface ProductSegmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductSegment | null;
+  onCreated?: (id: string) => void;
 }
 
 export function ProductSegmentDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: ProductSegmentDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function ProductSegmentDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useProductSegmentForm({ open, onOpenChange, editingItem });
+  } = useProductSegmentForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function ProductSegmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

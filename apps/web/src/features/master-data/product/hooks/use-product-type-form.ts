@@ -22,9 +22,10 @@ export interface UseProductTypeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: ProductType | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useProductTypeForm({ open, onOpenChange, editingItem }: UseProductTypeFormProps) {
+export function useProductTypeForm({ open, onOpenChange, editingItem, onCreated }: UseProductTypeFormProps) {
   const t = useTranslations("product.productType");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -75,12 +76,15 @@ export function useProductTypeForm({ open, onOpenChange, editingItem }: UseProdu
         });
         toast.success(t("updated", { fallback: "Product Type updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Product Type created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

@@ -31,13 +31,13 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
   const getStatusColor = (status: ContractStatus) => {
     switch (status) {
       case "ACTIVE":
-        return "bg-emerald-500";
+        return "bg-success";
       case "EXPIRED":
-        return "bg-gray-400";
+        return "bg-mutedgray";
       case "TERMINATED":
-        return "bg-red-500";
+        return "bg-destructive";
       default:
-        return "bg-gray-400";
+        return "bg-mutedgray";
     }
   };
 
@@ -45,7 +45,7 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
     switch (status) {
       case "ACTIVE":
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/20">
+          <Badge className="bg-success/15 text-success border-emerald-500/20">
             {t("contract.statuses.ACTIVE")}
           </Badge>
         );
@@ -133,7 +133,7 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
                       {contract.is_expiring_soon && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <AlertCircle className="h-4 w-4 text-amber-500" />
+                            <AlertCircle className="h-4 w-4 text-warning" />
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>
@@ -203,7 +203,7 @@ export function ContractTimeline({ contracts }: ContractTimelineProps) {
                         href={resolveImageUrl(contract.document_path) ?? "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer font-medium"
+                        className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer font-medium"
                       >
                         <Download className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="truncate max-w-[300px]">

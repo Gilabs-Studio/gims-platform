@@ -10,6 +10,7 @@ export const purchasePaymentEn = {
   },
   actions: {
     create: "Create",
+    change: "Change",
     export: "Export",
     confirm: "Confirm",
     view: "View",
@@ -32,11 +33,14 @@ export const purchasePaymentEn = {
   },
   form: {
     title: "Create Payment",
+    amountHandledBySystem: "Amount is calculated by the system",
     submit: "Save",
     cancel: "Cancel",
   },
   fields: {
+    code: "Payment #",
     invoice: "Invoice",
+    paymentDetails: "Payment Details",
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
@@ -77,6 +81,9 @@ export const purchasePaymentEn = {
       auditTrail: "Audit Trail",
     },
   },
+  notFound: "No payments found",
+  forbidden: "You don't have permission to view payments.",
+
   // Print dialog
   print: "Print",
   printPurchasePayment: "Print Purchase Payment",

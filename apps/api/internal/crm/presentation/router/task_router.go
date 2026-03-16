@@ -32,6 +32,7 @@ func RegisterTaskRoutes(r *gin.RouterGroup, h *handler.TaskHandler) {
 	g.POST("/:id/assign", middleware.RequirePermission(taskAssign), h.Assign)
 	g.POST("/:id/complete", middleware.RequirePermission(taskUpdate), h.Complete)
 	g.POST("/:id/in-progress", middleware.RequirePermission(taskUpdate), h.MarkInProgress)
+	g.POST("/:id/cancel", middleware.RequirePermission(taskUpdate), h.Cancel)
 
 	// Nested reminder routes
 	g.GET("/:id/reminders", middleware.RequirePermission(taskRead), h.ListReminders)

@@ -15,6 +15,7 @@ type EmployeeContractRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.EmployeeContract, error)
 	FindByEmployeeID(ctx context.Context, employeeID uuid.UUID) ([]*models.EmployeeContract, error)
 	FindActiveByEmployeeID(ctx context.Context, employeeID uuid.UUID) (*models.EmployeeContract, error)
+	FindActiveByEmployeeIDs(ctx context.Context, employeeIDs []uuid.UUID) (map[uuid.UUID]*models.EmployeeContract, error)
 	FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error)
 	FindAll(ctx context.Context, employeeID *uuid.UUID, status *models.ContractStatus, contractType *models.ContractType, page, perPage int) ([]*models.EmployeeContract, int64, error)
 	CountByEmployee(ctx context.Context, employeeID uuid.UUID) (int64, error)
@@ -71,6 +72,32 @@ func (r *employeeContractRepository) FindActiveByEmployeeID(ctx context.Context,
 		return nil, err
 	}
 	return &contract, nil
+}
+
+func (r *employeeContractRepository) FindActiveByEmployeeIDs(ctx context.Context, employeeIDs []uuid.UUID) (map[uuid.UUID]*models.EmployeeContract, error) {
+	result := make(map[uuid.UUID]*models.EmployeeContract)
+	if len(employeeIDs) == 0 {
+		return result, nil
+	}
+
+	var contracts []*models.EmployeeContract
+	err := r.db.WithContext(ctx).
+		Where("employee_id IN ?", employeeIDs).
+		Where("status = ?", models.ContractStatusActive).
+		Order("start_date DESC").
+		Find(&contracts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Because we ordered by start_date DESC, the first contract we see for an employee is the most recent active one
+	for _, contract := range contracts {
+		if _, exists := result[contract.EmployeeID]; !exists {
+			result[contract.EmployeeID] = contract
+		}
+	}
+
+	return result, nil
 }
 
 func (r *employeeContractRepository) FindByContractNumber(ctx context.Context, contractNumber string) (*models.EmployeeContract, error) {

@@ -92,10 +92,11 @@ export interface PurchasePaymentAddResponse {
 }
 
 export interface CreatePurchasePaymentInput {
-  invoice_id: string;
-  bank_account_id: string;
+  invoice_id?: string | null;
+  dp_id?: string | null;
+  bank_account_id?: string | null;
   payment_date: string;
-  amount: number;
+  amount?: number;
   method: PurchasePaymentMethod;
   reference_number?: string | null;
   notes?: string | null;

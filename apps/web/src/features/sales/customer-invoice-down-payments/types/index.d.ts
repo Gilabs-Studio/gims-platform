@@ -25,16 +25,28 @@ export interface CustomerInvoiceDPListParams {
   per_page?: number;
   search?: string;
   status?: string;
+  sales_order_id?: string;
   sort_by?: string;
   sort_dir?: string;
   limit?: number;
 }
 
-export type CustomerInvoiceDPStatus = "DRAFT" | "UNPAID" | "PARTIAL" | "PAID";
+export type CustomerInvoiceDPStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "UNPAID"
+  | "WAITING_PAYMENT"
+  | "PARTIAL"
+  | "PAID"
+  | "CANCELLED";
 
 export interface CustomerInvoiceDPSalesOrderMini {
   id: string;
   code: string;
+  customer_id?: string | null;
+  customer_name?: string | null;
 }
 
 export interface CustomerInvoiceDPListItem {
@@ -44,7 +56,7 @@ export interface CustomerInvoiceDPListItem {
   related_invoice_code?: string;
   invoice_number: string;
   invoice_date: string;
-  due_date: string;
+  due_date?: string | null;
   amount: number;
   remaining_amount?: number;
   status: CustomerInvoiceDPStatus;
@@ -55,9 +67,34 @@ export interface CustomerInvoiceDPListItem {
 
 export type CustomerInvoiceDPDetail = CustomerInvoiceDPListItem;
 
+export interface CustomerInvoiceDPAddCustomer {
+  id: string;
+  name: string;
+}
+
+export interface CustomerInvoiceDPAddProduct {
+  id: string;
+  name: string;
+  code: string;
+  image_url?: string;
+}
+
+export interface CustomerInvoiceDPAddSalesOrderItem {
+  id: string;
+  product?: CustomerInvoiceDPAddProduct | null;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
 export interface CustomerInvoiceDPAddSalesOrder {
   id: string;
   code: string;
+  customer?: CustomerInvoiceDPAddCustomer | null;
+  order_date: string;
+  status: string;
+  total_amount: number;
+  items: CustomerInvoiceDPAddSalesOrderItem[];
 }
 
 export interface CustomerInvoiceDPAddResponse {
@@ -73,3 +110,19 @@ export interface CreateCustomerInvoiceDPInput {
 }
 
 export type UpdateCustomerInvoiceDPInput = CreateCustomerInvoiceDPInput;
+
+export interface CustomerInvoiceAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata?: Record<string, unknown>;
+  user?: AuditTrailUser | null;
+  created_at: string;
+}
+
+export interface AuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}

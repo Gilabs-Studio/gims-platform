@@ -13,6 +13,7 @@ import {
   User,
   Loader2,
 } from "lucide-react";
+import { formatWhatsAppLink } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -122,11 +123,7 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
           {contacts.map((contact) => (
             <div
               key={contact.id}
-              className="flex items-start justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
-              onClick={() => handleView(contact)}
-              onKeyDown={(e) => e.key === "Enter" && handleView(contact)}
-              role="button"
-              tabIndex={0}
+              className="flex items-start justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -158,16 +155,26 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
                 )}
                 <div className="flex items-center gap-3 mt-1.5">
                   {contact.phone && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <a
+                      href={formatWhatsAppLink(contact.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Phone className="h-3 w-3" />
                       {contact.phone}
-                    </span>
+                    </a>
                   )}
                   {contact.email && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Mail className="h-3 w-3" />
                       {contact.email}
-                    </span>
+                    </a>
                   )}
                 </div>
               </div>

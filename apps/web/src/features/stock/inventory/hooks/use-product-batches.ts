@@ -9,7 +9,7 @@ export function useProductBatches(
 ) {
   return useQuery({
     queryKey: ["inventory", "batches", warehouseId, productId],
-    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId),
+    queryFn: () => inventoryService.getTreeBatches(warehouseId, productId, { page: 1, per_page: 20 }),
     enabled: options?.enabled && !!warehouseId && !!productId,
   });
 }

@@ -20,7 +20,8 @@ func CORSMiddleware() gin.HandlerFunc {
 		"http://127.0.0.1:3001",
 		// Production origins (add more if needed)
 		"https://api.gilabs.id",
-		"https://crm-demo.gilabs.id",
+		"https://gims.gilabs.id",
+		"https://gims-api-688849728115.asia-southeast2.run.app",
 	}
 
 	// Add production origins from environment variable
@@ -64,6 +65,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		"X-RateLimit-Limit",
 		"X-RateLimit-Remaining",
 		"X-RateLimit-Reset",
+		"X-CSRF-Token",
 	}
 	// Set max age for preflight requests (24 hours)
 	config.MaxAge = 86400

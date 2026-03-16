@@ -26,6 +26,7 @@ type UserDTO struct {
 	Name        string            `json:"name"`
 	Email       string            `json:"email"`
 	AvatarURL   string            `json:"avatar_url"`
+	EmployeeID  string            `json:"employee_id,omitempty"`
 	Role        RoleDTO           `json:"role"`
 	Permissions map[string]string `json:"permissions"` // code -> scope
 }

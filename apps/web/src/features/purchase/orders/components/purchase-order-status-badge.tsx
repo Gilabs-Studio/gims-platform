@@ -42,8 +42,8 @@ export function PurchaseOrderStatusBadge({ status, className }: PurchaseOrderSta
       );
     case "closed":
       return (
-        <Badge variant="outline" className={className}>
-          <XCircle className="h-3 w-3 mr-1.5" />
+        <Badge variant="secondary" className={`bg-mutedslate hover:bg-mutedslate text-white border-transparent ${className ?? ""}`}>
+          <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("closed")}
         </Badge>
       );

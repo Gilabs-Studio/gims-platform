@@ -1,0 +1,21 @@
+export const currencyId = {
+  title: "Mata Uang",
+  description: "Kelola master data mata uang untuk form bank dan keuangan",
+  create: "Tambah Mata Uang",
+  edit: "Ubah Mata Uang",
+  created: "Mata uang berhasil dibuat",
+  updated: "Mata uang berhasil diperbarui",
+  deleted: "Mata uang berhasil dihapus",
+  empty: "Belum ada mata uang",
+  search: "Cari mata uang...",
+  form: {
+    code: "Kode",
+    codePlaceholder: "Masukkan kode (mis. IDR)",
+    name: "Nama",
+    namePlaceholder: "Masukkan nama mata uang",
+    symbol: "Simbol",
+    symbolPlaceholder: "Masukkan simbol",
+    decimalPlaces: "Jumlah Desimal",
+    isActive: "Aktif",
+  },
+};

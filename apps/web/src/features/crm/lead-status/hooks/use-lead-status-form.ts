@@ -25,9 +25,17 @@ export interface UseLeadStatusFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: LeadStatus | null;
+  onCreated?: (item: { id: string; name: string }) => void;
+  initialData?: { name?: string; order?: number };
 }
 
-export function useLeadStatusForm({ open, onOpenChange, editingItem }: UseLeadStatusFormProps) {
+export function useLeadStatusForm({
+  open,
+  onOpenChange,
+  editingItem,
+  onCreated,
+  initialData,
+}: UseLeadStatusFormProps) {
   const t = useTranslations("leadStatus");
   const tCommon = useTranslations("common");
 
@@ -54,7 +62,17 @@ export function useLeadStatusForm({ open, onOpenChange, editingItem }: UseLeadSt
           is_converted: editingItem.is_converted,
         });
       } else {
-        form.reset({ name: "", code: "", description: "", score: 0, color: "#3B82F6", order: 0, is_active: true, is_default: false, is_converted: false });
+        form.reset({
+          name: initialData?.name ?? "",
+          code: initialData?.name?.toUpperCase() ?? "",
+          description: "",
+          score: 0,
+          color: "#3B82F6",
+          order: initialData?.order ?? 0,
+          is_active: true,
+          is_default: false,
+          is_converted: false,
+        });
       }
     }
   }, [editingItem, form, open]);
@@ -65,8 +83,11 @@ export function useLeadStatusForm({ open, onOpenChange, editingItem }: UseLeadSt
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = (await createMutation.mutateAsync(data)) as {
+          data: { id: string; name: string };
+        };
         toast.success(t("created"));
+        onCreated?.(result.data);
       }
       onOpenChange(false);
       form.reset();

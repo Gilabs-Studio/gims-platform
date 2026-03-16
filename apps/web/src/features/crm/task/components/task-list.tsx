@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   PlayCircle,
   AlertTriangle,
+  CalendarDays,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,13 +29,19 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "@/i18n/routing";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskDetailDialog } from "./task-detail-dialog";
+import { TaskCalendarView } from "./task-calendar-view";
 import { useTaskList } from "../hooks/use-task-list";
-import { useTasks, useCompleteTask, useMarkTaskInProgress } from "../hooks/use-tasks";
+import { useTasks, useCompleteTask, useMarkTaskInProgress, useCancelTask } from "../hooks/use-tasks";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Task } from "../types";
+
+import { useState } from "react";
 
 const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline",
@@ -52,6 +60,7 @@ const PRIORITY_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" |
 export function TaskList() {
   const { state, actions, permissions, translations } = useTaskList();
   const { t, tCommon } = translations;
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
 
   const { data: tasksRes, isLoading, isError, refetch } = useTasks({
     page: state.page,
@@ -63,6 +72,11 @@ export function TaskList() {
 
   const completeMutation = useCompleteTask();
   const inProgressMutation = useMarkTaskInProgress();
+  const cancelMutation = useCancelTask();
+
+  const canViewLead = useUserPermission("crm_lead.read");
+  const canViewDeal = useUserPermission("crm_deal.read");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const items = tasksRes?.data ?? [];
   const pagination = tasksRes?.meta?.pagination;
@@ -80,6 +94,15 @@ export function TaskList() {
     try {
       await inProgressMutation.mutateAsync(id);
       toast.success(t("inProgress"));
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    try {
+      await cancelMutation.mutateAsync(id);
+      toast.success(t("cancelled"));
     } catch {
       toast.error(tCommon("error"));
     }
@@ -103,14 +126,41 @@ export function TaskList() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
         </div>
-        {permissions.canCreate && (
-          <Button onClick={actions.handleCreate} className="cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            {t("addTask")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center rounded-md border">
+            <Button
+              variant={viewMode === "calendar" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8 cursor-pointer rounded-l-none"
+              onClick={() => setViewMode("calendar")}
+              title={t("calendarView")}
+            >
+              <CalendarDays className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon"
+              className="h-8 w-8 cursor-pointer rounded-r-none"
+              onClick={() => setViewMode("table")}
+              title={t("tableView")}
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          {permissions.canCreate && (
+            <Button onClick={actions.handleCreate} className="cursor-pointer">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("addTask")}
+            </Button>
+          )}
+        </div>
       </div>
 
+      {viewMode === "calendar" ? (
+        <TaskCalendarView />
+      ) : (
+      <>
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -178,6 +228,7 @@ export function TaskList() {
               <TableHead>{t("table.priority")}</TableHead>
               <TableHead>{t("table.dueDate")}</TableHead>
               <TableHead>{t("table.assignedTo")}</TableHead>
+              <TableHead>{t("table.lead")}</TableHead>
               <TableHead>{t("table.createdAt")}</TableHead>
               {(permissions.canUpdate || permissions.canDelete) && (
                 <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
@@ -195,6 +246,7 @@ export function TaskList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   )}
@@ -203,7 +255,7 @@ export function TaskList() {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={(permissions.canUpdate || permissions.canDelete) ? 8 : 7}
+                  colSpan={(permissions.canUpdate || permissions.canDelete) ? 9 : 8}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("emptyState")}
@@ -240,7 +292,61 @@ export function TaskList() {
                   <TableCell className={`text-sm ${item.is_overdue ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                     {item.due_date ? formatDate(item.due_date) : "-"}
                   </TableCell>
-                  <TableCell>{item.assigned_to_employee?.name ?? "-"}</TableCell>
+                  <TableCell>
+                    {item.assigned_to_employee ? (
+                      <span className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 shrink-0">
+                          <AvatarFallback dataSeed={item.assigned_to_employee.name} />
+                        </Avatar>
+                        <span className="text-sm">{item.assigned_to_employee.name}</span>
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap gap-1">
+                      {item.lead && (
+                        canViewLead ? (
+                          <Link
+                            href={`/crm/leads/${item.lead.id}`}
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            {item.lead.name}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">{item.lead.name}</span>
+                        )
+                      )}
+                      {item.deal && (
+                        canViewDeal ? (
+                          <Link
+                            href={`/crm/pipeline/${item.deal.id}`}
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            {item.deal.title}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">{item.deal.title}</span>
+                        )
+                      )}
+                      {item.customer && (
+                        canViewCustomer ? (
+                          <Link
+                            href={`/master-data/customers/${item.customer.id}`}
+                            className="text-sm font-medium text-primary hover:underline"
+                          >
+                            {item.customer.name}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">{item.customer.name}</span>
+                        )
+                      )}
+                      {!item.lead && !item.deal && !item.customer && (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(item.created_at)}
                   </TableCell>
@@ -278,6 +384,15 @@ export function TaskList() {
                               {t("actions.complete")}
                             </DropdownMenuItem>
                           )}
+                          {permissions.canUpdate && item.status !== "cancelled" && item.status !== "completed" && (
+                            <DropdownMenuItem
+                              onClick={() => handleCancel(item.id)}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <AlertTriangle className="mr-2 h-4 w-4" />
+                              {t("actions.cancel")}
+                            </DropdownMenuItem>
+                          )}
                           {permissions.canDelete && (
                             <>
                               <DropdownMenuSeparator />
@@ -313,6 +428,8 @@ export function TaskList() {
             actions.setPage(1);
           }}
         />
+      )}
+      </>
       )}
 
       {/* Dialogs */}

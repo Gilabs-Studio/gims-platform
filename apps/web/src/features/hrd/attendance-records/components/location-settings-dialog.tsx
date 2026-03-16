@@ -84,11 +84,11 @@ export function LocationSettingsDialog({
           </div>
 
           {/* Visual hint for the address bar icon */}
-          <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/10 shrink-0">
-              <ExternalLink className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-warning/5 p-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-warning/10 shrink-0">
+              <ExternalLink className="h-4 w-4 text-warning dark:text-warning" />
             </div>
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+            <p className="text-xs text-warning dark:text-warning">
               {t("location.settingsDialog.addressBarHint")}
             </p>
           </div>

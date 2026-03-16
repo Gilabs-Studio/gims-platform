@@ -30,7 +30,18 @@ export function formatDate(
   locale: string = "id-ID"
 ): string {
   if (!date) return "";
-  const dateObj = typeof date === "string" ? new Date(date) : date;
+  let dateObj: Date;
+  if (typeof date === "string") {
+    // Parse YYYY-MM-DD as local midnight to avoid UTC timezone shift
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [y, m, d] = date.split("-").map(Number);
+      dateObj = new Date(y, m - 1, d);
+    } else {
+      dateObj = new Date(date);
+    }
+  } else {
+    dateObj = date;
+  }
   if (isNaN(dateObj.getTime())) return "";
   
   return new Intl.DateTimeFormat(locale, {
@@ -38,6 +49,20 @@ export function formatDate(
     month: "short",
     year: "numeric",
   }).format(dateObj);
+}
+
+/** Parse a YYYY-MM-DD string as local midnight (avoids UTC timezone shift). */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Format a local Date to YYYY-MM-DD without UTC conversion. */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function formatTime(
@@ -86,4 +111,24 @@ export function sortOptions<T>(data: readonly T[], getLabel: (item: T) => string
     const labelB = getLabel(b);
     return labelA.localeCompare(labelB);
   });
+}
+
+/**
+ * Formats a phone number into a WhatsApp link.
+ * @param phone The phone number string.
+ * @param message Optional message to pre-fill.
+ * @returns A formatted wa.me link.
+ */
+export function formatWhatsAppLink(phone?: string, message?: string): string {
+  if (!phone) return "#";
+  // Remove non-digit characters
+  const digits = phone.replace(/\D/g, "");
+  // Basic normalization for ID numbers (08... -> 628...)
+  const normalized = digits.startsWith("0") ? "62" + digits.substring(1) : digits;
+  
+  const baseUrl = `https://wa.me/${normalized}`;
+  if (message) {
+    return `${baseUrl}?text=${encodeURIComponent(message)}`;
+  }
+  return baseUrl;
 }

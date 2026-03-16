@@ -417,7 +417,7 @@ export function LeaveRequestList() {
                         {canApprove && (leave.status === "APPROVED" || leave.status === "PENDING") && (
                           <DropdownMenuItem
                             onClick={() => setCancellingLeave(leave)}
-                            className="cursor-pointer text-orange-600"
+                            className="cursor-pointer text-warning"
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             {t("actions.cancel")}
@@ -426,7 +426,7 @@ export function LeaveRequestList() {
                         {canApprove && (leave.status === "CANCELLED" || leave.status === "REJECTED") && (
                           <DropdownMenuItem
                             onClick={() => handleReapprove(leave.id)}
-                            className="cursor-pointer text-green-600"
+                            className="cursor-pointer text-success"
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.reapprove")}

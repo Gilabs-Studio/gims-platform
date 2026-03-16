@@ -194,6 +194,17 @@ func (uc *salesPaymentUsecase) Create(ctx context.Context, req *dto.CreateSalesP
 			return ErrSalesPaymentConflict
 		}
 
+		// Prevent duplicate payment creation for the same invoice.
+		var existingPaymentCount int64
+		if err := tx.Model(&models.SalesPayment{}).
+			Where("customer_invoice_id = ?", inv.ID).
+			Count(&existingPaymentCount).Error; err != nil {
+			return err
+		}
+		if existingPaymentCount > 0 {
+			return ErrSalesPaymentConflict
+		}
+
 		var ba coreModels.BankAccount
 		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
@@ -228,6 +239,14 @@ func (uc *salesPaymentUsecase) Create(ctx context.Context, req *dto.CreateSalesP
 		if err := tx.Create(p).Error; err != nil {
 			return err
 		}
+
+		if err := tx.Model(&inv).Updates(map[string]interface{}{
+			"status":     models.CustomerInvoiceStatusWaitingPayment,
+			"updated_at": apptime.Now(),
+		}).Error; err != nil {
+			return err
+		}
+
 		createdID = p.ID
 		return nil
 	})
@@ -252,12 +271,72 @@ func (uc *salesPaymentUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if existing.Status != models.SalesPaymentStatusPending {
-		return ErrSalesPaymentConflict
-	}
-	if err := uc.repo.Delete(ctx, id); err != nil {
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var pay models.SalesPayment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if pay.Status != models.SalesPaymentStatusPending {
+			return ErrSalesPaymentConflict
+		}
+
+		var inv models.CustomerInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.CustomerInvoiceID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return errors.New("customer invoice not found")
+			}
+			return err
+		}
+
+		type sumRow struct{ Total float64 }
+		var row sumRow
+		if err := tx.Model(&models.SalesPayment{}).
+			Select("COALESCE(SUM(amount),0) as total").
+			Where("customer_invoice_id = ?", inv.ID).
+			Where("status = ?", models.SalesPaymentStatusConfirmed).
+			Scan(&row).Error; err != nil {
+			return err
+		}
+
+		restoredStatus := models.CustomerInvoiceStatusUnpaid
+		if row.Total > 0 {
+			restoredStatus = models.CustomerInvoiceStatusPartial
+		}
+		if row.Total >= inv.Amount-0.0001 {
+			restoredStatus = models.CustomerInvoiceStatusPaid
+		}
+
+		updateData := map[string]interface{}{
+			"status":           restoredStatus,
+			"paid_amount":      row.Total,
+			"remaining_amount": math.Max(0, inv.Amount-row.Total),
+			"updated_at":       apptime.Now(),
+		}
+		if restoredStatus == models.CustomerInvoiceStatusPaid {
+			now := apptime.Now()
+			updateData["payment_at"] = &now
+		} else {
+			updateData["payment_at"] = nil
+		}
+
+		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&pay).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrSalesPaymentNotFound
+		}
 		return err
 	}
+
 	uc.auditService.Log(ctx, "sales_payment.delete", id, map[string]interface{}{"before": existing})
 	return nil
 }
@@ -289,7 +368,7 @@ func (uc *salesPaymentUsecase) Confirm(ctx context.Context, id string) (*dto.Sal
 			}
 			return err
 		}
-		if inv.Status != models.CustomerInvoiceStatusUnpaid && inv.Status != models.CustomerInvoiceStatusPartial {
+		if inv.Status != models.CustomerInvoiceStatusUnpaid && inv.Status != models.CustomerInvoiceStatusPartial && inv.Status != models.CustomerInvoiceStatusWaitingPayment {
 			return ErrSalesPaymentConflict
 		}
 

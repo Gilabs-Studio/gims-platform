@@ -121,13 +121,13 @@ export function MovementDetailDialog({
                <div className="grid grid-cols-3 divide-x divide-y md:divide-y-0">
                    <div className="p-4 text-center space-y-1">
                        <p className="text-xs text-muted-foreground uppercase font-semibold">{t("qtyIn")}</p>
-                       <p className={`text-xl font-bold font-mono ${item.qty_in > 0 ? "text-green-600" : "text-muted-foreground"}`}>
+                       <p className={`text-xl font-bold font-mono ${item.qty_in > 0 ? "text-success" : "text-muted-foreground"}`}>
                            {item.qty_in > 0 ? `+${item.qty_in}` : "-"} <span className="text-xs text-muted-foreground font-normal">{item.product?.unit_of_measure?.symbol}</span>
                        </p>
                    </div>
                    <div className="p-4 text-center space-y-1">
                        <p className="text-xs text-muted-foreground uppercase font-semibold">{t("qtyOut")}</p>
-                       <p className={`text-xl font-bold font-mono ${item.qty_out > 0 ? "text-blue-600" : "text-muted-foreground"}`}>
+                       <p className={`text-xl font-bold font-mono ${item.qty_out > 0 ? "text-primary" : "text-muted-foreground"}`}>
                            {item.qty_out > 0 ? `-${item.qty_out}` : "-"} <span className="text-xs text-muted-foreground font-normal">{item.product?.unit_of_measure?.symbol}</span>
                        </p>
                    </div>

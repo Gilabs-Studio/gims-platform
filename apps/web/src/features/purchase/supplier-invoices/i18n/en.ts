@@ -1,6 +1,6 @@
 export const supplierInvoiceEn = {
   title: "Supplier Invoices",
-  description: "Create invoices for approved purchase orders.",
+  description: "Create invoices from closed goods receipts.",
   search: "Search by code, invoice number...",
   toast: {
     created: "Supplier invoice created",
@@ -24,6 +24,7 @@ export const supplierInvoiceEn = {
   },
   sections: {
     invoiceInfo: "Invoice Information",
+    supplier: "Supplier",
     financial: "Financial Summary",
   },
   auditTrail: {
@@ -52,6 +53,8 @@ export const supplierInvoiceEn = {
   },
   fields: {
     purchaseOrder: "Purchase Order",
+    goodsReceipt: "Goods Receipt",
+    supplier: "Supplier",
     paymentTerms: "Payment Terms",
     invoiceNumber: "Invoice Number",
     invoiceDate: "Invoice Date",
@@ -82,6 +85,7 @@ export const supplierInvoiceEn = {
     invoiceDate: "Invoice Date",
     dueDate: "Due Date",
     purchaseOrder: "PO",
+    goodsReceipt: "GR",
     downPayment: "DP Ref",
     supplier: "Supplier",
     amount: "Amount",
@@ -94,6 +98,7 @@ export const supplierInvoiceEn = {
     status: "Status",
     notFound: "No supplier invoices found",
   },
+  notFound: "No supplier invoices found",
   status: {
     draft: "Draft",
     submitted: "Submitted",
@@ -101,6 +106,7 @@ export const supplierInvoiceEn = {
     rejected: "Rejected",
     cancelled: "Cancelled",
     unpaid: "Unpaid",
+    waiting_payment: "Waiting Payment",
     partial: "Partial",
     paid: "Paid",
   },
@@ -110,7 +116,7 @@ export const supplierInvoiceEn = {
     view: "View",
     edit: "Edit",
     delete: "Delete",
-    pending: "Activate",
+    pending: "Close",
     submit: "Submit",
     approve: "Approve",
     reject: "Reject",

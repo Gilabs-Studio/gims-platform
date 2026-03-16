@@ -22,9 +22,11 @@ export interface UseSupplierTypeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: SupplierType | null;
+  initialName?: string;
+  onSuccess?: (id: string, name: string) => void;
 }
 
-export function useSupplierTypeForm({ open, onOpenChange, editingItem }: UseSupplierTypeFormProps) {
+export function useSupplierTypeForm({ open, onOpenChange, editingItem, initialName, onSuccess }: UseSupplierTypeFormProps) {
   const t = useTranslations("supplier.supplierType");
   const tCommon = useTranslations("supplier.common");
   const tValidation = useTranslations("supplier.validation");
@@ -54,13 +56,13 @@ export function useSupplierTypeForm({ open, onOpenChange, editingItem }: UseSupp
         });
       } else {
         form.reset({
-          name: "",
+          name: initialName ?? "",
           description: "",
           is_active: true,
         });
       }
     }
-  }, [open, editingItem, form]);
+  }, [open, editingItem, form, initialName]);
 
   const onSubmit: SubmitHandler<SupplierTypeFormData> = async (data) => {
     try {
@@ -75,12 +77,13 @@ export function useSupplierTypeForm({ open, onOpenChange, editingItem }: UseSupp
         });
         toast.success(t("updateSuccess", { fallback: "Supplier Type updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("createSuccess", { fallback: "Supplier Type created successfully" }));
+        onSuccess?.(result.data.id, result.data.name);
       }
       onOpenChange(false);
     } catch {

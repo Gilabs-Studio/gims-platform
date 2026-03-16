@@ -1,16 +1,37 @@
 export const financeBankAccountsEn = {
   title: "Bank Accounts",
-  description: "Manage bank accounts linked to chart of accounts.",
+  description: "Manage company, customer, and supplier bank accounts in one place.",
   search: "Search bank accounts...",
   fields: {
     name: "Name",
     accountNumber: "Account Number",
     accountHolder: "Account Holder",
     currency: "Currency",
+    owner: "Owner",
+    ownerType: "Owner Type",
     status: "Status",
     coa: "Chart of Account",
     bankAddress: "Bank Address",
     bankPhone: "Bank Phone",
+    transactionType: "Type",
+    transactionDate: "Date",
+    referenceType: "Reference Type",
+    referenceId: "Reference ID",
+    referenceNumber: "Reference Number",
+    relatedEntity: "Related Entity",
+    amount: "Amount",
+    descriptionText: "Description",
+  },
+  ownerTypes: {
+    company: "Company",
+    customer: "Customer",
+    supplier: "Supplier",
+  },
+  filters: {
+    ownerType: "Owner Type",
+    ownerAll: "All Owners",
+    currency: "Currency",
+    currencyAll: "All Currencies",
   },
   status: {
     active: "Active",
@@ -20,6 +41,7 @@ export const financeBankAccountsEn = {
     create: "Create",
     edit: "Edit",
     delete: "Delete",
+    viewDetails: "View Details",
   },
   form: {
     createTitle: "Create Bank Account",
@@ -29,11 +51,18 @@ export const financeBankAccountsEn = {
   },
   placeholders: {
     select: "Select...",
+    selectCurrency: "Select currency...",
   },
   toast: {
     created: "Bank account created",
     updated: "Bank account updated",
     deleted: "Bank account deleted",
     failed: "Action failed",
+  },
+  detail: {
+    title: "Bank Account Detail",
+    transactionHistory: "Transaction History",
+    noTransactions: "No transactions found",
+    externalOwnerHint: "Transaction history is only available for company-owned bank accounts.",
   },
 };

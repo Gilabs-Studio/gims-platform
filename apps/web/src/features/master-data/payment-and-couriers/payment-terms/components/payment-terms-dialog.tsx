@@ -50,7 +50,7 @@ export function PaymentTermsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>

@@ -161,7 +161,7 @@ export function TargetDetailModal({
                     size="icon"
                     onClick={() => handleStatusChange("approved")}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -173,7 +173,7 @@ export function TargetDetailModal({
                     size="icon"
                     onClick={() => handleStatusChange("rejected")}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -248,9 +248,9 @@ export function TargetDetailModal({
                         )}
                         {displayTarget.approved_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-green-700 dark:text-green-400">{t("status.approved")}</p>
+                              <p className="font-semibold text-success dark:text-success">{t("status.approved")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {new Date(displayTarget.approved_at).toLocaleString()}
                               </p>
@@ -259,9 +259,9 @@ export function TargetDetailModal({
                         )}
                         {displayTarget.rejected_at && (
                           <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                            <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-red-700 dark:text-red-400">{t("status.rejected")}</p>
+                              <p className="font-semibold text-destructive dark:text-destructive">{t("status.rejected")}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {new Date(displayTarget.rejected_at).toLocaleString()}
                               </p>
@@ -295,8 +295,8 @@ export function TargetDetailModal({
                                <div className="flex items-center gap-2">
                                    <p className={cn(
                                        "text-xl font-bold",
-                                       displayTarget.achievement_percent >= 100 ? "text-green-600" :
-                                           displayTarget.achievement_percent >= 80 ? "text-warning" : "text-red-600"
+                                       displayTarget.achievement_percent >= 100 ? "text-success" :
+                                           displayTarget.achievement_percent >= 80 ? "text-warning" : "text-destructive"
                                    )}>
                                        {displayTarget.achievement_percent.toFixed(2)}%
                                    </p>
@@ -309,8 +309,8 @@ export function TargetDetailModal({
                            <div 
                                className={cn(
                                    "h-full rounded-full transition-all duration-500",
-                                    displayTarget.achievement_percent >= 100 ? "bg-green-500" :
-                                    displayTarget.achievement_percent >= 80 ? "bg-warning" : "bg-red-500"
+                                    displayTarget.achievement_percent >= 100 ? "bg-success" :
+                                    displayTarget.achievement_percent >= 80 ? "bg-warning" : "bg-destructive"
                                )}
                                style={{ width: `${Math.min(100, displayTarget.achievement_percent)}%` }}
                            />

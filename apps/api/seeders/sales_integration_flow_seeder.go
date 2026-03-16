@@ -40,22 +40,22 @@ func SeedSalesIntegrationFlow() error {
 
 		var customer customerModels.Customer
 		if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
-			return err
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
 		}
 
 		var pt coreModels.PaymentTerms
 		if err := tx.Where("is_active = ?", true).First(&pt).Error; err != nil {
-			return err
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
 		}
 
 		var bankAccount coreModels.BankAccount
 		if err := tx.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
-			return err
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
 		}
 
 		var warehouse warehouseModels.Warehouse
 		if err := tx.Where("is_active = ?", true).First(&warehouse).Error; err != nil {
-			return err
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
 		}
 
 		var products []productModels.Product
@@ -194,10 +194,12 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 
 	// 3. DP Invoice & Payment
 	dpAmount := math.Round(so.TotalAmount * 0.3)
+	dpDueDate := dpDate.AddDate(0, 0, 30)
 	dpInv := salesModels.CustomerInvoice{
 		ID:           uuid.New().String(),
 		Code:         fmt.Sprintf("CIDP-INT-%s", in.tag),
 		InvoiceDate:  dpDate,
+		DueDate:      &dpDueDate,
 		Type:         salesModels.CustomerInvoiceTypeDownPayment,
 		SalesOrderID: &so.ID,
 		Amount:       dpAmount,

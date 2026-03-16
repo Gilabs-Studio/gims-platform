@@ -44,8 +44,11 @@ func SeedCRMDeals() error {
 	contact2 := ContactID2
 	contact3 := ContactID3
 	lead1 := LeadID1
+	lead3 := LeadID3
+	lead4 := LeadID4
 	stageQualification := PipelineStageQualificationID
-	stageProposal := PipelineStageProposalID
+	stageNeedsAnalysis := PipelineStageNeedsAnalysisID
+	stageDemo := PipelineStageDemoID
 	stageNegotiation := PipelineStageNegotiationID
 	stageClosedWon := PipelineStageClosedWonID
 
@@ -116,11 +119,12 @@ func SeedCRMDeals() error {
 			Description:       "Laboratory equipment upgrade and reagent supply agreement",
 			CustomerID:        &customer1,
 			ContactID:         &contact1,
-			PipelineStageID:   stageProposal,
+			PipelineStageID:   stageNeedsAnalysis,
 			Value:             120000000,
 			Probability:       40,
 			ExpectedCloseDate: &closeDate90,
 			AssignedTo:        &salesRep1,
+			LeadID:            &lead3,
 			Status:            crm.DealStatusOpen,
 			BudgetConfirmed:   true,
 			AuthConfirmed:     true,
@@ -137,11 +141,12 @@ func SeedCRMDeals() error {
 			Description:       "Annual consumable supply contract",
 			CustomerID:        &customer3,
 			ContactID:         &contact3,
-			PipelineStageID:   stageNegotiation,
+			PipelineStageID:   stageDemo,
 			Value:             45000000,
 			Probability:       60,
 			ExpectedCloseDate: &closeDate30,
 			AssignedTo:        &salesRep2,
+			LeadID:            &lead4,
 			Status:            crm.DealStatusOpen,
 			BudgetConfirmed:   true,
 			AuthConfirmed:     true,
@@ -176,7 +181,7 @@ func SeedCRMDeals() error {
 	for _, deal := range deals {
 		if err := database.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"updated_at", "title", "value", "status"}),
+			DoUpdates: clause.AssignmentColumns([]string{"updated_at", "title", "value", "status", "lead_id", "pipeline_stage_id"}),
 		}).Create(&deal).Error; err != nil {
 			log.Printf("Warning: Failed to seed deal %s: %v", deal.ID, err)
 		}
@@ -282,16 +287,16 @@ func SeedCRMDeals() error {
 		{
 			ID:              DealHistoryID2,
 			DealID:          DealID3,
-			FromStageID:     &stageProposal,
-			FromStageName:   "Proposal",
-			ToStageID:       stageNegotiation,
-			ToStageName:     "Negotiation",
-			FromProbability: 40,
+			FromStageID:     &stageNeedsAnalysis,
+			FromStageName:   "Needs Analysis",
+			ToStageID:       stageDemo,
+			ToStageName:     "Demo / Presentation",
+			FromProbability: 30,
 			ToProbability:   60,
 			DaysInPrevStage: 7,
 			ChangedBy:       &changedByAdmin,
 			ChangedAt:       historyTime1,
-			Reason:          "Customer agreed to proposal, moving to price negotiation",
+			Reason:          "Customer requirements gathered, scheduling product demo",
 		},
 	}
 

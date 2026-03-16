@@ -34,21 +34,23 @@ type Deal struct {
 	PipelineStage   *PipelineStage `gorm:"foreignKey:PipelineStageID" json:"pipeline_stage,omitempty"`
 
 	// Value & Probability
-	Value              float64 `gorm:"type:decimal(15,2);default:0" json:"value"`
-	Probability        int     `gorm:"type:int;default:0" json:"probability"`
-	ExpectedCloseDate  *time.Time `gorm:"type:date" json:"expected_close_date"`
-	ActualCloseDate    *time.Time `gorm:"type:date" json:"actual_close_date"`
-	CloseReason        string     `gorm:"type:text" json:"close_reason"`
+	Value             float64    `gorm:"type:decimal(15,2);default:0" json:"value"`
+	Probability       int        `gorm:"type:int;default:0" json:"probability"`
+	ExpectedCloseDate *time.Time `gorm:"type:date" json:"expected_close_date"`
+	ActualCloseDate   *time.Time `gorm:"type:date" json:"actual_close_date"`
+	CloseReason       string     `gorm:"type:text" json:"close_reason"`
 
 	// Relationships
-	CustomerID *string                  `gorm:"type:uuid;index" json:"customer_id"`
-	Customer   *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
-	ContactID  *string                  `gorm:"type:uuid;index" json:"contact_id"`
-	Contact    *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
-	AssignedTo *string                  `gorm:"type:uuid;index" json:"assigned_to"`
-	AssignedEmployee *orgModels.Employee `gorm:"foreignKey:AssignedTo" json:"assigned_employee,omitempty"`
-	LeadID     *string                  `gorm:"type:uuid;index" json:"lead_id"`
-	Lead       *Lead                    `gorm:"foreignKey:LeadID" json:"lead,omitempty"`
+	CustomerID           *string                  `gorm:"type:uuid;index" json:"customer_id"`
+	Customer             *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	ContactID            *string                  `gorm:"type:uuid;index" json:"contact_id"`
+	Contact              *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
+	AssignedTo           *string                  `gorm:"type:uuid;index" json:"assigned_to"`
+	AssignedEmployee     *orgModels.Employee      `gorm:"foreignKey:AssignedTo" json:"assigned_employee,omitempty"`
+	LeadID               *string                  `gorm:"type:uuid;index" json:"lead_id"`
+	Lead                 *Lead                    `gorm:"foreignKey:LeadID;constraint:false" json:"lead,omitempty"`
+	BankAccountID        *string                  `gorm:"type:uuid;index" json:"bank_account_id"`
+	BankAccountReference string                   `gorm:"type:varchar(255)" json:"bank_account_reference"`
 
 	// BANT (inherited from lead on conversion)
 	BudgetConfirmed bool    `gorm:"default:false" json:"budget_confirmed"`
@@ -73,6 +75,7 @@ type Deal struct {
 	// Associations
 	Items   []DealProductItem `gorm:"foreignKey:DealID" json:"items,omitempty"`
 	History []DealHistory     `gorm:"foreignKey:DealID" json:"history,omitempty"`
+	Tasks   []Task            `gorm:"foreignKey:DealID" json:"tasks,omitempty"`
 }
 
 func (Deal) TableName() string {
@@ -111,22 +114,22 @@ func (d *Deal) CalculateValue() float64 {
 
 // DealProductItem represents a product line item within a deal
 type DealProductItem struct {
-	ID              string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	DealID          string  `gorm:"type:uuid;not null;index" json:"deal_id"`
-	ProductID       *string `gorm:"type:uuid;index" json:"product_id"`
+	ID              string                 `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	DealID          string                 `gorm:"type:uuid;not null;index" json:"deal_id"`
+	ProductID       *string                `gorm:"type:uuid;index" json:"product_id"`
 	Product         *productModels.Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-	ProductName     string  `gorm:"type:varchar(200);not null" json:"product_name"`
-	ProductSKU      string  `gorm:"type:varchar(50)" json:"product_sku"`
-	UnitPrice       float64 `gorm:"type:decimal(15,2);default:0" json:"unit_price"`
-	Quantity        int     `gorm:"type:int;default:1" json:"quantity"`
-	DiscountPercent float64 `gorm:"type:decimal(5,2);default:0" json:"discount_percent"`
-	DiscountAmount  float64 `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`
-	Subtotal        float64 `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
-	Notes           string  `gorm:"type:text" json:"notes"`
-
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ProductName     string                 `gorm:"type:varchar(200);not null" json:"product_name"`
+	ProductSKU      string                 `gorm:"type:varchar(50)" json:"product_sku"`
+	UnitPrice       float64                `gorm:"type:decimal(15,2);default:0" json:"unit_price"`
+	Quantity        int                    `gorm:"type:int;default:1" json:"quantity"`
+	DiscountPercent float64                `gorm:"type:decimal(5,2);default:0" json:"discount_percent"`
+	DiscountAmount  float64                `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`
+	Subtotal        float64                `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
+	Notes           string                 `gorm:"type:text" json:"notes"`
+	InterestLevel   int                    `gorm:"type:int;default:0" json:"interest_level"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt         `gorm:"index" json:"-"`
 }
 
 func (DealProductItem) TableName() string {
@@ -151,22 +154,22 @@ func (i *DealProductItem) CalculateSubtotal() float64 {
 
 // DealHistory records stage transitions for audit trail
 type DealHistory struct {
-	ID                string  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	DealID            string  `gorm:"type:uuid;not null;index" json:"deal_id"`
-	FromStageID       *string `gorm:"type:uuid" json:"from_stage_id"`
-	FromStage         *PipelineStage `gorm:"foreignKey:FromStageID" json:"from_stage,omitempty"`
-	FromStageName     string  `gorm:"type:varchar(100)" json:"from_stage_name"`
-	ToStageID         string  `gorm:"type:uuid;not null" json:"to_stage_id"`
-	ToStage           *PipelineStage `gorm:"foreignKey:ToStageID" json:"to_stage,omitempty"`
-	ToStageName       string  `gorm:"type:varchar(100)" json:"to_stage_name"`
-	FromProbability   int     `gorm:"type:int;default:0" json:"from_probability"`
-	ToProbability     int     `gorm:"type:int;default:0" json:"to_probability"`
-	DaysInPrevStage   int     `gorm:"type:int;default:0" json:"days_in_prev_stage"`
-	ChangedBy         *string `gorm:"type:uuid" json:"changed_by"`
+	ID                string              `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	DealID            string              `gorm:"type:uuid;not null;index" json:"deal_id"`
+	FromStageID       *string             `gorm:"type:uuid" json:"from_stage_id"`
+	FromStage         *PipelineStage      `gorm:"foreignKey:FromStageID" json:"from_stage,omitempty"`
+	FromStageName     string              `gorm:"type:varchar(100)" json:"from_stage_name"`
+	ToStageID         string              `gorm:"type:uuid;not null" json:"to_stage_id"`
+	ToStage           *PipelineStage      `gorm:"foreignKey:ToStageID" json:"to_stage,omitempty"`
+	ToStageName       string              `gorm:"type:varchar(100)" json:"to_stage_name"`
+	FromProbability   int                 `gorm:"type:int;default:0" json:"from_probability"`
+	ToProbability     int                 `gorm:"type:int;default:0" json:"to_probability"`
+	DaysInPrevStage   int                 `gorm:"type:int;default:0" json:"days_in_prev_stage"`
+	ChangedBy         *string             `gorm:"type:uuid" json:"changed_by"`
 	ChangedByEmployee *orgModels.Employee `gorm:"foreignKey:ChangedBy" json:"changed_by_employee,omitempty"`
-	ChangedAt         time.Time `json:"changed_at"`
-	Reason            string    `gorm:"type:text" json:"reason"`
-	Notes             string    `gorm:"type:text" json:"notes"`
+	ChangedAt         time.Time           `json:"changed_at"`
+	Reason            string              `gorm:"type:text" json:"reason"`
+	Notes             string              `gorm:"type:text" json:"notes"`
 }
 
 func (DealHistory) TableName() string {

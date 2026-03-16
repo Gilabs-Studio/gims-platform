@@ -3,7 +3,9 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
@@ -17,6 +19,38 @@ func generateToken() string {
 		return ""
 	}
 	return hex.EncodeToString(bytes)
+}
+
+func shouldUseCrossSiteCSRFCookie(c *gin.Context) bool {
+	if config.AppConfig != nil {
+		env := strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
+		if env == "production" || env == "prod" {
+			return true
+		}
+	}
+
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin == "" {
+		return false
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Host == "" {
+		return false
+	}
+
+	requestHost := c.Request.Host
+	if host, _, err := net.SplitHostPort(requestHost); err == nil {
+		requestHost = host
+	}
+
+	originHost := originURL.Hostname()
+	requestHostname := requestHost
+	if requestHostname == "" {
+		requestHostname = c.Request.URL.Hostname()
+	}
+
+	return !strings.EqualFold(originHost, requestHostname)
 }
 
 // CSRF middleware implements the Double-Submit Cookie pattern
@@ -39,6 +73,16 @@ func CSRF() gin.HandlerFunc {
 				return
 			}
 			setCSRFCookie(c, token)
+		}
+
+		// ALWAYS expose the current token in the header so frontend can read it (cross-origin support)
+		c.Header("X-CSRF-Token", token)
+
+		// Exclude webhooks and external API endpoints that do not use browser sessions
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/v1/crm/leads/upsert") {
+			c.Next()
+			return
 		}
 
 		// 3. For safe methods, just proceed
@@ -68,18 +112,15 @@ func CSRF() gin.HandlerFunc {
 // setCSRFCookie sets the non-HttpOnly cookie so frontend can read it
 func setCSRFCookie(c *gin.Context, token string) {
 	isSecure := false
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		// In production we default to Secure cookies.
-		// If you're behind TLS termination, ensure proxy sets X-Forwarded-Proto=https.
-		isSecure = c.Request.TLS != nil
-		if !isSecure && config.AppConfig.Security.ProxyHeadersEnabled {
-			xfp := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
-			isSecure = xfp == "https"
-		}
+	sameSite := http.SameSiteLaxMode
+
+	if shouldUseCrossSiteCSRFCookie(c) {
+		// Cross-site browser requests require SameSite=None and Secure=true.
+		isSecure = true
+		sameSite = http.SameSiteNoneMode
 	}
 
-	// Must be set BEFORE SetCookie so Gin applies it.
-	c.SetSameSite(http.SameSiteStrictMode)
+	c.SetSameSite(sameSite)
 
 	// Note: HttpOnly is FALSE so JavaScript can read it and send in header (Double-Submit Cookie pattern)
 	c.SetCookie("gims_csrf_token", token, 3600*24, "/", "", isSecure, false)

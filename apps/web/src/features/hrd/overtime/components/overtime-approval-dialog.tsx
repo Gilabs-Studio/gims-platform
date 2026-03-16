@@ -204,7 +204,7 @@ export function OvertimeApprovalDialog({
             <Button
               onClick={handleApprove}
               disabled={isPending}
-              className="cursor-pointer bg-green-600 hover:bg-green-700"
+              className="cursor-pointer bg-success hover:bg-success"
             >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Check className="mr-2 h-4 w-4" />

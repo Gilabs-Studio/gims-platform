@@ -64,7 +64,7 @@ export const quotationEn = {
     // Quotation
     title: "Sales Quotations",
     subtitle: "Manage sales quotations and convert them to sales orders",
-    code: "Quotation Code",
+    code: "Code",
     quotationDate: "Quotation Date",
     validUntil: "Valid Until",
     paymentTerms: "Payment Terms",
@@ -125,6 +125,7 @@ export const quotationEn = {
     // Actions
     actions: {
       send: "Send",
+      submit: "Submit",
       approve: "Approve",
       reject: "Reject",
       convert: "Convert to Order",

@@ -6,6 +6,11 @@ export const TaskList = dynamic(
   { loading: () => null }
 );
 
+export const TaskCalendarView = dynamic(
+  () => import("./task-calendar-view").then((mod) => ({ default: mod.TaskCalendarView })),
+  { loading: () => null }
+);
+
 export function TaskContainer() {
   return (
     <PageMotion>

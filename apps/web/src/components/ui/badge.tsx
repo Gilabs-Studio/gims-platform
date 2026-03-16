@@ -20,14 +20,16 @@ const badgeVariants = cva(
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         success:
-          "border-transparent bg-green-600 text-white [a&]:hover:bg-green-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-success text-white [a&]:hover:bg-success/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         warning:
-          "border-transparent bg-yellow-500/90 text-white [a&]:hover:bg-yellow-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-warning/90 text-white [a&]:hover:bg-warning/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         info:
-          "border-transparent bg-blue-600 text-white [a&]:hover:bg-blue-600/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
+          "border-transparent bg-primary text-white [a&]:hover:bg-primary/90 [a&]:hover:scale-105 [a&]:hover:shadow-sm",
         active:
           "border-transparent bg-primary/10 text-primary border-primary/20 [a&]:hover:scale-105 [a&]:hover:shadow-sm [a&]:hover:bg-primary/20",
         inactive: "border-transparent bg-muted text-muted-foreground",
+        soft: "border-transparent bg-secondary/50 text-secondary-foreground [a&]:hover:bg-secondary/80",
+        dot: "border-transparent bg-transparent text-foreground px-1 gap-1.5 shadow-none [a&]:hover:bg-transparent",
       },
     },
     defaultVariants: {

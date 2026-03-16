@@ -6,7 +6,7 @@ import type {
   ListEmployeesParams,
   CreateEmployeeData,
   UpdateEmployeeData,
-  ApproveEmployeeData,
+
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
   CreateEmployeeContractData,
@@ -81,30 +81,6 @@ export function useDeleteEmployee() {
   });
 }
 
-export function useSubmitEmployeeForApproval() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => employeeService.submitForApproval(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
-    },
-  });
-}
-
-export function useApproveEmployee() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ApproveEmployeeData }) =>
-      employeeService.approve(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
-    },
-  });
-}
 
 export function useAssignEmployeeAreas() {
   const queryClient = useQueryClient();

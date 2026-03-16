@@ -22,9 +22,10 @@ export interface UsePackagingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Packaging | null;
+  onCreated?: (id: string) => void;
 }
 
-export function usePackagingForm({ open, onOpenChange, editingItem }: UsePackagingFormProps) {
+export function usePackagingForm({ open, onOpenChange, editingItem, onCreated }: UsePackagingFormProps) {
   const t = useTranslations("product.packaging");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -75,12 +76,15 @@ export function usePackagingForm({ open, onOpenChange, editingItem }: UsePackagi
         });
         toast.success(t("updated", { fallback: "Packaging updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "Packaging created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

@@ -81,7 +81,7 @@ export function GeneralLedgerView() {
       label: t("net_balance"),
       value: formatCurrency(summary.netBalance),
       Icon: Minus,
-      valueClass: summary.netBalance >= 0 ? "text-green-600" : "text-destructive",
+      valueClass: summary.netBalance >= 0 ? "text-success" : "text-destructive",
     },
   ];
 

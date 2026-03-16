@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Building2, Landmark, MapPin, Eye, Edit, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type { Supplier } from "../../types";
@@ -30,6 +30,8 @@ export function SupplierCard({
   canUpdate,
   canDelete,
 }: SupplierCardProps) {
+  const primaryBank = supplier.bank_accounts?.find((b) => b.is_primary) ?? supplier.bank_accounts?.[0];
+
   return (
     <div
       onClick={onClick}
@@ -61,11 +63,18 @@ export function SupplierCard({
             )}
             {supplier.latitude != null && supplier.longitude != null && (
               <span className="text-xs text-muted-foreground">
-                📍 {Number(supplier.latitude).toFixed(4)},{" "}
+                {Number(supplier.latitude).toFixed(4)},
                 {Number(supplier.longitude).toFixed(4)}
               </span>
             )}
           </div>
+          {primaryBank && (
+            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+              <Landmark className="h-3 w-3 shrink-0" />
+              {primaryBank.bank?.name ?? "Bank"} - {primaryBank.account_number}
+              {primaryBank.currency?.code ? ` (${primaryBank.currency.code})` : ""}
+            </p>
+          )}
         </div>
       </div>
 
@@ -90,7 +99,7 @@ export function SupplierCard({
               e.stopPropagation();
               onEdit();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-accent text-warning hover:text-warning transition-colors cursor-pointer"
             title="Edit"
           >
             <Edit className="h-3.5 w-3.5" />
@@ -103,7 +112,7 @@ export function SupplierCard({
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 rounded-full hover:bg-accent text-red-500 hover:text-red-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-accent text-destructive hover:text-destructive transition-colors cursor-pointer"
             title="Delete"
           >
             <Trash2 className="h-3.5 w-3.5" />

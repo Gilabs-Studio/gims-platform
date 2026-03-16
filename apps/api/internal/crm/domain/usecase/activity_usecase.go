@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -25,16 +26,19 @@ type ActivityUsecase interface {
 type activityUsecase struct {
 	activityRepo     repositories.ActivityRepository
 	activityTypeRepo repositories.ActivityTypeRepository
+	leadRepo         repositories.LeadRepository
 }
 
 // NewActivityUsecase creates a new activity usecase
 func NewActivityUsecase(
 	activityRepo repositories.ActivityRepository,
 	activityTypeRepo repositories.ActivityTypeRepository,
+	leadRepo repositories.LeadRepository,
 ) ActivityUsecase {
 	return &activityUsecase{
 		activityRepo:     activityRepo,
 		activityTypeRepo: activityTypeRepo,
+		leadRepo:         leadRepo,
 	}
 }
 
@@ -68,8 +72,14 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 		VisitReportID:  req.VisitReportID,
 		EmployeeID:     employeeID,
 		Description:    req.Description,
-		Timestamp:      timestamp,
-		Metadata:       req.Metadata,
+		Timestamp: timestamp,
+		Metadata: func() *string {
+			if len(req.Metadata) == 0 || string(req.Metadata) == "null" {
+				return nil
+			}
+			s := string(req.Metadata)
+			return &s
+		}(),
 	}
 
 	if err := u.activityRepo.Create(ctx, activity); err != nil {
@@ -81,8 +91,104 @@ func (u *activityUsecase) Create(ctx context.Context, req dto.CreateActivityRequ
 	if err != nil {
 		return dto.ActivityResponse{}, err
 	}
+
+	// Sync product items from metadata to lead (non-blocking — failures are logged, not surfaced)
+	if req.LeadID != nil && *req.LeadID != "" && activity.Metadata != nil {
+		go u.syncProductItemsFromMetadata(context.Background(), *req.LeadID, *activity.Metadata, activity.ID)
+	}
+
 	return mapper.ToActivityResponse(created), nil
 }
+
+// syncProductItemsFromMetadata parses activity metadata products and merges them into the lead's product items.
+func (u *activityUsecase) syncProductItemsFromMetadata(ctx context.Context, leadID string, metadataJSON string, activityID string) {
+	type answerInfo struct {
+		QuestionID string `json:"question_id"`
+		OptionID   string `json:"option_id"`
+		Answer     bool   `json:"answer,omitempty"`
+	}
+
+	type metaProduct struct {
+		ProductID     string       `json:"product_id"`
+		ProductName   string       `json:"product_name"`
+		ProductSKU    string       `json:"product_sku"`
+		InterestLevel int          `json:"interest_level"`
+		Quantity      *int         `json:"quantity"`
+		UnitPrice     float64      `json:"unit_price"`
+		Notes         string       `json:"notes"`
+		Answers       []answerInfo `json:"answers"`
+	}
+
+	type activityMeta struct {
+		Products []metaProduct `json:"products"`
+	}
+
+	var meta activityMeta
+	if err := json.Unmarshal([]byte(metadataJSON), &meta); err != nil || len(meta.Products) == 0 {
+		return
+	}
+
+	// Fetch existing product items to merge (preserve items from other sources)
+	existing, err := u.leadRepo.ListProductItems(ctx, leadID)
+	if err != nil {
+		fmt.Printf("[WARN] activity sync: failed to fetch lead product items for lead %s: %v\n", leadID, err)
+		return
+	}
+
+	existingByProductID := make(map[string]*models.LeadProductItem)
+	for i := range existing {
+		if existing[i].ProductID != nil {
+			existingByProductID[*existing[i].ProductID] = &existing[i]
+		}
+	}
+
+	var items []models.LeadProductItem
+	seen := make(map[string]bool)
+
+	for _, p := range meta.Products {
+		if p.ProductID == "" || seen[p.ProductID] {
+			continue
+		}
+		seen[p.ProductID] = true
+
+		pid := p.ProductID
+		item := models.LeadProductItem{
+			LeadID:        leadID,
+			ProductID:     &pid,
+			ProductName:   p.ProductName,
+			ProductSKU:    p.ProductSKU,
+			InterestLevel: p.InterestLevel,
+			Notes:         p.Notes,
+		}
+
+		if p.Quantity != nil {
+			item.Quantity = *p.Quantity
+		}
+
+		if p.UnitPrice > 0 {
+			item.UnitPrice = p.UnitPrice
+		}
+
+		if len(p.Answers) > 0 {
+			if b, err := json.Marshal(p.Answers); err == nil {
+				s := string(b)
+				item.LastSurveyAnswers = &s
+			}
+		}
+
+		// Preserve existing item ID to update rather than create duplicate
+		if existingItem, ok := existingByProductID[pid]; ok {
+			item.ID = existingItem.ID
+		}
+
+		items = append(items, item)
+	}
+
+	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
+		fmt.Printf("[WARN] activity sync: failed to upsert product items for lead %s: %v\n", leadID, err)
+	}
+}
+
 
 func (u *activityUsecase) GetByID(ctx context.Context, id string) (dto.ActivityResponse, error) {
 	activity, err := u.activityRepo.FindByID(ctx, id)

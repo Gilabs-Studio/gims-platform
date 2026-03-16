@@ -55,6 +55,26 @@ import {
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
 import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
 
+const PurchaseOrderDetail = dynamic(
+  () =>
+    import("../../orders/components/purchase-order-detail").then((m) => m.PurchaseOrderDetail),
+  { ssr: false },
+);
+
+const GoodsReceiptDetailModal = dynamic(
+  () =>
+    import("../../goods-receipt/components/goods-receipt-detail").then((m) => m.GoodsReceiptDetail),
+  { ssr: false },
+);
+
+const SupplierInvoiceDPDetailModal = dynamic(
+  () =>
+    import("../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal").then(
+      (m) => m.SupplierInvoiceDPDetailModal,
+    ),
+  { ssr: false },
+);
+
 const PurchasePaymentForm = dynamic(
   () =>
     import("../../payments/components/purchase-payment-form").then((m) => m.PurchasePaymentForm),
@@ -70,7 +90,11 @@ function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
 
   if (isLoading) return <Skeleton className="h-32 w-full mt-4" />;
   if (entries.length === 0)
-    return <p className="text-sm text-muted-foreground py-8 text-center">{t("auditTrail.empty")}</p>;
+    return (
+      <p className="text-sm text-muted-foreground py-8 text-center">
+        {t("auditTrail.empty")}
+      </p>
+    );
 
   return (
     <div className="rounded-md border mt-4">
@@ -98,7 +122,7 @@ function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
   );
 }
 
-// ─── Invoice detail view (industry invoice layout) ────────────────────────────
+// ─── Invoice detail view ──────────────────────────────────────────────────────
 
 function SupplierInvoiceDetailView({
   data,
@@ -110,14 +134,6 @@ function SupplierInvoiceDetailView({
   const t = useTranslations("supplierInvoice");
   const tCommon = useTranslations("common");
 
-  const canUpdate = useUserPermission("supplier_invoice.update");
-  const canDelete = useUserPermission("supplier_invoice.delete");
-  const canSubmit = useUserPermission("supplier_invoice.submit");
-  const canApprove = useUserPermission("supplier_invoice.approve");
-  const canReject = useUserPermission("supplier_invoice.reject");
-  const canCancel = useUserPermission("supplier_invoice.cancel");
-  const canPending = useUserPermission("supplier_invoice.pending");
-  const canPrint = useUserPermission("supplier_invoice.print");
   const canViewProduct = useUserPermission("product.read");
   const canViewSupplier = useUserPermission("supplier.read");
 
@@ -128,313 +144,358 @@ function SupplierInvoiceDetailView({
   const [isProductOpen, setIsProductOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
+  const [selectedPOId, setSelectedPOId] = useState<string | null>(null);
+  const [isPOOpen, setIsPOOpen] = useState(false);
+  const [selectedGRId, setSelectedGRId] = useState<string | null>(null);
+  const [isGROpen, setIsGROpen] = useState(false);
+  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [isDPOpen, setIsDPOpen] = useState(false);
 
-  const submitMutation = useSubmitSupplierInvoice();
-  const approveMutation = useApproveSupplierInvoice();
-  const rejectMutation = useRejectSupplierInvoice();
-  const cancelMutation = useCancelSupplierInvoice();
-  const pendingMutation = usePendingSupplierInvoice();
   const deleteMutation = useDeleteSupplierInvoice();
 
   const st = (data.status ?? "").toLowerCase();
-
-  const dpDeduction = data.down_payment_invoice?.amount ?? 0;
+  const dpDeduction = data.down_payment_amount ?? 0;
 
   return (
     <>
-      <Tabs defaultValue="invoice" className="w-full">
-        <div className="flex items-center justify-between mb-4">
-          <TabsList>
-            <TabsTrigger value="invoice">
-              <Receipt className="h-3.5 w-3.5 mr-1.5" />
-              Invoice
-            </TabsTrigger>
-            <TabsTrigger value="audit">
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              {t("auditTrail.title")}
-            </TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList>
+          <TabsTrigger value="general">
+            <Receipt className="h-3.5 w-3.5 mr-1.5" />
+            {t("tabs.general") || "General"}
+          </TabsTrigger>
+          <TabsTrigger value="items">
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
+            {t("tabs.items") || "Items"}
+          </TabsTrigger>
+          <TabsTrigger value="audit">
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
+            {t("auditTrail.title")}
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Action bar */}
-          <div className="flex items-center gap-1.5">
-            {canSubmit && st === "draft" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-blue-600 border-blue-600 hover:bg-blue-50"
-                disabled={submitMutation.isPending}
-                onClick={async () => {
-                  try {
-                    await submitMutation.mutateAsync(data.id);
-                    toast.success(t("toast.submitted"));
-                  } catch {
-                    toast.error(t("toast.failed"));
-                  }
-                }}
-              >
-                <Send className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.submit")}
-              </Button>
-            )}
-
-            {canApprove && st === "submitted" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-green-600 border-green-600 hover:bg-green-50"
-                disabled={approveMutation.isPending}
-                onClick={async () => {
-                  try {
-                    await approveMutation.mutateAsync(data.id);
-                    toast.success(t("toast.approved"));
-                  } catch {
-                    toast.error(t("toast.failed"));
-                  }
-                }}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.approve")}
-              </Button>
-            )}
-
-            {canReject && st === "submitted" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-destructive border-destructive hover:bg-destructive/10"
-                disabled={rejectMutation.isPending}
-                onClick={async () => {
-                  try {
-                    await rejectMutation.mutateAsync(data.id);
-                    toast.success(t("toast.rejected"));
-                  } catch {
-                    toast.error(t("toast.failed"));
-                  }
-                }}
-              >
-                <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.reject")}
-              </Button>
-            )}
-
-            {canPending && st === "approved" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-green-600 border-green-600 hover:bg-green-50"
-                disabled={pendingMutation.isPending}
-                onClick={async () => {
-                  try {
-                    await pendingMutation.mutateAsync(data.id);
-                    toast.success(t("toast.pending"));
-                  } catch {
-                    toast.error(t("toast.failed"));
-                  }
-                }}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.pending")}
-              </Button>
-            )}
-
-            {(st === "unpaid" || st === "partial") && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-blue-600 border-blue-600 hover:bg-blue-50"
-                onClick={() => setPaymentOpen(true)}
-              >
-                <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.createPayment")}
-              </Button>
-            )}
-
-            {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-destructive border-destructive hover:bg-destructive/10"
-                disabled={cancelMutation.isPending}
-                onClick={async () => {
-                  try {
-                    await cancelMutation.mutateAsync(data.id);
-                    toast.success(t("toast.cancelled"));
-                  } catch {
-                    toast.error(t("toast.failed"));
-                  }
-                }}
-              >
-                <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.cancel")}
-              </Button>
-            )}
-
-            {canPrint && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-violet-600 border-violet-600 hover:bg-violet-50"
-                onClick={() => setPrintOpen(true)}
-              >
-                <Printer className="h-3.5 w-3.5 mr-1.5" />
-                {t("actions.print")}
-              </Button>
-            )}
-
-            {canDelete && st === "draft" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer text-destructive border-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                {tCommon("delete")}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Invoice tab ───────────────────────────────────────────────── */}
-        <TabsContent value="invoice" className="space-y-6">
+        {/* ── General tab ───────────────────────────────────────────────── */}
+        <TabsContent value="general" className="space-y-6 py-4">
 
           {/* Invoice header block */}
-          <div className="flex items-start justify-between gap-4 p-5 bg-muted/30 rounded-xl border">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Receipt className="h-5 w-5 text-primary" />
-                <span className="font-mono font-bold text-lg">{data.code}</span>
-                <SupplierInvoiceStatusBadge status={data.status} />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {data.invoice_number && (
-                  <span className="font-medium text-foreground">{data.invoice_number} &bull; </span>
-                )}
-                {t("fields.dueDate")}:{" "}
-                <span className={(() => {
-                  const settled = ["paid", "cancelled", "rejected"].includes(st);
-                  if (settled || !data.due_date) return "font-medium text-foreground";
-                  const due = new Date(data.due_date);
-                  const now = new Date();
-                  due.setHours(0, 0, 0, 0); now.setHours(0, 0, 0, 0);
-                  const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
-                  if (diff < 0) return "font-semibold text-destructive";
-                  if (diff <= 7) return "font-semibold text-amber-500";
-                  return "font-medium text-foreground";
-                })()}>
-                  {formatDate(data.due_date)}
-                </span>
-                {(() => {
-                  const settled = ["paid", "cancelled", "rejected"].includes(st);
-                  if (settled || !data.due_date) return null;
-                  const due = new Date(data.due_date);
-                  const now = new Date();
-                  due.setHours(0, 0, 0, 0); now.setHours(0, 0, 0, 0);
-                  const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
-                  if (diff < 0) return (
-                    <span className="ml-1.5 inline-flex items-center gap-0.5 text-destructive text-xs font-semibold">
-                      <AlertTriangle className="h-3 w-3" />{Math.abs(diff)}d overdue
-                    </span>
-                  );
-                  if (diff === 0) return <span className="ml-1.5 text-amber-500 text-xs font-semibold">· Due today</span>;
-                  if (diff <= 7) return <span className="ml-1.5 text-amber-500 text-xs font-medium">· {diff}d left</span>;
-                  return null;
-                })()}
-              </p>
-              {data.created_by && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {tCommon("createdBy") || "Created by"}: {data.created_by}
-                </p>
-              )}
-            </div>
-            <div className="text-right text-sm space-y-1">
-              <div className="text-muted-foreground">{t("fields.invoiceDate")}</div>
-              <div className="font-semibold text-base">{formatDate(data.invoice_date)}</div>
-            </div>
-          </div>
-
-          {/* Supplier info + PO info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 pb-1.5 border-b">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-semibold">Bill From</h4>
-              </div>
-              <div className="space-y-1.5 text-sm">
-                <div className="font-semibold">
-                  {canViewSupplier && data.supplier_id ? (
-                    <button
-                      type="button"
-                      className="text-primary hover:underline cursor-pointer text-left font-semibold"
-                      onClick={() => {
-                        setSelectedSupplierId(data.supplier_id);
-                        setIsSupplierOpen(true);
-                      }}
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium bg-muted/50 w-48">
+                    {t("fields.invoiceNumber") || "Invoice No."}
+                  </TableCell>
+                  <TableCell>{data.invoice_number || "-"}</TableCell>
+                  <TableCell className="font-medium bg-muted/50 w-48">
+                    {t("fields.invoiceDate")}
+                  </TableCell>
+                  <TableCell>{formatDate(data.invoice_date)}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium bg-muted/50">{t("fields.dueDate")}</TableCell>
+                  <TableCell>
+                    <span
+                      className={(() => {
+                        const settled = ["paid", "cancelled", "rejected"].includes(st);
+                        if (settled || !data.due_date) return "font-medium";
+                        const due = new Date(data.due_date);
+                        const now = new Date();
+                        due.setHours(0, 0, 0, 0);
+                        now.setHours(0, 0, 0, 0);
+                        const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
+                        if (diff < 0) return "font-semibold text-destructive";
+                        if (diff <= 7) return "font-semibold text-warning";
+                        return "font-medium";
+                      })()}
                     >
-                      {data.supplier_name || "-"}
-                    </button>
-                  ) : (
-                    <span>{data.supplier_name || "-"}</span>
-                  )}
-                </div>
-                {data.purchase_order && (
-                  <div className="text-muted-foreground">
-                    {t("fields.purchaseOrder")}:{" "}
-                    <span className="font-mono font-medium text-foreground">{data.purchase_order.code}</span>
-                  </div>
+                      {formatDate(data.due_date)}
+                    </span>
+                    {(() => {
+                      const settled = ["paid", "cancelled", "rejected"].includes(st);
+                      if (settled || !data.due_date) return null;
+                      const due = new Date(data.due_date);
+                      const now = new Date();
+                      due.setHours(0, 0, 0, 0);
+                      now.setHours(0, 0, 0, 0);
+                      const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
+                      if (diff < 0)
+                        return (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-destructive text-xs font-semibold">
+                            <AlertTriangle className="h-3 w-3" />
+                            {Math.abs(diff)}d overdue
+                          </span>
+                        );
+                      if (diff === 0)
+                        return (
+                          <span className="ml-1.5 text-warning text-xs font-semibold">
+                            · Due today
+                          </span>
+                        );
+                      if (diff <= 7)
+                        return (
+                          <span className="ml-1.5 text-warning text-xs font-medium">
+                            · {diff}d left
+                          </span>
+                        );
+                      return null;
+                    })()}
+                  </TableCell>
+                  <TableCell className="font-medium bg-muted/50">
+                    {t("fields.paymentTerms")}
+                  </TableCell>
+                  <TableCell>{data.payment_terms?.name ?? "-"}</TableCell>
+                </TableRow>
+                {data.created_by && (
+                  <TableRow>
+                    <TableCell className="font-medium bg-muted/50">
+                      {tCommon("createdBy") || "Created by"}
+                    </TableCell>
+                    <TableCell colSpan={3}>{data.created_by}</TableCell>
+                  </TableRow>
                 )}
-                {data.down_payment_invoice && (
-                  <div className="text-muted-foreground">
-                    DP Ref:{" "}
-                    <span className="font-mono font-medium text-foreground">{data.down_payment_invoice.code}</span>
-                  </div>
+                {data.notes && (
+                  <TableRow>
+                    <TableCell className="font-medium bg-muted/50">{t("fields.notes")}</TableCell>
+                    <TableCell colSpan={3}>{data.notes}</TableCell>
+                  </TableRow>
                 )}
-              </div>
-            </div>
+              </TableBody>
+            </Table>
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 pb-1.5 border-b">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <h4 className="text-sm font-semibold">Invoice Details</h4>
-              </div>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("fields.paymentTerms")}</span>
-                  <span className="font-medium">{data.payment_terms?.name ?? "-"}</span>
-                </div>
-                {data.submitted_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Submitted</span>
-                    <span className="font-medium">{formatDate(data.submitted_at)}</span>
-                  </div>
-                )}
-                {data.approved_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Approved</span>
-                    <span className="font-medium">{formatDate(data.approved_at)}</span>
-                  </div>
-                )}
-                {data.rejected_at && (
-                  <div className="flex justify-between text-destructive">
-                    <span>Rejected</span>
-                    <span className="font-medium">{formatDate(data.rejected_at)}</span>
-                  </div>
-                )}
-                {data.cancelled_at && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Cancelled</span>
-                    <span className="font-medium">{formatDate(data.cancelled_at)}</span>
-                  </div>
-                )}
-              </div>
+          {/* Supplier + References */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">
+              <Building2 className="h-4 w-4 inline mr-1.5 text-muted-foreground" />
+              {t("sections.supplier") || "Supplier"}
+            </h3>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium bg-muted/50 w-48">
+                      {t("fields.supplier") || "Supplier"}
+                    </TableCell>
+                    <TableCell>
+                      {canViewSupplier && data.supplier_id ? (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline cursor-pointer text-left font-semibold"
+                          onClick={() => {
+                            setSelectedSupplierId(data.supplier_id);
+                            setIsSupplierOpen(true);
+                          }}
+                        >
+                          {data.supplier_name || "-"}
+                        </button>
+                      ) : (
+                        <span className="font-semibold">{data.supplier_name || "-"}</span>
+                      )}
+                    </TableCell>
+                    {data.purchase_order && (
+                      <>
+                        <TableCell className="font-medium bg-muted/50 w-48">
+                          {t("fields.purchaseOrder")}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                            onClick={() => {
+                              setSelectedPOId(data.purchase_order!.id);
+                              setIsPOOpen(true);
+                            }}
+                          >
+                            {data.purchase_order.code}
+                          </button>
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                  {(data.goods_receipt || data.down_payment_invoice) && (
+                    <TableRow>
+                      {data.goods_receipt && (
+                        <>
+                          <TableCell className="font-medium bg-muted/50">
+                            {t("fields.goodsReceipt") || "Goods Receipt"}
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                              onClick={() => {
+                                setSelectedGRId(data.goods_receipt!.id);
+                                setIsGROpen(true);
+                              }}
+                            >
+                              {data.goods_receipt.code}
+                            </button>
+                          </TableCell>
+                        </>
+                      )}
+                      {data.down_payment_invoice && (
+                        <>
+                          <TableCell className="font-medium bg-muted/50">
+                            {t("fields.dpRef") || "DP Ref"}
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              className="font-mono font-medium text-primary hover:underline cursor-pointer"
+                              onClick={() => {
+                                setSelectedDPId(data.down_payment_invoice!.id);
+                                setIsDPOpen(true);
+                              }}
+                            >
+                              {data.down_payment_invoice.code}
+                            </button>
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
 
-          {/* Line items table */}
-          <div className="rounded-md border overflow-hidden">
+          {/* Workflow dates */}
+          {(data.submitted_at || data.approved_at || data.rejected_at || data.cancelled_at) && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="text-sm font-semibold mb-3">
+                  {tCommon("workflow") || "Workflow"}
+                </h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableBody>
+                      {data.submitted_at && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50 w-48">Submitted</TableCell>
+                          <TableCell>{formatDate(data.submitted_at)}</TableCell>
+                        </TableRow>
+                      )}
+                      {data.approved_at && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">Approved</TableCell>
+                          <TableCell>{formatDate(data.approved_at)}</TableCell>
+                        </TableRow>
+                      )}
+                      {data.rejected_at && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50 text-destructive">
+                            Rejected
+                          </TableCell>
+                          <TableCell className="text-destructive">
+                            {formatDate(data.rejected_at)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {data.cancelled_at && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">Cancelled</TableCell>
+                          <TableCell>{formatDate(data.cancelled_at)}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Financial summary */}
+          <Separator />
+          <div>
+            <h3 className="text-sm font-semibold mb-3">
+              {tCommon("financial") || "Financial"}
+            </h3>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium bg-muted/50 w-48">
+                      {t("fields.subtotal")}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(data.sub_total)}
+                    </TableCell>
+                  </TableRow>
+                  {data.tax_rate > 0 && (
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">
+                        {t("fields.taxAmount")} ({data.tax_rate}%)
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(data.tax_amount)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {data.delivery_cost > 0 && (
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">
+                        {t("fields.deliveryCost")}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(data.delivery_cost)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {data.other_cost > 0 && (
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">
+                        {t("fields.otherCost")}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(data.other_cost)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {dpDeduction > 0 && (
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50 text-success">
+                        DP Deduction
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-success">
+                        − {formatCurrency(dpDeduction)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow className="border-t-2">
+                    <TableCell className="font-bold bg-muted">{t("fields.total")}</TableCell>
+                    <TableCell className="text-right font-bold font-mono text-lg">
+                      {formatCurrency(data.amount)}
+                    </TableCell>
+                  </TableRow>
+                  {(st === "unpaid" || st === "partial" || st === "paid") && (
+                    <>
+                      <TableRow>
+                        <TableCell className="font-medium bg-muted/50">Paid</TableCell>
+                        <TableCell className="text-right font-mono text-success font-medium">
+                          {formatCurrency(data.paid_amount)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-bold bg-muted">Remaining</TableCell>
+                        <TableCell className="text-right font-bold font-mono text-lg text-primary">
+                          {formatCurrency(data.remaining_amount)}
+                        </TableCell>
+                      </TableRow>
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── Items tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="items" className="space-y-4 py-4">
+          <div className="rounded-lg border">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow>
                   <TableHead className="w-[40%]">{t("items.fields.product")}</TableHead>
                   <TableHead className="text-right w-[12%]">{t("items.fields.quantity")}</TableHead>
                   <TableHead className="text-right w-[18%]">{t("items.fields.price")}</TableHead>
@@ -468,7 +529,9 @@ function SupplierInvoiceDetailView({
                           </button>
                         ) : (
                           <div>
-                            <p className="font-medium">{item.product?.name ?? item.product_id}</p>
+                            <p className="font-medium">
+                              {item.product?.name ?? item.product_id}
+                            </p>
                             {item.product?.code && (
                               <p className="text-xs text-muted-foreground">{item.product.code}</p>
                             )}
@@ -476,80 +539,21 @@ function SupplierInvoiceDetailView({
                         )}
                       </TableCell>
                       <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(item.price)}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(item.price)}
+                      </TableCell>
                       <TableCell className="text-right">
                         {item.discount > 0 ? `${item.discount}%` : "-"}
                       </TableCell>
-                      <TableCell className="text-right font-mono">{formatCurrency(item.sub_total)}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(item.sub_total)}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
           </div>
-
-          {/* Financial summary — right-aligned */}
-          <div className="flex justify-end">
-            <div className="w-full max-w-sm space-y-0 rounded-lg border overflow-hidden">
-              <div className="flex justify-between items-center px-4 py-2.5 border-b">
-                <span className="text-sm text-muted-foreground">{t("fields.subtotal")}</span>
-                <span className="text-sm font-mono">{formatCurrency(data.sub_total)}</span>
-              </div>
-              {data.tax_rate > 0 && (
-                <div className="flex justify-between items-center px-4 py-2.5 border-b">
-                  <span className="text-sm text-muted-foreground">
-                    {t("fields.taxAmount")} ({data.tax_rate}%)
-                  </span>
-                  <span className="text-sm font-mono">{formatCurrency(data.tax_amount)}</span>
-                </div>
-              )}
-              {data.delivery_cost > 0 && (
-                <div className="flex justify-between items-center px-4 py-2.5 border-b">
-                  <span className="text-sm text-muted-foreground">{t("fields.deliveryCost")}</span>
-                  <span className="text-sm font-mono">{formatCurrency(data.delivery_cost)}</span>
-                </div>
-              )}
-              {data.other_cost > 0 && (
-                <div className="flex justify-between items-center px-4 py-2.5 border-b">
-                  <span className="text-sm text-muted-foreground">{t("fields.otherCost")}</span>
-                  <span className="text-sm font-mono">{formatCurrency(data.other_cost)}</span>
-                </div>
-              )}
-              {dpDeduction > 0 && (
-                <div className="flex justify-between items-center px-4 py-2.5 border-b text-emerald-600">
-                  <span className="text-sm">DP Deduction</span>
-                  <span className="text-sm font-mono">− {formatCurrency(dpDeduction)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center px-4 py-3 bg-muted/50 font-bold">
-                <span className="text-sm">{t("fields.total")}</span>
-                <span className="font-mono text-lg">{formatCurrency(data.amount)}</span>
-              </div>
-              {(st === "unpaid" || st === "partial" || st === "paid") && (
-                <>
-                  <div className="flex justify-between items-center px-4 py-2.5 border-t text-emerald-600">
-                    <span className="text-sm">Paid</span>
-                    <span className="text-sm font-mono">{formatCurrency(data.paid_amount)}</span>
-                  </div>
-                  <div className="flex justify-between items-center px-4 py-3 border-t font-bold">
-                    <span className="text-sm">Remaining</span>
-                    <span className="font-mono text-primary">{formatCurrency(data.remaining_amount)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Notes */}
-          {data.notes && (
-            <>
-              <Separator />
-              <div className="text-sm">
-                <span className="font-medium text-muted-foreground">{t("fields.notes")}: </span>
-                {data.notes}
-              </div>
-            </>
-          )}
         </TabsContent>
 
         {/* ── Audit Trail tab ─────────────────────────────────────────── */}
@@ -600,6 +604,42 @@ function SupplierInvoiceDetailView({
         />
       )}
 
+      {/* PO detail */}
+      {isPOOpen && selectedPOId && (
+        <PurchaseOrderDetail
+          open={isPOOpen}
+          onClose={() => {
+            setIsPOOpen(false);
+            setSelectedPOId(null);
+          }}
+          purchaseOrderId={selectedPOId}
+        />
+      )}
+
+      {/* GR detail */}
+      {isGROpen && selectedGRId && (
+        <GoodsReceiptDetailModal
+          open={isGROpen}
+          onClose={() => {
+            setIsGROpen(false);
+            setSelectedGRId(null);
+          }}
+          goodsReceiptId={selectedGRId}
+        />
+      )}
+
+      {/* DP detail */}
+      {isDPOpen && selectedDPId && (
+        <SupplierInvoiceDPDetailModal
+          open={isDPOpen}
+          onOpenChange={(v) => {
+            setIsDPOpen(v);
+            if (!v) setSelectedDPId(null);
+          }}
+          id={selectedDPId}
+        />
+      )}
+
       {/* Delete confirmation */}
       <DeleteDialog
         open={deleteOpen}
@@ -631,6 +671,7 @@ interface SupplierInvoiceDetailProps {
 
 export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvoiceDetailProps) {
   const t = useTranslations("supplierInvoice");
+  const tCommon = useTranslations("common");
   const id = invoiceId ?? "";
 
   const { data, isLoading, isError } = useSupplierInvoice(id, {
@@ -638,16 +679,187 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
   });
 
   const detail = data?.data;
+  const st = (detail?.status ?? "").toLowerCase();
+
+  const canSubmit = useUserPermission("supplier_invoice.submit");
+  const canApprove = useUserPermission("supplier_invoice.approve");
+  const canReject = useUserPermission("supplier_invoice.reject");
+  const canCancel = useUserPermission("supplier_invoice.cancel");
+  const canPending = useUserPermission("supplier_invoice.pending");
+  const canPrint = useUserPermission("supplier_invoice.print");
+  const canDelete = useUserPermission("supplier_invoice.delete");
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+
+  const submitMutation = useSubmitSupplierInvoice();
+  const approveMutation = useApproveSupplierInvoice();
+  const rejectMutation = useRejectSupplierInvoice();
+  const cancelMutation = useCancelSupplierInvoice();
+  const pendingMutation = usePendingSupplierInvoice();
+  const deleteMutation = useDeleteSupplierInvoice();
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <DialogTitle className="text-xl">
-              {detail?.invoice_number ?? t("detail.title")}
-            </DialogTitle>
-            {detail && <SupplierInvoiceStatusBadge status={detail.status} />}
+          {/* Title row — mirrors InvoiceDetailModal: title left, actions right */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <DialogTitle className="text-xl mb-2">
+                {detail?.invoice_number ?? t("detail.title")}
+              </DialogTitle>
+              <div className="flex items-center gap-3">
+                {detail && <SupplierInvoiceStatusBadge status={detail.status} />}
+                {detail?.invoice_date && (
+                  <span className="text-sm text-muted-foreground">
+                    {formatDate(detail.invoice_date)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Action buttons — top-right, icon-style like InvoiceDetailModal */}
+            {detail && (
+              <div className="flex items-center gap-1">
+                {canSubmit && st === "draft" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={submitMutation.isPending}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.submit")}
+                    onClick={async () => {
+                      try {
+                        await submitMutation.mutateAsync(detail.id);
+                        toast.success(t("toast.submitted"));
+                      } catch {
+                        toast.error(t("toast.failed"));
+                      }
+                    }}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canApprove && st === "submitted" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={approveMutation.isPending}
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
+                    title={t("actions.approve")}
+                    onClick={async () => {
+                      try {
+                        await approveMutation.mutateAsync(detail.id);
+                        toast.success(t("toast.approved"));
+                      } catch {
+                        toast.error(t("toast.failed"));
+                      }
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canReject && st === "submitted" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={rejectMutation.isPending}
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title={t("actions.reject")}
+                    onClick={async () => {
+                      try {
+                        await rejectMutation.mutateAsync(detail.id);
+                        toast.success(t("toast.rejected"));
+                      } catch {
+                        toast.error(t("toast.failed"));
+                      }
+                    }}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canPending && st === "approved" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={pendingMutation.isPending}
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
+                    title={t("actions.pending")}
+                    onClick={async () => {
+                      try {
+                        await pendingMutation.mutateAsync(detail.id);
+                        toast.success(t("toast.pending"));
+                      } catch {
+                        toast.error(t("toast.failed"));
+                      }
+                    }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {(st === "unpaid" || st === "partial") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.createPayment")}
+                    onClick={() => setPaymentOpen(true)}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canPrint && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
+                    title={t("actions.print")}
+                    onClick={() => setPrintOpen(true)}
+                  >
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={cancelMutation.isPending}
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title={t("actions.cancel")}
+                    onClick={async () => {
+                      try {
+                        await cancelMutation.mutateAsync(detail.id);
+                        toast.success(t("toast.cancelled"));
+                      } catch {
+                        toast.error(t("toast.failed"));
+                      }
+                    }}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {canDelete && st === "draft" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title={tCommon("delete")}
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </DialogHeader>
 
@@ -663,8 +875,45 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
         ) : (
           <SupplierInvoiceDetailView data={detail} onClose={onClose} />
         )}
+
+        {/* Print — hoisted to wrapper so it works even before detail view mounts */}
+        {printOpen && detail && (
+          <SupplierInvoicePrintDialog
+            open={printOpen}
+            onClose={() => setPrintOpen(false)}
+            invoiceId={detail.id}
+          />
+        )}
+
+        {/* Payment form — hoisted to wrapper */}
+        {paymentOpen && detail && (
+          <PurchasePaymentForm
+            open={paymentOpen}
+            onClose={() => setPaymentOpen(false)}
+            defaultInvoiceId={detail.id}
+          />
+        )}
+
+        {/* Delete confirmation — hoisted to wrapper */}
+        {detail && (
+          <DeleteDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            itemName="supplier invoice"
+            onConfirm={async () => {
+              try {
+                await deleteMutation.mutateAsync(detail.id);
+                toast.success(t("toast.deleted"));
+                setDeleteOpen(false);
+                onClose();
+              } catch {
+                toast.error(t("toast.failed"));
+              }
+            }}
+            isLoading={deleteMutation.isPending}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
-

@@ -27,8 +27,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CategoryTreePicker } from "@/components/ui/category-tree-picker";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { ProductCategoryDialog } from "../product-category/product-category-dialog";
+import { ProductBrandDialog } from "../product-brand/product-brand-dialog";
+import { ProductSegmentDialog } from "../product-segment/product-segment-dialog";
+import { ProductTypeDialog } from "../product-type/product-type-dialog";
+import { UnitOfMeasureDialog } from "../unit-of-measure/unit-of-measure-dialog";
+import { PackagingDialog } from "../packaging/packaging-dialog";
+import { ProcurementTypeDialog } from "../procurement-type/procurement-type-dialog";
+
 import type { Product } from "../../types";
 import { useProductForm } from "../../hooks/use-product-form";
 
@@ -69,12 +77,24 @@ export function ProductDialog({
     tCommon,
     isEditing,
     isSubmitting,
+    categories,
     brands,
     segments,
     types,
     uoms,
     packagings,
     procurementTypes,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handleCategoryCreated,
+    handleBrandCreated,
+    handleSegmentCreated,
+    handleTypeCreated,
+    handleUomCreated,
+    handlePurchaseUomCreated,
+    handlePackagingCreated,
+    handleProcurementTypeCreated,
     onSubmit,
   } = useProductForm({ open, onOpenChange, editingItem, onCreated });
 
@@ -101,7 +121,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent size="lg" className="max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{isEditing ? t("edit") : t("create")}</DialogTitle>
         </DialogHeader>
@@ -163,76 +183,51 @@ export function ProductDialog({
               <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>{t("form.category")}</FieldLabel>
-                  <CategoryTreePicker
-                    value={categoryId ?? null}
-                    onChange={(id) => setValue("category_id", id ?? undefined)}
+                  <CreatableCombobox
+                    value={categoryId ?? ""}
+                    onValueChange={(val) => setValue("category_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={categories.map(c => ({ value: c.id, label: c.name }))}
                     placeholder={t("selectCategory")}
-                    showProductCount
-                    clearable
-                    labels={{
-                      searchPlaceholder: tCommon("searchCategories"),
-                      noCategoriesFound: tCommon("noCategoriesFound"),
-                      noCategories: tCommon("noCategories"),
-                      category: tCommon("categoryRes"),
-                      categories: tCommon("categoriesRes"),
-                      selected: tCommon("selectedRes"),
-                      inactive: tCommon("inactiveRes"),
-                    }}
+                    createPermission="product_category.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("category", q)}
                   />
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.brand")}</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={brandId ?? ""}
-                    onValueChange={(val) => setValue("brand_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("selectBrand")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {brands.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("brand_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={brands.map(b => ({ value: b.id, label: b.name }))}
+                    placeholder={t("selectBrand")}
+                    createPermission="product_brand.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("brand", q)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.segment")}</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={segmentId ?? ""}
-                    onValueChange={(val) => setValue("segment_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("selectSegment")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {segments.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("segment_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={segments.map(b => ({ value: b.id, label: b.name }))}
+                    placeholder={t("selectSegment")}
+                    createPermission="product_segment.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("segment", q)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>{t("form.type")}</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={typeId ?? ""}
-                    onValueChange={(val) => setValue("type_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {types.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("type_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={types.map(b => ({ value: b.id, label: b.name }))}
+                    placeholder="Select Type"
+                    createPermission="product_type.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("type", q)}
+                  />
                 </Field>
               </div>
             </Section>
@@ -241,42 +236,30 @@ export function ProductDialog({
 
             {/* Units & Packaging */}
             <Section title={t("section.unitsPackaging")}>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>{t("form.uom")}</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={uomId ?? ""}
-                    onValueChange={(val) => setValue("uom_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Base Unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uoms.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name} ({i.symbol})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("uom_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={uoms.map(b => ({ value: b.id, label: `${b.name} (${b.symbol})` }))}
+                    placeholder="Base Unit"
+                    createPermission="unit_of_measure.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("uom", q)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>Purchase UoM</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={purchaseUomId ?? ""}
-                    onValueChange={(val) => setValue("purchase_uom_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("unitsPerPurchase")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uoms.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name} ({i.symbol})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("purchase_uom_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={uoms.map(b => ({ value: b.id, label: `${b.name} (${b.symbol})` }))}
+                    placeholder={t("unitsPerPurchase")}
+                    createPermission="unit_of_measure.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("purchaseUom", q)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>{t("conversion")}</FieldLabel>
@@ -295,28 +278,19 @@ export function ProductDialog({
                     {t("unitsPerPurchase")}
                   </p>
                 </Field>
+                <Field>
+                  <FieldLabel>{t("form.packaging")}</FieldLabel>
+                  <CreatableCombobox
+                    value={packagingId ?? "none"}
+                    onValueChange={(val) => setValue("packaging_id", val === "none" ? null : val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={[{ value: "none", label: "None" }, ...packagings.map(b => ({ value: b.id, label: b.name }))]}
+                    placeholder={t("selectPackaging")}
+                    createPermission="packaging.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("packaging", q)}
+                  />
+                </Field>
               </div>
-              <Field>
-                <FieldLabel>{t("form.packaging")}</FieldLabel>
-                <Select
-                  value={packagingId ?? "none"}
-                  onValueChange={(val) =>
-                    setValue("packaging_id", val === "none" ? null : val)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("selectPackaging")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {packagings.map((i) => (
-                      <SelectItem key={i.id} value={i.id}>
-                        {i.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
             </Section>
 
             <Separator />
@@ -326,21 +300,15 @@ export function ProductDialog({
               <div className="grid grid-cols-2 gap-4">
                 <Field>
                   <FieldLabel>{t("form.procurementType")}</FieldLabel>
-                  <Select
+                  <CreatableCombobox
                     value={procurementTypeId ?? ""}
-                    onValueChange={(val) => setValue("procurement_type_id", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {procurementTypes.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(val) => setValue("procurement_type_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                    options={procurementTypes.map(b => ({ value: b.id, label: b.name }))}
+                    placeholder="Select Type"
+                    createPermission="procurement_type.create"
+                    createLabel={`${t("create")} "{query}"`}
+                    onCreateClick={(q) => openQuickCreate("procurementType", q)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>{t("leadTime")} ({t("days")})</FieldLabel>
@@ -390,8 +358,8 @@ export function ProductDialog({
 
             {/* Pricing & Stock */}
             <Section title={t("section.pricingStock")}>
-              <div className="grid grid-cols-3 gap-4">
-                <Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field className="col-span-2 md:col-span-2">
                   <FieldLabel className="required">{t("form.costPrice")}</FieldLabel>
                   <div className="relative">
                     <span className="absolute left-3 top-2.5 text-muted-foreground text-sm z-10">
@@ -464,6 +432,56 @@ export function ProductDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <ProductCategoryDialog
+        open={quickCreate.type === "category"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handleCategoryCreated(id)}
+      />
+
+      <ProductBrandDialog
+        open={quickCreate.type === "brand"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handleBrandCreated(id)}
+      />
+      
+      <ProductSegmentDialog
+        open={quickCreate.type === "segment"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handleSegmentCreated(id)}
+      />
+      
+      <ProductTypeDialog
+        open={quickCreate.type === "type"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handleTypeCreated(id)}
+      />
+      
+      <UnitOfMeasureDialog
+        open={quickCreate.type === "uom" || quickCreate.type === "purchaseUom"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => quickCreate.type === "purchaseUom" ? handlePurchaseUomCreated(id) : handleUomCreated(id)}
+      />
+      
+      <PackagingDialog
+        open={quickCreate.type === "packaging"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handlePackagingCreated(id)}
+      />
+      
+      <ProcurementTypeDialog
+        open={quickCreate.type === "procurementType"}
+        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+        editingItem={null}
+        onCreated={(id) => handleProcurementTypeCreated(id)}
+      />
+
     </Dialog>
   );
 }

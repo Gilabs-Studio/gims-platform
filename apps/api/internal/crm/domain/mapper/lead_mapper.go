@@ -8,38 +8,58 @@ import (
 // ToLeadResponse converts a Lead model to LeadResponse DTO
 func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 	resp := dto.LeadResponse{
-		ID:              lead.ID,
-		Code:            lead.Code,
-		FirstName:       lead.FirstName,
-		LastName:        lead.LastName,
-		CompanyName:     lead.CompanyName,
-		Email:           lead.Email,
-		Phone:           lead.Phone,
-		JobTitle:        lead.JobTitle,
-		Address:         lead.Address,
-		City:            lead.City,
-		Province:        lead.Province,
-		LeadSourceID:    lead.LeadSourceID,
-		LeadStatusID:    lead.LeadStatusID,
-		LeadScore:       lead.LeadScore,
-		Probability:     lead.Probability,
-		EstimatedValue:  lead.EstimatedValue,
-		BudgetConfirmed: lead.BudgetConfirmed,
-		BudgetAmount:    lead.BudgetAmount,
-		AuthConfirmed:   lead.AuthConfirmed,
-		AuthPerson:      lead.AuthPerson,
-		NeedConfirmed:   lead.NeedConfirmed,
-		NeedDescription: lead.NeedDescription,
-		TimeConfirmed:   lead.TimeConfirmed,
-		AssignedTo:      lead.AssignedTo,
-		CustomerID:      lead.CustomerID,
-		ContactID:       lead.ContactID,
-		DealID:          lead.DealID,
-		ConvertedBy:     lead.ConvertedBy,
-		Notes:           lead.Notes,
-		CreatedBy:       lead.CreatedBy,
-		CreatedAt:       lead.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
-		UpdatedAt:       lead.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
+		ID:                   lead.ID,
+		Code:                 lead.Code,
+		FirstName:            lead.FirstName,
+		LastName:             lead.LastName,
+		CompanyName:          lead.CompanyName,
+		Email:                lead.Email,
+		Phone:                lead.Phone,
+		JobTitle:             lead.JobTitle,
+		Address:              lead.Address,
+		City:                 lead.City,
+		Province:             lead.Province,
+		ProvinceID:           lead.ProvinceID,
+		CityID:               lead.CityID,
+		DistrictID:           lead.DistrictID,
+		VillageName:          lead.VillageName,
+		LeadSourceID:         lead.LeadSourceID,
+		LeadStatusID:         lead.LeadStatusID,
+		LeadScore:            lead.LeadScore,
+		Probability:          lead.Probability,
+		EstimatedValue:       lead.EstimatedValue,
+		BudgetConfirmed:      lead.BudgetConfirmed,
+		BudgetAmount:         lead.BudgetAmount,
+		AuthConfirmed:        lead.AuthConfirmed,
+		AuthPerson:           lead.AuthPerson,
+		NeedConfirmed:        lead.NeedConfirmed,
+		NeedDescription:      lead.NeedDescription,
+		TimeConfirmed:        lead.TimeConfirmed,
+		AssignedTo:           lead.AssignedTo,
+		CustomerID:           lead.CustomerID,
+		ContactID:            lead.ContactID,
+		DealID:               lead.DealID,
+		ConvertedBy:          lead.ConvertedBy,
+		Notes:                lead.Notes,
+		NPWP:                 lead.NPWP,
+		CreatedBy:            lead.CreatedBy,
+		CreatedAt:            lead.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		UpdatedAt:            lead.UpdatedAt.Format("2006-01-02T15:04:05+07:00"),
+		Latitude:             lead.Latitude,
+		Longitude:            lead.Longitude,
+		Rating:               lead.Rating,
+		RatingCount:          lead.RatingCount,
+		Types:                lead.Types,
+		OpeningHours:         lead.OpeningHours,
+		ThumbnailURL:         lead.ThumbnailURL,
+		CID:                  lead.CID,
+		PlaceID:              lead.PlaceID,
+		Website:              lead.Website,
+		BankAccountID:        lead.BankAccountID,
+		BankAccountReference: lead.BankAccountReference,
+		BusinessTypeID:       lead.BusinessTypeID,
+		AreaID:               lead.AreaID,
+		PaymentTermsID:       lead.PaymentTermsID,
 	}
 
 	if lead.TimeExpected != nil {
@@ -85,6 +105,63 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 			Code: lead.Customer.Code,
 			Name: lead.Customer.Name,
 		}
+	}
+
+	if lead.BusinessType != nil {
+		resp.BusinessType = &dto.LeadBusinessTypeInfo{
+			ID:   lead.BusinessType.ID,
+			Name: lead.BusinessType.Name,
+		}
+	}
+
+	if lead.Area != nil {
+		resp.Area = &dto.LeadAreaInfo{
+			ID:   lead.Area.ID,
+			Name: lead.Area.Name,
+		}
+	}
+
+	if lead.Deal != nil {
+		stageName := ""
+		if lead.Deal.PipelineStage != nil {
+			stageName = lead.Deal.PipelineStage.Name
+		}
+		resp.Deal = &dto.LeadDealInfo{
+			ID:     lead.Deal.ID,
+			Code:   lead.Deal.Code,
+			Title:  lead.Deal.Title,
+			Status: string(lead.Deal.Status),
+			Stage:  stageName,
+		}
+	}
+
+	if len(lead.Activities) > 0 {
+		resp.Activities = ToActivityResponseList(lead.Activities)
+	}
+
+	if len(lead.Tasks) > 0 {
+		resp.Tasks = ToTaskSummaryResponseList(lead.Tasks)
+	}
+
+	if len(lead.ProductItems) > 0 {
+		items := make([]dto.LeadProductItemResponse, 0, len(lead.ProductItems))
+		for _, item := range lead.ProductItems {
+			items = append(items, dto.LeadProductItemResponse{
+				ID:                  item.ID,
+				LeadID:              item.LeadID,
+				ProductID:           item.ProductID,
+				ProductName:         item.ProductName,
+				ProductSKU:          item.ProductSKU,
+				InterestLevel:       item.InterestLevel,
+				Quantity:            item.Quantity,
+				UnitPrice:           item.UnitPrice,
+				Notes:               item.Notes,
+				SourceVisitReportID: item.SourceVisitReportID,
+				LastSurveyAnswers:   item.LastSurveyAnswers,
+				CreatedAt:           item.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+			})
+		}
+		resp.ProductItems = items
 	}
 
 	return resp

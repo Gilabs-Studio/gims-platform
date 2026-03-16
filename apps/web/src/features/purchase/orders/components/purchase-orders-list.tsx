@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Banknote,
   CheckCircle2,
   Download,
   Eye,
@@ -11,6 +12,7 @@ import {
   Pencil,
   Plus,
   Printer,
+  Receipt,
   Search,
   Send,
   ShoppingCart,
@@ -58,6 +60,7 @@ import {
   useRejectPurchaseOrder,
   useSubmitPurchaseOrder,
 } from "../hooks/use-purchase-orders";
+
 import { purchaseOrdersService } from "../services/purchase-orders-service";
 import type { PurchaseOrderListItem, PurchaseOrderStatus } from "../types";
 import { GoodsReceiptStatusBadge } from "@/features/purchase/goods-receipt/components/goods-receipt-status-badge";
@@ -72,6 +75,8 @@ import { PurchaseOrderStatusBadge } from "./purchase-order-status-badge";
 import { PurchaseOrderPrintDialog } from "./purchase-order-print-dialog";
 import { GoodsReceiptForm } from "@/features/purchase/goods-receipt/components/goods-receipt-form";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
+import { SupplierInvoiceDPFormDialog } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-form";
 
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
@@ -106,6 +111,14 @@ export function PurchaseOrdersList() {
   const [grFormOpen, setGrFormOpen] = useState(false);
   const [grFormPOId, setGrFormPOId] = useState<string | null>(null);
 
+  // Create SI shortcut from PO row
+  const [siFormOpen, setSiFormOpen] = useState(false);
+  const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
+
+  // Create SI DP shortcut from PO row
+  const [siDPFormOpen, setSiDPFormOpen] = useState(false);
+  const [siDPFormPOId, setSiDPFormPOId] = useState<string | null>(null);
+
   // GR detail opened after successful create
   const [grCreatedId, setGrCreatedId] = useState<string | null>(null);
   const [grCreatedDetailOpen, setGrCreatedDetailOpen] = useState(false);
@@ -128,6 +141,8 @@ export function PurchaseOrdersList() {
   const canViewSI = useUserPermission("supplier_invoice.read");
   const canViewPR = useUserPermission("purchase_requisition.read");
   const canCreateGR = useUserPermission("goods_receipt.create");
+  const canCreateSI = useUserPermission("supplier_invoice.create");
+  const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,
@@ -146,6 +161,9 @@ export function PurchaseOrdersList() {
   const approveMutation = useApprovePurchaseOrder();
   const rejectMutation = useRejectPurchaseOrder();
   const closeMutation = useClosePurchaseOrder();
+
+  // Note: cache subscribe removed to avoid refetch loops. Supplier-invoice hooks
+  // already apply typed optimistic updates to purchase-order list cache.
 
   if (isError) {
     return (
@@ -185,7 +203,6 @@ export function PurchaseOrdersList() {
   const renderGRBadges = (it: PurchaseOrderListItem) => {
     const grItems = it.goods_receipts;
     if (!grItems?.length) return <span className="text-muted-foreground text-xs">—</span>;
-    const totalReceived = it.fulfillment?.total_received ?? 0;
     return (
       <button
         type="button"
@@ -433,9 +450,18 @@ export function PurchaseOrdersList() {
                     {/* Supplier Invoices */}
                     <TableCell>{renderSIBadges(it)}</TableCell>
 
-                    {/* Total */}
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(it.total_amount)}
+                    {/* Total Amount */}
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        {it.supplier_invoices && it.supplier_invoices.length > 0 && status === "APPROVED" && (
+                          <span className="text-xs text-muted-foreground">
+                            {it.supplier_invoices.filter((si) =>
+                              ["PAID", "PARTIAL"].includes(si.status ?? "")
+                            ).length}/{it.supplier_invoices.length} paid
+                          </span>
+                        )}
+                        <span className="font-medium font-mono">{formatCurrency(it.total_amount)}</span>
+                      </div>
                     </TableCell>
 
                     {/* Actions */}
@@ -474,7 +500,7 @@ export function PurchaseOrdersList() {
 
                             {canSubmit && status === "DRAFT" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={async () => {
                                   try {
                                     await submitMutation.mutateAsync(it.id);
@@ -493,7 +519,7 @@ export function PurchaseOrdersList() {
                               <>
                                 {canApprove && (
                                   <DropdownMenuItem
-                                    className="cursor-pointer text-green-600 focus:text-green-600"
+                                    className="cursor-pointer text-success focus:text-success"
                                     onClick={async () => {
                                       try {
                                         await approveMutation.mutateAsync(it.id);
@@ -528,7 +554,7 @@ export function PurchaseOrdersList() {
 
                             {canClose && status === "APPROVED" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-orange-600 focus:text-orange-600"
+                                className="cursor-pointer text-warning focus:text-warning"
                                 onClick={async () => {
                                   try {
                                     await closeMutation.mutateAsync(it.id);
@@ -546,7 +572,7 @@ export function PurchaseOrdersList() {
                             {canCreateGR && status === "APPROVED" &&
                               (!it.fulfillment || it.fulfillment.total_remaining > 0) && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={() => {
                                   setGrFormPOId(it.id);
                                   setGrFormOpen(true);
@@ -557,9 +583,35 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canCreateSI && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-success focus:text-success"
+                                onClick={() => {
+                                  setSiFormPOId(it.id);
+                                  setSiFormOpen(true);
+                                }}
+                              >
+                                <Receipt className="h-4 w-4 mr-2" />
+                                {t("actions.createSI")}
+                              </DropdownMenuItem>
+                            )}
+
+                            {canCreateSIDP && status === "APPROVED" && (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-success focus:text-success"
+                                onClick={() => {
+                                  setSiDPFormPOId(it.id);
+                                  setSiDPFormOpen(true);
+                                }}
+                              >
+                                <Banknote className="h-4 w-4 mr-2" />
+                                {t("actions.createSIDP")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer"
+                                className="cursor-pointer text-purple focus:text-purple"
                                 onClick={() => setPrintingId(it.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -647,6 +699,26 @@ export function PurchaseOrdersList() {
         goodsReceiptId={grCreatedId}
       />
 
+      {/* Create SI shortcut — pre-fills the PO context from the selected row */}
+      <SupplierInvoiceFormDialog
+        open={siFormOpen}
+        onOpenChange={(open) => {
+          setSiFormOpen(open);
+          if (!open) setSiFormPOId(null);
+        }}
+        defaultPurchaseOrderId={siFormPOId}
+      />
+
+      {/* Create SI DP shortcut — pre-fills the PO from the selected row */}
+      <SupplierInvoiceDPFormDialog
+        open={siDPFormOpen}
+        onOpenChange={(open) => {
+          setSiDPFormOpen(open);
+          if (!open) setSiDPFormPOId(null);
+        }}
+        defaultPurchaseOrderId={siDPFormPOId}
+      />
+
       {printingId && (
         <PurchaseOrderPrintDialog
           open={!!printingId}
@@ -686,7 +758,7 @@ export function PurchaseOrdersList() {
       {siDialogItem && (
         <SILinkedDialog
           purchaseOrderCode={siDialogItem.code}
-          items={siDialogItem.supplier_invoices ?? []}
+          purchaseOrderId={siDialogItem.id}
           open={!!siDialogItem}
           onOpenChange={(open) => { if (!open) setSiDialogItem(null); }}
         />

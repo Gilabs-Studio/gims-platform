@@ -74,9 +74,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Refresh Token
@@ -85,9 +85,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/", // Allowing refresh from any path for simplicity, or restrict to /api/v1/auth
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Map to Presentation DTO (Strict Mode: No tokens in JSON)
@@ -95,8 +95,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		User: authDTO.UserDTO{
 			ID:        loginResponse.User.ID,
 			Name:      loginResponse.User.Name,
-			Email:     loginResponse.User.Email,
-			AvatarURL: loginResponse.User.AvatarURL,
+			Email:      loginResponse.User.Email,
+			AvatarURL:  loginResponse.User.AvatarURL,
+			EmployeeID: loginResponse.User.EmployeeID,
 			Role: authDTO.RoleDTO{
 				Code: loginResponse.User.Role,
 				Name: loginResponse.User.RoleName,
@@ -149,9 +150,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		Value:    loginResponse.Token,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.AccessTokenTTL * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -159,9 +160,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		Value:    loginResponse.RefreshToken,
 		Path:     "/",
 		MaxAge:   config.AppConfig.JWT.RefreshTokenTTL * 24 * 3600,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// Map to Presentation DTO
@@ -169,8 +170,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		User: authDTO.UserDTO{
 			ID:        loginResponse.User.ID,
 			Name:      loginResponse.User.Name,
-			Email:     loginResponse.User.Email,
-			AvatarURL: loginResponse.User.AvatarURL,
+			Email:      loginResponse.User.Email,
+			AvatarURL:  loginResponse.User.AvatarURL,
+			EmployeeID: loginResponse.User.EmployeeID,
 			Role: authDTO.RoleDTO{
 				Code: loginResponse.User.Role,
 				Name: loginResponse.User.RoleName,
@@ -214,18 +216,18 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "gims_refresh_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 	// Also clear CSRF token cookie
 	http.SetCookie(c.Writer, &http.Cookie{
@@ -233,15 +235,25 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
-		Secure:   isSecureRequest(c),
+		Secure:   true,
 		HttpOnly: false, // CSRF token is not HttpOnly so JS can read it
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	response.SuccessResponseNoContent(c)
 }
 
 // GetCSRFToken ensures the client has a CSRF cookie (middleware handles setting it)
+// and returns the token value in the response body so cross-origin clients can
+// read it without relying on CORS header exposure (which can silently fail in
+// certain browser/CDN configurations).
 func (h *AuthHandler) GetCSRFToken(c *gin.Context) {
-	response.SuccessResponse(c, gin.H{"message": "CSRF token set"}, nil)
+	token, err := c.Cookie("gims_csrf_token")
+	if err != nil || token == "" {
+		// Middleware should have set it; if for some reason it didn't, return a
+		// generic message — the header still carries the token for same-origin.
+		response.SuccessResponse(c, gin.H{"message": "CSRF token set"}, nil)
+		return
+	}
+	response.SuccessResponse(c, gin.H{"csrf_token": token}, nil)
 }

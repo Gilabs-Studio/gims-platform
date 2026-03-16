@@ -10,13 +10,29 @@ import { ButtonLoading } from "@/components/loading";
 import { useLeadStatusForm } from "../hooks/use-lead-status-form";
 import type { LeadStatus } from "../types";
 
-export function LeadStatusDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: LeadStatus | null }) {
-  const { form, t, tCommon, isLoading, onSubmit } = useLeadStatusForm({ open, onOpenChange, editingItem });
+export function LeadStatusDialog({
+  open,
+  onOpenChange,
+  editingItem,
+  onCreated,
+  initialData,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly editingItem?: LeadStatus | null;
+  readonly onCreated?: (item: { id: string; name: string }) => void;
+  readonly initialData?: { name?: string; order?: number };
+}) {
+  const { form, t, tCommon, isLoading, onSubmit } = useLeadStatusForm({
+    open,
+    onOpenChange,
+    editingItem,
+    onCreated,
+    initialData,
+  });
   const { register, setValue, watch, formState: { errors } } = form;
 
   const isActive = watch("is_active");
-  const isDefault = watch("is_default");
-  const isConverted = watch("is_converted");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,20 +77,7 @@ export function LeadStatusDialog({ open, onOpenChange, editingItem }: { readonly
             {errors.description && <FieldError>{errors.description.message}</FieldError>}
           </Field>
           <div className="flex flex-col gap-4">
-            <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <FieldLabel>{t("form.isDefault")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">{t("form.isDefaultDescription")}</p>
-              </div>
-              <Switch checked={isDefault} onCheckedChange={(val) => setValue("is_default", val)} className="cursor-pointer" />
-            </Field>
-            <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <FieldLabel>{t("form.isConverted")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">{t("form.isConvertedDescription")}</p>
-              </div>
-              <Switch checked={isConverted} onCheckedChange={(val) => setValue("is_converted", val)} className="cursor-pointer" />
-            </Field>
+
             <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">
                 <FieldLabel>{t("form.isActive")}</FieldLabel>

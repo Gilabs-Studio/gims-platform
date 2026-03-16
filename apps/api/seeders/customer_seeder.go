@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/customer/data/models"
 	geoModels "github.com/gilabs/gims/api/internal/geographic/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm/clause"
 )
 
@@ -299,9 +300,90 @@ func SeedCustomers() error {
 
 	// Seed phone numbers for each customer
 	seedCustomerPhoneNumbers()
+	seedCustomerBankAccounts(customers)
 
 	log.Println("Customers seeded successfully")
 	return nil
+}
+
+func seedCustomerBankAccounts(customers []models.Customer) {
+	codeToBankID := map[string]string{}
+	currencyCodeToID := map[string]string{}
+	var banks []supplierModels.Bank
+	if err := database.DB.Where("is_active = ?", true).Find(&banks).Error; err != nil {
+		log.Printf("Warning: Failed to query banks for customer bank seeding: %v", err)
+		return
+	}
+	var currencies []coreModels.Currency
+	if err := database.DB.Where("is_active = ?", true).Find(&currencies).Error; err != nil {
+		log.Printf("Warning: Failed to query currencies for customer bank seeding: %v", err)
+		return
+	}
+	for _, b := range banks {
+		codeToBankID[b.Code] = b.ID
+	}
+	for _, currency := range currencies {
+		currencyCodeToID[currency.Code] = currency.ID
+	}
+	defaultCurrencyID := currencyCodeToID["IDR"]
+
+	resolveBankID := func(preferredCode string) string {
+		if id := codeToBankID[preferredCode]; id != "" {
+			return id
+		}
+		for _, b := range banks {
+			if b.ID != "" {
+				return b.ID
+			}
+		}
+		return ""
+	}
+
+	entries := []models.CustomerBank{
+		{ID: "c0000004-0000-0000-0000-000000000001", CustomerID: Customer1ID, BankID: resolveBankID("BCA"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000001", AccountName: "PT Apotek Sehat Sentosa", Branch: "KCP Jakarta Selatan", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000002", CustomerID: Customer2ID, BankID: resolveBankID("MANDIRI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000002", AccountName: "RS Harapan Kita Jakarta", Branch: "KCP Slipi", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000003", CustomerID: Customer3ID, BankID: resolveBankID("BNI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000003", AccountName: "Klinik Pratama Medika", Branch: "KCP Bandung", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000004", CustomerID: Customer4ID, BankID: resolveBankID("BRI"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000004", AccountName: "RS Siloam Hospitals Surabaya", Branch: "KCP Surabaya", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000005", CustomerID: Customer5ID, BankID: resolveBankID("CIMB"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000005", AccountName: "Apotek Kimia Farma Cabang Bekasi", Branch: "KCP Bekasi", IsPrimary: true},
+		{ID: "c0000004-0000-0000-0000-000000000006", CustomerID: Customer6ID, BankID: resolveBankID("BCA"), CurrencyID: &defaultCurrencyID, AccountNumber: "888100000006", AccountName: "Puskesmas Cempaka Putih", Branch: "KCP Jakarta Pusat", IsPrimary: true},
+	}
+
+	seededCustomerIDs := map[string]bool{}
+	for _, entry := range entries {
+		if entry.BankID == "" {
+			continue
+		}
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"bank_id", "account_number", "account_name", "branch", "is_primary", "updated_at"}),
+		}).Create(&entry).Error; err != nil {
+			log.Printf("Warning: Failed to seed customer bank for customer %s: %v", entry.CustomerID, err)
+			continue
+		}
+		seededCustomerIDs[entry.CustomerID] = true
+	}
+
+	for _, c := range customers {
+		if seededCustomerIDs[c.ID] {
+			continue
+		}
+		bankID := resolveBankID("BCA")
+		if bankID == "" {
+			continue
+		}
+		fallback := models.CustomerBank{
+			CustomerID:    c.ID,
+			BankID:        bankID,
+			CurrencyID:    &defaultCurrencyID,
+			AccountNumber: "8881" + c.Code[len(c.Code)-5:],
+			AccountName:   c.Name,
+			Branch:        "Main Branch",
+			IsPrimary:     true,
+		}
+		if err := database.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&fallback).Error; err != nil {
+			log.Printf("Warning: Failed to seed fallback customer bank for %s: %v", c.Name, err)
+		}
+	}
 }
 
 func seedCustomerPhoneNumbers() {

@@ -40,6 +40,7 @@ export interface Warehouse {
   latitude?: number | null;
   longitude?: number | null;
   is_active: boolean;
+  has_stock: boolean;
   created_at: string;
   updated_at: string;
 }

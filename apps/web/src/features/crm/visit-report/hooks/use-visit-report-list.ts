@@ -7,17 +7,24 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useVisitReports, useDeleteVisitReport, useCheckInVisitReport, useCheckOutVisitReport, useSubmitVisitReport } from "./use-visit-reports";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useRouter } from "@/i18n/routing";
 import type { VisitReport, VisitReportStatus, VisitReportOutcome } from "../types";
 
 export function useVisitReportList() {
   const t = useTranslations("crmVisitReport");
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   const canCreate = useUserPermission("crm_visit.create");
   const canUpdate = useUserPermission("crm_visit.update");
   const canDelete = useUserPermission("crm_visit.delete");
   const canApprove = useUserPermission("crm_visit.approve");
   const readScope = usePermissionScope("crm_visit.read");
+
+  const { user } = useAuthStore();
+  // Returns true when the current user owns a given visit report (created_by matches user.id)
+  const isOwner = (item: VisitReport): boolean => !!user && item.created_by === user.id;
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -26,8 +33,6 @@ export function useVisitReportList() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [outcomeFilter, setOutcomeFilter] = useState<string>("");
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<VisitReport | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useVisitReports({
@@ -73,13 +78,11 @@ export function useVisitReportList() {
   }, [items, pagination?.total]);
 
   const handleCreate = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
+    router.push("/crm/visits/create");
   };
 
   const handleEdit = (item: VisitReport) => {
-    setEditingItem(item);
-    setDialogOpen(true);
+    router.push(`/crm/visits/${item.id}/edit`);
   };
 
   const handleDelete = async () => {
@@ -94,8 +97,7 @@ export function useVisitReportList() {
   };
 
   const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditingItem(null);
+    // No-op
   };
 
   const handleCheckIn = async (id: string) => {
@@ -173,8 +175,6 @@ export function useVisitReportList() {
       pageSize,
       statusFilter,
       outcomeFilter,
-      dialogOpen,
-      editingItem,
       deleteId,
     },
     actions: {
@@ -202,7 +202,7 @@ export function useVisitReportList() {
       metrics,
       hasTeamView,
     },
-    permissions: { canCreate, canUpdate, canDelete, canApprove, readScope },
+    permissions: { canCreate, canUpdate, canDelete, canApprove, canApproveOnly: canApprove && !canUpdate, readScope, isOwner },
     translations: { t, tCommon },
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,8 +33,11 @@ import type { Employee as MdEmployee } from "@/features/master-data/employee/typ
 import { QuotationDetailModal } from "../../quotation/components/quotation-detail-modal";
 import type { SalesQuotation } from "../../quotation/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
+import { useInvoices } from "../../invoice/hooks/use-invoices";
+import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -65,9 +68,13 @@ export function OrderDetailModal({
   const canCancel = useUserPermission("sales_order.cancel");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canViewCustomer = useUserPermission("customer.read");
 
   const [isCreateDOOpen, setIsCreateDOOpen] = useState(false);
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const {
     canViewEmployee,
@@ -78,6 +85,42 @@ export function OrderDetailModal({
     isQuotationOpen, setIsQuotationOpen, selectedQuotationId,
     openEmployee, openProduct, openQuotation,
   } = useOrderDetail();
+
+  // Fetch invoices and DPs for the SO to compute financial overview
+  const { data: invoicesData } = useInvoices(
+    { sales_order_id: order?.id, per_page: 100 },
+  );
+  const { data: dpData } = useCustomerInvoiceDPs(
+    { sales_order_id: order?.id, per_page: 100 },
+  );
+
+  const financialOverview = useMemo(() => {
+    if (!order) return null;
+
+    const invoiceList = invoicesData?.data ?? [];
+    const dpList = dpData?.data ?? [];
+
+    const totalInvoiced = invoiceList.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    const totalPaidInvoice = invoiceList.reduce((sum, inv) => sum + (inv.paid_amount ?? 0), 0);
+    const totalDP = dpList.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
+    const totalPaidDP = 0; // payment tracking not available for DPs in list item type
+
+    const orderTotal = order.total_amount ?? 0;
+    const totalBilled = totalInvoiced + totalDP;
+    const totalPaid = totalPaidInvoice + totalPaidDP;
+    const remainingBalance = orderTotal - totalPaid;
+
+    return {
+      orderTotal,
+      totalInvoiced,
+      totalDP,
+      totalBilled,
+      totalPaid,
+      remainingBalance,
+      invoiceCount: invoiceList.length,
+      dpCount: dpList.length,
+    };
+  }, [order, invoicesData, dpData]);
 
   if (!order) return null;
 
@@ -195,7 +238,7 @@ export function OrderDetailModal({
                     size="icon"
                     onClick={handleApprove}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -207,7 +250,7 @@ export function OrderDetailModal({
                     size="icon"
                     onClick={handleCancel}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 focus-visible:ring-red-500"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50 focus-visible:ring-red-500"
                     title={t("actions.cancel")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -218,7 +261,7 @@ export function OrderDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateDOOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createDelivery")}
                   >
                     <Truck className="h-4 w-4" />
@@ -229,7 +272,7 @@ export function OrderDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateInvoiceOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.createInvoice")}
                   >
                     <Receipt className="h-4 w-4" />
@@ -329,7 +372,21 @@ export function OrderDetailModal({
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayOrder.customer_name ?? "-"}</TableCell>
+                                <TableCell>
+                                  {canViewCustomer && displayOrder.customer_id ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCustomerId(displayOrder.customer_id ?? null);
+                                        setIsCustomerOpen(true);
+                                      }}
+                                      className="text-primary hover:underline cursor-pointer text-left"
+                                    >
+                                      {displayOrder.customer_name ?? displayOrder.customer_id}
+                                    </button>
+                                  ) : (
+                                    <span>{displayOrder.customer_name ?? "-"}</span>
+                                  )}
+                                </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayOrder.customer_contact ?? "-"}</TableCell>
                             </TableRow>
@@ -410,6 +467,43 @@ export function OrderDetailModal({
                     </Table>
                   </div>
                 </div>
+
+                {/* Payment & Invoice Overview */}
+                {financialOverview && (financialOverview.invoiceCount > 0 || financialOverview.dpCount > 0) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                        {t("paymentOverview.title")}
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">{t("paymentOverview.orderTotal")}</p>
+                          <p className="text-sm font-bold">{formatCurrency(financialOverview.orderTotal)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">
+                            {t("paymentOverview.downPayment")} ({financialOverview.dpCount})
+                          </p>
+                          <p className="text-sm font-bold text-primary">{formatCurrency(financialOverview.totalDP)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">
+                            {t("paymentOverview.invoiced")} ({financialOverview.invoiceCount})
+                          </p>
+                          <p className="text-sm font-bold text-success">{formatCurrency(financialOverview.totalInvoiced)}</p>
+                        </div>
+                        <div className="rounded-lg border bg-card p-3 text-center space-y-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase">{t("paymentOverview.remaining")}</p>
+                          <p className={`text-sm font-bold ${financialOverview.remainingBalance > 0 ? "text-warning" : "text-success"}`}>
+                            {formatCurrency(financialOverview.remainingBalance)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Workflow History */}
                 {(displayOrder.confirmed_at || displayOrder.cancelled_at) && (
@@ -546,6 +640,12 @@ export function OrderDetailModal({
         open={isEmployeeOpen}
         onOpenChange={setIsEmployeeOpen}
         employee={selectedEmployeeId ? { id: selectedEmployeeId } as unknown as MdEmployee : null}
+      />
+
+      <CustomerDetailModal
+        open={isCustomerOpen}
+        onOpenChange={setIsCustomerOpen}
+        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
       />
 
       <QuotationDetailModal

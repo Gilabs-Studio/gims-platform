@@ -32,6 +32,8 @@ type CustomerInvoiceDownPaymentUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
+	// Note: Submit/Reject/Cancel not exposed for down payment flow
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
@@ -88,6 +90,10 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 			soDto.CustomerID = ci.SalesOrder.CustomerID
 			custID = *ci.SalesOrder.CustomerID
 		}
+		if ci.SalesOrder.CustomerName != "" {
+			name := ci.SalesOrder.CustomerName
+			soDto.CustomerName = &name
+		}
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
@@ -128,6 +134,13 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 	var soDto *dto.CustomerInvoiceDownPaymentSalesOrder
 	if ci.SalesOrder != nil {
 		soDto = &dto.CustomerInvoiceDownPaymentSalesOrder{ID: ci.SalesOrder.ID, Code: ci.SalesOrder.Code}
+		if ci.SalesOrder.CustomerID != nil {
+			soDto.CustomerID = ci.SalesOrder.CustomerID
+		}
+		if ci.SalesOrder.CustomerName != "" {
+			name := ci.SalesOrder.CustomerName
+			soDto.CustomerName = &name
+		}
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
@@ -243,19 +256,19 @@ func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 		if err := tx.Create(&ci).Error; err != nil {
 			return err
 		}
-
-		loaded, err := uc.repo.FindByID(ctx, ci.ID)
-		if err != nil {
-			return err
-		}
-		out = loaded
+		out = &ci
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "customer_invoice_dp.create", out.ID, map[string]interface{}{"after": out})
-	return uc.mapToDetail(ctx, out), nil
+	// Reload after commit so relations (SalesOrder, Customer) are visible on the main connection.
+	loaded, err := uc.repo.FindByID(ctx, out.ID)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.create", loaded.ID, map[string]interface{}{"after": loaded})
+	return uc.mapToDetail(ctx, loaded), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
@@ -372,7 +385,7 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		if ci.Status != models.CustomerInvoiceStatusDraft {
 			return ErrCustomerInvoiceConflict
 		}
-		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusUnpaid).Error; err != nil {
+		if err := tx.Model(&ci).Update("status", models.CustomerInvoiceStatusSubmitted).Error; err != nil {
 			return err
 		}
 
@@ -390,6 +403,46 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.pending", id, map[string]interface{}{"after": out})
+	return uc.mapToDetail(ctx, out), nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ci models.CustomerInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if ci.Type != models.CustomerInvoiceTypeDownPayment {
+			return ErrCustomerInvoiceNotFound
+		}
+		if ci.Status != models.CustomerInvoiceStatusSubmitted {
+			return ErrCustomerInvoiceConflict
+		}
+		now := apptime.Now()
+		// Approve and transition to UNPAID so it appears in the payment form
+		if err := tx.Model(&ci).Updates(map[string]interface{}{
+			"status":           models.CustomerInvoiceStatusUnpaid,
+			"approved_at":      &now,
+			"remaining_amount": ci.Amount,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrCustomerInvoiceNotFound
+		}
+		return nil, err
+	}
+	out, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	uc.auditService.Log(ctx, "customer_invoice_dp.approve", id, nil)
 	return uc.mapToDetail(ctx, out), nil
 }
 

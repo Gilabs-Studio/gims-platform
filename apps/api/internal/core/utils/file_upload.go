@@ -92,9 +92,11 @@ func ValidateImageFile(file multipart.File, header *multipart.FileHeader, maxSiz
 	}
 
 	// 5. Validate file extension matches MIME type
+	// Accept both .jpg and .jpeg as valid JPEG extensions since they are equivalent
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	expectedExt := "." + kind.Extension
-	if ext != expectedExt && !(ext == ".jpg" && expectedExt == ".jpeg") {
+	isJpegAlias := (ext == ".jpg" && expectedExt == ".jpeg") || (ext == ".jpeg" && expectedExt == ".jpg")
+	if ext != expectedExt && !isJpegAlias {
 		return ErrInvalidFileType
 	}
 

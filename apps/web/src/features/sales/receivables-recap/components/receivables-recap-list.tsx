@@ -110,25 +110,25 @@ export function ReceivablesRecapList() {
           icon={Users}
           label={t("summary.totalCustomers")}
           value={summaryLoading ? null : (summary?.total_customers ?? 0).toLocaleString("id-ID")}
-          color="bg-blue-500/10 text-blue-600"
+          color="bg-primary/10 text-primary"
         />
         <StatCard
           icon={DollarSign}
           label={t("summary.totalReceivable")}
           value={summaryLoading ? null : formatCurrency(summary?.total_receivable ?? 0)}
-          color="bg-green-500/10 text-green-600"
+          color="bg-success/10 text-success"
         />
         <StatCard
           icon={TrendingDown}
           label={t("summary.totalOutstanding")}
           value={summaryLoading ? null : formatCurrency(summary?.total_outstanding ?? 0)}
-          color="bg-amber-500/10 text-amber-600"
+          color="bg-warning/10 text-warning"
         />
         <StatCard
           icon={AlertTriangle}
           label={t("summary.badDebt")}
           value={summaryLoading ? null : (summary?.bad_debt_count ?? 0).toLocaleString("id-ID")}
-          color="bg-red-500/10 text-red-600"
+          color="bg-destructive/10 text-destructive"
         />
       </div>
 
@@ -191,7 +191,7 @@ export function ReceivablesRecapList() {
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(row.total_receivable)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                  <TableCell className="text-right tabular-nums text-success dark:text-success">
                     {formatCurrency(row.paid_amount)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">

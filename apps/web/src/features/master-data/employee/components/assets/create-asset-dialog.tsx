@@ -204,7 +204,7 @@ export function CreateAssetDialog({
             <Label>{t("asset.fields.assetImage")}</Label>
             <FileUpload
               value={assetImage}
-              onChange={setAssetImage}
+              onChange={(url) => setAssetImage(url ?? "")}
               accept=".jpg,.jpeg,.png,.webp"
               uploadEndpoint="/upload/image"
             />

@@ -14,12 +14,23 @@ export interface UseTaskFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: Task | null;
   onSuccess?: () => void;
+  onAfterSubmit?: (taskId: string) => Promise<void>;
+  defaultValues?: {
+    lead_id?: string;
+    deal_id?: string;
+    assigned_to_id?: string;
+  };
 }
 
-export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseTaskFormProps) {
+export function useTaskForm({ open, onOpenChange, editingItem, onSuccess, onAfterSubmit, defaultValues: defaults }: UseTaskFormProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
   const isEditing = !!editingItem;
+
+  // Stabilize defaults to prevent infinite useEffect loops
+  const defaultLeadId = defaults?.lead_id;
+  const defaultDealId = defaults?.deal_id;
+  const defaultAssignedToId = defaults?.assigned_to_id;
 
   const schema = useMemo(
     () =>
@@ -36,9 +47,8 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         due_date: z.string().optional().or(z.literal("")),
         assigned_to: z.string().optional().or(z.literal("")),
         assigned_from: z.string().optional().or(z.literal("")),
-        customer_id: z.string().optional().or(z.literal("")),
-        contact_id: z.string().optional().or(z.literal("")),
         deal_id: z.string().optional().or(z.literal("")),
+        lead_id: z.string().optional().or(z.literal("")),
       }),
     [t]
   );
@@ -59,9 +69,8 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
       due_date: "",
       assigned_to: "",
       assigned_from: "",
-      customer_id: "",
-      contact_id: "",
       deal_id: "",
+      lead_id: "",
     },
   });
 
@@ -73,17 +82,27 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         type: editingItem.type,
         priority: editingItem.priority,
         status: editingItem.status,
-        due_date: editingItem.due_date?.slice(0, 16) ?? "",
+        due_date: editingItem.due_date?.slice(0, 10) ?? "",
         assigned_to: editingItem.assigned_to_employee?.id ?? "",
         assigned_from: editingItem.assigned_from_employee?.id ?? "",
-        customer_id: editingItem.customer?.id ?? "",
-        contact_id: editingItem.contact?.id ?? "",
         deal_id: editingItem.deal?.id ?? "",
+        lead_id: editingItem.lead?.id ?? "",
       });
     } else if (open) {
-      form.reset();
+      form.reset({
+        title: "",
+        description: "",
+        type: "general",
+        priority: "medium",
+        status: "pending",
+        due_date: "",
+        assigned_to: defaultAssignedToId ?? "",
+        assigned_from: "",
+        deal_id: defaultDealId ?? "",
+        lead_id: defaultLeadId ?? "",
+      });
     }
-  }, [open, editingItem, form]);
+  }, [open, editingItem, form, defaultLeadId, defaultDealId, defaultAssignedToId]);
 
   const onSubmit: SubmitHandler<TaskFormValues> = async (data) => {
     try {
@@ -93,16 +112,17 @@ export function useTaskForm({ open, onOpenChange, editingItem, onSuccess }: UseT
         due_date: data.due_date || null,
         assigned_to: data.assigned_to || null,
         assigned_from: data.assigned_from || null,
-        customer_id: data.customer_id || null,
-        contact_id: data.contact_id || null,
         deal_id: data.deal_id || null,
+        lead_id: data.lead_id || null,
       };
 
       if (isEditing) {
         await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        await onAfterSubmit?.(editingItem.id);
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(payload);
+        const result = await createMutation.mutateAsync(payload);
+        await onAfterSubmit?.(result.data.id);
         toast.success(t("created"));
       }
       onOpenChange(false);

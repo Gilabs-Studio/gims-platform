@@ -3,6 +3,7 @@ package dto
 import (
 	"time"
 
+	coreDTO "github.com/gilabs/gims/api/internal/core/domain/dto"
 	supplierDTO "github.com/gilabs/gims/api/internal/supplier/domain/dto"
 )
 
@@ -66,52 +67,59 @@ type UpdateCustomerRequest struct {
 
 // CustomerResponse is the response DTO for a customer
 type CustomerResponse struct {
-	ID             string                     `json:"id"`
-	Code           string                     `json:"code"`
-	Name           string                     `json:"name"`
-	CustomerTypeID *string                    `json:"customer_type_id"`
-	CustomerType   *CustomerTypeResponse      `json:"customer_type,omitempty"`
-	Address        string                     `json:"address"`
-	ProvinceID     *string                    `json:"province_id"`
-	Province       *ProvinceResponse          `json:"province,omitempty"`
-	CityID         *string                    `json:"city_id"`
-	City           *CityResponse              `json:"city,omitempty"`
-	DistrictID     *string                    `json:"district_id"`
-	District       *DistrictResponse          `json:"district,omitempty"`
-	VillageID      *string                    `json:"village_id"`
-	VillageName    *string                    `json:"village_name,omitempty"`
-	Village        *VillageResponse           `json:"village,omitempty"`
-	Email          string                     `json:"email"`
-	Website        string                     `json:"website"`
-	NPWP           string                     `json:"npwp"`
-	ContactPerson  string                     `json:"contact_person"`
-	Notes          string                     `json:"notes"`
-	Latitude       *float64                   `json:"latitude"`
-	Longitude      *float64                   `json:"longitude"`
-	CreatedBy      *string                    `json:"created_by"`
-	IsActive       bool                       `json:"is_active"`
-	CreatedAt      time.Time                  `json:"created_at"`
-	UpdatedAt      time.Time                  `json:"updated_at"`
-	PhoneNumbers   []PhoneNumberResponse      `json:"phone_numbers,omitempty"`
-	BankAccounts   []CustomerBankResponse     `json:"bank_accounts,omitempty"`
+	ID             string                 `json:"id"`
+	Code           string                 `json:"code"`
+	Name           string                 `json:"name"`
+	CustomerTypeID *string                `json:"customer_type_id"`
+	CustomerType   *CustomerTypeResponse  `json:"customer_type,omitempty"`
+	Address        string                 `json:"address"`
+	ProvinceID     *string                `json:"province_id"`
+	Province       *ProvinceResponse      `json:"province,omitempty"`
+	CityID         *string                `json:"city_id"`
+	City           *CityResponse          `json:"city,omitempty"`
+	DistrictID     *string                `json:"district_id"`
+	District       *DistrictResponse      `json:"district,omitempty"`
+	VillageID      *string                `json:"village_id"`
+	VillageName    *string                `json:"village_name,omitempty"`
+	Village        *VillageResponse       `json:"village,omitempty"`
+	Email          string                 `json:"email"`
+	Website        string                 `json:"website"`
+	NPWP           string                 `json:"npwp"`
+	ContactPerson  string                 `json:"contact_person"`
+	Notes          string                 `json:"notes"`
+	Latitude       *float64               `json:"latitude"`
+	Longitude      *float64               `json:"longitude"`
+	CreatedBy      *string                `json:"created_by"`
+	IsActive       bool                   `json:"is_active"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	PhoneNumbers   []PhoneNumberResponse  `json:"phone_numbers,omitempty"`
+	BankAccounts   []CustomerBankResponse `json:"bank_accounts,omitempty"`
 	// Sales defaults
-	DefaultBusinessTypeID  *string                   `json:"default_business_type_id"`
-	DefaultBusinessType    *SalesDefaultOptionBrief  `json:"default_business_type,omitempty"`
-	DefaultAreaID          *string                   `json:"default_area_id"`
-	DefaultArea            *SalesDefaultOptionBrief  `json:"default_area,omitempty"`
-	DefaultSalesRepID      *string                   `json:"default_sales_rep_id"`
-	DefaultSalesRep        *SalesRepBrief            `json:"default_sales_rep,omitempty"`
-	DefaultPaymentTermsID  *string                   `json:"default_payment_terms_id"`
-	DefaultPaymentTerms    *SalesDefaultOptionBrief  `json:"default_payment_terms,omitempty"`
-	DefaultTaxRate         *float64                  `json:"default_tax_rate"`
+	DefaultBusinessTypeID *string                  `json:"default_business_type_id"`
+	DefaultBusinessType   *SalesDefaultOptionBrief `json:"default_business_type,omitempty"`
+	DefaultAreaID         *string                  `json:"default_area_id"`
+	DefaultArea           *SalesDefaultOptionBrief `json:"default_area,omitempty"`
+	DefaultSalesRepID     *string                  `json:"default_sales_rep_id"`
+	DefaultSalesRep       *SalesRepBrief           `json:"default_sales_rep,omitempty"`
+	DefaultPaymentTermsID *string                  `json:"default_payment_terms_id"`
+	DefaultPaymentTerms   *SalesDefaultOptionBrief `json:"default_payment_terms,omitempty"`
+	DefaultTaxRate        *float64                 `json:"default_tax_rate"`
 	// CRM enrichment
-	ContactsCount          int64                     `json:"contacts_count"`
+	ContactsCount int64 `json:"contacts_count"`
 }
 
 // SalesDefaultOptionBrief is a lightweight reference for business type / area / payment terms
 type SalesDefaultOptionBrief struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+// CustomerAreaFormOption is a lightweight area reference that includes province for auto-mapping.
+type CustomerAreaFormOption struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Province string `json:"province,omitempty"`
 }
 
 // SalesRepBrief is a lightweight sales rep reference
@@ -123,11 +131,11 @@ type SalesRepBrief struct {
 
 // CustomerFormDataResponse for form dropdown options
 type CustomerFormDataResponse struct {
-	CustomerTypes []CustomerTypeResponse         `json:"customer_types"`
-	BusinessTypes []SalesDefaultOptionBrief      `json:"business_types"`
-	Areas         []SalesDefaultOptionBrief      `json:"areas"`
-	SalesReps     []SalesRepBrief               `json:"sales_reps"`
-	PaymentTerms  []PaymentTermsFormOption       `json:"payment_terms"`
+	CustomerTypes []CustomerTypeResponse    `json:"customer_types"`
+	BusinessTypes []SalesDefaultOptionBrief `json:"business_types"`
+	Areas         []CustomerAreaFormOption  `json:"areas"`
+	SalesReps     []SalesRepBrief           `json:"sales_reps"`
+	PaymentTerms  []PaymentTermsFormOption  `json:"payment_terms"`
 }
 
 // PaymentTermsFormOption is used in form dropdowns for payment terms
@@ -170,6 +178,7 @@ type PhoneNumberResponse struct {
 // CreateCustomerBankRequest for adding a bank account to a customer
 type CreateCustomerBankRequest struct {
 	BankID        string `json:"bank_id" binding:"required,uuid"`
+	CurrencyID    string `json:"currency_id" binding:"required,uuid"`
 	AccountNumber string `json:"account_number" binding:"required,max=50"`
 	AccountName   string `json:"account_name" binding:"required,max=100"`
 	Branch        string `json:"branch" binding:"max=100"`
@@ -179,6 +188,7 @@ type CreateCustomerBankRequest struct {
 // UpdateCustomerBankRequest for updating a bank account
 type UpdateCustomerBankRequest struct {
 	BankID        string `json:"bank_id" binding:"omitempty,uuid"`
+	CurrencyID    string `json:"currency_id" binding:"omitempty,uuid"`
 	AccountNumber string `json:"account_number" binding:"omitempty,max=50"`
 	AccountName   string `json:"account_name" binding:"omitempty,max=100"`
 	Branch        string `json:"branch" binding:"max=100"`
@@ -191,6 +201,8 @@ type CustomerBankResponse struct {
 	CustomerID    string                    `json:"customer_id"`
 	BankID        string                    `json:"bank_id"`
 	Bank          *supplierDTO.BankResponse `json:"bank,omitempty"`
+	CurrencyID    *string                   `json:"currency_id"`
+	Currency      *coreDTO.CurrencyResponse `json:"currency,omitempty"`
 	AccountNumber string                    `json:"account_number"`
 	AccountName   string                    `json:"account_name"`
 	Branch        string                    `json:"branch"`

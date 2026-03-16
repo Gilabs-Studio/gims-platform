@@ -9,8 +9,10 @@ interface InvoiceStatusBadgeProps {
 
 export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProps) {
   const t = useTranslations("invoice.status");
+  const rawStatus = (status ?? "").toLowerCase();
+  const normalizedStatus = rawStatus === "approved" ? "unpaid" : rawStatus;
 
-  switch (status) {
+  switch (normalizedStatus) {
     case "draft":
       return (
         <Badge variant="secondary" className={className}>
@@ -22,16 +24,23 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
       return (
         <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
-          {t("sent")}
+            {t("sent")}
         </Badge>
       );
-    case "approved":
-      return (
-        <Badge variant="success" className={className}>
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("approved")}
-        </Badge>
-      );
+      case "submitted":
+        return (
+          <Badge variant="info" className={className}>
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("sent")}
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge variant="info" className={className}>
+            <Send className="h-3 w-3 mr-1.5" />
+            {t("pending")}
+          </Badge>
+        );
     case "rejected":
       return (
         <Badge variant="destructive" className={className}>
@@ -44,6 +53,13 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
         <Badge variant="warning" className={className}>
           <CreditCard className="h-3 w-3 mr-1.5" />
           {t("unpaid")}
+        </Badge>
+      );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("waiting_payment")}
         </Badge>
       );
     case "partial":
@@ -68,6 +84,8 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
         </Badge>
       );
     default:
-      return <Badge variant="outline" className={className}>{status}</Badge>;
+      // Try to resolve a localized label first, fallback to raw status
+      const label = t(normalizedStatus) || status;
+      return <Badge variant="outline" className={className}>{label}</Badge>;
   }
 }

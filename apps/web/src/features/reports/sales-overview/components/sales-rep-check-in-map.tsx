@@ -34,8 +34,6 @@ const Polyline = dynamic(
 );
 import { useMap } from "react-leaflet";
 
-// @ts-expect-error -- leaflet CSS import has no type declarations
-import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -96,7 +94,7 @@ function createNumberedMarkerIcon(number: number) {
     className: "custom-numbered-marker",
     html: `
       <div style="
-        background-color: #3b82f6;
+        background-color: var(--color-primary);
         color: white;
         width: 32px;
         height: 32px;
@@ -216,7 +214,7 @@ export function SalesRepCheckInMap({
               <Polyline
                 positions={polylineCoordinates}
                 pathOptions={{
-                  color: "#3b82f6",
+                  color: "var(--color-primary)",
                   weight: 3,
                   opacity: 0.6,
                 }}

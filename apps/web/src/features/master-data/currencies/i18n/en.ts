@@ -1,0 +1,21 @@
+export const currencyEn = {
+  title: "Currencies",
+  description: "Manage currency master data used by bank and finance forms",
+  create: "Add Currency",
+  edit: "Edit Currency",
+  created: "Currency created successfully",
+  updated: "Currency updated successfully",
+  deleted: "Currency deleted successfully",
+  empty: "No currencies found",
+  search: "Search currencies...",
+  form: {
+    code: "Code",
+    codePlaceholder: "Enter code (e.g. IDR)",
+    name: "Name",
+    namePlaceholder: "Enter currency name",
+    symbol: "Symbol",
+    symbolPlaceholder: "Enter symbol",
+    decimalPlaces: "Decimal Places",
+    isActive: "Active",
+  },
+};

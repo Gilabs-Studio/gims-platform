@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
-import { CalendarIcon, FileText } from "lucide-react";
+import { CalendarIcon, FileText, Package, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,9 +17,10 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonLoading } from "@/components/loading";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
   useCreateSupplierInvoiceDP,
@@ -26,6 +28,7 @@ import {
   useSupplierInvoiceDPAddData,
   useUpdateSupplierInvoiceDP,
 } from "../hooks/use-supplier-invoice-dp";
+import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import {
   supplierInvoiceDPSchema,
   type SupplierInvoiceDPFormData,
@@ -35,10 +38,12 @@ export function SupplierInvoiceDPFormDialog({
   open,
   onOpenChange,
   invoiceId,
+  defaultPurchaseOrderId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceId?: string;
+  defaultPurchaseOrderId?: string | null;
 }) {
   const t = useTranslations("supplierInvoiceDP");
   const isEdit = !!invoiceId;
@@ -60,10 +65,26 @@ export function SupplierInvoiceDPFormDialog({
     },
   });
 
+  const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
+
   useEffect(() => {
     if (!open) return;
     if (!isEdit) {
-      form.reset({ purchase_order_id: "", invoice_date: "", due_date: "", amount: 0, notes: null });
+      const initial: SupplierInvoiceDPFormData = {
+        purchase_order_id: defaultPurchaseOrderId ?? "",
+        invoice_date: "",
+        due_date: "",
+        amount: 0,
+        notes: null,
+      };
+      // If opened from a PO, try to prefill amount from PO total
+      if (defaultPurchaseOrderId) {
+        const po = poQuery.data?.success ? poQuery.data.data : null;
+        if (po) {
+          initial.amount = po.total_amount ?? 0;
+        }
+      }
+      form.reset(initial);
       return;
     }
     const detail = detailQuery.data?.success ? detailQuery.data.data : null;
@@ -75,10 +96,16 @@ export function SupplierInvoiceDPFormDialog({
       amount: detail.amount,
       notes: detail.notes ?? null,
     });
-  }, [open, isEdit, detailQuery.data, form]);
+  }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId, poQuery.data]);
 
   const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
+
+  const watchedPOId = form.watch("purchase_order_id");
+  const selectedPO = useMemo(
+    () => addData?.purchase_orders?.find((po) => po.id === watchedPOId) ?? null,
+    [addData, watchedPOId],
+  );
 
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
@@ -140,6 +167,67 @@ export function SupplierInvoiceDPFormDialog({
               )}
             />
           </Field>
+
+          {/* PO Detail Card */}
+          {selectedPO && (
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                <h4 className="text-sm font-medium">{t("sections.poDetail")}</h4>
+                <Badge variant="outline" className="ml-auto text-xs">
+                  {selectedPO.status}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("fields.supplier")}:</span>
+                  <span className="font-medium">{selectedPO.supplier?.name ?? "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("fields.orderDate")}:</span>
+                  <span className="font-medium">{selectedPO.order_date ? formatDate(selectedPO.order_date) : "-"}</span>
+                </div>
+                <div className="flex justify-between col-span-2">
+                  <span className="text-muted-foreground">{t("fields.totalAmount")}:</span>
+                  <span className="font-semibold text-primary">{formatCurrency(selectedPO.total_amount)}</span>
+                </div>
+              </div>
+
+              {selectedPO.items?.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">{t("fields.items")} ({selectedPO.items.length})</p>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs py-1.5">{t("fields.product")}</TableHead>
+                          <TableHead className="text-xs py-1.5 text-right">{t("fields.quantity")}</TableHead>
+                          <TableHead className="text-xs py-1.5 text-right">{t("fields.price")}</TableHead>
+                          <TableHead className="text-xs py-1.5 text-right">{t("fields.subtotal")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedPO.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="py-1.5 text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <span>{item.product?.name ?? "-"}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-xs text-right">{item.quantity}</TableCell>
+                            <TableCell className="py-1.5 text-xs text-right">{formatCurrency(item.price)}</TableCell>
+                            <TableCell className="py-1.5 text-xs text-right font-medium">{formatCurrency(item.subtotal)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <Field orientation="vertical">

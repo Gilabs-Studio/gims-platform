@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -52,6 +53,21 @@ type VisitReportRepository interface {
 	ListProgressHistory(ctx context.Context, visitReportID string, limit, offset int) ([]models.VisitReportProgressHistory, int64, error)
 	ListInterestQuestions(ctx context.Context) ([]salesModels.SalesVisitInterestQuestion, error)
 	UpdatePhotos(ctx context.Context, id string, photos string) error
+	// GetEmployeeSummary returns per-employee visit report counts and latest visit date, scope-filtered.
+	GetEmployeeSummary(ctx context.Context, search string, limit, offset int) ([]EmployeeVisitSummary, int64, error)
+}
+
+// EmployeeVisitSummary is a raw aggregation result per employee
+type EmployeeVisitSummary struct {
+	EmployeeID   string
+	EmployeeCode string
+	EmployeeName string
+	TotalReports int64
+	LatestVisit  string
+	Draft        int64
+	Submitted    int64
+	Approved     int64
+	Rejected     int64
 }
 
 type visitReportRepository struct {
@@ -319,15 +335,24 @@ func (r *visitReportRepository) Delete(ctx context.Context, id string) error {
 
 func (r *visitReportRepository) GetNextCode(ctx context.Context) (string, error) {
 	now := r.getDB(ctx).NowFunc()
-	prefix := fmt.Sprintf("VISIT-%s", now.Format("200601"))
+	prefix := fmt.Sprintf("VISIT-%s-", now.Format("200601"))
 
-	var count int64
+	var lastCode string
 	r.getDB(ctx).Model(&models.VisitReport{}).
 		Where("code LIKE ?", prefix+"%").
-		Count(&count)
+		Order("code DESC").
+		Limit(1).
+		Pluck("code", &lastCode)
 
-	code := fmt.Sprintf("%s-%05d", prefix, count+1)
-	return code, nil
+	seq := 1
+	if lastCode != "" && len(lastCode) > len(prefix) {
+		suffix := lastCode[len(prefix):]
+		if n, err := strconv.Atoi(suffix); err == nil {
+			seq = n + 1
+		}
+	}
+
+	return fmt.Sprintf("%s%05d", prefix, seq), nil
 }
 
 func (r *visitReportRepository) UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error {
@@ -401,4 +426,101 @@ func (r *visitReportRepository) UpdatePhotos(ctx context.Context, id string, pho
 	return r.getDB(ctx).Model(&models.VisitReport{}).
 		Where(visitQueryByID, id).
 		Update("photos", photos).Error
+}
+
+// GetEmployeeSummary aggregates visit report counts per employee.
+// RBAC scope is read directly from ctx to maintain consistency with HRD module scope rules.
+func (r *visitReportRepository) GetEmployeeSummary(ctx context.Context, search string, limit, offset int) ([]EmployeeVisitSummary, int64, error) {
+	db := r.getDB(ctx)
+
+	// Read RBAC scope values injected by middleware
+	scope, _ := ctx.Value("permission_scope").(string)
+	employeeID, _ := ctx.Value("scope_employee_id").(string)
+	divisionID, _ := ctx.Value("scope_division_id").(string)
+
+	// Build scope clause that restricts which employees are visible
+	scopeClause := ""
+	var scopeArgs []interface{}
+	switch scope {
+	case "OWN":
+		if employeeID != "" {
+			scopeClause = "AND vr_scoped.employee_id = ?"
+			scopeArgs = append(scopeArgs, employeeID)
+		}
+	case "DIVISION", "AREA":
+		// HRD module uses division_id for both DIVISION and AREA scopes
+		if divisionID != "" {
+			scopeClause = "AND vr_scoped.employee_id IN (SELECT id FROM employees WHERE division_id = ? AND deleted_at IS NULL)"
+			scopeArgs = append(scopeArgs, divisionID)
+		} else if employeeID != "" {
+			// Fallback to OWN when no division is set
+			scopeClause = "AND vr_scoped.employee_id = ?"
+			scopeArgs = append(scopeArgs, employeeID)
+		}
+	// default (ALL or empty): no restriction
+	}
+
+	// Employee name/code search predicate
+	searchClause := ""
+	var searchArgs []interface{}
+	if search != "" {
+		s := "%" + search + "%"
+		searchClause = "AND (e.name ILIKE ? OR e.employee_code ILIKE ?)"
+		searchArgs = append(searchArgs, s, s)
+	}
+
+	// Count distinct employees who have at least one visit report under the scope
+	countSQL := fmt.Sprintf(`
+		SELECT COUNT(DISTINCT e.id)
+		FROM employees e
+		INNER JOIN (
+			SELECT DISTINCT employee_id FROM crm_visit_reports
+			WHERE deleted_at IS NULL %s
+		) vr_scoped ON vr_scoped.employee_id = e.id
+		WHERE e.deleted_at IS NULL %s
+	`, scopeClause, searchClause)
+
+	countArgs := append(scopeArgs, searchArgs...)
+	var total int64
+	if err := db.Raw(countSQL, countArgs...).Scan(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("GetEmployeeSummary count: %w", err)
+	}
+
+	if total == 0 {
+		return []EmployeeVisitSummary{}, 0, nil
+	}
+
+	// Aggregation query: per-employee status counts + latest visit date
+	dataSQL := fmt.Sprintf(`
+		SELECT
+			e.id                                                                      AS employee_id,
+			e.employee_code                                                           AS employee_code,
+			e.name                                                                    AS employee_name,
+			COUNT(vr.id)                                                              AS total_reports,
+			COALESCE(MAX(vr.visit_date::text), '')                                    AS latest_visit,
+			COUNT(vr.id) FILTER (WHERE vr.status = 'draft')                          AS draft,
+			COUNT(vr.id) FILTER (WHERE vr.status = 'submitted')                      AS submitted,
+			COUNT(vr.id) FILTER (WHERE vr.status = 'approved')                       AS approved,
+			COUNT(vr.id) FILTER (WHERE vr.status = 'rejected')                       AS rejected
+		FROM employees e
+		INNER JOIN (
+			SELECT DISTINCT employee_id FROM crm_visit_reports
+			WHERE deleted_at IS NULL %s
+		) vr_scoped ON vr_scoped.employee_id = e.id
+		LEFT JOIN crm_visit_reports vr
+			ON vr.employee_id = e.id AND vr.deleted_at IS NULL
+		WHERE e.deleted_at IS NULL %s
+		GROUP BY e.id, e.employee_code, e.name
+		ORDER BY total_reports DESC, e.name ASC
+		LIMIT ? OFFSET ?
+	`, scopeClause, searchClause)
+
+	dataArgs := append(append(scopeArgs, searchArgs...), limit, offset)
+
+	var results []EmployeeVisitSummary
+	if err := db.Raw(dataSQL, dataArgs...).Scan(&results).Error; err != nil {
+		return nil, 0, fmt.Errorf("GetEmployeeSummary data: %w", err)
+	}
+
+	return results, total, nil
 }

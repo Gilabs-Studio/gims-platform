@@ -25,6 +25,13 @@ type UpCountryCostUsecase interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
 	List(ctx context.Context, req *dto.ListUpCountryCostsRequest) ([]dto.UpCountryCostResponse, int64, error)
+	GetStats(ctx context.Context) (*dto.UpCountryCostStatsResponse, error)
+	Submit(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
+	ManagerApprove(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
+	ManagerReject(ctx context.Context, id string, comment string) (*dto.UpCountryCostResponse, error)
+	FinanceApprove(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
+	MarkPaid(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
+	// Legacy - kept for backward compatibility
 	Approve(ctx context.Context, id string) (*dto.UpCountryCostResponse, error)
 	GetFormData(ctx context.Context) (*dto.UpCountryCostFormDataResponse, error)
 }
@@ -81,11 +88,18 @@ func (uc *upCountryCostUsecase) Create(ctx context.Context, req *dto.CreateUpCou
 	}
 
 	for _, it := range req.Items {
-		item.Items = append(item.Items, financeModels.UpCountryCostItem{
+		costItem := financeModels.UpCountryCostItem{
 			CostType:    financeModels.CostType(it.CostType),
 			Description: it.Description,
 			Amount:      it.Amount,
-		})
+		}
+		if it.ExpenseDate != "" {
+			d, parseErr := time.Parse("2006-01-02", strings.TrimSpace(it.ExpenseDate))
+			if parseErr == nil {
+				costItem.ExpenseDate = &d
+			}
+		}
+		item.Items = append(item.Items, costItem)
 	}
 
 	if err := uc.db.WithContext(ctx).Create(item).Error; err != nil {
@@ -143,7 +157,19 @@ func (uc *upCountryCostUsecase) Update(ctx context.Context, id string, req *dto.
 			return err
 		}
 		for _, it := range req.Items {
-			if err := tx.Create(&financeModels.UpCountryCostItem{UpCountryCostID: id, CostType: financeModels.CostType(it.CostType), Description: it.Description, Amount: it.Amount}).Error; err != nil {
+			costItem := financeModels.UpCountryCostItem{
+				UpCountryCostID: id,
+				CostType:        financeModels.CostType(it.CostType),
+				Description:     it.Description,
+				Amount:          it.Amount,
+			}
+			if it.ExpenseDate != "" {
+				d, parseErr := time.Parse("2006-01-02", strings.TrimSpace(it.ExpenseDate))
+				if parseErr == nil {
+					costItem.ExpenseDate = &d
+				}
+			}
+			if err := tx.Create(&costItem).Error; err != nil {
 				return err
 			}
 		}
@@ -211,14 +237,15 @@ func (uc *upCountryCostUsecase) List(ctx context.Context, req *dto.ListUpCountry
 	}
 
 	items, total, err := uc.repo.List(ctx, repositories.UpCountryCostListParams{
-		Search:    req.Search,
-		Status:    status,
-		StartDate: start,
-		EndDate:   end,
-		Limit:     perPage,
-		Offset:    (page - 1) * perPage,
-		SortBy:    req.SortBy,
-		SortDir:   req.SortDir,
+		Search:     req.Search,
+		Status:     status,
+		StartDate:  start,
+		EndDate:    end,
+		EmployeeID: req.EmployeeID,
+		Limit:      perPage,
+		Offset:     (page - 1) * perPage,
+		SortBy:     req.SortBy,
+		SortDir:    req.SortDir,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -226,42 +253,72 @@ func (uc *upCountryCostUsecase) List(ctx context.Context, req *dto.ListUpCountry
 
 	res := make([]dto.UpCountryCostResponse, 0, len(items))
 	for i := range items {
-		// Needs to preload for total amount in mapper if we don't do it in List
-		// For simplicity, let's just use the mapper (it will have 0 items for list if not preloaded)
-		// Better repository to include total amount in query or preload
 		res = append(res, uc.mapper.ToResponse(&items[i]))
 	}
 	return res, total, nil
 }
 
-func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+func (uc *upCountryCostUsecase) GetStats(ctx context.Context) (*dto.UpCountryCostStatsResponse, error) {
+	stats, err := uc.repo.GetStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.UpCountryCostStatsResponse{
+		TotalRequests:   stats.TotalRequests,
+		PendingApproval: stats.PendingApproval,
+		Approved:        stats.Approved,
+		TotalAmount:     stats.TotalAmount,
+	}, nil
+}
+
+func (uc *upCountryCostUsecase) Submit(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
 	id = strings.TrimSpace(id)
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		return nil, err
 	}
-
 	if item.Status != financeModels.UpCountryCostStatusDraft {
-		return nil, errors.New("only draft can be approved")
+		return nil, errors.New("only draft can be submitted")
 	}
-
-	// Up Country Cost Journaling:
-	// Debit: Up-Country Expense Account
-	// Credit: Cash/Bank or Payable?
-	// Logic doc says: "Draft -> APPROVED (creates journal entry)"
-
-	// Usually, Up Country is a reimbursement or advance.
-	// If it's a claim, it's Debit Expense, Credit Payable to Employee.
 
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
+	now := apptime.Now()
 
-	// Look up well-known COA accounts by code (stable, unlike name-based ILIKE).
+	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":       financeModels.UpCountryCostStatusSubmitted,
+		"submitted_at": &now,
+		"submitted_by": &actorID,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.UpCountryCostStatusSubmitted
+	item.SubmittedAt = &now
+	item.SubmittedBy = &actorID
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *upCountryCostUsecase) ManagerApprove(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	id = strings.TrimSpace(id)
+	item, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != financeModels.UpCountryCostStatusSubmitted {
+		return nil, errors.New("only submitted requests can be manager-approved")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	now := apptime.Now()
+
+	// Create journal entry on manager approval
 	expCoA, err := uc.coaRepo.FindByCode(ctx, COACodeTravelExpense)
 	if err != nil {
 		return nil, fmt.Errorf("travel expense account (code %s) not found in Chart of Accounts: %w", COACodeTravelExpense, err)
 	}
-
 	payableCoA, err := uc.coaRepo.FindByCode(ctx, COACodeAccruedExpense)
 	if err != nil {
 		return nil, fmt.Errorf("accrued expense account (code %s) not found in Chart of Accounts: %w", COACodeAccruedExpense, err)
@@ -274,7 +331,7 @@ func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.Up
 
 	refType := "up_country"
 	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:     apptime.Now().Format("2006-01-02"), // Or StartDate
+		EntryDate:     now.Format("2006-01-02"),
 		Description:   "Up-Country Cost Approval: " + item.Code + " - " + item.Purpose,
 		ReferenceType: &refType,
 		ReferenceID:   &item.ID,
@@ -293,22 +350,118 @@ func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.Up
 			},
 		},
 	}
-
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
 	if err != nil {
 		return nil, err
 	}
 
-	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":      financeModels.UpCountryCostStatusApproved,
-		"approved_at": &now,
-		"approved_by": &actorID,
+		"status":                financeModels.UpCountryCostStatusManagerApproved,
+		"manager_approved_at":   &now,
+		"manager_approved_by":   &actorID,
+		"manager_comment":       "",
+		// legacy fields
+		"approved_at":           &now,
+		"approved_by":           &actorID,
 	}).Error; err != nil {
 		return nil, err
 	}
 
-	item.Status = financeModels.UpCountryCostStatusApproved
+	item.Status = financeModels.UpCountryCostStatusManagerApproved
+	item.ManagerApprovedAt = &now
+	item.ManagerApprovedBy = &actorID
 	res := uc.mapper.ToResponse(item)
 	return &res, nil
+}
+
+func (uc *upCountryCostUsecase) ManagerReject(ctx context.Context, id string, comment string) (*dto.UpCountryCostResponse, error) {
+	id = strings.TrimSpace(id)
+	item, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != financeModels.UpCountryCostStatusSubmitted {
+		return nil, errors.New("only submitted requests can be rejected by manager")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	now := apptime.Now()
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":              financeModels.UpCountryCostStatusRejected,
+		"manager_approved_at": &now,
+		"manager_approved_by": &actorID,
+		"manager_comment":     strings.TrimSpace(comment),
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.UpCountryCostStatusRejected
+	item.ManagerComment = strings.TrimSpace(comment)
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *upCountryCostUsecase) FinanceApprove(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	id = strings.TrimSpace(id)
+	item, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != financeModels.UpCountryCostStatusManagerApproved {
+		return nil, errors.New("only manager-approved requests can be finance-approved")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	now := apptime.Now()
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":              financeModels.UpCountryCostStatusFinanceApproved,
+		"finance_approved_at": &now,
+		"finance_approved_by": &actorID,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.UpCountryCostStatusFinanceApproved
+	item.FinanceApprovedAt = &now
+	item.FinanceApprovedBy = &actorID
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *upCountryCostUsecase) MarkPaid(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	id = strings.TrimSpace(id)
+	item, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != financeModels.UpCountryCostStatusFinanceApproved {
+		return nil, errors.New("only finance-approved requests can be marked as paid")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	now := apptime.Now()
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":  financeModels.UpCountryCostStatusPaid,
+		"paid_at": &now,
+		"paid_by": &actorID,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.UpCountryCostStatusPaid
+	item.PaidAt = &now
+	item.PaidBy = &actorID
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+// Approve is kept for backward compatibility - delegates to ManagerApprove
+func (uc *upCountryCostUsecase) Approve(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	return uc.ManagerApprove(ctx, id)
 }

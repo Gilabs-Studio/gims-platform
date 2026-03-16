@@ -216,7 +216,7 @@ export function PurchasePaymentsList() {
                     <TableCell>
                       <PurchasePaymentStatusBadge status={item.status ?? ""} />
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right">
                       {formatCurrency(item.amount)}
                     </TableCell>
                     <TableCell>
@@ -242,6 +242,23 @@ export function PurchasePaymentsList() {
                               </DropdownMenuItem>
                             )}
 
+                            {canConfirm && isPending && (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await confirmMutation.mutateAsync(item.id);
+                                    toast.success(t("toast.confirmed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                                className="cursor-pointer text-success focus:text-success"
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.confirm")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canAuditTrail && (
                               <DropdownMenuItem
                                 onClick={() => {
@@ -258,27 +275,10 @@ export function PurchasePaymentsList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingId(item.id)}
-                                className="cursor-pointer"
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canConfirm && isPending && (
-                              <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    await confirmMutation.mutateAsync(item.id);
-                                    toast.success(t("toast.confirmed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                                className="cursor-pointer text-green-600 focus:text-green-600"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.confirm")}
                               </DropdownMenuItem>
                             )}
 

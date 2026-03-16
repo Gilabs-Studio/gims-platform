@@ -2,18 +2,19 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
-	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
-	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDto "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/google/uuid"
 )
 
@@ -25,17 +26,24 @@ type LeadUsecase interface {
 	Update(ctx context.Context, id string, req dto.UpdateLeadRequest) (dto.LeadResponse, error)
 	Delete(ctx context.Context, id string) error
 	Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error)
+	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
 	GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error)
 	GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error)
+	GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error)
 }
 
 type leadUsecase struct {
-	leadRepo       repositories.LeadRepository
-	leadStatusRepo repositories.LeadStatusRepository
-	leadSourceRepo repositories.LeadSourceRepository
-	customerRepo   customerRepos.CustomerRepository
-	contactRepo    repositories.ContactRepository
-	employeeRepo   orgRepos.EmployeeRepository
+	leadRepo          repositories.LeadRepository
+	leadStatusRepo    repositories.LeadStatusRepository
+	leadSourceRepo    repositories.LeadSourceRepository
+	dealRepo          repositories.DealRepository
+	pipelineStageRepo repositories.PipelineStageRepository
+	activityRepo      repositories.ActivityRepository
+	taskRepo          repositories.TaskRepository
+	employeeRepo      orgRepos.EmployeeRepository
+	businessTypeRepo  orgRepos.BusinessTypeRepository
+	areaRepo          orgRepos.AreaRepository
+	paymentTermsRepo  coreRepos.PaymentTermsRepository
 }
 
 // NewLeadUsecase creates a new lead usecase
@@ -43,17 +51,27 @@ func NewLeadUsecase(
 	leadRepo repositories.LeadRepository,
 	leadStatusRepo repositories.LeadStatusRepository,
 	leadSourceRepo repositories.LeadSourceRepository,
-	customerRepo customerRepos.CustomerRepository,
-	contactRepo repositories.ContactRepository,
+	dealRepo repositories.DealRepository,
+	pipelineStageRepo repositories.PipelineStageRepository,
+	activityRepo repositories.ActivityRepository,
+	taskRepo repositories.TaskRepository,
 	employeeRepo orgRepos.EmployeeRepository,
+	businessTypeRepo orgRepos.BusinessTypeRepository,
+	areaRepo orgRepos.AreaRepository,
+	paymentTermsRepo coreRepos.PaymentTermsRepository,
 ) LeadUsecase {
 	return &leadUsecase{
-		leadRepo:       leadRepo,
-		leadStatusRepo: leadStatusRepo,
-		leadSourceRepo: leadSourceRepo,
-		customerRepo:   customerRepo,
-		contactRepo:    contactRepo,
-		employeeRepo:   employeeRepo,
+		leadRepo:          leadRepo,
+		leadStatusRepo:    leadStatusRepo,
+		leadSourceRepo:    leadSourceRepo,
+		dealRepo:          dealRepo,
+		pipelineStageRepo: pipelineStageRepo,
+		activityRepo:      activityRepo,
+		taskRepo:          taskRepo,
+		employeeRepo:      employeeRepo,
+		businessTypeRepo:  businessTypeRepo,
+		areaRepo:          areaRepo,
+		paymentTermsRepo:  paymentTermsRepo,
 	}
 }
 
@@ -101,31 +119,41 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 	}
 
 	lead := &models.Lead{
-		ID:              uuid.New().String(),
-		FirstName:       req.FirstName,
-		LastName:        req.LastName,
-		CompanyName:     req.CompanyName,
-		Email:           req.Email,
-		Phone:           req.Phone,
-		JobTitle:        req.JobTitle,
-		Address:         req.Address,
-		City:            req.City,
-		Province:        req.Province,
-		LeadSourceID:    req.LeadSourceID,
-		LeadStatusID:    statusID,
-		EstimatedValue:  req.EstimatedValue,
-		Probability:     req.Probability,
-		BudgetConfirmed: req.BudgetConfirmed,
-		BudgetAmount:    req.BudgetAmount,
-		AuthConfirmed:   req.AuthConfirmed,
-		AuthPerson:      req.AuthPerson,
-		NeedConfirmed:   req.NeedConfirmed,
-		NeedDescription: req.NeedDescription,
-		TimeConfirmed:   req.TimeConfirmed,
-		TimeExpected:    timeExpected,
-		AssignedTo:      req.AssignedTo,
-		Notes:           req.Notes,
-		CreatedBy:       &createdBy,
+		ID:                   uuid.New().String(),
+		FirstName:            req.FirstName,
+		LastName:             req.LastName,
+		CompanyName:          req.CompanyName,
+		Email:                req.Email,
+		Phone:                req.Phone,
+		JobTitle:             req.JobTitle,
+		Address:              req.Address,
+		City:                 req.City,
+		Province:             req.Province,
+		ProvinceID:           req.ProvinceID,
+		CityID:               req.CityID,
+		DistrictID:           req.DistrictID,
+		VillageName:          req.VillageName,
+		LeadSourceID:         req.LeadSourceID,
+		LeadStatusID:         statusID,
+		EstimatedValue:       req.EstimatedValue,
+		Probability:          req.Probability,
+		Website:              req.Website,
+		BankAccountID:        req.BankAccountID,
+		BankAccountReference: req.BankAccountReference,
+		BudgetConfirmed:      req.BudgetConfirmed,
+		BudgetAmount:         req.BudgetAmount,
+		AuthConfirmed:        req.AuthConfirmed,
+		AuthPerson:           req.AuthPerson,
+		NeedConfirmed:        req.NeedConfirmed,
+		NeedDescription:      req.NeedDescription,
+		TimeConfirmed:        req.TimeConfirmed,
+		TimeExpected:         timeExpected,
+		AssignedTo:           req.AssignedTo,
+		Notes:                req.Notes,
+		BusinessTypeID:       req.BusinessTypeID,
+		AreaID:               req.AreaID,
+		PaymentTermsID:       req.PaymentTermsID,
+		CreatedBy:            &createdBy,
 	}
 
 	// Calculate lead score after setting all fields
@@ -173,9 +201,38 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		return dto.LeadResponse{}, errors.New("lead not found")
 	}
 
-	// Prevent updates on converted leads
+	// Prevent updates on converted leads; geographical coordinates are the only allowed exception
+	// since an active deal may need to pin the customer's location.
 	if lead.ConvertedAt != nil {
-		return dto.LeadResponse{}, errors.New("cannot update a converted lead")
+		if req.Latitude == nil && req.Longitude == nil {
+			return dto.LeadResponse{}, errors.New("cannot update a converted lead")
+		}
+		// Coordinate-only update path: apply and return early
+		if req.Latitude != nil {
+			lead.Latitude = req.Latitude
+		}
+		if req.Longitude != nil {
+			lead.Longitude = req.Longitude
+		}
+		// Nil associations to prevent GORM FK side-effects
+		lead.LeadSource = nil
+		lead.LeadStatus = nil
+		lead.AssignedEmployee = nil
+		lead.Customer = nil
+		lead.Contact = nil
+		lead.Deal = nil
+		lead.BusinessType = nil
+		lead.Area = nil
+		lead.PaymentTerms = nil
+		lead.Activities = nil
+		if err := u.leadRepo.Update(ctx, lead); err != nil {
+			return dto.LeadResponse{}, fmt.Errorf("failed to update lead location: %w", err)
+		}
+		updated, err := u.leadRepo.FindByID(ctx, id)
+		if err != nil {
+			return dto.LeadResponse{}, err
+		}
+		return mapper.ToLeadResponse(updated), nil
 	}
 
 	// Validate lead source if changing
@@ -238,6 +295,27 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Province != nil {
 		lead.Province = *req.Province
 	}
+	if req.ProvinceID != nil {
+		lead.ProvinceID = req.ProvinceID
+	}
+	if req.CityID != nil {
+		lead.CityID = req.CityID
+	}
+	if req.DistrictID != nil {
+		lead.DistrictID = req.DistrictID
+	}
+	if req.VillageName != nil {
+		lead.VillageName = *req.VillageName
+	}
+	if req.Website != nil {
+		lead.Website = *req.Website
+	}
+	if req.BankAccountID != nil {
+		lead.BankAccountID = req.BankAccountID
+	}
+	if req.BankAccountReference != nil {
+		lead.BankAccountReference = *req.BankAccountReference
+	}
 	if req.EstimatedValue != nil {
 		lead.EstimatedValue = *req.EstimatedValue
 	}
@@ -275,9 +353,39 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Notes != nil {
 		lead.Notes = *req.Notes
 	}
+	if req.NPWP != nil {
+		lead.NPWP = *req.NPWP
+	}
+	if req.Latitude != nil {
+		lead.Latitude = req.Latitude
+	}
+	if req.Longitude != nil {
+		lead.Longitude = req.Longitude
+	}
+	if req.BusinessTypeID != nil {
+		lead.BusinessTypeID = req.BusinessTypeID
+	}
+	if req.AreaID != nil {
+		lead.AreaID = req.AreaID
+	}
+	if req.PaymentTermsID != nil {
+		lead.PaymentTermsID = req.PaymentTermsID
+	}
 
 	// Recalculate lead score after updates
 	lead.LeadScore = lead.CalculateLeadScore()
+
+	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	lead.LeadSource = nil
+	lead.LeadStatus = nil
+	lead.AssignedEmployee = nil
+	lead.Customer = nil
+	lead.Contact = nil
+	lead.Deal = nil
+	lead.BusinessType = nil
+	lead.Area = nil
+	lead.PaymentTerms = nil
+	lead.Activities = nil
 
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead: %w", err)
@@ -306,7 +414,7 @@ func (u *leadUsecase) Delete(ctx context.Context, id string) error {
 	return u.leadRepo.Delete(ctx, id)
 }
 
-// Convert transforms a lead into a customer + contact, updating the lead's conversion fields
+// Convert transforms a lead into a deal in the pipeline, updating the lead's conversion fields
 func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error) {
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
@@ -323,72 +431,138 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	now := apptime.Now()
-	var customerID string
-
-	if req.CustomerID != nil && *req.CustomerID != "" {
-		// Link to existing customer
-		customer, err := u.customerRepo.FindByID(ctx, *req.CustomerID)
+	// Resolve pipeline stage: use provided stage or default to first stage (order=1)
+	var pipelineStageID string
+	if req.PipelineStageID != nil && *req.PipelineStageID != "" {
+		stage, err := u.pipelineStageRepo.FindByID(ctx, *req.PipelineStageID)
 		if err != nil {
-			return dto.LeadResponse{}, errors.New("customer not found")
+			return dto.LeadResponse{}, errors.New("pipeline stage not found")
 		}
-		customerID = customer.ID
+		pipelineStageID = stage.ID
 	} else {
-		// Create a new customer from lead data
-		nextCode, err := u.customerRepo.GetNextCode(ctx)
+		firstStage, err := u.pipelineStageRepo.FindByOrder(ctx, 1)
 		if err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to generate customer code: %w", err)
+			return dto.LeadResponse{}, fmt.Errorf("failed to find default pipeline stage: %w", err)
 		}
+		pipelineStageID = firstStage.ID
+	}
 
-		customerName := lead.FirstName
-		if lead.LastName != "" {
-			customerName += " " + lead.LastName
-		}
+	// Build deal title from request or lead data
+	dealTitle := req.DealTitle
+	if dealTitle == "" {
 		if lead.CompanyName != "" {
-			customerName = lead.CompanyName
+			dealTitle = lead.CompanyName
+		} else {
+			dealTitle = lead.FirstName
+			if lead.LastName != "" {
+				dealTitle += " " + lead.LastName
+			}
 		}
-
-		newCustomer := &customerModels.Customer{
-			ID:        uuid.New().String(),
-			Code:      nextCode,
-			Name:      customerName,
-			Address:   lead.Address,
-			Email:     lead.Email,
-			Notes:     fmt.Sprintf("Converted from lead %s. %s", lead.Code, req.Notes),
-			CreatedBy: &convertedBy,
-			IsActive:  true,
-		}
-
-		if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to create customer from lead: %w", err)
-		}
-		customerID = newCustomer.ID
 	}
 
-	// Create contact under the customer
-	contactName := lead.FirstName
-	if lead.LastName != "" {
-		contactName += " " + lead.LastName
+	// Determine deal value
+	dealValue := lead.EstimatedValue
+	if req.DealValue != nil {
+		dealValue = *req.DealValue
 	}
 
-	newContact := &models.Contact{
-		ID:         uuid.New().String(),
-		CustomerID: customerID,
-		Name:       contactName,
-		Phone:      lead.Phone,
-		Email:      lead.Email,
-		Position:   lead.JobTitle,
-		Notes:      fmt.Sprintf("Auto-created from lead conversion (%s)", lead.Code),
-		IsActive:   true,
+	now := apptime.Now()
+
+	// Create deal from lead data
+	newDeal := &models.Deal{
+		ID:                   uuid.New().String(),
+		Title:                dealTitle,
+		Status:               models.DealStatusOpen,
+		PipelineStageID:      pipelineStageID,
+		Value:                dealValue,
+		Probability:          lead.Probability,
+		LeadID:               &lead.ID,
+		AssignedTo:           lead.AssignedTo,
+		BankAccountID:        lead.BankAccountID,
+		BankAccountReference: lead.BankAccountReference,
+		BudgetConfirmed:      lead.BudgetConfirmed,
+		BudgetAmount:         lead.BudgetAmount,
+		AuthConfirmed:        lead.AuthConfirmed,
+		AuthPerson:           lead.AuthPerson,
+		NeedConfirmed:        lead.NeedConfirmed,
+		NeedDescription:      lead.NeedDescription,
+		TimeConfirmed:        lead.TimeConfirmed,
+		// Use the lead's original notes so deal mirrors lead data exactly
+		Notes:     lead.Notes,
+		CreatedBy: &convertedBy,
 	}
 
-	if err := u.contactRepo.Create(ctx, newContact); err != nil {
-		return dto.LeadResponse{}, fmt.Errorf("failed to create contact from lead: %w", err)
+	if lead.TimeExpected != nil {
+		newDeal.ExpectedCloseDate = lead.TimeExpected
+	}
+
+	if err := u.dealRepo.Create(ctx, newDeal); err != nil {
+		return dto.LeadResponse{}, fmt.Errorf("failed to create deal from lead: %w", err)
+	}
+
+	// Create initial stage history entry so the Information tab is never empty
+	initialHistory := &models.DealHistory{
+		DealID:        newDeal.ID,
+		ToStageID:     pipelineStageID,
+		ToProbability: newDeal.Probability,
+		ChangedAt:     now,
+		Reason:        fmt.Sprintf("Converted from lead %s", lead.Code),
+	}
+	// best-effort — do not block conversion if history creation fails
+	_ = u.dealRepo.CreateHistory(ctx, initialHistory)
+
+	// Copy lead product items to deal product items, preserving interest level and eliminated state
+	leadProducts, lpErr := u.leadRepo.ListProductItems(ctx, lead.ID)
+	if lpErr == nil && len(leadProducts) > 0 {
+		dealItems := make([]models.DealProductItem, 0, len(leadProducts))
+		eliminatedIDs := make([]string, 0)
+		for _, lp := range leadProducts {
+			itemID := uuid.New().String()
+			item := models.DealProductItem{
+				ID:            itemID,
+				DealID:        newDeal.ID,
+				ProductID:     lp.ProductID,
+				ProductName:   lp.ProductName,
+				ProductSKU:    lp.ProductSKU,
+				InterestLevel: lp.InterestLevel,
+				UnitPrice:     lp.UnitPrice,
+				Quantity:      lp.Quantity,
+				Notes:         lp.Notes,
+			}
+			item.Subtotal = item.UnitPrice * float64(item.Quantity)
+			dealItems = append(dealItems, item)
+			// Track items that were eliminated in the lead (soft-deleted)
+			if lp.DeletedAt.Valid {
+				eliminatedIDs = append(eliminatedIDs, itemID)
+			}
+		}
+		// best-effort — do not block conversion if product copy fails
+		_ = u.dealRepo.CreateItems(ctx, dealItems)
+		// Preserve eliminated state from lead items in the deal
+		for _, id := range eliminatedIDs {
+			_ = u.dealRepo.SoftDeleteItemByID(ctx, id, newDeal.ID)
+		}
+	}
+
+	// Associate lead tasks with the new deal so they appear in the deal task tab.
+	// best-effort — do not block conversion if this fails
+	_ = u.taskRepo.UpdateDealIDByLeadID(ctx, lead.ID, newDeal.ID)
+
+	// Create a special immutable activity recording the conversion — best-effort, never blocks conversion
+	if convertedBy != "" {
+		conversionActivity := &models.Activity{
+			Type:        "conversion",
+			DealID:      &newDeal.ID,
+			LeadID:      &lead.ID,
+			EmployeeID:  convertedBy,
+			Description: fmt.Sprintf("Lead %s (%s %s) dikonversi ke deal pipeline %s", lead.Code, lead.FirstName, lead.LastName, newDeal.Code),
+			Timestamp:   now,
+		}
+		_ = u.activityRepo.Create(ctx, conversionActivity)
 	}
 
 	// Update lead with conversion data
-	lead.CustomerID = &customerID
-	lead.ContactID = &newContact.ID
+	lead.DealID = &newDeal.ID
 	lead.ConvertedAt = &now
 	lead.ConvertedBy = &convertedBy
 
@@ -401,6 +575,18 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 
 	lead.LeadScore = lead.CalculateLeadScore()
 
+	// Nil out preloaded associations to prevent GORM BelongsTo FK override
+	lead.LeadSource = nil
+	lead.LeadStatus = nil
+	lead.AssignedEmployee = nil
+	lead.Customer = nil
+	lead.Contact = nil
+	lead.Deal = nil
+	lead.BusinessType = nil
+	lead.Area = nil
+	lead.PaymentTerms = nil
+	lead.Activities = nil
+
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead conversion: %w", err)
 	}
@@ -412,6 +598,197 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 	}
 
 	return mapper.ToLeadResponse(converted), nil
+}
+
+// BulkUpsert creates or updates leads in bulk, using email as the deduplication key.
+// Designed for automation workflows (e.g., n8n) that scrape leads from external sources.
+func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error) {
+	result := &dto.BulkUpsertLeadResponse{
+		Items: make([]dto.LeadResponse, 0, len(req.Leads)),
+	}
+
+	// Resolve default status once for all new leads
+	var defaultStatusID *string
+	defaultStatus, err := u.leadStatusRepo.FindDefault(ctx)
+	if err == nil && defaultStatus != nil {
+		defaultStatusID = &defaultStatus.ID
+	}
+
+	for _, item := range req.Leads {
+		// Try to find existing lead by place_id, cid, email, phone, or company_name (deduplication key)
+		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName, item.PlaceID, item.CID)
+
+		typesStr := ""
+		if item.Types != nil {
+			if s, ok := item.Types.(string); ok {
+				typesStr = s
+			} else {
+				b, _ := json.Marshal(item.Types)
+				typesStr = string(b)
+			}
+		}
+
+		openingHoursStr := ""
+		if item.OpeningHours != nil {
+			if s, ok := item.OpeningHours.(string); ok {
+				openingHoursStr = s
+			} else {
+				b, _ := json.Marshal(item.OpeningHours)
+				openingHoursStr = string(b)
+			}
+		}
+
+		if findErr == nil && existing != nil {
+			// Update existing lead with new data (merge non-empty fields)
+			if item.FirstName != "" {
+				existing.FirstName = item.FirstName
+			}
+			if item.LastName != "" {
+				existing.LastName = item.LastName
+			}
+			if item.CompanyName != "" {
+				existing.CompanyName = item.CompanyName
+			}
+			if item.Phone != "" {
+				existing.Phone = item.Phone
+			}
+			if item.JobTitle != "" {
+				existing.JobTitle = item.JobTitle
+			}
+			if item.Address != "" {
+				existing.Address = item.Address
+			}
+			if item.City != "" {
+				existing.City = item.City
+			}
+			if item.Province != "" {
+				existing.Province = item.Province
+			}
+			if item.ProvinceID != nil && *item.ProvinceID != "" {
+				existing.ProvinceID = item.ProvinceID
+			}
+			if item.CityID != nil && *item.CityID != "" {
+				existing.CityID = item.CityID
+			}
+			if item.DistrictID != nil && *item.DistrictID != "" {
+				existing.DistrictID = item.DistrictID
+			}
+			if item.VillageName != "" {
+				existing.VillageName = item.VillageName
+			}
+			if item.EstimatedValue > 0 {
+				existing.EstimatedValue = item.EstimatedValue
+			}
+			if item.LeadSourceID != nil && *item.LeadSourceID != "" {
+				existing.LeadSourceID = item.LeadSourceID
+			}
+			if item.Latitude != nil {
+				existing.Latitude = item.Latitude
+			}
+			if item.Longitude != nil {
+				existing.Longitude = item.Longitude
+			}
+			if item.Rating != nil {
+				existing.Rating = item.Rating
+			}
+			if item.RatingCount != nil {
+				existing.RatingCount = item.RatingCount
+			}
+			if typesStr != "" {
+				existing.Types = typesStr
+			}
+			if openingHoursStr != "" {
+				existing.OpeningHours = openingHoursStr
+			}
+			if item.ThumbnailURL != "" {
+				existing.ThumbnailURL = item.ThumbnailURL
+			}
+			if item.CID != "" {
+				existing.CID = item.CID
+			}
+			if item.PlaceID != "" {
+				existing.PlaceID = item.PlaceID
+			}
+			if item.Website != "" {
+				existing.Website = item.Website
+			}
+			if item.Notes != "" {
+				existing.Notes = existing.Notes + "\n---\n" + item.Notes
+			}
+
+			existing.LeadScore = existing.CalculateLeadScore()
+
+			if updateErr := u.leadRepo.Update(ctx, existing); updateErr != nil {
+				result.Errors++
+				continue
+			}
+
+			reloaded, reloadErr := u.leadRepo.FindByID(ctx, existing.ID)
+			if reloadErr != nil {
+				result.Errors++
+				continue
+			}
+
+			result.Updated++
+			result.Items = append(result.Items, mapper.ToLeadResponse(reloaded))
+		} else {
+			// Create new lead
+			lead := &models.Lead{
+				ID:             uuid.New().String(),
+				FirstName:      item.FirstName,
+				LastName:       item.LastName,
+				CompanyName:    item.CompanyName,
+				Email:          item.Email,
+				Phone:          item.Phone,
+				JobTitle:       item.JobTitle,
+				Address:        item.Address,
+				City:           item.City,
+				Province:       item.Province,
+				ProvinceID:     item.ProvinceID,
+				CityID:         item.CityID,
+				DistrictID:     item.DistrictID,
+				VillageName:    item.VillageName,
+				LeadSourceID:   item.LeadSourceID,
+				LeadStatusID:   defaultStatusID,
+				EstimatedValue: item.EstimatedValue,
+				Latitude:       item.Latitude,
+				Longitude:      item.Longitude,
+				Rating:         item.Rating,
+				RatingCount:    item.RatingCount,
+				Types:          typesStr,
+				OpeningHours:   openingHoursStr,
+				ThumbnailURL:   item.ThumbnailURL,
+				CID:            item.CID,
+				PlaceID:        item.PlaceID,
+				Website:        item.Website,
+				Notes:          item.Notes,
+				CreatedBy:      &createdBy,
+			}
+
+			// Load status for score calculation
+			if defaultStatusID != nil && defaultStatus != nil {
+				lead.LeadStatus = defaultStatus
+			}
+			lead.LeadScore = lead.CalculateLeadScore()
+
+			if createErr := u.leadRepo.Create(ctx, lead); createErr != nil {
+				fmt.Printf("Error creating new lead %s - %s: %v\n", lead.CompanyName, lead.FirstName, createErr)
+				result.Errors++
+				continue
+			}
+
+			reloaded, reloadErr := u.leadRepo.FindByID(ctx, lead.ID)
+			if reloadErr != nil {
+				result.Errors++
+				continue
+			}
+
+			result.Created++
+			result.Items = append(result.Items, mapper.ToLeadResponse(reloaded))
+		}
+	}
+
+	return result, nil
 }
 
 func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error) {
@@ -467,33 +844,105 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 		})
 	}
 
-	// Fetch customers for conversion dropdown
-	customers, _, err := u.customerRepo.List(ctx, customerRepos.CustomerListParams{
-		ListParams: customerRepos.ListParams{
-			Limit: 500,
-		},
-	})
+	// Fetch pipeline stages for conversion dropdown
+	stages, _, err := u.pipelineStageRepo.List(ctx, repositories.ListParams{Limit: 100})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch customers: %w", err)
+		return nil, fmt.Errorf("failed to fetch pipeline stages: %w", err)
 	}
 
-	customerOptions := make([]dto.LeadCustomerOption, 0, len(customers))
-	for _, c := range customers {
-		customerOptions = append(customerOptions, dto.LeadCustomerOption{
-			ID:   c.ID,
-			Code: c.Code,
-			Name: c.Name,
+	stageOptions := make([]dto.LeadPipelineStageOption, 0, len(stages))
+	for _, s := range stages {
+		stageOptions = append(stageOptions, dto.LeadPipelineStageOption{
+			ID:          s.ID,
+			Name:        s.Name,
+			Code:        s.Code,
+			Order:       s.Order,
+			Probability: s.Probability,
+		})
+	}
+
+	// Fetch business types
+	businessTypes, _, err := u.businessTypeRepo.List(ctx, &orgDto.ListBusinessTypesRequest{PerPage: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch business types: %w", err)
+	}
+
+	businessTypeOptions := make([]dto.LeadBusinessTypeOption, 0, len(businessTypes))
+	for _, bt := range businessTypes {
+		businessTypeOptions = append(businessTypeOptions, dto.LeadBusinessTypeOption{
+			ID:   bt.ID,
+			Name: bt.Name,
+		})
+	}
+
+	// Fetch areas
+	areas, _, err := u.areaRepo.List(ctx, &orgDto.ListAreasRequest{PerPage: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch areas: %w", err)
+	}
+
+	areaOptions := make([]dto.LeadAreaOption, 0, len(areas))
+	for _, a := range areas {
+		areaOptions = append(areaOptions, dto.LeadAreaOption{
+			ID:       a.ID,
+			Name:     a.Name,
+			Province: a.Province,
+		})
+	}
+
+	// Fetch payment terms
+	paymentTermsList, _, err := u.paymentTermsRepo.List(ctx, coreRepos.ListParams{Limit: 100})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch payment terms: %w", err)
+	}
+
+	paymentTermsOptions := make([]dto.LeadPaymentTermsOption, 0, len(paymentTermsList))
+	for _, pt := range paymentTermsList {
+		paymentTermsOptions = append(paymentTermsOptions, dto.LeadPaymentTermsOption{
+			ID:   pt.ID,
+			Name: pt.Name,
+			Code: pt.Code,
+			Days: pt.Days,
 		})
 	}
 
 	return &dto.LeadFormDataResponse{
-		Employees:    employeeOptions,
-		LeadSources:  sourceOptions,
-		LeadStatuses: statusOptions,
-		Customers:    customerOptions,
+		Employees:      employeeOptions,
+		LeadSources:    sourceOptions,
+		LeadStatuses:   statusOptions,
+		PipelineStages: stageOptions,
+		BusinessTypes:  businessTypeOptions,
+		Areas:          areaOptions,
+		PaymentTerms:   paymentTermsOptions,
 	}, nil
 }
 
 func (u *leadUsecase) GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error) {
 	return u.leadRepo.GetAnalytics(ctx)
+}
+
+func (u *leadUsecase) GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error) {
+	items, err := u.leadRepo.ListProductItems(ctx, leadID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]dto.LeadProductItemResponse, 0, len(items))
+	for _, item := range items {
+		result = append(result, dto.LeadProductItemResponse{
+			ID:                  item.ID,
+			LeadID:              item.LeadID,
+			ProductID:           item.ProductID,
+			ProductName:         item.ProductName,
+			ProductSKU:          item.ProductSKU,
+			InterestLevel:       item.InterestLevel,
+			Quantity:            item.Quantity,
+			UnitPrice:           item.UnitPrice,
+			Notes:               item.Notes,
+			SourceVisitReportID: item.SourceVisitReportID,
+			LastSurveyAnswers:   item.LastSurveyAnswers,
+			IsDeleted:           item.DeletedAt.Valid,
+			CreatedAt:           item.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+		})
+	}
+	return result, nil
 }

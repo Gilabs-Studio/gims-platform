@@ -5,6 +5,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
+	"github.com/google/uuid"
 )
 
 // ToEmployeeResponse converts Employee model to EmployeeResponse DTO
@@ -29,12 +30,8 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 		BPJS:             e.BPJS,
 		TotalLeaveQuota:  e.TotalLeaveQuota,
 		PTKPStatus:       string(e.PTKPStatus),
-		IsDisability:     e.IsDisability,
 		ReplacementForID: e.ReplacementForID,
-		Status:           string(e.Status),
-		IsApproved:       e.IsApproved,
 		CreatedBy:        e.CreatedBy,
-		ApprovedBy:       e.ApprovedBy,
 		IsActive:         e.IsActive,
 		CreatedAt:        e.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        e.UpdatedAt.Format(time.RFC3339),
@@ -59,12 +56,6 @@ func ToEmployeeResponse(e *models.Employee, currentContract *models.EmployeeCont
 	// Latest certification
 	if latestCertification != nil {
 		resp.LatestCertification = ToCertificationBriefResponse(latestCertification)
-	}
-
-	// Approved at
-	if e.ApprovedAt != nil {
-		at := e.ApprovedAt.Format(time.RFC3339)
-		resp.ApprovedAt = &at
 	}
 
 	// Division
@@ -191,15 +182,18 @@ func contractToBriefResponse(c *models.EmployeeContract) *dto.EmployeeContractBr
 }
 
 // ToEmployeeListItemResponse converts Employee model to EmployeeListItemResponse DTO (No PII)
-func ToEmployeeListItemResponse(e *models.Employee) dto.EmployeeListItemResponse {
+func ToEmployeeListItemResponse(e *models.Employee, contract *models.EmployeeContract) dto.EmployeeListItemResponse {
 	resp := dto.EmployeeListItemResponse{
 		ID:           e.ID,
 		EmployeeCode: e.EmployeeCode,
 		Name:         e.Name,
 		Email:        e.Email,
 		Phone:        e.Phone,
-		Status:       string(e.Status),
 		IsActive:     e.IsActive,
+	}
+
+	if contract != nil {
+		resp.CurrentContract = contractToBriefResponse(contract)
 	}
 
 	// Division
@@ -234,10 +228,16 @@ func ToEmployeeListItemResponse(e *models.Employee) dto.EmployeeListItemResponse
 }
 
 // ToEmployeeListItemResponseList converts a slice of Employee models to safe list response DTOs
-func ToEmployeeListItemResponseList(employees []models.Employee) []dto.EmployeeListItemResponse {
+func ToEmployeeListItemResponseList(employees []models.Employee, activeContracts map[uuid.UUID]*models.EmployeeContract) []dto.EmployeeListItemResponse {
 	result := make([]dto.EmployeeListItemResponse, 0, len(employees))
 	for i := range employees {
-		result = append(result, ToEmployeeListItemResponse(&employees[i]))
+		var contract *models.EmployeeContract
+		if activeContracts != nil {
+			if parsedID, err := uuid.Parse(employees[i].ID); err == nil {
+				contract = activeContracts[parsedID]
+			}
+		}
+		result = append(result, ToEmployeeListItemResponse(&employees[i], contract))
 	}
 	return result
 }

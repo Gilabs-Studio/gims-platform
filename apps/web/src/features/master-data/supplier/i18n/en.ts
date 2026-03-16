@@ -22,6 +22,7 @@ export const supplierEn = {
     updatedAt: "Updated At",
     success_update: "Successfully updated {name}",
     error_update: "Failed to update",
+    viewDetails: "View Details",
   },
   supplierType: {
     title: "Supplier Types",
@@ -170,6 +171,8 @@ export const supplierEn = {
     form: {
       bank: "Bank",
       bankPlaceholder: "Select bank",
+      currency: "Currency",
+      currencyPlaceholder: "Select currency",
       accountNumber: "Account Number",
       accountNumberPlaceholder: "Enter account number",
       accountName: "Account Name",
@@ -196,6 +199,7 @@ export const supplierEn = {
     accountNumberRequired: "Account number is required",
     accountNameRequired: "Account name is required",
     bankRequired: "Bank is required",
+    currencyRequired: "Currency is required",
   },
 };
 

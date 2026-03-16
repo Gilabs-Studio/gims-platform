@@ -47,12 +47,17 @@ export const taskService = {
   },
 
   complete: async (id: string): Promise<ApiResponse<Task>> => {
-    const response = await apiClient.put<ApiResponse<Task>>(`${BASE}/${id}/complete`);
+    const response = await apiClient.post<ApiResponse<Task>>(`${BASE}/${id}/complete`);
     return response.data;
   },
 
   markInProgress: async (id: string): Promise<ApiResponse<Task>> => {
-    const response = await apiClient.put<ApiResponse<Task>>(`${BASE}/${id}/in-progress`);
+    const response = await apiClient.post<ApiResponse<Task>>(`${BASE}/${id}/in-progress`);
+    return response.data;
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<Task>> => {
+    const response = await apiClient.post<ApiResponse<Task>>(`${BASE}/${id}/cancel`);
     return response.data;
   },
 

@@ -58,6 +58,7 @@ import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
 import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
 import { SupplierInvoiceDPDetailModal } from "./supplier-invoice-dp-detail-modal";
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 const SupplierInvoiceDPFormDialog = dynamic(
   () => import("./supplier-invoice-dp-form").then((m) => m.SupplierInvoiceDPFormDialog),
@@ -95,7 +96,7 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
     return (
       <div className="space-y-0.5">
         <span className="text-xs text-muted-foreground">{formatted}</span>
-        <span className="text-xs font-semibold text-amber-500">Due today</span>
+        <span className="text-xs font-semibold text-warning">Due today</span>
       </div>
     );
   }
@@ -103,7 +104,7 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
     return (
       <div className="space-y-0.5">
         <span className="text-xs text-muted-foreground">{formatted}</span>
-        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+        <span className="text-xs font-medium text-warning">{diffDays}d left</span>
       </div>
     );
   }
@@ -127,6 +128,13 @@ export function SupplierInvoiceDPList() {
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
+  };
 
   const [isRegularInvoiceOpen, setIsRegularInvoiceOpen] = useState(false);
   const [selectedRegularInvoiceId, setSelectedRegularInvoiceId] = useState<string | null>(null);
@@ -339,7 +347,26 @@ export function SupplierInvoiceDPList() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(row.amount)}</TableCell>
                     <TableCell>
-                      <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                      {(() => {
+                        const clickable = isPaymentStatus(row.status);
+                        if (!clickable) {
+                          return <SupplierInvoiceDownPaymentStatusBadge status={row.status} />;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className="inline-flex items-center cursor-pointer"
+                            title={t("common.view")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoiceForPayments({ id: row.id, code: (row.invoice_number || row.code) ?? "" });
+                              setIsPaymentDetailOpen(true);
+                            }}
+                          >
+                            <SupplierInvoiceDownPaymentStatusBadge status={row.status} />
+                          </button>
+                        );
+                      })()}
                     </TableCell>
                     {canShowActions && (
                       <TableCell>
@@ -375,7 +402,7 @@ export function SupplierInvoiceDPList() {
 
                             {canSubmit && st === "draft" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={async () => {
                                   try {
                                     await submitMutation.mutateAsync(row.id);
@@ -392,7 +419,7 @@ export function SupplierInvoiceDPList() {
 
                             {canApprove && st === "submitted" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await approveMutation.mutateAsync(row.id);
@@ -426,7 +453,7 @@ export function SupplierInvoiceDPList() {
 
                             {canPending && st === "approved" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await pendingMutation.mutateAsync(row.id);
@@ -441,7 +468,7 @@ export function SupplierInvoiceDPList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCancel && (st === "draft" || st === "submitted" || st === "approved") && (
+                            {canCancel && (st === "draft" || st === "submitted" || st === "approved" || st === "unpaid") && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-destructive focus:text-destructive"
                                 onClick={async () => {
@@ -460,7 +487,7 @@ export function SupplierInvoiceDPList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                                 onClick={() => setPrintingId(row.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -542,6 +569,20 @@ export function SupplierInvoiceDPList() {
           open={!!printingId}
           onClose={() => setPrintingId(null)}
           invoiceId={printingId}
+        />
+      )}
+
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
 

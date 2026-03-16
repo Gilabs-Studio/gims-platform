@@ -9,15 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmployeeStatus represents the approval status of an employee
-type EmployeeStatus string
-
-const (
-	EmployeeStatusDraft    EmployeeStatus = "draft"
-	EmployeeStatusPending  EmployeeStatus = "pending"
-	EmployeeStatusApproved EmployeeStatus = "approved"
-	EmployeeStatusRejected EmployeeStatus = "rejected"
-)
+// (EmployeeStatus removed entirely)
 
 // Gender represents employee gender
 type Gender string
@@ -82,9 +74,8 @@ type Employee struct {
 	BPJS string `gorm:"type:varchar(30)" json:"bpjs"` // BPJS number
 
 	// Leave and benefits
-	TotalLeaveQuota int        `gorm:"default:12" json:"total_leave_quota"`
-	PTKPStatus      PTKPStatus `gorm:"type:varchar(10);default:'TK/0'" json:"ptkp_status"`
-	IsDisability    bool       `gorm:"default:false" json:"is_disability"`
+	TotalLeaveQuota int        `gorm:"type:integer;not null;default:12" json:"total_leave_quota"`
+	PTKPStatus      PTKPStatus `gorm:"type:varchar(20)" json:"ptkp_status"`
 
 	// Replacement logic (contract takeover)
 	ReplacementForID *string   `gorm:"type:uuid;index" json:"replacement_for_id"`
@@ -97,12 +88,8 @@ type Employee struct {
 	// It is set to true when at least one EmployeeArea record has IsSupervisor=true.
 	IsAreaSupervisor bool `gorm:"-" json:"is_area_supervisor"`
 
-	// Approval workflow
-	Status     EmployeeStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	IsApproved bool           `gorm:"default:false;index" json:"is_approved"`
+	// Creator tracking
 	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`
-	ApprovedBy *string        `gorm:"type:uuid" json:"approved_by"`
-	ApprovedAt *time.Time     `json:"approved_at"`
 
 	// Standard fields
 	IsActive  bool           `gorm:"default:true;index" json:"is_active"`

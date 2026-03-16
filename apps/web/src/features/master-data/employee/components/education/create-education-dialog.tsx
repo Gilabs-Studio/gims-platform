@@ -317,7 +317,7 @@ export function CreateEducationDialog({
             <Label>{t("education.fields.document")}</Label>
             <FileUpload
               value={documentPath}
-              onChange={setDocumentPath}
+              onChange={(url) => setDocumentPath(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
               uploadEndpoint="/upload/document"
             />

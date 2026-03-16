@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -37,6 +38,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaCaptureRepo := repositories.NewAreaCaptureRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
+	businessTypeRepo := orgRepos.NewBusinessTypeRepository(db)
+	areaRepo := orgRepos.NewAreaRepository(db)
+	paymentTermsRepo := coreRepos.NewPaymentTermsRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	salesQuotationRepo := salesRepos.NewSalesQuotationRepository(db)
 
@@ -47,11 +51,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	contactRoleUC := usecase.NewContactRoleUsecase(contactRoleRepo)
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
-	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, customerRepo, contactRepo, employeeRepo)
+	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, dealRepo, pipelineStageRepo, activityRepo, taskRepo, employeeRepo, businessTypeRepo, areaRepo, paymentTermsRepo)
 	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
-	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
-	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo)
-	taskUC := usecase.NewTaskUsecase(taskRepo, reminderRepo, contactRepo, dealRepo, customerRepo, employeeRepo)
+	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, activityRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
+	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo, leadRepo)
+	taskUC := usecase.NewTaskUsecase(taskRepo, scheduleRepo, reminderRepo, contactRepo, dealRepo, leadRepo, customerRepo, employeeRepo)
 	scheduleUC := usecase.NewScheduleUsecase(scheduleRepo, taskRepo, employeeRepo)
 	areaCaptureUC := usecase.NewAreaCaptureUsecase(areaCaptureRepo)
 
@@ -66,7 +70,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	dealH := handler.NewDealHandler(dealUC)
 	visitReportH := handler.NewVisitReportHandler(visitReportUC)
 	visitReportPrintH := handler.NewVisitReportPrintHandler(visitReportUC)
-	activityH := handler.NewActivityHandler(activityUC)
+	activityH := handler.NewActivityHandler(activityUC, db)
 	taskH := handler.NewTaskHandler(taskUC)
 	scheduleH := handler.NewScheduleHandler(scheduleUC)
 	areaCaptureH := handler.NewAreaCaptureHandler(areaCaptureUC)

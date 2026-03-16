@@ -13,6 +13,8 @@ export const crmScheduleEn = {
     deleteTitle: "Delete Schedule",
     deleteDescription: "Are you sure you want to delete this schedule? This action cannot be undone.",
     allStatuses: "All Statuses",
+    autoCreatedFromTask: "Schedules are automatically created from Tasks with a due date and assignee.",
+    manageViaTask: "Manage schedules via Tasks.",
     sections: {
       basicInfo: "Basic Information",
       timing: "Timing",

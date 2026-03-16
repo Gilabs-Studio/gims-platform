@@ -154,7 +154,7 @@ export function DealDetailModal({
                         className="inline-block h-2.5 w-2.5 rounded-full"
                         style={{
                           backgroundColor:
-                            deal.pipeline_stage.color || "#6b7280",
+                            deal.pipeline_stage.color || "var(--color-muted-foreground)",
                         }}
                       />
                     )}
@@ -390,25 +390,25 @@ export function DealDetailModal({
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center gap-1">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span>{t("budget")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span>{t("authority")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span>{t("need")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span>{t("timeline")}</span>
                   </div>

@@ -17,9 +17,9 @@ export function usePaymentTermsList() {
   const tCommon = useTranslations("common");
 
   // Permissions
-  const canCreate = useUserPermission("payment_terms.create");
-  const canUpdate = useUserPermission("payment_terms.update");
-  const canDelete = useUserPermission("payment_terms.delete");
+  const canCreate = useUserPermission("payment_term.create");
+  const canUpdate = useUserPermission("payment_term.update");
+  const canDelete = useUserPermission("payment_term.delete");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);

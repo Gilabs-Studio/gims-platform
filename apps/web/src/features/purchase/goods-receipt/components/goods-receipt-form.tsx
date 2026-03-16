@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { FileText, ShoppingCart } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -99,6 +100,12 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
   const resetForm = form.reset;
   const replaceItems = itemsArray.replace;
   const poItems = useMemo(() => poDetail?.items ?? [], [poDetail]);
+  // Lookup map by PO item ID so the table renders correctly even when
+  // fully-received items are filtered out from itemsArray.fields.
+  const poItemsById = useMemo(
+    () => Object.fromEntries(poItems.map((it) => [it.id, it])),
+    [poItems],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -139,12 +146,14 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
         const res = await purchaseOrdersService.getById(poId);
         setPoDetail(res.data);
         replaceItems(
-          (res.data.items ?? []).map((it) => ({
-            purchase_order_item_id: it.id,
-            product_id: it.product_id,
-            quantity_received: 0,
-            notes: null,
-          })),
+          (res.data.items ?? [])
+            .filter((it) => (it.quantity_remaining ?? it.quantity) > 0.0001)
+            .map((it) => ({
+              purchase_order_item_id: it.id,
+              product_id: it.product_id,
+              quantity_received: 0,
+              notes: null,
+            })),
         );
       } catch {
         setPoDetail(null);
@@ -200,12 +209,13 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
   };
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const watchedItems = form.watch("items");
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-primary text-base font-medium">
+          <DialogTitle>
             {isEdit ? t("form.editTitle") : t("form.createTitle")}
           </DialogTitle>
         </DialogHeader>
@@ -218,9 +228,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4">
             <TabsContent value="basic" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
-                <FileText className="h-3.5 w-3.5 text-primary/60" />
-                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("sections.receiptInfo") || "Receipt Info"}</h3>
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                <FileText className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">{t("sections.receiptInfo") || "Receipt Info"}</h3>
               </div>
 
               {!isEdit ? (
@@ -296,9 +306,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
             </TabsContent>
 
             <TabsContent value="items" className="space-y-4 mt-0">
-              <div className="flex items-center space-x-2 pb-2 border-b border-border/40">
-                <ShoppingCart className="h-3.5 w-3.5 text-primary/60" />
-                <h3 className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{t("items.title")}</h3>
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">{t("items.title")} ({itemsArray.fields.length})</h3>
               </div>
 
               {poLoading ? (
@@ -309,29 +319,48 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                     <TableHeader>
                       <TableRow>
                         <TableHead>{t("items.fields.product")}</TableHead>
-                        <TableHead className="text-right">{t("items.fields.orderedQty")}</TableHead>
-                        <TableHead className="text-right">{t("items.fields.receivedQty")}</TableHead>
+                        <TableHead className="text-right w-[100px]">{t("items.fields.orderedQty")}</TableHead>
+                        <TableHead className="text-right w-[120px]">{t("items.fields.remainingQty") || "Belum Diterima"}</TableHead>
+                        <TableHead className="text-right w-[140px]">{t("items.fields.receivedQty")}</TableHead>
                         <TableHead>{t("items.fields.notes")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {itemsArray.fields.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                             {selectedPOId ? tCommon("empty") : t("placeholders.select")}
                           </TableCell>
                         </TableRow>
                       ) : (
                         itemsArray.fields.map((field, idx) => {
+                          const poItem = poItemsById[field.purchase_order_item_id];
                           const productName =
-                            (!isEdit ? getNameFromUnknown(poItems[idx]?.product) : null) ??
+                            (!isEdit ? getNameFromUnknown(poItem?.product) : null) ??
                             grDetail?.items?.[idx]?.product?.name ??
                             "-";
-                          const orderedQty = !isEdit ? poItems[idx]?.quantity ?? 0 : 0;
+                          const orderedQty = !isEdit ? toSafeNumber(poItem?.quantity) : 0;
+                          // quantity_remaining is computed server-side from CONFIRMED/CLOSED GRs.
+                          // Subtract what the user is currently entering for live feedback.
+                          const quantityRemaining = !isEdit ? toSafeNumber(poItem?.quantity_remaining ?? poItem?.quantity) : 0;
+                          const currentQtyReceived = toSafeNumber(watchedItems?.[idx]?.quantity_received);
+                          const remaining = quantityRemaining - currentQtyReceived;
                           return (
                             <TableRow key={field.id}>
-                              <TableCell className="max-w-60 truncate">{productName}</TableCell>
-                              <TableCell className="text-right">{orderedQty}</TableCell>
+                              <TableCell className="max-w-60 truncate font-medium">{productName}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">{orderedQty}</TableCell>
+                              <TableCell className="text-right">
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center justify-center min-w-12 rounded-md px-2 py-0.5 text-xs font-semibold",
+                                    remaining > 0 && "bg-warning/10 text-warning",
+                                    remaining === 0 && "bg-success/10 text-success",
+                                    remaining < 0 && "bg-destructive/10 text-destructive",
+                                  )}
+                                >
+                                  {remaining}
+                                </span>
+                              </TableCell>
                               <TableCell className="text-right w-[140px]">
                                 <Controller
                                   name={`items.${idx}.quantity_received`}

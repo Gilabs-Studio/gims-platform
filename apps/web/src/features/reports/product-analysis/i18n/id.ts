@@ -1,6 +1,6 @@
 export const productAnalysisReportId = {
   productAnalysisReport: {
-    title: "Analisis Produk",
+    title: "Produk Terlaris",
     description:
       "Analisis performa penjualan produk dan tren di seluruh produk",
     performance_list: "Daftar Performa Produk",

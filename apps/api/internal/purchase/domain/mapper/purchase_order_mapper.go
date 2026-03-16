@@ -73,10 +73,18 @@ func (m *PurchaseOrderMapper) ToListResponse(po *models.PurchaseOrder) *dto.Purc
 
 	siSummaries := make([]dto.SupplierInvoiceSummary, 0, len(po.SupplierInvoices))
 	for _, si := range po.SupplierInvoices {
+		var grID *string
+		var grCode *string
+		if si.GoodsReceipt != nil {
+			grID = &si.GoodsReceipt.ID
+			grCode = &si.GoodsReceipt.Code
+		}
 		siSummaries = append(siSummaries, dto.SupplierInvoiceSummary{
-			ID:     si.ID,
-			Code:   si.Code,
-			Status: string(si.Status),
+			ID:               si.ID,
+			Code:             si.Code,
+			Status:           string(si.Status),
+			GoodsReceiptID:   grID,
+			GoodsReceiptCode: grCode,
 		})
 	}
 

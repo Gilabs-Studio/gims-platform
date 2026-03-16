@@ -1,62 +1,78 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { CreditCard, FileText, CalendarIcon } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, FileText, CreditCard, DollarSign, Building2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreatableCombobox } from "@/components/ui/creatable-combobox";
-import { ButtonLoading } from "@/components/loading";
+import { toast } from "sonner";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { BankAccountForm } from "@/features/finance/bank-accounts/components/bank-account-form";
 
 import { purchasePaymentSchema, type PurchasePaymentFormData } from "../schemas/purchase-payment.schema";
 import { useCreatePurchasePayment, usePurchasePaymentAddData } from "../hooks/use-purchase-payments";
+import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
+import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 
-type QuickCreateType = "bankAccount" | null;
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Unable to create payment. Please check your input and try again.";
+}
 
 function todayISO(): string {
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 interface PurchasePaymentFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
-  readonly defaultInvoiceId?: string | null;
+  readonly defaultInvoiceId?: string;
+  readonly defaultDPId?: string;
 }
 
-export function PurchasePaymentForm({ open, onClose, defaultInvoiceId }: PurchasePaymentFormProps) {
+export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
 
-  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
-  const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
-  const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+  const isLockedToInvoice = !!defaultInvoiceId;
+  const isLockedToDP = !!defaultDPId;
 
   const createMutation = useCreatePurchasePayment();
-  const { data: addDataResponse, isFetching: isFetchingAddData } = usePurchasePaymentAddData({ enabled: open });
+
+  // Fetch invoice add-data when not locked to DP (needed for invoice select or locked invoice details)
+  const { data: addDataResponse, isFetching: isFetchingAddData } = usePurchasePaymentAddData({ enabled: open && !isLockedToDP });
+
+  // Fetch DP detail when locked to a specific down payment (supplier DP)
+  const { data: dpDetailResponse, isLoading: isLoadingDP } = useSupplierInvoiceDP(defaultDPId ?? "", {
+    enabled: open && isLockedToDP,
+  });
+
+  // Always fetch bank accounts from the finance bank-accounts feature
+  const { data: bankAccountsResponse, isLoading: isLoadingBankAccounts } = useFinanceBankAccounts({
+    is_active: true,
+    per_page: 100,
+  });
 
   const addData = addDataResponse?.data;
-  const bankAccounts = addData?.bank_accounts ?? [];
-  const invoices = addData?.invoices ?? [];
+  const invoices = useMemo(() => addData?.invoices ?? [], [addData]);
+  const bankAccounts = useMemo(() => bankAccountsResponse?.data ?? [], [bankAccountsResponse]);
+  const dpDetail = dpDetailResponse?.data;
 
   const resolver = useMemo(() => zodResolver(purchasePaymentSchema) as Resolver<PurchasePaymentFormData>, []);
 
@@ -65,16 +81,15 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId }: Purchas
     handleSubmit,
     control,
     reset,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<PurchasePaymentFormData>({
     resolver,
     defaultValues: {
-      invoice_id: "",
-      bank_account_id: "",
+      invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
+      dp_id: defaultDPId ?? null,
+      bank_account_id: null,
       payment_date: todayISO(),
-      amount: 0,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -82,264 +97,413 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId }: Purchas
   });
 
   useEffect(() => {
-    if (open) {
-      reset({
-        invoice_id: defaultInvoiceId ?? "",
-        bank_account_id: "",
-        payment_date: todayISO(),
-        amount: 0,
-        method: "BANK",
-        reference_number: null,
-        notes: null,
-      });
-    }
-  }, [open, reset, defaultInvoiceId]);
+    if (!open) return;
+    reset({
+      invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
+      dp_id: defaultDPId ?? null,
+      bank_account_id: null,
+      payment_date: todayISO(),
+      method: "BANK",
+      reference_number: null,
+      notes: null,
+    });
+  }, [open, reset, defaultInvoiceId, defaultDPId]);
 
-  const invoiceId = watch("invoice_id");
+  const invoiceId = useWatch({ control, name: "invoice_id" });
+  const method = useWatch({ control, name: "method" });
+  const bankAccountId = useWatch({ control, name: "bank_account_id" });
+
   const selectedInvoice = useMemo(() => {
-    if (!invoiceId) return null;
+    if (!invoiceId || isLockedToDP) return null;
     return invoices.find((inv) => inv.id === invoiceId) ?? null;
-  }, [invoiceId, invoices]);
+  }, [invoiceId, invoices, isLockedToDP]);
 
-  useEffect(() => {
-    if (selectedInvoice?.remaining_amount !== undefined) {
-      setValue("amount", selectedInvoice.remaining_amount, { shouldValidate: true });
-    } else if (!selectedInvoice) {
-      setValue("amount", 0, { shouldValidate: true });
+  const selectedBankAccount = useMemo(() => {
+    if (!bankAccountId) return null;
+    return bankAccounts.find((acc) => acc.id === bankAccountId) ?? null;
+  }, [bankAccountId, bankAccounts]);
+
+  const computedAmount = useMemo(() => {
+    if (isLockedToDP && dpDetail) {
+      return dpDetail.remaining_amount ?? dpDetail.amount;
     }
-  }, [selectedInvoice, setValue]);
+    if (selectedInvoice) {
+      return selectedInvoice.remaining_amount ?? selectedInvoice.amount;
+    }
+    return undefined;
+  }, [isLockedToDP, dpDetail, selectedInvoice]);
 
-  const handleBankAccountCreated = useCallback((item: { id: string; name: string }) => {
-    setValue("bank_account_id", item.id, { shouldValidate: true });
-    closeQuickCreate();
-  }, [setValue, closeQuickCreate]);
+  // Clear bank account when switching to CASH
+  const handleMethodChange = useCallback(
+    (value: string) => {
+      if (value === "CASH") {
+        setValue("bank_account_id", null, { shouldValidate: false });
+      }
+    },
+    [setValue],
+  );
 
   const submitting = createMutation.isPending;
+  const isFetchingReference = isFetchingAddData || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const changeActionLabel = t.has("actions.change") ? t("actions.change") : "Change";
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          setSubmitError(null);
+          onClose();
+        }
+      }}
+    >
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{t("form.title")}</DialogTitle>
         </DialogHeader>
 
-        {isFetchingAddData ? <Skeleton className="h-24 w-full" /> : null}
-
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
+            setSubmitError(null);
+            if (computedAmount === undefined) {
+              const errorMessage = t.has("form.amountRequired") ? t("form.amountRequired") : "Amount is required";
+              setSubmitError(errorMessage);
+              toast.error(errorMessage);
+              return;
+            }
             try {
+              const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
               await createMutation.mutateAsync({
-                ...values,
+                invoice_id: invoiceIdForRequest,
+                dp_id: values.dp_id ?? null,
+                bank_account_id: values.bank_account_id ?? null,
+                payment_date: values.payment_date,
+                amount: computedAmount,
+                method: values.method,
                 reference_number: values.reference_number ?? null,
                 notes: values.notes ?? null,
               });
               toast.success(t("toast.created"));
+              setSubmitError(null);
               onClose();
-            } catch {
+            } catch (error) {
+              const errorMessage = getErrorMessage(error);
+              setSubmitError(errorMessage);
               toast.error(t("toast.failed"));
             }
           })}
         >
-          {/* Invoice Info section */}
-          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-            <FileText className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-medium">{t("sections.invoiceInfo") || "Invoice Info"}</h3>
-          </div>
-
-          <Field orientation="vertical">
-            <FieldLabel>{t("fields.invoice")}</FieldLabel>
-            <Controller
-              control={control}
-              name="invoice_id"
-              render={({ field }) => (
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  disabled={isFetchingAddData || submitting}
-                >
-                  <SelectTrigger className="cursor-pointer">
-                    <SelectValue placeholder={t("placeholders.select")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {invoices.map((inv) => (
-                      <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
-                        <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
-                          <span>{inv.code} {inv.invoice_number ? `(${inv.invoice_number})` : ""}</span>
-                          <span className="text-muted-foreground ml-4">{formatCurrency(inv.remaining_amount)} {inv.status === "partial" ? "(Partial)" : ""}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.invoice_id?.message ? <FieldError>{String(errors.invoice_id.message)}</FieldError> : null}
-          </Field>
-
-          {selectedInvoice ? (
-            <div className="rounded-md border p-3">
-              <div className="text-sm font-medium">{t("overview.title")}</div>
-              <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.invoiceNumber")}</div>
-                  <div className="text-sm font-medium">{selectedInvoice.code} {selectedInvoice.invoice_number ? `(${selectedInvoice.invoice_number})` : ""}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.purchaseOrder")}</div>
-                  <div className="text-sm font-medium">{selectedInvoice.purchase_order?.code ?? "-"}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.invoiceDate")}</div>
-                  <div className="text-sm font-medium">{formatDate(selectedInvoice.invoice_date) || "-"}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.dueDate")}</div>
-                  <div className="text-sm font-medium">{formatDate(selectedInvoice.due_date) || "-"}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.amount")}</div>
-                  <div className="text-sm font-medium">{formatCurrency(selectedInvoice.amount)}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.paidAmount")}</div>
-                  <div className="text-sm font-medium">{formatCurrency(selectedInvoice.paid_amount)}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.remainingAmount")}</div>
-                  <div className="text-sm font-medium">{formatCurrency(selectedInvoice.remaining_amount)}</div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-muted-foreground">{t("overview.status")}</div>
-                  <div className="text-sm font-medium">{selectedInvoice.status || "-"}</div>
-                </div>
-              </div>
-            </div>
+          {submitError ? (
+            <Alert variant="destructive">
+              <AlertTitle>{t.has("toast.failed") ? t("toast.failed") : "Failed"}</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
           ) : null}
 
-          {/* Payment Details section */}
-          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-            <CreditCard className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-medium">{t("sections.paymentDetails") || "Payment Details"}</h3>
+          {/* Reference Section — Invoice or Down Payment */}
+          <div>
+            <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+              <FileText className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium">
+                {isLockedToDP ? t("fields.downPayment") : t("fields.invoice")}
+              </h3>
+            </div>
+
+            <div className="mt-4">
+              {isLockedToDP ? (
+                // Locked to DP: show DP info card
+                isFetchingReference ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : dpDetail ? (
+                  <div className="rounded-md border p-3 bg-muted/30">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <span className="text-sm font-medium">{t("fields.downPayment")}</span>
+                      <Badge variant="outline" className="font-mono">{dpDetail.code}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.invoiceDate")}</span>
+                        <span className="text-xs font-medium">{formatDate(dpDetail.invoice_date)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
+                        <span className="text-xs font-medium">{formatCurrency(dpDetail.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
+                        <span className="text-xs font-medium text-primary">{formatCurrency(dpDetail.remaining_amount ?? dpDetail.amount)}</span>
+                      </div>
+                      {dpDetail.purchase_order?.code && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">{t("overview.purchaseOrder")}</span>
+                          <span className="text-xs font-medium font-mono">{dpDetail.purchase_order.code}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              ) : isLockedToInvoice ? (
+                // Locked to Invoice: show invoice info card
+                isFetchingReference ? (
+                  <Skeleton className="h-20 w-full" />
+                ) : selectedInvoice ? (
+                  <div className="rounded-md border p-3 bg-muted/30">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <span className="text-sm font-medium">{t("fields.invoice")}</span>
+                      <Badge variant="outline" className="font-mono">
+                        {selectedInvoice.code}
+                        {selectedInvoice.invoice_number ? ` (${selectedInvoice.invoice_number})` : ""}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.invoiceDate")}</span>
+                        <span className="text-xs font-medium">{formatDate(selectedInvoice.invoice_date)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.dueDate")}</span>
+                        <span className="text-xs font-medium">{formatDate(selectedInvoice.due_date)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
+                        <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
+                        <span className="text-xs font-medium text-primary">{formatCurrency(selectedInvoice.remaining_amount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null
+              ) : (
+                // Free selection: invoice dropdown
+                <>
+                  <Field>
+                    <FieldLabel>{t("fields.invoice")}</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="invoice_id"
+                      render={({ field }) => (
+                        <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)} disabled={isFetchingAddData || submitting}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder={t("placeholders.select")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {invoices.map((inv) => (
+                              <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
+                                <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
+                                  <span>
+                                    {inv.code}
+                                    {inv.invoice_number ? ` (${inv.invoice_number})` : ""}
+                                  </span>
+                                  <span className="text-muted-foreground ml-4">
+                                    {formatCurrency(inv.remaining_amount)}
+                                    {inv.status === "partial" ? " (Partial)" : ""}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.invoice_id?.message ? <FieldError>{String(errors.invoice_id.message)}</FieldError> : null}
+                  </Field>
+
+                  {selectedInvoice ? (
+                    <div className="mt-3 rounded-md border p-3">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
+                          <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
+                          <span className="text-xs font-medium text-primary">{formatCurrency(selectedInvoice.remaining_amount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field orientation="vertical">
-              <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
-              <Controller
-                control={control}
-                name="bank_account_id"
-                render={({ field }) => (
-                  <CreatableCombobox
-                    value={field.value ?? ""}
-                    onValueChange={(v) => field.onChange(v || "")}
-                    options={bankAccounts.map((acc) => ({ value: acc.id, label: `${acc.name} - ${acc.account_number}` }))}
-                    createPermission="bank_account.create"
-                    onCreateClick={() => openQuickCreate("bankAccount")}
-                    placeholder={t("placeholders.select")}
-                    createLabel={t("actions.createNew") || "Create New Bank Account"}
-                  />
-                )}
-              />
-              {errors.bank_account_id?.message ? <FieldError>{String(errors.bank_account_id.message)}</FieldError> : null}
-            </Field>
+          {/* Payment Method + Bank Account */}
+          <div>
+            <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium">{t("fields.paymentDetails")}</h3>
+            </div>
 
-            <Field orientation="vertical">
-              <FieldLabel>{t("fields.paymentDate")}</FieldLabel>
-              <Controller
-                control={control}
-                name="payment_date"
-                render={({ field }) => (
-                  <Popover open={paymentDateOpen} onOpenChange={setPaymentDateOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={submitting}
-                        className="w-full justify-start text-left font-normal cursor-pointer"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? formatDate(field.value) : t("placeholders.pickDate") || "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value ? new Date(field.value) : undefined}
-                        onSelect={(date: Date | undefined) => {
-                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                          setPaymentDateOpen(false);
-                        }}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel>{t("fields.method")}</FieldLabel>
+                <Controller
+                  control={control}
+                  name="method"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        handleMethodChange(v);
+                      }}
+                      disabled={submitting}
+                    >
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.select")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BANK" className="cursor-pointer">{t("method.bank")}</SelectItem>
+                        <SelectItem value="CASH" className="cursor-pointer">{t("method.cash")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.method?.message ? <FieldError>{String(errors.method.message)}</FieldError> : null}
+              </Field>
+
+              <Field>
+                <FieldLabel>{t("fields.paymentDate")}</FieldLabel>
+                <Controller
+                  control={control}
+                  name="payment_date"
+                  render={({ field }) => (
+                    <Popover open={paymentDateOpen} onOpenChange={setPaymentDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={submitting}
+                          className="w-full justify-start text-left font-normal cursor-pointer"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value ? formatDate(field.value) : t("placeholders.pickDate")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date: Date | undefined) => {
+                            field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                            setPaymentDateOpen(false);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
+                {errors.payment_date?.message ? <FieldError>{String(errors.payment_date.message)}</FieldError> : null}
+              </Field>
+
+              {method === "BANK" ? (
+                <>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
+                    {!selectedBankAccount ? (
+                      <Controller
+                        control={control}
+                        name="bank_account_id"
+                        render={({ field }) => (
+                          <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)} disabled={isLoadingBankAccounts || submitting}>
+                            <SelectTrigger className="cursor-pointer transition-all duration-200">
+                              <SelectValue placeholder={t("placeholders.select")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {bankAccounts.map((acc) => (
+                                <SelectItem key={acc.id} value={acc.id} className="cursor-pointer">
+                                  <div className="flex flex-col">
+                                    <span>{acc.name}</span>
+                                    <span className="text-xs text-muted-foreground">{acc.account_number} · {acc.account_holder}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              />
-              {errors.payment_date?.message ? <FieldError>{String(errors.payment_date.message)}</FieldError> : null}
-            </Field>
+                    ) : (
+                      <div className="rounded-md border p-3 bg-muted/30 animate-in fade-in-0 zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-medium">{selectedBankAccount.name}</span>
+                            {selectedBankAccount.currency && (
+                              <Badge variant="outline" className="text-xs py-0">{selectedBankAccount.currency}</Badge>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 cursor-pointer"
+                            disabled={submitting}
+                            onClick={() => setValue("bank_account_id", null, { shouldValidate: true })}
+                          >
+                            {changeActionLabel}
+                          </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{selectedBankAccount.account_number} · {selectedBankAccount.account_holder}</div>
+                      </div>
+                    )}
+                    {errors.bank_account_id?.message ? <FieldError>{String(errors.bank_account_id.message)}</FieldError> : null}
+                  </Field>
 
-            <Field orientation="vertical">
-              <FieldLabel>{t("fields.amount")}</FieldLabel>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field }) => (
-                  <NumericInput value={field.value} onChange={field.onChange} min={0} disabled={submitting} />
-                )}
-              />
-              {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("fields.method")}</FieldLabel>
-              <Controller
-                control={control}
-                name="method"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={submitting}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("placeholders.select")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BANK" className="cursor-pointer">{t("method.bank")}</SelectItem>
-                      <SelectItem value="CASH" className="cursor-pointer">{t("method.cash")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.method?.message ? <FieldError>{String(errors.method.message)}</FieldError> : null}
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
-              <Input {...register("reference_number")} disabled={submitting} />
-            </Field>
+                  <Field className="sm:col-span-2">
+                    <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
+                    <Input {...register("reference_number")} disabled={submitting} />
+                  </Field>
+                </>
+              ) : null}
+            </div>
           </div>
 
-          <Field orientation="vertical">
+          {/* Amount */}
+          <div>
+            <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+              <DollarSign className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium">{t("fields.amount")}</h3>
+            </div>
+
+            <div className="mt-4">
+              <Field>
+                <FieldLabel>{t("fields.amount")}</FieldLabel>
+                <p className="text-sm text-muted-foreground">{t("form.amountHandledBySystem")}</p>
+              </Field>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <Field>
             <FieldLabel>{t("fields.notes")}</FieldLabel>
             <Textarea rows={3} {...register("notes")} disabled={submitting} />
           </Field>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer" disabled={submitting}>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSubmitError(null);
+                onClose();
+              }}
+              className="cursor-pointer"
+              disabled={submitting}
+            >
               {t("form.cancel")}
             </Button>
-            <Button type="submit" className="cursor-pointer" disabled={submitting || isFetchingAddData}>
-              <ButtonLoading loading={submitting || isFetchingAddData}>
-                {t("form.submit")}
-              </ButtonLoading>
+            <Button type="submit" className="cursor-pointer" disabled={submitting || isFetchingReference || isLoadingBankAccounts}>
+              {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {t("form.submit")}
             </Button>
           </div>
         </form>
       </DialogContent>
-      <BankAccountForm
-        open={quickCreate.type === "bankAccount"}
-        onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-        mode="create"
-        onCreated={handleBankAccountCreated}
-      />
     </Dialog>
   );
 }

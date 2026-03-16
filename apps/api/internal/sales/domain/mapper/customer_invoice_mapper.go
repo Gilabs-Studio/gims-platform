@@ -75,9 +75,26 @@ func MapCustomerInvoiceToResponse(invoice *models.CustomerInvoice) *dto.Customer
 
 	// Map SalesOrder
 	if invoice.SalesOrder != nil {
+		so := invoice.SalesOrder
 		resp.SalesOrder = &dto.SalesOrderBriefResponse{
-			ID:   invoice.SalesOrder.ID,
-			Code: invoice.SalesOrder.Code,
+			ID:            so.ID,
+			Code:          so.Code,
+			CustomerID:    so.CustomerID,
+			CustomerName:  so.CustomerName,
+			CustomerPhone: so.CustomerPhone,
+			CustomerEmail: so.CustomerEmail,
+		}
+		// Map nested Customer if preloaded
+		if so.Customer != nil {
+			resp.SalesOrder.Customer = &dto.CustomerResponse{
+				ID:            so.Customer.ID,
+				Code:          so.Customer.Code,
+				Name:          so.Customer.Name,
+				CustomerTypeID: so.Customer.CustomerTypeID,
+				Address:       so.Customer.Address,
+				Email:         so.Customer.Email,
+				ContactPerson: so.Customer.ContactPerson,
+			}
 		}
 	}
 

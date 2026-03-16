@@ -13,7 +13,16 @@ export interface UpCountryCostItem {
   cost_type: string;
   description: string;
   amount: number;
+  expense_date?: string | null;
 }
+
+export type UpCountryCostStatus =
+  | "draft"
+  | "submitted"
+  | "manager_approved"
+  | "finance_approved"
+  | "paid"
+  | "rejected";
 
 export interface UpCountryCost {
   id: string;
@@ -22,13 +31,39 @@ export interface UpCountryCost {
   location: string;
   start_date: string;
   end_date: string;
-  status: "draft" | "approved";
+  status: UpCountryCostStatus;
   notes: string;
   employees: UpCountryCostEmployee[];
   items: UpCountryCostItem[];
   total_amount: number;
+
+  // Submission
+  submitted_at?: string | null;
+  submitted_by?: string | null;
+
+  // Manager approval
+  manager_approved_at?: string | null;
+  manager_approved_by?: string | null;
+  manager_comment?: string;
+
+  // Finance approval
+  finance_approved_at?: string | null;
+  finance_approved_by?: string | null;
+
+  // Payment
+  paid_at?: string | null;
+  paid_by?: string | null;
+
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface UpCountryCostStats {
+  total_requests: number;
+  pending_approval: number;
+  approved: number;
+  total_amount: number;
 }
 
 export interface UpCountryCostEmployeeInput {
@@ -39,6 +74,7 @@ export interface UpCountryCostItemInput {
   cost_type: string;
   description?: string;
   amount: number;
+  expense_date?: string;
 }
 
 export interface UpCountryCostInput {
@@ -58,6 +94,7 @@ export interface ListUpCountryCostParams {
   start_date?: string;
   end_date?: string;
   status?: string;
+  employee_id?: string;
   sort_by?: string;
   sort_dir?: string;
 }

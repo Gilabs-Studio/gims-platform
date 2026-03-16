@@ -10,6 +10,7 @@ export const salesPaymentEn = {
   },
   actions: {
     create: "Create",
+    change: "Change",
     export: "Export",
     confirm: "Confirm",
     view: "View",
@@ -29,9 +30,15 @@ export const salesPaymentEn = {
     title: "Create Payment",
     submit: "Save",
     cancel: "Cancel",
+    amountLockedHint: "Amount is pre-filled and cannot be changed.",
+    amountHandledBySystem: "Amount is determined and processed by the system.",
+    amountRequired: "Amount is required.",
   },
   fields: {
+    code: "Payment #",
     invoice: "Invoice",
+    downPayment: "Down Payment",
+    paymentDetails: "Payment Details",
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
@@ -42,6 +49,7 @@ export const salesPaymentEn = {
   },
   placeholders: {
     select: "Select...",
+    pickDate: "Pick a date",
   },
   overview: {
     title: "Invoice Overview",
@@ -73,6 +81,9 @@ export const salesPaymentEn = {
       print: "Print",
     },
   },
+
+  notFound: "No payments found",
+  forbidden: "You don't have permission to view payments.",
 
   // Print dialog
   print: "Print",

@@ -12,17 +12,18 @@ import (
 
 // JournalLineListParams holds query parameters for listing journal lines.
 type JournalLineListParams struct {
-	ChartOfAccountID string
-	AccountType      string
-	ReferenceType    *string
-	JournalStatus    string
-	StartDate        *time.Time
-	EndDate          *time.Time
-	Search           string
-	SortBy           string
-	SortDir          string
-	Limit            int
-	Offset           int
+	CashBankJournalID string
+	ChartOfAccountID  string
+	AccountType       string
+	ReferenceType     *string
+	JournalStatus     string
+	StartDate         *time.Time
+	EndDate           *time.Time
+	Search            string
+	SortBy            string
+	SortDir           string
+	Limit             int
+	Offset            int
 }
 
 // JournalLineWithEntry is a flat struct for JOIN result between journal_lines and journal_entries.
@@ -65,6 +66,57 @@ var journalLineAllowedSort = map[string]string{
 }
 
 func (r *journalLineRepository) List(ctx context.Context, params JournalLineListParams) ([]JournalLineWithEntry, int64, error) {
+	// If filtering by cash bank journal, use cash_bank_journal_lines directly (does not always have a journal_entry_id).
+	if id := strings.TrimSpace(params.CashBankJournalID); id != "" {
+		baseQuery := r.db.WithContext(ctx).
+			Table("cash_bank_journal_lines AS cbl").
+			Joins("JOIN cash_bank_journals cbj ON cbj.id = cbl.cash_bank_journal_id AND cbj.deleted_at IS NULL").
+			Joins("LEFT JOIN chart_of_accounts coa ON coa.id = cbl.chart_of_account_id").
+			Where("cbl.deleted_at IS NULL").
+			Where("cbj.id = ?", id)
+
+		// Apply scope-based data filtering (based on cash bank journal scope)
+		baseQuery = security.ApplyScopeFilter(baseQuery, ctx, security.FinanceScopeQueryOptions())
+
+		// Count total
+		var total int64
+		if err := baseQuery.Count(&total).Error; err != nil {
+			return nil, 0, err
+		}
+
+		// Sort
+		sortCol := "cbj.transaction_date"
+		sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
+		if sortDir != "desc" {
+			sortDir = "asc"
+		}
+		orderClause := sortCol + " " + sortDir + ", cbl.created_at ASC, cbl.id ASC"
+
+		selectFields := `
+			cbl.id, cbl.cash_bank_journal_id AS journal_entry_id, cbl.chart_of_account_id,
+			coa.code AS chart_of_account_code_snapshot, coa.name AS chart_of_account_name_snapshot,
+			coa.type AS chart_of_account_type_snapshot,
+			cbl.debit, cbl.credit, cbl.memo, cbl.created_at, cbl.updated_at,
+			cbj.transaction_date AS entry_date, cbj.description AS journal_description,
+			cbj.status AS journal_status, NULL::text AS reference_type, NULL::text AS reference_id
+		`
+
+		var items []JournalLineWithEntry
+		q := baseQuery.Select(selectFields).Order(orderClause)
+		if params.Limit > 0 {
+			q = q.Limit(params.Limit)
+		}
+		if params.Offset > 0 {
+			q = q.Offset(params.Offset)
+		}
+
+		if err := q.Find(&items).Error; err != nil {
+			return nil, 0, err
+		}
+
+		return items, total, nil
+	}
+
 	baseQuery := r.db.WithContext(ctx).
 		Table("journal_lines AS jl").
 		Joins("JOIN journal_entries AS je ON je.id = jl.journal_entry_id AND je.deleted_at IS NULL").

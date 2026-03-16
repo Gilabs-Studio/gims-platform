@@ -1,7 +1,7 @@
 "use client";
 
 import { Controller } from "react-hook-form";
-import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, Receipt, CheckCircle2 } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, formatDate, formatCurrency } from "@/lib/utils";
+import { cn, formatDate, formatCurrency, parseLocalDate, toLocalDateString } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import type { CustomerInvoice } from "../types";
 import { useInvoiceForm } from "../hooks/use-invoice-form";
@@ -30,9 +30,10 @@ interface InvoiceFormProps {
   readonly onClose: () => void;
   readonly invoice?: CustomerInvoice | null;
   readonly defaultSalesOrderId?: string;
+  readonly defaultDeliveryOrderId?: string;
 }
 
-export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: InvoiceFormProps) {
+export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defaultDeliveryOrderId }: InvoiceFormProps) {
   const {
     form,
     t,
@@ -62,7 +63,9 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
     openQuickCreate,
     closeQuickCreate,
     handlePaymentTermCreated,
-  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId });
+    detectedDownPayments,
+    dpSummary,
+  } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
 
@@ -99,6 +102,30 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                   <h3 className="text-sm font-medium">{t("common.invoice")}</h3>
                 </div>
             <div className="grid gap-4 grid-cols-2">
+              {/* Sales Order — select first so downstream fields can auto-fill */}
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("salesOrder")}</FieldLabel>
+                <Controller
+                  name="sales_order_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("salesOrder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orders.map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            {order.code}
+                            {(order.customer?.name ?? order.customer_name) ? ` | ${order.customer?.name ?? order.customer_name}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+
               <Field orientation="vertical">
                 <FieldLabel>{t("invoiceDate")} *</FieldLabel>
                 <Controller
@@ -116,15 +143,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(new Date(field.value)) : t("common.selectDate")}
+                          {field.value ? formatDate(field.value) : t("common.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
+                          selected={field.value ? parseLocalDate(field.value) : undefined}
                           onSelect={(date: Date | undefined) => {
-                            field.onChange(date ? date.toISOString().split('T')[0] : "");
+                            field.onChange(date ? toLocalDateString(date) : "");
                           }}
                         />
                       </PopoverContent>
@@ -153,15 +180,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(new Date(field.value)) : t("common.selectDate")}
+                          {field.value ? formatDate(field.value) : t("common.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
+                          selected={field.value ? parseLocalDate(field.value) : undefined}
                           onSelect={(date: Date | undefined) => {
-                            field.onChange(date ? date.toISOString().split('T')[0] : undefined);
+                            field.onChange(date ? toLocalDateString(date) : undefined);
                           }}
                         />
                       </PopoverContent>
@@ -199,7 +226,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
+                      options={paymentTerms.map(term => ({ value: term.id, label: term.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       placeholder={t("paymentTerms")}
@@ -211,28 +238,6 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                 {errors.payment_terms_id && (
                   <FieldError>{errors.payment_terms_id.message}</FieldError>
                 )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("salesOrder")}</FieldLabel>
-                <Controller
-                  name="sales_order_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("salesOrder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orders.map((order) => (
-                          <SelectItem key={order.id} value={order.id}>
-                            {order.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
               </Field>
             </div>
           </div>
@@ -306,6 +311,48 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
               {errors.notes && <FieldError>{errors.notes.message}</FieldError>}
             </Field>
           </div>
+
+          {/* Detected Down Payments Section */}
+          {!isEdit && detectedDownPayments.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                <Receipt className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">Detected Down Payments</h3>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                {detectedDownPayments.map((dp) => (
+                  <div key={dp.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-card border">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                      <span className="text-sm font-mono font-medium">{dp.code}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-primary">
+                      {formatCurrency(dp.amount ?? 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Invoice Summary */}
+              <div className="rounded-lg border bg-card p-4 space-y-2">
+                <h4 className="text-sm font-semibold">Invoice Summary</h4>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Order Total</span>
+                    <span className="font-medium">{formatCurrency(dpSummary.orderTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-success">
+                    <span>Down Payment Applied</span>
+                    <span className="font-medium">-{formatCurrency(dpSummary.totalDP)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
+                    <span>Amount Due</span>
+                    <span className="text-primary">{formatCurrency(dpSummary.amountDue)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tab Navigation Buttons for Basic Tab */}
           <div className="flex items-center justify-end gap-2 pt-4 border-t">
@@ -545,11 +592,25 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId }: Inv
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground uppercase tracking-wider">{t("grossProfit")}</span>
-                      <span className={cn("font-bold", calculations.grossProfit >= 0 ? "text-green-600" : "text-destructive")}>
+                      <span className={cn("font-bold", calculations.grossProfit >= 0 ? "text-success" : "text-destructive")}>
                         {formatCurrency(calculations.grossProfit)}
                       </span>
                     </div>
                   </div>
+
+                  {/* DP Applied Summary */}
+                  {!isEdit && detectedDownPayments.length > 0 && (
+                    <div className="border-t pt-3 mt-2 space-y-2 bg-primary/5 p-3 rounded-lg">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground uppercase tracking-wider">Down Payment</span>
+                        <span className="font-medium text-success">-{formatCurrency(dpSummary.totalDP)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold">
+                        <span>Amount Due</span>
+                        <span className="text-primary">{formatCurrency(Math.max(0, calculations.total - dpSummary.totalDP))}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

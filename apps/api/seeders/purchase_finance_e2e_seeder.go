@@ -90,11 +90,14 @@ func SeedPurchaseFinanceE2E() error {
 			{Code: "6400", Name: "Rent Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 			{Code: "6500", Name: "Utility Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 			{Code: "6600", Name: "Marketing Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeAsset, IsActive: true},
-			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeAsset, IsActive: true},
+			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeCashBank, IsActive: true},
+			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeCashBank, IsActive: true},
 		}
 		for i := range extraCOA {
-			tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoNothing: true}).Create(&extraCOA[i])
+			tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "code"}},
+				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
+			}).Create(&extraCOA[i])
 		}
 
 		getCOA := func(code string) string {
@@ -513,8 +516,9 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		PurchaseOrderID: po.ID,
 		SupplierID:      in.supplier.ID,
 		ReceiptDate:     &receiptDate,
-		Status:          purchaseModels.GoodsReceiptStatusConfirmed,
+		Status:          purchaseModels.GoodsReceiptStatusClosed, // CLOSED — required for SI creation
 		CreatedBy:       in.adminID,
+		ClosedAt:        &receiptDate,
 		Items: []purchaseModels.GoodsReceiptItem{
 			{
 				PurchaseOrderItemID: po.Items[0].ID,
@@ -641,6 +645,7 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	si := purchaseModels.SupplierInvoice{
 		Type:                 purchaseModels.SupplierInvoiceTypeNormal,
 		PurchaseOrderID:      po.ID,
+		GoodsReceiptID:       &gr.ID, // NEW: SI sourced from GR
 		SupplierID:           in.supplier.ID,
 		PaymentTermsID:       &in.pt.ID,
 		Code:                 fmt.Sprintf("SI-E2E-%s", prefix),
@@ -675,6 +680,15 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 
 	if err := tx.Create(&si).Error; err != nil {
 		return fmt.Errorf("create SI %s: %w", si.Code, err)
+	}
+
+	// 4a-pre. Update GR with ConvertedToSupplierInvoiceID link
+	now := time.Now()
+	if err := tx.Model(&purchaseModels.GoodsReceipt{}).Where("id = ?", gr.ID).Updates(map[string]interface{}{
+		"converted_to_supplier_invoice_id": si.ID,
+		"converted_at":                     now,
+	}).Error; err != nil {
+		log.Printf("Warning: Failed to update GR %s with SI link: %v", gr.Code, err)
 	}
 
 	// 4a. Journal: Dr GR/IR + Dr VAT / Cr AP

@@ -156,6 +156,11 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
 
 		// Master Data - Payment & Courier
+		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
+		{"/master-data/currencies", "currency.create", "Create Currencies", "CREATE", "currency"},
+		{"/master-data/currencies", "currency.update", "Edit Currencies", "EDIT", "currency"},
+		{"/master-data/currencies", "currency.delete", "Delete Currencies", "DELETE", "currency"},
+
 		{"/master-data/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
 		{"/master-data/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
 		{"/master-data/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
@@ -224,6 +229,8 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.update", "Edit Down Payments", "EDIT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.delete", "Delete Down Payments", "DELETE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.pending", "Pending Down Payments", "PENDING", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.submit", "Submit Down Payments", "SUBMIT", "customer_invoice_dp"},
+		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.approve", "Approve Down Payments", "APPROVE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
@@ -452,7 +459,6 @@ func SeedPermissions() error {
 		{"/hrd/leave-requests", "leave_request.approve", "Approve Leave Requests", "APPROVE", "leave_request"},
 		{"/hrd/leave-requests", "leave_request.reject", "Reject Leave Requests", "REJECT", "leave_request"},
 
-
 		{"/hrd/evaluation", "evaluation.read", "View Evaluations", "VIEW", "evaluation"},
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
 		{"/hrd/evaluation", "evaluation.update", "Edit Evaluations", "EDIT", "evaluation"},
@@ -490,9 +496,9 @@ func SeedPermissions() error {
 		{"/reports/sales-overview", "report_sales_overview.read", "View Sales Overview Report", "VIEW", "report_sales_overview"},
 		{"/reports/sales-overview", "report_sales_overview.export", "Export Sales Overview Report", "EXPORT", "report_sales_overview"},
 
-		// Reports - Product Analysis
-		{"/reports/product-analysis", "report_product_analysis.read", "View Product Analysis Report", "VIEW", "report_product_analysis"},
-		{"/reports/product-analysis", "report_product_analysis.export", "Export Product Analysis Report", "EXPORT", "report_product_analysis"},
+		// Reports - Top Product
+		{"/reports/product-analysis", "report_product_analysis.read", "View Top Product Report", "VIEW", "report_product_analysis"},
+		{"/reports/product-analysis", "report_product_analysis.export", "Export Top Product Report", "EXPORT", "report_product_analysis"},
 
 		// Reports - Geo Performance
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
@@ -554,7 +560,7 @@ func SeedPermissions() error {
 		{"/crm/visits", "crm_visit.delete", "Delete Visit Reports", "DELETE", "crm_visit"},
 		{"/crm/visits", "crm_visit.approve", "Approve/Reject Visit Reports", "APPROVE", "crm_visit"},
 
-		// CRM Activities (Sprint 23)
+		// CRM Activities (Sprint 23) — crm_activity.create kept for embedded forms in lead/deal detail
 		{"/crm/activities", "crm_activity.read", "View Activities", "VIEW", "crm_activity"},
 		{"/crm/activities", "crm_activity.create", "Create Activities", "CREATE", "crm_activity"},
 
@@ -814,7 +820,8 @@ func matchesModule(resource, module string) bool {
 func SyncAdminPermissions() error {
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
-		return err
+		log.Printf("Skipping permission_seeder.go due to missing dependency: %v", err)
+		return nil
 	}
 
 	var allPermissions []permission.Permission

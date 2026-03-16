@@ -133,8 +133,11 @@ function buildPermissionTree(
       const perms = permsByResource.get(resource);
       if (!perms?.length) return null;
       usedResources.add(resource);
+      
+      const safeSuffix = nav.url ? nav.url.replace(/[^a-zA-Z0-9]/g, "-") : Math.random().toString(36).substring(7);
+
       return {
-        id: `resource-${resource}`,
+        id: `resource-${resource}-${safeSuffix}`,
         name: nav.name,
         icon: nav.icon,
         type: "resource",

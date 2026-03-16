@@ -90,17 +90,18 @@ type TrialBalanceResponse struct {
 
 // ListJournalLinesRequest for filtering journal lines with pagination
 type ListJournalLinesRequest struct {
-	Page             int     `form:"page" binding:"omitempty,min=1"`
-	PerPage          int     `form:"per_page" binding:"omitempty,min=1,max=100"`
-	Search           string  `form:"search"`
-	ChartOfAccountID string  `form:"chart_of_account_id" binding:"omitempty,uuid"`
-	AccountType      string  `form:"account_type"`
-	ReferenceType    *string `form:"reference_type"`
-	JournalStatus    string  `form:"journal_status" binding:"omitempty,oneof=draft posted"`
-	StartDate        *string `form:"start_date"`
-	EndDate          *string `form:"end_date"`
-	SortBy           string  `form:"sort_by"`
-	SortDir          string  `form:"sort_dir"`
+	Page              int     `form:"page" binding:"omitempty,min=1"`
+	PerPage           int     `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search            string  `form:"search"`
+	CashBankJournalID string  `form:"cash_bank_journal_id" binding:"omitempty,uuid"`
+	ChartOfAccountID  string  `form:"chart_of_account_id" binding:"omitempty,uuid"`
+	AccountType       string  `form:"account_type"`
+	ReferenceType     *string `form:"reference_type"`
+	JournalStatus     string  `form:"journal_status" binding:"omitempty,oneof=draft posted"`
+	StartDate         *string `form:"start_date"`
+	EndDate           *string `form:"end_date"`
+	SortBy            string  `form:"sort_by"`
+	SortDir           string  `form:"sort_dir"`
 }
 
 // JournalLineDetailResponse for individual journal line with entry context

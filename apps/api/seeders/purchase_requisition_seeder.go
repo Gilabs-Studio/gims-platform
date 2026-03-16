@@ -54,7 +54,7 @@ func SeedPurchaseRequisition() error {
 	}
 
 	var employees []orgModels.Employee
-	if err := db.Where("is_approved = ?", true).Limit(5).Find(&employees).Error; err != nil {
+	if err := db.Where("is_active = ?", true).Limit(5).Find(&employees).Error; err != nil {
 		return err
 	}
 	if len(employees) == 0 {

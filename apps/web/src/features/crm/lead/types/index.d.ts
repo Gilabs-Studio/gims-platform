@@ -12,6 +12,10 @@ export interface Lead {
   address: string;
   city: string;
   province: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_source?: LeadSourceInfo | null;
   lead_status_id?: string | null;
@@ -36,13 +40,36 @@ export interface Lead {
   customer?: LeadCustomerInfo | null;
   contact_id?: string | null;
   deal_id?: string | null;
+  deal?: LeadDealInfo | null;
   converted_at?: string | null;
   converted_by?: string | null;
   // Metadata
   notes: string;
+  npwp?: string | null;
+  // External
+  latitude?: number | null;
+  longitude?: number | null;
+  rating?: number | null;
+  rating_count?: number | null;
+  types?: string;
+  opening_hours?: string;
+  thumbnail_url?: string;
+  cid?: string;
+  place_id?: string;
+  website?: string;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
+  // Sales defaults for customer conversion
+  business_type_id?: string | null;
+  business_type?: LeadBusinessTypeInfo | null;
+  area_id?: string | null;
+  area?: LeadAreaInfo | null;
+  payment_terms_id?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+  activities?: ActivityResponse[] | null;
+  product_items?: LeadProductItem[] | null;
 }
 
 export interface LeadSourceInfo {
@@ -72,6 +99,56 @@ export interface LeadCustomerInfo {
   name: string;
 }
 
+export interface LeadDealInfo {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  pipeline_stage_name: string;
+}
+
+export interface ActivityTypeInfo {
+  id: string;
+  name: string;
+  code: string;
+  icon: string;
+  badge_color: string;
+}
+
+export interface ActivityEmployeeInfo {
+  id: string;
+  employee_code: string;
+  name: string;
+}
+
+export interface ActivityResponse {
+  id: string;
+  type: string;
+  activity_type_id?: string | null;
+  activity_type?: ActivityTypeInfo | null;
+  customer_id?: string | null;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  visit_report_id?: string | null;
+  employee_id: string;
+  employee?: ActivityEmployeeInfo | null;
+  description: string;
+  timestamp: string;
+  metadata?: string | null;
+  created_at: string;
+}
+
+export interface LeadBusinessTypeInfo {
+  id: string;
+  name: string;
+}
+
+export interface LeadAreaInfo {
+  id: string;
+  name: string;
+}
+
 export interface CreateLeadData {
   first_name: string;
   last_name?: string;
@@ -82,6 +159,10 @@ export interface CreateLeadData {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_status_id?: string | null;
   estimated_value?: number;
@@ -96,6 +177,12 @@ export interface CreateLeadData {
   time_expected?: string | null;
   assigned_to?: string | null;
   notes?: string;
+  website?: string;
+  business_type_id?: string | null;
+  area_id?: string | null;
+  payment_terms_id?: string | null;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
 }
 
 export interface UpdateLeadData {
@@ -108,6 +195,10 @@ export interface UpdateLeadData {
   address?: string;
   city?: string;
   province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
   lead_source_id?: string | null;
   lead_status_id?: string | null;
   estimated_value?: number;
@@ -122,10 +213,21 @@ export interface UpdateLeadData {
   time_expected?: string | null;
   assigned_to?: string | null;
   notes?: string;
+  website?: string;
+  npwp?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  business_type_id?: string | null;
+  area_id?: string | null;
+  payment_terms_id?: string | null;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
 }
 
 export interface ConvertLeadData {
-  customer_id?: string | null;
+  pipeline_stage_id?: string;
+  deal_title?: string;
+  deal_value?: number;
   notes?: string;
 }
 
@@ -145,11 +247,65 @@ export interface LeadListParams {
   is_converted?: string;
 }
 
+// n8n Lead Generation Types
+export type LeadGenerateSource = "linkedin" | "google_maps";
+
+export interface GenerateLeadsInput {
+  type: LeadGenerateSource;
+  keyword: string;
+  city: string;
+  limit: number;
+}
+
+export interface BulkUpsertLeadItem {
+  first_name: string;
+  last_name?: string;
+  company_name?: string;
+  email: string;
+  phone?: string;
+  job_title?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  province_id?: string | null;
+  city_id?: string | null;
+  district_id?: string | null;
+  village_name?: string;
+  lead_source_id?: string | null;
+  estimated_value?: number;
+  notes?: string;
+  // External
+  latitude?: number | null;
+  longitude?: number | null;
+  rating?: number | null;
+  rating_count?: number | null;
+  types?: string;
+  opening_hours?: string;
+  thumbnail_url?: string;
+  cid?: string;
+  place_id?: string;
+  website?: string;
+}
+
+export interface BulkUpsertLeadRequest {
+  leads: BulkUpsertLeadItem[];
+}
+
+export interface BulkUpsertLeadResponse {
+  created: number;
+  updated: number;
+  errors: number;
+  items: Lead[];
+}
+
 export interface LeadFormDataResponse {
   employees: LeadEmployeeOption[];
   lead_sources: LeadSourceOption[];
   lead_statuses: LeadStatusOption[];
-  customers: LeadCustomerOption[];
+  pipeline_stages: LeadPipelineStageOption[];
+  business_types: LeadBusinessTypeOption[];
+  areas: LeadAreaOption[];
+  payment_terms: LeadPaymentTermsOption[];
 }
 
 export interface LeadEmployeeOption {
@@ -162,6 +318,7 @@ export interface LeadSourceOption {
   id: string;
   name: string;
   code: string;
+  order?: number;
 }
 
 export interface LeadStatusOption {
@@ -169,14 +326,35 @@ export interface LeadStatusOption {
   name: string;
   code: string;
   color: string;
+  order?: number;
   is_default: boolean;
   is_converted: boolean;
 }
 
-export interface LeadCustomerOption {
+export interface LeadPipelineStageOption {
   id: string;
-  code: string;
   name: string;
+  code: string;
+  order: number;
+  probability: number;
+}
+
+export interface LeadBusinessTypeOption {
+  id: string;
+  name: string;
+}
+
+export interface LeadAreaOption {
+  id: string;
+  name: string;
+  province?: string;
+}
+
+export interface LeadPaymentTermsOption {
+  id: string;
+  name: string;
+  code: string;
+  days: number;
 }
 
 export interface LeadAnalytics {
@@ -208,4 +386,20 @@ export interface ApiResponse<T> {
   data: T;
   meta?: { pagination?: PaginationMeta; filters?: Record<string, unknown> };
   error?: string;
+}
+
+export interface LeadProductItem {
+  id: string;
+  lead_id: string;
+  product_id?: string | null;
+  product_name: string;
+  product_sku: string;
+  interest_level: number;
+  quantity: number;
+  unit_price: number;
+  notes: string;
+  source_visit_report_id?: string | null;
+  last_survey_answers?: string | null;
+  is_deleted?: boolean;
+  created_at: string;
 }

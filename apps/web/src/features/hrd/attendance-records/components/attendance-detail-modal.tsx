@@ -362,7 +362,7 @@ export function AttendanceDetailModal({
                     </p>
                   </div>
                   <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-amber-600">
+                    <p className="text-2xl font-bold text-warning">
                       {displayRecord.early_leave_minutes > 0
                         ? `${displayRecord.early_leave_minutes}m`
                         : "-"}

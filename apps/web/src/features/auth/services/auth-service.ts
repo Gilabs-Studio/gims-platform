@@ -1,19 +1,74 @@
-import apiClient from "@/lib/api-client";
-import type { LoginRequest, LoginResponse, MenusResponse } from "../types";
+import apiClient, { setCSRFTokenMemory } from "@/lib/api-client";
+import type { LoginRequest, LoginResponse } from "../types";
 
 export const authService = {
   /**
    * Prefetch CSRF token from the API.
-   * This sets the csrf_token cookie for use in subsequent requests.
+   *
+   * Performs a GET /auth/csrf which causes the backend CSRF middleware to:
+   *  1. Generate/reuse the gims_csrf_token cookie (SameSite=None; Secure)
+   *  2. Echo the token in the X-CSRF-Token response header
+   *
+   * The response interceptor in api-client already captures the header into
+   * memoryCsrfToken. We mirror it here via the static import to ensure the
+   * in-memory value is updated synchronously within the same microtask, with
+   * no dynamic-import async boundary that could defer the assignment.
    */
-  async prefetchCSRFToken(): Promise<void> {
-    await apiClient.get("/auth/csrf");
+  /**
+   * Returns the CSRF token string so callers can inject it explicitly into
+   * the immediately-following POST, bypassing the module-level memory cache.
+   * This is the only truly reliable approach in cross-origin environments where
+   * document.cookie is inaccessible and microtask ordering is non-deterministic.
+   */
+  async prefetchCSRFToken(): Promise<string | null> {
+    const response = await apiClient.get<{
+      data: { csrf_token?: string; message?: string };
+    }>("/auth/csrf");
+
+    // Primary: read from response body — always accessible regardless of CORS
+    // header exposure policies or browser quirks in cross-origin environments.
+    // The backend GetCSRFToken handler now echoes the token in the JSON body.
+    const bodyToken: string | null =
+      response.data?.data?.csrf_token ?? null;
+
+    // Fallback: response header (works in same-origin / when properly exposed)
+    const headerToken: string | null =
+      (typeof response.headers.get === "function"
+        ? (response.headers.get("x-csrf-token") as string | null)
+        : null) ??
+      (response.headers["x-csrf-token"] as string | undefined) ??
+      (response.headers["X-CSRF-Token"] as string | undefined) ??
+      null;
+
+    const csrfToken = bodyToken ?? headerToken;
+
+    // Sync the global memory cache so all other interceptor-based requests
+    // (PUT, PATCH, DELETE, etc.) also carry the correct token.
+    if (csrfToken) {
+      setCSRFTokenMemory(csrfToken);
+    }
+
+    return csrfToken;
   },
 
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
+  /**
+   * Perform the login POST.
+   *
+   * @param csrfToken - Token returned by prefetchCSRFToken(). When provided it
+   *   is injected directly as a per-request header, guaranteeing the
+   *   Double-Submit Cookie pair even if the global memoryCsrfToken cache is
+   *   stale or null (cross-origin environments, page reload, etc.).
+   */
+  async login(
+    credentials: LoginRequest,
+    csrfToken?: string | null,
+  ): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>(
       "/auth/login",
       credentials,
+      // Explicit header takes precedence over (and is redundant with) the
+      // interceptor, but provides a guaranteed second line of defence.
+      csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
     );
     return response.data;
   },

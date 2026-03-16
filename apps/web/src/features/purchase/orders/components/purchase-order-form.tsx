@@ -43,8 +43,10 @@ import { SupplierDialog } from "@/features/master-data/supplier/components/suppl
 import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { BusinessUnitForm } from "@/features/master-data/organization/components/business-unit/business-unit-form";
+import { useProducts } from "@/features/master-data/product/hooks/use-products";
+import { productService } from "@/features/master-data/product/services/product-service";
 
-type ProductOption = { id: string; code?: string; name: string };
+type ProductOption = { id: string; code?: string; name: string; cost_price?: number };
 
 type QuickCreateType = "supplier" | "paymentTerm" | "businessUnit" | "product" | null;
 
@@ -106,6 +108,7 @@ export function PurchaseOrderForm({
 
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const [pendingProductItemIdx, setPendingProductItemIdx] = useState(-1);
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
@@ -113,6 +116,8 @@ export function PurchaseOrderForm({
   const [dueDateOpen, setDueDateOpen] = useState(false);
 
   const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({ enabled: open });
+  const { data: masterProductsData } = useProducts({ is_approved: true, per_page: 100 }, { enabled: open });
+  const masterProducts = masterProductsData?.data ?? [];
 
   const suppliers = addData?.data?.suppliers ?? [];
   const paymentTerms = addData?.data?.payment_terms ?? [];
@@ -241,17 +246,20 @@ export function PurchaseOrderForm({
 
   const productOptions = useMemo((): ProductOption[] => {
     const map = new Map<string, ProductOption>();
-    for (const p of supplierProducts) map.set(p.id, { id: p.id, code: p.code, name: p.name });
-    for (const p of sourceProducts) map.set(p.id, p);
+    // Supplier-linked products with purchase price hint
+    for (const p of supplierProducts) map.set(p.id, { id: p.id, code: p.code, name: p.name, cost_price: p.current_hpp });
+    for (const p of sourceProducts) map.set(p.id, { ...p, cost_price: 0 });
+    // Master data products are authoritative for cost_price
+    for (const p of masterProducts) map.set(p.id, { id: p.id, code: p.code, name: p.name, cost_price: p.cost_price });
     for (const it of watchedItems ?? []) {
       const id = it?.product_id;
       if (!id || map.has(id)) continue;
       const poItem = po?.items?.find((x) => x.product_id === id);
       const pInfo = (poItem?.product as any);
-      map.set(id, { id, code: pInfo?.code, name: pInfo?.name || id });
+      map.set(id, { id, code: pInfo?.code, name: pInfo?.name || id, cost_price: 0 });
     }
     return Array.from(map.values());
-  }, [supplierProducts, sourceProducts, watchedItems, po?.items]);
+  }, [supplierProducts, sourceProducts, masterProducts, watchedItems, po?.items]);
 
   const isSubmitting = (isEdit ? updateMutation.isPending : createMutation.isPending) || (isEdit && poQuery.isFetching);
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
@@ -271,11 +279,20 @@ export function PurchaseOrderForm({
     closeQuickCreate();
   }, [setValue, closeQuickCreate]);
 
-  const handleProductCreated = useCallback((item: { id: string; name: string }) => {
-    const idx = fields.findIndex((f) => !f.product_id);
-    if (idx !== -1) setValue(`items.${idx}.product_id`, item.id, { shouldValidate: true });
+  const handleProductCreated = useCallback(async (item: { id: string; name: string }) => {
+    const targetIdx = pendingProductItemIdx;
+    if (targetIdx !== -1) {
+      setValue(`items.${targetIdx}.product_id`, item.id, { shouldValidate: true });
+      try {
+        const res = await productService.getById(item.id);
+        setValue(`items.${targetIdx}.price`, res.data.cost_price ?? 0, { shouldValidate: true });
+      } catch {
+        // price stays at default 0
+      }
+    }
     closeQuickCreate();
-  }, [fields, setValue, closeQuickCreate]);
+    setPendingProductItemIdx(-1);
+  }, [pendingProductItemIdx, setValue, closeQuickCreate]);
 
   const onSubmit = async (formData: PurchaseOrderFormData) => {
     const basePayload = {
@@ -713,10 +730,21 @@ export function PurchaseOrderForm({
                                 render={({ field }) => (
                                   <CreatableCombobox
                                     value={field.value ?? ""}
-                                    onValueChange={(v) => field.onChange(v || "")}
+                                    onValueChange={(v) => {
+                                      field.onChange(v || "");
+                                      if (v) {
+                                        const found = productOptions.find((p) => p.id === v);
+                                        if (found?.cost_price !== undefined) {
+                                          setValue(`items.${idx}.price`, found.cost_price, { shouldValidate: true });
+                                        }
+                                      }
+                                    }}
                                     options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
                                     createPermission="product.create"
-                                    onCreateClick={() => openQuickCreate("product")}
+                                    onCreateClick={() => {
+                                      setPendingProductItemIdx(idx);
+                                      openQuickCreate("product");
+                                    }}
                                     placeholder={t("placeholders.select")}
                                     createLabel={t("actions.createNew") || "Create New Product"}
                                   />

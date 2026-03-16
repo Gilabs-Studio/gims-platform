@@ -28,6 +28,7 @@ export interface SupplierInvoiceListParams {
   sort_by?: string;
   sort_dir?: string;
   limit?: number;
+  purchase_order_id?: string;
 }
 
 export type SupplierInvoiceStatus =
@@ -37,11 +38,17 @@ export type SupplierInvoiceStatus =
   | "REJECTED"
   | "CANCELLED"
   | "UNPAID"
+  | "WAITING_PAYMENT"
   | "PARTIAL"
   | "PAID";
 export type SupplierInvoiceType = "NORMAL" | "DOWN_PAYMENT";
 
 export interface SupplierInvoicePurchaseOrderMini {
+  id: string;
+  code: string;
+}
+
+export interface SupplierInvoiceGoodsReceiptMini {
   id: string;
   code: string;
 }
@@ -54,6 +61,7 @@ export interface SupplierInvoicePaymentTermsMini {
 export interface SupplierInvoiceListItem {
   id: string;
   purchase_order?: SupplierInvoicePurchaseOrderMini | null;
+  goods_receipt?: SupplierInvoiceGoodsReceiptMini | null;
   payment_terms?: SupplierInvoicePaymentTermsMini | null;
   type: SupplierInvoiceType;
   code: string;
@@ -68,6 +76,7 @@ export interface SupplierInvoiceListItem {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+  down_payment_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
   supplier_id: string;
   supplier_name: string;
@@ -104,6 +113,7 @@ export interface SupplierInvoiceItemDetail {
 export interface SupplierInvoiceDetail {
   id: string;
   purchase_order?: SupplierInvoicePurchaseOrderMini | null;
+  goods_receipt?: SupplierInvoiceGoodsReceiptMini | null;
   payment_terms?: SupplierInvoicePaymentTermsMini | null;
   type: SupplierInvoiceType;
   code: string;
@@ -118,6 +128,7 @@ export interface SupplierInvoiceDetail {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+  down_payment_amount: number;
   down_payment_invoice?: SupplierInvoiceAddDownPaymentMini | null;
   supplier_id: string;
   supplier_name: string;
@@ -164,10 +175,37 @@ export interface SupplierInvoiceAddDownPaymentMini {
   invoice_date: string;
   due_date: string;
   amount: number;
+  paid_amount: number;
   status: SupplierInvoiceStatus;
   notes?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SupplierInvoiceAddGoodsReceiptItem {
+  id: string;
+  purchase_order_item_id: string;
+  product?: SupplierInvoiceAddProductMini | null;
+  quantity_received: number;
+  quantity_invoiced: number;
+  quantity_remaining: number;
+  quantity_invoiced: number;
+  quantity_remaining: number;
+  price: number;
+  sub_total: number;
+}
+
+export interface SupplierInvoiceAddGoodsReceipt {
+  id: string;
+  code: string;
+  purchase_order?: SupplierInvoicePurchaseOrderMini | null;
+  supplier?: SupplierInvoiceAddSupplierMini | null;
+  receipt_date?: string | null;
+  status: string;
+  items: SupplierInvoiceAddGoodsReceiptItem[];
+  invoice_dp?: SupplierInvoiceAddDownPaymentMini | null;
+  default_payment_terms_id?: string | null;
+  default_payment_terms_name?: string | null;
 }
 
 export interface SupplierInvoiceAddPurchaseOrder {
@@ -183,7 +221,7 @@ export interface SupplierInvoiceAddPurchaseOrder {
 
 export interface SupplierInvoiceAddResponse {
   payment_terms: SupplierInvoiceAddPaymentTerms[];
-  purchase_orders: SupplierInvoiceAddPurchaseOrder[];
+  goods_receipts: SupplierInvoiceAddGoodsReceipt[];
 }
 
 export interface SupplierInvoiceItemInput {
@@ -194,7 +232,7 @@ export interface SupplierInvoiceItemInput {
 }
 
 export interface CreateSupplierInvoiceInput {
-  purchase_order_id: string;
+  goods_receipt_id: string;
   payment_terms_id: string;
   invoice_number: string;
   invoice_date: string;

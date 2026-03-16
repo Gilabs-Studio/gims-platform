@@ -20,14 +20,14 @@ interface AttendanceCalendarProps {
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-  PRESENT: "bg-emerald-500",
-  LATE: "bg-amber-500",
-  ABSENT: "bg-red-500",
-  LEAVE: "bg-blue-500",
-  HALF_DAY: "bg-violet-500",
-  HOLIDAY: "bg-teal-500",
-  WFH: "bg-cyan-500",
-  OFF_DAY: "bg-gray-400",
+  PRESENT: "bg-success",
+  LATE: "bg-warning",
+  ABSENT: "bg-destructive",
+  LEAVE: "bg-primary",
+  HALF_DAY: "bg-purple",
+  HOLIDAY: "bg-successteal",
+  WFH: "bg-cyan",
+  OFF_DAY: "bg-mutedgray",
 };
 
 export function AttendanceCalendar({
@@ -166,7 +166,7 @@ export function AttendanceCalendar({
                   {/* Holiday Badge */}
                   {holiday && isCurrentMonth && (
                     <div className="mt-1">
-                      <span className="inline-block max-w-full truncate rounded-sm bg-red-200 px-1 py-0.5 text-[9px] font-semibold leading-none text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                      <span className="inline-block max-w-full truncate rounded-sm bg-destructive px-1 py-0.5 text-[9px] font-semibold leading-none text-destructive dark:bg-destructive/40 dark:text-destructive">
                         {holiday.name}
                       </span>
                     </div>
@@ -183,7 +183,7 @@ export function AttendanceCalendar({
                           <div
                             className={cn(
                               "h-2 w-2 rounded-full",
-                              STATUS_DOT_COLORS[status] ?? "bg-gray-300"
+                              STATUS_DOT_COLORS[status] ?? "bg-mutedgray"
                             )}
                           />
                           {count > 1 && (

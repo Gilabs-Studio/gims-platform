@@ -35,6 +35,7 @@ func (m *WarehouseMapper) ToResponse(warehouse *models.Warehouse) *dto.Warehouse
 		Latitude:    warehouse.Latitude,
 		Longitude:   warehouse.Longitude,
 		IsActive:    warehouse.IsActive,
+		HasStock:    warehouse.HasStock,
 		CreatedAt:   warehouse.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:   warehouse.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

@@ -103,6 +103,9 @@ func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJou
 		q = q.Offset(params.Offset)
 	}
 
+	// Preload lines so that list responses include line count and details for UI detail view.
+	q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
+
 	if err := q.Find(&items).Error; err != nil {
 		return nil, 0, err
 	}

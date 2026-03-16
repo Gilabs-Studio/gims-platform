@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -30,6 +31,7 @@ type InventoryUsecase interface {
 	DeductStock(ctx context.Context, batchID string, quantity float64) error
 	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
 	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error
+	CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error
 
 	// Integration
 	ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error
@@ -354,5 +356,136 @@ func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.A
 			return err
 		}
 	}
+	return nil
+}
+
+var ErrTargetWarehouseRequired = errors.New("target warehouse is required for TRANSFER")
+var ErrInsufficientStock = errors.New("insufficient stock for movement")
+
+func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error {
+	zeroUUID := "00000000-0000-0000-0000-000000000000"
+	
+	if req.ReferenceNumber == "" {
+		req.ReferenceNumber = "MANUAL-" + time.Now().Format("20060102-150405")
+	}
+
+	deductStock := func(warehouseID string, qty float64, movementType string) error {
+		batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
+		if err != nil {
+			return err
+		}
+
+		remaining := qty
+		for _, batch := range batches {
+			if remaining <= 0 {
+				break
+			}
+			
+			available := batch.Available
+			if available <= 0 {
+				continue
+			}
+
+			toDeduct := math.Min(available, remaining)
+
+			movReq := &dto.StockMovementRequest{
+				InventoryBatchID: batch.ID,
+				ProductID:        req.ProductID,
+				WarehouseID:      warehouseID,
+				Type:             movementType,
+				Quantity:         toDeduct,
+				ReferenceType:    "TRANSFER",
+				ReferenceID:      zeroUUID,
+				ReferenceNumber:  req.ReferenceNumber,
+				Description:      req.Description,
+				CreatedBy:        &req.CreatedBy,
+			}
+			if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
+				return err
+			}
+
+			if err := u.repo.UpdateBatchQuantity(ctx, batch.ID, -toDeduct); err != nil {
+				return err
+			}
+
+			remaining -= toDeduct
+		}
+
+		if remaining > 0 {
+			return ErrInsufficientStock
+		}
+
+		if err := u.repo.UpdateProductStock(ctx, req.ProductID, -qty); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	addStock := func(warehouseID string, qty float64, movementType string) error {
+		currentHpp, _, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
+		if err != nil {
+			return err
+		}
+
+		batchNumber := "MB-" + time.Now().Format("060102150405")
+		now := time.Now()
+		
+		batchParams := &dto.CreateBatchParams{
+			ProductID:       req.ProductID,
+			WarehouseID:     warehouseID,
+			BatchNumber:     batchNumber,
+			InitialQuantity: qty,
+			CostPrice:       currentHpp,
+			ReceivedAt:      now,
+		}
+
+		batchID, err := u.repo.CreateBatch(ctx, batchParams)
+		if err != nil {
+			return err
+		}
+
+		movReq := &dto.StockMovementRequest{
+			InventoryBatchID: batchID,
+			ProductID:        req.ProductID,
+			WarehouseID:      warehouseID,
+			Type:             movementType,
+			Quantity:         qty,
+			ReferenceType:    "TRANSFER",
+			ReferenceID:      zeroUUID,
+			ReferenceNumber:  req.ReferenceNumber,
+			Description:      req.Description,
+			CreatedBy:        &req.CreatedBy,
+		}
+		if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
+			return err
+		}
+
+		if err := u.repo.UpdateProductStock(ctx, req.ProductID, qty); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	switch req.Type {
+	case "IN":
+		return addStock(req.WarehouseID, req.Quantity, "IN")
+	case "OUT":
+		return deductStock(req.WarehouseID, req.Quantity, "OUT")
+	case "ADJUST":
+		return errors.New("please use stock opname for adjustments")
+	case "TRANSFER":
+		if req.TargetWarehouseID == nil || *req.TargetWarehouseID == "" {
+			return ErrTargetWarehouseRequired
+		}
+		if err := deductStock(req.WarehouseID, req.Quantity, "OUT"); err != nil {
+			return err
+		}
+		if err := addStock(*req.TargetWarehouseID, req.Quantity, "IN"); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

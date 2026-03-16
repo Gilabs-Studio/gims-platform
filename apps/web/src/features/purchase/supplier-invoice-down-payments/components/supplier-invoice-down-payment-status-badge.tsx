@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, FileText, Send, TrendingUp, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Send, XCircle, CreditCard, PieChart } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SupplierInvoiceDownPaymentStatusBadgeProps {
@@ -9,7 +9,8 @@ interface SupplierInvoiceDownPaymentStatusBadgeProps {
 
 export function SupplierInvoiceDownPaymentStatusBadge({ status, className }: SupplierInvoiceDownPaymentStatusBadgeProps) {
   const t = useTranslations("supplierInvoiceDP.status");
-  const normalizedStatus = (status ?? "").toLowerCase();
+  const rawStatus = (status ?? "").toLowerCase();
+  const normalizedStatus = rawStatus === "approved" ? "unpaid" : rawStatus;
 
   switch (normalizedStatus) {
     case "paid":
@@ -22,21 +23,28 @@ export function SupplierInvoiceDownPaymentStatusBadge({ status, className }: Sup
     case "unpaid":
       return (
         <Badge variant="warning" className={className}>
-          <Clock className="h-3 w-3 mr-1.5" />
+          <CreditCard className="h-3 w-3 mr-1.5" />
           {t("unpaid")}
+        </Badge>
+      );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("waiting_payment")}
         </Badge>
       );
     case "partial":
       return (
-        <Badge variant="info" className={className}>
-          <TrendingUp className="h-3 w-3 mr-1.5" />
+        <Badge variant="warning" className={className}>
+          <PieChart className="h-3 w-3 mr-1.5" />
           {t("partial")}
         </Badge>
       );
     case "draft":
       return (
         <Badge variant="secondary" className={className}>
-          <FileText className="h-3 w-3 mr-1.5" />
+          <Clock className="h-3 w-3 mr-1.5" />
           {t("draft")}
         </Badge>
       );
@@ -45,13 +53,6 @@ export function SupplierInvoiceDownPaymentStatusBadge({ status, className }: Sup
         <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
           {t("submitted")}
-        </Badge>
-      );
-    case "approved":
-      return (
-        <Badge variant="success" className={className}>
-          <CheckCircle2 className="h-3 w-3 mr-1.5" />
-          {t("approved")}
         </Badge>
       );
     case "rejected":
@@ -63,7 +64,7 @@ export function SupplierInvoiceDownPaymentStatusBadge({ status, className }: Sup
       );
     case "cancelled":
       return (
-        <Badge variant="outline" className={className}>
+        <Badge variant="destructive" className={className}>
           <XCircle className="h-3 w-3 mr-1.5" />
           {t("cancelled")}
         </Badge>

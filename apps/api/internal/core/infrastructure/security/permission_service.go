@@ -25,6 +25,7 @@ type cachedPermissionService struct {
 	l1ScopeCache sync.Map // Separate L1 cache for scope-aware permissions
 	l1TTL        time.Duration
 	l2TTL        time.Duration
+	redisTimeout time.Duration
 }
 
 type l1CacheItem struct {
@@ -39,10 +40,15 @@ type l1ScopeCacheItem struct {
 
 func NewPermissionService(db *gorm.DB) PermissionService {
 	return &cachedPermissionService{
-		db:    db,
-		l1TTL: 1 * time.Minute,
-		l2TTL: 1 * time.Hour,
+		db:           db,
+		l1TTL:        1 * time.Minute,
+		l2TTL:        1 * time.Hour,
+		redisTimeout: 2 * time.Second,
 	}
+}
+
+func (s *cachedPermissionService) redisContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), s.redisTimeout)
 }
 
 func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, error) {
@@ -60,7 +66,9 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 	cacheKey := fmt.Sprintf("permissions:%s", roleCode)
 	
 	if redisClient != nil {
-		val, err := redisClient.Get(context.Background(), cacheKey).Result()
+		ctx, cancel := s.redisContext()
+		val, err := redisClient.Get(ctx, cacheKey).Result()
+		cancel()
 		if err == nil {
 			var perms []string
 			if err := json.Unmarshal([]byte(val), &perms); err == nil {
@@ -91,7 +99,9 @@ func (s *cachedPermissionService) GetPermissions(roleCode string) ([]string, err
 	// Update L2
 	if redisClient != nil {
 		data, _ := json.Marshal(perms)
-		redisClient.Set(context.Background(), cacheKey, data, s.l2TTL)
+		ctx, cancel := s.redisContext()
+		redisClient.Set(ctx, cacheKey, data, s.l2TTL)
+		cancel()
 	}
 
 	// Update L1
@@ -119,7 +129,9 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 	scopeCacheKey := fmt.Sprintf("permissions_scope:%s", roleCode)
 
 	if redisClient != nil {
-		val, err := redisClient.Get(context.Background(), scopeCacheKey).Result()
+		ctx, cancel := s.redisContext()
+		val, err := redisClient.Get(ctx, scopeCacheKey).Result()
+		cancel()
 		if err == nil {
 			var perms map[string]string
 			if err := json.Unmarshal([]byte(val), &perms); err == nil {
@@ -177,7 +189,9 @@ func (s *cachedPermissionService) GetPermissionsWithScope(roleCode string) (map[
 	// 4. Update Caches
 	if redisClient != nil {
 		data, _ := json.Marshal(perms)
-		redisClient.Set(context.Background(), scopeCacheKey, data, s.l2TTL)
+		ctx, cancel := s.redisContext()
+		redisClient.Set(ctx, scopeCacheKey, data, s.l2TTL)
+		cancel()
 	}
 
 	s.l1ScopeCache.Store(roleCode, l1ScopeCacheItem{
@@ -198,7 +212,9 @@ func (s *cachedPermissionService) InvalidateCache(roleCode string) error {
 	if redisClient != nil {
 		cacheKey := fmt.Sprintf("permissions:%s", roleCode)
 		scopeCacheKey := fmt.Sprintf("permissions_scope:%s", roleCode)
-		return redisClient.Del(context.Background(), cacheKey, scopeCacheKey).Err()
+		ctx, cancel := s.redisContext()
+		defer cancel()
+		return redisClient.Del(ctx, cacheKey, scopeCacheKey).Err()
 	}
 	return nil
 }

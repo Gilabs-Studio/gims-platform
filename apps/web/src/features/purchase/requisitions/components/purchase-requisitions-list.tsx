@@ -65,6 +65,7 @@ import type { PurchaseRequisitionListItem, PurchaseRequisitionStatus } from "../
 import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
 
@@ -304,20 +305,22 @@ export function PurchaseRequisitionsList() {
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead>{t("columns.requestedBy")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
-              <TableHead className="text-right">{t("columns.total")}</TableHead>
+              <TableHead className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
+                {t("totalAmount")}
+              </TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
+                  <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
+                  <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right"><Skeleton className="h-4 w-32 ml-auto" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                 </TableRow>
               ))
@@ -368,10 +371,24 @@ export function PurchaseRequisitionsList() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span>{item.employee?.name ?? item.user?.name ?? "-"}</span>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const displayName = item.employee?.name ?? item.user?.name ?? "-";
+                          const seed = item.user?.email ?? item.employee?.email ?? displayName;
+                          const src = seed ? `https://api.dicebear.com/7.x/lorelei/svg?seed=${encodeURIComponent(seed)}` : undefined;
+
+                          return (
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={src} alt={displayName} />
+                              <AvatarFallback dataSeed={seed}>{displayName}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
+                        <span>{item.employee?.name ?? item.user?.name ?? "-"}</span>
+                      </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(item)}</TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] text-right">
                       {formatCurrency(item.total_amount)}
                     </TableCell>
                     <TableCell>
@@ -420,7 +437,7 @@ export function PurchaseRequisitionsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                               >
                                 <Send className="h-4 w-4 mr-2" />
                                 {t("actions.submit")}
@@ -439,7 +456,7 @@ export function PurchaseRequisitionsList() {
                                         toast.error(t("toast.failed"));
                                       }
                                     }}
-                                    className="cursor-pointer text-green-600 focus:text-green-600"
+                                    className="cursor-pointer text-success focus:text-success"
                                   >
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     {t("actions.approve")}
@@ -485,7 +502,7 @@ export function PurchaseRequisitionsList() {
                                     }
                                   }
                                 }}
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                               >
                                 <FileText className="h-4 w-4 mr-2" />
                                 {t("convertToOrder")}
@@ -495,7 +512,7 @@ export function PurchaseRequisitionsList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingId(item.id)}
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("print")}

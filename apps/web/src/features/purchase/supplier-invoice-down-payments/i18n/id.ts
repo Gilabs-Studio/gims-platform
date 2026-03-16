@@ -32,6 +32,10 @@ export const supplierInvoiceDPId = {
     editTitle: "Ubah DP Faktur",
     invalid: "Periksa kembali kolom yang wajib diisi",
   },
+  sections: {
+    invoiceInfo: "Info Faktur",
+    poDetail: "Detail Purchase Order",
+  },
   fields: {
     purchaseOrder: "Purchase Order",
     invoiceDate: "Tanggal Faktur",
@@ -39,6 +43,14 @@ export const supplierInvoiceDPId = {
     amount: "Nominal",
     notes: "Catatan",
     status: "Status",
+    supplier: "Supplier",
+    orderDate: "Tanggal Order",
+    totalAmount: "Total Nilai",
+    product: "Produk",
+    quantity: "Qty",
+    price: "Harga",
+    subtotal: "Subtotal",
+    items: "Item",
   },
   columns: {
     code: "Kode",
@@ -48,9 +60,12 @@ export const supplierInvoiceDPId = {
     dueDate: "Jatuh Tempo",
     purchaseOrder: "PO",
     amount: "Total",
+    remainingAmount: "Sisa",
     status: "Status",
     createdAt: "Dibuat",
   },
+  notFound: "Tidak ada DP faktur",
+  paidAmount: "Terbayar",
   status: {
     draft: "Draft",
     submitted: "Diajukan",
@@ -58,11 +73,13 @@ export const supplierInvoiceDPId = {
     rejected: "Ditolak",
     cancelled: "Dibatalkan",
     unpaid: "Belum Dibayar",
+    waiting_payment: "Menunggu Pembayaran",
     partial: "Sebagian",
     paid: "Lunas",
   },
   actions: {
     create: "Buat",
+    createPayment: "Buat Pembayaran",
     export: "Ekspor",
     view: "Lihat",
     edit: "Ubah",
@@ -80,6 +97,13 @@ export const supplierInvoiceDPId = {
     select: "Pilih...",
     pickDate: "Pilih tanggal",
   },
+
+  common: {
+    view: "Lihat",
+    cancel: "Batal",
+    error: "Terjadi kesalahan",
+  },
+
   // Dialog cetak
   print: "Cetak",
   printSupplierInvoiceDP: "Cetak Invoice Uang Muka",

@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateProduct, useUpdateProduct } from "./use-products";
+import { useProductCategories } from "./use-product-categories";
 import { useProductBrands } from "./use-product-brands";
 import { useProductSegments } from "./use-product-segments";
 import { useProductTypes } from "./use-product-types";
@@ -13,6 +14,8 @@ import { useProcurementTypes } from "./use-procurement-types";
 import { productSchema, type ProductFormData } from "../components/product/product.schema";
 import type { Product } from "../types";
 import { sortOptions } from "@/lib/utils";
+
+type QuickCreateType = "category" | "brand" | "segment" | "type" | "uom" | "purchaseUom" | "packaging" | "procurementType" | null;
 
 export interface UseProductFormProps {
   open: boolean;
@@ -31,6 +34,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
   // Fetch Lookup Data conditionally when form is open
   const fetchOptions = { enabled: open };
   
+  const { data: categoriesData } = useProductCategories({ per_page: 100, sort: "name" }, fetchOptions);
   const { data: brandsData } = useProductBrands({ per_page: 100, sort: "name" }, fetchOptions);
   const { data: segmentsData } = useProductSegments({ per_page: 100, sort: "name" }, fetchOptions);
   const { data: typesData } = useProductTypes({ per_page: 100, sort: "name" }, fetchOptions);
@@ -38,6 +42,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
   const { data: packagingsData } = usePackagings({ per_page: 100, sort: "name" }, fetchOptions);
   const { data: procurementTypesData } = useProcurementTypes({ per_page: 100, sort: "name" }, fetchOptions);
 
+  const categories = sortOptions(categoriesData?.data ?? [], (i) => i.name);
   const brands = sortOptions(brandsData?.data ?? [], (i) => i.name);
   const segments = sortOptions(segmentsData?.data ?? [], (i) => i.name);
   const types = sortOptions(typesData?.data ?? [], (i) => i.name);
@@ -47,6 +52,16 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
 
   const isEditing = !!editingItem;
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
+
+  const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; query: string }>({ type: null, query: "" });
+
+  const openQuickCreate = (type: QuickCreateType, query: string) => {
+    setQuickCreate({ type, query });
+  };
+
+  const closeQuickCreate = () => {
+    setQuickCreate({ type: null, query: "" });
+  };
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -132,6 +147,46 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
     }
   }, [open, editingItem, form]);
 
+  const handleCategoryCreated = (id: string) => {
+    form.setValue("category_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleBrandCreated = (id: string) => {
+    form.setValue("brand_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleSegmentCreated = (id: string) => {
+    form.setValue("segment_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleTypeCreated = (id: string) => {
+    form.setValue("type_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleUomCreated = (id: string) => {
+    form.setValue("uom_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handlePurchaseUomCreated = (id: string) => {
+    form.setValue("purchase_uom_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handlePackagingCreated = (id: string) => {
+    form.setValue("packaging_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleProcurementTypeCreated = (id: string) => {
+    form.setValue("procurement_type_id", id, { shouldValidate: true });
+    closeQuickCreate();
+  };
+
   const onSubmit: SubmitHandler<ProductFormData> = async (data) => {
     try {
       const payload = {
@@ -198,12 +253,24 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
     tCommon,
     isEditing,
     isSubmitting,
+    categories,
     brands,
     segments,
     types,
     uoms,
     packagings,
     procurementTypes,
+    quickCreate,
+    openQuickCreate,
+    closeQuickCreate,
+    handleCategoryCreated,
+    handleBrandCreated,
+    handleSegmentCreated,
+    handleTypeCreated,
+    handleUomCreated,
+    handlePurchaseUomCreated,
+    handlePackagingCreated,
+    handleProcurementTypeCreated,
     onSubmit: form.handleSubmit(onSubmit),
   };
 }

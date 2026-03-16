@@ -62,6 +62,7 @@ import { PurchaseOrderDetail } from "../../orders/components/purchase-order-deta
 import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 import { SupplierInvoicePrintDialog } from "./supplier-invoice-print-dialog";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
+import { GoodsReceiptDetail } from "../../goods-receipt/components/goods-receipt-detail";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -82,8 +83,8 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
 
   if (diffDays < 0) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
         <div className="flex items-center gap-1 text-destructive">
           <AlertTriangle className="h-3 w-3 shrink-0" />
           <span className="text-xs font-semibold">{Math.abs(diffDays)}d overdue</span>
@@ -93,17 +94,17 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
   }
   if (diffDays === 0) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
-        <span className="text-xs font-semibold text-amber-500">Due today</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-semibold text-warning">Due today</span>
       </div>
     );
   }
   if (diffDays <= 7) {
     return (
-      <div className="space-y-0.5">
-        <span className="text-xs text-muted-foreground">{formatted}</span>
-        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm">{formatted}</span>
+        <span className="text-xs font-medium text-warning">{diffDays}d left</span>
       </div>
     );
   }
@@ -119,6 +120,8 @@ const PurchasePaymentForm = dynamic(
   () => import("../../payments/components/purchase-payment-form").then((m) => m.PurchasePaymentForm),
   { ssr: false },
 );
+
+import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 export function SupplierInvoicesList() {
   const t = useTranslations("supplierInvoice");
@@ -144,11 +147,21 @@ export function SupplierInvoicesList() {
   const [isDPOpen, setIsDPOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
 
+  const [isGROpen, setIsGROpen] = useState(false);
+  const [selectedGRId, setSelectedGRId] = useState<string | null>(null);
+
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial" || normalized === "unpaid";
+  };
 
   const listParams = useMemo(
     () => ({
@@ -256,6 +269,7 @@ export function SupplierInvoicesList() {
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
+            <SelectItem value="waiting_payment">{t("status.waiting_payment")}</SelectItem>
             <SelectItem value="partial">{t("status.partial")}</SelectItem>
             <SelectItem value="paid">{t("status.paid")}</SelectItem>
           </SelectContent>
@@ -288,10 +302,11 @@ export function SupplierInvoicesList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[160px]">{t("columns.code")}</TableHead>
+              <TableHead className="w-40">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.invoiceDate")}</TableHead>
               <TableHead>{t("columns.dueDate")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
+              <TableHead>{t("columns.goodsReceipt") || "Goods Receipt"}</TableHead>
               <TableHead>{t("columns.downPayment")}</TableHead>
               <TableHead>{t("columns.supplier")}</TableHead>
               <TableHead className="text-right">{t("columns.amount")}</TableHead>
@@ -309,6 +324,7 @@ export function SupplierInvoicesList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
@@ -321,7 +337,7 @@ export function SupplierInvoicesList() {
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={canShowActions ? 11 : 10}
+                  colSpan={canShowActions ? 12 : 11}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {tCommon("empty")}
@@ -353,6 +369,22 @@ export function SupplierInvoicesList() {
                           }}
                         >
                           {row.purchase_order.code}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {row.goods_receipt ? (
+                        <span
+                          className="font-medium text-primary hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedGRId(row.goods_receipt!.id);
+                            setIsGROpen(true);
+                          }}
+                        >
+                          {row.goods_receipt.code}
                         </span>
                       ) : (
                         "-"
@@ -399,7 +431,26 @@ export function SupplierInvoicesList() {
                     <TableCell className="text-right">{formatCurrency(row.paid_amount ?? 0)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.remaining_amount ?? row.amount ?? 0)}</TableCell>
                     <TableCell>
-                      <SupplierInvoiceStatusBadge status={row.status} />
+                      {(() => {
+                        const clickable = isPaymentStatus(row.status);
+                        if (!clickable) {
+                          return <SupplierInvoiceStatusBadge status={row.status} />;
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className="inline-flex items-center cursor-pointer"
+                            title={t("actions.view")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedInvoiceForPayments({ id: row.id, code: (row.invoice_number || row.code) ?? "" });
+                              setIsPaymentDetailOpen(true);
+                            }}
+                          >
+                            <SupplierInvoiceStatusBadge status={row.status} />
+                          </button>
+                        );
+                      })()}
                     </TableCell>
                     {canShowActions && (
                       <TableCell>
@@ -435,7 +486,7 @@ export function SupplierInvoicesList() {
 
                             {canSubmit && st === "draft" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={async () => {
                                   try {
                                     await submitMutation.mutateAsync(row.id);
@@ -452,7 +503,7 @@ export function SupplierInvoicesList() {
 
                             {canApprove && st === "submitted" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await approveMutation.mutateAsync(row.id);
@@ -486,7 +537,7 @@ export function SupplierInvoicesList() {
 
                             {canPending && st === "approved" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await pendingMutation.mutateAsync(row.id);
@@ -503,7 +554,7 @@ export function SupplierInvoicesList() {
 
                             {(st === "unpaid" || st === "partial") && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={() => setCreatePaymentForInvoiceId(row.id)}
                               >
                                 <CreditCard className="h-4 w-4 mr-2" />
@@ -533,7 +584,7 @@ export function SupplierInvoicesList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-accent focus:text-accent"
                                 onClick={() => setPrintingId(row.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />
@@ -609,6 +660,20 @@ export function SupplierInvoicesList() {
         />
       )}
 
+      {isPaymentDetailOpen && selectedInvoiceForPayments && (
+        <PurchasePaymentsLinkedDialog
+          open={isPaymentDetailOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentDetailOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
+
       <PurchaseOrderDetail
         open={isPOOpen}
         onClose={() => {
@@ -616,6 +681,15 @@ export function SupplierInvoicesList() {
           setSelectedPOId(null);
         }}
         purchaseOrderId={selectedPOId}
+      />
+
+      <GoodsReceiptDetail
+        open={isGROpen}
+        onClose={() => {
+          setIsGROpen(false);
+          setSelectedGRId(null);
+        }}
+        goodsReceiptId={selectedGRId}
       />
 
       {selectedDPId && (

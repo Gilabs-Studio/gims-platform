@@ -21,6 +21,11 @@ export interface Deal {
   assigned_employee?: DealEmployeeInfo | null;
   lead_id?: string | null;
   lead?: DealLeadInfo | null;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
+  // Optional web/visit report fields (may be present at runtime)
+  website?: string;
+  visit_report?: string;
   // BANT
   budget_confirmed: boolean;
   budget_amount: number;
@@ -79,6 +84,16 @@ export interface DealLeadInfo {
   first_name: string;
   last_name: string;
   company_name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  // Optional fields mirrored from Lead entity
+  website?: string;
+  visit_report?: string;
 }
 
 export interface DealProductItem {
@@ -93,6 +108,8 @@ export interface DealProductItem {
   discount_amount: number;
   subtotal: number;
   notes: string;
+  interest_level?: number;
+  is_deleted?: boolean;
 }
 
 export interface DealHistory {
@@ -126,6 +143,8 @@ export interface CreateDealData {
   contact_id?: string | null;
   assigned_to?: string | null;
   lead_id?: string | null;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
   budget_confirmed?: boolean;
   budget_amount?: number;
   auth_confirmed?: boolean;
@@ -157,6 +176,9 @@ export interface UpdateDealData {
   customer_id?: string | null;
   contact_id?: string | null;
   assigned_to?: string | null;
+  lead_id?: string | null;
+  bank_account_id?: string | null;
+  bank_account_reference?: string;
   budget_confirmed?: boolean;
   budget_amount?: number;
   auth_confirmed?: boolean;

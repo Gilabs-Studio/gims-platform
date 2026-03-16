@@ -11,6 +11,10 @@ func SeedAll() error {
 		}
 	}
 
+	if os.Getenv("SEED_ONLY_MASTER_DATA") == "true" {
+		return seedMasterData()
+	}
+
 	// Seed in order: roles -> menus -> permissions -> users -> geographic
 	if err := SeedRoles(); err != nil {
 		return err
@@ -69,6 +73,9 @@ func SeedAll() error {
 	}
 
 	// Master Data seeders (Sprint 4)
+	if err := SeedCurrencies(); err != nil {
+		return err
+	}
 	if err := SeedPaymentTerms(); err != nil {
 		return err
 	}
@@ -125,6 +132,11 @@ func SeedAll() error {
 
 	// Finance - Asset & Closing seeder (Sprint 12)
 	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
+	// Finance - Salary structures seeder
+	if err := SeedSalaryStructures(); err != nil {
 		return err
 	}
 
@@ -260,6 +272,92 @@ func SeedAll() error {
 
 	// CRM Activities, Tasks & Schedules seeder (Sprint 23 - depends on employees, customers, contacts, activity types)
 	if err := SeedCRMActivitiesTasksSchedules(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func seedMasterData() error {
+	// Auth seeders
+	if err := SeedRoles(); err != nil {
+		return err
+	}
+
+	if err := SeedMenus(); err != nil {
+		return err
+	}
+
+	if err := UpdateMenuStructure(); err != nil {
+		return err
+	}
+
+	if err := SeedPermissions(); err != nil {
+		return err
+	}
+
+	if err := SeedUsers(); err != nil {
+		return err
+	}
+
+	// Master data seeders and required dependencies
+	if err := SeedGeographic(); err != nil {
+		return err
+	}
+
+	if err := SeedOrganization(); err != nil {
+		return err
+	}
+
+	if err := SeedEmployees(); err != nil {
+		return err
+	}
+
+	if err := SeedSupplier(); err != nil {
+		return err
+	}
+
+	if err := SeedProduct(); err != nil {
+		return err
+	}
+
+	if err := SeedWarehouse(); err != nil {
+		return err
+	}
+
+	if err := SeedInventory(); err != nil {
+		return err
+	}
+
+	if err := SeedPaymentTerms(); err != nil {
+		return err
+	}
+
+	if err := SeedCurrencies(); err != nil {
+		return err
+	}
+
+	if err := SeedCourierAgency(); err != nil {
+		return err
+	}
+
+	if err := SeedSOSource(); err != nil {
+		return err
+	}
+
+	if err := SeedLeaveType(); err != nil {
+		return err
+	}
+
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
+
+	if err := SeedCustomerTypes(); err != nil {
+		return err
+	}
+
+	if err := SeedCustomers(); err != nil {
 		return err
 	}
 

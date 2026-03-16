@@ -54,13 +54,16 @@ func (r *activityTypeRepository) List(ctx context.Context, params ListParams) ([
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
-		if params.SortDir == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
+		// Quote reserved PostgreSQL keywords used as column names
+		sortCol := params.SortBy
+		if sortCol == "order" {
+			sortCol = "\"order\""
 		}
-		query = query.Order(order)
+		sortDir := "ASC"
+		if params.SortDir == "desc" {
+			sortDir = "DESC"
+		}
+		query = query.Order(sortCol + " " + sortDir)
 	} else {
 		query = query.Order("\"order\" ASC, name ASC")
 	}

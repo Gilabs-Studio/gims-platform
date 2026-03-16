@@ -99,6 +99,8 @@ export const deliveryId = {
     noItems: "Tidak ada item",
     unknownProduct: "Tidak ada produk dipilih",
     created: "Surat jalan berhasil dibuat",
+    shipSuccess: "Surat jalan ditandai sebagai dikirim",
+    deliverSuccess: "Surat jalan ditandai sebagai terkirim",
     updated: "Surat jalan berhasil diperbarui",
     deleted: "Surat jalan berhasil dihapus",
     statusUpdated: "Status surat jalan berhasil diperbarui",
@@ -126,6 +128,8 @@ export const deliveryId = {
     // Actions
     actions: {
       send: "Kirim",
+      submit: "Ajukan",
+      submitSuccess: "Surat jalan berhasil diajukan",
       approve: "Setujui",
       reject: "Tolak",
       prepare: "Siapkan",

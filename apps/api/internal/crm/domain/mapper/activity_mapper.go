@@ -1,6 +1,8 @@
 package mapper
 
 import (
+	"encoding/json"
+
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 )
@@ -19,8 +21,12 @@ func ToActivityResponse(activity *models.Activity) dto.ActivityResponse {
 		EmployeeID:     activity.EmployeeID,
 		Description:    activity.Description,
 		Timestamp:      activity.Timestamp.Format("2006-01-02T15:04:05+07:00"),
-		Metadata:       activity.Metadata,
 		CreatedAt:      activity.CreatedAt.Format("2006-01-02T15:04:05+07:00"),
+	}
+
+	// Inline metadata as a JSON object, not a double-encoded string
+	if activity.Metadata != nil {
+		resp.Metadata = json.RawMessage(*activity.Metadata)
 	}
 
 	if activity.ActivityType != nil {

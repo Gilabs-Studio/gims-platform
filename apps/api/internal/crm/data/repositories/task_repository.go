@@ -22,6 +22,7 @@ type TaskListParams struct {
 	AssignedTo string
 	CustomerID string
 	DealID     string
+	LeadID     string
 	DueDateFrom string
 	DueDateTo   string
 	IsOverdue  *bool
@@ -34,6 +35,8 @@ type TaskRepository interface {
 	List(ctx context.Context, params TaskListParams) ([]models.Task, int64, error)
 	Update(ctx context.Context, task *models.Task) error
 	Delete(ctx context.Context, id string) error
+	// UpdateDealIDByLeadID associates all tasks linked to the given lead with a new deal.
+	UpdateDealIDByLeadID(ctx context.Context, leadID, dealID string) error
 }
 
 type taskRepository struct {
@@ -57,6 +60,7 @@ func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task,
 		Preload("Customer").
 		Preload("Contact").
 		Preload("Deal").
+		Preload("Lead").
 		Preload("Reminders").
 		First(&task, "id = ?", id).Error
 	if err != nil {
@@ -90,6 +94,9 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 	if params.DealID != "" {
 		query = query.Where("deal_id = ?", params.DealID)
 	}
+	if params.LeadID != "" {
+		query = query.Where("lead_id = ?", params.LeadID)
+	}
 	if params.DueDateFrom != "" {
 		query = query.Where("due_date >= ?", params.DueDateFrom)
 	}
@@ -121,6 +128,7 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 	err := query.
 		Preload("AssignedEmployee").
 		Preload("Customer").
+		Preload("Lead").
 		Preload("Reminders").
 		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
 		Limit(params.Limit).Offset(params.Offset).
@@ -134,4 +142,10 @@ func (r *taskRepository) Update(ctx context.Context, task *models.Task) error {
 
 func (r *taskRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.Task{}).Error
+}
+
+func (r *taskRepository) UpdateDealIDByLeadID(ctx context.Context, leadID, dealID string) error {
+	return r.db.WithContext(ctx).Model(&models.Task{}).
+		Where("lead_id = ? AND deal_id IS NULL", leadID).
+		Update("deal_id", dealID).Error
 }

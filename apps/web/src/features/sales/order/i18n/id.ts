@@ -150,6 +150,7 @@ export const orderId = {
     // Actions
     actions: {
       send: "Kirim",
+      submit: "Ajukan",
       approve: "Setujui",
       reject: "Tolak",
       confirm: "Konfirmasi",
@@ -157,6 +158,7 @@ export const orderId = {
       convert: "Konversi dari Penawaran",
       createDelivery: "Buat Surat Jalan",
       createInvoice: "Buat Faktur",
+      createInvoiceDP: "Buat Faktur DP",
     },
 
     // Validation
@@ -182,8 +184,16 @@ export const orderId = {
     cancelledAt: "Dibatalkan Pada",
     cancellationReason: "Alasan Pembatalan",
 
+    // Payment Overview (SO detail)
+    paymentOverview: {
+      title: "Ringkasan Pembayaran",
+      orderTotal: "Total Pesanan",
+      downPayment: "Uang Muka",
+      invoiced: "Difakturkan",
+      remaining: "Sisa",
+    },
+
     // Print
-    print: "Cetak",
     printOrder: "Cetak Sales Order",
     printSelectCompany: "Pilih perusahaan yang akan ditampilkan pada dokumen.",
     printCompanyLabel: "Perusahaan",

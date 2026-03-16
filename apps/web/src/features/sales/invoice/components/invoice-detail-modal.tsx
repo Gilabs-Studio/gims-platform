@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, Send, CreditCard } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { InvoiceForm } from "./invoice-form";
+import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
+import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import {
   useDeleteInvoice,
   useUpdateInvoiceStatus,
@@ -23,15 +25,16 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatWhatsAppLink } from "@/lib/utils";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+
 import { useInvoiceDetail } from "../hooks/use-invoice-detail";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
-import { SalesPaymentForm } from "../../payments/components/sales-payment-form";
+import type { Customer } from "@/features/master-data/customer/types";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -52,15 +55,15 @@ export function InvoiceDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const t = useTranslations("invoice");
 
-  const { data: detailData, isLoading } = useInvoice(invoice?.id ?? "", {
+  const { data: detailData } = useInvoice(invoice?.id ?? "", {
     enabled: open && !!invoice?.id,
   });
 
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
-  const canCreatePayment = useUserPermission("sales_payment.create");
-  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
+  const canCreatePayment = useUserPermission("sales_payment.create") || canPay;
+  const canViewCustomer = useUserPermission("customer.read");
 
   const {
     canViewProduct,
@@ -70,8 +73,33 @@ export function InvoiceDetailModal({
     openProduct, openSalesOrder,
   } = useInvoiceDetail();
 
+  const [isCustomerOpen, setIsCustomerOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  // payment dialog state
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+  const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
+
+  const isPaymentStatus = (status?: string): boolean => {
+    const normalized = (status ?? "").toLowerCase();
+    return normalized === "waiting_payment" || normalized === "paid" || normalized === "partial";
+  };
+
+  const customerProp: Customer | null = selectedCustomerId
+    ? ({
+        id: selectedCustomerId,
+        code: "",
+        name: "",
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as Customer)
+    : null;
+
   if (!invoice) return null;
 
+  const status = (invoice.status ?? "").toLowerCase();
   const displayInvoice = detailData?.data ?? invoice;
   const allItems = displayInvoice.items ?? [];
   const totalItems = allItems.length;
@@ -79,48 +107,6 @@ export function InvoiceDetailModal({
     (itemsPage - 1) * pageSize,
     itemsPage * pageSize
   );
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "unpaid":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.unpaid")}
-          </Badge>
-        );
-      case "sent":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.pending")}
-          </Badge>
-        );
-      case "partial":
-        return (
-          <Badge variant="warning" className="text-xs font-medium">
-            <DollarSign className="h-3 w-3 mr-1.5" />
-            {t("status.partial")}
-          </Badge>
-        );
-      case "paid":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.paid")}
-          </Badge>
-        );
-      case "cancelled":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1.5" />
-            {t("status.cancelled")}
-          </Badge>
-        );
-      default:
-        return <Badge className="text-xs font-medium">{status}</Badge>;
-    }
-  };
 
   const handleDelete = async () => {
     if (!invoice?.id) return;
@@ -130,6 +116,20 @@ export function InvoiceDetailModal({
       onClose();
     } catch (error) {
       console.error("Failed to delete invoice:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
+  const handleSubmitInvoice = async () => {
+    if (!invoice?.id) return;
+    try {
+      await updateStatus.mutateAsync({
+        id: invoice.id,
+        data: { status: "sent" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch (error) {
+      console.error("Failed to submit invoice:", error);
       toast.error(t("common.error"));
     }
   };
@@ -157,14 +157,32 @@ export function InvoiceDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayInvoice?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {invoice && getStatusBadge(invoice.status)}
+                  {invoice && (() => {
+                    const clickable = isPaymentStatus(invoice.status);
+                    if (!clickable) {
+                      return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
+                    }
+                    return (
+                      <button
+                        type="button"
+                        className="inline-flex items-center cursor-pointer"
+                        title={t("common.view")}
+                        onClick={() => {
+                          setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.code || invoice.invoice_number || "" });
+                          setIsPaymentOpen(true);
+                        }}
+                      >
+                        <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
+                      </button>
+                    );
+                  })()}
                   <span className="text-sm text-muted-foreground">
                     {displayInvoice?.invoice_date && new Date(displayInvoice.invoice_date).toLocaleDateString()}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && invoice?.status === "unpaid" && (
+                {canEdit && status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -175,7 +193,18 @@ export function InvoiceDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && invoice?.status === "unpaid" && (
+                {canEdit && status === "draft" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSubmitInvoice}
+                    className="cursor-pointer text-primary hover:text-primary/80 hover:bg-primary/5"
+                    title={t("actions.submit")}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+                {canDelete && (status === "draft" || status === "unpaid") && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -186,27 +215,27 @@ export function InvoiceDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
-                {canPay && (invoice?.status === "unpaid" || invoice?.status === "partial") && (
+                {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreatePaymentOpen(true)}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.createPayment")}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                  </Button>
+                )}
+                {canPay && ["unpaid", "partial", "waiting_payment"].includes(status) && (
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleMarkAsPaid}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.markAsPaid")}
                   >
                     <DollarSign className="h-4 w-4" />
-                  </Button>
-                )}
-                {canCreatePayment && (invoice?.status === "unpaid" || invoice?.status === "partial") && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsCreatePaymentOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    title={t("actions.createPayment")}
-                  >
-                    <CreditCard className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -233,7 +262,9 @@ export function InvoiceDetailModal({
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
-                        <TableCell>{getStatusBadge(displayInvoice.status)}</TableCell>
+                        <TableCell>
+                          <InvoiceStatusBadge status={displayInvoice.status} className="text-xs font-medium" />
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("dueDate")}</TableCell>
                         <TableCell>
                           {displayInvoice.due_date 
@@ -281,13 +312,44 @@ export function InvoiceDetailModal({
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_name ?? "-"}</TableCell>
+                              <TableCell>
+                                {canViewCustomer && displayInvoice.sales_order.customer_id ? (
+                                  <button
+                                    onClick={() => {
+                                        setSelectedCustomerId(displayInvoice.sales_order?.customer_id ?? null);
+                                        setIsCustomerOpen(true);
+                                      }}
+                                    className="text-primary hover:underline cursor-pointer text-left"
+                                  >
+                                    {displayInvoice.sales_order.customer_name ?? displayInvoice.sales_order.customer_id}
+                                  </button>
+                                ) : (
+                                  <span>{displayInvoice.sales_order.customer_name ?? "-"}</span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerPhone")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_phone ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayInvoice.sales_order.customer_phone ? (
+                                  <a
+                                    href={formatWhatsAppLink(displayInvoice.sales_order.customer_phone)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-primary hover:underline"
+                                  >
+                                    {displayInvoice.sales_order.customer_phone}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>{displayInvoice.sales_order.customer_email ?? "-"}</TableCell>
+                              <TableCell>
+                                {displayInvoice.sales_order.customer_email ? (
+                                  <a href={`mailto:${displayInvoice.sales_order.customer_email}`} className="text-primary hover:underline">
+                                    {displayInvoice.sales_order.customer_email}
+                                  </a>
+                                ) : "-"}
+                              </TableCell>
                               <TableCell className="font-medium bg-muted/50"></TableCell>
                               <TableCell></TableCell>
                             </TableRow>
@@ -323,7 +385,7 @@ export function InvoiceDetailModal({
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("paidAmount")}</TableCell>
-                          <TableCell className="text-right text-green-600 font-medium">
+                          <TableCell className="text-right text-success font-medium">
                             {formatCurrency(displayInvoice.paid_amount ?? 0)}
                           </TableCell>
                         </TableRow>
@@ -460,19 +522,40 @@ export function InvoiceDetailModal({
         order={selectedSalesOrderId ? { id: selectedSalesOrderId } as unknown as SalesOrder : null}
       />
 
+      <CustomerDetailModal
+        open={isCustomerOpen}
+        onOpenChange={setIsCustomerOpen}
+        customer={customerProp}
+      />
+
       <QuotationProductDetailModal
         open={isProductOpen}
         onOpenChange={setIsProductOpen}
         productId={selectedProductId}
       />
 
-      {invoice && (
+      {isPaymentOpen && selectedInvoiceForPayments && (
+        <SalesPaymentsLinkedDialog
+          open={isPaymentOpen}
+          onOpenChange={(isOpen: boolean) => {
+            if (!isOpen) {
+              setIsPaymentOpen(false);
+              setSelectedInvoiceForPayments(null);
+            }
+          }}
+          invoiceId={selectedInvoiceForPayments.id}
+          invoiceCode={selectedInvoiceForPayments.code}
+        />
+      )}
+
+      {isCreatePaymentOpen && invoice?.id && (
         <SalesPaymentForm
           open={isCreatePaymentOpen}
           onClose={() => setIsCreatePaymentOpen(false)}
           defaultInvoiceId={invoice.id}
         />
       )}
+
     </>
   );
 }

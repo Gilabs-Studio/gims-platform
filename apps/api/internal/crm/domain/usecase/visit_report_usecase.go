@@ -34,6 +34,46 @@ var (
 
 const maxPhotosPerVisit = 5
 
+// visitActivityTypeID is the fixed UUID for the "Visit" activity type from the CRM seeder
+const visitActivityTypeID = "ce000001-0000-0000-0000-000000000001"
+
+// VisitActivityMetadata defines the JSONB metadata structure for visit activities
+type VisitActivityMetadata struct {
+	VisitCode     string                    `json:"visit_code"`
+	Purpose       string                    `json:"purpose"`
+	Outcome       string                    `json:"outcome"`
+	Result        string                    `json:"result"`
+	Photos        []string                  `json:"photos"`
+	CheckInAt     *string                   `json:"check_in_at,omitempty"`
+	CheckOutAt    *string                   `json:"check_out_at,omitempty"`
+	CheckInLat    *float64                  `json:"check_in_lat,omitempty"`
+	CheckInLng    *float64                  `json:"check_in_lng,omitempty"`
+	CheckOutLat   *float64                  `json:"check_out_lat,omitempty"`
+	CheckOutLng   *float64                  `json:"check_out_lng,omitempty"`
+	Address       string                    `json:"address"`
+	ContactPerson string                    `json:"contact_person"`
+	Products      []VisitActivityProductInfo `json:"products,omitempty"`
+}
+
+// SurveyAnswerInfo holds a single answered survey question for embedding in activity metadata
+type SurveyAnswerInfo struct {
+	QuestionText string `json:"question_text"`
+	OptionText   string `json:"option_text"`
+	Score        int    `json:"score"`
+}
+
+// VisitActivityProductInfo holds product interest data embedded in activity metadata
+type VisitActivityProductInfo struct {
+	ProductID     string             `json:"product_id,omitempty"`
+	ProductName   string             `json:"product_name"`
+	ProductSKU    string             `json:"product_sku,omitempty"`
+	InterestLevel int                `json:"interest_level"`
+	Quantity      int                `json:"quantity,omitempty"`
+	UnitPrice     float64            `json:"unit_price,omitempty"`
+	Notes         string             `json:"notes,omitempty"`
+	SurveyAnswers []SurveyAnswerInfo `json:"survey_answers,omitempty"`
+}
+
 // VisitReportUsecase defines the interface for visit report business logic
 type VisitReportUsecase interface {
 	List(ctx context.Context, req *dto.ListVisitReportsRequest) ([]dto.VisitReportResponse, *utils.PaginationResult, error)
@@ -49,10 +89,13 @@ type VisitReportUsecase interface {
 	UploadPhotos(ctx context.Context, id string, photoURLs []string) (*dto.VisitReportResponse, error)
 	GetFormData(ctx context.Context) (*dto.VisitReportFormDataResponse, error)
 	ListProgressHistory(ctx context.Context, visitReportID string, page, perPage int) ([]dto.VisitReportProgressHistoryResponse, *utils.PaginationResult, error)
+	// ListByEmployee returns per-employee visit report summary metrics for team-level views.
+	ListByEmployee(ctx context.Context, req *dto.ListByEmployeeRequest) ([]dto.VisitReportEmployeeSummary, *utils.PaginationResult, error)
 }
 
 type visitReportUsecase struct {
 	visitRepo    repositories.VisitReportRepository
+	activityRepo repositories.ActivityRepository
 	customerRepo customerRepos.CustomerRepository
 	contactRepo  repositories.ContactRepository
 	employeeRepo orgRepos.EmployeeRepository
@@ -64,6 +107,7 @@ type visitReportUsecase struct {
 // NewVisitReportUsecase creates a new visit report usecase
 func NewVisitReportUsecase(
 	visitRepo repositories.VisitReportRepository,
+	activityRepo repositories.ActivityRepository,
 	customerRepo customerRepos.CustomerRepository,
 	contactRepo repositories.ContactRepository,
 	employeeRepo orgRepos.EmployeeRepository,
@@ -73,6 +117,7 @@ func NewVisitReportUsecase(
 ) VisitReportUsecase {
 	return &visitReportUsecase{
 		visitRepo:    visitRepo,
+		activityRepo: activityRepo,
 		customerRepo: customerRepo,
 		contactRepo:  contactRepo,
 		employeeRepo: employeeRepo,
@@ -166,7 +211,8 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 	}
 
 	if req.ScheduledTime != nil && *req.ScheduledTime != "" {
-		scheduledTime, err := time.Parse("15:04", *req.ScheduledTime)
+		// Parse scheduled time in application timezone so it is anchored to company/app TZ
+		scheduledTime, err := time.ParseInLocation("15:04", *req.ScheduledTime, apptime.Location())
 		if err == nil {
 			report.ScheduledTime = &scheduledTime
 		}
@@ -220,7 +266,8 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		}
 	}
 	if req.ScheduledTime != nil {
-		scheduledTime, err := time.Parse("15:04", *req.ScheduledTime)
+		// Parse scheduled time in application timezone so edits preserve FE-provided wall clock
+		scheduledTime, err := time.ParseInLocation("15:04", *req.ScheduledTime, apptime.Location())
 		if err == nil {
 			report.ScheduledTime = &scheduledTime
 		}
@@ -426,6 +473,12 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	if err := u.visitRepo.CreateProgressHistory(ctx, history); err != nil {
 		return nil, err
 	}
+
+	// Auto-create activity on submit
+	u.autoCreateVisitActivity(ctx, id)
+
+	// Sync product interests to the associated lead
+	u.syncProductItemsToLead(ctx, id)
 
 	updated, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
@@ -650,10 +703,10 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		})
 	}
 
-	// Products (active only)
+	// Products — use "approved" status to match the product lifecycle (draft → pending → approved)
 	products, _, err := u.productRepo.List(ctx, productRepos.ProductListParams{
 		ListParams: productRepos.ListParams{Limit: 500},
-		Status:     "active",
+		Status:     "approved",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
@@ -791,4 +844,283 @@ func buildLocationJSON(lat, lng, accuracy *float64) string {
 		return "{}"
 	}
 	return string(data)
+}
+
+// ListByEmployee returns paginated per-employee visit report metrics for ALL/DIVISION/AREA scope views.
+func (u *visitReportUsecase) ListByEmployee(ctx context.Context, req *dto.ListByEmployeeRequest) ([]dto.VisitReportEmployeeSummary, *utils.PaginationResult, error) {
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	rows, total, err := u.visitRepo.GetEmployeeSummary(ctx, req.Search, perPage, (page-1)*perPage)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	summaries := make([]dto.VisitReportEmployeeSummary, 0, len(rows))
+	for _, r := range rows {
+		summaries = append(summaries, dto.VisitReportEmployeeSummary{
+			EmployeeID:   r.EmployeeID,
+			EmployeeCode: r.EmployeeCode,
+			EmployeeName: r.EmployeeName,
+			TotalReports: r.TotalReports,
+			LatestVisit:  r.LatestVisit,
+			StatusCounts: dto.VisitReportStatusCounts{
+				Draft:     r.Draft,
+				Submitted: r.Submitted,
+				Approved:  r.Approved,
+				Rejected:  r.Rejected,
+			},
+		})
+	}
+
+	totalInt := int(total)
+	totalPages := (totalInt + perPage - 1) / perPage
+	pagination := &utils.PaginationResult{
+		Page:       page,
+		PerPage:    perPage,
+		Total:      totalInt,
+		TotalPages: totalPages,
+	}
+
+	return summaries, pagination, nil
+}
+
+// autoCreateVisitActivity creates an immutable Activity record from a submitted visit report
+func (u *visitReportUsecase) autoCreateVisitActivity(ctx context.Context, visitReportID string) {
+	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
+	if err != nil {
+		fmt.Printf("[WARN] failed to fetch visit report %s for activity creation: %v\n", visitReportID, err)
+		return
+	}
+
+	// Parse photos from JSONB
+	var photos []string
+	if visit.Photos != nil {
+		_ = json.Unmarshal([]byte(*visit.Photos), &photos)
+	}
+
+	// Extract GPS coordinates from check-in/check-out locations
+	checkInLat, checkInLng := extractCoords(visit.CheckInLocation)
+	checkOutLat, checkOutLng := extractCoords(visit.CheckOutLocation)
+
+	// Build product interest list from visit report details
+	var products []VisitActivityProductInfo
+	for _, detail := range visit.Details {
+		p := VisitActivityProductInfo{
+			ProductID:     detail.ProductID,
+			InterestLevel: detail.InterestLevel,
+			Notes:         detail.Notes,
+		}
+		if detail.Product != nil {
+			p.ProductName = detail.Product.Name
+			p.ProductSKU = detail.Product.Code
+		}
+		if detail.Quantity != nil {
+			p.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			p.UnitPrice = *detail.Price
+		}
+		for _, a := range detail.Answers {
+			sa := SurveyAnswerInfo{Score: a.Score}
+			if a.Question != nil {
+				sa.QuestionText = a.Question.QuestionText
+			}
+			if a.Option != nil {
+				sa.OptionText = a.Option.OptionText
+			}
+			p.SurveyAnswers = append(p.SurveyAnswers, sa)
+		}
+		products = append(products, p)
+	}
+
+	metadata := VisitActivityMetadata{
+		VisitCode:     visit.Code,
+		Purpose:       visit.Purpose,
+		Outcome:       visit.Outcome,
+		Result:        visit.Result,
+		Photos:        photos,
+		CheckInAt:     formatTimePtr(visit.CheckInAt),
+		CheckOutAt:    formatTimePtr(visit.CheckOutAt),
+		CheckInLat:    checkInLat,
+		CheckInLng:    checkInLng,
+		CheckOutLat:   checkOutLat,
+		CheckOutLng:   checkOutLng,
+		Address:       visit.Address,
+		ContactPerson: visit.ContactPerson,
+		Products:      products,
+	}
+
+	metadataJSON, marshalErr := json.Marshal(metadata)
+	if marshalErr != nil {
+		fmt.Printf("[WARN] failed to marshal visit activity metadata: %v\n", marshalErr)
+		return
+	}
+	metadataStr := string(metadataJSON)
+
+	// Determine timestamp priority:
+	// 1. Actual check-in time (most accurate)
+	// 2. Visit date + scheduled time, anchored to app timezone (WIB)
+	// 3. Visit date at midnight in app timezone (avoids UTC midnight → 07:00 WIB display)
+	loc := apptime.Location()
+	timestamp := time.Date(
+		visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(),
+		0, 0, 0, 0, loc,
+	)
+	if visit.CheckInAt != nil {
+		// CheckInAt is stored as plain timestamp: numeric value = WIB wall clock, but GORM reads
+		// it back tagged as UTC. Re-anchor to app timezone so pgx stores the correct UTC offset.
+		ci := *visit.CheckInAt
+		timestamp = time.Date(ci.Year(), ci.Month(), ci.Day(), ci.Hour(), ci.Minute(), ci.Second(), 0, loc)
+	} else if visit.ScheduledTime != nil {
+		st := *visit.ScheduledTime
+		timestamp = time.Date(
+			visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(),
+			st.Hour(), st.Minute(), 0, 0, loc,
+		)
+	}
+
+	actTypeID := visitActivityTypeID
+	description := fmt.Sprintf("Visit: %s", visit.Purpose)
+	if visit.Result != "" {
+		description = fmt.Sprintf("Visit: %s — %s", visit.Purpose, visit.Result)
+	}
+
+	activity := &models.Activity{
+		Type:           "visit",
+		ActivityTypeID: &actTypeID,
+		EmployeeID:     visit.EmployeeID,
+		LeadID:         visit.LeadID,
+		DealID:         visit.DealID,
+		CustomerID:     visit.CustomerID,
+		VisitReportID:  &visit.ID,
+		Description:    description,
+		Timestamp:      timestamp,
+		Metadata:       &metadataStr,
+	}
+
+	if createErr := u.activityRepo.Create(ctx, activity); createErr != nil {
+		fmt.Printf("[WARN] failed to auto-create activity for visit %s: %v\n", visit.Code, createErr)
+	}
+}
+
+// syncProductItemsToLead syncs visit report product interests to the associated lead's product items.
+// It merges by product_id: existing items are updated, new ones are appended.
+func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitReportID string) {
+	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
+	if err != nil || visit.LeadID == nil || len(visit.Details) == 0 {
+		return
+	}
+
+	leadID := *visit.LeadID
+
+	// Fetch existing product items for this lead
+	existing, err := u.leadRepo.ListProductItems(ctx, leadID)
+	if err != nil {
+		fmt.Printf("[WARN] failed to fetch lead product items for sync: %v\n", err)
+		return
+	}
+
+	// Build lookup map by product_id for dedup
+	existingByProductID := make(map[string]*models.LeadProductItem)
+	for i := range existing {
+		if existing[i].ProductID != nil {
+			existingByProductID[*existing[i].ProductID] = &existing[i]
+		}
+	}
+
+	var items []models.LeadProductItem
+	seen := make(map[string]bool)
+
+	for _, detail := range visit.Details {
+		if detail.ProductID == "" || seen[detail.ProductID] {
+			continue
+		}
+		seen[detail.ProductID] = true
+
+		productID := detail.ProductID
+		item := models.LeadProductItem{
+			LeadID:              leadID,
+			ProductID:           &productID,
+			InterestLevel:       detail.InterestLevel,
+			Notes:               detail.Notes,
+			SourceVisitReportID: &visitReportID,
+		}
+
+		if detail.Product != nil {
+			item.ProductName = detail.Product.Name
+			item.ProductSKU = detail.Product.Code
+		}
+		if detail.Quantity != nil {
+			item.Quantity = int(*detail.Quantity)
+		}
+		if detail.Price != nil {
+			item.UnitPrice = *detail.Price
+		}
+
+		// Serialize survey answers to JSONB for lead product item persistence
+		if len(detail.Answers) > 0 {
+			type answerInfo struct {
+				QuestionID string `json:"question_id"`
+				OptionID   string `json:"option_id"`
+				Answer     bool   `json:"answer,omitempty"`
+			}
+			ans := make([]answerInfo, 0, len(detail.Answers))
+			for _, a := range detail.Answers {
+				ans = append(ans, answerInfo{QuestionID: a.QuestionID, OptionID: a.OptionID, Answer: true})
+			}
+			if b, err := json.Marshal(ans); err == nil {
+				s := string(b)
+				item.LastSurveyAnswers = &s
+			}
+		}
+
+		// Preserve existing item ID if same product exists to enable update instead of duplicate
+		if existingItem, ok := existingByProductID[productID]; ok {
+			item.ID = existingItem.ID
+		}
+
+		items = append(items, item)
+	}
+
+	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
+		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
+	}
+}
+
+// extractCoords parses lat/lng from a JSONB location string
+func extractCoords(locationJSON *string) (*float64, *float64) {
+	if locationJSON == nil {
+		return nil, nil
+	}
+	var loc map[string]interface{}
+	if err := json.Unmarshal([]byte(*locationJSON), &loc); err != nil {
+		return nil, nil
+	}
+	var lat, lng *float64
+	if v, ok := loc["lat"].(float64); ok {
+		lat = &v
+	}
+	if v, ok := loc["lng"].(float64); ok {
+		lng = &v
+	}
+	return lat, lng
+}
+
+// formatTimePtr formats a *time.Time to ISO 8601 string pointer
+func formatTimePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("2006-01-02T15:04:05+07:00")
+	return &s
 }

@@ -1,16 +1,37 @@
 export const financeBankAccountsId = {
   title: "Rekening Bank",
-  description: "Kelola rekening bank yang terhubung ke chart of accounts.",
+  description: "Kelola rekening perusahaan, customer, dan supplier dalam satu daftar.",
   search: "Cari rekening bank...",
   fields: {
     name: "Nama",
     accountNumber: "Nomor Rekening",
     accountHolder: "Nama Pemilik",
     currency: "Mata Uang",
+    owner: "Pemilik",
+    ownerType: "Tipe Pemilik",
     status: "Status",
     coa: "Chart of Account",
     bankAddress: "Alamat Bank",
     bankPhone: "Telepon Bank",
+    transactionType: "Jenis",
+    transactionDate: "Tanggal",
+    referenceType: "Tipe Referensi",
+    referenceId: "ID Referensi",
+    referenceNumber: "Nomor Referensi",
+    relatedEntity: "Entitas Terkait",
+    amount: "Jumlah",
+    descriptionText: "Deskripsi",
+  },
+  ownerTypes: {
+    company: "Perusahaan",
+    customer: "Customer",
+    supplier: "Supplier",
+  },
+  filters: {
+    ownerType: "Tipe Pemilik",
+    ownerAll: "Semua Pemilik",
+    currency: "Mata Uang",
+    currencyAll: "Semua Mata Uang",
   },
   status: {
     active: "Aktif",
@@ -20,6 +41,7 @@ export const financeBankAccountsId = {
     create: "Buat",
     edit: "Ubah",
     delete: "Hapus",
+    viewDetails: "Lihat Detail",
   },
   form: {
     createTitle: "Buat Rekening Bank",
@@ -29,11 +51,18 @@ export const financeBankAccountsId = {
   },
   placeholders: {
     select: "Pilih...",
+    selectCurrency: "Pilih mata uang...",
   },
   toast: {
     created: "Rekening bank dibuat",
     updated: "Rekening bank diperbarui",
     deleted: "Rekening bank dihapus",
     failed: "Aksi gagal",
+  },
+  detail: {
+    title: "Detail Rekening Bank",
+    transactionHistory: "Riwayat Transaksi",
+    noTransactions: "Belum ada transaksi",
+    externalOwnerHint: "Riwayat transaksi hanya tersedia untuk rekening milik perusahaan.",
   },
 };

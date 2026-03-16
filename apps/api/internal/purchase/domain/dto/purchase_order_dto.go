@@ -35,9 +35,11 @@ type POFulfillmentSummary struct {
 
 // SupplierInvoiceSummary is a minimal Supplier Invoice view used in list responses.
 type SupplierInvoiceSummary struct {
-	ID     string `json:"id"`
-	Code   string `json:"code"`
-	Status string `json:"status"`
+	ID               string  `json:"id"`
+	Code             string  `json:"code"`
+	Status           string  `json:"status"`
+	GoodsReceiptID   *string `json:"goods_receipt_id,omitempty"`
+	GoodsReceiptCode *string `json:"goods_receipt_code,omitempty"`
 }
 
 type PurchaseOrderItemRequest struct {
@@ -91,14 +93,16 @@ type RevisePurchaseOrderRequest struct {
 // Responses
 
 type PurchaseOrderItemResponse struct {
-	ID        string   `json:"id"`
-	ProductID string   `json:"product_id"`
-	Quantity  float64  `json:"quantity"`
-	Price     float64  `json:"price"`
-	Discount  float64  `json:"discount"`
-	Subtotal  float64  `json:"subtotal"`
-	Notes     *string  `json:"notes"`
-	Product   interface{} `json:"product,omitempty"`
+	ID                string      `json:"id"`
+	ProductID         string      `json:"product_id"`
+	Quantity          float64     `json:"quantity"`
+	Price             float64     `json:"price"`
+	Discount          float64     `json:"discount"`
+	Subtotal          float64     `json:"subtotal"`
+	Notes             *string     `json:"notes"`
+	Product           interface{} `json:"product,omitempty"`
+	QuantityReceived  float64     `json:"quantity_received"`
+	QuantityRemaining float64     `json:"quantity_remaining"`
 }
 
 type PurchaseOrderListResponse struct {

@@ -22,8 +22,8 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -o server ./cmd/api/main.go
 # Final stage
 FROM alpine:latest
 
-# Install runtime dependencies for libwebp
-RUN apk --no-cache add ca-certificates libwebp
+# Install runtime dependencies for libwebp and timezones
+RUN apk --no-cache add ca-certificates libwebp tzdata
 
 WORKDIR /root/
 
@@ -34,7 +34,7 @@ COPY --from=builder /app/server .
 RUN mkdir -p /app/uploads && chmod 755 /app/uploads
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8087
 
 # Run the binary
 CMD ["./server"]

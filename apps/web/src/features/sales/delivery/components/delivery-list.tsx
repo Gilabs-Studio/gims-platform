@@ -373,10 +373,10 @@ export function DeliveryList() {
                           {canUpdate && delivery.status === "draft" && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(delivery.id, "sent")}
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                             >
                               <Send className="h-4 w-4 mr-2" />
-                              {t("actions.send")}
+                              {t("actions.submit")}
                             </DropdownMenuItem>
                           )}
                           {delivery.status === "sent" && (
@@ -384,7 +384,7 @@ export function DeliveryList() {
                               {canApprove && (
                                 <DropdownMenuItem
                                   onClick={() => approveDelivery.mutateAsync(delivery.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                                  className="cursor-pointer text-green-600 focus:text-green-600"
+                                  className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   {t("actions.approve")}
@@ -402,19 +402,19 @@ export function DeliveryList() {
                             </>
                           )}
                           {canUpdate && delivery.status === "approved" && (
-                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer text-blue-600 focus:text-blue-600">
+                            <DropdownMenuItem onClick={() => handlePrepare(delivery.id)} className="cursor-pointer text-primary focus:text-primary">
                               <Package className="h-4 w-4 mr-2" />
                               {t("actions.prepare")}
                             </DropdownMenuItem>
                           )}
                           {canShip && delivery.status === "prepared" && (
-                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer text-blue-600 focus:text-blue-600">
+                            <DropdownMenuItem onClick={() => handleShip(delivery.id)} className="cursor-pointer text-primary focus:text-primary">
                               <Truck className="h-4 w-4 mr-2" />
                               {t("actions.ship")}
                             </DropdownMenuItem>
                           )}
                           {canDeliver && delivery.status === "shipped" && (
-                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer text-green-600 focus:text-green-600">
+                            <DropdownMenuItem onClick={() => handleDeliver(delivery.id)} className="cursor-pointer text-success focus:text-success">
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("actions.deliver")}
                             </DropdownMenuItem>
@@ -422,7 +422,7 @@ export function DeliveryList() {
                           {canCreateInvoice && delivery.status === "delivered" && delivery.sales_order_id && delivery.sales_order?.status !== "closed" && (
                             <DropdownMenuItem
                               onClick={() => setCreateInvoiceForOrderId(delivery.sales_order_id)}
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                             >
                               <Receipt className="h-4 w-4 mr-2" />
                               {t("actions.createInvoice")}

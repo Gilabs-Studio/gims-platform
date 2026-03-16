@@ -62,7 +62,7 @@ export function ConvertToQuotationDialog({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const itemCount = deal.items?.length ?? 0;
+  const itemCount = deal.items?.filter(i => !i.is_deleted).length ?? 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -71,7 +71,7 @@ export function ConvertToQuotationDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <CheckCircle2 className="h-5 w-5 text-success" />
                 {t("conversion.convertSuccess")}
               </DialogTitle>
               <DialogDescription>

@@ -3,15 +3,13 @@
 import { useMemo, useState } from "react";
 import {
   MoreHorizontal,
-  Plus,
-  Pencil,
-  Trash2,
   Eye,
   Filter,
   Calendar as CalendarIcon,
   MapPin,
   Clock,
   User,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,13 +18,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { ScheduleFormDialog } from "./schedule-form-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScheduleDetailDialog } from "./schedule-detail-dialog";
 import { useScheduleList } from "../hooks/use-schedule-list";
 import { useSchedules } from "../hooks/use-schedules";
@@ -43,7 +39,7 @@ const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "
 const STATUS_DOT_COLOR: Record<string, string> = {
   pending: "bg-muted-foreground",
   confirmed: "bg-primary",
-  completed: "bg-green-500",
+  completed: "bg-success",
   cancelled: "bg-destructive",
 };
 
@@ -115,16 +111,14 @@ export function ScheduleList() {
               ))}
             </SelectContent>
           </Select>
-          {permissions.canCreate && (
-            <Button onClick={actions.handleCreate} className="cursor-pointer">
-              <Plus className="mr-2 h-4 w-4" />
-              {t("addSchedule")}
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Calendar + Schedule List */}
+      {/* Auto-sync notice */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>{t("autoCreatedFromTask")}</AlertDescription>
+      </Alert>
       <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
         {/* Calendar sidebar */}
         <div className="rounded-lg border p-4">
@@ -179,17 +173,7 @@ export function ScheduleList() {
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
               <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
-              {permissions.canCreate && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={actions.handleCreate}
-                  className="mt-3 cursor-pointer"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("addSchedule")}
-                </Button>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">{t("manageViaTask")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -257,24 +241,6 @@ export function ScheduleList() {
                               <Eye className="mr-2 h-4 w-4" />
                               {t("detailTitle")}
                             </DropdownMenuItem>
-                            {permissions.canUpdate && (
-                              <DropdownMenuItem onClick={() => actions.handleEdit(item)} className="cursor-pointer">
-                                <Pencil className="mr-2 h-4 w-4" />
-                                {tCommon("edit")}
-                              </DropdownMenuItem>
-                            )}
-                            {permissions.canDelete && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => actions.setDeleteId(item.id)}
-                                  className="cursor-pointer text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  {tCommon("delete")}
-                                </DropdownMenuItem>
-                              </>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -287,32 +253,12 @@ export function ScheduleList() {
         </div>
       </div>
 
-      {/* Create/Edit Dialog */}
-      {(permissions.canCreate || permissions.canUpdate) && (
-        <ScheduleFormDialog
-          open={state.dialogOpen}
-          onClose={actions.handleDialogClose}
-          schedule={state.editingItem}
-        />
-      )}
-
       {/* Detail Dialog */}
       <ScheduleDetailDialog
         open={!!detailItem}
         onClose={() => setDetailItem(null)}
         schedule={detailItem}
       />
-
-      {/* Delete Dialog */}
-      {permissions.canDelete && (
-        <DeleteDialog
-          open={!!state.deleteId}
-          onOpenChange={(open) => !open && actions.setDeleteId(null)}
-          onConfirm={actions.handleDelete}
-          itemName="schedule"
-          isLoading={false}
-        />
-      )}
     </div>
   );
 }

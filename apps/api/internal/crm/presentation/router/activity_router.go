@@ -17,6 +17,7 @@ func RegisterActivityRoutes(r *gin.RouterGroup, h *handler.ActivityHandler) {
 
 	// Static routes first (before parameterized routes)
 	g.GET("/timeline", middleware.RequirePermission(activityRead), h.Timeline)
+	g.GET("/my-activities", h.MyActivities)
 
 	// List and create
 	g.GET("", middleware.RequirePermission(activityRead), h.List)

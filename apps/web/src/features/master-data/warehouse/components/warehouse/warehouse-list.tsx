@@ -7,6 +7,8 @@ import {
   Pencil,
   Trash2,
   Eye,
+  AlertTriangle,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,15 +29,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { WarehouseDialog } from "./warehouse-dialog";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
+import { WarehouseDeleteBlockedDialog } from "./warehouse-delete-blocked-dialog";
 import { useWarehouseList } from "../../hooks/use-warehouse-list";
+import { Link } from "@/i18n/routing";
 
 export function WarehouseList() {
   const { state, actions, data, permissions, translations } = useWarehouseList();
-  const { t, tCommon } = translations;
+  const { t } = translations;
 
   if (data.isError) {
     return (
@@ -46,7 +58,7 @@ export function WarehouseList() {
           onClick={() => data.refetch()}
           className="mt-4 ml-2 cursor-pointer"
         >
-          Retry
+          {t("common.retry")}
         </Button>
       </div>
     );
@@ -146,14 +158,14 @@ export function WarehouseList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem
+                          <DropdownMenuItem
                             onClick={() => actions.handleViewDetail(item)}
                             className="cursor-pointer"
                           >
                             <Eye className="mr-2 h-4 w-4" />
-                            View
+                            {t("common.view")}
                           </DropdownMenuItem>
-                          
+
                           {permissions.canUpdate && (
                             <DropdownMenuItem
                               onClick={() => actions.handleEdit(item)}
@@ -163,12 +175,20 @@ export function WarehouseList() {
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
-                          
+
                           {permissions.canDelete && <DropdownMenuSeparator />}
-                          
+
                           {permissions.canDelete && (
                             <DropdownMenuItem
-                              onClick={() => actions.setDeleteId(item.id)}
+                              onClick={() => {
+                                console.log("Delete clicked for item:", item);
+                                console.log("has_stock:", item.has_stock);
+                                if (item.has_stock) {
+                                  actions.setBlockedDeleteId(item.id);
+                                } else {
+                                  actions.setDeleteId(item.id);
+                                }
+                              }}
                               className="cursor-pointer text-destructive focus:text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
@@ -200,7 +220,7 @@ export function WarehouseList() {
         />
       )}
 
-      {/* Dialogs */}
+      {/* Create / Edit Dialog */}
       {(permissions.canCreate || permissions.canUpdate) && (
         <WarehouseDialog
           open={state.dialogOpen}
@@ -219,15 +239,23 @@ export function WarehouseList() {
         } : undefined}
       />
 
+      {/* Normal delete (no stock) */}
       {permissions.canDelete && (
         <DeleteDialog
           open={!!state.deleteId}
           onOpenChange={(open) => !open && actions.setDeleteId(null)}
           onConfirm={actions.handleDelete}
-          itemName="warehouse"
+          title={t("warehouse.deleteTitle")}
+          description={t("warehouse.deleteConfirm")}
           isLoading={data.isDeleting}
         />
       )}
+
+      {/* Blocked delete — warehouse still has stock */}
+      <WarehouseDeleteBlockedDialog
+        open={!!state.blockedDeleteId}
+        onOpenChange={(open: boolean) => !open && actions.setBlockedDeleteId(null)}
+      />
     </div>
   );
 }

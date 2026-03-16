@@ -103,6 +103,7 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 		Preload("GoodsReceipts").
 		Preload("GoodsReceipts.Items").
 		Preload("SupplierInvoices").
+		Preload("SupplierInvoices.GoodsReceipt").
 		Preload("PurchaseRequisition").
 		Preload("Items")
 

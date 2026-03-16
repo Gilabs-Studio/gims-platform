@@ -1,7 +1,9 @@
 import axios, {
   AxiosInstance,
   AxiosError,
+  AxiosResponseHeaders,
   InternalAxiosRequestConfig,
+  RawAxiosResponseHeaders,
 } from "axios";
 import { toast } from "sonner";
 import { formatError } from "./i18n/error-messages";
@@ -9,17 +11,61 @@ import { useRateLimitStore } from "./stores/useRateLimitStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
-// Flag to track if we've validated rate limit state after app load
-let rateLimitValidated = false;
+// Memory cache for CSRF token to support cross-origin API calls
+let memoryCsrfToken: string | null = null;
 
 /**
- * Get CSRF token from cookie.
- * The csrf_token cookie is set by the API and is readable by JavaScript.
+ * Robustly extract CSRF token from an Axios headers object.
+ *
+ * Axios v1+ uses an AxiosHeaders instance whose internal storage may not be
+ * enumerable via `for...in`. The `.get()` method is the canonical API for
+ * case-insensitive lookup, so we try it first before falling back to bracket
+ * access and the slower `for...in` walk.
  */
-function getCSRFToken(): string | null {
+function extractCsrfFromHeaders(
+  headers: RawAxiosResponseHeaders | AxiosResponseHeaders | null | undefined,
+): string | null {
+  if (!headers) return null;
+
+  // Primary: AxiosHeaders v1+ case-insensitive .get()
+  if (typeof headers.get === "function") {
+    const val = headers.get("x-csrf-token");
+    if (val) return String(val);
+  }
+
+  // Fallback: plain object bracket access (works for both casings)
+  if (headers["x-csrf-token"]) return String(headers["x-csrf-token"]);
+  if (headers["X-CSRF-Token"]) return String(headers["X-CSRF-Token"]);
+
+  // Last resort: enumerate for any remaining case variant
+  for (const key in headers) {
+    if (Object.prototype.hasOwnProperty.call(headers, key) &&
+        key.toLowerCase() === "x-csrf-token") {
+      return String(headers[key]);
+    }
+  }
+  return null;
+}
+
+/**
+ * Get CSRF token from memory or cookie.
+ * The csrf_token is exposed by the API via the X-CSRF-Token header.
+ */
+export function getCSRFToken(): string | null {
+  if (memoryCsrfToken) return memoryCsrfToken;
   if (typeof document === "undefined") return null;
+  // Fallback to cookie if same-origin scenario
   const match = document.cookie.match(/(?:^|;\s*)gims_csrf_token=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Manually set the CSRF token in memory for cross-origin setups.
+ */
+export function setCSRFTokenMemory(token: string): void {
+  if (token) {
+    memoryCsrfToken = token;
+  }
 }
 
 export const apiClient: AxiosInstance = axios.create({
@@ -38,10 +84,7 @@ const failedQueue: Array<{
   reject: (error?: unknown) => void;
 }> = [];
 
-const processQueue = (
-  error: AxiosError | null,
-  _token: string | null = null,
-) => {
+const processQueue = (error: AxiosError | null) => {
   const queue = [...failedQueue];
   failedQueue.splice(0, failedQueue.length);
   queue.forEach((prom) => {
@@ -94,18 +137,30 @@ interface ApiErrorResponse {
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
+    // Read and cache CSRF token from headers (vital for cross-origin setups)
+    const csrfHeader = extractCsrfFromHeaders(response.headers);
+    if (csrfHeader) {
+      memoryCsrfToken = csrfHeader;
+    }
+
     // Clear rate limit reset time on successful response
-    const status = response.status;
-    if (status !== 429) {
+    if (response.status !== 429) {
       const currentResetTime = useRateLimitStore.getState().resetTime;
       if (currentResetTime) {
         useRateLimitStore.getState().clearResetTime();
-        rateLimitValidated = true;
       }
     }
     return response;
   },
   async (error: AxiosError<ApiErrorResponse>) => {
+    // Try to extract CSRF token even from error responses
+    if (error.response?.headers) {
+      const csrfHeader = extractCsrfFromHeaders(error.response.headers);
+      if (csrfHeader) {
+        memoryCsrfToken = csrfHeader;
+      }
+    }
+
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
@@ -312,6 +367,12 @@ apiClient.interceptors.response.use(
             };
           }>("/auth/refresh-token", {}, { headers })
           .then((refreshResponse) => {
+            // Read and cache CSRF token from headers even during refresh
+            const refreshCsrfHeader = extractCsrfFromHeaders(refreshResponse.headers);
+            if (refreshCsrfHeader) {
+              memoryCsrfToken = refreshCsrfHeader;
+            }
+
             const response = refreshResponse.data;
             if (response.success && response.data) {
               // Update auth store with new user data
@@ -323,7 +384,7 @@ apiClient.interceptors.response.use(
               );
 
               originalRequest._retry = true;
-              processQueue(null, null);
+              processQueue(null);
               isRefreshing = false;
 
               // Retry original request
@@ -353,7 +414,7 @@ apiClient.interceptors.response.use(
                 window.location.href = `/${locale}/login`;
               }, 1000);
             }
-            processQueue(refreshError as AxiosError, null);
+            processQueue(refreshError as AxiosError);
             return Promise.reject(refreshError);
           });
       } else {
@@ -383,6 +444,10 @@ apiClient.interceptors.response.use(
     } else if (status === 409) {
       const msg = formatError("backend", "conflict");
       toast.error(msg.title, { description: msg.description });
+    } else if (status === 422) {
+      // 422 Unprocessable Entity — business rule violation (e.g. WAREHOUSE_HAS_STOCK).
+      // Suppress the global toast so each caller can render its own contextual UI.
+      return Promise.reject(error);
     } else if (status === 503) {
       const msg = formatError("backend", "serviceUnavailable");
       toast.error(msg.title, { description: msg.description });
@@ -435,7 +500,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(customError);
     } else if (status >= 500) {
       const msg = formatError("backend", "serverError");
-      toast.error(msg.title, { description: msg.description });
+      const description = (errorData?.error?.details?.message as string) || msg.description;
+      toast.error(msg.title, { description });
     } else {
       const requestUrl = error.config?.url || "";
       if (!requestUrl.includes("/auth/login")) {

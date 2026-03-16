@@ -78,6 +78,13 @@ export interface SupplierBank {
   supplier_id: string;
   bank_id: string;
   bank?: Bank;
+  currency_id?: string | null;
+  currency?: {
+    id: string;
+    code: string;
+    name: string;
+    symbol?: string;
+  } | null;
   account_number: string;
   account_name: string;
   branch?: string;
@@ -88,6 +95,7 @@ export interface SupplierBank {
 
 export interface CreateSupplierBankData {
   bank_id: string;
+  currency_id: string;
   account_number: string;
   account_name: string;
   branch?: string;
@@ -96,6 +104,7 @@ export interface CreateSupplierBankData {
 
 export interface UpdateSupplierBankData {
   bank_id?: string;
+  currency_id?: string;
   account_number?: string;
   account_name?: string;
   branch?: string;

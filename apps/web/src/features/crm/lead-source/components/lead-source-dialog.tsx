@@ -10,8 +10,26 @@ import { ButtonLoading } from "@/components/loading";
 import { useLeadSourceForm } from "../hooks/use-lead-source-form";
 import type { LeadSource } from "../types";
 
-export function LeadSourceDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: LeadSource | null }) {
-  const { form, t, tCommon, isLoading, onSubmit } = useLeadSourceForm({ open, onOpenChange, editingItem });
+export function LeadSourceDialog({
+  open,
+  onOpenChange,
+  editingItem,
+  onCreated,
+  initialData,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly editingItem?: LeadSource | null;
+  readonly onCreated?: (item: { id: string; name: string }) => void;
+  readonly initialData?: { name?: string; order?: number };
+}) {
+  const { form, t, tCommon, isLoading, onSubmit } = useLeadSourceForm({
+    open,
+    onOpenChange,
+    editingItem,
+    onCreated,
+    initialData,
+  });
   const { register, setValue, watch, formState: { errors } } = form;
   const isActive = watch("is_active");
 

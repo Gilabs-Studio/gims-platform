@@ -19,6 +19,7 @@ export interface User {
   name: string;
   email: string;
   avatar_url: string;
+  employee_id?: string;
   role: Role;
   permissions: Record<string, string>; // code -> scope (OWN|DIVISION|AREA|ALL)
 }

@@ -137,11 +137,12 @@ export function Drawer({
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {open && (
         <>
           {/* Overlay */}
           <motion.div
+            key="drawer-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -152,6 +153,7 @@ export function Drawer({
 
           {/* Drawer */}
           <motion.div
+            key="drawer-panel"
             ref={drawerRef}
             variants={variants[side]}
             initial="initial"

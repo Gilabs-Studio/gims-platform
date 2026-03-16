@@ -194,7 +194,7 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		Preload("BusinessUnit").
 		Preload("BusinessType").
 		Preload("DeliveryArea").
-		Preload("Items").
+		Preload("Items.Product").
 		Preload("DeliveryOrders", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "sales_order_id", "code", "status", "delivery_date", "is_partial_delivery").Order("delivery_date desc")
 		}).

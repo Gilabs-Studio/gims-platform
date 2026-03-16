@@ -26,9 +26,10 @@ export interface UseUnitOfMeasureFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: UnitOfMeasure | null;
+  onCreated?: (id: string) => void;
 }
 
-export function useUnitOfMeasureForm({ open, onOpenChange, editingItem }: UseUnitOfMeasureFormProps) {
+export function useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreated }: UseUnitOfMeasureFormProps) {
   const t = useTranslations("product.unitOfMeasure");
   const tCommon = useTranslations("product.common");
   const tValidation = useTranslations("product.validation");
@@ -83,13 +84,16 @@ export function useUnitOfMeasureForm({ open, onOpenChange, editingItem }: UseUni
         });
         toast.success(t("updated", { fallback: "UoM updated successfully" }));
       } else {
-        await createMutation.mutateAsync({
+        const result = await createMutation.mutateAsync({
           name: data.name,
           symbol: data.symbol,
           description: data.description || undefined,
           is_active: data.is_active,
         });
         toast.success(t("created", { fallback: "UoM created successfully" }));
+        if (onCreated && result?.data?.id) {
+          onCreated(result.data.id);
+        }
       }
       onOpenChange(false);
     } catch {

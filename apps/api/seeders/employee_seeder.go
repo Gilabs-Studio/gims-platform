@@ -78,8 +78,6 @@ func SeedEmployees() error {
 			VillageID:    villageID,
 
 			// Employment
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -104,8 +102,6 @@ func SeedEmployees() error {
 			VillageID:    villageID,
 
 			// Employment
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -127,8 +123,6 @@ func SeedEmployees() error {
 			Address:      "Jl. Staff No. 1",
 			VillageID:    villageID,
 
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -149,8 +143,6 @@ func SeedEmployees() error {
 			Address:      "Jl. Semarang No. 5",
 			VillageID:    villageID,
 
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -171,8 +163,6 @@ func SeedEmployees() error {
 			Address:      "Jl. Yogya No. 12",
 			VillageID:    villageID,
 
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -193,8 +183,6 @@ func SeedEmployees() error {
 			Address:      "Jl. Malang No. 8",
 			VillageID:    villageID,
 
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 		{
@@ -215,8 +203,6 @@ func SeedEmployees() error {
 			Address:      "Jl. Denpasar No. 3",
 			VillageID:    villageID,
 
-			Status:     models.EmployeeStatusApproved,
-			IsApproved: true,
 			IsActive:   true,
 		},
 	}

@@ -150,7 +150,7 @@ export function RenewContractDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent size="lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -165,12 +165,12 @@ export function RenewContractDialog({
           <div className="py-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
                 <div>
-                  <p className="font-medium text-blue-900">
+                  <p className="font-medium text-primary">
                     {t("contract.renewInfo")}
                   </p>
-                  <p className="text-sm text-blue-700 mt-1">
+                  <p className="text-sm text-primary mt-1">
                     {t("contract.renewInfoDetail")}
                   </p>
                 </div>

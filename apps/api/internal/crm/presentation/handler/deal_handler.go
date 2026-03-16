@@ -374,6 +374,44 @@ func (h *DealHandler) StockCheck(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
+// SoftDeleteItem handles DELETE request to soft-delete a single deal product item.
+func (h *DealHandler) SoftDeleteItem(c *gin.Context) {
+	dealID := c.Param("id")
+	itemID := c.Param("itemId")
+	if dealID == "" || itemID == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "Deal ID and Item ID are required",
+		}, nil)
+		return
+	}
+
+	if err := h.uc.SoftDeleteItem(c.Request.Context(), dealID, itemID); err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, nil, nil)
+}
+
+// RestoreItem handles POST request to restore a soft-deleted deal product item.
+func (h *DealHandler) RestoreItem(c *gin.Context) {
+	dealID := c.Param("id")
+	itemID := c.Param("itemId")
+	if dealID == "" || itemID == "" {
+		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
+			"message": "Deal ID and Item ID are required",
+		}, nil)
+		return
+	}
+
+	if err := h.uc.RestoreItem(c.Request.Context(), dealID, itemID); err != nil {
+		handleDealError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, nil, nil)
+}
+
 // handleDealError maps business errors to appropriate HTTP responses
 func handleDealError(c *gin.Context, err error) {
 	switch err.Error() {

@@ -36,6 +36,8 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
+import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
+import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 
 import {
   useGoodsReceipt,
@@ -43,13 +45,12 @@ import {
   useSubmitGoodsReceipt,
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
-  useCloseGoodsReceipt,
-  useConvertGoodsReceiptToSI,
 } from "../hooks/use-goods-receipts";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptAuditTrailContent } from "./goods-receipt-audit-trail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
+import { SILinkedDialog } from "./si-linked-dialog";
 
 interface GoodsReceiptDetailProps {
   readonly open: boolean;
@@ -68,6 +69,10 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isSupplierOpen, setIsSupplierOpen] = useState(false);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [isPurchaseOrderOpen, setIsPurchaseOrderOpen] = useState(false);
+  const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
+  const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
+  const [isSIFormOpen, setIsSIFormOpen] = useState(false);
+  const [siLinkedOpen, setSiLinkedOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
@@ -77,7 +82,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");
   const canClose = useUserPermission("goods_receipt.close");
-  const canConvert = useUserPermission("goods_receipt.convert");
   const canPrint = useUserPermission("goods_receipt.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
@@ -93,8 +97,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
-  const closeMutation = useCloseGoodsReceipt();
-  const convertMutation = useConvertGoodsReceiptToSI();
 
   if (!goodsReceiptId) return null;
 
@@ -142,24 +144,10 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     }
   };
 
-  const handleClose = async () => {
+  // Open SI form first; conversion is completed when SI is submitted.
+  const handleConvertToSI = () => {
     if (!id) return;
-    try {
-      await closeMutation.mutateAsync(id);
-      toast.success(t("toast.closed"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
-  };
-
-  const handleConvert = async () => {
-    if (!id) return;
-    try {
-      await convertMutation.mutateAsync(id);
-      toast.success(t("toast.converted"));
-    } catch {
-      toast.error(t("toast.failed"));
-    }
+    setIsSIFormOpen(true);
   };
 
   return (
@@ -173,7 +161,16 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   {gr?.code ?? t("detail.title")}
                 </DialogTitle>
                 <div className="flex items-center gap-3">
-                  {gr && <GoodsReceiptStatusBadge status={gr.status} />}
+                  {gr && (
+                    <GoodsReceiptStatusBadge
+                      status={gr.status}
+                      onClick={
+                        status === "CLOSED" || status === "PARTIAL"
+                          ? () => setSiLinkedOpen(true)
+                          : undefined
+                      }
+                    />
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {gr?.receipt_date && new Date(gr.receipt_date).toLocaleDateString()}
                   </span>
@@ -187,7 +184,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -221,7 +218,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -233,7 +230,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -245,31 +242,18 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
                   </Button>
                 )}
-                {status === "APPROVED" && canClose && (
+                {(status === "APPROVED" || status === "PARTIAL") && canClose && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={handleClose}
-                    disabled={closeMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    title={t("actions.close")}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {status === "CLOSED" && canConvert && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleConvert}
-                    disabled={convertMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={handleConvertToSI}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("convertToSupplierInvoice")}
                   >
                     <FileText className="h-4 w-4" />
@@ -308,7 +292,14 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.status")}</TableCell>
                         <TableCell>
-                          <GoodsReceiptStatusBadge status={gr.status} />
+                          <GoodsReceiptStatusBadge
+                            status={gr.status}
+                            onClick={
+                              status === "CLOSED" || status === "PARTIAL"
+                                ? () => setSiLinkedOpen(true)
+                                : undefined
+                            }
+                          />
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.purchaseOrder")}</TableCell>
                         <TableCell>
@@ -357,7 +348,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                                       setSelectedSupplierId(gr.supplier!.id);
                                       setIsSupplierOpen(true);
                                     }}
-                                    className="text-primary hover:underline cursor-pointer text-left text-sm text-sm"
+                                    className="text-primary hover:underline cursor-pointer text-left text-sm"
                                   >
                                     {gr.supplier.name}
                                   </button>
@@ -413,9 +404,18 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                                   <div className="flex items-center gap-3">
                                     <span>{new Date(gr.converted_at).toLocaleString()}</span>
                                     {gr.converted_to_supplier_invoice_id && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {t("fields.supplierInvoice")}
-                                      </Badge>
+                                      <button
+                                        type="button"
+                                        className="cursor-pointer"
+                                        onClick={() => {
+                                          setSelectedSIId(gr.converted_to_supplier_invoice_id ?? null);
+                                          setIsSIDetailOpen(true);
+                                        }}
+                                      >
+                                        <Badge variant="outline" className="text-xs hover:bg-accent">
+                                          {t("fields.supplierInvoice")}
+                                        </Badge>
+                                      </button>
                                     )}
                                   </div>
                                 </TableCell>
@@ -526,6 +526,32 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         }}
         purchaseOrderId={selectedPurchaseOrderId}
       />
+
+      <SupplierInvoiceDetail
+        open={isSIDetailOpen}
+        onClose={() => {
+          setIsSIDetailOpen(false);
+          setSelectedSIId(null);
+        }}
+        invoiceId={selectedSIId}
+      />
+
+      <SupplierInvoiceFormDialog
+        open={isSIFormOpen}
+        onOpenChange={(v) => setIsSIFormOpen(v)}
+        defaultPurchaseOrderId={gr?.purchase_order?.id ?? null}
+        defaultGoodsReceiptId={gr?.id ?? null}
+      />
+      
+      {gr && siLinkedOpen && (
+        <SILinkedDialog
+          open={siLinkedOpen}
+          onOpenChange={setSiLinkedOpen}
+          goodsReceiptCode={gr.code}
+          goodsReceiptId={gr.id}
+          purchaseOrderId={gr.purchase_order?.id ?? ""}
+        />
+      )}
     </>
   );
 }

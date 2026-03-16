@@ -30,11 +30,16 @@ type LeadListParams struct {
 type LeadRepository interface {
 	Create(ctx context.Context, lead *models.Lead) error
 	FindByID(ctx context.Context, id string) (*models.Lead, error)
+	FindByEmail(ctx context.Context, email string) (*models.Lead, error)
+	FindDuplicate(ctx context.Context, email, phone, companyName, placeID, cid string) (*models.Lead, error)
 	List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error)
 	Update(ctx context.Context, lead *models.Lead) error
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string) (bool, error)
 	GetAnalytics(ctx context.Context) (*LeadAnalytics, error)
+	// Product items
+	ListProductItems(ctx context.Context, leadID string) ([]models.LeadProductItem, error)
+	UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error
 }
 
 // LeadAnalytics holds aggregated lead statistics
@@ -75,7 +80,68 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 		Preload("AssignedEmployee").
 		Preload("Customer").
 		Preload("Contact").
+		Preload("BusinessType").
+		Preload("Area").
+		Preload("Deal").
+		Preload("Deal.PipelineStage").
+		Preload("ProductItems").
+		Preload("ProductItems.Product").
+		Preload("Activities", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Limit(50)
+		}).
+		Preload("Activities.ActivityType").
+		Preload("Activities.Employee").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Order("CASE WHEN status IN ('pending','in_progress') THEN 0 ELSE 1 END, due_date ASC NULLS LAST").Limit(20)
+		}).
+		Preload("Tasks.AssignedEmployee").
 		First(&lead, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &lead, nil
+}
+
+// FindByEmail looks up an unconverted lead by email
+func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models.Lead, error) {
+	var lead models.Lead
+	err := r.db.WithContext(ctx).
+		Preload("LeadSource").
+		Preload("LeadStatus").
+		Preload("AssignedEmployee").
+		Where("email = ? AND converted_at IS NULL", email).
+		First(&lead).Error
+	if err != nil {
+		return nil, err
+	}
+	return &lead, nil
+}
+
+// FindDuplicate looks up an unconverted lead by either place_id, cid, email, phone, or company name for deduplication during upsert
+func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, companyName, placeID, cid string) (*models.Lead, error) {
+	var lead models.Lead
+	query := r.db.WithContext(ctx).
+		Preload("LeadSource").
+		Preload("LeadStatus").
+		Preload("AssignedEmployee").
+		Where("converted_at IS NULL")
+
+	if placeID != "" {
+		query = query.Where("place_id = ?", placeID)
+	} else if cid != "" {
+		query = query.Where("cid = ?", cid)
+	} else if email != "" {
+		query = query.Where("email = ?", email)
+	} else if phone != "" {
+		query = query.Where("phone = ?", phone)
+	} else if companyName != "" && !strings.EqualFold(companyName, "Unknown Company") && !strings.EqualFold(companyName, "N/A") {
+		query = query.Where("company_name = ?", companyName)
+	} else {
+		// Nothing to match against
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	err := query.First(&lead).Error
 	if err != nil {
 		return nil, err
 	}
@@ -217,4 +283,57 @@ func (r *leadRepository) GetAnalytics(ctx context.Context) (*LeadAnalytics, erro
 	r.db.WithContext(ctx).Model(&models.Lead{}).Select("COALESCE(AVG(lead_score), 0)").Scan(&analytics.AvgScore)
 
 	return analytics, nil
+}
+
+func (r *leadRepository) ListProductItems(ctx context.Context, leadID string) ([]models.LeadProductItem, error) {
+	var items []models.LeadProductItem
+	err := r.db.Unscoped().WithContext(ctx).
+		Preload("Product").
+		Where("lead_id = ?", leadID).
+		Order("created_at ASC").
+		Find(&items).Error
+	return items, err
+}
+
+// UpsertProductItems syncs product items for a lead using soft-delete semantics:
+// items in the new list are created or restored+updated; items absent from the new list are soft-deleted.
+func (r *leadRepository) UpsertProductItems(ctx context.Context, leadID string, items []models.LeadProductItem) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Collect product IDs that are active in the new list
+		activeProductIDs := make([]string, 0, len(items))
+		for _, item := range items {
+			if item.ProductID != nil {
+				activeProductIDs = append(activeProductIDs, *item.ProductID)
+			}
+		}
+
+		// Soft-delete items NOT in the new list
+		q := tx.Where("lead_id = ?", leadID)
+		if len(activeProductIDs) > 0 {
+			q = q.Where("product_id NOT IN ?", activeProductIDs)
+		}
+		if err := q.Delete(&models.LeadProductItem{}).Error; err != nil {
+			return err
+		}
+
+		if len(items) == 0 {
+			return nil
+		}
+
+		// Upsert items in the new list: restore soft-deleted ones if they have an ID, else create
+		for i := range items {
+			items[i].LeadID = leadID
+			items[i].DeletedAt = gorm.DeletedAt{} // ensure restored
+			if items[i].ID != "" {
+				if err := tx.Unscoped().Save(&items[i]).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Create(&items[i]).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }

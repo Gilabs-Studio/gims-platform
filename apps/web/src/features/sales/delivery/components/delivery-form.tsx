@@ -547,7 +547,7 @@ function BatchSelectionField({ control, index, error, t, open }: {
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-green-700 text-xs dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-success text-xs dark:bg-success/20 dark:border-green-800 dark:text-success">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">In Stock</span>
               <span className="opacity-75">— available: {fmt(totalAvailable)} in this warehouse</span>

@@ -653,30 +653,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		poIDs = append(poIDs, po.ID)
 	}
 
-	// Exclude POs that already have a pending (DRAFT/SUBMITTED/APPROVED) goods receipt.
-	type poStatusRow struct {
-		PurchaseOrderID string `gorm:"column:purchase_order_id"`
-	}
-	pendingGRRows := make([]poStatusRow, 0)
-	if err := uc.db.WithContext(ctx).
-		Model(&models.GoodsReceipt{}).
-		Select("purchase_order_id").
-		Where("purchase_order_id IN ?", poIDs).
-		Where("status IN ?", []string{
-			string(models.GoodsReceiptStatusDraft),
-			string(models.GoodsReceiptStatusSubmitted),
-			string(models.GoodsReceiptStatusApproved),
-		}).
-		Group("purchase_order_id").
-		Scan(&pendingGRRows).Error; err != nil {
-		return nil, err
-	}
-	pendingByPO := make(map[string]bool, len(pendingGRRows))
-	for _, r := range pendingGRRows {
-		pendingByPO[r.PurchaseOrderID] = true
-	}
-
-	// Compute total received qty per PO item for CONFIRMED/CLOSED GRs.
+	// Compute total received qty per PO item for CLOSED GRs.
 	type receivedRow struct {
 		PurchaseOrderID     string  `gorm:"column:purchase_order_id"`
 		PurchaseOrderItemID string  `gorm:"column:purchase_order_item_id"`
@@ -689,7 +666,6 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 		Joins("JOIN goods_receipts gr ON gr.id = goods_receipt_items.goods_receipt_id").
 		Where("gr.purchase_order_id IN ?", poIDs).
 		Where("gr.status IN ?", []string{
-			string(models.GoodsReceiptStatusConfirmed),
 			string(models.GoodsReceiptStatusClosed),
 		}).
 		Group("gr.purchase_order_id, goods_receipt_items.purchase_order_item_id").
@@ -707,12 +683,7 @@ func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAd
 
 	res := make([]dto.GoodsReceiptPurchaseOrderOption, 0, len(items))
 	for _, po := range items {
-		// Skip POs with an active (pending) GR.
-		if pendingByPO[po.ID] {
-			continue
-		}
-
-		// Skip POs that are 100% fulfilled (all items fully received).
+		// Skip POs that are 100% fulfilled (all items fully received via CLOSED GRs).
 		if len(po.Items) > 0 {
 			fullyFulfilled := true
 			for _, poIt := range po.Items {
@@ -893,7 +864,7 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 			return err
 		}
 
-		// Validate quantities do not exceed ordered qty (sum of CONFIRMED/CLOSED GRs + this GR).
+		// Validate quantities do not exceed ordered qty (sum of CLOSED GRs + this GR).
 		for _, it := range gr.Items {
 			ordered := 0.0
 			for _, poIt := range po.Items {
@@ -910,7 +881,6 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
 				Where("goods_receipts.status IN ?", []string{
-					string(models.GoodsReceiptStatusConfirmed),
 					string(models.GoodsReceiptStatusClosed),
 				}).
 				Where("goods_receipt_items.purchase_order_item_id = ?", it.PurchaseOrderItemID).
@@ -942,7 +912,6 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 				Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
 				Where("goods_receipts.purchase_order_id = ?", po.ID).
 				Where("goods_receipts.status IN ?", []string{
-					string(models.GoodsReceiptStatusConfirmed),
 					string(models.GoodsReceiptStatusClosed),
 				}).
 				Where("goods_receipt_items.purchase_order_item_id = ?", poIt.ID).
@@ -1046,9 +1015,11 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 			supplierName = gr.SupplierNameSnapshot
 		}
 
+		grID := gr.ID
 		si := &models.SupplierInvoice{
 			Type:                 models.SupplierInvoiceTypeNormal,
 			PurchaseOrderID:      gr.PurchaseOrderID,
+			GoodsReceiptID:       &grID,
 			SupplierID:           gr.SupplierID,
 			SupplierCodeSnapshot: supplierCode,
 			SupplierNameSnapshot: supplierName,
@@ -1091,6 +1062,31 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		si.SubTotal = subTotal
 		si.Amount = subTotal
 		si.RemainingAmount = subTotal
+
+		// Auto-apply paid Down Payments by tracing GR → PO → SIDP
+		var dpAmount float64
+		var dpInvoiceID *string
+		var dpInvoices []models.SupplierInvoice
+		if err := tx.Where("purchase_order_id = ? AND type = ? AND deleted_at IS NULL",
+			gr.PurchaseOrderID, models.SupplierInvoiceTypeDownPayment).
+			Order("created_at DESC").
+			Find(&dpInvoices).Error; err == nil && len(dpInvoices) > 0 {
+			for _, dp := range dpInvoices {
+				if dp.Status == models.SupplierInvoiceStatusPaid {
+					dpAmount += dp.PaidAmount
+				}
+				if dpInvoiceID == nil {
+					id := dp.ID
+					dpInvoiceID = &id
+				}
+			}
+		}
+		if dpAmount > 0 || dpInvoiceID != nil {
+			si.DownPaymentAmount = dpAmount
+			si.DownPaymentInvoiceID = dpInvoiceID
+			si.RemainingAmount = math.Max(0, subTotal-dpAmount)
+		}
+
 		si.Items = siItems
 
 		if err := tx.Create(si).Error; err != nil {
@@ -1098,10 +1094,11 @@ func (uc *goodsReceiptUsecase) ConvertToSupplierInvoice(ctx context.Context, id 
 		}
 		siID = si.ID
 
-		// Update GR with latest convert timestamp (multiple conversions allowed).
+		// Update GR with convert timestamp and link to SI
 		now := apptime.Now()
 		if err := tx.Model(&models.GoodsReceipt{}).Where("id = ?", id).Updates(map[string]interface{}{
-			"converted_at": now,
+			"converted_at":                     now,
+			"converted_to_supplier_invoice_id": siID,
 		}).Error; err != nil {
 			return err
 		}

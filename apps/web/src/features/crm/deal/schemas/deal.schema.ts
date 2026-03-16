@@ -33,6 +33,8 @@ export const createDealSchema = z.object({
   contact_id: z.string().optional(),
   assigned_to: z.string().optional(),
   lead_id: z.string().optional(),
+  bank_account_id: z.string().optional().or(z.literal("")),
+  bank_account_reference: z.string().max(255).optional().or(z.literal("")),
   // BANT
   budget_confirmed: z.boolean().optional().default(false),
   budget_amount: z.number().min(0).optional().default(0),

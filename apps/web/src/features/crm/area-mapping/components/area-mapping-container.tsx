@@ -115,9 +115,9 @@ export function AreaMappingContainer() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${selectedArea.color ?? "#3b82f6"}20` }}
+                    style={{ backgroundColor: `${selectedArea.color ?? "var(--color-primary)"}20` }}
                   >
-                    <MapPin className="w-6 h-6" style={{ color: selectedArea.color ?? "#3b82f6" }} />
+                    <MapPin className="w-6 h-6" style={{ color: selectedArea.color ?? "var(--color-primary)" }} />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground">{selectedArea.name}</h3>

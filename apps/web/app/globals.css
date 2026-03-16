@@ -22,6 +22,10 @@
   --color-popover-foreground: hsl(var(--popover-foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
+  --color-warning: hsl(var(--chart-3));
+  --color-warning-foreground: hsl(0 0% 100%);
+  --color-success: hsl(var(--chart-2));
+  --color-success-foreground: hsl(0 0% 100%);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -32,6 +36,12 @@
   --animate-collapsible-down: collapsible-down 0.2s ease-out;
   --animate-collapsible-up: collapsible-up 0.2s ease-out;
   --animate-fade-in: fade-in 0.5s ease-out forwards;
+  --color-purple: hsl(var(--purple));
+  --color-purple-foreground: hsl(var(--purple-foreground));
+  --color-cyan: hsl(var(--cyan));
+  --color-cyan-foreground: hsl(var(--cyan-foreground));
+  --color-rose: hsl(var(--rose));
+  --color-rose-foreground: hsl(var(--rose-foreground));
   --animate-slide-up: slide-up 0.5s ease-out forwards;
 
   @keyframes accordion-down {
@@ -77,7 +87,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 10% 20%;
     
-    --primary: 221 83% 53%;        /* Electric Blue #2563EB */
+    --primary: 221 83% 53%;        /* Electric Blue var(--color-primary) */
     --primary-foreground: 0 0% 100%; /* White */
     
     --secondary: 220 14% 92%;      /* Calmer gray for secondary elements */
@@ -86,21 +96,30 @@
     --muted: 220 14% 92%;
     --muted-foreground: 220 10% 45%; /* Softer muted text */
     
-    --accent: 220 14% 92%;
+    --accent: 220 14% 92%;        /* Purple accent (light theme) */
     --accent-foreground: 220 10% 20%;
+
+    --purple: 262 83% 58%;         /* Semantic purple (high-contrast) */
+    --purple-foreground: 0 0% 100%;
+
+    --cyan: 187 100% 44%;          /* Semantic cyan */
+    --cyan-foreground: 0 0% 100%;
+
+    --rose: 340 82% 57%;           /* Semantic rose */
+    --rose-foreground: 0 0% 100%;
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 14% 86%;         /* Slightly darker border for visibility */
     --input: 220 14% 86%;          
-    --ring: 221 83% 53%;           /* Electric Blue #2563EB */
+    --ring: 221 83% 53%;           /* Electric Blue var(--color-primary) */
     
-    --brand: 221 83% 53%;          /* Electric Blue #2563EB */
+    --brand: 221 83% 53%;          /* Electric Blue var(--color-primary) */
     --brand-foreground: 0 0% 100%;
     
     /* Chart colors */
-    --chart-1: 221 83% 53%;        /* Electric Blue #2563EB */
-    --chart-2: 142 76% 36%;        /* Green #10b981 */
+    --chart-1: 221 83% 53%;        /* Electric Blue var(--color-primary) */
+    --chart-2: 142 76% 36%;        /* Green var(--color-success) */
     --chart-3: 38 92% 50%;         /* Amber */
     --chart-4: 0 84% 60%;          /* Red */
     --chart-5: 262 83% 58%;        /* Purple */
@@ -133,7 +152,7 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 100%;
     
-    --primary: 221 83% 53%;        /* Electric Blue #2563EB */
+    --primary: 221 83% 53%;        /* Electric Blue var(--color-primary) */
     --primary-foreground: 0 0% 100%; /* White */
     
     --secondary: 0 0% 15%;
@@ -142,21 +161,30 @@
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
     
-    --accent: 0 0% 15%;
+    --accent: 0 0% 15%;          /* Purple accent (dark theme) */
     --accent-foreground: 0 0% 100%;
-    
+
+    --purple: 262 83% 70%;         /* Semantic purple (high contrast in dark theme) */
+    --purple-foreground: 0 0% 100%;
+
+    --cyan: 187 100% 44%;          /* Semantic cyan */
+    --cyan-foreground: 0 0% 100%;
+
+    --rose: 340 82% 57%;           /* Semantic rose */
+    --rose-foreground: 0 0% 100%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 221 83% 53%;           /* Electric Blue #2563EB */
+    --ring: 221 83% 53%;           /* Electric Blue var(--color-primary) */
     --brand: 221 83% 53%;
     --brand-foreground: 0 0% 100%;
 
     /* Chart colors */
-    --chart-1: 221 83% 53%;        /* Electric Blue #2563EB */
-    --chart-2: 142 76% 36%;        /* Green #10b981 */
+    --chart-1: 221 83% 53%;        /* Electric Blue var(--color-primary) */
+    --chart-2: 142 76% 36%;        /* Green var(--color-success) */
     --chart-3: 38 92% 50%;         /* Amber */
     --chart-4: 0 84% 60%;          /* Red */
     --chart-5: 262 83% 58%;        /* Purple */
@@ -274,6 +302,11 @@
   .z-16 {
     z-index: 16;
   }
+
+  /* Font family utilities */
+  .font-heading {
+    font-family: var(--font-heading);
+  }
   
   /* Sidebar dark color utilities */
   .bg-sidebar-dark {
@@ -314,12 +347,69 @@
   }
 
   /* Semantic warning text utility using theme variable --chart-3 */
-  .text-warning {
-    color: hsl(var(--chart-3));
+  /* Note: text-warning and bg-warning are generated from --color-warning in @theme */
+
+  /* Semantic purple utilities */
+  .text-purple {
+    color: hsl(var(--purple));
   }
 
-  .dark .text-warning {
-    color: hsl(var(--chart-3));
+  .text-purple-foreground {
+    color: hsl(var(--purple-foreground));
+  }
+
+  .bg-purple {
+    background-color: hsl(var(--purple));
+  }
+
+  .bg-purple\/10 {
+    background-color: hsl(var(--purple) / 0.1);
+  }
+
+  .border-purple {
+    border-color: hsl(var(--purple));
+  }
+
+  /* Semantic cyan utilities */
+  .text-cyan {
+    color: hsl(var(--cyan));
+  }
+
+  .text-cyan-foreground {
+    color: hsl(var(--cyan-foreground));
+  }
+
+  .bg-cyan {
+    background-color: hsl(var(--cyan));
+  }
+
+  .bg-cyan\/10 {
+    background-color: hsl(var(--cyan) / 0.1);
+  }
+
+  .border-cyan {
+    border-color: hsl(var(--cyan));
+  }
+
+  /* Semantic rose utilities */
+  .text-rose {
+    color: hsl(var(--rose));
+  }
+
+  .text-rose-foreground {
+    color: hsl(var(--rose-foreground));
+  }
+
+  .bg-rose {
+    background-color: hsl(var(--rose));
+  }
+
+  .bg-rose\/10 {
+    background-color: hsl(var(--rose) / 0.1);
+  }
+
+  .border-rose {
+    border-color: hsl(var(--rose));
   }
 }
 

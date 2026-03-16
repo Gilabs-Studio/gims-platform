@@ -93,7 +93,7 @@ export function CreateCertificationDialog({
     try {
       await createMutation.mutateAsync({
         employeeId,
-        data: payload as import("../../types").CreateEmployeeCertificationData,
+        data: (payload as unknown) as import("../../types").CreateEmployeeCertificationData,
       });
       toast.success(t("certification.success.created"));
       resetForm();
@@ -225,7 +225,7 @@ export function CreateCertificationDialog({
             <Label>{t("certification.fields.certificateFile")}</Label>
             <FileUpload
               value={certificateFile}
-              onChange={setCertificateFile}
+              onChange={(url) => setCertificateFile(url ?? "")}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
             />
           </div>

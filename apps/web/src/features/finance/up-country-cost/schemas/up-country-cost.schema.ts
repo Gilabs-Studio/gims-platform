@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+const employeeIdSchema = z.string().trim().min(1, "Employee is required");
+
 export const upCountryCostItemSchema = z.object({
   cost_type: z.string().min(1),
   description: z.string().optional(),
   amount: z.number().positive(),
+  expense_date: z.string().optional(),
 });
 
 export const upCountryCostFormSchema = z.object({
@@ -12,7 +15,7 @@ export const upCountryCostFormSchema = z.object({
   start_date: z.string().trim().min(1),
   end_date: z.string().trim().min(1),
   notes: z.string().optional(),
-  employees: z.array(z.object({ employee_id: z.string().uuid() })).min(1),
+  employees: z.array(z.object({ employee_id: employeeIdSchema })).min(1),
   items: z.array(upCountryCostItemSchema).min(1),
 });
 

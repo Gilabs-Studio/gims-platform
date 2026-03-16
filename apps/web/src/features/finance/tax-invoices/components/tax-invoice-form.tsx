@@ -158,7 +158,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
                 <p className="font-semibold text-muted-foreground uppercase">{t("fields.invoiceValue")}</p>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
                   <span>DPP:</span> <span className="text-right font-medium">{formatCurrency(selectedSI?.sub_total ?? 0)}</span>
-                  <span>VAT:</span> <span className="text-right font-medium text-blue-600">{formatCurrency(selectedSI?.tax_amount ?? 0)}</span>
+                  <span>VAT:</span> <span className="text-right font-medium text-primary">{formatCurrency(selectedSI?.tax_amount ?? 0)}</span>
                 </div>
               </div>
               <div className="text-right flex flex-col justify-center">

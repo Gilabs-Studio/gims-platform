@@ -115,10 +115,13 @@ func (r *activityRepository) applyFilters(query *gorm.DB, params ActivityListPar
 	if params.ContactID != "" {
 		query = query.Where("contact_id = ?", params.ContactID)
 	}
-	if params.DealID != "" {
+	// When both DealID and LeadID are provided, use OR so that activities linked
+	// to either the deal or its source lead are returned together (cross-linked timeline).
+	if params.DealID != "" && params.LeadID != "" {
+		query = query.Where("(deal_id = ? OR lead_id = ?)", params.DealID, params.LeadID)
+	} else if params.DealID != "" {
 		query = query.Where("deal_id = ?", params.DealID)
-	}
-	if params.LeadID != "" {
+	} else if params.LeadID != "" {
 		query = query.Where("lead_id = ?", params.LeadID)
 	}
 	if params.EmployeeID != "" {

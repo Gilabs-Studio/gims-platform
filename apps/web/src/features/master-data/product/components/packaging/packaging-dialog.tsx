@@ -19,12 +19,14 @@ export interface PackagingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: Packaging | null;
+  onCreated?: (id: string) => void;
 }
 
 export function PackagingDialog({
   open,
   onOpenChange,
   editingItem,
+  onCreated,
 }: PackagingDialogProps) {
   const {
     form,
@@ -34,7 +36,7 @@ export function PackagingDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = usePackagingForm({ open, onOpenChange, editingItem });
+  } = usePackagingForm({ open, onOpenChange, editingItem, onCreated });
 
   const {
     register,
@@ -49,7 +51,7 @@ export function PackagingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("edit") : t("create")}

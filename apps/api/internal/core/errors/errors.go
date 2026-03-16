@@ -299,6 +299,20 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Request body too large",
 	},
 
+	// File Upload Errors
+	"INVALID_FILE_TYPE": {
+		HTTPStatus: http.StatusUnsupportedMediaType,
+		Message:    "File type not allowed. Accepted formats: JPEG, PNG, GIF, WebP",
+	},
+	"FILE_TOO_LARGE": {
+		HTTPStatus: http.StatusRequestEntityTooLarge,
+		Message:    "File size exceeds the maximum allowed limit",
+	},
+	"INVALID_IMAGE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid or corrupted image file",
+	},
+
 	// AI Service Errors
 	"AI_ANALYSIS_FAILED": {
 		HTTPStatus: http.StatusInternalServerError,
@@ -311,6 +325,12 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"AI_SERVICE_NOT_CONFIGURED": {
 		HTTPStatus: http.StatusServiceUnavailable,
 		Message:    "AI service is not configured. Please configure Cerebras API key",
+	},
+
+	// Warehouse Business Rules
+	"WAREHOUSE_HAS_STOCK": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Warehouse cannot be deleted because it still has active stock. Transfer all inventory to another warehouse first.",
 	},
 }
 

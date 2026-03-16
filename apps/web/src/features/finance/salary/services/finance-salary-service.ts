@@ -1,5 +1,13 @@
 import { apiClient } from "@/lib/api-client";
-import type { ApiResponse, SalaryStructure, SalaryStructureInput, ListSalaryParams } from "../types";
+import type {
+  ApiResponse,
+  SalaryStructure,
+  SalaryStructureInput,
+  SalaryEmployeeGroup,
+  SalaryStats,
+  SalaryFormData,
+  ListSalaryParams,
+} from "../types";
 
 const BASE_URL = "/finance/salary-structures";
 
@@ -31,6 +39,26 @@ export const financeSalaryService = {
 
   approve: async (id: string): Promise<ApiResponse<SalaryStructure>> => {
     const response = await apiClient.post<ApiResponse<SalaryStructure>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  toggleStatus: async (id: string): Promise<ApiResponse<SalaryStructure>> => {
+    const response = await apiClient.post<ApiResponse<SalaryStructure>>(`${BASE_URL}/${id}/toggle-status`);
+    return response.data;
+  },
+
+  getGrouped: async (params?: ListSalaryParams): Promise<ApiResponse<SalaryEmployeeGroup[]>> => {
+    const response = await apiClient.get<ApiResponse<SalaryEmployeeGroup[]>>(`${BASE_URL}/grouped`, { params });
+    return response.data;
+  },
+
+  getStats: async (): Promise<ApiResponse<SalaryStats>> => {
+    const response = await apiClient.get<ApiResponse<SalaryStats>>(`${BASE_URL}/stats`);
+    return response.data;
+  },
+
+  getFormData: async (): Promise<ApiResponse<SalaryFormData>> => {
+    const response = await apiClient.get<ApiResponse<SalaryFormData>>(`${BASE_URL}/form-data`);
     return response.data;
   },
 };

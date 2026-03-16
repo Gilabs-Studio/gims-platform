@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, FileText, Send, TrendingUp, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Send, XCircle, CreditCard, PieChart } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SupplierInvoiceStatusBadgeProps {
@@ -21,22 +21,29 @@ export function SupplierInvoiceStatusBadge({ status, className }: SupplierInvoic
       );
     case "unpaid":
       return (
-        <Badge variant="destructive" className={className}>
-          <Clock className="h-3 w-3 mr-1.5" />
+        <Badge variant="warning" className={className}>
+          <CreditCard className="h-3 w-3 mr-1.5" />
           {t("unpaid")}
+        </Badge>
+      );
+    case "waiting_payment":
+      return (
+        <Badge variant="info" className={className}>
+          <Clock className="h-3 w-3 mr-1.5" />
+          {t("waiting_payment")}
         </Badge>
       );
     case "partial":
       return (
         <Badge variant="warning" className={className}>
-          <TrendingUp className="h-3 w-3 mr-1.5" />
+          <PieChart className="h-3 w-3 mr-1.5" />
           {t("partial")}
         </Badge>
       );
     case "draft":
       return (
         <Badge variant="secondary" className={className}>
-          <FileText className="h-3 w-3 mr-1.5" />
+          <Clock className="h-3 w-3 mr-1.5" />
           {t("draft")}
         </Badge>
       );
@@ -63,7 +70,7 @@ export function SupplierInvoiceStatusBadge({ status, className }: SupplierInvoic
       );
     case "cancelled":
       return (
-        <Badge variant="secondary" className={className}>
+        <Badge variant="destructive" className={className}>
           <XCircle className="h-3 w-3 mr-1.5" />
           {t("cancelled")}
         </Badge>

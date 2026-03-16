@@ -23,7 +23,7 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent>
         <DialogHeader><DialogTitle>{editingItem ? t("edit") : t("create")}</DialogTitle><DialogDescription>{t("description")}</DialogDescription></DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <Field>

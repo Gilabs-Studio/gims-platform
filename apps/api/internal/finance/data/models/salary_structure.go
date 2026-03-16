@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -18,6 +19,7 @@ const (
 type SalaryStructure struct {
 	ID            string                `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	EmployeeID    string                `gorm:"type:uuid;not null;index" json:"employee_id"`
+	Employee      *orgModels.Employee   `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 	EffectiveDate time.Time             `gorm:"type:date;not null;index" json:"effective_date"`
 	BasicSalary   float64               `gorm:"type:numeric(15,2);not null" json:"basic_salary"`
 	Notes         string                `gorm:"type:text" json:"notes"`

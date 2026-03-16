@@ -47,6 +47,8 @@ interface LocationSelectorProps {
   readonly fieldNames?: Partial<FieldNames>;
   readonly labels?: LocationSelectorLabels;
   readonly className?: string;
+  /** Fired when user explicitly selects a province. Provides province ID and name. */
+  readonly onProvinceChange?: (id: string, name: string) => void;
 }
 
 const DEFAULT_FIELD_NAMES: FieldNames = {
@@ -82,6 +84,7 @@ export function LocationSelector({
   fieldNames: customFieldNames,
   labels: customLabels,
   className,
+  onProvinceChange,
 }: LocationSelectorProps) {
   const fields = { ...DEFAULT_FIELD_NAMES, ...customFieldNames };
   const labels = { ...DEFAULT_LABELS, ...customLabels };
@@ -132,6 +135,8 @@ export function LocationSelector({
                 field.onChange(val);
                 setValue(fields.city_id, undefined, { shouldDirty: true });
                 setValue(fields.district_id, undefined, { shouldDirty: true });
+                const provinceName = provinces.find((p) => p.id === val)?.name ?? "";
+                onProvinceChange?.(val, provinceName);
               }}
               disabled={disabled}
             >

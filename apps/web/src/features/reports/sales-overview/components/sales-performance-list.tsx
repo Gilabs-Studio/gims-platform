@@ -316,7 +316,7 @@ export function SalesPerformanceList({
                         <span
                           className={cn(
                             item.target_achievement_percentage >= 100
-                              ? "text-green-600"
+                              ? "text-success"
                               : item.target_achievement_percentage >= 75
                                 ? "text-warning"
                                 : "text-destructive"

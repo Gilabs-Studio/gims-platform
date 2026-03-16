@@ -86,6 +86,11 @@ export function SalesPaymentsList() {
   const deleteMutation = useDeleteSalesPayment();
   const confirmMutation = useConfirmSalesPayment();
 
+  const handleView = (id: string) => {
+    setDetailId(id);
+    setDetailOpen(true);
+  };
+
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
@@ -191,7 +196,20 @@ export function SalesPaymentsList() {
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}</TableCell>
+                    <TableCell
+                      className={`font-medium ${canView ? "text-primary hover:underline cursor-pointer" : ""}`}
+                      onClick={() => canView && handleView(item.id)}
+                      role={canView ? "button" : undefined}
+                      tabIndex={canView ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (!canView) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleView(item.id);
+                        }
+                      }}
+                    >
+                      {item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}
+                    </TableCell>
                     <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
                     <TableCell>{item.method}</TableCell>
@@ -229,6 +247,23 @@ export function SalesPaymentsList() {
                               {t("actions.view")}
                             </DropdownMenuItem>
 
+                            {canConfirm && isPending && (
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await confirmMutation.mutateAsync(item.id);
+                                    toast.success(t("toast.confirmed"));
+                                  } catch {
+                                    toast.error(t("toast.failed"));
+                                  }
+                                }}
+                                className="cursor-pointer text-success focus:text-success"
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {t("actions.confirm")}
+                              </DropdownMenuItem>
+                            )}
+
                             {canAuditTrail && (
                               <DropdownMenuItem
                                 onClick={() => {
@@ -242,23 +277,15 @@ export function SalesPaymentsList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canConfirm && isPending && (
+                            {canPrint && (
                               <DropdownMenuItem
-                                onClick={async () => {
-                                  try {
-                                    await confirmMutation.mutateAsync(item.id);
-                                    toast.success(t("toast.confirmed"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
-                                  }
-                                }}
-                                className="cursor-pointer"
+                                onClick={() => setPrintingPaymentId(item.id)}
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {t("actions.confirm")}
+                                <Printer className="h-4 w-4 mr-2" />
+                                {t("actions.print")}
                               </DropdownMenuItem>
                             )}
-
                             {canDelete && isPending && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
@@ -266,15 +293,6 @@ export function SalesPaymentsList() {
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 {t("actions.delete")}
-                              </DropdownMenuItem>
-                            )}
-                            {canPrint && (
-                              <DropdownMenuItem
-                                onClick={() => setPrintingPaymentId(item.id)}
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
-                              >
-                                <Printer className="h-4 w-4 mr-2" />
-                                {t("actions.print")}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>

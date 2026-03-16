@@ -493,3 +493,39 @@ func handleVisitReportError(c *gin.Context, err error) {
 		errors.InternalServerErrorResponse(c, err.Error())
 	}
 }
+
+// ListByEmployee handles GET /visits/by-employee — returns per-employee visit report metrics.
+// Intended for ALL/DIVISION/AREA scope views on the frontend.
+func (h *VisitReportHandler) ListByEmployee(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	req := &dto.ListByEmployeeRequest{
+		Page:    page,
+		PerPage: perPage,
+		Search:  c.Query("search"),
+	}
+
+	summaries, pagination, err := h.uc.ListByEmployee(c.Request.Context(), req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{}
+	if pagination != nil {
+		meta.Pagination = &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      int(pagination.Total),
+			TotalPages: int(pagination.TotalPages),
+			HasNext:    pagination.Page < int(pagination.TotalPages),
+			HasPrev:    pagination.Page > 1,
+		}
+	}
+
+	response.SuccessResponse(c, summaries, meta)
+}

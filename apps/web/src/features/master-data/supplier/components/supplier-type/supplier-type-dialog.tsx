@@ -19,12 +19,16 @@ export interface SupplierTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem: SupplierType | null;
+  initialName?: string;
+  onSuccess?: (id: string, name: string) => void;
 }
 
 export function SupplierTypeDialog({
   open,
   onOpenChange,
   editingItem,
+  initialName,
+  onSuccess,
 }: SupplierTypeDialogProps) {
   const {
     form,
@@ -34,7 +38,7 @@ export function SupplierTypeDialog({
     isEditing,
     isSubmitting,
     onSubmit,
-  } = useSupplierTypeForm({ open, onOpenChange, editingItem });
+  } = useSupplierTypeForm({ open, onOpenChange, editingItem, initialName, onSuccess });
 
   const {
     register,
@@ -48,7 +52,7 @@ export function SupplierTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? t("editTitle") : t("createTitle")}

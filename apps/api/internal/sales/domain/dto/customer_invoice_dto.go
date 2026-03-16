@@ -45,7 +45,7 @@ type ListCustomerInvoicesRequest struct {
 	Page         int    `form:"page" binding:"omitempty,min=1"`
 	PerPage      int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search       string `form:"search"`
-	Status       string `form:"status" binding:"omitempty,oneof=unpaid partial paid cancelled"`
+	Status       string `form:"status" binding:"omitempty,oneof=draft sent submitted approved rejected unpaid waiting_payment partial paid cancelled DRAFT SENT SUBMITTED APPROVED REJECTED UNPAID WAITING_PAYMENT PARTIAL PAID CANCELLED"`
 	Type         string `form:"type" binding:"omitempty,oneof=regular proforma down_payment"`
 	DateFrom     string `form:"date_from"`
 	DateTo       string `form:"date_to"`
@@ -64,7 +64,7 @@ type ListCustomerInvoiceItemsRequest struct {
 
 // UpdateCustomerInvoiceStatusRequest represents the request to update invoice status
 type UpdateCustomerInvoiceStatusRequest struct {
-	Status     string   `json:"status" binding:"required,oneof=sent approved rejected unpaid partial paid cancelled"`
+	Status     string   `json:"status" binding:"required,oneof=sent approved rejected unpaid waiting_payment partial paid cancelled"`
 	PaidAmount *float64 `json:"paid_amount" binding:"omitempty,gte=0"`
 	PaymentAt  *string  `json:"payment_at"`
 }
@@ -132,4 +132,10 @@ type CustomerInvoiceItemResponse struct {
 type SalesOrderBriefResponse struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
+	// Snapshot customer fields copied from sales order
+	CustomerID    *string           `json:"customer_id,omitempty"`
+	Customer      *CustomerResponse `json:"customer,omitempty"`
+	CustomerName  string            `json:"customer_name,omitempty"`
+	CustomerPhone string            `json:"customer_phone,omitempty"`
+	CustomerEmail string            `json:"customer_email,omitempty"`
 }

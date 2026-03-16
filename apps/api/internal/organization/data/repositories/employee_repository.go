@@ -32,6 +32,7 @@ type EmployeeRepository interface {
 	FindByUserID(ctx context.Context, userID string) (*models.Employee, error)
 	FindAll(ctx context.Context) ([]models.Employee, error)
 	List(ctx context.Context, params EmployeeListParams) ([]models.Employee, int64, error)
+	GetLastEmployeeCode(ctx context.Context) (string, error)
 	Update(ctx context.Context, employee *models.Employee) error
 	Delete(ctx context.Context, id string) error
 }
@@ -201,6 +202,29 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	}
 
 	return employees, total, nil
+}
+
+func (r *employeeRepository) GetLastEmployeeCode(ctx context.Context) (string, error) {
+	var lastCode string
+	err := r.db.WithContext(ctx).Model(&models.Employee{}).
+		Select("employee_code").
+		Where("employee_code ~ '^EMP-[0-9]+$'").
+		Order("CAST(SUBSTRING(employee_code FROM 5) AS INTEGER) DESC").
+		Limit(1).
+		Pluck("employee_code", &lastCode).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "EMP-000", nil
+		}
+		return "", err
+	}
+	
+	if lastCode == "" {
+		return "EMP-000", nil
+	}
+
+	return lastCode, nil
 }
 
 func (r *employeeRepository) Update(ctx context.Context, employee *models.Employee) error {

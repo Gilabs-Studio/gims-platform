@@ -1,11 +1,11 @@
 import { apiClient } from "@/lib/api-client";
-import type { ApiResponse, BankAccount, BankAccountInput, ListBankAccountsParams } from "../types";
+import type { ApiResponse, BankAccount, BankAccountInput, ListBankAccountsParams, UnifiedBankAccount } from "../types";
 
 const BASE_URL = "/finance/bank-accounts";
 
 export const financeBankAccountsService = {
-  list: async (params?: ListBankAccountsParams): Promise<ApiResponse<BankAccount[]>> => {
-    const response = await apiClient.get<ApiResponse<BankAccount[]>>(BASE_URL, { params });
+  list: async (params?: ListBankAccountsParams): Promise<ApiResponse<UnifiedBankAccount[]>> => {
+    const response = await apiClient.get<ApiResponse<UnifiedBankAccount[]>>(`${BASE_URL}/unified`, { params });
     return response.data;
   },
 
@@ -14,10 +14,22 @@ export const financeBankAccountsService = {
     return response.data;
   },
 
+  getTransactionHistory: async (
+    id: string,
+    params?: { page?: number; per_page?: number },
+  ): Promise<ApiResponse<BankAccount["transaction_history"] extends infer T ? NonNullable<T> : never>> => {
+    const response = await apiClient.get<ApiResponse<NonNullable<BankAccount["transaction_history"]>>>(
+      `${BASE_URL}/${id}/transaction-history`,
+      { params },
+    );
+    return response.data;
+  },
+
   create: async (data: BankAccountInput): Promise<ApiResponse<BankAccount>> => {
     const payload = {
       ...data,
       chart_of_account_id: data.chart_of_account_id ?? null,
+      currency_id: data.currency_id,
       is_active: data.is_active ?? true,
     };
     const response = await apiClient.post<ApiResponse<BankAccount>>(BASE_URL, payload);
@@ -28,6 +40,7 @@ export const financeBankAccountsService = {
     const payload = {
       ...data,
       chart_of_account_id: data.chart_of_account_id ?? null,
+      currency_id: data.currency_id,
       is_active: data.is_active ?? true,
     };
     const response = await apiClient.put<ApiResponse<BankAccount>>(`${BASE_URL}/${id}`, payload);

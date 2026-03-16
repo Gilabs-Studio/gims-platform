@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -28,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
+import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useDealFormData, useCreateDeal, useUpdateDeal } from "../hooks/use-deals";
 import { createDealSchema, type CreateDealFormData } from "../schemas/deal.schema";
 import type { Deal, DealPipelineStageOption, DealProductOption } from "../types";
@@ -50,6 +52,7 @@ export function DealFormDialog({
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
   const { data: formData, isLoading: isFormLoading } = useDealFormData({ enabled: open });
+  const { data: bankAccountsRes } = useFinanceBankAccounts({ per_page: 100, sort_by: "name", sort_dir: "asc" });
   const createMutation = useCreateDeal();
   const updateMutation = useUpdateDeal();
   const isEdit = !!deal;
@@ -66,6 +69,8 @@ export function DealFormDialog({
       contact_id: deal?.contact_id ?? "",
       assigned_to: deal?.assigned_to ?? "",
       lead_id: deal?.lead_id ?? "",
+      bank_account_id: deal?.bank_account_id ?? "",
+      bank_account_reference: deal?.bank_account_reference ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
       auth_confirmed: deal?.auth_confirmed ?? false,
@@ -173,6 +178,7 @@ export function DealFormDialog({
   );
 
   const dealValue = watch("value");
+  const bankAccounts = bankAccountsRes?.data ?? [];
 
   const handleFormSubmit = (data: CreateDealFormData) => {
     const cleaned = {
@@ -181,6 +187,8 @@ export function DealFormDialog({
       contact_id: data.contact_id || undefined,
       assigned_to: data.assigned_to || undefined,
       lead_id: data.lead_id || undefined,
+      bank_account_id: data.bank_account_id || undefined,
+      bank_account_reference: data.bank_account_reference || undefined,
       expected_close_date: data.expected_close_date || undefined,
       items: data.items?.map((item) => ({
         ...item,
@@ -222,7 +230,7 @@ export function DealFormDialog({
 
         {/* Warn when editing a closed deal */}
         {isEdit && deal?.status !== "open" && (
-          <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-warning/10 px-4 py-3 text-sm text-warning dark:text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{t("dealAlreadyClosed")}</span>
           </div>
@@ -283,7 +291,7 @@ export function DealFormDialog({
                                   <div className="flex items-center gap-2">
                                     <span
                                       className="inline-block h-2 w-2 rounded-full shrink-0"
-                                      style={{ backgroundColor: stage.color || "#6b7280" }}
+                                      style={{ backgroundColor: stage.color || "var(--color-muted-foreground)" }}
                                     />
                                     {stage.name} ({stage.probability}%)
                                   </div>
@@ -446,6 +454,38 @@ export function DealFormDialog({
                     </Field>
 
                     <Field orientation="vertical" className="col-span-2">
+                      <FieldLabel>{t("bankAccount")}</FieldLabel>
+                      <Controller
+                        name="bank_account_id"
+                        control={control}
+                        render={({ field }) => (
+                          <Select value={field.value || "__none__"} onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}>
+                            <SelectTrigger className="cursor-pointer">
+                              <SelectValue placeholder={t("bankAccountPlaceholder")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__" className="cursor-pointer">-</SelectItem>
+                              {bankAccounts.map((account) => (
+                                <SelectItem key={account.id} value={account.id} className="cursor-pointer">
+                                  {account.name} - {account.account_number} ({account.currency}) [{t(`bankAccountOwnerType.${account.owner_type}`)}: {account.owner_name}]
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+
+                    <Field orientation="vertical" className="col-span-2">
+                      <FieldLabel>{t("bankAccountReference")}</FieldLabel>
+                      <Input
+                        {...register("bank_account_reference")}
+                        placeholder={t("bankAccountReferencePlaceholder")}
+                      />
+                      {errors.bank_account_reference && <FieldError>{errors.bank_account_reference.message}</FieldError>}
+                    </Field>
+
+                    <Field orientation="vertical" className="col-span-2">
                       <FieldLabel>{t("description")}</FieldLabel>
                       <Textarea {...register("description")} rows={3} />
                     </Field>
@@ -577,25 +617,44 @@ export function DealFormDialog({
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("unitPrice")}</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.unit_price`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        currency
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("qty")}</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.quantity`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
                                 <Field orientation="vertical">
                                   <FieldLabel>{t("discountPct")} (%)</FieldLabel>
-                                  <Input
-                                    type="number"
-                                    {...register(`items.${index}.discount_percent`, { valueAsNumber: true })}
+                                  <Controller
+                                    name={`items.${index}.discount_percent`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <NumericInput
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                      />
+                                    )}
                                   />
                                 </Field>
 
@@ -634,7 +693,17 @@ export function DealFormDialog({
                         </div>
                         <Field orientation="vertical">
                           <FieldLabel>{t("budgetAmount")}</FieldLabel>
-                          <Input type="number" {...register("budget_amount", { valueAsNumber: true })} />
+                          <Controller
+                            name="budget_amount"
+                            control={control}
+                            render={({ field }) => (
+                              <NumericInput
+                                currency
+                                value={field.value}
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
                         </Field>
 
                         <div className="flex items-center gap-2">
@@ -667,7 +736,7 @@ export function DealFormDialog({
                           <Input {...register("need_description")} />
                         </Field>
 
-                        <div className="flex items-center gap-2 col-span-2">
+                        <div className="flex items-center gap-2">
                           <Controller
                             name="time_confirmed"
                             control={control}
@@ -677,6 +746,48 @@ export function DealFormDialog({
                           />
                           <FieldLabel className="cursor-pointer">{t("timeConfirmed")}</FieldLabel>
                         </div>
+                        <Field orientation="vertical">
+                          <FieldLabel>{t("expectedCloseDate")}</FieldLabel>
+                          <Controller
+                            name="expected_close_date"
+                            control={control}
+                            render={({ field }) => (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal cursor-pointer",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value
+                                      ? formatDate(new Date(field.value))
+                                      : t("selectDate")}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date: Date | undefined) => {
+                                      if (date) {
+                                        const y = date.getFullYear();
+                                        const m = String(date.getMonth() + 1).padStart(2, "0");
+                                        const d = String(date.getDate()).padStart(2, "0");
+                                        field.onChange(`${y}-${m}-${d}`);
+                                      } else {
+                                        field.onChange("");
+                                      }
+                                    }}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          />
+                        </Field>
                       </div>
                     </div>
 
@@ -711,7 +822,17 @@ export function DealFormDialog({
                         ) : (
                           <Field orientation="vertical">
                             <FieldLabel>{t("value")}</FieldLabel>
-                            <Input type="number" {...register("value", { valueAsNumber: true })} />
+                            <Controller
+                              name="value"
+                              control={control}
+                              render={({ field }) => (
+                                <NumericInput
+                                  currency
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                />
+                              )}
+                            />
                           </Field>
                         )}
 
@@ -720,7 +841,7 @@ export function DealFormDialog({
                             <div className="flex items-center gap-2 mb-1">
                               <span
                                 className="inline-block h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: selectedStage.color || "#6b7280" }}
+                                style={{ backgroundColor: selectedStage.color || "var(--color-muted-foreground)" }}
                               />
                               <span className="text-sm font-medium">{selectedStage.name}</span>
                             </div>

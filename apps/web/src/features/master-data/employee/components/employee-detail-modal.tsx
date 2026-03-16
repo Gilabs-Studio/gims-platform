@@ -30,7 +30,6 @@ import {
   Edit,
   Download,
 } from "lucide-react";
-import { resolveImageUrl } from "@/lib/utils";
 import {
   useEmployee,
   useEmployeeContracts,
@@ -38,6 +37,7 @@ import {
   useEmployeeCertifications,
   useEmployeeAssets,
 } from "../hooks/use-employees";
+import { resolveImageUrl, formatWhatsAppLink } from "@/lib/utils";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import { ContractTimeline } from "./contracts";
 import { CreateContractDialog } from "./contracts/create-contract-dialog";
@@ -150,16 +150,6 @@ export function EmployeeDetailModal({
                 <span className="text-sm text-muted-foreground">
                   {displayEmployee.job_position?.name || "-"}
                 </span>
-                <Badge
-                  variant={displayEmployee.is_active ? "default" : "secondary"}
-                  className={
-                    displayEmployee.is_active
-                      ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20"
-                      : ""
-                  }
-                >
-                  {displayEmployee.is_active ? t("active") : t("inactive")}
-                </Badge>
               </div>
             </div>
           </div>
@@ -205,11 +195,35 @@ export function EmployeeDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">
                           {t("form.email")}
                         </TableCell>
-                        <TableCell>{displayEmployee.email || "-"}</TableCell>
+                        <TableCell>
+                          {displayEmployee.email ? (
+                            <a
+                              href={`mailto:${displayEmployee.email}`}
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {displayEmployee.email}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">
                           {t("form.phone")}
                         </TableCell>
-                        <TableCell>{displayEmployee.phone || "-"}</TableCell>
+                        <TableCell>
+                          {displayEmployee.phone ? (
+                            <a
+                              href={formatWhatsAppLink(displayEmployee.phone)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline cursor-pointer"
+                            >
+                              {displayEmployee.phone}
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">
@@ -406,7 +420,7 @@ export function EmployeeDetailModal({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive"
                           onClick={() =>
                             displayEmployee.current_contract &&
                             setTerminateContract(
@@ -483,7 +497,7 @@ export function EmployeeDetailModal({
                               }
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate max-w-[200px]">
@@ -578,7 +592,7 @@ export function EmployeeDetailModal({
                           <TableRow key={ea.area_id}>
                             <TableCell className="w-12">
                               {ea.is_supervisor ? (
-                                <Shield className="h-4 w-4 text-amber-500" />
+                                <Shield className="h-4 w-4 text-warning" />
                               ) : (
                                 <User className="h-4 w-4 text-muted-foreground" />
                               )}

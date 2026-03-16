@@ -1,9 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Controller } from "react-hook-form";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon, Bell, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +17,7 @@ import {
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -21,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTaskForm, type UseTaskFormProps } from "../hooks/use-task-form";
-import { useTaskFormData } from "../hooks/use-tasks";
+import { useTaskFormData, useCreateReminder, useUpdateReminder, useDeleteReminder } from "../hooks/use-tasks";
 import type { Task } from "../types";
 
 const TASK_TYPE_OPTIONS = ["general", "call", "email", "meeting", "follow_up"] as const;
@@ -33,6 +38,9 @@ interface TaskFormDialogProps {
   readonly onClose: () => void;
   readonly task?: Task | null;
   readonly onSuccess?: () => void;
+  readonly defaultLeadId?: string;
+  readonly defaultDealId?: string;
+  readonly defaultAssignedToId?: string;
 }
 
 export function TaskFormDialog({
@@ -40,10 +48,30 @@ export function TaskFormDialog({
   onClose,
   task,
   onSuccess,
+  defaultLeadId,
+  defaultDealId,
+  defaultAssignedToId,
 }: TaskFormDialogProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
   const isEditing = !!task;
+
+  // Calendar date/time local state for due date
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [dueTime, setDueTime] = useState("09:00");
+  const [dueDateOpen, setDueDateOpen] = useState(false);
+
+  // Reminder local state (separate from task form schema)
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderDate, setReminderDate] = useState<Date | null>(null);
+  const [reminderTime, setReminderTime] = useState("09:00");
+  const [reminderType, setReminderType] = useState<"in_app" | "email">("in_app");
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [reminderDateOpen, setReminderDateOpen] = useState(false);
+  const [existingReminderId, setExistingReminderId] = useState<string | null>(null);
+  const createReminder = useCreateReminder();
+  const updateReminder = useUpdateReminder();
+  const deleteReminder = useDeleteReminder();
 
   const formProps: UseTaskFormProps = {
     open,
@@ -55,22 +83,83 @@ export function TaskFormDialog({
     },
     editingItem: task,
     onSuccess,
+    onAfterSubmit: async (taskId: string) => {
+      if (reminderEnabled && reminderDate) {
+        const [hours, minutes] = reminderTime.split(":").map(Number);
+        const remindAtDate = new Date(reminderDate);
+        remindAtDate.setHours(hours ?? 9, minutes ?? 0, 0, 0);
+        const reminderData = {
+          remind_at: remindAtDate.toISOString(),
+          reminder_type: reminderType,
+          message: reminderMessage || `Reminder for task`,
+        };
+        if (existingReminderId) {
+          await updateReminder.mutateAsync({ taskId, reminderId: existingReminderId, data: reminderData });
+        } else {
+          await createReminder.mutateAsync({ taskId, data: reminderData });
+        }
+      } else if (!reminderEnabled && existingReminderId) {
+        await deleteReminder.mutateAsync({ taskId, reminderId: existingReminderId });
+      }
+    },
+    defaultValues: {
+      lead_id: defaultLeadId,
+      deal_id: defaultDealId,
+      assigned_to_id: defaultAssignedToId,
+    },
   };
 
   const { form, onSubmit, isSubmitting } = useTaskForm(formProps);
   const { data: formDataRes } = useTaskFormData({ enabled: open });
 
-  const formData = formDataRes?.data;
-  const employees = formData?.employees ?? [];
-  const customers = formData?.customers ?? [];
-  const contacts = formData?.contacts ?? [];
-  const deals = formData?.deals ?? [];
+  const employees = formDataRes?.data?.employees ?? [];
 
   const {
     register,
     control,
     formState: { errors },
   } = form;
+
+  // Initialize calendar state when dialog opens or task changes
+  useEffect(() => {
+    if (!open) return;
+    if (task?.due_date) {
+      const d = new Date(task.due_date);
+      setDueDate(d);
+      setDueTime(
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+      );
+    } else {
+      setDueDate(null);
+      setDueTime("09:00");
+    }
+    // Pre-fill reminder state from existing reminder, or reset if none
+    const existingReminder = task?.reminders?.[0] ?? null;
+    if (existingReminder) {
+      const remindAt = new Date(existingReminder.remind_at);
+      setExistingReminderId(existingReminder.id);
+      setReminderEnabled(true);
+      setReminderDate(remindAt);
+      setReminderTime(
+        `${String(remindAt.getHours()).padStart(2, "0")}:${String(remindAt.getMinutes()).padStart(2, "0")}`
+      );
+      setReminderType(existingReminder.reminder_type);
+      setReminderMessage(existingReminder.message);
+    } else {
+      setExistingReminderId(null);
+      setReminderEnabled(false);
+      setReminderDate(null);
+      setReminderTime("09:00");
+      setReminderType("in_app");
+      setReminderMessage("");
+    }
+    setDueDateOpen(false);
+  }, [open, task?.id, task?.due_date]);
+
+  // Sync calendar date into the form field (backend accepts YYYY-MM-DD only)
+  useEffect(() => {
+    form.setValue("due_date", dueDate ? format(dueDate, "yyyy-MM-dd") : "");
+  }, [dueDate, form]);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -152,7 +241,8 @@ export function TaskFormDialog({
               </Field>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Status (edit only) + Due Date + Due Time */}
+            <div className={cn("grid gap-4", isEditing ? "grid-cols-3" : "grid-cols-2")}>
               {isEditing && (
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.status")}</FieldLabel>
@@ -179,7 +269,41 @@ export function TaskFormDialog({
 
               <Field orientation="vertical">
                 <FieldLabel>{t("form.dueDate")}</FieldLabel>
-                <Input type="datetime-local" {...register("due_date")} />
+                <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal cursor-pointer",
+                        !dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "dd MMM yyyy") : t("form.dueDatePlaceholder")}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dueDate ?? undefined}
+                      onSelect={(date: Date | undefined) => {
+                        setDueDate(date ?? null);
+                        setDueDateOpen(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("form.dueTime")}</FieldLabel>
+                <Input
+                  type="time"
+                  value={dueTime}
+                  onChange={(e) => setDueTime(e.target.value)}
+                  disabled={!dueDate}
+                />
               </Field>
             </div>
           </div>
@@ -190,119 +314,21 @@ export function TaskFormDialog({
               {t("sections.assignment")}
             </h4>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.assignedTo")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="assigned_to"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.assignedToPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp: { id: string; name: string; employee_code: string }) => (
-                          <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
-                            {emp.name} ({emp.employee_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.assignedFrom")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="assigned_from"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.assignedFromPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {employees.map((emp: { id: string; name: string; employee_code: string }) => (
-                          <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
-                            {emp.name} ({emp.employee_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            </div>
-          </div>
-
-          {/* Related Entities */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium border-b pb-2">
-              {t("sections.relatedEntities")}
-            </h4>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.customer")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="customer_id"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.customerPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((c: { id: string; name: string; code: string }) => (
-                          <SelectItem key={c.id} value={c.id} className="cursor-pointer">
-                            {c.name} ({c.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.contact")}</FieldLabel>
-                <Controller
-                  control={control}
-                  name="contact_id"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue placeholder={t("form.contactPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contacts.map((c: { id: string; name: string }) => (
-                          <SelectItem key={c.id} value={c.id} className="cursor-pointer">
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            </div>
-
             <Field orientation="vertical">
-              <FieldLabel>{t("form.deal")}</FieldLabel>
+              <FieldLabel>{t("form.assignedTo")}</FieldLabel>
               <Controller
                 control={control}
-                name="deal_id"
+                name="assigned_to"
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  // key forces re-mount once employees are loaded so the Select displays the correct label
+                  <Select key={`${field.value ?? ""}-${employees.length}`} value={field.value ?? ""} onValueChange={field.onChange}>
                     <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("form.dealPlaceholder")} />
+                      <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {deals.map((d: { id: string; title: string }) => (
-                        <SelectItem key={d.id} value={d.id} className="cursor-pointer">
-                          {d.title}
+                      {employees.map((emp: { id: string; name: string; employee_code: string }) => (
+                        <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
+                          {emp.name} ({emp.employee_code})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -310,6 +336,94 @@ export function TaskFormDialog({
                 )}
               />
             </Field>
+          </div>
+
+          {/* Reminder */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="text-sm font-medium">{t("sections.reminders")}</h4>
+              <Button
+                type="button"
+                variant={reminderEnabled ? "destructive" : "outline"}
+                size="sm"
+                className="h-7 px-2 cursor-pointer text-xs"
+                onClick={() => setReminderEnabled((v) => !v)}
+              >
+                {reminderEnabled ? (
+                  <><Trash2 className="h-3.5 w-3.5 mr-1" />{tCommon("remove")}</>
+                ) : (
+                  <><Plus className="h-3.5 w-3.5 mr-1" />{t("reminder.add")}</>
+                )}
+              </Button>
+            </div>
+
+            {reminderEnabled && (
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("reminder.remindAt")}</FieldLabel>
+                    <Popover open={reminderDateOpen} onOpenChange={setReminderDateOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal cursor-pointer",
+                            !reminderDate && "text-muted-foreground"
+                          )}
+                        >
+                          <Bell className="mr-2 h-4 w-4" />
+                          {reminderDate ? format(reminderDate, "dd MMM yyyy") : t("form.dueDatePlaceholder")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={reminderDate ?? undefined}
+                          onSelect={(date: Date | undefined) => {
+                            setReminderDate(date ?? null);
+                            setReminderDateOpen(false);
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </Field>
+
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.dueTime")}</FieldLabel>
+                    <Input
+                      type="time"
+                      value={reminderTime}
+                      onChange={(e) => setReminderTime(e.target.value)}
+                      disabled={!reminderDate}
+                    />
+                  </Field>
+                </div>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("reminder.type")}</FieldLabel>
+                  <Select value={reminderType} onValueChange={(v) => setReminderType(v as "in_app" | "email")}>
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="in_app" className="cursor-pointer">{t("reminder.types.in_app")}</SelectItem>
+                      <SelectItem value="email" className="cursor-pointer">{t("reminder.types.email")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("reminder.message")}</FieldLabel>
+                  <Textarea
+                    placeholder={t("reminder.messagePlaceholder")}
+                    rows={2}
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
