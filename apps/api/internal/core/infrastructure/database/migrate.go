@@ -188,6 +188,10 @@ func AutoMigrate() error {
 		&hrd.EmployeeEvaluationCriteria{},
 		// HRD Recruitment entities (Sprint 15)
 		&hrd.RecruitmentRequest{},
+		// HRD Recruitment Applicant entities
+		&hrd.RecruitmentApplicant{},
+		&hrd.ApplicantStage{},
+		&hrd.ApplicantActivity{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
@@ -357,6 +361,9 @@ func createSearchIndexes() error {
 		// HRD recruitment search indexes (Sprint 15)
 		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_code_gin ON recruitment_requests USING gin (request_code gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_desc_gin ON recruitment_requests USING gin (job_description gin_trgm_ops)",
+		// HRD recruitment applicant search indexes
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_applicants_name_gin ON recruitment_applicants USING gin (full_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_applicants_email_gin ON recruitment_applicants USING gin (email gin_trgm_ops)",
 	}
 
 	for _, idx := range indexes {

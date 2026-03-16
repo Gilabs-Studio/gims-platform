@@ -32,6 +32,9 @@ export const recruitmentId = {
       workflow: "Alur Kerja",
     },
 
+    // Detail Page
+    detailInfo: "Detail Informasi",
+
     // Page
     title: "Permintaan Rekrutmen",
     subtitle: "Kelola permintaan rekrutmen dan lacak progres perekrutan",
@@ -74,6 +77,7 @@ export const recruitmentId = {
     requiredCount: "Jumlah Dibutuhkan",
     filledCount: "Jumlah Terisi",
     openPositions: "Posisi Terbuka",
+    progressLabel: "Progres",
     expectedStartDate: "Tanggal Mulai Diharapkan",
     salaryRange: "Rentang Gaji",
     salaryRangeMin: "Gaji Minimum",
@@ -123,6 +127,17 @@ export const recruitmentId = {
       workflow: "Alur Kerja",
     },
 
+    // Views
+    views: {
+      card: "Kartu",
+      list: "Daftar",
+    },
+
+    // Card
+    card: {
+      clickToView: "Klik untuk melihat detail",
+    },
+
     // Validation
     validation: {
       required: "Kolom ini wajib diisi",
@@ -132,6 +147,96 @@ export const recruitmentId = {
       mustBeInteger: "Harus berupa bilangan bulat",
       salaryMin: "Gaji tidak boleh negatif",
       maxLength: "Panjang maksimum terlampaui",
+      invalidEmail: "Alamat email tidak valid",
+      invalidUrl: "URL tidak valid",
+    },
+
+    // Tabs
+    tabs: {
+      general: "Umum",
+      requirements: "Persyaratan",
+      workflow: "Alur Kerja",
+      info: "Informasi",
+      applicants: "Pelamar",
+    },
+
+    // Navigation
+    backToList: "Kembali ke Daftar",
+    requestNotFound: "Permintaan rekrutmen yang diminta tidak ditemukan",
+
+    // Applicants
+    applicants: {
+      title: "Pelamar",
+      add: "Tambah Pelamar",
+      edit: "Ubah Pelamar",
+      delete: "Hapus Pelamar",
+      detail: "Detail Pelamar",
+      empty: "Tidak ada pelamar di tahap ini",
+      noStages: "Tidak ada tahapan pipeline yang dikonfigurasi",
+      singular: "Pelamar",
+      dragHelp: "Seret pelamar untuk memindahkan antar tahapan",
+      noResume: "Tidak ada CV",
+      contactInfo: "Informasi Kontak",
+      applicationDetails: "Detail Lamaran",
+      activityHistory: "Riwayat Aktivitas",
+      noActivities: "Belum ada aktivitas yang tercatat",
+      viewResume: "Lihat Resume",
+      appliedAt: "Melamar",
+      addDescription: "Tambahkan pelamar baru ke permintaan rekrutmen ini",
+      editDescription: "Perbarui informasi pelamar",
+      deleteDesc: "Apakah Anda yakin ingin menghapus pelamar ini? Tindakan ini tidak dapat dibatalkan.",
+      created: "Pelamar berhasil ditambahkan",
+      updated: "Pelamar berhasil diperbarui",
+      deleted: "Pelamar berhasil dihapus",
+
+      fields: {
+        fullName: "Nama Lengkap",
+        email: "Email",
+        phone: "Telepon",
+        resume: "URL Resume/CV",
+        source: "Sumber",
+        rating: "Penilaian",
+        appliedAt: "Tanggal Melamar",
+        stage: "Tahapan",
+        notes: "Catatan",
+      },
+
+      placeholders: {
+        fullName: "Masukkan nama lengkap",
+        email: "Masukkan alamat email",
+        phone: "Masukkan nomor telepon",
+        resume: "https://example.com/cv.pdf",
+        notes: "Tambahkan catatan tentang pelamar...",
+      },
+
+      sources: {
+        linkedin: "LinkedIn",
+        jobstreet: "JobStreet",
+        glints: "Glints",
+        referral: "Referral",
+        direct: "Lamaran Langsung",
+        other: "Lainnya",
+      },
+
+      actions: {
+        moveStage: "Pindah Tahapan",
+        scheduleInterview: "Jadwalkan Wawancara",
+        sendOffer: "Kirim Penawaran",
+        hire: "Rekrut",
+        reject: "Tolak",
+      },
+
+      moveStage: {
+        title: "Pindahkan Pelamar",
+        description: "Pindahkan {name} ke {stage}?",
+        fromStage: "Tahapan Saat Ini",
+        toStage: "Tahapan Tujuan",
+        reason: "Alasan",
+        reasonPlaceholder: "Masukkan alasan perpindahan tahapan (wajib untuk penolakan)...",
+        notes: "Catatan Tambahan",
+        notesPlaceholder: "Tambahkan catatan tambahan...",
+        confirm: "Pindahkan Pelamar",
+      },
     },
   },
 };
