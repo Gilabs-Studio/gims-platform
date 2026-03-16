@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { InvoiceDetailModal } from "@/features/sales/invoice/components/invoice-detail-modal";
 import type { CustomerInvoice } from "@/features/sales/invoice/types";
+import { formatDate } from "@/lib/utils";
 import type { InvoiceRow } from "../types";
 
 interface RecentInvoicesWidgetProps {
@@ -26,6 +27,11 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
   const invoices = data ?? [];
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const canViewInvoice = useHasPermission("customer_invoice.read");
+
+  const formatIssueDate = (value?: string | null) => {
+    if (!value) return "-";
+    return formatDate(value) || value;
+  };
 
   return (
     <>
@@ -53,12 +59,12 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
               >
                 <div className="min-w-0 flex-1">
                   <p className={"truncate text-sm font-medium" + (canViewInvoice ? " text-primary" : "")}>{inv.company}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {inv.contact} &middot; {inv.issue_date}
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {inv.contact} &middot; {formatIssueDate(inv.issue_date)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">
+                  <span className="text-sm font-mono tabular-nums font-semibold">
                     {inv.value_formatted}
                   </span>
                   <Badge variant={STATUS_VARIANT[inv.status] ?? "warning"}>

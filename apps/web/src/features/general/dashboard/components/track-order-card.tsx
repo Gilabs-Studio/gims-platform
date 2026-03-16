@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
+import { formatDate } from "@/lib/utils";
 import type { DeliveryStatusData, InvoiceRow } from "../types";
 
 type InvoiceStatus = "unpaid" | "paid" | "overdue";
@@ -100,6 +101,11 @@ export function TrackOrderCard({
       inv.id.toLowerCase().includes(filter.toLowerCase()),
   );
 
+  const formatIssueDate = (value?: string | null) => {
+    if (!value) return "-";
+    return formatDate(value) || value;
+  };
+
   return (
     <>
       <Card className="h-full">
@@ -122,7 +128,7 @@ export function TrackOrderCard({
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {counters.map((counter) => (
             <div key={counter.key} className="space-y-2">
-              <div className="text-2xl font-bold lg:text-3xl">
+              <div className="text-2xl font-bold tabular-nums lg:text-3xl">
                 {isLoading ? (
                   <div className="h-7 w-12 animate-pulse rounded bg-muted" />
                 ) : (
@@ -222,10 +228,10 @@ export function TrackOrderCard({
                                 <span className="text-sm font-medium">{inv.company}</span>
                               )}
                             </td>
-                            <td className="p-4 whitespace-nowrap text-muted-foreground">
-                              {inv.issue_date}
+                            <td className="p-4 whitespace-nowrap text-muted-foreground tabular-nums">
+                              {formatIssueDate(inv.issue_date)}
                             </td>
-                            <td className="p-4 whitespace-nowrap font-medium">
+                            <td className="p-4 whitespace-nowrap font-mono tabular-nums font-semibold">
                               {inv.value_formatted}
                             </td>
                             <td className="p-4 whitespace-nowrap">
