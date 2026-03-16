@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -127,11 +127,6 @@ export function AttendanceList() {
   // Calendar state
   const calendar = useAttendanceCalendar();
 
-  // Reset day-view pagination when selected date changes
-  useEffect(() => {
-    setDayPage(1);
-  }, [calendar.selectedDate]);
-
   const handleDelete = async () => {
     if (deletingId) {
       try {
@@ -245,6 +240,59 @@ export function AttendanceList() {
 
   const tCommon = useTranslations("common");
 
+  const monthOverview = useMemo(() => {
+    return calendar.events.reduce(
+      (acc, event) => {
+        switch (event.status) {
+          case "PRESENT":
+          case "WFH":
+            acc.present += 1;
+            break;
+          case "ABSENT":
+            acc.absent += 1;
+            break;
+          case "LATE":
+            acc.late += 1;
+            break;
+          case "LEAVE":
+            acc.leave += 1;
+            break;
+          default:
+            break;
+        }
+        return acc;
+      },
+      { present: 0, absent: 0, late: 0, leave: 0 }
+    );
+  }, [calendar.events]);
+
+  const selectedDaySummary = useMemo(() => {
+    if (!calendar.selectedDate) {
+      return null;
+    }
+
+    const key = calendar.selectedDate.toISOString().slice(0, 10);
+    const dayEvents = calendar.events.filter(
+      (event) => event.date.toISOString().slice(0, 10) === key
+    );
+
+    const summary = dayEvents.reduce(
+      (acc, event) => {
+        if (event.status === "PRESENT" || event.status === "WFH") {
+          acc.present += 1;
+        } else if (event.status === "ABSENT") {
+          acc.absent += 1;
+        } else if (event.status === "LATE") {
+          acc.late += 1;
+        }
+        return acc;
+      },
+      { total: dayEvents.length, present: 0, absent: 0, late: 0 }
+    );
+
+    return summary;
+  }, [calendar.events, calendar.selectedDate]);
+
   if (viewMode === "list" && isListError) {
     return (
       <Card>
@@ -257,35 +305,67 @@ export function AttendanceList() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header with View Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("description")}</p>
+    <div className="space-y-5">
+      <div className="rounded-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("description")}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="cursor-pointer"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {t("calendarView")}
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="cursor-pointer"
+            >
+              <ListIcon className="mr-2 h-4 w-4" />
+              {t("listView")}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="cursor-pointer"
-          >
-            <ListIcon className="h-4 w-4 mr-2" /> {t("listView")}
-          </Button>
-          <Button
-            variant={viewMode === "calendar" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("calendar")}
-            className="cursor-pointer"
-          >
-            <CalendarIcon className="h-4 w-4 mr-2" /> {t("calendarView")}
-          </Button>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Present / WFH</p>
+            <p className="mt-1 text-xl font-semibold text-success">{monthOverview.present}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Late</p>
+            <p className="mt-1 text-xl font-semibold text-warning">{monthOverview.late}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Absent</p>
+            <p className="mt-1 text-xl font-semibold text-destructive">{monthOverview.absent}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Leave</p>
+            <p className="mt-1 text-xl font-semibold text-primary">{monthOverview.leave}</p>
+          </div>
         </div>
+
+        {selectedDaySummary && (
+          <div className="mt-3 rounded-lg border border-border bg-background px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+              <span>Total: <span className="font-semibold text-foreground">{selectedDaySummary.total}</span></span>
+              <span>Present: <span className="font-semibold text-success">{selectedDaySummary.present}</span></span>
+              <span>Late: <span className="font-semibold text-warning">{selectedDaySummary.late}</span></span>
+              <span>Absent: <span className="font-semibold text-destructive">{selectedDaySummary.absent}</span></span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         {viewMode === "list" && (
           <>
             <div className="relative flex-1 min-w-[300px] max-w-sm">
@@ -504,7 +584,7 @@ export function AttendanceList() {
           )}
         </>
       ) : (
-        <div className="overflow-hidden">
+        <div>
           {calendar.selectedDate ? (
             <AttendanceDayView
               selectedDate={calendar.selectedDate}
@@ -528,7 +608,10 @@ export function AttendanceList() {
               onPreviousMonth={calendar.handlePreviousMonth}
               onNextMonth={calendar.handleNextMonth}
               onToday={calendar.handleToday}
-              onDateClick={calendar.handleDateClick}
+              onDateClick={(date) => {
+                setDayPage(1);
+                calendar.handleDateClick(date);
+              }}
             />
           )}
         </div>

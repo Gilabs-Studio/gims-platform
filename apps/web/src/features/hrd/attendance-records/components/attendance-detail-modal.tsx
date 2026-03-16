@@ -7,14 +7,14 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  MapPin,
+  
   User,
   FileText,
   CalendarIcon,
   Home,
   Coffee,
   Briefcase,
-  Globe,
+  
   Shield,
   AlertCircle,
 } from "lucide-react";

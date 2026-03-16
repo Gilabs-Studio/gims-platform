@@ -77,6 +77,10 @@ export const hrdEn = {
       calendarView: "Calendar View",
       noRecords: "No attendance records found",
       noRecordsDesc: "No attendance records match the current filters",
+      calendar: {
+        workDay: "Work Day",
+        nonWorkDay: "Non-Work Day",
+      },
 
       // Status
       status: {

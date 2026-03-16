@@ -77,6 +77,10 @@ export const hrdId = {
       calendarView: "Tampilan Kalender",
       noRecords: "Tidak ada catatan kehadiran",
       noRecordsDesc: "Tidak ada catatan kehadiran yang sesuai dengan filter saat ini",
+      calendar: {
+        workDay: "Hari Kerja",
+        nonWorkDay: "Bukan Hari Kerja",
+      },
 
       // Status
       status: {

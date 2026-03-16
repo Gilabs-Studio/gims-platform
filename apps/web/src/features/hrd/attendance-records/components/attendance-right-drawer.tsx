@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Sheet,
@@ -29,13 +28,6 @@ export function AttendanceRightDrawer({
   openCreateLeaveSignal,
 }: AttendanceRightDrawerProps) {
   const t = useTranslations("hrd.attendance");
-  const [activeTab, setActiveTab] = useState<AttendanceDrawerTab>(initialTab);
-
-  useEffect(() => {
-    if (open) {
-      setActiveTab(initialTab);
-    }
-  }, [open, initialTab]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -46,8 +38,8 @@ export function AttendanceRightDrawer({
         </SheetHeader>
 
         <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as AttendanceDrawerTab)}
+          key={`${open}-${initialTab}`}
+          defaultValue={initialTab}
           className="mt-2"
         >
           <TabsList className="w-full">
