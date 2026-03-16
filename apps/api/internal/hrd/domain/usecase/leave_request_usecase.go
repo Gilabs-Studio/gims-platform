@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	"gorm.io/gorm"
 )
 
 // LeaveRequestUsecase defines business logic for leave request operations
@@ -46,9 +48,13 @@ type LeaveRequestUsecase interface {
 	CancelSelf(ctx context.Context, id string, req *dto.CancelLeaveRequestDTO, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error)
 	GetSelfBalance(ctx context.Context, currentUserID string) (*dto.LeaveBalanceResponseDTO, error)
 	GetSelfFormData(ctx context.Context, currentUserID string) (*dto.FormDataResponseDTO, error)
+
+	// Audit trail
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.LeaveRequestAuditTrailEntry, int64, error)
 }
 
 type leaveRequestUsecase struct {
+	db                   *gorm.DB
 	leaveRequestRepo     repositories.LeaveRequestRepository
 	attendanceRecordRepo repositories.AttendanceRecordRepository
 	employeeRepo         orgRepos.EmployeeRepository
@@ -57,8 +63,21 @@ type leaveRequestUsecase struct {
 	mapper               *mapper.LeaveRequestMapper
 }
 
+type leaveRequestAuditRow struct {
+	ID             string    `gorm:"column:id"`
+	ActorID        string    `gorm:"column:actor_id"`
+	PermissionCode string    `gorm:"column:permission_code"`
+	TargetID       string    `gorm:"column:target_id"`
+	Action         string    `gorm:"column:action"`
+	Metadata       string    `gorm:"column:metadata"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	ActorEmail     *string   `gorm:"column:actor_email"`
+	ActorName      *string   `gorm:"column:actor_name"`
+}
+
 // NewLeaveRequestUsecase creates a new instance of LeaveRequestUsecase
 func NewLeaveRequestUsecase(
+	db *gorm.DB,
 	leaveRequestRepo repositories.LeaveRequestRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 	leaveTypeRepo coreRepos.LeaveTypeRepository,
@@ -66,6 +85,7 @@ func NewLeaveRequestUsecase(
 	attendanceRecordRepo repositories.AttendanceRecordRepository,
 ) LeaveRequestUsecase {
 	return &leaveRequestUsecase{
+		db:                   db,
 		leaveRequestRepo:     leaveRequestRepo,
 		attendanceRecordRepo: attendanceRecordRepo,
 		employeeRepo:         employeeRepo,
@@ -997,4 +1017,85 @@ func (u *leaveRequestUsecase) createLeaveAttendanceRecords(ctx context.Context, 
 	}
 
 	return nil
+}
+
+func (u *leaveRequestUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.LeaveRequestAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, fmt.Errorf("db is nil")
+	}
+	page, perPage = normalizeLeaveRequestAuditPagination(page, perPage)
+
+	tx := u.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
+		Where("audit_logs.target_id = ?", id).
+		Where("audit_logs.permission_code LIKE ?", "leave_request.%")
+
+	var total int64
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	rows := make([]leaveRequestAuditRow, 0)
+	if err := tx.
+		Select("audit_logs.id, audit_logs.actor_id, audit_logs.permission_code, audit_logs.target_id, audit_logs.action, audit_logs.metadata, audit_logs.created_at, users.email as actor_email, users.name as actor_name").
+		Joins("LEFT JOIN users ON users.id = audit_logs.actor_id").
+		Order("audit_logs.created_at DESC").
+		Limit(perPage).
+		Offset((page - 1) * perPage).
+		Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return mapLeaveRequestAuditEntries(rows), total, nil
+}
+
+func normalizeLeaveRequestAuditPagination(page, perPage int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	return page, perPage
+}
+
+func mapLeaveRequestAuditEntries(rows []leaveRequestAuditRow) []dto.LeaveRequestAuditTrailEntry {
+	entries := make([]dto.LeaveRequestAuditTrailEntry, 0, len(rows))
+	for _, row := range rows {
+		entries = append(entries, dto.LeaveRequestAuditTrailEntry{
+			ID:             row.ID,
+			Action:         row.Action,
+			PermissionCode: row.PermissionCode,
+			TargetID:       row.TargetID,
+			Metadata:       parseLeaveRequestAuditMetadata(row.Metadata),
+			User:           buildLeaveRequestAuditUser(row),
+			CreatedAt:      row.CreatedAt,
+		})
+	}
+	return entries
+}
+
+func parseLeaveRequestAuditMetadata(raw string) map[string]interface{} {
+	meta := map[string]interface{}{}
+	if strings.TrimSpace(raw) != "" {
+		_ = json.Unmarshal([]byte(raw), &meta)
+	}
+	return meta
+}
+
+func buildLeaveRequestAuditUser(row leaveRequestAuditRow) *dto.LeaveRequestAuditTrailUser {
+	if row.ActorID == "" {
+		return nil
+	}
+	email := ""
+	name := ""
+	if row.ActorEmail != nil {
+		email = *row.ActorEmail
+	}
+	if row.ActorName != nil {
+		name = *row.ActorName
+	}
+	return &dto.LeaveRequestAuditTrailUser{ID: row.ActorID, Email: email, Name: name}
 }
