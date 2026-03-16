@@ -5,8 +5,6 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { LeadGenerateSource } from "../types";
 
-import googleMapsWorkflow from "../n8n/google-maps-workflow.json";
-import linkedinWorkflow from "../n8n/linkedin-workflow.json";
 import universalWorkflow from "../n8n/universal-workflow.json";
 
 interface GenerateLeadsState {
@@ -21,8 +19,8 @@ interface GenerateLeadsState {
 }
 
 const WORKFLOW_MAP = {
-  google_maps: googleMapsWorkflow,
-  linkedin: linkedinWorkflow,
+  google_maps: universalWorkflow,
+  linkedin: universalWorkflow,
   universal: universalWorkflow,
 } as const;
 
