@@ -1,74 +1,193 @@
 "use client";
 
+import { useMemo } from "react";
 import { format } from "date-fns";
-import { ArrowLeft, Clock, User, Edit } from "lucide-react";
+import { ArrowLeft, Clock, Edit, Eye, Home, CheckCircle2, XCircle, Coffee, CalendarIcon } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import type { CalendarEvent } from "../types";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAttendanceRecords } from "../hooks/use-attendance-records";
+import type { AttendanceRecord } from "../types";
 
 interface AttendanceDayViewProps {
   readonly selectedDate: Date;
-  readonly events: readonly CalendarEvent[];
   readonly onBack: () => void;
-  readonly onEventClick: (event: CalendarEvent) => void;
-  readonly onEdit?: (event: CalendarEvent) => void;
+  readonly onView: (record: AttendanceRecord) => void;
+  readonly onEdit?: (record: AttendanceRecord) => void;
   readonly canEdit?: boolean;
+  readonly page: number;
+  readonly perPage: number;
+  readonly onPageChange: (page: number) => void;
+  readonly onPerPageChange: (perPage: number) => void;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  PRESENT: {
-    label: "Present",
-    className: "bg-success/10 text-success border-emerald-500/20",
-  },
-  LATE: {
-    label: "Late",
-    className: "bg-warning/10 text-warning border-amber-500/20",
-  },
-  ABSENT: {
-    label: "Absent",
-    className: "bg-destructive/10 text-destructive border-red-500/20",
-  },
-  LEAVE: {
-    label: "Leave",
-    className: "bg-primary/10 text-primary border-blue-500/20",
-  },
-  HALF_DAY: {
-    label: "Half Day",
-    className: "bg-purple text-accent border-purple",
-  },
-  EARLY_LEAVE: {
-    label: "Early Leave",
-    className: "bg-warning/10 text-warning border-orange-500/20",
-  },
-  HOLIDAY: {
-    label: "Holiday",
-    className: "bg-successteal text-success border-teal-500/20",
-  },
-  WFH: {
-    label: "Work From Home",
-    className: "bg-cyan text-accent border-cyan-500/20",
-  },
-  OFF_DAY: {
-    label: "Off Day",
-    className: "bg-mutedgray text-muted-foreground border-gray-500/20",
-  },
-};
+function formatTime(value: string | null | undefined) {
+  if (!value) return "-";
+  const part = value.split(" ")[1] ?? value;
+  return part.substring(0, 8);
+}
+
+function getStatusBadge(t: ReturnType<typeof useTranslations>, status: AttendanceRecord["status"]) {
+  const label = t(`status.${status}`) ?? status;
+
+  switch (status) {
+    case "PRESENT":
+      return (
+        <Badge variant="success">
+          <CheckCircle2 className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "LATE":
+      return (
+        <Badge variant="warning">
+          <Clock className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "ABSENT":
+      return (
+        <Badge variant="destructive">
+          <XCircle className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "HALF_DAY":
+      return (
+        <Badge variant="secondary">
+          <Coffee className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "HOLIDAY":
+      return (
+        <Badge variant="info">
+          <CalendarIcon className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "LEAVE":
+      return (
+        <Badge variant="outline">
+          <CalendarIcon className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "WFH":
+      return (
+        <Badge variant="info">
+          <Home className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    case "OFF_DAY":
+      return (
+        <Badge variant="secondary">
+          <Coffee className="h-3 w-3 mr-1" /> {label}
+        </Badge>
+      );
+    default:
+      return <Badge>{label}</Badge>;
+  }
+}
 
 export function AttendanceDayView({
   selectedDate,
-  events,
   onBack,
-  onEventClick,
+  onView,
   onEdit,
   canEdit = false,
+  page,
+  perPage,
+  onPageChange,
+  onPerPageChange,
 }: AttendanceDayViewProps) {
+  const t = useTranslations("hrd.attendance");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
+
+  const dateKey = format(selectedDate, "yyyy-MM-dd");
+
+  const { data, isLoading, isError } = useAttendanceRecords({
+    date_from: dateKey,
+    date_to: dateKey,
+    page,
+    per_page: perPage,
+  });
+
+  const records = data?.data ?? [];
+  const rawPagination = data?.meta?.pagination;
+  const pagination = rawPagination
+    ? {
+        ...rawPagination,
+        has_next: rawPagination.page < rawPagination.total_pages,
+        has_prev: rawPagination.page > 1,
+      }
+    : undefined;
+
+  const columns = useMemo<Column<AttendanceRecord>[]>(
+    () => [
+      {
+        id: "employee",
+        header: t("fields.employee"),
+        accessor: (row) => (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback dataSeed={row.employee_name}>
+                {row.employee_name}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">
+                {row.employee_name}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {row.employee_code}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "checkIn",
+        header: t("fields.checkInTime"),
+        accessor: (row) => <span className="font-medium">{formatTime(row.check_in_time)}</span>,
+      },
+      {
+        id: "checkOut",
+        header: t("fields.checkOutTime"),
+        accessor: (row) => <span className="font-medium">{formatTime(row.check_out_time)}</span>,
+      },
+      {
+        id: "overtime",
+        header: t("fields.overtimeHours"),
+        accessor: (row) => <span className="font-medium">{row.overtime_hours || "-"}</span>,
+      },
+      {
+        id: "status",
+        header: t("fields.status"),
+        accessor: (row) => getStatusBadge(t, row.status),
+      },
+      {
+        id: "actions",
+        header: "",
+        accessor: () => null,
+        actions: [
+          {
+            label: t("actions.viewDetails"),
+            icon: <Eye className="h-4 w-4" />,
+            onClick: (row) => onView(row),
+          },
+          {
+            label: t("actions.edit"),
+            icon: <Edit className="h-4 w-4" />,
+            onClick: (row) => onEdit?.(row),
+            show: canEdit,
+          },
+        ],
+      },
+    ],
+    [canEdit, onEdit, onView, t]
+  );
+
   return (
     <div className="flex h-full flex-col">
-      {/* Day View Header */}
       <div className="flex items-center border-b border-border bg-card px-6 py-4">
         <div className="flex items-center gap-4">
           <Button
@@ -81,129 +200,51 @@ export function AttendanceDayView({
           </Button>
           <div>
             <h2 className="text-2xl font-bold tracking-tight">
-              {format(selectedDate, "EEEE, MMMM d, yyyy")}
+              {new Date(selectedDate).toLocaleDateString(locale, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {events.length} attendance record{events.length !== 1 ? "s" : ""}
+              {t("fields.date")}: {dateKey}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Events List */}
-      <ScrollArea className="flex-1">
-        <div>
-          {events.length === 0 ? (
-            <Card className="flex flex-col items-center justify-center p-12">
-              <div className="rounded-full bg-muted p-4">
-                <Clock className="h-8 w-8 text-muted-foreground" />
+      <div className="flex-1 overflow-x-auto">
+        {isError ? (
+          <div className="rounded-lg border border-border bg-card p-6 text-center">
+            <p className="text-destructive">{tCommon("somethingWentWrong")}</p>
+          </div>
+        ) : (
+          <>
+            <DataTable
+              columns={columns}
+              data={records}
+              isLoading={isLoading}
+              emptyMessage={t("noRecords")}
+              outerClassName="!border-none !rounded-none"
+            />
+            {pagination && (
+              <div className="mt-4">
+                <DataTablePagination
+                  pageIndex={pagination.page}
+                  pageSize={pagination.per_page}
+                  rowCount={pagination.total}
+                  onPageChange={onPageChange}
+                  onPageSizeChange={(newPerPage: number) => {
+                    onPerPageChange(newPerPage);
+                    onPageChange(1);
+                  }}
+                />
               </div>
-              <h3 className="mt-4 text-lg font-semibold">No Records</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                No attendance records for this date
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {events.map((event) => {
-                const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.PRESENT;
-
-                return (
-                  <Card
-                    key={event.id}
-                    className="group cursor-pointer overflow-hidden transition-all hover:shadow-md"
-                    onClick={() => onEventClick(event)}
-                  >
-                    <div className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-3">
-                          {/* Employee & Status */}
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                              <User className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-semibold">{event.employeeName}</p>
-                              <Badge
-                                variant="outline"
-                                className={cn("mt-1 text-xs font-medium", statusConfig.className)}
-                              >
-                                {statusConfig.label}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          <Separator />
-
-                          {/* Time Info */}
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                  Check In
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {event.checkInTime || "—"}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                  Check Out
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {event.checkOutTime || "—"}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Note */}
-                          {event.notes && (
-                            <>
-                              <Separator />
-                              <div>
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                  Note
-                                </p>
-                                <p className="mt-1 text-sm leading-relaxed">
-                                  {event.notes}
-                                </p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Hover Actions: View detail on card click, Edit via button */}
-                        <div className="ml-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                          {canEdit && onEdit && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEdit(event);
-                              }}
-                              title="Edit attendance"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
