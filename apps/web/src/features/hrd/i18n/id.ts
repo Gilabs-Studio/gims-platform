@@ -120,6 +120,8 @@ export const hrdId = {
         checkInType: "Tipe Absen Masuk",
         status: "Status",
         lateMinutes: "Terlambat (menit)",
+        schedule: "Jadwal",
+        paidTime: "Waktu Dibayar",
         workingMinutes: "Waktu Kerja",
         workingHours: "Jam Kerja",
         overtimeMinutes: "Lembur",
@@ -219,6 +221,8 @@ export const hrdId = {
 
       // Stats
       stats: {
+        totalRecords: "Total Rekaman",
+        totalRecordsDescription: "Total entri absensi untuk periode saat ini",
         totalWorkingDays: "Hari Kerja",
         presentDays: "Hadir",
         absentDays: "Tidak Hadir",
@@ -226,8 +230,11 @@ export const hrdId = {
         leaveDays: "Cuti",
         halfDays: "Setengah Hari",
         totalWorkingHours: "Jam Kerja",
+        totalWorkingHoursDescription: "Total jam kerja dari semua catatan absensi",
         totalOvertimeHours: "Jam Lembur",
+        totalOvertimeDescription: "Total jam lembur dari semua catatan",
         totalLateMinutes: "Menit Terlambat",
+        totalLateDescription: "Total menit terlambat dari semua catatan",
         attendanceRate: "Tingkat Kehadiran",
       },
 

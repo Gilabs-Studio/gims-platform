@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type EvaluationGroupHandler struct {
@@ -107,6 +108,50 @@ func (h *EvaluationGroupHandler) Delete(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, gin.H{"message": "Evaluation group deleted successfully"}, nil)
+}
+
+// AuditTrail retrieves paginated audit trail rows for an evaluation group.
+// GET /hrd/evaluation-groups/:id/audit-trail
+func (h *EvaluationGroupHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	items, total, err := h.usecase.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	totalPages := int(total) / perPage
+	if int(total)%perPage > 0 {
+		totalPages++
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	meta.Pagination.TotalPages = totalPages
+	meta.Pagination.HasNext = page < totalPages
+	meta.Pagination.HasPrev = page > 1
+
+	response.SuccessResponse(c, items, meta)
 }
 
 // handleEvaluationGroupError handles errors and returns appropriate HTTP responses

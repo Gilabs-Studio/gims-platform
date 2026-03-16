@@ -157,3 +157,21 @@ type EvaluationStatusOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
+
+// EvaluationAuditTrailUser represents actor info in audit trail rows.
+type EvaluationAuditTrailUser struct {
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// EvaluationAuditTrailEntry represents one audit trail entry for evaluation resources.
+type EvaluationAuditTrailEntry struct {
+	ID             string                    `json:"id"`
+	Action         string                    `json:"action"`
+	PermissionCode string                    `json:"permission_code"`
+	TargetID       string                    `json:"target_id"`
+	Metadata       map[string]interface{}    `json:"metadata"`
+	User           *EvaluationAuditTrailUser `json:"user,omitempty"`
+	CreatedAt      time.Time                 `json:"created_at"`
+}
