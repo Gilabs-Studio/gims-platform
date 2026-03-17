@@ -141,6 +141,12 @@ func AutoMigrate() error {
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		// Asset Maintenance entities
+		&finance.AssetMaintenanceSchedule{},
+		&finance.AssetWorkOrder{},
+		&finance.AssetSparePart{},
+		&finance.AssetSparePartLink{},
+		&finance.WorkOrderSparePart{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},

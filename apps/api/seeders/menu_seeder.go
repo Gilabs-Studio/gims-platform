@@ -425,7 +425,8 @@ func SeedMenus() error {
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 14},
+		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
 		{"Salary", "dollar-sign", "/finance/salary", 15},
 	}
 	for _, child := range financeChildren {

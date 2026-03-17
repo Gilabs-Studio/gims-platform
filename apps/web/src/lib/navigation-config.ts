@@ -494,6 +494,12 @@ export const navigationConfig: NavItem[] = [
             icon: "wallet",
             permission: "asset_budget.read",
           },
+          {
+            name: "Asset Maintenance",
+            url: "/finance/asset-maintenance",
+            icon: "wrench",
+            permission: "asset_maintenance.read",
+          },
         ],
       },
       {

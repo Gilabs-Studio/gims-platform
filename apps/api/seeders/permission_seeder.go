@@ -414,6 +414,13 @@ func SeedPermissions() error {
 		{"/finance/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
 		{"/finance/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
 
+		// Asset Maintenance
+		{"/finance/asset-maintenance", "asset_maintenance.read", "View Asset Maintenance", "VIEW", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.create", "Create Asset Maintenance", "CREATE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.update", "Edit Asset Maintenance", "EDIT", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
+
 		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},

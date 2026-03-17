@@ -75,8 +75,8 @@ export function MoveStageDialog({
           <DialogTitle>{t("applicants.moveStage.title")}</DialogTitle>
           <DialogDescription>
             {t("applicants.moveStage.description", {
-              name: applicant?.full_name,
-              stage: targetStage?.name,
+              name: applicant?.full_name || "",
+              stage: targetStage?.name || "",
             })}
           </DialogDescription>
         </DialogHeader>

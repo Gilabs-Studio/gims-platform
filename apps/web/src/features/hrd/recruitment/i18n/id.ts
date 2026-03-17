@@ -120,13 +120,6 @@ export const recruitmentId = {
       updateFilled: "Perbarui Jumlah Terisi",
     },
 
-    // Tabs
-    tabs: {
-      general: "Umum",
-      requirements: "Persyaratan",
-      workflow: "Alur Kerja",
-    },
-
     // Views
     views: {
       card: "Kartu",

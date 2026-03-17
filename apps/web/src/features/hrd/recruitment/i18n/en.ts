@@ -120,13 +120,6 @@ export const recruitmentEn = {
       updateFilled: "Update Filled Count",
     },
 
-    // Tabs
-    tabs: {
-      general: "General",
-      requirements: "Requirements",
-      workflow: "Workflow",
-    },
-
     // Views
     views: {
       card: "Card",
