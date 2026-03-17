@@ -125,6 +125,8 @@ export const recruitmentEn = {
       general: "General",
       requirements: "Requirements",
       workflow: "Workflow",
+      info: "Information",
+      applicants: "Applicants",
     },
 
     // Views
@@ -149,15 +151,6 @@ export const recruitmentEn = {
       maxLength: "Maximum length exceeded",
       invalidEmail: "Invalid email address",
       invalidUrl: "Invalid URL",
-    },
-
-    // Tabs
-    tabs: {
-      general: "General",
-      requirements: "Requirements",
-      workflow: "Workflow",
-      info: "Information",
-      applicants: "Applicants",
     },
 
     // Navigation

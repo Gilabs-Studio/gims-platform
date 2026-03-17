@@ -125,6 +125,8 @@ export const recruitmentId = {
       general: "Umum",
       requirements: "Persyaratan",
       workflow: "Alur Kerja",
+      info: "Informasi",
+      applicants: "Pelamar",
     },
 
     // Views
@@ -149,15 +151,6 @@ export const recruitmentId = {
       maxLength: "Panjang maksimum terlampaui",
       invalidEmail: "Alamat email tidak valid",
       invalidUrl: "URL tidak valid",
-    },
-
-    // Tabs
-    tabs: {
-      general: "Umum",
-      requirements: "Persyaratan",
-      workflow: "Alur Kerja",
-      info: "Informasi",
-      applicants: "Pelamar",
     },
 
     // Navigation
