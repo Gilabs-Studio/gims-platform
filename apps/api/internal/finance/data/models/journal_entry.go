@@ -10,8 +10,9 @@ import (
 type JournalStatus string
 
 const (
-	JournalStatusDraft  JournalStatus = "draft"
-	JournalStatusPosted JournalStatus = "posted"
+	JournalStatusDraft    JournalStatus = "draft"
+	JournalStatusPosted   JournalStatus = "posted"
+	JournalStatusReversed JournalStatus = "reversed"
 )
 
 type ReferenceType string

@@ -17,7 +17,7 @@ type CreateJournalEntryRequest struct {
 	EntryDate         string               `json:"entry_date" binding:"required"`
 	Description       string               `json:"description"`
 	ReferenceType     *string              `json:"reference_type"`
-	ReferenceID       *string              `json:"reference_id" binding:"omitempty,uuid"`
+	ReferenceID       *string              `json:"reference_id"`
 	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
 	IsSystemGenerated bool                 `json:"is_system_generated"`
 	SourceDocumentURL *string              `json:"source_document_url"`
@@ -27,7 +27,7 @@ type UpdateJournalEntryRequest struct {
 	EntryDate     string               `json:"entry_date" binding:"required"`
 	Description   string               `json:"description"`
 	ReferenceType *string              `json:"reference_type"`
-	ReferenceID   *string              `json:"reference_id" binding:"omitempty,uuid"`
+	ReferenceID   *string              `json:"reference_id"`
 	Lines         []JournalLineRequest `json:"lines" binding:"required,min=2"`
 }
 
@@ -46,7 +46,7 @@ type ListJournalEntriesRequest struct {
 	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search        string                       `form:"search"`
 	Domain        *string                      `form:"domain" binding:"omitempty,oneof=sales purchase inventory stock cash_bank finance adjustment valuation"`
-	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted"`
+	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted reversed"`
 	StartDate     *string                      `form:"start_date"`
 	EndDate       *string                      `form:"end_date"`
 	SortBy        string                       `form:"sort_by"`

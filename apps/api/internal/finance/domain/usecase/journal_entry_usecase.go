@@ -232,8 +232,11 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		}
 		return nil, err
 	}
-	if entry.Status == financeModels.JournalStatusPosted {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
 		return nil, ErrJournalPostedImmutable
+	}
+	if entry.IsSystemGenerated {
+		return nil, errors.New("system-generated journal entries cannot be modified")
 	}
 
 	entryDate, err := parseDate(req.EntryDate)
@@ -342,8 +345,11 @@ func (uc *journalEntryUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if entry.Status == financeModels.JournalStatusPosted {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
 		return ErrJournalPostedImmutable
+	}
+	if entry.IsSystemGenerated {
+		return errors.New("system-generated journal entries cannot be deleted")
 	}
 	return uc.db.WithContext(ctx).Delete(&financeModels.JournalEntry{}, "id = ?", id).Error
 }
@@ -471,7 +477,9 @@ func (uc *journalEntryUsecase) TrialBalance(ctx context.Context, startDate, endD
 		Table("journal_lines").
 		Select("journal_lines.chart_of_account_id as chart_of_account_id, COALESCE(SUM(journal_lines.debit),0) as debit_total, COALESCE(SUM(journal_lines.credit),0) as credit_total").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
-		Where("journal_entries.status = ?", financeModels.JournalStatusPosted)
+		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
+		Where("journal_entries.deleted_at IS NULL").
+		Where("journal_lines.deleted_at IS NULL")
 
 	if startDate != nil {
 		q = q.Where("journal_entries.entry_date >= ?", *startDate)
@@ -698,6 +706,13 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 	}
 	if err := uc.db.WithContext(ctx).Create(reversalMeta).Error; err != nil {
 		return nil, fmt.Errorf("failed to save reversal metadata: %w", err)
+	}
+
+	// Mark the original journal entry as 'reversed'
+	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+		Where("id = ?", entry.ID).
+		Update("status", financeModels.JournalStatusReversed).Error; err != nil {
+		log.Printf("warning: failed to mark original entry %s as reversed: %v", entry.ID, err)
 	}
 
 	return posted, nil
