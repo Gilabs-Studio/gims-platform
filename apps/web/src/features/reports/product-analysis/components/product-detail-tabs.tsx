@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Users, User, TrendingUp } from "lucide-react";
 import {
   ChartConfig,
   ChartContainer,
@@ -76,90 +77,91 @@ export function ProductDetailTabs({
 
   return (
     <Tabs defaultValue="customers" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="customers" className="cursor-pointer">
+      <TabsList className="relative inline-flex h-10 items-center justify-start gap-1 border-b border-border">
+        <TabsTrigger value="customers" className="inline-flex h-full items-center justify-start gap-2 px-3">
+          <Users className="h-4 w-4" />
           {t("tabCustomers")}
         </TabsTrigger>
-        <TabsTrigger value="salesReps" className="cursor-pointer">
+        <TabsTrigger value="salesReps" className="inline-flex h-full items-center justify-start gap-2 px-3">
+          <User className="h-4 w-4" />
           {t("tabSalesReps")}
         </TabsTrigger>
-        <TabsTrigger value="trend" className="cursor-pointer">
+        <TabsTrigger value="trend" className="inline-flex h-full items-center justify-start gap-2 px-3">
+          <TrendingUp className="h-4 w-4" />
           {t("tabTrend")}
         </TabsTrigger>
       </TabsList>
 
       {/* Customers Tab */}
       <TabsContent value="customers" className="mt-4">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("customerName")}</TableHead>
+              <TableHead>{t("customerType")}</TableHead>
+              <TableHead>{t("city")}</TableHead>
+              <TableHead className="text-right">{t("revenue")}</TableHead>
+              <TableHead className="text-right">{t("qty")}</TableHead>
+              <TableHead className="text-right">{t("orders")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {customersLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 6 }).map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : customers.length === 0 ? (
               <TableRow>
-                <TableHead>{t("customerName")}</TableHead>
-                <TableHead>{t("customerType")}</TableHead>
-                <TableHead>{t("city")}</TableHead>
-                <TableHead className="text-right">{t("revenue")}</TableHead>
-                <TableHead className="text-right">{t("qty")}</TableHead>
-                <TableHead className="text-right">{t("orders")}</TableHead>
+                <TableCell
+                  colSpan={6}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  {t("noData")}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customersLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : customers.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    {t("noData")}
+            ) : (
+              customers.map((c) => (
+                <TableRow key={c.customer_id}>
+                  <TableCell>
+                    <div>
+                      <span className="block font-medium">
+                        {c.customer_name}
+                      </span>
+                      {c.customer_code && (
+                        <span className="block text-xs text-muted-foreground">
+                          {c.customer_code}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {c.customer_type ? (
+                      <Badge variant="secondary">{c.customer_type}</Badge>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell>{c.city_name ?? "-"}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {c.total_revenue_formatted}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {c.total_qty.toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {c.total_orders}
                   </TableCell>
                 </TableRow>
-              ) : (
-                customers.map((c) => (
-                  <TableRow key={c.customer_id}>
-                    <TableCell>
-                      <div>
-                        <span className="block font-medium">
-                          {c.customer_name}
-                        </span>
-                        {c.customer_code && (
-                          <span className="block text-xs text-muted-foreground">
-                            {c.customer_code}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {c.customer_type ? (
-                        <Badge variant="secondary">{c.customer_type}</Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell>{c.city_name ?? "-"}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {c.total_revenue_formatted}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {c.total_qty.toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {c.total_orders}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
         {customerPagination && (
           <div className="mt-4">
             <DataTablePagination
@@ -179,79 +181,77 @@ export function ProductDetailTabs({
 
       {/* Sales Reps Tab */}
       <TabsContent value="salesReps" className="mt-4">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("salesRepName")}</TableHead>
+              <TableHead>{t("position")}</TableHead>
+              <TableHead className="text-right">{t("revenue")}</TableHead>
+              <TableHead className="text-right">{t("qty")}</TableHead>
+              <TableHead className="text-right">{t("orders")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {salesRepsLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-20" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : salesReps.length === 0 ? (
               <TableRow>
-                <TableHead>{t("salesRepName")}</TableHead>
-                <TableHead>{t("position")}</TableHead>
-                <TableHead className="text-right">{t("revenue")}</TableHead>
-                <TableHead className="text-right">{t("qty")}</TableHead>
-                <TableHead className="text-right">{t("orders")}</TableHead>
+                <TableCell
+                  colSpan={5}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  {t("noData")}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {salesRepsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 5 }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-20" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : salesReps.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    {t("noData")}
+            ) : (
+              salesReps.map((rep) => (
+                <TableRow key={rep.employee_id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage
+                          src={rep.avatar_url}
+                          alt={rep.name}
+                        />
+                        <AvatarFallback dataSeed={rep.name} />
+                      </Avatar>
+                      <div>
+                        <span className="block font-medium">{rep.name}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {rep.employee_code}
+                        </span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {rep.position_name ? (
+                      <Badge variant="outline">{rep.position_name}</Badge>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {rep.total_revenue_formatted}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {rep.total_qty.toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {rep.total_orders}
                   </TableCell>
                 </TableRow>
-              ) : (
-                salesReps.map((rep) => (
-                  <TableRow key={rep.employee_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={rep.avatar_url}
-                            alt={rep.name}
-                          />
-                          <AvatarFallback dataSeed={rep.name} />
-                        </Avatar>
-                        <div>
-                          <span className="block font-medium">{rep.name}</span>
-                          <span className="block text-xs text-muted-foreground">
-                            {rep.employee_code}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {rep.position_name ? (
-                        <Badge variant="outline">{rep.position_name}</Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {rep.total_revenue_formatted}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {rep.total_qty.toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {rep.total_orders}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
         {salesRepPagination && (
           <div className="mt-4">
             <DataTablePagination
