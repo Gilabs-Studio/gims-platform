@@ -271,12 +271,6 @@ export const navigationConfig: NavItem[] = [
         icon: "bar-chart-3",
         permission: "sales_payment.read",
       },
-      {
-        name: "Sales Target",
-        url: "/sales/targets",
-        icon: "check-square",
-        permission: "sales_target.read",
-      },
     ],
   },
   {
@@ -612,6 +606,12 @@ export const navigationConfig: NavItem[] = [
         url: "/crm/sales-performance",
         icon: "bar-chart-3",
         permission: "crm_sales_performance.read",
+      },
+      {
+        name: "Sales Target",
+        url: "/crm/targets",
+        icon: "check-square",
+        permission: "sales_target.read",
       },
       {
         name: "Product Analytics",
