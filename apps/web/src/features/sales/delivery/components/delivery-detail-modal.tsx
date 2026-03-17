@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate } from "@/lib/utils";
+import { formatDate, resolveImageUrl } from "@/lib/utils";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -421,7 +421,7 @@ export function DeliveryDetailModal({
                 )}
 
                 {/* Workflow History */}
-                {(displayDelivery.shipped_at || displayDelivery.delivered_at) && (
+                {(displayDelivery.shipped_at || displayDelivery.delivered_at || displayDelivery.receiver_signature) && (
                   <>
                     <Separator />
                     <div>
@@ -439,6 +439,26 @@ export function DeliveryDetailModal({
                               <TableRow>
                                 <TableCell className="font-medium bg-muted/50">{t("deliveredAt")}</TableCell>
                                 <TableCell>{new Date(displayDelivery.delivered_at).toLocaleString()}</TableCell>
+                              </TableRow>
+                            )}
+                            {displayDelivery.receiver_signature && (
+                              <TableRow>
+                                <TableCell className="font-medium bg-muted/50">{t("receiverSignature")}</TableCell>
+                                <TableCell>
+                                  <a
+                                    href={resolveImageUrl(displayDelivery.receiver_signature) ?? displayDelivery.receiver_signature}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex cursor-pointer flex-col gap-2"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={resolveImageUrl(displayDelivery.receiver_signature) ?? displayDelivery.receiver_signature}
+                                      alt={t("receiverSignature")}
+                                      className="h-28 w-28 rounded-md border object-cover"
+                                    />
+                                  </a>
+                                </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
