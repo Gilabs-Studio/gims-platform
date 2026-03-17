@@ -8,16 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// YearlyTargetStatus represents the status of a yearly sales target
-type YearlyTargetStatus string
-
-const (
-	YearlyTargetStatusDraft     YearlyTargetStatus = "draft"
-	YearlyTargetStatusSubmitted YearlyTargetStatus = "submitted"
-	YearlyTargetStatusApproved  YearlyTargetStatus = "approved"
-	YearlyTargetStatusRejected  YearlyTargetStatus = "rejected"
-)
-
 // YearlyTarget represents annual sales targets for a specific area
 type YearlyTarget struct {
 	ID    string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -27,18 +17,6 @@ type YearlyTarget struct {
 	Year   int    `gorm:"not null;index" json:"year"`
 	TotalTarget float64 `gorm:"type:decimal(20,2);not null" json:"total_target"`
 	Notes  string `gorm:"type:text" json:"notes"`
-	
-	// Status and workflow
-	Status YearlyTargetStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	
-	// Audit fields
-	SubmittedAt     *time.Time `json:"submitted_at"`
-	SubmittedBy     *string    `gorm:"type:uuid" json:"submitted_by"`
-	ApprovedAt      *time.Time `json:"approved_at"`
-	ApprovedBy      *string    `gorm:"type:uuid" json:"approved_by"`
-	RejectedAt      *time.Time `json:"rejected_at"`
-	RejectedBy      *string    `gorm:"type:uuid" json:"rejected_by"`
-	RejectionReason string     `gorm:"type:text" json:"rejection_reason"`
 	
 	// Timestamps
 	CreatedAt time.Time      `json:"created_at"`

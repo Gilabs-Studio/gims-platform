@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { 
   Select, 
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { 
-  MoreHorizontal, 
+  MoreHorizontal,
   Plus, 
   Search, 
   Pencil, 
@@ -38,19 +37,14 @@ import {
   Target, 
   TrendingUp, 
   BarChart3,
-  ArrowUpRight,
-  CheckCircle2,
-  XCircle,
-  FileText,
-  Clock,
-  Send
+  ArrowUpRight
 } from "lucide-react";
-import { useYearlyTargets, useDeleteYearlyTarget, useUpdateTargetStatus } from "../hooks/use-targets";
+import { useYearlyTargets, useDeleteYearlyTarget } from "../hooks/use-targets";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { TargetForm } from "./target-form";
 import { TargetDetailModal } from "./target-detail-modal";
-import type { YearlyTarget, YearlyTargetStatus } from "../types";
+import type { YearlyTarget } from "../types";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -63,7 +57,6 @@ export function TargetsList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState<YearlyTargetStatus | "all">("all");
   const [yearFilter, setYearFilter] = useState<string>(new Date().getFullYear().toString());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<YearlyTarget | null>(null);
@@ -74,7 +67,6 @@ export function TargetsList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
     year: yearFilter !== "all" ? parseInt(yearFilter) : undefined,
   });
 
@@ -84,7 +76,6 @@ export function TargetsList() {
   const canView = useUserPermission("sales_target.read");
 
   const deleteTarget = useDeleteYearlyTarget();
-  const updateStatus = useUpdateTargetStatus();
   const targets = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -114,23 +105,6 @@ export function TargetsList() {
     setEditingTarget(null);
   };
 
-  const handleStatusChange = async (
-    id: string,
-    status: YearlyTargetStatus,
-    rejectionReason?: string,
-  ) => {
-    try {
-      await updateStatus.mutateAsync({
-        id,
-        status,
-        rejection_reason: rejectionReason,
-      });
-      toast.success(t("statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
-    }
-  };
-
   // Helper calculation functions
   const calculateProgress = (actual: number, target: number) => {
     if (!target || target === 0) return 0;
@@ -142,41 +116,6 @@ export function TargetsList() {
     if (percent >= 80) return "bg-success";
     if (percent >= 50) return "bg-warning";
     return "bg-destructive";
-  };
-
-  const getStatusBadge = (status: YearlyTargetStatus) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="font-medium">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "submitted":
-        return (
-          <Badge variant="info" className="font-medium">
-            <Send className="h-3 w-3 mr-1" />
-            {t("status.submitted")}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.approved")}
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive" className="font-medium">
-            <XCircle className="h-3 w-3 mr-1" />
-            {t("status.rejected")}
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
   };
 
   // Overall stats
@@ -300,24 +239,6 @@ export function TargetsList() {
                  className="pl-9 bg-background"
                />
             </div>
-            <Select
-               value={statusFilter}
-               onValueChange={(v) => {
-                 setStatusFilter(v as YearlyTargetStatus | "all");
-                 setPage(1);
-               }}
-             >
-               <SelectTrigger className="w-[160px] bg-background">
-                 <SelectValue placeholder={t("common.filterBy")} />
-               </SelectTrigger>
-               <SelectContent>
-                 <SelectItem value="all">{t("common.allStatus")}</SelectItem>
-                 <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                 <SelectItem value="submitted">{t("status.submitted")}</SelectItem>
-                 <SelectItem value="approved">{t("status.approved")}</SelectItem>
-                 <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
-               </SelectContent>
-             </Select>
         </div>
 
         <div className="rounded-md border shadow-sm bg-card">
@@ -326,7 +247,6 @@ export function TargetsList() {
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                    <TableHead className="w-[100px]">{t("year")}</TableHead>
                    <TableHead>{t("areaRegion")}</TableHead>
-                   <TableHead className="w-[150px]">{t("common.status")}</TableHead>
                    <TableHead className="w-[250px] text-center">{t("progress")}</TableHead>
                    <TableHead className="text-right">{t("targetVsActual")}</TableHead>
                    <TableHead className="w-[70px]"></TableHead>
@@ -338,7 +258,6 @@ export function TargetsList() {
                       <TableRow key={i}>
                          <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
                          <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
-                         <TableCell><div className="h-6 w-20 bg-muted animate-pulse rounded-full" /></TableCell>
                          <TableCell><div className="h-2 w-full bg-muted animate-pulse rounded" /></TableCell>
                          <TableCell className="text-right"><div className="h-4 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
                          <TableCell />
@@ -346,7 +265,7 @@ export function TargetsList() {
                    ))
                 ) : targets.length === 0 ? (
                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                          <div className="flex flex-col items-center gap-2">
                             <Target className="h-8 w-8 text-muted-foreground/30" />
                             <p>{t("notFound")}</p>
@@ -367,7 +286,6 @@ export function TargetsList() {
                             <TableCell>
                                <span className="font-medium text-foreground">{target.area?.name}</span>
                             </TableCell>
-                            <TableCell>{getStatusBadge(target.status)}</TableCell>
                             <TableCell>
                                <div className="flex items-center gap-3">
                                   <Progress value={progress} className="h-2 flex-1" indicatorClassName={getProgressColor(progress)} />
@@ -395,19 +313,13 @@ export function TargetsList() {
                                               {t("common.view")}
                                            </DropdownMenuItem>
                                         )}
-                                        {canUpdate && target.status === 'draft' && (
+                                         {canUpdate && (
                                            <DropdownMenuItem onClick={() => handleEdit(target)} className="cursor-pointer">
                                               <Pencil className="h-4 w-4 mr-2" />
                                               {t("common.edit")}
                                            </DropdownMenuItem>
                                         )}
-                                        {canUpdate && target.status === 'draft' && (
-                                           <DropdownMenuItem onClick={() => handleStatusChange(target.id, 'submitted')} className="cursor-pointer text-primary focus:text-primary">
-                                              <Send className="h-4 w-4 mr-2" />
-                                              {t("status.submitted")}
-                                           </DropdownMenuItem>
-                                        )}
-                                        {canDelete && target.status === 'draft' && (
+                                         {canDelete && (
                                            <DropdownMenuItem onClick={() => setDeletingId(target.id)} className="cursor-pointer text-destructive focus:text-destructive">
                                               <Trash2 className="h-4 w-4 mr-2" />
                                               {t("common.delete")}

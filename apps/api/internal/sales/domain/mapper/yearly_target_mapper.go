@@ -26,8 +26,6 @@ func ToYearlyTargetResponse(m *salesModels.YearlyTarget) dto.YearlyTargetRespons
 		TotalActual:        totalActual,
 		AchievementPercent: achievementPercent,
 		Notes:              m.Notes,
-		Status:             string(m.Status),
-		RejectionReason:    m.RejectionReason,
 		CreatedAt:          m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:          m.UpdatedAt.Format(time.RFC3339),
 	}
@@ -40,30 +38,6 @@ func ToYearlyTargetResponse(m *salesModels.YearlyTarget) dto.YearlyTargetRespons
 				Name:        m.Area.Name,
 				Description: m.Area.Description,
 			}
-		}
-	}
-
-	if m.SubmittedBy != nil {
-		response.SubmittedBy = m.SubmittedBy
-		if m.SubmittedAt != nil {
-			submittedAt := m.SubmittedAt.Format(time.RFC3339)
-			response.SubmittedAt = &submittedAt
-		}
-	}
-
-	if m.ApprovedBy != nil {
-		response.ApprovedBy = m.ApprovedBy
-		if m.ApprovedAt != nil {
-			approvedAt := m.ApprovedAt.Format(time.RFC3339)
-			response.ApprovedAt = &approvedAt
-		}
-	}
-
-	if m.RejectedBy != nil {
-		response.RejectedBy = m.RejectedBy
-		if m.RejectedAt != nil {
-			rejectedAt := m.RejectedAt.Format(time.RFC3339)
-			response.RejectedAt = &rejectedAt
 		}
 	}
 
@@ -98,7 +72,6 @@ func ToYearlyTargetModel(req *dto.CreateYearlyTargetRequest, code string) *sales
 		Year:        req.Year,
 		TotalTarget: req.TotalTarget,
 		Notes:       req.Notes,
-		Status:      salesModels.YearlyTargetStatusDraft,
 		AreaID:      req.AreaID,
 		CreatedAt:   apptime.Now(),
 		UpdatedAt:   apptime.Now(),

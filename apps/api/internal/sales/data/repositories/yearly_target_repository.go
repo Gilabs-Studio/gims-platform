@@ -20,7 +20,6 @@ type YearlyTargetRepository interface {
 	Update(ctx context.Context, yt *models.YearlyTarget) error
 	Delete(ctx context.Context, id string) error
 	GetNextTargetNumber(ctx context.Context, prefix string) (string, error)
-	UpdateStatus(ctx context.Context, id string, status models.YearlyTargetStatus, userID *string, reason *string) error
 }
 
 type yearlyTargetRepository struct {
@@ -46,6 +45,10 @@ func (r *yearlyTargetRepository) FindByID(ctx context.Context, id string) (*mode
 	if err != nil {
 		return nil, err
 	}
+
+	targets := []models.YearlyTarget{target}
+	r.hydrateMonthlyActualAmounts(ctx, &targets)
+	target = targets[0]
 	return &target, nil
 }
 
@@ -72,11 +75,6 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	// Apply area filter
 	if req.AreaID != "" {
 		query = query.Where("area_id = ?", req.AreaID)
-	}
-
-	// Apply status filter
-	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
 	}
 
 	// Count total
@@ -120,7 +118,71 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 		return nil, 0, err
 	}
 
+	r.hydrateMonthlyActualAmounts(ctx, &targets)
+
 	return targets, total, nil
+}
+
+type monthlyActualRow struct {
+	YearlyTargetID string
+	Month          int
+	ActualAmount   float64
+}
+
+func (r *yearlyTargetRepository) hydrateMonthlyActualAmounts(ctx context.Context, targets *[]models.YearlyTarget) {
+	if targets == nil || len(*targets) == 0 {
+		return
+	}
+
+	targetIDs := make([]string, 0, len(*targets))
+	for _, target := range *targets {
+		if target.ID != "" {
+			targetIDs = append(targetIDs, target.ID)
+		}
+	}
+
+	if len(targetIDs) == 0 {
+		return
+	}
+
+	query := `
+		SELECT
+			yt.id AS yearly_target_id,
+			EXTRACT(MONTH FROM so.order_date)::int AS month,
+			COALESCE(SUM(so.total_amount), 0) AS actual_amount
+		FROM yearly_targets yt
+		INNER JOIN sales_orders so ON so.deleted_at IS NULL
+			AND so.status IN ('approved', 'closed')
+			AND EXTRACT(YEAR FROM so.order_date)::int = yt.year
+			AND (yt.area_id IS NULL OR so.delivery_area_id = yt.area_id)
+		WHERE yt.id IN @targetIDs
+		GROUP BY yt.id, EXTRACT(MONTH FROM so.order_date)
+	`
+
+	var rows []monthlyActualRow
+	if err := r.getDB(ctx).Raw(query, map[string]interface{}{
+		"targetIDs": targetIDs,
+	}).Scan(&rows).Error; err != nil {
+		return
+	}
+
+	actualMap := make(map[string]float64, len(rows))
+	for _, row := range rows {
+		if row.Month < 1 || row.Month > 12 {
+			continue
+		}
+		key := fmt.Sprintf("%s-%d", row.YearlyTargetID, row.Month)
+		actualMap[key] = row.ActualAmount
+	}
+
+	for i := range *targets {
+		for j := range (*targets)[i].MonthlyTargets {
+			month := (*targets)[i].MonthlyTargets[j].Month
+			key := fmt.Sprintf("%s-%d", (*targets)[i].ID, month)
+			(*targets)[i].MonthlyTargets[j].ActualAmount = actualMap[key]
+			(*targets)[i].MonthlyTargets[j].CalculateAchievement()
+		}
+	}
 }
 
 func (r *yearlyTargetRepository) Create(ctx context.Context, yt *models.YearlyTarget) error {
@@ -202,27 +264,3 @@ func (r *yearlyTargetRepository) GetNextTargetNumber(ctx context.Context, prefix
 	return code, nil
 }
 
-func (r *yearlyTargetRepository) UpdateStatus(ctx context.Context, id string, status models.YearlyTargetStatus, userID *string, reason *string) error {
-	updates := map[string]interface{}{
-		"status": status,
-	}
-
-	switch status {
-	case models.YearlyTargetStatusSubmitted:
-		updates["submitted_by"] = userID
-		updates["submitted_at"] = database.GetDB(ctx, r.db).NowFunc()
-	case models.YearlyTargetStatusApproved:
-		updates["approved_by"] = userID
-		updates["approved_at"] = database.GetDB(ctx, r.db).NowFunc()
-	case models.YearlyTargetStatusRejected:
-		updates["rejected_by"] = userID
-		updates["rejected_at"] = database.GetDB(ctx, r.db).NowFunc()
-		if reason != nil {
-			updates["rejection_reason"] = *reason
-		}
-	}
-
-	return r.getDB(ctx).Model(&models.YearlyTarget{}).
-		Where("id = ?", id).
-		Updates(updates).Error
-}

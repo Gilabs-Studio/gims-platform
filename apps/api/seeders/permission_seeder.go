@@ -244,14 +244,13 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+		{"/sales/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
 		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
 		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
 		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
 		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
-		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
-		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
 		// Sales Payments
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},

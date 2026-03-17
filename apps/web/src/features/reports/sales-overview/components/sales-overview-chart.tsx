@@ -39,9 +39,14 @@ export interface SalesOverviewChartProps {
   readonly onYearChange: (year: number) => void;
   readonly dateRange: DateRange | undefined;
   readonly onDateRangeChange: (range: DateRange | undefined) => void;
-  readonly selectedMetric?: "revenue" | "orders" | "visits" | "deliveries";
+  readonly selectedMetric?:
+    | "revenue"
+    | "cash_in"
+    | "orders"
+    | "visits"
+    | "deliveries";
   readonly onMetricChange?: (
-    metric: "revenue" | "orders" | "visits" | "deliveries"
+    metric: "revenue" | "cash_in" | "orders" | "visits" | "deliveries"
   ) => void;
 }
 
@@ -49,6 +54,10 @@ const chartConfig = {
   revenue: {
     label: "Revenue",
     color: "hsl(var(--primary))",
+  },
+  cash_in: {
+    label: "Cash In",
+    color: "hsl(var(--chart-4))",
   },
   orders: {
     label: "Orders",
@@ -100,6 +109,7 @@ export function SalesOverviewChart({
 
   const metricLabels = {
     revenue: t("metrics.revenue"),
+    cash_in: t("metrics.cashIn"),
     orders: t("metrics.orders"),
     visits: t("metrics.visits"),
     deliveries: t("metrics.deliveries"),
@@ -110,6 +120,7 @@ export function SalesOverviewChart({
     return data.map((month) => ({
       month: month.month_name.substring(0, 3),
       revenue: month.total_revenue,
+      cash_in: month.total_cash_in,
       target: month.target_amount,
       orders: month.total_orders,
       visits: month.total_visits,
@@ -118,16 +129,19 @@ export function SalesOverviewChart({
   }, [data]);
 
   const totals = React.useMemo(() => {
-    if (!data)
-      return { revenue: 0, orders: 0, visits: 0, deliveries: 0 };
+    if (!data) {
+      return { revenue: 0, cash_in: 0, orders: 0, visits: 0, deliveries: 0 };
+    }
+
     return data.reduce(
       (acc, curr) => ({
         revenue: acc.revenue + curr.total_revenue,
+        cash_in: acc.cash_in + curr.total_cash_in,
         orders: acc.orders + curr.total_orders,
         visits: acc.visits + curr.total_visits,
         deliveries: acc.deliveries + curr.total_deliveries,
       }),
-      { revenue: 0, orders: 0, visits: 0, deliveries: 0 }
+      { revenue: 0, cash_in: 0, orders: 0, visits: 0, deliveries: 0 }
     );
   }, [data]);
 
@@ -159,7 +173,6 @@ export function SalesOverviewChart({
             <CardDescription>{t("description")}</CardDescription>
           </div>
           <div className="flex items-center gap-3">
-            {/* Filter Mode Toggle */}
             <div className="flex items-center bg-muted p-1 rounded-lg">
               <button
                 onClick={() => onFilterModeChange("year")}
@@ -183,7 +196,6 @@ export function SalesOverviewChart({
               </button>
             </div>
 
-            {/* Metric Selector */}
             {onMetricChange && (
               <Select
                 value={selectedMetric}
@@ -195,27 +207,19 @@ export function SalesOverviewChart({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="revenue">
-                    {metricLabels.revenue}
-                  </SelectItem>
-                  <SelectItem value="orders">
-                    {metricLabels.orders}
-                  </SelectItem>
-                  <SelectItem value="visits">
-                    {metricLabels.visits}
-                  </SelectItem>
-                  <SelectItem value="deliveries">
-                    {metricLabels.deliveries}
-                  </SelectItem>
+                  <SelectItem value="revenue">{metricLabels.revenue}</SelectItem>
+                  <SelectItem value="cash_in">{metricLabels.cash_in}</SelectItem>
+                  <SelectItem value="orders">{metricLabels.orders}</SelectItem>
+                  <SelectItem value="visits">{metricLabels.visits}</SelectItem>
+                  <SelectItem value="deliveries">{metricLabels.deliveries}</SelectItem>
                 </SelectContent>
               </Select>
             )}
 
-            {/* Year Selector */}
             {filterMode === "year" && (
               <Select
                 value={selectedYear.toString()}
-                onValueChange={(val) => onYearChange(parseInt(val))}
+                onValueChange={(val) => onYearChange(parseInt(val, 10))}
               >
                 <SelectTrigger className="w-[110px] h-9">
                   <SelectValue />
@@ -230,7 +234,6 @@ export function SalesOverviewChart({
               </Select>
             )}
 
-            {/* Date Range Picker */}
             {filterMode === "range" && (
               <div>
                 <DateRangePicker
@@ -242,73 +245,43 @@ export function SalesOverviewChart({
           </div>
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {metricLabels.revenue}
-            </p>
-            <p className="text-lg font-medium">
-              {formatCurrency(totals.revenue)}
-            </p>
+            <p className="text-xs text-muted-foreground">{metricLabels.revenue}</p>
+            <p className="text-lg font-medium">{formatCurrency(totals.revenue)}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {metricLabels.orders}
-            </p>
-            <p className="text-lg font-medium">
-              {formatNumber(totals.orders)}
-            </p>
+            <p className="text-xs text-muted-foreground">{metricLabels.cash_in}</p>
+            <p className="text-lg font-medium">{formatCurrency(totals.cash_in)}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {metricLabels.visits}
-            </p>
-            <p className="text-lg font-medium">
-              {formatNumber(totals.visits)}
-            </p>
+            <p className="text-xs text-muted-foreground">{metricLabels.orders}</p>
+            <p className="text-lg font-medium">{formatNumber(totals.orders)}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {metricLabels.deliveries}
-            </p>
-            <p className="text-lg font-medium">
-              {formatNumber(totals.deliveries)}
-            </p>
+            <p className="text-xs text-muted-foreground">{metricLabels.visits}</p>
+            <p className="text-lg font-medium">{formatNumber(totals.visits)}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">{metricLabels.deliveries}</p>
+            <p className="text-lg font-medium">{formatNumber(totals.deliveries)}</p>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         {!hasData ? (
-          <div className="text-center py-12 text-muted-foreground">
-            {t("noData")}
-          </div>
+          <div className="text-center py-12 text-muted-foreground">{t("noData")}</div>
         ) : (
-          <ChartContainer
-            config={chartConfig}
-            className="h-[400px] w-full"
-          >
-            <BarChart
-              data={chartData}
-              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-            >
+          <ChartContainer config={chartConfig} className="h-[400px] w-full">
+            <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-              />
+              <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
               <YAxis
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => {
-                  if (selectedMetric === "revenue") {
-                    if (value >= 1000000000)
-                      return `${(value / 1000000000).toFixed(1)}M`;
-                    if (value >= 1000000)
-                      return `${(value / 1000000).toFixed(0)}Jt`;
-                    return `${(value / 1000).toFixed(0)}k`;
+                  if (selectedMetric === "revenue" || selectedMetric === "cash_in") {
+                    return formatCurrency(Number(value));
                   }
                   return formatNumber(value);
                 }}
@@ -317,16 +290,15 @@ export function SalesOverviewChart({
                 content={
                   <ChartTooltipContent
                     formatter={(value, name) => {
-                      if (
-                        name === "revenue" ||
-                        name === "target"
-                      ) {
+                      if (name === "revenue" || name === "cash_in" || name === "target") {
                         return (
                           <>
                             <span className="font-medium">
                               {name === "revenue"
                                 ? metricLabels.revenue
-                                : "Target"}
+                                : name === "cash_in"
+                                  ? metricLabels.cash_in
+                                  : "Target"}
                             </span>
                             <span className="ml-auto font-mono font-medium tabular-nums text-foreground">
                               {formatCurrency(Number(value))}
@@ -334,12 +306,11 @@ export function SalesOverviewChart({
                           </>
                         );
                       }
+
                       return (
                         <>
                           <span className="font-medium">
-                            {chartConfig[
-                              name as keyof typeof chartConfig
-                            ]?.label || name}
+                            {chartConfig[name as keyof typeof chartConfig]?.label || name}
                           </span>
                           <span className="ml-auto font-mono font-medium tabular-nums text-foreground">
                             {formatNumber(Number(value))}

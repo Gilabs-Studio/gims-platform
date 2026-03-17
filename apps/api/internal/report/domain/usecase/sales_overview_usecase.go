@@ -53,14 +53,8 @@ func parseDateRange(startStr, endStr string) (time.Time, time.Time) {
 }
 
 func formatCurrencyIDR(amount float64) string {
-	// Format as Indonesian Rupiah without decimal places
+	// Format as Indonesian Rupiah without decimal places, no abbreviations
 	rounded := math.Round(amount)
-	if rounded >= 1_000_000_000 {
-		return fmt.Sprintf("Rp %.1fM", rounded/1_000_000_000)
-	}
-	if rounded >= 1_000_000 {
-		return fmt.Sprintf("Rp %.1fjt", rounded/1_000_000)
-	}
 	return fmt.Sprintf("Rp %s", formatNumber(rounded))
 }
 
@@ -142,15 +136,20 @@ func (uc *salesOverviewUsecase) ListSalesRepPerformance(ctx context.Context, req
 			AverageOrderValueFormatted: formatCurrencyIDR(avgOrderValue),
 		}
 
-		// Try to get target for the rep
-		target, targetErr := uc.repo.GetSalesRepYearlyTarget(ctx, row.EmployeeID, year)
-		if targetErr == nil && target > 0 {
-			formatted := formatCurrencyIDR(target)
-			achievement := math.Round((row.TotalRevenue/target)*10000) / 100
-			resp.TargetAmount = &target
-			resp.TargetAmountFormatted = &formatted
-			resp.TargetAchievementPercentage = &achievement
+		// Always provide target fields (0 if none) to avoid nulls in UI.
+		target := float64(0)
+		targetResult, targetErr := uc.repo.GetSalesRepYearlyTarget(ctx, row.EmployeeID, year)
+		if targetErr == nil {
+			target = targetResult
 		}
+		formatted := formatCurrencyIDR(target)
+		achievement := float64(0)
+		if target > 0 {
+			achievement = math.Round((row.TotalRevenue/target)*10000) / 100
+		}
+		resp.TargetAmount = &target
+		resp.TargetAmountFormatted = &formatted
+		resp.TargetAchievementPercentage = &achievement
 
 		results = append(results, resp)
 	}
@@ -175,6 +174,7 @@ func (uc *salesOverviewUsecase) GetMonthlySalesOverview(ctx context.Context, req
 	}
 
 	var totalRevenue float64
+	var totalCashIn float64
 	var totalOrders, totalVisits, totalDeliveries int
 
 	monthlyData := make([]dto.MonthlySalesDataResponse, 0, len(rows))
@@ -187,6 +187,7 @@ func (uc *salesOverviewUsecase) GetMonthlySalesOverview(ctx context.Context, req
 			MonthName:       monthName(row.Month),
 			Year:            row.Year,
 			TotalRevenue:    row.TotalRevenue,
+			TotalCashIn:     row.TotalCashIn,
 			TotalOrders:     row.TotalOrders,
 			TotalVisits:     row.TotalVisits,
 			TotalDeliveries: row.TotalDeliveries,
@@ -194,6 +195,7 @@ func (uc *salesOverviewUsecase) GetMonthlySalesOverview(ctx context.Context, req
 		})
 
 		totalRevenue += row.TotalRevenue
+		totalCashIn += row.TotalCashIn
 		totalOrders += row.TotalOrders
 		totalVisits += row.TotalVisits
 		totalDeliveries += row.TotalDeliveries
@@ -202,6 +204,7 @@ func (uc *salesOverviewUsecase) GetMonthlySalesOverview(ctx context.Context, req
 	return &dto.MonthlySalesOverviewResponse{
 		MonthlyData:     monthlyData,
 		TotalRevenue:    totalRevenue,
+		TotalCashIn:     totalCashIn,
 		TotalOrders:     totalOrders,
 		TotalVisits:     totalVisits,
 		TotalDeliveries: totalDeliveries,
