@@ -11,7 +11,6 @@ import { useRevenueTrend } from "../hooks/use-revenue-trend";
 import { useCustomerResearchList } from "../hooks/use-customer-list";
 import { useRevenueByCustomer } from "../hooks/use-revenue-by-customer";
 import { usePurchaseFrequency } from "../hooks/use-purchase-frequency";
-import type { CustomerResearchTab } from "../types";
 import { CustomerKpiCards } from "./customer-kpi-cards";
 import { CustomerRevenueTrendChart } from "./customer-revenue-trend-chart";
 import { CustomerRankingCharts } from "./customer-ranking-charts";
@@ -35,7 +34,6 @@ export function CustomerResearchPage() {
   const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">(
     "daily"
   );
-  const [activeTab, setActiveTab] = useState<CustomerResearchTab>("top");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -90,18 +88,12 @@ export function CustomerResearchPage() {
   const { customers, pagination, isLoading: isCustomerLoading } =
     useCustomerResearchList({
       ...queryFilters,
-      tab: activeTab,
       search,
       page,
       per_page: perPage,
       sort_by: "revenue",
       order: "desc",
     });
-
-  const handleTabChange = (tab: CustomerResearchTab) => {
-    setActiveTab(tab);
-    setPage(1);
-  };
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
@@ -142,8 +134,6 @@ export function CustomerResearchPage() {
       />
 
       <CustomerListTable
-        tab={activeTab}
-        onTabChange={handleTabChange}
         search={search}
         onSearchChange={handleSearchChange}
         items={customers ?? []}

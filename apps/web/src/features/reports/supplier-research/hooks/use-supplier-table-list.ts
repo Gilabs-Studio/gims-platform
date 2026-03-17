@@ -7,15 +7,13 @@ import { supplierResearchService } from "../services/supplier-research-service";
 import type { SupplierResearchFilters } from "../types";
 
 export function useSupplierTableList(
-  tab: "top_spenders" | "slow_delivery",
   filters: SupplierResearchFilters
 ) {
+  const tab = "top_spenders";
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<string>(
-    tab === "top_spenders" ? "purchase_value" : "lead_time"
-  );
+  const [sortBy, setSortBy] = useState<string>("purchase_value");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const debouncedSearch = useDebounce(search, 500);
 

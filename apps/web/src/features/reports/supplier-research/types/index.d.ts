@@ -94,7 +94,7 @@ export interface SupplierSpendTrendResponse {
 }
 
 export interface ListSuppliersTableRequest extends SupplierResearchFilters {
-  tab?: "top_spenders" | "slow_delivery";
+  tab?: "top_spenders";
   page?: number;
   per_page?: number;
   sort_by?: string;
@@ -113,6 +113,7 @@ export interface SupplierTableRow {
   late_delivery_count?: number;
   supplier_on_time_rate?: number;
   dependency_score?: number;
+  active_purchase_order_count?: number;
 }
 
 export interface ListSuppliersTableResponse {

@@ -44,12 +44,13 @@ type ListCustomersParams struct {
 
 // CustomerResearchRow is raw customer row query result.
 type CustomerResearchRow struct {
-	CustomerID        string  `gorm:"column:customer_id"`
-	CustomerName      string  `gorm:"column:customer_name"`
-	TotalRevenue      float64 `gorm:"column:total_revenue"`
-	TotalOrders       int     `gorm:"column:total_orders"`
-	AverageOrderValue float64 `gorm:"column:average_order_value"`
-	LastOrderDate     string  `gorm:"column:last_order_date"`
+	CustomerID              string  `gorm:"column:customer_id"`
+	CustomerName            string  `gorm:"column:customer_name"`
+	TotalRevenue            float64 `gorm:"column:total_revenue"`
+	TotalOrders             int     `gorm:"column:total_orders"`
+	AverageOrderValue       float64 `gorm:"column:average_order_value"`
+	LastOrderDate           string  `gorm:"column:last_order_date"`
+	ActiveSalesOrderCount   int     `gorm:"column:active_sales_order_count"`
 }
 
 // CustomerRevenueTrendRow is raw trend query result.
@@ -143,6 +144,12 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 				AND so.order_date BETWEEN @startDate AND @endDate
 			GROUP BY so.customer_id
 		) o ON o.customer_id = c.id
+		LEFT JOIN (
+			SELECT customer_id, COUNT(DISTINCT id) AS active_sales_order_count
+			FROM sales_orders
+			WHERE deleted_at IS NULL AND LOWER(status) IN ('submitted', 'approved')
+			GROUP BY customer_id
+		) aso ON aso.customer_id = c.id
 		WHERE c.deleted_at IS NULL
 	`
 
@@ -156,11 +163,8 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 		queryParams["search"] = params.Search + "%"
 	}
 
-	if strings.EqualFold(params.Tab, "inactive") {
-		baseQuery += ` AND (o.total_orders IS NULL OR o.total_orders = 0)`
-	} else {
-		baseQuery += ` AND o.total_orders > 0`
-	}
+	// Only show customers with orders in the selected period (Top Customers only)
+	baseQuery += ` AND o.total_orders > 0`
 
 	var total int64
 	countSQL := "SELECT COUNT(*) " + baseQuery
@@ -191,7 +195,8 @@ func (r *customerResearchRepository) ListCustomers(ctx context.Context, params L
 			COALESCE(o.total_revenue, 0) AS total_revenue,
 			COALESCE(o.total_orders, 0) AS total_orders,
 			COALESCE(o.last_order_date, '') AS last_order_date,
-			CASE WHEN COALESCE(o.total_orders, 0) > 0 THEN COALESCE(o.total_revenue, 0) / o.total_orders ELSE 0 END AS average_order_value
+			CASE WHEN COALESCE(o.total_orders, 0) > 0 THEN COALESCE(o.total_revenue, 0) / o.total_orders ELSE 0 END AS average_order_value,
+			COALESCE(aso.active_sales_order_count, 0) AS active_sales_order_count
 		%s
 		ORDER BY %s %s, c.name ASC
 		LIMIT @limit OFFSET @offset

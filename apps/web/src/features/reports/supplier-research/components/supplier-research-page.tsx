@@ -32,7 +32,6 @@ export function SupplierResearchPage() {
   const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">(
     "monthly"
   );
-  const [tab, setTab] = useState<"top_spenders" | "slow_delivery">("top_spenders");
 
   const { startDate, endDate } = useMemo(() => {
     if (filterMode === "year") {
@@ -67,7 +66,7 @@ export function SupplierResearchPage() {
 
   const purchaseVolumeList = usePurchaseVolumeList(filters, 10);
   const deliveryTimeList = useDeliveryTimeList(filters, 10);
-  const supplierTableList = useSupplierTableList(tab, filters);
+  const supplierTableList = useSupplierTableList(filters);
 
   const handleViewDetail = (supplierId: string) => {
     router.push(`/reports/supplier-research/${supplierId}`);
@@ -103,8 +102,6 @@ export function SupplierResearchPage() {
       />
 
       <SupplierResearchTable
-        tab={tab}
-        onTabChange={setTab}
         rows={supplierTableList.rows}
         isLoading={supplierTableList.isLoading}
         search={supplierTableList.search}

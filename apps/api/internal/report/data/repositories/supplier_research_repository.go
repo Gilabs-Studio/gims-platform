@@ -48,18 +48,19 @@ type SupplierResearchKpisRow struct {
 }
 
 type SupplierAnalyticsRow struct {
-	SupplierID          string
-	SupplierCode        string
-	SupplierName        string
-	CategoryName        string
-	TotalPurchaseValue  float64
-	TotalPurchaseOrders int
-	AverageLeadTimeDays float64
-	SupplierOnTimeRate  float64
-	LateDeliveryCount   int
-	DependencyScore     float64
-	PurchaseOrders      []SupplierPurchaseOrderRow    `gorm:"-"`
-	Products            []SupplierPurchasedProductRow `gorm:"-"`
+	SupplierID                string
+	SupplierCode              string
+	SupplierName              string
+	CategoryName              string
+	TotalPurchaseValue        float64
+	TotalPurchaseOrders       int
+	AverageLeadTimeDays       float64
+	SupplierOnTimeRate        float64
+	LateDeliveryCount         int
+	DependencyScore           float64
+	ActivePurchaseOrderCount  int
+	PurchaseOrders            []SupplierPurchaseOrderRow    `gorm:"-"`
+	Products                  []SupplierPurchasedProductRow `gorm:"-"`
 }
 
 type SupplierPurchaseOrderRow struct {
@@ -132,14 +133,7 @@ func (r *supplierResearchRepository) ListSuppliers(ctx context.Context, params S
 	}
 
 	if params.SortBy == "" {
-		switch params.Tab {
-		case "slow_delivery":
-			params.SortBy = "lead_time"
-		case "reliability":
-			params.SortBy = "on_time_rate"
-		default:
-			params.SortBy = "purchase_value"
-		}
+		params.SortBy = "purchase_value"
 	}
 
 	return r.listAnalytics(ctx, params)
@@ -330,7 +324,8 @@ func (r *supplierResearchRepository) listAnalytics(ctx context.Context, params S
 			base.average_lead_time_days,
 			base.supplier_on_time_rate,
 			base.late_delivery_count,
-			base.dependency_score
+			base.dependency_score,
+			base.active_purchase_order_count
 		FROM (%s) base
 		ORDER BY %s %s, base.supplier_name ASC
 		LIMIT @limit OFFSET @offset
@@ -385,7 +380,8 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 				WHEN COALESCE(total_all.total_purchase_value_all, 0) > 0
 				THEN (COALESCE(inv.total_purchase_value, 0) / total_all.total_purchase_value_all) * 100
 				ELSE 0
-			END AS dependency_score
+			END AS dependency_score,
+			COALESCE(active_po.active_purchase_order_count, 0) AS active_purchase_order_count
 		FROM suppliers s
 		LEFT JOIN supplier_types st ON st.id = s.supplier_type_id AND st.deleted_at IS NULL
 		LEFT JOIN (
@@ -419,6 +415,12 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 				AND si2.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
 				AND NULLIF(si2.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 		) total_all
+		LEFT JOIN (
+			SELECT supplier_id, COUNT(id) AS active_purchase_order_count
+			FROM purchase_orders
+			WHERE deleted_at IS NULL AND UPPER(status) IN ('SUBMITTED', 'APPROVED')
+			GROUP BY supplier_id
+		) active_po ON active_po.supplier_id = s.id
 		WHERE s.deleted_at IS NULL
 			AND s.is_active = true
 			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)

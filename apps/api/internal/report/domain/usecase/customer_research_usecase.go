@@ -216,12 +216,13 @@ func mapCustomerRows(rows []repositories.CustomerResearchRow) []dto.CustomerRow 
 	items := make([]dto.CustomerRow, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, dto.CustomerRow{
-			CustomerID:        row.CustomerID,
-			CustomerName:      row.CustomerName,
-			TotalRevenue:      row.TotalRevenue,
-			TotalOrders:       row.TotalOrders,
-			AverageOrderValue: row.AverageOrderValue,
-			LastOrderDate:     row.LastOrderDate,
+			CustomerID:            row.CustomerID,
+			CustomerName:          row.CustomerName,
+			TotalRevenue:          row.TotalRevenue,
+			TotalOrders:           row.TotalOrders,
+			AverageOrderValue:     row.AverageOrderValue,
+			LastOrderDate:         row.LastOrderDate,
+			ActiveSalesOrderCount: row.ActiveSalesOrderCount,
 		})
 	}
 	return items

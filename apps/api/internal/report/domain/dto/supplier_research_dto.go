@@ -114,16 +114,17 @@ type ListSuppliersRequest struct {
 
 // SupplierTableRowResponse is the row shape used by tabbed supplier tables.
 type SupplierTableRowResponse struct {
-	SupplierID          string  `json:"supplier_id"`
-	SupplierCode        string  `json:"supplier_code,omitempty"`
-	SupplierName        string  `json:"supplier_name"`
-	CategoryName        string  `json:"category_name,omitempty"`
-	TotalPurchaseValue  float64 `json:"total_purchase_value"`
-	TotalPurchaseOrders int     `json:"total_purchase_orders"`
-	AverageLeadTimeDays float64 `json:"average_lead_time_days"`
-	LateDeliveryCount   int     `json:"late_delivery_count"`
-	SupplierOnTimeRate  float64 `json:"supplier_on_time_rate"`
-	DependencyScore     float64 `json:"dependency_score"`
+	SupplierID                string  `json:"supplier_id"`
+	SupplierCode              string  `json:"supplier_code,omitempty"`
+	SupplierName              string  `json:"supplier_name"`
+	CategoryName              string  `json:"category_name,omitempty"`
+	TotalPurchaseValue        float64 `json:"total_purchase_value"`
+	TotalPurchaseOrders       int     `json:"total_purchase_orders"`
+	AverageLeadTimeDays       float64 `json:"average_lead_time_days"`
+	LateDeliveryCount         int     `json:"late_delivery_count"`
+	SupplierOnTimeRate        float64 `json:"supplier_on_time_rate"`
+	DependencyScore           float64 `json:"dependency_score"`
+	ActivePurchaseOrderCount  int     `json:"active_purchase_order_count"`
 }
 
 // SupplierDetailResponse represents supplier details for report page.

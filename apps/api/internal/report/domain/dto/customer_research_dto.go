@@ -78,12 +78,13 @@ type ListPurchaseFrequencyRequest struct {
 
 // CustomerRow represents one customer row in the table.
 type CustomerRow struct {
-	CustomerID        string  `json:"customer_id"`
-	CustomerName      string  `json:"customer_name"`
-	TotalRevenue      float64 `json:"total_revenue"`
-	TotalOrders       int     `json:"total_orders"`
-	AverageOrderValue float64 `json:"average_order_value"`
-	LastOrderDate     string  `json:"last_order_date,omitempty"`
+	CustomerID              string  `json:"customer_id"`
+	CustomerName            string  `json:"customer_name"`
+	TotalRevenue            float64 `json:"total_revenue"`
+	TotalOrders             int     `json:"total_orders"`
+	AverageOrderValue       float64 `json:"average_order_value"`
+	LastOrderDate           string  `json:"last_order_date,omitempty"`
+	ActiveSalesOrderCount   int     `json:"active_sales_order_count"`
 }
 
 // ListCustomersResponse wraps customer rows.

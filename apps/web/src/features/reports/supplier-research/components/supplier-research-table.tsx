@@ -1,11 +1,10 @@
 "use client";
 
-import { Eye, Search, Timer, TrendingUp } from "lucide-react";
+import { AlertCircle, Eye, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,8 +19,6 @@ import { formatCurrency } from "@/lib/utils";
 import type { SupplierTableRow } from "../types";
 
 interface SupplierResearchTableProps {
-  readonly tab: "top_spenders" | "slow_delivery";
-  readonly onTabChange: (tab: "top_spenders" | "slow_delivery") => void;
   readonly rows: SupplierTableRow[];
   readonly isLoading: boolean;
   readonly search: string;
@@ -37,8 +34,6 @@ interface SupplierResearchTableProps {
 }
 
 export function SupplierResearchTable({
-  tab,
-  onTabChange,
   rows,
   isLoading,
   search,
@@ -52,28 +47,20 @@ export function SupplierResearchTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <Tabs
-          value={tab}
-          onValueChange={(value) => onTabChange(value as typeof tab)}
-          className="w-full md:w-auto"
-        >
-          <TabsList className="flex items-center bg-muted p-1 rounded-lg gap-y-1 flex-wrap h-auto">
-            <TabsTrigger value="top_spenders" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <TrendingUp className="h-3.5 w-3.5" />
-              {t("table.tabTopSpenders")}
-            </TabsTrigger>
-            <TabsTrigger value="slow_delivery" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <Timer className="h-3.5 w-3.5" />
-              {t("table.tabSlowDelivery")}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {/* Header with title/description and search */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">
+            {t("table.title")}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {t("table.description")}
+          </p>
+        </div>
+        <div className="relative w-[300px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
-            className="pl-10"
+            className="pl-10 h-9"
             value={search}
             placeholder={t("filters.search")}
             onChange={(event) => {
@@ -95,6 +82,7 @@ export function SupplierResearchTable({
               <TableHead className="text-right">{t("table.leadTime")}</TableHead>
               <TableHead className="text-right">{t("table.onTimeRate")}</TableHead>
               <TableHead className="text-right">{t("table.dependency")}</TableHead>
+              <TableHead className="text-right">{t("table.activeOrders")}</TableHead>
               <TableHead className="text-right">{t("table.actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -109,12 +97,13 @@ export function SupplierResearchTable({
                   <TableCell><Skeleton className="ml-auto h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="ml-auto h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="ml-auto h-4 w-12" /></TableCell>
+                  <TableCell><Skeleton className="ml-auto h-4 w-10" /></TableCell>
                   <TableCell><Skeleton className="ml-auto h-4 w-8" /></TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="py-12 text-center text-sm text-muted-foreground">
                   {t("table.noData")}
                 </TableCell>
               </TableRow>
@@ -141,6 +130,16 @@ export function SupplierResearchTable({
                     <Badge variant="outline">{(row.supplier_on_time_rate ?? 0).toFixed(2)}%</Badge>
                   </TableCell>
                   <TableCell className="text-right">{(row.dependency_score ?? 0).toFixed(2)}%</TableCell>
+                  <TableCell className="text-right">
+                    {(row.active_purchase_order_count ?? 0) > 0 ? (
+                      <Badge variant="secondary" className="gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {row.active_purchase_order_count}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"

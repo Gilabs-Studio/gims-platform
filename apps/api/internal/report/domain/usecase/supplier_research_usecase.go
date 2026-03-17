@@ -160,16 +160,17 @@ func (uc *supplierResearchUsecase) ListSuppliers(ctx context.Context, req dto.Li
 	results := make([]dto.SupplierTableRowResponse, 0, len(rows))
 	for _, row := range rows {
 		results = append(results, dto.SupplierTableRowResponse{
-			SupplierID:          row.SupplierID,
-			SupplierCode:        row.SupplierCode,
-			SupplierName:        row.SupplierName,
-			CategoryName:        row.CategoryName,
-			TotalPurchaseValue:  row.TotalPurchaseValue,
-			TotalPurchaseOrders: row.TotalPurchaseOrders,
-			AverageLeadTimeDays: round2(row.AverageLeadTimeDays),
-			LateDeliveryCount:   row.LateDeliveryCount,
-			SupplierOnTimeRate:  round2(row.SupplierOnTimeRate),
-			DependencyScore:     round2(row.DependencyScore),
+			SupplierID:               row.SupplierID,
+			SupplierCode:             row.SupplierCode,
+			SupplierName:             row.SupplierName,
+			CategoryName:             row.CategoryName,
+			TotalPurchaseValue:       row.TotalPurchaseValue,
+			TotalPurchaseOrders:      row.TotalPurchaseOrders,
+			AverageLeadTimeDays:      round2(row.AverageLeadTimeDays),
+			LateDeliveryCount:        row.LateDeliveryCount,
+			SupplierOnTimeRate:       round2(row.SupplierOnTimeRate),
+			DependencyScore:          round2(row.DependencyScore),
+			ActivePurchaseOrderCount: row.ActivePurchaseOrderCount,
 		})
 	}
 

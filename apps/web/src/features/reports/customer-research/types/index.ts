@@ -41,7 +41,7 @@ export interface CustomerRankResponse {
   };
 }
 
-export type CustomerResearchTab = "top" | "inactive";
+export type CustomerResearchTab = "top";
 
 export interface CustomerResearchListItem {
   customer_id: string;
@@ -50,6 +50,7 @@ export interface CustomerResearchListItem {
   total_orders: number;
   average_order_value: number;
   last_order_date?: string;
+  active_sales_order_count?: number;
 }
 
 export interface ListCustomerResearchRequest {
@@ -57,7 +58,6 @@ export interface ListCustomerResearchRequest {
   end_date?: string;
   date_mode?: "year" | "range";
   year?: number;
-  tab?: CustomerResearchTab;
   search?: string;
   page?: number;
   per_page?: number;
