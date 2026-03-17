@@ -3,36 +3,14 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { useFinancePurchaseJournals } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
-import { StandardTable } from "./standard-table";
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function StatusBadge({ status }: { readonly status: string }) {
-  if (status === "posted") {
-    return <Badge variant="success">Posted</Badge>;
-  }
-
-  if (status === "draft") {
-    return <Badge variant="secondary">Draft</Badge>;
-  }
-
-  return <Badge variant="outline">{status}</Badge>;
-}
+import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 
 export function PurchaseJournalsList() {
   const t = useTranslations("financeJournals");
@@ -59,6 +37,8 @@ export function PurchaseJournalsList() {
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
+  const mappedItems = items.map(mapJournalToUnifiedRow);
+
   if (isError) {
     return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
   }
@@ -72,7 +52,7 @@ export function PurchaseJournalsList() {
         </div>
 
         {canExport && (
-          <ExportButton data={items} filename="purchase-journal" label={t("actions.export")} />
+          <ExportButton data={mappedItems} filename="purchase-journal" label={t("actions.export")} />
         )}
       </div>
 
@@ -97,43 +77,10 @@ export function PurchaseJournalsList() {
         }}
       />
 
-      <StandardTable
+      <JournalTable
         isLoading={isLoading}
-        columnCount={7}
-        header={
-          <TableRow>
-            <TableHead>{t("fields.entryDate")}</TableHead>
-            <TableHead>{t("fields.description")}</TableHead>
-            <TableHead>{t("fields.status")}</TableHead>
-            <TableHead>Reference</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">{t("fields.debit")}</TableHead>
-            <TableHead className="text-right">{t("fields.credit")}</TableHead>
-          </TableRow>
-        }
-      >
-        {items.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-              -
-            </TableCell>
-          </TableRow>
-        ) : (
-          items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="tabular-nums">{safeDate(item.entry_date)}</TableCell>
-              <TableCell className="max-w-[260px] truncate">{item.description ?? "-"}</TableCell>
-              <TableCell>
-                <StatusBadge status={item.status} />
-              </TableCell>
-              <TableCell className="font-mono text-xs">{item.reference_id ?? "-"}</TableCell>
-              <TableCell>{item.reference_type ?? "-"}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.debit_total)}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.credit_total)}</TableCell>
-            </TableRow>
-          ))
-        )}
-      </StandardTable>
+        data={mappedItems}
+      />
 
       <DataTablePagination
         pageIndex={pagination?.page ?? page}

@@ -59,8 +59,12 @@ type CashBankJournalResponse struct {
 	ID              string                        `json:"id"`
 	TransactionDate time.Time                     `json:"transaction_date"`
 	Type            financeModels.CashBankType    `json:"type"`
+	TransactionType financeModels.CashBankType    `json:"transaction_type"`
 	Description     string                        `json:"description"`
 	BankAccountID   string                        `json:"bank_account_id"`
+	ReferenceType   string                        `json:"reference_type"`
+	ReferenceID     string                        `json:"reference_id"`
+	ReferenceCode   string                        `json:"reference_code"`
 	BankAccount     *BankAccountMini              `json:"bank_account,omitempty"`
 	TotalAmount     float64                       `json:"total_amount"`
 	Status          financeModels.CashBankStatus  `json:"status"`

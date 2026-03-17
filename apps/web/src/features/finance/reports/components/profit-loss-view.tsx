@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 
@@ -18,7 +18,6 @@ import { financeReportsService } from "../services/finance-reports-service";
 import type { PLReportRow } from "../types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
-import { StandardTable } from "@/features/finance/journals/components/standard-table";
 
 function toApiDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -119,57 +118,59 @@ export function ProfitLossView() {
           {/* Revenue */}
           <div className="space-y-3">
             <div className="p-3 bg-muted/50 font-semibold rounded-md border">{t("revenue")}</div>
-            <StandardTable
-              isLoading={false}
-              columnCount={3}
-              header={
-                <TableRow>
-                  <TableHead>{t("account_code")}</TableHead>
-                  <TableHead>{t("account_name")}</TableHead>
-                  <TableHead className="text-right">{t("balance")}</TableHead>
-                </TableRow>
-              }
-            >
-              {report.revenues?.map((r: PLReportRow, idx: number) => (
-                <TableRow key={`${r.code}-${idx}`}>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell>{r.name}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="font-bold bg-muted/30">
-                <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
-              </TableRow>
-            </StandardTable>
+            <div className="rounded-md border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("account_code")}</TableHead>
+                    <TableHead>{t("account_name")}</TableHead>
+                    <TableHead className="text-right">{t("balance")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.revenues?.map((r: PLReportRow, idx: number) => (
+                    <TableRow key={`${r.code}-${idx}`}>
+                      <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                      <TableCell>{r.name}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-bold bg-muted/30">
+                    <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Expenses */}
           <div className="space-y-3">
             <div className="p-3 bg-muted/50 font-semibold rounded-md border">{t("expenses")}</div>
-            <StandardTable
-              isLoading={false}
-              columnCount={3}
-              header={
-                <TableRow>
-                  <TableHead>{t("account_code")}</TableHead>
-                  <TableHead>{t("account_name")}</TableHead>
-                  <TableHead className="text-right">{t("balance")}</TableHead>
-                </TableRow>
-              }
-            >
-              {report.expenses?.map((e: PLReportRow, idx: number) => (
-                <TableRow key={`${e.code}-${idx}`}>
-                  <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                  <TableCell>{e.name}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="font-bold bg-muted/30">
-                <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
-              </TableRow>
-            </StandardTable>
+            <div className="rounded-md border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("account_code")}</TableHead>
+                    <TableHead>{t("account_name")}</TableHead>
+                    <TableHead className="text-right">{t("balance")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.expenses?.map((e: PLReportRow, idx: number) => (
+                    <TableRow key={`${e.code}-${idx}`}>
+                      <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                      <TableCell>{e.name}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-bold bg-muted/30">
+                    <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Net Profit/Loss */}

@@ -1,6 +1,7 @@
 package mapper
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,6 +11,48 @@ import (
 
 type JournalEntryMapper struct {
 	coaMapper *ChartOfAccountMapper
+}
+
+func buildJournalReferenceCode(referenceType, referenceID *string) *string {
+	if referenceType == nil || strings.TrimSpace(*referenceType) == "" {
+		return nil
+	}
+
+	typeCode := strings.ToUpper(strings.TrimSpace(*referenceType))
+	prefix := "REF"
+	switch {
+	case strings.Contains(typeCode, "SALES_INVOICE"):
+		prefix = "INV"
+	case strings.Contains(typeCode, "SUPPLIER_INVOICE"):
+		prefix = "PINV"
+	case strings.Contains(typeCode, "PAYMENT"):
+		prefix = "PAY"
+	case strings.Contains(typeCode, "CASH_BANK"):
+		prefix = "CB"
+	case strings.Contains(typeCode, "ADJUST"):
+		prefix = "ADJ"
+	case strings.Contains(typeCode, "VALUATION"):
+		prefix = "VAL"
+	default:
+		if len(typeCode) >= 3 {
+			prefix = typeCode[:3]
+		}
+	}
+
+	suffix := "N/A"
+	if referenceID != nil {
+		trimmed := strings.TrimSpace(*referenceID)
+		if trimmed != "" {
+			segments := strings.Split(trimmed, "-")
+			suffix = strings.ToUpper(segments[0])
+			if len(suffix) > 10 {
+				suffix = suffix[:10]
+			}
+		}
+	}
+
+	code := fmt.Sprintf("%s-%s", prefix, suffix)
+	return &code
 }
 
 func NewJournalEntryMapper(coaMapper *ChartOfAccountMapper) *JournalEntryMapper {
@@ -60,6 +103,7 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		Description:       item.Description,
 		ReferenceType:     item.ReferenceType,
 		ReferenceID:       item.ReferenceID,
+		ReferenceCode:     buildJournalReferenceCode(item.ReferenceType, item.ReferenceID),
 		Status:            item.Status,
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,
@@ -94,6 +138,7 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		Description:       item.Description,
 		ReferenceType:     item.ReferenceType,
 		ReferenceID:       item.ReferenceID,
+		ReferenceCode:     buildJournalReferenceCode(item.ReferenceType, item.ReferenceID),
 		Status:            item.Status,
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,

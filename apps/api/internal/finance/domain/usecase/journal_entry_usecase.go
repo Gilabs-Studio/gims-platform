@@ -90,13 +90,13 @@ func journalReferenceTypesForDomain(domain *string) []string {
 
 	switch strings.ToLower(strings.TrimSpace(*domain)) {
 	case "sales":
-		return []string{"SALES_INVOICE", "SALES_INVOICE_DP", "SALES_PAYMENT"}
+		return []string{"SALES_INVOICE", "SALES_INVOICE_DP"}
 	case "purchase":
 		return []string{"GOODS_RECEIPT", "SUPPLIER_INVOICE", "SUPPLIER_INVOICE_DP", "PURCHASE_PAYMENT"}
 	case "inventory", "stock":
 		return []string{"STOCK_OPNAME", "INVENTORY_ADJUSTMENT"}
 	case "cash_bank":
-		return []string{"CASH_BANK", "PAYMENT"}
+		return []string{"CASH_BANK", "PAYMENT", "SALES_PAYMENT"}
 	case "finance":
 		return []string{"GENERAL", "NTP", "ASSET_TXN", "ASSET_DEP", "UP_COUNTRY", "year_end_closing", "reversal"}
 	case "adjustment":
@@ -663,6 +663,17 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 
 	if entry.Status != financeModels.JournalStatusPosted {
 		return nil, errors.New("only posted journal entries can be reversed")
+	}
+
+	var existingReversal financeModels.JournalReversal
+	err = uc.db.WithContext(ctx).
+		Where("original_journal_entry_id = ?", entry.ID).
+		First(&existingReversal).Error
+	if err == nil {
+		return nil, errors.New("journal entry has already been reversed")
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
 	}
 
 	// Build reversed lines: swap debit and credit

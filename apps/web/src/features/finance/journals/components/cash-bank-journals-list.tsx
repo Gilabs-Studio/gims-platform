@@ -2,14 +2,11 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { ArrowUpRight, ArrowDownRight, Activity, ExternalLink, Lock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Activity, Lock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -21,58 +18,14 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import type { UnifiedJournalRow } from "./journal-table";
 
 import { useFinanceCashBankSubLedger } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
-import { StandardTable } from "./standard-table";
+import { JournalTable, mapCashBankToUnifiedRow } from "./journal-table";
+import { CashBankReferenceDetailModal } from "./cash-bank-reference-detail-modal";
 
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function StatusBadge({ status }: { readonly status: string }) {
-  if (status === "posted") {
-    return <Badge variant="success">Posted</Badge>;
-  }
-
-  if (status === "draft") {
-    return <Badge variant="secondary">Draft</Badge>;
-  }
-
-  return <Badge variant="outline">{status}</Badge>;
-}
-
-function TypeBadge({ type }: { readonly type: string }) {
-  switch (type) {
-    case "cash_in":
-      return (
-        <Badge variant="outline" className="text-emerald-500 bg-emerald-500/10 border-emerald-500/20">
-          <ArrowDownRight className="w-3 h-3 mr-1" />
-          Cash In
-        </Badge>
-      );
-    case "cash_out":
-      return (
-        <Badge variant="outline" className="text-rose-500 bg-rose-500/10 border-rose-500/20">
-          <ArrowUpRight className="w-3 h-3 mr-1" />
-          Cash Out
-        </Badge>
-      );
-    case "transfer":
-      return (
-        <Badge variant="outline" className="text-blue-500 bg-blue-500/10 border-blue-500/20">
-          <Activity className="w-3 h-3 mr-1" />
-          Transfer
-        </Badge>
-      );
-    default:
-      return <Badge variant="outline">{type}</Badge>;
-  }
-}
 
 export function CashBankJournalsList() {
   const t = useTranslations("financeJournals");
@@ -83,6 +36,8 @@ export function CashBankJournalsList() {
   const [transactionType, setTransactionType] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const canExport = useUserPermission("cash_bank_journal.export");
@@ -101,6 +56,8 @@ export function CashBankJournalsList() {
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
   const kpi = data?.meta?.additional?.kpi;
+
+  const mappedItems = items.map((item) => mapCashBankToUnifiedRow(item));
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
@@ -121,7 +78,7 @@ export function CashBankJournalsList() {
         </div>
 
         {canExport && (
-          <ExportButton data={items} filename="cash-bank-journal" label={t("actions.export")} />
+          <ExportButton data={mappedItems} filename="cash-bank-journal" label={t("actions.export")} />
         )}
       </div>
 
@@ -209,65 +166,17 @@ export function CashBankJournalsList() {
         </div>
       </div>
 
-      <StandardTable
+      <JournalTable
         isLoading={isLoading}
-        columnCount={7}
-        header={
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Bank Account</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Total Amount</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        }
-      >
-        {items.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-              -
-            </TableCell>
-          </TableRow>
-        ) : (
-          items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="tabular-nums">{safeDate(item.transaction_date)}</TableCell>
-              <TableCell>
-                <TypeBadge type={item.type} />
-              </TableCell>
-              <TableCell>
-                <div className="font-medium">
-                  {item.bank_account?.name ?? "-"}
-                </div>
-                {item.bank_account?.account_number && (
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {item.bank_account.account_number}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="max-w-[260px] truncate" title={item.description ?? ""}>
-                {item.description ?? "-"}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={item.status} />
-              </TableCell>
-              <TableCell className="text-right font-mono tabular-nums font-medium">
-                {formatCurrency(item.total_amount)}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/finance/cash-bank/${item.id}`} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Detail
-                  </Link>
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))
-        )}
-      </StandardTable>
+        data={mappedItems}
+        showBankAccountColumn
+        rowStartNumber={((pagination?.page ?? page) - 1) * (pagination?.per_page ?? pageSize) + 1}
+        referenceTooltipText="Click to view detail"
+        onReferenceClick={(row) => {
+          setSelectedReferenceRow(row);
+          setIsReferenceModalOpen(true);
+        }}
+      />
 
       <DataTablePagination
         pageIndex={pagination?.page ?? page}
@@ -278,6 +187,17 @@ export function CashBankJournalsList() {
           setPageSize(size);
           setPage(1);
         }}
+      />
+
+      <CashBankReferenceDetailModal
+        open={isReferenceModalOpen}
+        onOpenChange={(open) => {
+          setIsReferenceModalOpen(open);
+          if (!open) {
+            setSelectedReferenceRow(null);
+          }
+        }}
+        row={selectedReferenceRow}
       />
     </div>
   );

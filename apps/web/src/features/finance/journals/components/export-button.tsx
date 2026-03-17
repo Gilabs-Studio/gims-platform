@@ -3,10 +3,24 @@
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { JournalEntry } from "../types";
+
+type ExportableJournalRow = {
+  entry_date?: string;
+  entryDate?: string;
+  description?: string | null;
+  status: string;
+  reference_type?: string | null;
+  referenceType?: string | null;
+  reference_id?: string | null;
+  referenceCode?: string | null;
+  debit_total?: number;
+  debit?: number;
+  credit_total?: number;
+  credit?: number;
+};
 
 type ExportButtonProps = {
-  readonly data?: JournalEntry[];
+  readonly data?: ExportableJournalRow[];
   readonly filename?: string;
   readonly label: string;
   readonly disabled?: boolean;
@@ -45,13 +59,13 @@ export function ExportButton({
     ];
 
     const rows = data.map((item) => [
-      item.entry_date,
+      item.entry_date ?? item.entryDate ?? "",
       item.description ?? "",
       item.status,
-      item.reference_type ?? "",
-      item.reference_id ?? "",
-      item.debit_total,
-      item.credit_total,
+      item.reference_type ?? item.referenceType ?? "",
+      item.reference_id ?? item.referenceCode ?? "",
+      item.debit_total ?? item.debit ?? 0,
+      item.credit_total ?? item.credit ?? 0,
     ]);
 
     const content = [headers, ...rows]

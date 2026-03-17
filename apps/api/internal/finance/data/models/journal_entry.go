@@ -49,8 +49,8 @@ type JournalEntry struct {
 	EntryDate   time.Time `gorm:"type:date;not null;index" json:"entry_date"`
 	Description string    `gorm:"type:text" json:"description"`
 
-	ReferenceType *string `gorm:"type:varchar(50);index" json:"reference_type"`
-	ReferenceID   *string `gorm:"type:varchar(255);index" json:"reference_id"`
+	ReferenceType *string `gorm:"type:varchar(50);index;uniqueIndex:idx_journal_entry_reference" json:"reference_type"`
+	ReferenceID   *string `gorm:"type:varchar(255);index;uniqueIndex:idx_journal_entry_reference" json:"reference_id"`
 
 	Status   JournalStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	PostedAt *time.Time    `json:"posted_at"`

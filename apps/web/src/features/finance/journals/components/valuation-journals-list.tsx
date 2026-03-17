@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 
@@ -48,26 +47,8 @@ import {
   useValuationRuns,
 } from "../hooks/use-finance-journals";
 import { FilterToolbar } from "./filter-toolbar";
-import { StandardTable } from "./standard-table";
+import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { RunValuationInput, ValuationType } from "../types";
-
-function safeDate(value?: string | null): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
-}
-
-function StatusBadge({ status }: { readonly status: string }) {
-  if (status === "posted") {
-    return <Badge variant="success">Posted</Badge>;
-  }
-  if (status === "draft") {
-    return <Badge variant="secondary">Draft</Badge>;
-  }
-  return <Badge variant="outline">{status}</Badge>;
-}
-
 function RunStatusBadge({ status }: { readonly status: string }) {
   const variants: Record<string, "success" | "secondary" | "destructive" | "outline"> = {
     completed: "success",
@@ -446,52 +427,10 @@ export function ValuationJournalsList() {
       />
 
       {/* Table */}
-      <StandardTable
+      <JournalTable
         isLoading={isLoading}
-        columnCount={6}
-        header={
-          <TableRow>
-            <TableHead>{t("fields.entryDate")}</TableHead>
-            <TableHead>{t("fields.description")}</TableHead>
-            <TableHead>{t("fields.status")}</TableHead>
-            <TableHead>{t("fields.referenceType")}</TableHead>
-            <TableHead className="text-right">{t("fields.debit")}</TableHead>
-            <TableHead className="text-right">{t("fields.credit")}</TableHead>
-          </TableRow>
-        }
-      >
-        {items.length === 0 ? (
-          <TableRow>
-            <TableCell
-              colSpan={6}
-              className="text-center py-8 text-muted-foreground"
-            >
-              -
-            </TableCell>
-          </TableRow>
-        ) : (
-          items.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="tabular-nums">
-                {safeDate(item.entry_date)}
-              </TableCell>
-              <TableCell className="max-w-[260px] truncate">
-                {item.description ?? "-"}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={item.status} />
-              </TableCell>
-              <TableCell>{item.reference_type ?? "-"}</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {formatCurrency(item.debit_total)}
-              </TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {formatCurrency(item.credit_total)}
-              </TableCell>
-            </TableRow>
-          ))
-        )}
-      </StandardTable>
+        data={items.map(mapJournalToUnifiedRow)}
+      />
 
       <DataTablePagination
         pageIndex={pagination?.page ?? page}

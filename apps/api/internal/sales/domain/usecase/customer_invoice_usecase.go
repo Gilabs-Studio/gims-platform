@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -547,6 +548,13 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		}
 	}
 
+	if shouldTriggerSalesInvoiceReversal(invoice.Status, newStatus, updatedInvoice.Type) {
+		triggerCtx := withActorContext(ctx, userID, updatedInvoice.CreatedBy)
+		if err := uc.triggerSalesInvoiceJournalReversal(triggerCtx, updatedInvoice); err != nil {
+			return nil, fmt.Errorf("failed to reverse sales invoice journal: %w", err)
+		}
+	}
+
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
 }
 
@@ -560,6 +568,21 @@ func shouldTriggerSalesInvoiceJournal(previousStatus, currentStatus models.Custo
 	}
 
 	return previousStatus != models.CustomerInvoiceStatusUnpaid
+}
+
+func shouldTriggerSalesInvoiceReversal(previousStatus, currentStatus models.CustomerInvoiceStatus, invoiceType models.CustomerInvoiceType) bool {
+	if invoiceType != models.CustomerInvoiceTypeRegular {
+		return false
+	}
+
+	if currentStatus != models.CustomerInvoiceStatusCancelled {
+		return false
+	}
+
+	return previousStatus == models.CustomerInvoiceStatusUnpaid ||
+		previousStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		previousStatus == models.CustomerInvoiceStatusPartial ||
+		previousStatus == models.CustomerInvoiceStatusPaid
 }
 
 func withActorContext(ctx context.Context, preferredUserID, fallbackUserID *string) context.Context {
@@ -716,6 +739,28 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 	})
 
 	return nil
+}
+
+func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice == nil || uc.journalUC == nil {
+		return nil
+	}
+
+	refType := "SALES_INVOICE"
+	var existing financeModels.JournalEntry
+	err := uc.db.WithContext(ctx).
+		Where("reference_type = ? AND reference_id = ?", refType, invoice.ID).
+		Where("status = ?", financeModels.JournalStatusPosted).
+		First(&existing).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = uc.journalUC.Reverse(ctx, existing.ID)
+	return err
 }
 
 // isValidStatusTransition checks if the status transition is valid

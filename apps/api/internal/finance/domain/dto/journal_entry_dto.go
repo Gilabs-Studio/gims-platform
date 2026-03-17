@@ -69,6 +69,7 @@ type JournalEntryResponse struct {
 	Description       string                      `json:"description"`
 	ReferenceType     *string                     `json:"reference_type"`
 	ReferenceID       *string                     `json:"reference_id"`
+	ReferenceCode     *string                     `json:"reference_code"`
 	Status            financeModels.JournalStatus `json:"status"`
 	PostedAt          *time.Time                  `json:"posted_at"`
 	PostedBy          *string                     `json:"posted_by"`

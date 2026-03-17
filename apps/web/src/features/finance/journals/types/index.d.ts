@@ -37,6 +37,7 @@ export interface JournalEntry {
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
+  reference_code?: string | null;
   status: JournalStatus;
   posted_at?: string | null;
   posted_by?: string | null;
@@ -168,8 +169,12 @@ export interface CashBankSubLedgerEntry {
   id: string;
   transaction_date: string;
   type: "cash_in" | "cash_out" | "transfer";
+  transaction_type: "cash_in" | "cash_out" | "transfer";
   description?: string | null;
   bank_account_id: string;
+  reference_type: string;
+  reference_id: string;
+  reference_code: string;
   bank_account?: {
     id: string;
     name: string;
