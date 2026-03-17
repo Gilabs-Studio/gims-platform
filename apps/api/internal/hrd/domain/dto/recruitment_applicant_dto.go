@@ -26,7 +26,7 @@ type CreateRecruitmentApplicantDTO struct {
 	Phone                *string `json:"phone" binding:"omitempty,max=20"`
 	Source               string  `json:"source" binding:"required,oneof=linkedin jobstreet glints referral direct other"`
 	Notes                *string `json:"notes" binding:"omitempty,max=5000"`
-	ResumeURL            *string `json:"resume_url" binding:"omitempty,max=500,url"`
+	ResumeURL            *string `json:"resume_url" binding:"omitempty,max=500"`
 }
 
 // UpdateRecruitmentApplicantDTO represents the request to update an applicant
@@ -36,7 +36,7 @@ type UpdateRecruitmentApplicantDTO struct {
 	Phone     *string `json:"phone" binding:"omitempty,max=20"`
 	Source    *string `json:"source" binding:"omitempty,oneof=linkedin jobstreet glints referral direct other"`
 	Notes     *string `json:"notes" binding:"omitempty,max=5000"`
-	ResumeURL *string `json:"resume_url" binding:"omitempty,max=500,url"`
+	ResumeURL *string `json:"resume_url" binding:"omitempty,max=500"`
 	Rating    *int    `json:"rating" binding:"omitempty,min=1,max=5"`
 }
 

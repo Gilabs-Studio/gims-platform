@@ -39,14 +39,14 @@ interface ApplicantDetailSheetProps {
   onDelete?: (applicantId: string) => void;
 }
 
-function getSourceLabel(source: ApplicantSource): string {
+function getTranslatedSourceLabel(t: (key: string) => string, source: ApplicantSource): string {
   const labels: Record<ApplicantSource, string> = {
-    linkedin: "LinkedIn",
-    jobstreet: "JobStreet",
-    glints: "Glints",
-    referral: "Referral",
-    direct: "Direct",
-    other: "Other",
+    linkedin: t("applicants.sources.linkedin"),
+    jobstreet: t("applicants.sources.jobstreet"),
+    glints: t("applicants.sources.glints"),
+    referral: t("applicants.sources.referral"),
+    direct: t("applicants.sources.direct"),
+    other: t("applicants.sources.other"),
   };
   return labels[source] || source;
 }
@@ -130,6 +130,16 @@ export function ApplicantDetailSheet({
   const applicant = applicantData?.data;
   const activities = activitiesData?.data || [];
 
+  // Helper function to get full URL for resume
+  const getResumeUrl = (resumePath: string) => {
+    if (resumePath.startsWith("http://") || resumePath.startsWith("https://")) {
+      return resumePath;
+    }
+    // If it's a relative path, prepend the API base URL
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    return `${baseUrl}${resumePath.startsWith("/") ? "" : "/"}${resumePath}`;
+  };
+
   const isLoading = isLoadingApplicant;
 
   return (
@@ -158,7 +168,7 @@ export function ApplicantDetailSheet({
                   variant="secondary"
                   className={getSourceColor(applicant.source)}
                 >
-                  {getSourceLabel(applicant.source)}
+                  {getTranslatedSourceLabel(t, applicant.source)}
                 </Badge>
                 {applicant.stage && (
                   <Badge variant="outline" style={{ borderColor: applicant.stage.color }}>
@@ -221,7 +231,7 @@ export function ApplicantDetailSheet({
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-primary" />
                       <a
-                        href={applicant.resume_url}
+                        href={getResumeUrl(applicant.resume_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline"

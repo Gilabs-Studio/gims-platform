@@ -66,6 +66,11 @@ export const recruitmentEn = {
       partTime: "Part Time",
       contract: "Contract",
       intern: "Intern",
+      // Uppercase variants (from backend enum)
+      FULL_TIME: "Full Time",
+      PART_TIME: "Part Time",
+      CONTRACT: "Contract",
+      INTERN: "Intern",
     },
 
     // Fields
@@ -169,12 +174,14 @@ export const recruitmentEn = {
       singular: "Applicant",
       dragHelp: "Drag applicants to move between stages",
       noResume: "No CV",
+      hasResume: "CV",
       contactInfo: "Contact Information",
       applicationDetails: "Application Details",
       activityHistory: "Activity History",
       noActivities: "No activities recorded yet",
       viewResume: "View Resume",
       appliedAt: "Applied",
+      notes: "Notes",
       addDescription: "Add a new applicant to this recruitment request",
       editDescription: "Update applicant information",
       deleteDesc: "Are you sure you want to delete this applicant? This action cannot be undone.",
@@ -198,7 +205,7 @@ export const recruitmentEn = {
         fullName: "Enter full name",
         email: "Enter email address",
         phone: "Enter phone number",
-        resume: "https://example.com/cv.pdf",
+        resume: "Upload CV/Resume (PDF, DOC, DOCX)",
         notes: "Add notes about the applicant...",
       },
 
@@ -210,6 +217,7 @@ export const recruitmentEn = {
         direct: "Direct Application",
         other: "Other",
       },
+      selectSource: "Select source",
 
       actions: {
         moveStage: "Move Stage",

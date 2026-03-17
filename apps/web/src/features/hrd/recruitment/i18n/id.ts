@@ -66,6 +66,11 @@ export const recruitmentId = {
       partTime: "Paruh Waktu",
       contract: "Kontrak",
       intern: "Magang",
+      // Uppercase variants (from backend enum)
+      FULL_TIME: "Penuh Waktu",
+      PART_TIME: "Paruh Waktu",
+      CONTRACT: "Kontrak",
+      INTERN: "Magang",
     },
 
     // Fields
@@ -169,12 +174,14 @@ export const recruitmentId = {
       singular: "Pelamar",
       dragHelp: "Seret pelamar untuk memindahkan antar tahapan",
       noResume: "Tidak ada CV",
+      hasResume: "CV",
       contactInfo: "Informasi Kontak",
       applicationDetails: "Detail Lamaran",
       activityHistory: "Riwayat Aktivitas",
       noActivities: "Belum ada aktivitas yang tercatat",
       viewResume: "Lihat Resume",
       appliedAt: "Melamar",
+      notes: "Catatan",
       addDescription: "Tambahkan pelamar baru ke permintaan rekrutmen ini",
       editDescription: "Perbarui informasi pelamar",
       deleteDesc: "Apakah Anda yakin ingin menghapus pelamar ini? Tindakan ini tidak dapat dibatalkan.",
@@ -198,7 +205,7 @@ export const recruitmentId = {
         fullName: "Masukkan nama lengkap",
         email: "Masukkan alamat email",
         phone: "Masukkan nomor telepon",
-        resume: "https://example.com/cv.pdf",
+        resume: "Unggah CV/Resume (PDF, DOC, DOCX)",
         notes: "Tambahkan catatan tentang pelamar...",
       },
 
@@ -210,6 +217,7 @@ export const recruitmentId = {
         direct: "Lamaran Langsung",
         other: "Lainnya",
       },
+      selectSource: "Pilih sumber",
 
       actions: {
         moveStage: "Pindah Tahapan",
