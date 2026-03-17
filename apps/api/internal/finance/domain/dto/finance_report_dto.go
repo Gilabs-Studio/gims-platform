@@ -4,26 +4,38 @@ import (
 	"time"
 )
 
+// GLTransactionRow represents a single journal line in the General Ledger detail.
+// All saldo fields are derived exclusively from posted journal_entries and journal_lines.
 type GLTransactionRow struct {
 	ID            string    `json:"id"`
 	JournalID     string    `json:"journal_id"`
 	EntryDate     time.Time `json:"entry_date"`
 	Description   string    `json:"description"`
+	Memo          string    `json:"memo"`
 	ReferenceType *string   `json:"reference_type"`
 	ReferenceID   *string   `json:"reference_id"`
-	Debit         float64   `json:"debit"`
-	Credit        float64   `json:"credit"`
-	Balance       float64   `json:"balance"`
+	// ReferenceCode is a human-readable composite of reference_type + "/" + reference_id
+	// for quick display. Empty when no reference is set.
+	ReferenceCode string  `json:"reference_code"`
+	Debit         float64 `json:"debit"`
+	Credit        float64 `json:"credit"`
+	// RunningBalance is the cumulative account balance after this line, starting from OpeningBalance.
+	// Direction follows the normal balance rule for the account type.
+	RunningBalance float64 `json:"running_balance"`
 }
 
+// GeneralLedgerAccount is the per-account summary row in the General Ledger report.
+// Only accounts with posted activity or non-zero opening balance are included.
 type GeneralLedgerAccount struct {
-	ChartOfAccountID string             `json:"chart_of_account_id"`
-	Code             string             `json:"code"`
-	Name             string             `json:"name"`
-	AccountType      string             `json:"account_type"`
-	OpeningBalance   float64            `json:"opening_balance"`
-	ClosingBalance   float64            `json:"closing_balance"`
-	Transactions     []GLTransactionRow `json:"transactions"`
+	AccountID      string             `json:"account_id"`
+	AccountCode    string             `json:"account_code"`
+	AccountName    string             `json:"account_name"`
+	AccountType    string             `json:"account_type"`
+	OpeningBalance float64            `json:"opening_balance"`
+	TotalDebit     float64            `json:"total_debit"`
+	TotalCredit    float64            `json:"total_credit"`
+	ClosingBalance float64            `json:"closing_balance"`
+	Transactions   []GLTransactionRow `json:"transactions"`
 }
 
 type GeneralLedgerResponse struct {

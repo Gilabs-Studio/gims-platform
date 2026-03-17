@@ -4,6 +4,7 @@ import { financeReportsService } from "../services/finance-reports-service";
 type ReportDateRange = {
   start_date: string;
   end_date: string;
+  company_id?: string;
 };
 
 export const financeReportKeys = {

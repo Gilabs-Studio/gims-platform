@@ -24,7 +24,7 @@ import { useFinanceCashBankSubLedger } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapCashBankToUnifiedRow } from "./journal-table";
-import { CashBankReferenceDetailModal } from "./cash-bank-reference-detail-modal";
+import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 
 
 export function CashBankJournalsList() {
@@ -172,6 +172,7 @@ export function CashBankJournalsList() {
         showBankAccountColumn
         rowStartNumber={((pagination?.page ?? page) - 1) * (pagination?.per_page ?? pageSize) + 1}
         referenceTooltipText="Click to view detail"
+        canReferenceClick={(row) => canResolveJournalSourceDetail(row.referenceType)}
         onReferenceClick={(row) => {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
@@ -189,7 +190,7 @@ export function CashBankJournalsList() {
         }}
       />
 
-      <CashBankReferenceDetailModal
+      <JournalSourceDetailModal
         open={isReferenceModalOpen}
         onOpenChange={(open) => {
           setIsReferenceModalOpen(open);

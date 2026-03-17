@@ -173,11 +173,11 @@ type stubFinanceReportRepository struct {
 	lines    []financeModels.JournalLine
 }
 
-func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Time, time.Time) ([]repositories.GLAccountBalance, error) {
+func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Time, time.Time, *string) ([]repositories.GLAccountBalance, error) {
 	return s.balances, nil
 }
 
-func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time) ([]financeModels.JournalLine, error) {
+func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string) ([]financeModels.JournalLine, error) {
 	return s.lines, nil
 }
 
@@ -198,7 +198,7 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 	}}
 
 	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now())
+	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil)
 
 	require.NoError(t, err)
 	require.Len(t, res.Assets, 1)
@@ -225,7 +225,7 @@ func TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements(t *test
 	}}
 
 	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
-	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now())
+	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil)
 
 	require.NoError(t, err)
 	require.Len(t, res.Revenues, 1)

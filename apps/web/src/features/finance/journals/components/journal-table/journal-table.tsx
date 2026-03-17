@@ -35,6 +35,7 @@ interface JournalTableProps<T = unknown> {
   rowStartNumber?: number;
   referenceTooltipText?: string;
   onReferenceClick?: (row: UnifiedJournalRow<T>) => void;
+  canReferenceClick?: (row: UnifiedJournalRow<T>) => boolean;
   actionRender?: (row: UnifiedJournalRow<T>) => React.ReactNode;
 }
 
@@ -53,20 +54,21 @@ const DEFAULT_COLUMNS: JournalTableColumn[] = [
 
 function buildReferenceCode(referenceType?: string | null, referenceID?: string | null): string | null {
   const rawType = (referenceType ?? "").trim().toUpperCase();
+  const compact = rawType.replace(/[^A-Z0-9]/g, "");
   if (!rawType) return null;
 
   let prefix = "REF";
-  if (rawType.includes("SALES_INVOICE")) {
+  if (compact.includes("SALESINVOICE")) {
     prefix = "INV";
-  } else if (rawType.includes("SUPPLIER_INVOICE")) {
+  } else if (compact.includes("SUPPLIERINVOICE")) {
     prefix = "PINV";
-  } else if (rawType.includes("PAYMENT")) {
+  } else if (compact.includes("PAYMENT")) {
     prefix = "PAY";
-  } else if (rawType.includes("CASH_BANK")) {
+  } else if (compact.includes("CASHBANK")) {
     prefix = "CB";
-  } else if (rawType.includes("ADJUST")) {
+  } else if (compact.includes("ADJUST")) {
     prefix = "ADJ";
-  } else if (rawType.includes("VALUATION")) {
+  } else if (compact.includes("VALUATION")) {
     prefix = "VAL";
   } else if (rawType.length >= 3) {
     prefix = rawType.slice(0, 3);
@@ -77,86 +79,119 @@ function buildReferenceCode(referenceType?: string | null, referenceID?: string 
   return `${prefix}-${short}`;
 }
 
-function getReferenceBadge(type: string | null) {
+function getReferenceSourceMeta(type: string | null) {
   if (!type) {
     return {
-      label: "N/A",
-      title: "Not Available",
+      label: "Unknown",
+      title: "Unknown Source",
       color: "bg-muted text-muted-foreground border-border",
     };
   }
 
   const value = type.toUpperCase();
+  const compact = value.replace(/[^A-Z0-9]/g, "");
 
-  if (value.includes("SALES_INVOICE")) {
+  if (compact === "SALESPAYMENT") {
     return {
-      label: "SI",
+      label: "Payment SO",
+      title: "Sales Order Payment",
+      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    };
+  }
+  if (compact === "PURCHASEPAYMENT") {
+    return {
+      label: "Payment PO",
+      title: "Purchase Order Payment",
+      color: "bg-lime-500/10 text-lime-600 border-lime-500/20",
+    };
+  }
+  if (compact === "SALESINVOICE") {
+    return {
+      label: "Invoice SO",
       title: "Sales Invoice",
       color: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     };
   }
-  if (value === "DO" || value.includes("DELIVERY")) {
+  if (compact === "SALESINVOICEDP") {
     return {
-      label: "DO",
+      label: "Invoice DP SO",
+      title: "Sales Down Payment Invoice",
+      color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+    };
+  }
+  if (compact === "SUPPLIERINVOICE") {
+    return {
+      label: "Invoice PO",
+      title: "Supplier Invoice",
+      color: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+    };
+  }
+  if (compact === "SUPPLIERINVOICEDP") {
+    return {
+      label: "Invoice DP PO",
+      title: "Supplier Down Payment Invoice",
+      color: "bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20",
+    };
+  }
+  if (compact === "PAYMENT") {
+    return {
+      label: "Payment Finance",
+      title: "Finance Payment",
+      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    };
+  }
+  if (compact === "DO" || compact.includes("DELIVERY")) {
+    return {
+      label: "Delivery SO",
       title: "Delivery Order",
       color: "bg-sky-500/10 text-sky-500 border-sky-500/20",
     };
   }
-  if (value.includes("GOODS_RECEIPT")) {
+  if (compact.includes("GOODSRECEIPT")) {
     return {
-      label: "GR",
+      label: "Receipt PO",
       title: "Goods Receipt",
       color: "bg-orange-500/10 text-orange-500 border-orange-500/20",
     };
   }
-  if (value.includes("SUPPLIER_INVOICE")) {
-    return {
-      label: "PI",
-      title: "Purchase Invoice",
-      color: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    };
-  }
-  if (value.includes("PAYMENT") || value === "PAY") {
-    return {
-      label: "PAY",
-      title: "Payment",
-      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    };
-  }
   if (
-    value === "CASH_IN" ||
-    value === "CASH_OUT" ||
-    value === "TRANSFER" ||
-    value === "CASH_BANK" ||
-    value === "CB" ||
-    value === "TRF"
+    compact === "CASHIN" ||
+    compact === "CASHOUT" ||
+    compact === "TRANSFER" ||
+    compact === "CASHBANK" ||
+    compact === "CB" ||
+    compact === "TRF"
   ) {
     return {
-      label: value === "TRF" ? "TRF" : "CB",
-      title: "Cash & Bank",
+      label: compact === "TRF" || compact === "TRANSFER" ? "Transfer Bank" : "Cash/Bank",
+      title: "Cash & Bank Transaction",
       color: "bg-teal-500/10 text-teal-500 border-teal-500/20",
     };
   }
-  if (value.includes("ADJUST") || value === "CORRECTION") {
+  if (compact.includes("ADJUST") || compact === "CORRECTION") {
     return {
-      label: "ADJ",
-      title: "Adjustment",
+      label: "Adjustment",
+      title: "Adjustment Journal",
       color: "bg-slate-500/10 text-slate-500 border-slate-500/20",
     };
   }
-  if (value.includes("VALUATION") || value.includes("REVALUATION") || value.includes("COST")) {
+  if (compact.includes("VALUATION") || compact.includes("REVALUATION") || compact.includes("COST")) {
     return {
-      label: "VAL",
-      title: "Valuation",
+      label: "Valuation",
+      title: "Valuation Journal",
       color: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     };
   }
 
   return {
-    label: value.substring(0, 3).toUpperCase(),
+    label: value,
     title: value,
     color: "bg-secondary text-secondary-foreground border-border",
   };
+}
+
+function getReferenceBadge(type: string | null) {
+  return getReferenceSourceMeta(type);
 }
 
 export function getSourceHref(
@@ -165,15 +200,15 @@ export function getSourceHref(
 ): string | undefined {
   if (!referenceType || !referenceID) return undefined;
   const value = referenceType.toUpperCase();
+  const compact = value.replace(/[^A-Z0-9]/g, "");
 
-  if (value === "SALES_ORDER") return `/sales/orders/${referenceID}`;
-  if (value === "DELIVERY_ORDER" || value === "DO") return `/sales/deliveries/${referenceID}`;
-  if (value === "GOODS_RECEIPT") return `/purchase/receipts/${referenceID}`;
-  if (value === "SALES_INVOICE" || value === "SALES_INVOICE_DP") return `/sales/invoices/${referenceID}`;
-  if (value === "SUPPLIER_INVOICE" || value === "SUPPLIER_INVOICE_DP" || value === "PI") {
+  if (compact === "SALESORDER") return `/sales/orders/${referenceID}`;
+  if (compact === "DELIVERYORDER" || compact === "DO") return `/sales/deliveries/${referenceID}`;
+  if (compact === "GOODSRECEIPT") return `/purchase/receipts/${referenceID}`;
+  if (compact === "SALESINVOICE" || compact === "SALESINVOICEDP") return `/sales/invoices/${referenceID}`;
+  if (compact === "SUPPLIERINVOICE" || compact === "SUPPLIERINVOICEDP" || compact === "PI") {
     return `/purchase/invoices/${referenceID}`;
   }
-  if (value.includes("PAYMENT")) return `/finance/payments/${referenceID}`;
   return undefined;
 }
 
@@ -297,6 +332,7 @@ function renderCell<T>(
   rowStartNumber: number,
   referenceTooltipText: string,
   onReferenceClick?: (row: UnifiedJournalRow<T>) => void,
+  canReferenceClick?: (row: UnifiedJournalRow<T>) => boolean,
   actionRender?: (row: UnifiedJournalRow<T>) => React.ReactNode,
 ) {
   if (key === "number") {
@@ -340,9 +376,11 @@ function renderCell<T>(
   }
 
   if (key === "reference") {
+    const isReferenceClickable = canReferenceClick ? canReferenceClick(row) : true;
+
     return (
       <TableCell>
-        {onReferenceClick && row.referenceCode ? (
+        {onReferenceClick && row.referenceCode && isReferenceClickable ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -449,6 +487,7 @@ export function JournalTable<T = unknown>({
   rowStartNumber = 1,
   referenceTooltipText = "Click to view detail",
   onReferenceClick,
+  canReferenceClick,
   actionRender,
 }: JournalTableProps<T>) {
   const activeColumns = showBankAccountColumn
@@ -481,14 +520,14 @@ export function JournalTable<T = unknown>({
           {isLoading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <TableRow key={`skeleton-${index}`}>
-                <TableCell colSpan={columns.length} className="p-3">
+                <TableCell colSpan={activeColumns.length} className="p-3">
                   <Skeleton className="h-12 w-full" />
                 </TableCell>
               </TableRow>
             ))
           ) : data.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={columns.length} className="text-center py-12 text-muted-foreground">
+              <TableCell colSpan={activeColumns.length} className="text-center py-12 text-muted-foreground">
                 <div className="flex flex-col items-center justify-center gap-2">
                   <FileText className="h-8 w-8 text-muted-foreground/50" />
                   <p>No journal entries found</p>
@@ -508,6 +547,7 @@ export function JournalTable<T = unknown>({
                       rowStartNumber,
                       referenceTooltipText,
                       onReferenceClick,
+                      canReferenceClick,
                       actionRender,
                     )}
                   />

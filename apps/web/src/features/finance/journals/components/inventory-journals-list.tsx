@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import type { UnifiedJournalRow } from "./journal-table";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -11,6 +12,7 @@ import { useFinancePurchaseJournals } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
+import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 
 export function InventoryJournalsList() {
   const t = useTranslations("financeJournals");
@@ -20,6 +22,8 @@ export function InventoryJournalsList() {
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const canExport = useUserPermission("purchase_journal.export");
@@ -80,6 +84,11 @@ export function InventoryJournalsList() {
       <JournalTable
         isLoading={isLoading}
         data={mappedItems}
+        canReferenceClick={(row) => canResolveJournalSourceDetail(row.referenceType)}
+        onReferenceClick={(row) => {
+          setSelectedReferenceRow(row);
+          setIsReferenceModalOpen(true);
+        }}
       />
 
       <DataTablePagination
@@ -91,6 +100,17 @@ export function InventoryJournalsList() {
           setPageSize(size);
           setPage(1);
         }}
+      />
+
+      <JournalSourceDetailModal
+        open={isReferenceModalOpen}
+        onOpenChange={(open) => {
+          setIsReferenceModalOpen(open);
+          if (!open) {
+            setSelectedReferenceRow(null);
+          }
+        }}
+        row={selectedReferenceRow}
       />
     </div>
   );

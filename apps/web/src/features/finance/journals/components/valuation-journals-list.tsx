@@ -48,7 +48,9 @@ import {
 } from "../hooks/use-finance-journals";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
+import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 import type { RunValuationInput, ValuationType } from "../types";
+import type { UnifiedJournalRow } from "./journal-table";
 function RunStatusBadge({ status }: { readonly status: string }) {
   const variants: Record<string, "success" | "secondary" | "destructive" | "outline"> = {
     completed: "success",
@@ -81,6 +83,8 @@ export function ValuationJournalsList() {
   const [pageSize, setPageSize] = useState(20);
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const [runForm, setRunForm] = useState<RunValuationInput>({
     valuation_type: "inventory",
     period_start: "",
@@ -430,6 +434,11 @@ export function ValuationJournalsList() {
       <JournalTable
         isLoading={isLoading}
         data={items.map(mapJournalToUnifiedRow)}
+        canReferenceClick={(row) => canResolveJournalSourceDetail(row.referenceType)}
+        onReferenceClick={(row) => {
+          setSelectedReferenceRow(row);
+          setIsReferenceModalOpen(true);
+        }}
       />
 
       <DataTablePagination
@@ -441,6 +450,17 @@ export function ValuationJournalsList() {
           setPageSize(size);
           setPage(1);
         }}
+      />
+
+      <JournalSourceDetailModal
+        open={isReferenceModalOpen}
+        onOpenChange={(open) => {
+          setIsReferenceModalOpen(open);
+          if (!open) {
+            setSelectedReferenceRow(null);
+          }
+        }}
+        row={selectedReferenceRow}
       />
     </div>
   );

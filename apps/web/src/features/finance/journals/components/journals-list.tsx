@@ -26,8 +26,10 @@ import {
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
+import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
+import type { UnifiedJournalRow } from "./journal-table";
 
 
 export function JournalsList() {
@@ -56,6 +58,8 @@ export function JournalsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
+  const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
   const [viewOpen, setViewOpen] = useState(false);
   const [trialBalanceOpen, setTrialBalanceOpen] = useState(false);
@@ -161,6 +165,11 @@ export function JournalsList() {
       <JournalTable
         isLoading={isLoading}
         data={items.map(mapJournalToUnifiedRow)}
+        canReferenceClick={(row) => canResolveJournalSourceDetail(row.referenceType)}
+        onReferenceClick={(row) => {
+          setSelectedReferenceRow(row);
+          setIsReferenceModalOpen(true);
+        }}
         actionRender={(row) => {
           const item = row.original;
           return (
@@ -261,6 +270,17 @@ export function JournalsList() {
           if (!open) setSelectedId(null);
         }}
         id={selectedId}
+      />
+
+      <JournalSourceDetailModal
+        open={isReferenceModalOpen}
+        onOpenChange={(open) => {
+          setIsReferenceModalOpen(open);
+          if (!open) {
+            setSelectedReferenceRow(null);
+          }
+        }}
+        row={selectedReferenceRow}
       />
 
       <TrialBalanceDialog open={trialBalanceOpen} onOpenChange={setTrialBalanceOpen} />

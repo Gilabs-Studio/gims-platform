@@ -282,6 +282,21 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	reportUC := NewFinanceReportUsecase(coaRepo, reportRepo)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	openingRefType := "SALES_INVOICE"
+	openingRefID := "report-opening-001"
+
+	_, err = journalUC.PostOrUpdateJournal(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-02-25",
+		Description:   "Opening posted revenue journal",
+		ReferenceType: &openingRefType,
+		ReferenceID:   &openingRefID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 500, Credit: 0, Memo: "opening cash in"},
+			{ChartOfAccountID: coaRevenue.ID, Debit: 0, Credit: 500, Memo: "opening sales"},
+		},
+	})
+	require.NoError(t, err)
+
 	postedRefType := "SALES_INVOICE"
 	postedRefID := "report-posted-001"
 
@@ -314,32 +329,126 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	startDate := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
 
-	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate)
+	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil)
 	require.NoError(t, err)
 
 	var cashAccount *dto.GeneralLedgerAccount
 	for i := range gl.Accounts {
-		if gl.Accounts[i].Code == "11100" {
+		if gl.Accounts[i].AccountCode == "11100" {
 			cashAccount = &gl.Accounts[i]
 			break
 		}
 	}
 	require.NotNil(t, cashAccount)
 	require.Len(t, cashAccount.Transactions, 1)
+	require.Equal(t, 500.0, cashAccount.OpeningBalance)
+	require.Equal(t, 1500.0, cashAccount.TotalDebit)
+	require.Equal(t, 0.0, cashAccount.TotalCredit)
+	require.Equal(t, 2000.0, cashAccount.ClosingBalance)
+	require.Equal(t, 2000.0, cashAccount.Transactions[0].RunningBalance)
 	require.NotNil(t, cashAccount.Transactions[0].ReferenceID)
 	require.Equal(t, postedRefID, *cashAccount.Transactions[0].ReferenceID)
 
-	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate)
+	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, bs.AssetTotal)
 
-	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate)
+	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, pl.RevenueTotal)
 	require.Equal(t, 0.0, pl.ExpenseTotal)
 	require.Equal(t, 1500.0, pl.NetProfit)
 
-	exportBytes, err := reportUC.ExportGeneralLedger(ctx, startDate, endDate)
+	exportBytes, err := reportUC.ExportGeneralLedger(ctx, startDate, endDate, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, exportBytes)
+}
+
+func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThenIDs(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+	)
+	require.NoError(t, err)
+
+	coaCash := models.ChartOfAccount{Code: "11100", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true}
+	coaRevenue := models.ChartOfAccount{Code: "4100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true}
+	require.NoError(t, db.Create(&coaCash).Error)
+	require.NoError(t, db.Create(&coaRevenue).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	reportRepo := repositories.NewFinanceReportRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	reportUC := NewFinanceReportUsecase(coaRepo, reportRepo)
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+
+	refType1 := "SALES_INVOICE"
+	refID1 := "order-check-001"
+	_, err = journalUC.PostOrUpdateJournal(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-03-10",
+		Description:   "Ledger order check #1",
+		ReferenceType: &refType1,
+		ReferenceID:   &refID1,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 100, Credit: 0, Memo: "cash #1"},
+			{ChartOfAccountID: coaRevenue.ID, Debit: 0, Credit: 100, Memo: "sales #1"},
+		},
+	})
+	require.NoError(t, err)
+
+	refType2 := "SALES_INVOICE"
+	refID2 := "order-check-002"
+	_, err = journalUC.PostOrUpdateJournal(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-03-10",
+		Description:   "Ledger order check #2",
+		ReferenceType: &refType2,
+		ReferenceID:   &refID2,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 200, Credit: 0, Memo: "cash #2"},
+			{ChartOfAccountID: coaRevenue.ID, Debit: 0, Credit: 200, Memo: "sales #2"},
+		},
+	})
+	require.NoError(t, err)
+
+	startDate := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
+
+	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate, nil)
+	require.NoError(t, err)
+
+	var cashAccount *dto.GeneralLedgerAccount
+	for i := range gl.Accounts {
+		if gl.Accounts[i].AccountCode == "11100" {
+			cashAccount = &gl.Accounts[i]
+			break
+		}
+	}
+	require.NotNil(t, cashAccount)
+	require.GreaterOrEqual(t, len(cashAccount.Transactions), 2)
+
+	for i := 1; i < len(cashAccount.Transactions); i++ {
+		prev := cashAccount.Transactions[i-1]
+		curr := cashAccount.Transactions[i]
+
+		require.False(t, curr.EntryDate.Before(prev.EntryDate), "entry_date must be ascending")
+
+		if curr.EntryDate.Equal(prev.EntryDate) {
+			prevKey := prev.JournalID + ":" + prev.ID
+			currKey := curr.JournalID + ":" + curr.ID
+			require.LessOrEqual(t, prevKey, currKey, "same entry_date must use deterministic tie-breaker by IDs")
+		}
+	}
 }
