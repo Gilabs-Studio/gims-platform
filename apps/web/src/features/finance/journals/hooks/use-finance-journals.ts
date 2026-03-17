@@ -8,7 +8,9 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
+  RunValuationInput,
   UpdateJournalEntryInput,
+  ListCashBankSubLedgerParams,
 } from "../types";
 
 export const financeJournalKeys = {
@@ -24,8 +26,8 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "adjustment-list", params] as const,
   valuationList: (params?: ListJournalEntriesParams) =>
     [...financeJournalKeys.all, "valuation-list", params] as const,
-  cashBankList: (params?: ListJournalEntriesParams) =>
-    [...financeJournalKeys.all, "cash-bank-list", params] as const,
+  cashBankSubLedgerList: (params?: ListCashBankSubLedgerParams) =>
+    [...financeJournalKeys.all, "cash-bank-subledger", params] as const,
   details: () => [...financeJournalKeys.all, "detail"] as const,
   detail: (id: string) => [...financeJournalKeys.details(), id] as const,
   trialBalance: (params?: { start_date?: string; end_date?: string }) =>
@@ -74,10 +76,12 @@ export function useFinanceValuationJournals(params?: ListJournalEntriesParams) {
   });
 }
 
-export function useFinanceCashBankJournals(params?: ListJournalEntriesParams) {
+export function useFinanceCashBankSubLedger(
+  params?: ListCashBankSubLedgerParams,
+) {
   return useQuery({
-    queryKey: financeJournalKeys.cashBankList(params),
-    queryFn: () => financeJournalsService.listCashBank(params),
+    queryKey: financeJournalKeys.cashBankSubLedgerList(params),
+    queryFn: () => financeJournalsService.listCashBankSubLedger(params),
   });
 }
 

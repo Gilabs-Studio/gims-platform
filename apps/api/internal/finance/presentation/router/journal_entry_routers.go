@@ -37,7 +37,7 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.GET("/sales", middleware.RequirePermission(salesJournalRead), h.ListSalesJournals)
 	g.GET("/purchase", middleware.RequirePermission(purchaseJournalRead), h.ListPurchaseJournals)
 	g.GET("/inventory", middleware.RequirePermission(journalRead), h.ListInventoryJournals)
-	g.GET("/cash-bank", middleware.RequirePermission(cashBankJournalRead), h.ListCashBankJournals)
+	g.GET("/cash-bank", middleware.RequirePermission(cashBankJournalRead), h.ListCashBankSubLedger)
 
 	// Adjustment journal endpoints (operational, Finance-controlled)
 	g.GET("/adjustment", middleware.RequirePermission(adjustmentJournalRead), h.ListAdjustmentJournals)

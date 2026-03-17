@@ -161,3 +161,58 @@ export interface ValuationApiResponse<T> {
   };
   error?: string;
 }
+
+// ===== Cash & Bank Subledger Types =====
+
+export interface CashBankSubLedgerEntry {
+  id: string;
+  transaction_date: string;
+  type: "cash_in" | "cash_out" | "transfer";
+  description?: string | null;
+  bank_account_id: string;
+  bank_account?: {
+    id: string;
+    name: string;
+    account_number: string;
+    account_holder: string;
+    currency: string;
+  } | null;
+  total_amount: number;
+  status: "posted";
+  journal_entry_id?: string | null;
+  posted_at?: string | null;
+  posted_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashBankSubLedgerKPI {
+  total_inflow: number;
+  total_outflow: number;
+  net_movement: number;
+  total_records: number;
+}
+
+export interface ListCashBankSubLedgerParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  type?: "cash_in" | "cash_out" | "transfer";
+  bank_account_id?: string;
+  start_date?: string;
+  end_date?: string;
+  sort_by?: string;
+  sort_dir?: string;
+}
+
+export interface CashBankSubLedgerApiResponse<T> {
+  success: boolean;
+  data: T;
+  meta?: {
+    pagination?: PaginationMeta;
+    additional?: {
+      kpi?: CashBankSubLedgerKPI;
+    };
+  };
+  error?: string;
+}

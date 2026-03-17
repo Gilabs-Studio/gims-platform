@@ -15,10 +15,11 @@ import (
 type JournalEntryHandler struct {
 	uc          usecase.JournalEntryUsecase
 	valuationUC usecase.ValuationRunUsecase
+	cashBankUC  usecase.CashBankJournalUsecase
 }
 
-func NewJournalEntryHandler(uc usecase.JournalEntryUsecase, valuationUC usecase.ValuationRunUsecase) *JournalEntryHandler {
-	return &JournalEntryHandler{uc: uc, valuationUC: valuationUC}
+func NewJournalEntryHandler(uc usecase.JournalEntryUsecase, valuationUC usecase.ValuationRunUsecase, cashBankUC usecase.CashBankJournalUsecase) *JournalEntryHandler {
+	return &JournalEntryHandler{uc: uc, valuationUC: valuationUC, cashBankUC: cashBankUC}
 }
 
 func (h *JournalEntryHandler) Create(c *gin.Context) {
@@ -195,6 +196,45 @@ func (h *JournalEntryHandler) ReverseAdjustment(c *gin.Context) {
 
 func (h *JournalEntryHandler) ListValuationJournals(c *gin.Context) {
 	h.listByDomain(c, "valuation")
+}
+
+// ListCashBankSubLedger handles GET /finance/journal-entries/cash-bank
+// This is a READ-ONLY sub-ledger endpoint that returns posted cash_bank_journals with KPI.
+func (h *JournalEntryHandler) ListCashBankSubLedger(c *gin.Context) {
+	var req dto.ListCashBankJournalsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	req.Page = page
+	req.PerPage = perPage
+
+	items, total, kpi, err := h.cashBankUC.ListPosted(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_BANK_SUBLEDGER_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	paginationMeta := response.NewPaginationMeta(page, perPage, int(total))
+	meta := &response.Meta{
+		Pagination: paginationMeta,
+		Additional: map[string]interface{}{
+			"kpi": kpi,
+		},
+	}
+	response.SuccessResponse(c, items, meta)
 }
 
 // RunValuation handles POST /finance/journal-entries/valuation/run

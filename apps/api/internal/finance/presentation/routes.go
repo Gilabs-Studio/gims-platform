@@ -76,7 +76,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)
-	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC)
+	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
 	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)

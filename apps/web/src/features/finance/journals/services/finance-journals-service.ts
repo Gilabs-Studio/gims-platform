@@ -10,6 +10,9 @@ import type {
   UpdateJournalEntryInput,
   ValuationApiResponse,
   ValuationRun,
+  CashBankSubLedgerEntry,
+  ListCashBankSubLedgerParams,
+  CashBankSubLedgerApiResponse,
 } from "../types";
 
 const BASE_URL = "/finance/journal-entries";
@@ -198,6 +201,17 @@ export const financeJournalsService = {
         params,
       },
     );
+    return response.data;
+  },
+
+  listCashBankSubLedger: async (
+    params?: ListCashBankSubLedgerParams,
+  ): Promise<CashBankSubLedgerApiResponse<CashBankSubLedgerEntry[]>> => {
+    const response = await apiClient.get<
+      CashBankSubLedgerApiResponse<CashBankSubLedgerEntry[]>
+    >(`${BASE_URL}/cash-bank`, {
+      params,
+    });
     return response.data;
   },
 };
