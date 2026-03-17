@@ -19,6 +19,7 @@ type CustomerResearchRepository interface {
 	GetPurchaseFrequency(ctx context.Context, params ListCustomersParams) ([]CustomerResearchRow, utils.PaginationResult, error)
 	GetRevenueTrend(ctx context.Context, startDate, endDate time.Time, interval string) ([]CustomerRevenueTrendRow, error)
 	GetCustomerDetail(ctx context.Context, customerID string, startDate, endDate time.Time) (*CustomerDetailRow, error)
+	GetCustomerTopProducts(ctx context.Context, customerID string, startDate, endDate time.Time, limit int) ([]CustomerProductRow, error)
 }
 
 // CustomerResearchKPIsRow is raw KPI query result.
@@ -66,6 +67,16 @@ type CustomerDetailRow struct {
 	TotalOrders       int     `gorm:"column:total_orders"`
 	AverageOrderValue float64 `gorm:"column:average_order_value"`
 	LastOrderDate     string  `gorm:"column:last_order_date"`
+}
+
+// CustomerProductRow is raw product row per customer.
+type CustomerProductRow struct {
+	ProductID    string  `gorm:"column:product_id"`
+	ProductCode  string  `gorm:"column:product_code"`
+	ProductName  string  `gorm:"column:product_name"`
+	TotalQty     float64 `gorm:"column:total_qty"`
+	TotalRevenue float64 `gorm:"column:total_revenue"`
+	TotalOrders  int     `gorm:"column:total_orders"`
 }
 
 type customerResearchRepository struct {
@@ -291,4 +302,44 @@ func (r *customerResearchRepository) GetCustomerDetail(ctx context.Context, cust
 	}
 
 	return &row, nil
+}
+
+func (r *customerResearchRepository) GetCustomerTopProducts(ctx context.Context, customerID string, startDate, endDate time.Time, limit int) ([]CustomerProductRow, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	query := `
+		SELECT
+			COALESCE(p.id::text, '') AS product_id,
+			COALESCE(p.code, '') AS product_code,
+			COALESCE(p.name, '') AS product_name,
+			COALESCE(SUM(soi.quantity), 0) AS total_qty,
+			COALESCE(SUM(soi.subtotal), 0) AS total_revenue,
+			COUNT(DISTINCT so.id) AS total_orders
+		FROM sales_order_items soi
+		INNER JOIN sales_orders so ON so.id = soi.sales_order_id
+			AND so.deleted_at IS NULL
+			AND so.status NOT IN ('draft', 'cancelled')
+			AND so.customer_id = @customerID
+			AND so.order_date BETWEEN @startDate AND @endDate
+		INNER JOIN products p ON p.id = soi.product_id
+			AND p.deleted_at IS NULL
+		WHERE soi.deleted_at IS NULL
+		GROUP BY p.id, p.code, p.name
+		ORDER BY total_revenue DESC
+		LIMIT @limit
+	`
+
+	var rows []CustomerProductRow
+	if err := r.db.WithContext(ctx).Raw(query, map[string]interface{}{
+		"customerID": customerID,
+		"startDate":  startDate,
+		"endDate":    endDate,
+		"limit":      limit,
+	}).Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("failed to get customer top products: %w", err)
+	}
+
+	return rows, nil
 }

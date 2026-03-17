@@ -90,3 +90,25 @@ type CustomerDetailResponse struct {
 	AverageOrderValue float64 `json:"average_order_value"`
 	LastOrderDate     string  `json:"last_order_date,omitempty"`
 }
+
+// GetCustomerTopProductsRequest defines query parameters for top products endpoint.
+type GetCustomerTopProductsRequest struct {
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+	Limit     int    `form:"limit,default=20"`
+}
+
+// CustomerProductItem represents one product row in the customer top products list.
+type CustomerProductItem struct {
+	ProductID    string  `json:"product_id"`
+	ProductCode  string  `json:"product_code"`
+	ProductName  string  `json:"product_name"`
+	TotalQty     float64 `json:"total_qty"`
+	TotalRevenue float64 `json:"total_revenue"`
+	TotalOrders  int     `json:"total_orders"`
+}
+
+// CustomerTopProductsResponse wraps the top products list.
+type CustomerTopProductsResponse struct {
+	Data []CustomerProductItem `json:"data"`
+}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 import { format, subDays } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { PageMotion } from "@/components/motion";
@@ -15,10 +16,10 @@ import { CustomerKpiCards } from "./customer-kpi-cards";
 import { CustomerRevenueTrendChart } from "./customer-revenue-trend-chart";
 import { CustomerRankingCharts } from "./customer-ranking-charts";
 import { CustomerListTable } from "./customer-list-table";
-import { CustomerDetailSheet } from "./customer-detail-sheet";
 
 export function CustomerResearchPage() {
   const t = useTranslations("customerResearchReport");
+  const router = useRouter();
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const now = new Date();
@@ -35,8 +36,6 @@ export function CustomerResearchPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>();
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
   const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
@@ -95,8 +94,7 @@ export function CustomerResearchPage() {
   };
 
   const handleViewDetail = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setIsDetailOpen(true);
+    router.push(`/reports/customer-research/${customerId}`);
   };
 
   return (
@@ -137,14 +135,6 @@ export function CustomerResearchPage() {
         setPerPage={setPerPage}
         pagination={pagination}
         onViewDetail={handleViewDetail}
-      />
-
-      <CustomerDetailSheet
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        customerId={selectedCustomerId}
-        startDate={queryFilters.start_date}
-        endDate={queryFilters.end_date}
       />
     </PageMotion>
   );

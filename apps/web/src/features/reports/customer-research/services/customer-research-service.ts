@@ -6,6 +6,7 @@ import type {
   ListCustomerResearchResponse,
   CustomerRankResponse,
   CustomerDetailResponse,
+  CustomerTopProductsResponse,
 } from "../types";
 
 export const customerResearchService = {
@@ -77,6 +78,17 @@ export const customerResearchService = {
   ): Promise<CustomerDetailResponse> {
     const response = await apiClient.get<CustomerDetailResponse>(
       `/reports/customer-research/customers/${customerId}`,
+      { params }
+    );
+    return response.data;
+  },
+
+  async getCustomerTopProducts(
+    customerId: string,
+    params?: { start_date?: string; end_date?: string; limit?: number }
+  ): Promise<CustomerTopProductsResponse> {
+    const response = await apiClient.get<CustomerTopProductsResponse>(
+      `/reports/customer-research/customers/${customerId}/products`,
       { params }
     );
     return response.data;

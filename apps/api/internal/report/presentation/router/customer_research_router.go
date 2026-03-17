@@ -18,4 +18,5 @@ func RegisterCustomerResearchRoutes(rg *gin.RouterGroup, h *handler.CustomerRese
 	g.GET("/revenue-trend", middleware.RequirePermission(customerResearchReadPermission), h.GetRevenueTrend)
 	g.GET("/customers", middleware.RequirePermission(customerResearchReadPermission), h.ListCustomers)
 	g.GET("/customers/:customerId", middleware.RequirePermission(customerResearchReadPermission), h.GetCustomerDetail)
+	g.GET("/customers/:customerId/products", middleware.RequirePermission(customerResearchReadPermission), h.GetCustomerTopProducts)
 }

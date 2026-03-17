@@ -153,6 +153,7 @@ export interface ListSalesOrdersParams {
   sales_rep_id?: string;
   business_unit_id?: string;
   sales_quotation_id?: string;
+  customer_id?: string;
   unfulfilled_only?: boolean;
   sort_by?: string;
   sort_dir?: "asc" | "desc";

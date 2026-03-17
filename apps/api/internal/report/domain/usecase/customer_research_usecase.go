@@ -20,6 +20,7 @@ type CustomerResearchUsecase interface {
 	ListRevenueByCustomer(ctx context.Context, req dto.ListRevenueByCustomerRequest) (*dto.ListCustomersResponse, utils.PaginationResult, error)
 	ListPurchaseFrequency(ctx context.Context, req dto.ListPurchaseFrequencyRequest) (*dto.ListCustomersResponse, utils.PaginationResult, error)
 	GetCustomerDetail(ctx context.Context, customerID string, req dto.GetCustomerResearchKpisRequest) (*dto.CustomerDetailResponse, error)
+	GetCustomerTopProducts(ctx context.Context, customerID string, req dto.GetCustomerTopProductsRequest) (*dto.CustomerTopProductsResponse, error)
 }
 
 type customerResearchUsecase struct {
@@ -176,6 +177,33 @@ func (uc *customerResearchUsecase) GetCustomerDetail(ctx context.Context, custom
 		AverageOrderValue: row.AverageOrderValue,
 		LastOrderDate:     row.LastOrderDate,
 	}, nil
+}
+
+func (uc *customerResearchUsecase) GetCustomerTopProducts(ctx context.Context, customerID string, req dto.GetCustomerTopProductsRequest) (*dto.CustomerTopProductsResponse, error) {
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	rows, err := uc.repo.GetCustomerTopProducts(ctx, customerID, start, end, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.CustomerProductItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dto.CustomerProductItem{
+			ProductID:    row.ProductID,
+			ProductCode:  row.ProductCode,
+			ProductName:  row.ProductName,
+			TotalQty:     row.TotalQty,
+			TotalRevenue: row.TotalRevenue,
+			TotalOrders:  row.TotalOrders,
+		})
+	}
+
+	return &dto.CustomerTopProductsResponse{Data: items}, nil
 }
 
 func mapCustomerRows(rows []repositories.CustomerResearchRow) []dto.CustomerRow {

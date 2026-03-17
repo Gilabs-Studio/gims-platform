@@ -93,3 +93,19 @@ export interface CustomerDetailResponse {
   success: boolean;
   data: CustomerDetail;
 }
+
+export interface CustomerProductItem {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  total_qty: number;
+  total_revenue: number;
+  total_orders: number;
+}
+
+export interface CustomerTopProductsResponse {
+  success: boolean;
+  data: {
+    data: CustomerProductItem[];
+  };
+}

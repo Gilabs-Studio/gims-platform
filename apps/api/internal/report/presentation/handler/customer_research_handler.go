@@ -167,3 +167,30 @@ func (h *CustomerResearchHandler) GetCustomerDetail(c *gin.Context) {
 
 	response.SuccessResponse(c, result, nil)
 }
+
+// GetCustomerTopProducts returns the top products sold to a specific customer.
+func (h *CustomerResearchHandler) GetCustomerTopProducts(c *gin.Context) {
+	customerID := c.Param("customerId")
+	if customerID == "" {
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	var req dto.GetCustomerTopProductsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	result, err := h.uc.GetCustomerTopProducts(c.Request.Context(), customerID, req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
