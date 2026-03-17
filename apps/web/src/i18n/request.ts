@@ -163,6 +163,10 @@ import { productAnalysisReportEn } from "@/features/reports/product-analysis/i18
 import { productAnalysisReportId } from "@/features/reports/product-analysis/i18n/id";
 import { geoPerformanceReportEn } from "@/features/reports/geo-performance/i18n/en";
 import { geoPerformanceReportId } from "@/features/reports/geo-performance/i18n/id";
+import { customerResearchReportEn } from "@/features/reports/customer-research/i18n/en";
+import { customerResearchReportId } from "@/features/reports/customer-research/i18n/id";
+import { supplierResearchReportEn } from "@/features/reports/supplier-research/i18n/en";
+import { supplierResearchReportId } from "@/features/reports/supplier-research/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -243,6 +247,8 @@ const messages = {
     ...salesOverviewReportEn,
     ...productAnalysisReportEn,
     ...geoPerformanceReportEn,
+    ...customerResearchReportEn,
+    ...supplierResearchReportEn,
   },
   id: {
     ...globalIdMessages,
@@ -320,6 +326,8 @@ const messages = {
     ...salesOverviewReportId,
     ...productAnalysisReportId,
     ...geoPerformanceReportId,
+    ...customerResearchReportId,
+    ...supplierResearchReportId,
   },
 } as const;
 

@@ -511,6 +511,14 @@ func SeedPermissions() error {
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
 		{"/reports/geo-performance", "report_geo_performance.export", "Export Geo Performance Report", "EXPORT", "report_geo_performance"},
 
+		// Reports - Customer Research
+		{"/reports/customer-research", "report_customer_research.read", "View Customer Research Report", "VIEW", "report_customer_research"},
+		{"/reports/customer-research", "report_customer_research.export", "Export Customer Research Report", "EXPORT", "report_customer_research"},
+
+		// Reports - Supplier Research
+		{"/reports/supplier-research", "report_supplier_research.read", "View Supplier Research Report", "VIEW", "report_supplier_research"},
+		{"/reports/supplier-research", "report_supplier_research.export", "Export Supplier Research Report", "EXPORT", "report_supplier_research"},
+
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},

@@ -688,6 +688,18 @@ export const navigationConfig: NavItem[] = [
         icon: "map",
         permission: "report_geo_performance.read",
       },
+      {
+        name: "Customer Research",
+        url: "/reports/customer-research",
+        icon: "users",
+        permission: "report_customer_research.read",
+      },
+      {
+        name: "Supplier Research",
+        url: "/reports/supplier-research",
+        icon: "bar-chart-3",
+        permission: "report_supplier_research.read",
+      },
     ],
   },
   {
