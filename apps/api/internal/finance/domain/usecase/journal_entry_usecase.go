@@ -60,6 +60,11 @@ type JournalEntryUsecase interface {
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
 	PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error)
 	GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error)
+	CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error)
+	UpdateAdjustmentJournal(ctx context.Context, id string, req *dto.UpdateJournalEntryRequest) (*dto.JournalEntryResponse, error)
+	PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error)
 }
 
 type journalEntryUsecase struct {
@@ -718,4 +723,139 @@ func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEnt
 	return &dto.JournalEntryFormDataResponse{
 		ChartOfAccounts: coaOptions,
 	}, nil
+}
+
+// CreateAdjustmentJournal creates a manual correction journal entry.
+// reference_type is always forced to "MANUAL_ADJUSTMENT" and is_system_generated = false.
+// This enforces governance: only Finance-controlled manual adjustments can use this endpoint.
+func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	refType := "MANUAL_ADJUSTMENT"
+	baseReq := &dto.CreateJournalEntryRequest{
+		EntryDate:         req.EntryDate,
+		Description:       req.Description,
+		ReferenceType:     &refType,
+		ReferenceID:       nil,
+		Lines:             req.Lines,
+		IsSystemGenerated: false,
+		SourceDocumentURL: req.SourceDocumentURL,
+	}
+
+	return uc.Create(ctx, baseReq)
+}
+
+// UpdateAdjustmentJournal updates a manual correction journal entry.
+func (uc *journalEntryUsecase) UpdateAdjustmentJournal(ctx context.Context, id string, req *dto.UpdateJournalEntryRequest) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only update manual adjustment journals")
+	}
+
+	refType := "MANUAL_ADJUSTMENT"
+	req.ReferenceType = &refType
+	req.ReferenceID = entry.ReferenceID
+
+	return uc.Update(ctx, id, req)
+}
+
+// PostAdjustmentJournal posts a manual correction journal entry.
+func (uc *journalEntryUsecase) PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only post manual adjustment journals")
+	}
+	return uc.Post(ctx, id)
+}
+
+// ReverseAdjustmentJournal reverses a posted manual correction journal entry.
+func (uc *journalEntryUsecase) ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only reverse manual adjustment journals")
+	}
+	return uc.Reverse(ctx, id)
+}
+
+// RunValuation implements a skeleton valuation process.
+// In a real implementation, this would trigger actual calculations for FIFO/Average
+// inventory values, currency rates, or cost adjustments and generate corresponding journals.
+// For now, it generates a sample balanced "INVENTORY_VALUATION" journal entry.
+func (uc *journalEntryUsecase) RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+
+	refType := "INVENTORY_VALUATION"
+	// Use a timestamped reference ID to ensure uniqueness for multiple runs
+	refID := fmt.Sprintf("VAL-RUN-%d", time.Now().Unix())
+
+	// Skeleton dynamic logic: let's assume we adjusted inventory value by $100
+	req := &dto.CreateJournalEntryRequest{
+		EntryDate:         apptime.Now().Format("2006-01-02"),
+		Description:       "Inventory Valuation Run - Automatic Adjustment",
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		IsSystemGenerated: true,
+		Lines: []dto.JournalLineRequest{
+			{
+				ChartOfAccountID: "11040001", // Sample Inventory Asset Account ID (mock)
+				Debit:            100.00,
+				Credit:           0,
+				Memo:             "Valuation adjustment - increase",
+			},
+			{
+				ChartOfAccountID: "51010001", // Sample COGS/Valuation Expense Account ID (mock)
+				Debit:            0,
+				Credit:           100.00,
+				Memo:             "Valuation adjustment - contra",
+			},
+		},
+	}
+
+	// In a real scenario, we would allow the creation even if COA IDs don't exist yet by pre-validating or using specific system accounts.
+	// For this skeleton, we'll try to find any 2 COAs if the hardcoded ones fail, to ensure the "Run" at least produces something in a test/dev env.
+	coas, _ := uc.coaRepo.FindAll(ctx, false)
+	if len(coas) >= 2 {
+		req.Lines[0].ChartOfAccountID = coas[0].ID
+		req.Lines[1].ChartOfAccountID = coas[1].ID
+	}
+
+	// We use PostOrUpdateJournal to ensure idempotency and auto-post the result
+	return uc.PostOrUpdateJournal(ctx, req)
 }

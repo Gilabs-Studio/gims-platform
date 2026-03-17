@@ -27,11 +27,12 @@ Fokus implementasi berikutnya supaya board ini bergerak paling efisien:
 
 | Priority | Page | Kenapa Penting | Next Action |
 |---|---|---|---|
-| 1 | Finance Journal Adjustment Page | Dibutuhkan untuk manual correction path | Finalisasi endpoint create/update/post/reverse |
+| 1 | Finance Journal Adjustment Page | Dibutuhkan untuk manual correction path | Done |
 | 2 | Finance Reports Pages | Menutup gap governance untuk export action | Gate export GL/BS/PL by permission |
-| 3 | Journal Valuation Page | Menyediakan entry point valuation sesuai blueprint | Implement valuation list + skeleton run endpoint |
-| 4 | Finance Navigation & Journals Pages | Menyelesaikan UX split domain journal | Lanjutkan split menu journal domain lain |
+| 3 | Journal Valuation Page | Menyediakan entry point valuation sesuai blueprint | Done (Valuation logic, idempotent API, UX Form, Dashboard KPI) |
+| 4 | Finance Navigation & Journals Pages | Menyelesaikan UX split domain journal | Done |
 | 5 | Reconciliation & QA Validation | Dibutuhkan untuk sign-off sprint 2 | Tambah mismatch report dan validasi tie-out |
+
 
 ## 1. Planning Assumptions
 
@@ -62,10 +63,10 @@ Status ringkas implementasi per page / flow terhadap board ini:
 | Unit/integration test journal core | Done | Test validasi line + mapping domain + reverse metadata sudah ditambahkan |
 | Customer invoice regular journal trigger | Done | Trigger jurnal invoice regular sudah di-implement di `customer_invoice_usecase.go` dengan `PostOrUpdateJournal` |
 | Customer invoice DP journal trigger | Done | Trigger jurnal invoice DP sudah di-implement di `customer_invoice_down_payment_usecase.go` dengan `PostOrUpdateJournal` |
-| Adjustment journal dedicated CRUD/API hardening | In Progress | Struktur domain sudah siap, endpoint khusus adjustment masih perlu finalisasi |
-| Journal valuation endpoint run flow | Not Started | Baru tahap rencana, belum ada implementasi endpoint run yang lengkap |
-| FE export gating di report pages (GL/BS/PL) | Not Started | Belum dipatch pada komponen report |
-| FE navigation split domain journal + route sync | In Progress | Sales Journal page + menu + route validator sudah ditambahkan, split domain lain masih lanjut |
+| Adjustment journal dedicated CRUD/API hardening | Done | Dedicated adjustment CRUD, posting, and reversal endpoints implemented with hardened domain cross-checks. |
+| Journal valuation endpoint run flow | Done | Valuation list, skeleton run endpoint, dan RBAC sudah diimplementasikan. |
+| FE export gating di report pages (GL/BS/PL) | Done | Tombol export GL/BS/PL sekarang hanya tampil untuk role dengan permission export dan layout report mengikuti komponen standar |
+| FE navigation split domain journal + route sync | In Progress | Sales & Adjustment Journal pages + menu + route validator active, split domain lain masih lanjut |
 | Sales Journal page (Frontend) | Done | Halaman baru `/finance/journals/sales` sudah aktif dengan `PermissionGuard`, `PageMotion`, table/filter/export |
 | Sales Journal RBAC (Backend) | Done | Permission `sales_journal.read`/`sales_journal.export` + route guard endpoint sales journal sudah aktif |
 | Closing hardening all posting paths | In Progress | Guard sudah ada, audit enforcement lintas jalur posting masih perlu finalisasi |
@@ -86,7 +87,7 @@ Status ringkas implementasi per page / flow terhadap board ini:
 | D7 | Closing hardening + lock enforcement | D3, D4, D5, D6 | Production cutover | In Progress |
 | D8 | Reconciliation job + monitoring | D3, D4 | Cutover safety | Not Started |
 | D9 | Full regression + sign-off | D2..D8 | Go-live | In Progress |
-| D10 | RBAC hardening trial balance + report export gating | D2 | Governance-ready rollout | In Progress |
+| D10 | RBAC hardening trial balance + report export gating | D2 | Governance-ready rollout | Done |
 | D11 | FE menu split domain journal + route sync | D2, D10 | UX cutover | In Progress |
 | D12 | Timezone compliance reversal journal (`apptime`) | D0 | Posting consistency | Done |
 
@@ -231,7 +232,7 @@ Tujuan page ini pada Sprint 2 adalah menyiapkan manual adjustment process yang c
 
 | Process | Task | Files | Output | Sprint Status |
 |---|---|---|---|---|
-| P2-12 | Finalisasi endpoint create/update/post/reverse adjustment | `apps/api/internal/finance/presentation/router/journal_entry_routers.go` + handler/usecase terkait | Manual adjustment process siap dipakai | In Progress |
+| P2-12 | Finalisasi endpoint create/update/post/reverse adjustment | `apps/api/internal/finance/presentation/router/journal_entry_routers.go` + handler/usecase terkait | Manual adjustment process siap dipakai | Done |
 
 #### Page: Journal Valuation Page
 
@@ -239,7 +240,7 @@ Tujuan page ini pada Sprint 2 adalah membuka entry point untuk valuation flow ta
 
 | Process | Task | Files | Output | Sprint Status |
 |---|---|---|---|---|
-| P2-13 | Implement valuation list + skeleton run endpoint | finance router/handler/usecase valuation | Entry point valuation tersedia | Not Started |
+| P2-13 | Implement valuation list + skeleton run endpoint | finance router/handler/usecase valuation | Entry point valuation tersedia | Done |
 
 #### Page: Finance Reports Pages
 
@@ -247,7 +248,7 @@ Tujuan page ini pada Sprint 2 adalah menyelaraskan tombol export report dengan R
 
 | Process | Task | Files | Output | Sprint Status |
 |---|---|---|---|---|
-| P2-14 | Gate export action GL/BS/PL by permission export | `apps/web/src/features/finance/reports/components/general-ledger-view.tsx`, `apps/web/src/features/finance/reports/components/balance-sheet-view.tsx`, `apps/web/src/features/finance/reports/components/profit-loss-view.tsx` | Export action sinkron dengan RBAC backend | Not Started |
+| P2-14 | Gate export action GL/BS/PL by permission export | `apps/web/src/features/finance/reports/components/general-ledger-view.tsx`, `apps/web/src/features/finance/reports/components/balance-sheet-view.tsx`, `apps/web/src/features/finance/reports/components/profit-loss-view.tsx` | Export action sinkron dengan RBAC backend | Done |
 
 #### Page: Finance Navigation & Journals Pages
 
@@ -255,9 +256,9 @@ Tujuan page ini pada Sprint 2 adalah memecah UX journal per domain secara bertah
 
 | Process | Task | Files | Output | Sprint Status |
 |---|---|---|---|---|
-| P2-15 | Split menu domain journal hierarchy | `apps/web/src/lib/navigation-config.ts` | Hierarki menu journal lebih jelas | In Progress |
-| P2-16 | Sync route validator dengan page journal baru | `apps/web/src/lib/route-validator.ts` | Route journal baru tervalidasi | In Progress |
-| P2-17 | Apply `PageMotion` pada journals/closing page terkait | `apps/web/app/[locale]/(dashboard)/finance/journals/page.tsx`, `apps/web/app/[locale]/(dashboard)/finance/closing/page.tsx` | UX konsisten sesuai design system | In Progress |
+| P2-15 | Split menu domain journal hierarchy | `apps/web/src/lib/navigation-config.ts` | Hierarki menu journal lebih jelas | Done |
+| P2-16 | Sync route validator dengan page journal baru | `apps/web/src/lib/route-validator.ts` | Route journal baru tervalidasi | Done |
+| P2-17 | Apply `PageMotion` pada journals/closing page terkait | `apps/web/app/[locale]/(dashboard)/finance/journals/page.tsx`, `apps/web/app/[locale]/(dashboard)/finance/closing/page.tsx`, `apps/web/app/[locale]/(dashboard)/finance/journals/adjustment/page.tsx` | UX konsisten sesuai design system | Done |
 
 #### Page: Reconciliation & QA Validation
 
@@ -273,7 +274,7 @@ Tujuan page ini pada Sprint 2 adalah memastikan flow antar modul tie-out terhada
 - Customer Invoice regular + DP menghasilkan jurnal posted. ✅
 - Stock Opname menghasilkan adjustment journal. ✅
 - Mismatch source vs posted journal menurun ke nol pada data uji. ⏳ Pending
-- Tombol export report hanya tampil untuk role dengan permission export. ⏳ Pending
+- Tombol export report hanya tampil untuk role dengan permission export. ✅
 - Menu domain journal tampil sesuai desain target dan route valid. ⏳ Pending
 
 ---
@@ -396,7 +397,7 @@ Bagian ini dipakai jika task per page di atas perlu diturunkan lagi menjadi tick
 | Journal Domain API | Add sales journal endpoint | High | BE-1 | Sprint 1 | 1d | Done |
 | Journal Domain API | Add purchase journal endpoint | High | BE-1 | Sprint 1 | 1d | Done |
 | Journal Domain API | Add inventory/cash-bank journal endpoint | High | BE-1 | Sprint 1 | 1d | Done |
-| Journal Domain API | Add adjustment journal endpoint | High | BE-1 | Sprint 2 | 1d | In Progress |
+| Journal Domain API | Add adjustment journal endpoint | High | BE-1 | Sprint 2 | 1d | Done |
 | Journal Domain API | Add valuation journal endpoint | Medium | BE-1 | Sprint 2 | 1d | Not Started |
 | Purchase Integration | Convert GR trigger to upsert-post | High | BE-2 | Sprint 1 | 0.5d | Done |
 | Purchase Integration | Convert SI trigger to upsert-post | High | BE-2 | Sprint 1 | 0.5d | Done |
@@ -413,9 +414,9 @@ Bagian ini dipakai jika task per page di atas perlu diturunkan lagi menjadi tick
 | Frontend Page | Add Finance Sales Journal page | High | FE-1 | Sprint 2 | 1d | Done |
 | Inventory Integration | Add Stock Opname adjustment journal | Critical | BE-2 | Sprint 2 | 2d | Done |
 | Frontend RBAC | Gate trial balance action by report permission in journals page | High | FE-1 | Sprint 2 | 0.5d | Done |
-| Frontend RBAC | Gate GL export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Not Started |
-| Frontend RBAC | Gate BS export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Not Started |
-| Frontend RBAC | Gate PL export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Not Started |
+| Frontend RBAC | Gate GL export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Done |
+| Frontend RBAC | Gate BS export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Done |
+| Frontend RBAC | Gate PL export button by export permission | High | FE-1 | Sprint 2 | 0.5d | Done |
 | Frontend UX | Split menu to domain journal hierarchy | Medium | FE-1 | Sprint 2 | 1d | In Progress |
 | Frontend UX | Sync route-validator with new finance journal routes | Medium | FE-1 | Sprint 2 | 0.5d | In Progress |
 | Frontend UX | Apply PageMotion to journals and closing pages | Medium | FE-1 | Sprint 2 | 0.5d | In Progress |

@@ -2,18 +2,21 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { BarChart3, FileDown, Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { useUserPermission } from "@/hooks/use-user-permission";
 import { useGeneralLedger } from "../hooks/use-finance-reports";
 import { financeReportsService } from "../services/finance-reports-service";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import type { GLReportRow, GLTransactionRow } from "../types";
+import { ExportButton } from "@/features/finance/journals/components/export-button";
+import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
+import { StandardTable } from "@/features/finance/journals/components/standard-table";
 
 /** Safely format an ISO date string; returns "-" for null/invalid values. */
 function formatDate(value: string | null | undefined): string {
@@ -30,6 +33,7 @@ function toApiDate(d: Date): string {
 export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
+  const canExport = useUserPermission("general_ledger_report.export");
 
   const now = new Date();
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
@@ -93,14 +97,14 @@ export function GeneralLedgerView() {
           <h1 className="text-3xl font-bold tracking-tight">{t("gl_title")}</h1>
           <p className="text-muted-foreground">{t("gl_description")}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
-          <Button onClick={handleExport} className="cursor-pointer" variant="outline" size="sm">
-            <FileDown className="h-4 w-4 mr-2" />
-            {t("export")}
-          </Button>
-        </div>
       </div>
+
+      <FilterToolbar>
+        <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
+        {canExport ? (
+          <ExportButton label={t("export")} onClick={handleExport} />
+        ) : null}
+      </FilterToolbar>
 
       {isLoading ? (
         <div className="space-y-4">
@@ -135,69 +139,68 @@ export function GeneralLedgerView() {
               <p className="text-sm">{t("no_data")}</p>
             </div>
           ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[120px]">{t("date")}</TableHead>
-                    <TableHead className="w-[150px]">{t("reference")}</TableHead>
-                    <TableHead>{t("description")}</TableHead>
-                    <TableHead className="text-right w-[150px]">{t("debit")}</TableHead>
-                    <TableHead className="text-right w-[150px]">{t("credit")}</TableHead>
-                    <TableHead className="text-right w-[150px]">{t("balance")}</TableHead>
+            <StandardTable
+              isLoading={false}
+              columnCount={6}
+              header={
+                <TableRow>
+                  <TableHead className="w-[120px]">{t("date")}</TableHead>
+                  <TableHead className="w-[150px]">{t("reference")}</TableHead>
+                  <TableHead>{t("description")}</TableHead>
+                  <TableHead className="text-right w-[150px]">{t("debit")}</TableHead>
+                  <TableHead className="text-right w-[150px]">{t("credit")}</TableHead>
+                  <TableHead className="text-right w-[150px]">{t("balance")}</TableHead>
+                </TableRow>
+              }
+            >
+              {accounts.map((account: GLReportRow, idx: number) => (
+                <Fragment key={`account-${account.account_id}-${idx}`}>
+                  <TableRow className="bg-muted/50 hover:bg-muted/60 border-t">
+                    <TableCell colSpan={3} className="py-2">
+                      <span className="font-mono font-semibold text-primary text-xs">{account.account_code}</span>
+                      <span className="mx-2 text-muted-foreground">—</span>
+                      <span className="font-semibold text-sm">{account.account_name}</span>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground py-2" colSpan={2}>
+                      {t("beginning")}:{" "}
+                      <span className="font-mono font-medium text-foreground">
+                        {formatCurrency(account.beginning_balance ?? 0)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground py-2">
+                      {t("ending")}:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        {formatCurrency(account.ending_balance ?? 0)}
+                      </span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {accounts.map((account: GLReportRow, idx: number) => (
-                    <Fragment key={`account-${account.account_id}-${idx}`}>
-                      <TableRow className="bg-muted/50 hover:bg-muted/60 border-t">
-                        <TableCell colSpan={3} className="py-2">
-                          <span className="font-mono font-semibold text-primary text-xs">{account.account_code}</span>
-                          <span className="mx-2 text-muted-foreground">—</span>
-                          <span className="font-semibold text-sm">{account.account_name}</span>
+                  {account.transactions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-3 text-muted-foreground italic text-xs">
+                        {t("no_transactions")}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    account.transactions.map((tr: GLTransactionRow, tIdx: number) => (
+                      <TableRow key={`${tr.reference_no}-${tIdx}`}>
+                        <TableCell className="text-xs">{formatDate(tr.date)}</TableCell>
+                        <TableCell className="text-xs font-mono">{tr.reference_no}</TableCell>
+                        <TableCell className="text-sm">{tr.description}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums text-xs">
+                          {(tr.debit ?? 0) > 0 ? formatCurrency(tr.debit) : <span className="text-muted-foreground">—</span>}
                         </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground py-2" colSpan={2}>
-                          {t("beginning")}:{" "}
-                          <span className="font-mono font-medium text-foreground">
-                            {formatCurrency(account.beginning_balance ?? 0)}
-                          </span>
+                        <TableCell className="text-right font-mono tabular-nums text-xs">
+                          {(tr.credit ?? 0) > 0 ? formatCurrency(tr.credit) : <span className="text-muted-foreground">—</span>}
                         </TableCell>
-                        <TableCell className="text-right text-xs text-muted-foreground py-2">
-                          {t("ending")}:{" "}
-                          <span className="font-mono font-bold text-foreground">
-                            {formatCurrency(account.ending_balance ?? 0)}
-                          </span>
+                        <TableCell className="text-right font-mono tabular-nums text-xs font-medium">
+                          {formatCurrency(tr.balance ?? 0)}
                         </TableCell>
                       </TableRow>
-                      {account.transactions.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-3 text-muted-foreground italic text-xs">
-                            {t("no_transactions")}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        account.transactions.map((tr: GLTransactionRow, tIdx: number) => (
-                          <TableRow key={`${tr.reference_no}-${tIdx}`}>
-                            <TableCell className="text-xs">{formatDate(tr.date)}</TableCell>
-                            <TableCell className="text-xs font-mono">{tr.reference_no}</TableCell>
-                            <TableCell className="text-sm">{tr.description}</TableCell>
-                            <TableCell className="text-right font-mono tabular-nums text-xs">
-                              {(tr.debit ?? 0) > 0 ? formatCurrency(tr.debit) : <span className="text-muted-foreground">—</span>}
-                            </TableCell>
-                            <TableCell className="text-right font-mono tabular-nums text-xs">
-                              {(tr.credit ?? 0) > 0 ? formatCurrency(tr.credit) : <span className="text-muted-foreground">—</span>}
-                            </TableCell>
-                            <TableCell className="text-right font-mono tabular-nums text-xs font-medium">
-                              {formatCurrency(tr.balance ?? 0)}
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                    ))
+                  )}
+                </Fragment>
+              ))}
+            </StandardTable>
           )}
         </>
       )}

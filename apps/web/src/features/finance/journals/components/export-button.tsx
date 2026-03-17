@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import type { JournalEntry } from "../types";
 
 type ExportButtonProps = {
-  readonly data: JournalEntry[];
-  readonly filename: string;
+  readonly data?: JournalEntry[];
+  readonly filename?: string;
   readonly label: string;
   readonly disabled?: boolean;
+  readonly onClick?: () => void | Promise<void>;
 };
 
 function toCsvValue(value: string | number): string {
@@ -18,9 +19,20 @@ function toCsvValue(value: string | number): string {
   return `"${escaped}"`;
 }
 
-export function ExportButton({ data, filename, label, disabled = false }: ExportButtonProps) {
+export function ExportButton({
+  data,
+  filename,
+  label,
+  disabled = false,
+  onClick,
+}: ExportButtonProps) {
   const handleExport = () => {
-    if (data.length === 0) return;
+    if (onClick) {
+      void onClick();
+      return;
+    }
+
+    if (!data || data.length === 0 || !filename) return;
 
     const headers = [
       "Entry Date",
@@ -59,7 +71,12 @@ export function ExportButton({ data, filename, label, disabled = false }: Export
   };
 
   return (
-    <Button variant="outline" className="cursor-pointer" onClick={handleExport} disabled={disabled || data.length === 0}>
+    <Button
+      variant="outline"
+      className="cursor-pointer"
+      onClick={handleExport}
+      disabled={disabled || (!onClick && (!data || data.length === 0 || !filename))}
+    >
       <Download className="h-4 w-4 mr-2" />
       {label}
     </Button>

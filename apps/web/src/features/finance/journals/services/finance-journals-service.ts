@@ -4,8 +4,12 @@ import type {
   CreateJournalEntryInput,
   JournalEntry,
   ListJournalEntriesParams,
+  ListValuationRunsParams,
+  RunValuationInput,
   TrialBalanceResponse,
   UpdateJournalEntryInput,
+  ValuationApiResponse,
+  ValuationRun,
 } from "../types";
 
 const BASE_URL = "/finance/journal-entries";
@@ -116,6 +120,70 @@ export const financeJournalsService = {
   reverse: async (id: string): Promise<ApiResponse<JournalEntry>> => {
     const response = await apiClient.post<ApiResponse<JournalEntry>>(
       `${BASE_URL}/${id}/reverse`,
+    );
+    return response.data;
+  },
+
+  createAdjustment: async (
+    data: CreateJournalEntryInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.post<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/adjustment`,
+      data,
+    );
+    return response.data;
+  },
+
+  updateAdjustment: async (
+    id: string,
+    data: UpdateJournalEntryInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.put<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/adjustment/${id}`,
+      data,
+    );
+    return response.data;
+  },
+
+  postAdjustment: async (id: string): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.post<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/adjustment/${id}/post`,
+    );
+    return response.data;
+  },
+
+  reverseAdjustment: async (id: string): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.post<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/adjustment/${id}/reverse`,
+    );
+    return response.data;
+  },
+
+  runValuation: async (
+    data: RunValuationInput,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.post<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/run`,
+      data,
+    );
+    return response.data;
+  },
+
+  listValuationRuns: async (
+    params?: ListValuationRunsParams,
+  ): Promise<ValuationApiResponse<ValuationRun[]>> => {
+    const response = await apiClient.get<ValuationApiResponse<ValuationRun[]>>(
+      `${BASE_URL}/valuation/runs`,
+      { params },
+    );
+    return response.data;
+  },
+
+  getValuationRun: async (
+    id: string,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.get<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/runs/${id}`,
     );
     return response.data;
   },

@@ -44,8 +44,8 @@ import type { JournalEntry } from "../types";
 import {
   useFinanceAdjustmentJournals,
   useDeleteFinanceJournal,
-  usePostFinanceJournal,
-  useReverseFinanceJournal,
+  usePostFinanceAdjustmentJournal,
+  useReverseFinanceAdjustmentJournal,
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
@@ -92,7 +92,7 @@ export function AdjustmentJournalsList() {
   const tCommon = useTranslations("common");
 
   const canCreate = useUserPermission("adjustment_journal.create");
-  const canUpdate = useUserPermission("journal.update");
+  const canUpdate = useUserPermission("adjustment_journal.update");
   const canDelete = useUserPermission("journal.delete");
   const canPost = useUserPermission("adjustment_journal.post");
   const canReverse = useUserPermission("adjustment_journal.reverse");
@@ -127,8 +127,8 @@ export function AdjustmentJournalsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteFinanceJournal();
-  const postMutation = usePostFinanceJournal();
-  const reverseMutation = useReverseFinanceJournal();
+  const postMutation = usePostFinanceAdjustmentJournal();
+  const reverseMutation = useReverseFinanceAdjustmentJournal();
 
   if (isError) {
     return (
@@ -354,6 +354,7 @@ export function AdjustmentJournalsList() {
         onOpenChange={setFormOpen}
         mode={formMode}
         id={selectedId}
+        isAdjustment={true}
       />
 
       <JournalDetailModal

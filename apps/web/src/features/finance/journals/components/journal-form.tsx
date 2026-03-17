@@ -24,13 +24,20 @@ import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa"
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 
 import { journalFormSchema, type JournalFormValues } from "../schemas/journal.schema";
-import { useCreateFinanceJournal, useFinanceJournal, useUpdateFinanceJournal } from "../hooks/use-finance-journals";
+import {
+  useCreateFinanceJournal,
+  useFinanceJournal,
+  useUpdateFinanceJournal,
+  useCreateFinanceAdjustmentJournal,
+  useUpdateFinanceAdjustmentJournal
+} from "../hooks/use-finance-journals";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   id?: string | null;
+  isAdjustment?: boolean;
 };
 
 type CoaOption = { id: string; code: string; name: string };
@@ -55,15 +62,21 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function JournalForm({ open, onOpenChange, mode, id }: Props) {
+export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false }: Props) {
   const t = useTranslations("financeJournals");
 
   const { data: coaData } = useFinanceCoaTree({ only_active: true });
   const coaOptions = useMemo(() => flattenCoa(coaData?.data ?? []), [coaData?.data]);
 
   const journalQuery = useFinanceJournal(id ?? "", { enabled: open && mode === "edit" && !!id });
-  const createMutation = useCreateFinanceJournal();
-  const updateMutation = useUpdateFinanceJournal();
+
+  const createMutationGen = useCreateFinanceJournal();
+  const updateMutationGen = useUpdateFinanceJournal();
+  const createMutationAdj = useCreateFinanceAdjustmentJournal();
+  const updateMutationAdj = useUpdateFinanceAdjustmentJournal();
+
+  const createMutation = isAdjustment ? createMutationAdj : createMutationGen;
+  const updateMutation = isAdjustment ? updateMutationAdj : updateMutationGen;
 
   const defaultValues: JournalFormValues = useMemo(() => {
     if (mode === "edit") {
@@ -93,7 +106,7 @@ export function JournalForm({ open, onOpenChange, mode, id }: Props) {
   }, [mode, journalQuery.data?.data]);
 
   const form = useForm<JournalFormValues>({
-    resolver: zodResolver(journalFormSchema),
+    resolver: zodResolver(journalFormSchema as any),
     defaultValues,
   });
 

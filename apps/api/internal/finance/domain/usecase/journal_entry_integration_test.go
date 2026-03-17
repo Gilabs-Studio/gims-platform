@@ -249,3 +249,97 @@ func TestJournalEntryRepository_ShouldFilterByReferenceTypes(t *testing.T) {
 func financeStrPtr(v string) *string {
 	return &v
 }
+
+func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+	)
+	require.NoError(t, err)
+
+	coaCash := models.ChartOfAccount{Code: "11100", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true}
+	coaRevenue := models.ChartOfAccount{Code: "4100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true}
+	coaExpense := models.ChartOfAccount{Code: "6100", Name: "Operating Expense", Type: models.AccountTypeExpense, IsActive: true}
+	require.NoError(t, db.Create(&coaCash).Error)
+	require.NoError(t, db.Create(&coaRevenue).Error)
+	require.NoError(t, db.Create(&coaExpense).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	reportRepo := repositories.NewFinanceReportRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	reportUC := NewFinanceReportUsecase(coaRepo, reportRepo)
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	postedRefType := "SALES_INVOICE"
+	postedRefID := "report-posted-001"
+
+	_, err = journalUC.PostOrUpdateJournal(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-03-05",
+		Description:   "Posted revenue journal",
+		ReferenceType: &postedRefType,
+		ReferenceID:   &postedRefID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 1500, Credit: 0, Memo: "cash in"},
+			{ChartOfAccountID: coaRevenue.ID, Debit: 0, Credit: 1500, Memo: "sales"},
+		},
+	})
+	require.NoError(t, err)
+
+	draftRefType := "MANUAL_ADJUSTMENT"
+	draftRefID := "report-draft-001"
+	_, err = journalUC.Create(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-03-06",
+		Description:   "Draft expense journal",
+		ReferenceType: &draftRefType,
+		ReferenceID:   &draftRefID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaExpense.ID, Debit: 250, Credit: 0, Memo: "expense"},
+			{ChartOfAccountID: coaCash.ID, Debit: 0, Credit: 250, Memo: "cash out"},
+		},
+	})
+	require.NoError(t, err)
+
+	startDate := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
+
+	gl, err := reportUC.GetGeneralLedger(ctx, startDate, endDate)
+	require.NoError(t, err)
+
+	var cashAccount *dto.GeneralLedgerAccount
+	for i := range gl.Accounts {
+		if gl.Accounts[i].Code == "11100" {
+			cashAccount = &gl.Accounts[i]
+			break
+		}
+	}
+	require.NotNil(t, cashAccount)
+	require.Len(t, cashAccount.Transactions, 1)
+	require.NotNil(t, cashAccount.Transactions[0].ReferenceID)
+	require.Equal(t, postedRefID, *cashAccount.Transactions[0].ReferenceID)
+
+	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate)
+	require.NoError(t, err)
+	require.Equal(t, 1500.0, bs.AssetTotal)
+
+	pl, err := reportUC.GetProfitAndLoss(ctx, startDate, endDate)
+	require.NoError(t, err)
+	require.Equal(t, 1500.0, pl.RevenueTotal)
+	require.Equal(t, 0.0, pl.ExpenseTotal)
+	require.Equal(t, 1500.0, pl.NetProfit)
+
+	exportBytes, err := reportUC.ExportGeneralLedger(ctx, startDate, endDate)
+	require.NoError(t, err)
+	require.NotEmpty(t, exportBytes)
+}

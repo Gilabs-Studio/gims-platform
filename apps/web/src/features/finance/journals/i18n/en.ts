@@ -25,6 +25,7 @@ export const financeJournalsEn = {
     reversed: "Journal reversed",
     failed: "Something went wrong",
     unbalanced: "Journal must be balanced (debit = credit)",
+    saved: "Journal saved",
   },
   actions: {
     create: "Create",
@@ -65,5 +66,32 @@ export const financeJournalsEn = {
   },
   placeholders: {
     select: "Select...",
+  },
+  runValuation: "Run Valuation",
+  runValuationConfirm:
+    "Are you sure you want to run the valuation process? This will generate and post adjustment journals automatically.",
+  runValuationFormTitle: "Configure Valuation Run",
+  runValuationFormDescription: "Configure the valuation parameters below.",
+  valuationTypeLabel: "Valuation Type",
+  periodStartLabel: "Period Start",
+  periodEndLabel: "Period End",
+  referenceIdLabel: "Reference ID",
+  referenceIdPlaceholder: "VAL-RUN-INVENTORY-20260331-001",
+  referenceIdHelp: "For idempotency. Leave empty to auto-generate.",
+  recentRuns: "Recent Valuation Runs",
+  kpi: {
+    totalEntries: "Total Entries",
+    totalDebit: "Total Debit",
+    totalCredit: "Total Credit",
+    runs: "Runs",
+    completed: "completed",
+    processing: "processing",
+    failed: "failed",
+  },
+  common: {
+    cancel: "Cancel",
+    confirm: "Confirm",
+    continue: "Continue",
+    loading: "Loading...",
   },
 };

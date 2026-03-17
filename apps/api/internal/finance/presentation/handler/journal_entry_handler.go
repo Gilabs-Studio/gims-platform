@@ -13,11 +13,12 @@ import (
 )
 
 type JournalEntryHandler struct {
-	uc usecase.JournalEntryUsecase
+	uc          usecase.JournalEntryUsecase
+	valuationUC usecase.ValuationRunUsecase
 }
 
-func NewJournalEntryHandler(uc usecase.JournalEntryUsecase) *JournalEntryHandler {
-	return &JournalEntryHandler{uc: uc}
+func NewJournalEntryHandler(uc usecase.JournalEntryUsecase, valuationUC usecase.ValuationRunUsecase) *JournalEntryHandler {
+	return &JournalEntryHandler{uc: uc, valuationUC: valuationUC}
 }
 
 func (h *JournalEntryHandler) Create(c *gin.Context) {
@@ -118,8 +119,151 @@ func (h *JournalEntryHandler) ListAdjustmentJournals(c *gin.Context) {
 	h.listByDomain(c, "adjustment")
 }
 
+// CreateAdjustment handles POST /finance/journal-entries/adjustment.
+// Forces reference_type = MANUAL_ADJUSTMENT on the backend regardless of what the client sends.
+func (h *JournalEntryHandler) CreateAdjustment(c *gin.Context) {
+	var req dto.CreateAdjustmentJournalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.CreateAdjustmentJournal(c.Request.Context(), &req)
+	if err != nil {
+		errMsg := err.Error()
+		switch errMsg {
+		case "journal entry must be balanced (debit = credit)":
+			response.ErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil, nil)
+		case "invalid journal lines":
+			response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_INVALID_LINES", errMsg, nil, nil)
+		case "period is closed":
+			response.ErrorResponse(c, http.StatusConflict, "PERIOD_CLOSED", errMsg, nil, nil)
+		default:
+			response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_CREATE_FAILED", errMsg, nil, nil)
+		}
+		return
+	}
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+// UpdateAdjustment handles PUT /finance/journal-entries/adjustment/:id.
+func (h *JournalEntryHandler) UpdateAdjustment(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.UpdateJournalEntryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.UpdateAdjustmentJournal(c.Request.Context(), id, &req)
+	if err != nil {
+		errMsg := err.Error()
+		switch errMsg {
+		case "journal entry must be balanced (debit = credit)":
+			response.ErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil, nil)
+		case "invalid journal lines":
+			response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_INVALID_LINES", errMsg, nil, nil)
+		case "period is closed":
+			response.ErrorResponse(c, http.StatusConflict, "PERIOD_CLOSED", errMsg, nil, nil)
+		default:
+			response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_UPDATE_FAILED", errMsg, nil, nil)
+		}
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// PostAdjustment handles POST /finance/journal-entries/adjustment/:id/post.
+func (h *JournalEntryHandler) PostAdjustment(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.PostAdjustmentJournal(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_POST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// ReverseAdjustment handles POST /finance/journal-entries/adjustment/:id/reverse.
+func (h *JournalEntryHandler) ReverseAdjustment(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.ReverseAdjustmentJournal(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_REVERSE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *JournalEntryHandler) ListValuationJournals(c *gin.Context) {
 	h.listByDomain(c, "valuation")
+}
+
+// RunValuation handles POST /finance/journal-entries/valuation/run
+// Enhanced: accepts RunValuationRequest with type, period, and optional reference_id.
+func (h *JournalEntryHandler) RunValuation(c *gin.Context) {
+	var req dto.RunValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Run(c.Request.Context(), &req)
+	if err != nil {
+		if err.Error() == usecase.ErrValuationConflict.Error() {
+			response.ErrorResponse(c, http.StatusConflict, "VALUATION_CONFLICT", err.Error(), nil, nil)
+			return
+		}
+		response.ErrorResponse(c, http.StatusInternalServerError, "VALUATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+// ListValuationRuns handles GET /finance/journal-entries/valuation/runs
+func (h *JournalEntryHandler) ListValuationRuns(c *gin.Context) {
+	var req dto.ListValuationRunsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+	req.Page = page
+	req.PerPage = perPage
+
+	items, total, kpi, err := h.valuationUC.List(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "VALUATION_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	paginationMeta := response.NewPaginationMeta(page, perPage, int(total))
+	meta := &response.Meta{
+		Pagination: paginationMeta,
+		Additional: map[string]interface{}{
+			"kpi": kpi,
+		},
+	}
+	response.SuccessResponse(c, items, meta)
+}
+
+// GetValuationRun handles GET /finance/journal-entries/valuation/runs/:id
+func (h *JournalEntryHandler) GetValuationRun(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.valuationUC.GetByID(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusNotFound, "VALUATION_RUN_NOT_FOUND", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
 }
 
 func (h *JournalEntryHandler) listByDomain(c *gin.Context, domain string) {

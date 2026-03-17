@@ -25,6 +25,7 @@ export const financeJournalsId = {
     reversed: "Jurnal dibalik",
     failed: "Terjadi kesalahan",
     unbalanced: "Jurnal harus seimbang (debit = kredit)",
+    saved: "Jurnal disimpan",
   },
   actions: {
     create: "Buat",
@@ -65,5 +66,13 @@ export const financeJournalsId = {
   },
   placeholders: {
     select: "Pilih...",
+  },
+  runValuation: "Jalankan Valuasi",
+  runValuationConfirm:
+    "Apakah Anda yakin ingin menjalankan proses valuasi? Ini akan membuat dan memposting jurnal penyesuaian secara otomatis.",
+  common: {
+    cancel: "Batal",
+    confirm: "Konfirmasi",
+    loading: "Memuat...",
   },
 };

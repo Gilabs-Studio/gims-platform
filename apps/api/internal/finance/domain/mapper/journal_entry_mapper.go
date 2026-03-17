@@ -68,6 +68,9 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		Lines:             lines,
 		DebitTotal:        debitTotal,
 		CreditTotal:       creditTotal,
+		IsValuation:       item.IsValuation,
+		Source:            string(item.Source),
+		ValuationRunID:    item.ValuationRunID,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
@@ -99,7 +102,11 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		Lines:             []dto.JournalLineResponse{},
 		DebitTotal:        debitTotal,
 		CreditTotal:       creditTotal,
+		IsValuation:       item.IsValuation,
+		Source:            string(item.Source),
+		ValuationRunID:    item.ValuationRunID,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
+
 }

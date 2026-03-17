@@ -6,6 +6,8 @@ import { financeJournalsService } from "../services/finance-journals-service";
 import type {
   CreateJournalEntryInput,
   ListJournalEntriesParams,
+  ListValuationRunsParams,
+  RunValuationInput,
   UpdateJournalEntryInput,
 } from "../types";
 
@@ -28,6 +30,11 @@ export const financeJournalKeys = {
   detail: (id: string) => [...financeJournalKeys.details(), id] as const,
   trialBalance: (params?: { start_date?: string; end_date?: string }) =>
     [...financeJournalKeys.all, "trial-balance", params] as const,
+  valuationRuns: () => [...financeJournalKeys.all, "valuation-runs"] as const,
+  valuationRunList: (params?: ListValuationRunsParams) =>
+    [...financeJournalKeys.valuationRuns(), "list", params] as const,
+  valuationRunDetail: (id: string) =>
+    [...financeJournalKeys.valuationRuns(), "detail", id] as const,
 };
 
 export function useFinanceJournals(params?: ListJournalEntriesParams) {
@@ -145,6 +152,93 @@ export function useReverseFinanceJournal() {
         queryKey: financeJournalKeys.detail(id),
       });
     },
+  });
+}
+
+export function useCreateFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateJournalEntryInput) =>
+      financeJournalsService.createAdjustment(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateJournalEntryInput }) =>
+      financeJournalsService.updateAdjustment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: financeJournalKeys.detail(id),
+      });
+    },
+  });
+}
+
+export function usePostFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.postAdjustment(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: financeJournalKeys.detail(id),
+      });
+    },
+  });
+}
+
+export function useReverseFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.reverseAdjustment(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: financeJournalKeys.detail(id),
+      });
+    },
+  });
+}
+
+export function useRunFinanceValuationJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: RunValuationInput) =>
+      financeJournalsService.runValuation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: financeJournalKeys.valuationRuns(),
+      });
+    },
+  });
+}
+
+export function useValuationRuns(params?: ListValuationRunsParams) {
+  return useQuery({
+    queryKey: financeJournalKeys.valuationRunList(params),
+    queryFn: () => financeJournalsService.listValuationRuns(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useValuationRunDetail(id: string) {
+  return useQuery({
+    queryKey: financeJournalKeys.valuationRunDetail(id),
+    queryFn: () => financeJournalsService.getValuationRun(id),
+    enabled: !!id,
+    staleTime: 30_000,
   });
 }
 

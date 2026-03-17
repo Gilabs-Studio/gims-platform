@@ -12,6 +12,7 @@ const (
 	purchaseJournalRead      = "purchase_journal.read"
 	adjustmentJournalRead    = "adjustment_journal.read"
 	adjustmentJournalCreate  = "adjustment_journal.create"
+	adjustmentJournalUpdate  = "adjustment_journal.update"
 	adjustmentJournalPost    = "adjustment_journal.post"
 	adjustmentJournalReverse = "adjustment_journal.reverse"
 	valuationJournalRead     = "journal_valuation.read"
@@ -40,11 +41,17 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 
 	// Adjustment journal endpoints (operational, Finance-controlled)
 	g.GET("/adjustment", middleware.RequirePermission(adjustmentJournalRead), h.ListAdjustmentJournals)
+	g.POST("/adjustment", middleware.RequirePermission(adjustmentJournalCreate), h.CreateAdjustment)
+	g.PUT("/adjustment/:id", middleware.RequirePermission(adjustmentJournalUpdate), h.UpdateAdjustment)
+	g.POST("/adjustment/:id/post", middleware.RequirePermission(adjustmentJournalPost), h.PostAdjustment)
+	g.POST("/adjustment/:id/reverse", middleware.RequirePermission(adjustmentJournalReverse), h.ReverseAdjustment)
 
-	// Valuation journal endpoints (valuation process)
+	// Valuation journal endpoints
 	g.GET("/valuation", middleware.RequirePermission(valuationJournalRead), h.ListValuationJournals)
+	g.POST("/valuation/run", middleware.RequirePermission(valuationJournalRun), h.RunValuation)
+	g.GET("/valuation/runs", middleware.RequirePermission(valuationJournalRead), h.ListValuationRuns)
+	g.GET("/valuation/runs/:id", middleware.RequirePermission(valuationJournalRead), h.GetValuationRun)
 
-	// CRUD for Journal Entries (operational accounting)
 	g.POST("", middleware.RequirePermission(journalCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(journalCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(journalRead), h.GetByID)

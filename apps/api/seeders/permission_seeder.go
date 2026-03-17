@@ -377,12 +377,14 @@ func SeedPermissions() error {
 		// Adjustment Journal — operational Finance correction journal
 		{"/finance/journals/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
 		{"/finance/journals/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
 		{"/finance/journals/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
 		{"/finance/journals/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
 
 		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
 		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
 		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.export", "Export Journal Valuation", "EXPORT", "journal_valuation"},
 
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
 		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},

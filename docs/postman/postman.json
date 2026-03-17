@@ -2033,8 +2033,15 @@
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/hrd/attendance/employee-schedule/:employeeId",
-                  "host": ["{{base_url}}"],
-                  "path": ["hrd", "attendance", "employee-schedule", ":employeeId"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "hrd",
+                    "attendance",
+                    "employee-schedule",
+                    ":employeeId"
+                  ],
                   "variable": [
                     {
                       "key": "employeeId",
@@ -8315,25 +8322,84 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/activities?page=1&per_page=20",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "activities"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "activities"
+                  ],
                   "query": [
-                    { "key": "page", "value": "1", "description": "Page number" },
-                    { "key": "per_page", "value": "20", "description": "Items per page (max 100)" },
-                    { "key": "search", "value": "", "description": "Search in description", "disabled": true },
-                    { "key": "type", "value": "", "description": "Filter by type (visit/call/email/meeting/follow_up/task/deal/lead)", "disabled": true },
-                    { "key": "customer_id", "value": "", "description": "Filter by customer", "disabled": true },
-                    { "key": "contact_id", "value": "", "description": "Filter by contact", "disabled": true },
-                    { "key": "deal_id", "value": "", "description": "Filter by deal", "disabled": true },
-                    { "key": "employee_id", "value": "", "description": "Filter by employee", "disabled": true },
-                    { "key": "date_from", "value": "", "description": "Filter from date (ISO 8601)", "disabled": true },
-                    { "key": "date_to", "value": "", "description": "Filter to date (ISO 8601)", "disabled": true }
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "description": "Page number"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20",
+                      "description": "Items per page (max 100)"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "Search in description",
+                      "disabled": true
+                    },
+                    {
+                      "key": "type",
+                      "value": "",
+                      "description": "Filter by type (visit/call/email/meeting/follow_up/task/deal/lead)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "customer_id",
+                      "value": "",
+                      "description": "Filter by customer",
+                      "disabled": true
+                    },
+                    {
+                      "key": "contact_id",
+                      "value": "",
+                      "description": "Filter by contact",
+                      "disabled": true
+                    },
+                    {
+                      "key": "deal_id",
+                      "value": "",
+                      "description": "Filter by deal",
+                      "disabled": true
+                    },
+                    {
+                      "key": "employee_id",
+                      "value": "",
+                      "description": "Filter by employee",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": "",
+                      "description": "Filter from date (ISO 8601)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": "",
+                      "description": "Filter to date (ISO 8601)",
+                      "disabled": true
+                    }
                   ]
                 },
                 "description": "List all CRM activities with filtering and pagination. Requires `crm_activity.read` permission."
@@ -8345,17 +8411,35 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/activities/timeline?page=1&per_page=20",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "activities", "timeline"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "activities",
+                    "timeline"
+                  ],
                   "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "per_page", "value": "20" }
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    }
                   ]
                 },
                 "description": "Get activity timeline sorted by timestamp descending. Requires `crm_activity.read` permission."
@@ -8367,15 +8451,32 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/activities/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "activities", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "activities",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Get activity by ID. Requires `crm_activity.read` permission."
               },
@@ -8386,19 +8487,39 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"type\": \"call\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"description\": \"Follow-up call with client\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null,\n  \"timestamp\": null\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/activities",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "activities"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "activities"
+                  ]
                 },
                 "description": "Create a new immutable activity record. Requires `crm_activity.create` permission."
               },
@@ -8415,24 +8536,76 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks?page=1&per_page=20",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks"
+                  ],
                   "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "per_page", "value": "20" },
-                    { "key": "status", "value": "", "description": "Filter: pending/in_progress/completed/cancelled", "disabled": true },
-                    { "key": "priority", "value": "", "description": "Filter: low/medium/high/urgent", "disabled": true },
-                    { "key": "type", "value": "", "description": "Filter: general/call/email/meeting/follow_up", "disabled": true },
-                    { "key": "assigned_to", "value": "", "description": "Filter by assigned employee", "disabled": true },
-                    { "key": "lead_id", "value": "", "description": "Filter by lead UUID", "disabled": true },
-                    { "key": "deal_id", "value": "", "description": "Filter by deal UUID", "disabled": true },
-                    { "key": "is_overdue", "value": "true", "description": "Filter overdue tasks", "disabled": true }
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "Filter: pending/in_progress/completed/cancelled",
+                      "disabled": true
+                    },
+                    {
+                      "key": "priority",
+                      "value": "",
+                      "description": "Filter: low/medium/high/urgent",
+                      "disabled": true
+                    },
+                    {
+                      "key": "type",
+                      "value": "",
+                      "description": "Filter: general/call/email/meeting/follow_up",
+                      "disabled": true
+                    },
+                    {
+                      "key": "assigned_to",
+                      "value": "",
+                      "description": "Filter by assigned employee",
+                      "disabled": true
+                    },
+                    {
+                      "key": "lead_id",
+                      "value": "",
+                      "description": "Filter by lead UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "deal_id",
+                      "value": "",
+                      "description": "Filter by deal UUID",
+                      "disabled": true
+                    },
+                    {
+                      "key": "is_overdue",
+                      "value": "true",
+                      "description": "Filter overdue tasks",
+                      "disabled": true
+                    }
                   ]
                 },
                 "description": "List all CRM tasks with filtering. Requires `crm_task.read` permission."
@@ -8444,14 +8617,26 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/form-data",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", "form-data"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    "form-data"
+                  ]
                 },
                 "description": "Get form dropdown data (employees, customers, contacts, deals, leads, statuses, priorities, types). Requires `crm_task.read` permission."
               },
@@ -8462,15 +8647,32 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Get task by ID with all relations. Requires `crm_task.read` permission."
               },
@@ -8481,19 +8683,39 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"title\": \"Follow up client meeting\",\n  \"description\": \"Discuss project requirements\",\n  \"type\": \"meeting\",\n  \"priority\": \"high\",\n  \"due_date\": \"2025-02-15T10:00:00Z\",\n  \"assigned_to\": \"{{employee_id}}\",\n  \"customer_id\": null,\n  \"contact_id\": null,\n  \"deal_id\": null,\n  \"lead_id\": null\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/tasks",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks"
+                  ]
                 },
                 "description": "Create a new task. Requires `crm_task.create` permission."
               },
@@ -8504,20 +8726,46 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"title\": \"Updated task title\",\n  \"priority\": \"urgent\",\n  \"status\": \"in_progress\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Update an existing task. Requires `crm_task.update` permission."
               },
@@ -8528,15 +8776,32 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "DELETE",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Soft delete a task. Requires `crm_task.delete` permission."
               },
@@ -8547,20 +8812,47 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"assigned_to\": \"{{employee_id}}\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/assign",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "assign"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "assign"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Assign a task to an employee. Requires `crm_task.assign` permission."
               },
@@ -8571,15 +8863,33 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/complete",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "complete"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "complete"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Mark a task as completed. Sets completed_at timestamp. Requires `crm_task.update` permission."
               },
@@ -8590,15 +8900,33 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/in-progress",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "in-progress"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "in-progress"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Mark a task as in progress. Requires `crm_task.update` permission."
               },
@@ -8609,15 +8937,33 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/reminders",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "reminders"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "reminders"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "List all reminders for a task. Requires `crm_task.read` permission."
               },
@@ -8628,20 +8974,47 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"remind_at\": \"2025-02-15T09:30:00Z\",\n  \"reminder_type\": \"in_app\",\n  \"message\": \"Meeting with client in 30 minutes\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/reminders",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "reminders"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "reminders"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Create a new reminder for a task. Requires `crm_task.create` permission."
               },
@@ -8652,22 +9025,51 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"remind_at\": \"2025-02-15T09:00:00Z\",\n  \"message\": \"Updated reminder message\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/reminders/:reminderId",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "reminders", ":reminderId"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "reminders",
+                    ":reminderId"
+                  ],
                   "variable": [
-                    { "key": "id", "value": "" },
-                    { "key": "reminderId", "value": "" }
+                    {
+                      "key": "id",
+                      "value": ""
+                    },
+                    {
+                      "key": "reminderId",
+                      "value": ""
+                    }
                   ]
                 },
                 "description": "Update a task reminder. Requires `crm_task.update` permission."
@@ -8679,17 +9081,37 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "DELETE",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/tasks/:id/reminders/:reminderId",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "tasks", ":id", "reminders", ":reminderId"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "tasks",
+                    ":id",
+                    "reminders",
+                    ":reminderId"
+                  ],
                   "variable": [
-                    { "key": "id", "value": "" },
-                    { "key": "reminderId", "value": "" }
+                    {
+                      "key": "id",
+                      "value": ""
+                    },
+                    {
+                      "key": "reminderId",
+                      "value": ""
+                    }
                   ]
                 },
                 "description": "Delete a task reminder. Requires `crm_task.delete` permission."
@@ -8707,19 +9129,46 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/schedules?page=1&per_page=20",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules"],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules"
+                  ],
                   "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "per_page", "value": "20" },
-                    { "key": "status", "value": "", "description": "Filter: pending/confirmed/completed/cancelled", "disabled": true },
-                    { "key": "employee_id", "value": "", "description": "Filter by employee", "disabled": true }
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "Filter: pending/confirmed/completed/cancelled",
+                      "disabled": true
+                    },
+                    {
+                      "key": "employee_id",
+                      "value": "",
+                      "description": "Filter by employee",
+                      "disabled": true
+                    }
                   ]
                 },
                 "description": "List all schedules with filtering. Requires `crm_schedule.read` permission."
@@ -8731,14 +9180,26 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/schedules/form-data",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules", "form-data"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules",
+                    "form-data"
+                  ]
                 },
                 "description": "Get form dropdown data (employees, tasks, statuses). Requires `crm_schedule.read` permission."
               },
@@ -8749,15 +9210,32 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/schedules/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Get schedule by ID. Requires `crm_schedule.read` permission."
               },
@@ -8768,19 +9246,39 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"title\": \"Client meeting\",\n  \"description\": \"Discuss quarterly review\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"scheduled_at\": \"2025-02-15T10:00:00Z\",\n  \"end_at\": \"2025-02-15T11:00:00Z\",\n  \"location\": \"Meeting Room A\",\n  \"reminder_minutes_before\": 30\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/schedules",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules"
+                  ]
                 },
                 "description": "Create a new schedule. Requires `crm_schedule.create` permission."
               },
@@ -8791,20 +9289,46 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "PUT",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"title\": \"Updated meeting\",\n  \"status\": \"confirmed\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{base_url}}/crm/schedules/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Update a schedule. Requires `crm_schedule.update` permission."
               },
@@ -8815,15 +9339,32 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "DELETE",
                 "header": [],
                 "url": {
                   "raw": "{{base_url}}/crm/schedules/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["crm", "schedules", ":id"],
-                  "variable": [{ "key": "id", "value": "" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "crm",
+                    "schedules",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": ""
+                    }
+                  ]
                 },
                 "description": "Soft delete a schedule. Requires `crm_schedule.delete` permission."
               },
@@ -9105,434 +9646,656 @@
                       "key": "end_date",
                       "value": "2025-12-31"
                     }
-                  ]
+                            "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/add",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        "add"
+                      ]
+                    },
+                    "description": "Fetch form data for creating a Supplier Invoice. Returns list of CLOSED Goods Receipts (with PO, Supplier, Items, and auto-detected DP info) and Payment Terms. Requires `supplier-invoice.create` permission."
+                  },
+                  "response": []
                 },
-                "description": "Get trial balance from posted journals only. Requires `trial_balance_report.read` permission."
-              },
-              "response": []
+                {
+                  "name": "List Supplier Invoices",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices?page=1&per_page=20",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices"
+                      ],
+                      "query": [
+                        {
+                          "key": "page",
+                          "value": "1"
+                        },
+                        {
+                          "key": "per_page",
+                          "value": "20"
+                        },
+                        {
+                          "key": "search",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ]
+                    },
+                    "description": "List Supplier Invoices with pagination, search, and status filter. Response includes goods_receipt and purchase_order mini objects. Requires `supplier-invoice.read` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Create Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      },
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 0,\n  \"other_cost\": 0,\n  \"notes\": \"Supplier invoice from goods receipt\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 10,\n      \"price\": 50000,\n      \"discount\": 0\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices"
+                      ]
+                    },
+                    "description": "Create a new Supplier Invoice sourced from a Goods Receipt. The GR must be CLOSED. PurchaseOrderID is auto-derived from the GR. If the GR's PO has PAID Down Payment Invoices, they are auto-applied (DownPaymentAmount set, RemainingAmount calculated). Requires `supplier-invoice.create` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Get Supplier Invoice detail by ID. Includes goods_receipt, purchase_order, payment_terms, items, and down_payment_invoice. Requires `supplier-invoice.read` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                      },
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001-R\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 50000,\n  \"other_cost\": 0,\n  \"notes\": \"Updated supplier invoice\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 8,\n      \"price\": 50000,\n      \"discount\": 5\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Update a DRAFT Supplier Invoice. Only draft invoices can be updated. GR must be CLOSED. DP is auto-reapplied on update. Requires `supplier-invoice.update` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Delete Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Delete a DRAFT Supplier Invoice. Only draft status allowed. Requires `supplier-invoice.delete` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Submit Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/submit",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "submit"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Submit a DRAFT Supplier Invoice for approval. Changes status to SUBMITTED. Requires `supplier-invoice.submit` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Approve Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/approve",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "approve"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Approve a SUBMITTED Supplier Invoice. Changes status to APPROVED. Requires `supplier-invoice.approve` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Reject Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/reject",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "reject"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Reject a SUBMITTED Supplier Invoice. Changes status to REJECTED and reverts to DRAFT. Requires `supplier-invoice.reject` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Cancel Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/cancel",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "cancel"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Cancel a Supplier Invoice. Changes status to CANCELLED. Requires `supplier-invoice.cancel` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Set Pending Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-CSRF-Token",
+                        "value": "{{csrf_token}}",
+                        "type": "text"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/pending",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "pending"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Set an APPROVED Supplier Invoice to PENDING status. Performs three-way matching validation (PO qty vs GR received qty vs SI invoiced qty). Creates journal entries. Requires `supplier-invoice.pending` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Export Supplier Invoices",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/export",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        "export"
+                      ],
+                      "query": [
+                        {
+                          "key": "search",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ]
+                    },
+                    "description": "Export Supplier Invoices as CSV. Supports same filters as list endpoint. Requires `supplier-invoice.export` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Audit Trail Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/audit-trail",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "audit-trail"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Get audit trail for a Supplier Invoice. Requires `supplier-invoice.audit-trail` permission."
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Print Supplier Invoice",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/purchase/supplier-invoices/:id/print",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "purchase",
+                        "supplier-invoices",
+                        ":id",
+                        "print"
+                      ],
+                      "variable": [
+                        {
+                          "key": "id",
+                          "value": "{{supplier_invoice_id}}"
+                        }
+                      ]
+                    },
+                    "description": "Generate printable view of a Supplier Invoice. Requires `supplier-invoice.print` permission."
+                  },
+                  "response": []
+                }
+              ]
             }
           ]
-        }
-      ]
-    },
+
     {
-      "name": "Purchase",
-      "description": "Purchase module endpoints: Supplier Invoices, DP Invoices, Goods Receipts, Purchase Orders, Purchase Payments",
-      "item": [
-        {
-          "name": "Supplier Invoices",
-          "description": "Supplier Invoice (Regular) CRUD and workflow endpoints. Source data comes from Goods Receipts (not directly from PO).",
-          "item": [
-            {
-              "name": "Get Add Data",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/add",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", "add"]
-                },
-                "description": "Fetch form data for creating a Supplier Invoice. Returns list of CLOSED Goods Receipts (with PO, Supplier, Items, and auto-detected DP info) and Payment Terms. Requires `supplier-invoice.create` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "List Supplier Invoices",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices?page=1&per_page=20",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices"],
-                  "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "per_page", "value": "20" },
-                    { "key": "search", "value": "", "disabled": true },
-                    { "key": "status", "value": "", "disabled": true }
-                  ]
-                },
-                "description": "List Supplier Invoices with pagination, search, and status filter. Response includes goods_receipt and purchase_order mini objects. Requires `supplier-invoice.read` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Create Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json", "type": "text" },
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 0,\n  \"other_cost\": 0,\n  \"notes\": \"Supplier invoice from goods receipt\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 10,\n      \"price\": 50000,\n      \"discount\": 0\n    }\n  ]\n}",
-                  "options": { "raw": { "language": "json" } }
-                },
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices"]
-                },
-                "description": "Create a new Supplier Invoice sourced from a Goods Receipt. The GR must be CLOSED. PurchaseOrderID is auto-derived from the GR. If the GR's PO has PAID Down Payment Invoices, they are auto-applied (DownPaymentAmount set, RemainingAmount calculated). Requires `supplier-invoice.create` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Get Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Get Supplier Invoice detail by ID. Includes goods_receipt, purchase_order, payment_terms, items, and down_payment_invoice. Requires `supplier-invoice.read` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Update Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "PUT",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json", "type": "text" },
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"goods_receipt_id\": \"{{goods_receipt_id}}\",\n  \"payment_terms_id\": \"{{payment_terms_id}}\",\n  \"invoice_number\": \"INV-2025-001-R\",\n  \"invoice_date\": \"2025-06-15\",\n  \"due_date\": \"2025-07-15\",\n  \"tax_rate\": 11,\n  \"delivery_cost\": 50000,\n  \"other_cost\": 0,\n  \"notes\": \"Updated supplier invoice\",\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 8,\n      \"price\": 50000,\n      \"discount\": 5\n    }\n  ]\n}",
-                  "options": { "raw": { "language": "json" } }
-                },
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Update a DRAFT Supplier Invoice. Only draft invoices can be updated. GR must be CLOSED. DP is auto-reapplied on update. Requires `supplier-invoice.update` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Delete Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "DELETE",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Delete a DRAFT Supplier Invoice. Only draft status allowed. Requires `supplier-invoice.delete` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Submit Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/submit",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "submit"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Submit a DRAFT Supplier Invoice for approval. Changes status to SUBMITTED. Requires `supplier-invoice.submit` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Approve Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/approve",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "approve"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Approve a SUBMITTED Supplier Invoice. Changes status to APPROVED. Requires `supplier-invoice.approve` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Reject Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/reject",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "reject"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Reject a SUBMITTED Supplier Invoice. Changes status to REJECTED and reverts to DRAFT. Requires `supplier-invoice.reject` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Cancel Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/cancel",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "cancel"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Cancel a Supplier Invoice. Changes status to CANCELLED. Requires `supplier-invoice.cancel` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Set Pending Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "POST",
-                "header": [
-                  { "key": "X-CSRF-Token", "value": "{{csrf_token}}", "type": "text" }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/pending",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "pending"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Set an APPROVED Supplier Invoice to PENDING status. Performs three-way matching validation (PO qty vs GR received qty vs SI invoiced qty). Creates journal entries. Requires `supplier-invoice.pending` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Export Supplier Invoices",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/export",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", "export"],
-                  "query": [
-                    { "key": "search", "value": "", "disabled": true },
-                    { "key": "status", "value": "", "disabled": true }
-                  ]
-                },
-                "description": "Export Supplier Invoices as CSV. Supports same filters as list endpoint. Requires `supplier-invoice.export` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Audit Trail Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/audit-trail",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "audit-trail"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Get audit trail for a Supplier Invoice. Requires `supplier-invoice.audit-trail` permission."
-              },
-              "response": []
-            },
-            {
-              "name": "Print Supplier Invoice",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    { "key": "token", "value": "{{token}}", "type": "string" }
-                  ]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/purchase/supplier-invoices/:id/print",
-                  "host": ["{{base_url}}"],
-                  "path": ["purchase", "supplier-invoices", ":id", "print"],
-                  "variable": [
-                    { "key": "id", "value": "{{supplier_invoice_id}}" }
-                  ]
-                },
-                "description": "Generate printable view of a Supplier Invoice. Requires `supplier-invoice.print` permission."
-              },
-              "response": []
+            "listen": "prerequest",
+            "script": {
+              "type": "text/javascript",
+              "packages": {},
+              "exec": [
+                ""
+              ]
             }
-          ]
-        }
-      ]
-    }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "exec": [
-          ""
+          },
+          {
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "packages": {},
+              "exec": [
+                ""
+              ]
+            }
+          }
+        ],
+        "variable": [
+          {
+            "key": "base_url",
+            "value": "http://localhost:8080/api/v1",
+            "type": "string"
+          },
+          {
+            "key": "token",
+            "value": "",
+            "type": "string"
+          },
+          {
+            "key": "refresh_token",
+            "value": "",
+            "type": "string"
+          },
+          {
+            "key": "permission_hash",
+            "value": "",
+            "type": "string"
+          },
+          {
+            "key": "permission_version",
+            "value": "1",
+            "type": "string"
+          },
+          {
+            "key": "user_id",
+            "value": "",
+            "type": "string"
+          },
+          {
+            "key": "role_id",
+            "value": "",
+            "type": "string"
+          }
         ]
       }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "exec": [
-          ""
-        ]
-      }
-    }
-  ],
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8080/api/v1",
-      "type": "string"
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "refresh_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "permission_hash",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "permission_version",
-      "value": "1",
-      "type": "string"
-    },
-    {
-      "key": "user_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "role_id",
-      "value": "",
-      "type": "string"
-    }
-  ]
-}
