@@ -25,6 +25,7 @@ export interface PurchaseOrderListParams {
   per_page?: number;
   search?: string;
   status?: string;
+  supplier_id?: string;
   sort_by?: string;
   sort_dir?: string;
   limit?: number;

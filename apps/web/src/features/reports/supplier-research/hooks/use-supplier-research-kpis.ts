@@ -11,6 +11,8 @@ export function useSupplierResearchKpis(filters: SupplierResearchFilters) {
       return supplierResearchService.getKpis({
         start_date: filters.start_date,
         end_date: filters.end_date,
+        date_mode: filters.date_mode,
+        year: filters.year,
         category_ids: filters.category_ids,
         min_purchase_value: filters.min_purchase_value,
         max_purchase_value: filters.max_purchase_value,

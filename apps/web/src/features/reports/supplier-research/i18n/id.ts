@@ -30,6 +30,10 @@ export const supplierResearchReportId = {
     chart: {
       title: "Tren Pengeluaran Supplier",
       description: "Tren nilai pembelian berdasarkan interval dan rentang tanggal.",
+      filter: {
+        year: "Tahun",
+        customRange: "Rentang Kustom",
+      },
       total_purchase_value: "Total Nilai Pembelian",
       no_data: "Tidak ada data tren untuk periode yang dipilih.",
       interval: {
@@ -91,10 +95,16 @@ export const supplierResearchReportId = {
         activeAlert: "Ada {count} purchase order aktif untuk supplier ini.",
         noPermission: "Anda tidak memiliki izin untuk melihat purchase order.",
         viewDetail: "Lihat Detail",
+        received: "diterima",
+        pending: "pending",
+        remaining: "sisa",
         columns: {
           code: "Kode PO",
           status: "Status",
           orderDate: "Tanggal Order",
+          fulfillment: "Pemenuhan",
+          goodsReceipts: "Goods Receipt",
+          supplierInvoices: "Supplier Invoice",
           totalAmount: "Total Nilai",
           action: "Aksi",
         },

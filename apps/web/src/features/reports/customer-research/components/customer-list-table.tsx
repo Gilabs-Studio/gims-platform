@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Search } from "lucide-react";
+import { Search, TrendingUp, UserX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -67,37 +67,38 @@ export function CustomerListTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">{t("title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
-        </div>
-
-        <div className="relative w-full sm:w-[300px]">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            className="pl-10 h-9"
-            placeholder={t("search_placeholder")}
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
-      </div>
-
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as CustomerResearchTab)}>
-        <TabsList>
-          <TabsTrigger value="top" className="cursor-pointer">{t("tabs.top")}</TabsTrigger>
-          <TabsTrigger value="inactive" className="cursor-pointer">{t("tabs.inactive")}</TabsTrigger>
-          <TabsTrigger value="payment_behavior" className="cursor-pointer">{t("tabs.payment_behavior")}</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="flex items-center bg-muted p-1 rounded-lg gap-y-1 flex-wrap h-auto">
+            <TabsTrigger value="top" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <TrendingUp className="h-3.5 w-3.5" />
+              {t("tabs.top")}
+            </TabsTrigger>
+            <TabsTrigger value="inactive" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <UserX className="h-3.5 w-3.5" />
+              {t("tabs.inactive")}
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="ml-auto">
+            <div className="relative w-[300px] max-w-full">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                className="pl-10 h-9"
+                placeholder={t("search_placeholder")}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="pt-4">
           <TabsContent value="top">
             <CustomerTableContent
-              tab={tab}
               items={items}
               isLoading={isLoading}
               text={t}
@@ -106,16 +107,6 @@ export function CustomerListTable({
           </TabsContent>
           <TabsContent value="inactive">
             <CustomerTableContent
-              tab={tab}
-              items={items}
-              isLoading={isLoading}
-              text={t}
-              onViewDetail={onViewDetail}
-            />
-          </TabsContent>
-          <TabsContent value="payment_behavior">
-            <CustomerTableContent
-              tab={tab}
               items={items}
               isLoading={isLoading}
               text={t}
@@ -141,13 +132,11 @@ export function CustomerListTable({
 }
 
 function CustomerTableContent({
-  tab,
   items,
   isLoading,
   text,
   onViewDetail,
 }: {
-  readonly tab: CustomerResearchTab;
   readonly items: CustomerResearchListItem[];
   readonly isLoading?: boolean;
   readonly text: ReturnType<typeof useTranslations>;
@@ -180,7 +169,7 @@ function CustomerTableContent({
           ) : items.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="h-24 text-center text-muted-foreground py-12">
-                {tab === "payment_behavior" ? text("empty.payment_behavior") : text("empty.default")}
+                {text("empty.default")}
               </TableCell>
             </TableRow>
           ) : (

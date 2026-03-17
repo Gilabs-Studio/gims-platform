@@ -32,7 +32,7 @@ func NewSupplierResearchUsecase(repo repositories.SupplierResearchRepository) Su
 }
 
 func (uc *supplierResearchUsecase) GetKpis(ctx context.Context, req dto.SupplierResearchKpisRequest) (*dto.SupplierResearchKpisResponse, error) {
-	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
+	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
 
 	row, err := uc.repo.GetKpis(ctx, params)
 	if err != nil {
@@ -52,7 +52,7 @@ func (uc *supplierResearchUsecase) GetKpis(ctx context.Context, req dto.Supplier
 
 func (uc *supplierResearchUsecase) ListPurchaseVolume(ctx context.Context, req dto.ListSupplierPurchaseVolumeRequest) ([]dto.SupplierPurchaseVolumeResponse, utils.PaginationResult, error) {
 	listParams := repositories.SupplierResearchListParams{
-		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
+		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
 		Page:                         req.Page,
 		PerPage:                      req.PerPage,
 		SortBy:                       req.SortBy,
@@ -82,7 +82,7 @@ func (uc *supplierResearchUsecase) ListPurchaseVolume(ctx context.Context, req d
 
 func (uc *supplierResearchUsecase) ListDeliveryTime(ctx context.Context, req dto.ListSupplierDeliveryTimeRequest) ([]dto.SupplierDeliveryTimeResponse, utils.PaginationResult, error) {
 	listParams := repositories.SupplierResearchListParams{
-		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
+		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
 		Page:                         req.Page,
 		PerPage:                      req.PerPage,
 		SortBy:                       req.SortBy,
@@ -117,7 +117,7 @@ func (uc *supplierResearchUsecase) GetSpendTrend(ctx context.Context, req dto.Su
 		interval = "monthly"
 	}
 
-	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
+	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
 	rows, err := uc.repo.GetSpendTrend(ctx, params, interval)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (uc *supplierResearchUsecase) ListSuppliers(ctx context.Context, req dto.Li
 	}
 
 	listParams := repositories.SupplierResearchListParams{
-		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
+		SupplierResearchFilterParams: parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, req.Search, req.MinPurchaseValue, req.MaxPurchaseValue),
 		Page:                         req.Page,
 		PerPage:                      req.PerPage,
 		SortBy:                       req.SortBy,
@@ -177,7 +177,7 @@ func (uc *supplierResearchUsecase) ListSuppliers(ctx context.Context, req dto.Li
 }
 
 func (uc *supplierResearchUsecase) GetSupplierDetail(ctx context.Context, supplierID string, req dto.SupplierResearchKpisRequest) (*dto.SupplierDetailResponse, error) {
-	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
+	params := parseSupplierFilterParams(req.StartDate, req.EndDate, req.DateMode, req.Year, req.CategoryIDs, "", req.MinPurchaseValue, req.MaxPurchaseValue)
 	row, err := uc.repo.GetSupplierDetail(ctx, supplierID, params)
 	if err != nil {
 		return nil, err
@@ -225,8 +225,8 @@ func (uc *supplierResearchUsecase) GetSupplierDetail(ctx context.Context, suppli
 	}, nil
 }
 
-func parseSupplierFilterParams(startDate, endDate, categoryIDsCSV, search string, minPurchaseValue, maxPurchaseValue float64) repositories.SupplierResearchFilterParams {
-	parsedStartDate, parsedEndDate := parseSupplierDateRange(startDate, endDate)
+func parseSupplierFilterParams(startDate, endDate, dateMode string, year int, categoryIDsCSV, search string, minPurchaseValue, maxPurchaseValue float64) repositories.SupplierResearchFilterParams {
+	parsedStartDate, parsedEndDate := parseSupplierDateRange(startDate, endDate, dateMode, year)
 
 	categoryIDs := []string{}
 	for _, raw := range strings.Split(categoryIDsCSV, ",") {
@@ -246,10 +246,14 @@ func parseSupplierFilterParams(startDate, endDate, categoryIDsCSV, search string
 	}
 }
 
-func parseSupplierDateRange(startDate, endDate string) (time.Time, time.Time) {
+func parseSupplierDateRange(startDate, endDate, dateMode string, year int) (time.Time, time.Time) {
 	now := apptime.Now()
 	defaultStart := time.Date(now.Year()-1, 1, 1, 0, 0, 0, 0, now.Location())
 	defaultEnd := time.Date(now.Year()-1, 12, 31, 23, 59, 59, 0, now.Location())
+
+	if strings.EqualFold(strings.TrimSpace(dateMode), "year") && year >= 2000 && year <= now.Year()+1 {
+		return time.Date(year, 1, 1, 0, 0, 0, 0, now.Location()), time.Date(year, 12, 31, 23, 59, 59, 0, now.Location())
+	}
 
 	start := defaultStart
 	end := defaultEnd

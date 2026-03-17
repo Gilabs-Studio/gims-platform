@@ -37,8 +37,14 @@ func defaultCustomerResearchDateRange() (time.Time, time.Time) {
 	return now.AddDate(0, 0, -30), now
 }
 
-func parseCustomerResearchDateRange(startStr, endStr string) (time.Time, time.Time) {
+func parseCustomerResearchDateRange(startStr, endStr, dateMode string, year int) (time.Time, time.Time) {
 	start, end := defaultCustomerResearchDateRange()
+	now := apptime.Now()
+
+	if strings.EqualFold(strings.TrimSpace(dateMode), "year") && year >= 2000 && year <= now.Year()+1 {
+		return time.Date(year, 1, 1, 0, 0, 0, 0, now.Location()), time.Date(year, 12, 31, 23, 59, 59, 0, now.Location())
+	}
+
 	if startStr != "" {
 		if parsed, err := time.Parse("2006-01-02", startStr); err == nil {
 			start = parsed
@@ -53,7 +59,7 @@ func parseCustomerResearchDateRange(startStr, endStr string) (time.Time, time.Ti
 }
 
 func (uc *customerResearchUsecase) GetKPIs(ctx context.Context, req dto.GetCustomerResearchKpisRequest) (*dto.CustomerResearchKpisResponse, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	row, err := uc.repo.GetKPIs(ctx, start, end)
 	if err != nil {
 		return nil, err
@@ -79,7 +85,7 @@ func (uc *customerResearchUsecase) GetKPIs(ctx context.Context, req dto.GetCusto
 }
 
 func (uc *customerResearchUsecase) GetRevenueTrend(ctx context.Context, req dto.GetRevenueTrendRequest) (*dto.RevenueTrendResponse, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	interval := strings.ToLower(strings.TrimSpace(req.Interval))
 	if interval == "" {
 		interval = "daily"
@@ -103,7 +109,7 @@ func (uc *customerResearchUsecase) GetRevenueTrend(ctx context.Context, req dto.
 }
 
 func (uc *customerResearchUsecase) ListCustomers(ctx context.Context, req dto.ListCustomersRequest) (*dto.ListCustomersResponse, utils.PaginationResult, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 
 	rows, pagination, err := uc.repo.ListCustomers(ctx, repositories.ListCustomersParams{
 		StartDate: start,
@@ -124,7 +130,7 @@ func (uc *customerResearchUsecase) ListCustomers(ctx context.Context, req dto.Li
 }
 
 func (uc *customerResearchUsecase) ListRevenueByCustomer(ctx context.Context, req dto.ListRevenueByCustomerRequest) (*dto.ListCustomersResponse, utils.PaginationResult, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	rows, pagination, err := uc.repo.GetRevenueByCustomer(ctx, repositories.ListCustomersParams{
 		StartDate: start,
 		EndDate:   end,
@@ -142,7 +148,7 @@ func (uc *customerResearchUsecase) ListRevenueByCustomer(ctx context.Context, re
 }
 
 func (uc *customerResearchUsecase) ListPurchaseFrequency(ctx context.Context, req dto.ListPurchaseFrequencyRequest) (*dto.ListCustomersResponse, utils.PaginationResult, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	rows, pagination, err := uc.repo.GetPurchaseFrequency(ctx, repositories.ListCustomersParams{
 		StartDate: start,
 		EndDate:   end,
@@ -160,7 +166,7 @@ func (uc *customerResearchUsecase) ListPurchaseFrequency(ctx context.Context, re
 }
 
 func (uc *customerResearchUsecase) GetCustomerDetail(ctx context.Context, customerID string, req dto.GetCustomerResearchKpisRequest) (*dto.CustomerDetailResponse, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	row, err := uc.repo.GetCustomerDetail(ctx, customerID, start, end)
 	if err != nil {
 		return nil, err
@@ -180,7 +186,7 @@ func (uc *customerResearchUsecase) GetCustomerDetail(ctx context.Context, custom
 }
 
 func (uc *customerResearchUsecase) GetCustomerTopProducts(ctx context.Context, customerID string, req dto.GetCustomerTopProductsRequest) (*dto.CustomerTopProductsResponse, error) {
-	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate)
+	start, end := parseCustomerResearchDateRange(req.StartDate, req.EndDate, req.DateMode, req.Year)
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 20

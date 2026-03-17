@@ -10,6 +10,8 @@ export interface PaginationMeta {
 export interface SupplierResearchFilters {
   start_date?: string;
   end_date?: string;
+  date_mode?: "year" | "range";
+  year?: number;
   category_ids?: string[];
   min_purchase_value?: number;
   max_purchase_value?: number;
@@ -92,7 +94,7 @@ export interface SupplierSpendTrendResponse {
 }
 
 export interface ListSuppliersTableRequest extends SupplierResearchFilters {
-  tab?: "top_spenders" | "slow_delivery" | "reliability";
+  tab?: "top_spenders" | "slow_delivery";
   page?: number;
   per_page?: number;
   sort_by?: string;

@@ -13,6 +13,10 @@ export const customerResearchReportId = {
     chart: {
       title: "Tren Pendapatan",
       description: "Tren pendapatan berdasarkan interval dan rentang tanggal.",
+      filter: {
+        year: "Tahun",
+        customRange: "Rentang Kustom",
+      },
       total_revenue: "Total Pendapatan",
       revenue_by_customer: "Pendapatan per Pelanggan",
       revenue_by_customer_desc: "Pelanggan teratas berdasarkan total pendapatan.",

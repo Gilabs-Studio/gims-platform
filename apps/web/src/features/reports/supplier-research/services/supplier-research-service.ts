@@ -15,6 +15,8 @@ export const supplierResearchService = {
   async getKpis(params?: {
     start_date?: string;
     end_date?: string;
+    date_mode?: "year" | "range";
+    year?: number;
     category_ids?: string[];
     min_purchase_value?: number;
     max_purchase_value?: number;
@@ -52,6 +54,8 @@ export const supplierResearchService = {
   async getSpendTrend(params?: {
     start_date?: string;
     end_date?: string;
+    date_mode?: "year" | "range";
+    year?: number;
     category_ids?: string[];
     min_purchase_value?: number;
     max_purchase_value?: number;
@@ -81,6 +85,8 @@ export const supplierResearchService = {
     params?: {
       start_date?: string;
       end_date?: string;
+      date_mode?: "year" | "range";
+      year?: number;
     }
   ): Promise<SupplierDetailResponse> {
     const response = await apiClient.get<SupplierDetailResponse>(

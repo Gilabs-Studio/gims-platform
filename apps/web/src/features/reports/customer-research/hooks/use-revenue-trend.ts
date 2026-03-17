@@ -3,24 +3,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { customerResearchService } from "../services/customer-research-service";
 
+interface RevenueTrendFilters {
+  start_date?: string;
+  end_date?: string;
+  date_mode?: "year" | "range";
+  year?: number;
+  interval?: "daily" | "weekly" | "monthly";
+}
+
 export function useRevenueTrend(
-  startDate?: string,
-  endDate?: string,
-  interval?: "daily" | "weekly" | "monthly"
+  filters: RevenueTrendFilters
 ) {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: [
-      "reports",
-      "customer-research",
-      "revenue-trend",
-      { startDate, endDate, interval },
-    ],
+    queryKey: ["reports", "customer-research", "revenue-trend", filters],
     queryFn: async () => {
-      const response = await customerResearchService.getRevenueTrend(
-        startDate,
-        endDate,
-        interval
-      );
+      const response = await customerResearchService.getRevenueTrend(filters);
       return response.data.data;
     },
     staleTime: 30000,

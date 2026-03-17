@@ -41,7 +41,7 @@ export interface CustomerRankResponse {
   };
 }
 
-export type CustomerResearchTab = "top" | "inactive" | "payment_behavior";
+export type CustomerResearchTab = "top" | "inactive";
 
 export interface CustomerResearchListItem {
   customer_id: string;
@@ -55,6 +55,8 @@ export interface CustomerResearchListItem {
 export interface ListCustomerResearchRequest {
   start_date?: string;
   end_date?: string;
+  date_mode?: "year" | "range";
+  year?: number;
   tab?: CustomerResearchTab;
   search?: string;
   page?: number;

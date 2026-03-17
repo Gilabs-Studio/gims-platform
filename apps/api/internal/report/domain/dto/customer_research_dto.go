@@ -4,6 +4,8 @@ package dto
 type GetCustomerResearchKpisRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 }
 
 // CustomerResearchKpisResponse returns KPI metrics for customer research.
@@ -19,6 +21,8 @@ type CustomerResearchKpisResponse struct {
 type GetRevenueTrendRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 	Interval  string `form:"interval"`
 }
 
@@ -38,6 +42,8 @@ type RevenueTrendResponse struct {
 type ListCustomersRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 	Tab       string `form:"tab,default=top"`
 	Search    string `form:"search"`
 	Page      int    `form:"page,default=1"`
@@ -50,6 +56,8 @@ type ListCustomersRequest struct {
 type ListRevenueByCustomerRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 	Search    string `form:"search"`
 	Page      int    `form:"page,default=1"`
 	PerPage   int    `form:"per_page,default=20"`
@@ -60,6 +68,8 @@ type ListRevenueByCustomerRequest struct {
 type ListPurchaseFrequencyRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 	Search    string `form:"search"`
 	Page      int    `form:"page,default=1"`
 	PerPage   int    `form:"per_page,default=20"`
@@ -95,6 +105,8 @@ type CustomerDetailResponse struct {
 type GetCustomerTopProductsRequest struct {
 	StartDate string `form:"start_date"`
 	EndDate   string `form:"end_date"`
+	DateMode  string `form:"date_mode"`
+	Year      int    `form:"year"`
 	Limit     int    `form:"limit,default=20"`
 }
 

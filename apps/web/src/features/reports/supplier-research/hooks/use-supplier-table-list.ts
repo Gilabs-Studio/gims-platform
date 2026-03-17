@@ -7,7 +7,7 @@ import { supplierResearchService } from "../services/supplier-research-service";
 import type { SupplierResearchFilters } from "../types";
 
 export function useSupplierTableList(
-  tab: "top_spenders" | "slow_delivery" | "reliability",
+  tab: "top_spenders" | "slow_delivery",
   filters: SupplierResearchFilters
 ) {
   const [page, setPage] = useState(1);

@@ -10,34 +10,44 @@ import type {
 } from "../types";
 
 export const customerResearchService = {
-  async getKpis(
-    startDate?: string,
-    endDate?: string
-  ): Promise<CustomerResearchKpisResponse> {
-    const params: Record<string, string> = {};
-    if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
+  async getKpis(params?: {
+    start_date?: string;
+    end_date?: string;
+    date_mode?: "year" | "range";
+    year?: number;
+  }): Promise<CustomerResearchKpisResponse> {
+    const queryParams: Record<string, string | number> = {};
+    if (params?.start_date) queryParams.start_date = params.start_date;
+    if (params?.end_date) queryParams.end_date = params.end_date;
+    if (params?.date_mode) queryParams.date_mode = params.date_mode;
+    if (params?.year) queryParams.year = params.year;
 
     const response = await apiClient.get<CustomerResearchKpisResponse>(
       "/reports/customer-research/kpis",
-      { params }
+      { params: queryParams }
     );
     return response.data;
   },
 
   async getRevenueTrend(
-    startDate?: string,
-    endDate?: string,
-    interval?: "daily" | "weekly" | "monthly"
+    params?: {
+      start_date?: string;
+      end_date?: string;
+      date_mode?: "year" | "range";
+      year?: number;
+      interval?: "daily" | "weekly" | "monthly";
+    }
   ): Promise<RevenueTrendResponse> {
-    const params: Record<string, string> = {};
-    if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
-    if (interval) params.interval = interval;
+    const queryParams: Record<string, string | number> = {};
+    if (params?.start_date) queryParams.start_date = params.start_date;
+    if (params?.end_date) queryParams.end_date = params.end_date;
+    if (params?.date_mode) queryParams.date_mode = params.date_mode;
+    if (params?.year) queryParams.year = params.year;
+    if (params?.interval) queryParams.interval = params.interval;
 
     const response = await apiClient.get<RevenueTrendResponse>(
       "/reports/customer-research/revenue-trend",
-      { params }
+      { params: queryParams }
     );
     return response.data;
   },

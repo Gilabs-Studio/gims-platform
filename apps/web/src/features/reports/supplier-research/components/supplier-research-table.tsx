@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Search } from "lucide-react";
+import { Eye, Search, Timer, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,8 @@ import { formatCurrency } from "@/lib/utils";
 import type { SupplierTableRow } from "../types";
 
 interface SupplierResearchTableProps {
-  readonly tab: "top_spenders" | "slow_delivery" | "reliability";
-  readonly onTabChange: (tab: "top_spenders" | "slow_delivery" | "reliability") => void;
+  readonly tab: "top_spenders" | "slow_delivery";
+  readonly onTabChange: (tab: "top_spenders" | "slow_delivery") => void;
   readonly rows: SupplierTableRow[];
   readonly isLoading: boolean;
   readonly search: string;
@@ -52,26 +52,20 @@ export function SupplierResearchTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">{t("table.title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("table.description")}</p>
-      </div>
-
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Tabs
           value={tab}
           onValueChange={(value) => onTabChange(value as typeof tab)}
           className="w-full md:w-auto"
         >
-          <TabsList className="grid w-full grid-cols-3 md:w-auto">
-            <TabsTrigger value="top_spenders" className="cursor-pointer">
+          <TabsList className="flex items-center bg-muted p-1 rounded-lg gap-y-1 flex-wrap h-auto">
+            <TabsTrigger value="top_spenders" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <TrendingUp className="h-3.5 w-3.5" />
               {t("table.tabTopSpenders")}
             </TabsTrigger>
-            <TabsTrigger value="slow_delivery" className="cursor-pointer">
+            <TabsTrigger value="slow_delivery" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <Timer className="h-3.5 w-3.5" />
               {t("table.tabSlowDelivery")}
-            </TabsTrigger>
-            <TabsTrigger value="reliability" className="cursor-pointer">
-              {t("table.tabReliability")}
             </TabsTrigger>
           </TabsList>
         </Tabs>

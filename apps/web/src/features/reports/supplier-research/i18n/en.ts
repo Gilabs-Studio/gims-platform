@@ -30,6 +30,10 @@ export const supplierResearchReportEn = {
     chart: {
       title: "Supplier Spend Trend",
       description: "Purchase value trend by selected interval and date range.",
+      filter: {
+        year: "Year",
+        customRange: "Custom Range",
+      },
       total_purchase_value: "Total Purchase Value",
       no_data: "No trend data found for the selected period.",
       interval: {
@@ -91,10 +95,16 @@ export const supplierResearchReportEn = {
         activeAlert: "There are {count} active purchase orders for this supplier.",
         noPermission: "You don't have permission to view purchase orders.",
         viewDetail: "View Detail",
+        received: "received",
+        pending: "pending",
+        remaining: "remaining",
         columns: {
           code: "PO Code",
           status: "Status",
           orderDate: "Order Date",
+          fulfillment: "Fulfillment",
+          goodsReceipts: "Goods Receipts",
+          supplierInvoices: "Supplier Invoices",
           totalAmount: "Total Amount",
           action: "Action",
         },

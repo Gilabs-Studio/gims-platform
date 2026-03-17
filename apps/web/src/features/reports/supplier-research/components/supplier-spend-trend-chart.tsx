@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { BarChart3 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
@@ -32,11 +33,24 @@ import type { SupplierSpendTrendPoint } from "../types";
 interface SupplierSpendTrendChartProps {
   readonly data: SupplierSpendTrendPoint[];
   readonly isLoading?: boolean;
+  readonly filterMode: "year" | "range";
+  readonly onFilterModeChange: (mode: "year" | "range") => void;
+  readonly selectedYear: number;
+  readonly onYearChange: (year: number) => void;
   readonly dateRange: DateRange | undefined;
   readonly onDateRangeChange: (range: DateRange | undefined) => void;
   readonly interval: "daily" | "weekly" | "monthly";
   readonly onIntervalChange: (value: "daily" | "weekly" | "monthly") => void;
 }
+
+const generateYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let year = currentYear + 1; year >= 2000; year--) {
+    years.push(year);
+  }
+  return years;
+};
 
 const chartConfig = {
   total_purchase_value: {
@@ -48,12 +62,17 @@ const chartConfig = {
 export function SupplierSpendTrendChart({
   data,
   isLoading,
+  filterMode,
+  onFilterModeChange,
+  selectedYear,
+  onYearChange,
   dateRange,
   onDateRangeChange,
   interval,
   onIntervalChange,
 }: SupplierSpendTrendChartProps) {
   const t = useTranslations("supplierResearchReport.chart");
+  const years = useMemo(() => generateYearOptions(), []);
 
   const chartData = useMemo(
     () =>
@@ -92,10 +111,39 @@ export function SupplierSpendTrendChart({
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle>{t("title")}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              {t("title")}
+            </CardTitle>
             <CardDescription>{t("description")}</CardDescription>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center bg-muted p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => onFilterModeChange("year")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                  filterMode === "year"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t("filter.year")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onFilterModeChange("range")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                  filterMode === "range"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t("filter.customRange")}
+              </button>
+            </div>
+
             <Select
               value={interval}
               onValueChange={(value) =>
@@ -111,10 +159,29 @@ export function SupplierSpendTrendChart({
                 <SelectItem value="monthly">{t("interval.monthly")}</SelectItem>
               </SelectContent>
             </Select>
-            <DateRangePicker
-              dateRange={dateRange}
-              onDateChange={onDateRangeChange}
-            />
+
+            {filterMode === "year" ? (
+              <Select
+                value={selectedYear.toString()}
+                onValueChange={(value) => onYearChange(Number(value))}
+              >
+                <SelectTrigger className="h-9 w-[110px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateChange={onDateRangeChange}
+              />
+            )}
           </div>
         </div>
         <div className="pt-3">

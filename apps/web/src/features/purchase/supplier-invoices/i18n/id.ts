@@ -1,4 +1,7 @@
 export const supplierInvoiceId = {
+  common: {
+    view: "Lihat",
+  },
   title: "Faktur Supplier",
   description: "Buat faktur dari goods receipt yang sudah ditutup.",
   search: "Cari berdasarkan kode, nomor faktur...",

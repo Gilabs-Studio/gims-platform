@@ -13,6 +13,10 @@ export const customerResearchReportEn = {
     chart: {
       title: "Revenue Trend Over Time",
       description: "Revenue trend by selected interval and date range.",
+      filter: {
+        year: "Year",
+        customRange: "Custom Range",
+      },
       total_revenue: "Total Revenue",
       revenue_by_customer: "Revenue by Customer",
       revenue_by_customer_desc: "Top customers by total revenue.",

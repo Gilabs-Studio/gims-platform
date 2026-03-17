@@ -4,6 +4,8 @@ package dto
 type SupplierResearchKpisRequest struct {
 	StartDate        string  `form:"start_date"`
 	EndDate          string  `form:"end_date"`
+	DateMode         string  `form:"date_mode"`
+	Year             int     `form:"year"`
 	CategoryIDs      string  `form:"category_ids"`
 	MinPurchaseValue float64 `form:"min_purchase_value"`
 	MaxPurchaseValue float64 `form:"max_purchase_value"`
@@ -22,6 +24,8 @@ type ListSupplierPurchaseVolumeRequest struct {
 	Search           string  `form:"search"`
 	StartDate        string  `form:"start_date"`
 	EndDate          string  `form:"end_date"`
+	DateMode         string  `form:"date_mode"`
+	Year             int     `form:"year"`
 	CategoryIDs      string  `form:"category_ids"`
 	MinPurchaseValue float64 `form:"min_purchase_value"`
 	MaxPurchaseValue float64 `form:"max_purchase_value"`
@@ -47,6 +51,8 @@ type ListSupplierDeliveryTimeRequest struct {
 	Search           string  `form:"search"`
 	StartDate        string  `form:"start_date"`
 	EndDate          string  `form:"end_date"`
+	DateMode         string  `form:"date_mode"`
+	Year             int     `form:"year"`
 	CategoryIDs      string  `form:"category_ids"`
 	MinPurchaseValue float64 `form:"min_purchase_value"`
 	MaxPurchaseValue float64 `form:"max_purchase_value"`
@@ -69,6 +75,8 @@ type SupplierDeliveryTimeResponse struct {
 type SupplierSpendTrendRequest struct {
 	StartDate        string  `form:"start_date"`
 	EndDate          string  `form:"end_date"`
+	DateMode         string  `form:"date_mode"`
+	Year             int     `form:"year"`
 	CategoryIDs      string  `form:"category_ids"`
 	MinPurchaseValue float64 `form:"min_purchase_value"`
 	MaxPurchaseValue float64 `form:"max_purchase_value"`
@@ -93,6 +101,8 @@ type ListSuppliersRequest struct {
 	Search           string  `form:"search"`
 	StartDate        string  `form:"start_date"`
 	EndDate          string  `form:"end_date"`
+	DateMode         string  `form:"date_mode"`
+	Year             int     `form:"year"`
 	CategoryIDs      string  `form:"category_ids"`
 	MinPurchaseValue float64 `form:"min_purchase_value"`
 	MaxPurchaseValue float64 `form:"max_purchase_value"`

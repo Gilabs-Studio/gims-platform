@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
-import { format, subDays } from "date-fns";
+import { format, startOfYear, subYears } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { PageMotion } from "@/components/motion";
 import { useCustomerResearchKpis } from "../hooks/use-customer-research-kpis";
@@ -24,10 +24,13 @@ export function CustomerResearchPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const now = new Date();
     return {
-      from: subDays(now, 30),
+      from: startOfYear(subYears(now, 1)),
       to: now,
     };
   });
+
+  const [filterMode, setFilterMode] = useState<"year" | "range">("year");
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   const [interval, setInterval] = useState<"daily" | "weekly" | "monthly">(
     "daily"
@@ -37,24 +40,36 @@ export function CustomerResearchPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
 
-  const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
-  const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+  const { startDate, endDate } = useMemo(() => {
+    if (filterMode === "year") {
+      return {
+        startDate: format(new Date(selectedYear, 0, 1), "yyyy-MM-dd"),
+        endDate: format(new Date(selectedYear, 11, 31), "yyyy-MM-dd"),
+      };
+    }
+
+    return {
+      startDate: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
+      endDate: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+    };
+  }, [filterMode, selectedYear, dateRange]);
 
   const queryFilters = useMemo(
-    () => ({ start_date: startDate, end_date: endDate }),
-    [startDate, endDate]
+    () => ({
+      start_date: startDate,
+      end_date: endDate,
+      date_mode: filterMode,
+      year: filterMode === "year" ? selectedYear : undefined,
+    }),
+    [startDate, endDate, filterMode, selectedYear]
   );
 
-  const { kpis, isLoading: isKpiLoading } = useCustomerResearchKpis(
-    queryFilters.start_date,
-    queryFilters.end_date
-  );
+  const { kpis, isLoading: isKpiLoading } = useCustomerResearchKpis(queryFilters);
 
-  const { data: trendData, isLoading: isTrendLoading } = useRevenueTrend(
-    queryFilters.start_date,
-    queryFilters.end_date,
-    interval
-  );
+  const { data: trendData, isLoading: isTrendLoading } = useRevenueTrend({
+    ...queryFilters,
+    interval,
+  });
 
   const { data: revenueByCustomer, isLoading: isRevenueByCustomerLoading } =
     useRevenueByCustomer({
@@ -109,6 +124,10 @@ export function CustomerResearchPage() {
       <CustomerRevenueTrendChart
         data={trendData ?? []}
         isLoading={isTrendLoading}
+        filterMode={filterMode}
+        onFilterModeChange={setFilterMode}
+        selectedYear={selectedYear}
+        onYearChange={setSelectedYear}
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
         interval={interval}

@@ -34,6 +34,10 @@ import { useCustomerTopProducts } from "../hooks/use-customer-top-products";
 import { useOrders } from "@/features/sales/order/hooks/use-orders";
 import { OrderDetailModal } from "@/features/sales/order/components/order-detail-modal";
 import { OrderStatusBadge } from "@/features/sales/order/components/order-status-badge";
+import { DOStatusBadge } from "@/features/sales/order/components/do-status-badge";
+import { InvoiceStatusBadge } from "@/features/sales/order/components/invoice-status-badge";
+import { DOLinkedDialog } from "@/features/sales/order/components/do-linked-dialog";
+import { InvoiceLinkedDialog } from "@/features/sales/order/components/invoice-linked-dialog";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { format, subYears } from "date-fns";
@@ -88,6 +92,8 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
 
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewProduct = useUserPermission("product.read");
+  const canViewDO = useUserPermission("delivery_order.read");
+  const canViewInvoice = useUserPermission("customer_invoice.read");
 
   // Load all orders for this customer (no date filter — show everything)
   const { data: ordersData, isLoading: isOrdersLoading } = useOrders({
@@ -104,6 +110,8 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
+  const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
 
   const handleOpenOrder = (order: SalesOrder) => {
     if (!canViewSalesOrder) {
@@ -373,7 +381,7 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
                   ))}
                 </div>
               ) : allOrders.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
+                <div className="p-8 text-center text-sm text-muted-foreground col-span-8">
                   {t("orders.empty")}
                 </div>
               ) : (
@@ -383,6 +391,9 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
                       <TableHead>{t("orders.columns.code")}</TableHead>
                       <TableHead>{t("orders.columns.status")}</TableHead>
                       <TableHead>{t("orders.columns.orderDate")}</TableHead>
+                      <TableHead>Fulfillment</TableHead>
+                      <TableHead>DO</TableHead>
+                      <TableHead>Invoice</TableHead>
                       <TableHead className="text-right">
                         {t("orders.columns.totalAmount")}
                       </TableHead>
@@ -419,6 +430,84 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
                             ? formatDate(order.order_date, "id-ID")
                             : "-"}
                         </TableCell>
+
+                        {/* Fulfillment Progress */}
+                        <TableCell>
+                          {order.fulfillment ? (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1 text-xs">
+                                <Package className="h-3 w-3 text-muted-foreground" />
+                                <span className="font-medium">
+                                  {order.fulfillment.total_delivered}/{order.fulfillment.total_ordered}
+                                </span>
+                                <span className="text-muted-foreground">delivered</span>
+                              </div>
+                              {order.fulfillment.total_pending > 0 && (
+                                <span className="text-xs text-warning">
+                                  {order.fulfillment.total_pending} pending
+                                </span>
+                              )}
+                              {order.fulfillment.total_remaining > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {order.fulfillment.total_remaining} remaining
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* DO Status */}
+                        <TableCell>
+                          {order.delivery_orders && order.delivery_orders.length > 0 ? (
+                            canViewDO ? (
+                              <button
+                                type="button"
+                                onClick={() => setDoDialogOrder(order)}
+                                className="cursor-pointer"
+                                title={`${order.delivery_orders.length} Delivery Order(s)`}
+                              >
+                                <span className="flex items-center gap-1">
+                                  <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                                  {order.delivery_orders.length > 1 && (
+                                    <span className="text-xs text-muted-foreground">+{order.delivery_orders.length - 1}</span>
+                                  )}
+                                </span>
+                              </button>
+                            ) : (
+                              <DOStatusBadge status={order.delivery_orders[0].status} className="text-xs font-medium" />
+                            )
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Invoice Status */}
+                        <TableCell>
+                          {order.customer_invoices && order.customer_invoices.length > 0 ? (
+                            canViewInvoice ? (
+                              <button
+                                type="button"
+                                onClick={() => setInvoiceDialogOrder(order)}
+                                className="cursor-pointer"
+                                title={`${order.customer_invoices.length} Invoice(s)`}
+                              >
+                                <span className="flex items-center gap-1">
+                                  <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium hover:opacity-80 transition-opacity" />
+                                  {order.customer_invoices.length > 1 && (
+                                    <span className="text-xs text-muted-foreground">+{order.customer_invoices.length - 1}</span>
+                                  )}
+                                </span>
+                              </button>
+                            ) : (
+                              <InvoiceStatusBadge status={order.customer_invoices[0].status} className="text-xs font-medium" />
+                            )
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+
                         <TableCell className="text-right font-medium">
                           {formatCurrency(order.total_amount ?? 0)}
                         </TableCell>
@@ -455,6 +544,26 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
         onOpenChange={setIsProductModalOpen}
         productId={selectedProductId}
       />
+
+      {/* DO linked dialog */}
+      {doDialogOrder && (
+        <DOLinkedDialog
+          salesOrderId={doDialogOrder.id}
+          salesOrderCode={doDialogOrder.code}
+          open={!!doDialogOrder}
+          onOpenChange={(open) => { if (!open) setDoDialogOrder(null); }}
+        />
+      )}
+
+      {/* Invoice linked dialog */}
+      {invoiceDialogOrder && (
+        <InvoiceLinkedDialog
+          salesOrderId={invoiceDialogOrder.id}
+          salesOrderCode={invoiceDialogOrder.code}
+          open={!!invoiceDialogOrder}
+          onOpenChange={(open) => { if (!open) setInvoiceDialogOrder(null); }}
+        />
+      )}
     </PageMotion>
   );
 }

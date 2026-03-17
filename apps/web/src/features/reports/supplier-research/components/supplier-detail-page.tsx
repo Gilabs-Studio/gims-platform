@@ -32,9 +32,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { PurchaseOrderStatusBadge } from "@/features/purchase/orders/components/purchase-order-status-badge";
+import { GoodsReceiptStatusBadge } from "@/features/purchase/goods-receipt/components/goods-receipt-status-badge";
+import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
+import { GRLinkedDialog } from "@/features/purchase/orders/components/gr-linked-dialog";
+import { SILinkedDialog } from "@/features/purchase/orders/components/si-linked-dialog";
+import { usePurchaseOrders } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useSupplierDetail } from "../hooks/use-supplier-detail";
+import type { PurchaseOrderListItem } from "@/features/purchase/orders/types";
 
 interface SupplierDetailPageProps {
   readonly supplierId: string;
@@ -53,9 +59,13 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
   const [isPurchaseOrderModalOpen, setIsPurchaseOrderModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [grDialogItem, setGrDialogItem] = useState<PurchaseOrderListItem | null>(null);
+  const [siDialogItem, setSiDialogItem] = useState<PurchaseOrderListItem | null>(null);
 
   const canViewPurchaseOrder = useUserPermission("purchase_order.read");
   const canViewProduct = useUserPermission("product.read");
+  const canViewGR = useUserPermission("goods_receipt.read");
+  const canViewSI = useUserPermission("supplier_invoice.read");
 
   const dateRange: DateRange | undefined = useMemo(
     () => ({
@@ -78,10 +88,17 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
 
   const { detail, isLoading } = useSupplierDetail(supplierId, startDate, endDate);
 
-  const allPurchaseOrders = detail?.purchase_orders ?? [];
+  const { data: purchaseOrdersData, isLoading: isOrdersLoading } = usePurchaseOrders({
+    supplier_id: supplierId,
+    per_page: 100,
+    sort_by: "order_date",
+    sort_dir: "desc",
+  });
+
+  const allPurchaseOrders = purchaseOrdersData?.data ?? [];
   const products = detail?.products ?? [];
   const activePurchaseOrders = allPurchaseOrders.filter((po) => {
-    const normalized = po.status.toUpperCase();
+    const normalized = (po.status ?? "").toUpperCase();
     return normalized === "SUBMITTED" || normalized === "APPROVED";
   });
 
@@ -168,9 +185,9 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
             <div className="mt-2 flex flex-wrap gap-2">
               {activePurchaseOrders.map((po) => (
                 <button
-                  key={po.purchase_order_id}
+                  key={po.id}
                   type="button"
-                  onClick={() => handleOpenPurchaseOrder(po.purchase_order_id)}
+                  onClick={() => handleOpenPurchaseOrder(po.id)}
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-warning/30 bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted"
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -252,7 +269,7 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
                             <button
                               type="button"
                               onClick={() => handleOpenProduct(item.product_id)}
-                              className="cursor-pointer text-left text-info hover:underline"
+                              className="cursor-pointer text-left text-primary hover:underline font-medium"
                             >
                               {item.product_name}
                             </button>
@@ -281,7 +298,13 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
             </div>
 
             <div className="overflow-x-auto">
-              {allPurchaseOrders.length === 0 ? (
+              {isOrdersLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : allPurchaseOrders.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
                   {t("orders.empty")}
                 </div>
@@ -292,17 +315,21 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
                       <TableHead>{t("orders.columns.code")}</TableHead>
                       <TableHead>{t("orders.columns.status")}</TableHead>
                       <TableHead>{t("orders.columns.orderDate")}</TableHead>
+                      <TableHead>{t("orders.columns.fulfillment")}</TableHead>
+                      <TableHead>{t("orders.columns.goodsReceipts")}</TableHead>
+                      <TableHead>{t("orders.columns.supplierInvoices")}</TableHead>
                       <TableHead className="text-right">{t("orders.columns.totalAmount")}</TableHead>
                       <TableHead className="text-right">{t("orders.columns.action")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {allPurchaseOrders.map((po) => {
-                      const isActive = po.status === "SUBMITTED" || po.status === "APPROVED";
+                      const status = (po.status ?? "").toUpperCase();
+                      const isActive = status === "SUBMITTED" || status === "APPROVED";
 
                       return (
                         <TableRow
-                          key={po.purchase_order_id}
+                          key={po.id}
                           className={isActive ? "bg-warning/5 hover:bg-warning/10" : undefined}
                         >
                           <TableCell className="font-medium">{po.code}</TableCell>
@@ -312,6 +339,87 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
                           <TableCell className="text-muted-foreground">
                             {po.order_date ? formatDate(po.order_date, "id-ID") : "-"}
                           </TableCell>
+
+                          <TableCell>
+                            {po.fulfillment ? (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1 text-xs">
+                                  <Package className="h-3 w-3 text-muted-foreground" />
+                                  <span className="font-medium">
+                                    {po.fulfillment.total_received}/{po.fulfillment.total_ordered}
+                                  </span>
+                                  <span className="text-muted-foreground">{t("orders.received")}</span>
+                                </div>
+                                {po.fulfillment.total_pending > 0 && (
+                                  <span className="text-xs text-warning">
+                                    {po.fulfillment.total_pending} {t("orders.pending")}
+                                  </span>
+                                )}
+                                {po.fulfillment.total_remaining > 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {po.fulfillment.total_remaining} {t("orders.remaining")}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {po.goods_receipts && po.goods_receipts.length > 0 ? (
+                              canViewGR ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setGrDialogItem(po)}
+                                  className="cursor-pointer"
+                                  title={`${po.goods_receipts.length} Goods Receipt(s)`}
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <GoodsReceiptStatusBadge
+                                      status={po.goods_receipts[0].status}
+                                      className="text-xs font-medium hover:opacity-80 transition-opacity"
+                                    />
+                                    {po.goods_receipts.length > 1 && (
+                                      <span className="text-xs text-muted-foreground">+{po.goods_receipts.length - 1}</span>
+                                    )}
+                                  </span>
+                                </button>
+                              ) : (
+                                <GoodsReceiptStatusBadge status={po.goods_receipts[0].status} className="text-xs font-medium" />
+                              )
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {po.supplier_invoices && po.supplier_invoices.length > 0 ? (
+                              canViewSI ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSiDialogItem(po)}
+                                  className="cursor-pointer"
+                                  title={`${po.supplier_invoices.length} Supplier Invoice(s)`}
+                                >
+                                  <span className="flex items-center gap-1">
+                                    <SupplierInvoiceStatusBadge
+                                      status={po.supplier_invoices[0].status}
+                                      className="text-xs font-medium hover:opacity-80 transition-opacity"
+                                    />
+                                    {po.supplier_invoices.length > 1 && (
+                                      <span className="text-xs text-muted-foreground">+{po.supplier_invoices.length - 1}</span>
+                                    )}
+                                  </span>
+                                </button>
+                              ) : (
+                                <SupplierInvoiceStatusBadge status={po.supplier_invoices[0].status} className="text-xs font-medium" />
+                              )
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+
                           <TableCell className="text-right font-medium">
                             {formatCurrency(po.total_amount ?? 0)}
                           </TableCell>
@@ -320,7 +428,7 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
                               variant="ghost"
                               size="sm"
                               className="h-7 cursor-pointer text-xs"
-                              onClick={() => handleOpenPurchaseOrder(po.purchase_order_id)}
+                              onClick={() => handleOpenPurchaseOrder(po.id)}
                             >
                               <ExternalLink className="mr-1 h-3.5 w-3.5" />
                               {t("orders.viewDetail")}
@@ -347,6 +455,24 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
         productId={selectedProductId}
         onOpenChange={setIsProductModalOpen}
       />
+
+      {grDialogItem && (
+        <GRLinkedDialog
+          purchaseOrderCode={grDialogItem.code}
+          items={grDialogItem.goods_receipts ?? []}
+          open={!!grDialogItem}
+          onOpenChange={(open) => { if (!open) setGrDialogItem(null); }}
+        />
+      )}
+
+      {siDialogItem && (
+        <SILinkedDialog
+          purchaseOrderCode={siDialogItem.code}
+          purchaseOrderId={siDialogItem.id}
+          open={!!siDialogItem}
+          onOpenChange={(open) => { if (!open) setSiDialogItem(null); }}
+        />
+      )}
     </PageMotion>
   );
 }
