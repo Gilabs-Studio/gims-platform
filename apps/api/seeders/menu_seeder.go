@@ -613,7 +613,7 @@ func SeedMenus() error {
 	if _, err := createChildMenu("Customer Research", "users", "/reports/customer-research", &reportsMenu.ID, 4); err != nil {
 		return err
 	}
-	if _, err := createChildMenu("Supplier Research", "bar-chart-3", "/reports/supplier-research", &reportsMenu.ID, 5); err != nil {
+	if _, err := createChildMenu("Supplier Research", "truck", "/reports/supplier-research", &reportsMenu.ID, 5); err != nil {
 		return err
 	}
 

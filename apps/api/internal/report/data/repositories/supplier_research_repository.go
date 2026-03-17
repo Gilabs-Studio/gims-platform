@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -177,9 +178,9 @@ func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params S
 		LEFT JOIN supplier_types st ON st.id = s.supplier_type_id AND st.deleted_at IS NULL
 		WHERE si.deleted_at IS NULL
 			AND si.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
-			AND NULLIF(si.invoice_date, '')::date BETWEEN @startDate::date AND @endDate::date
+			AND NULLIF(si.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
-			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(@categoryIDs))
+			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(string_to_array(@categoryIDsCSV, ',')))
 		GROUP BY 1
 		ORDER BY 1 ASC
 	`, dateColumn)
@@ -190,7 +191,7 @@ func (r *supplierResearchRepository) GetSpendTrend(ctx context.Context, params S
 		"search":         strings.TrimSpace(params.Search),
 		"searchPrefix":   strings.TrimSpace(params.Search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
-		"categoryIDs":    params.CategoryIDs,
+		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
 	}
 
 	var rows []SupplierSpendTrendPointRow
@@ -288,7 +289,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 		"search":         strings.TrimSpace(params.Search),
 		"searchPrefix":   strings.TrimSpace(params.Search) + "%",
 		"categoryFilter": len(params.CategoryIDs) > 0,
-		"categoryIDs":    params.CategoryIDs,
+		"categoryIDsCSV": strings.Join(cleanCategoryIDs(params.CategoryIDs), ","),
 		"minFilter":      params.MinPurchaseValue > 0,
 		"minValue":       params.MinPurchaseValue,
 		"maxFilter":      params.MaxPurchaseValue > 0,
@@ -321,7 +322,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 			FROM supplier_invoices si
 			WHERE si.deleted_at IS NULL
 				AND si.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
-				AND NULLIF(si.invoice_date, '')::date BETWEEN @startDate::date AND @endDate::date
+				AND NULLIF(si.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			GROUP BY si.supplier_id
 		) inv ON inv.supplier_id = s.id
 		LEFT JOIN (
@@ -334,7 +335,7 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 			INNER JOIN purchase_orders po ON po.id = gr.purchase_order_id AND po.deleted_at IS NULL
 			WHERE gr.deleted_at IS NULL
 				AND gr.status IN ('APPROVED', 'PARTIAL', 'CLOSED', 'CONFIRMED')
-				AND gr.receipt_date::date BETWEEN @startDate::date AND @endDate::date
+				AND gr.receipt_date::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 			GROUP BY gr.supplier_id
 		) gr ON gr.supplier_id = s.id
 		CROSS JOIN (
@@ -342,15 +343,32 @@ func buildSupplierAnalyticsBaseQuery(params SupplierResearchFilterParams) (strin
 			FROM supplier_invoices si2
 			WHERE si2.deleted_at IS NULL
 				AND si2.status NOT IN ('DRAFT', 'REJECTED', 'CANCELLED')
-				AND NULLIF(si2.invoice_date, '')::date BETWEEN @startDate::date AND @endDate::date
+				AND NULLIF(si2.invoice_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
 		) total_all
 		WHERE s.deleted_at IS NULL
 			AND s.is_active = true
 			AND (@search = '' OR s.name ILIKE @searchPrefix OR s.code ILIKE @searchPrefix)
-			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(@categoryIDs))
+			AND (@categoryFilter = false OR COALESCE(s.supplier_type_id::text, '') = ANY(string_to_array(@categoryIDsCSV, ',')))
 			AND (@minFilter = false OR COALESCE(inv.total_purchase_value, 0) >= @minValue)
 			AND (@maxFilter = false OR COALESCE(inv.total_purchase_value, 0) <= @maxValue)
 	`
 
 	return query, queryParams
+}
+
+func cleanCategoryIDs(categoryIDs []string) []string {
+	if len(categoryIDs) == 0 {
+		return nil
+	}
+
+	cleaned := make([]string, 0, len(categoryIDs))
+	for _, id := range categoryIDs {
+		trimmed := strings.TrimSpace(id)
+		if trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+
+	slices.Sort(cleaned)
+	return slices.Compact(cleaned)
 }

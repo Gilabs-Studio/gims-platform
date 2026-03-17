@@ -97,7 +97,8 @@ export function SupplierResearchPage() {
         <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-6">
+      <div className="rounded-lg border p-4">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-6">
         <div className="xl:col-span-2 flex gap-1 rounded-lg bg-muted p-1">
           <button
             type="button"
@@ -126,7 +127,7 @@ export function SupplierResearchPage() {
         <div className="xl:col-span-2">
           {filterMode === "year" ? (
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground" htmlFor="supplier-year-filter">
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="supplier-year-filter">
                 {t("filters.year")}
               </label>
               <select
@@ -148,7 +149,7 @@ export function SupplierResearchPage() {
         </div>
 
         <div className="space-y-1 xl:col-span-2">
-          <label className="text-xs text-muted-foreground" htmlFor="supplier-category-filter">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="supplier-category-filter">
             {t("filters.category")}
           </label>
           <Input
@@ -160,7 +161,7 @@ export function SupplierResearchPage() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground" htmlFor="supplier-min-purchase-filter">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="supplier-min-purchase-filter">
             {t("filters.minPurchase")}
           </label>
           <Input
@@ -172,7 +173,7 @@ export function SupplierResearchPage() {
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground" htmlFor="supplier-max-purchase-filter">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="supplier-max-purchase-filter">
             {t("filters.maxPurchase")}
           </label>
           <Input
@@ -182,6 +183,7 @@ export function SupplierResearchPage() {
             onChange={(event) => setMaxPurchase(event.target.value)}
             placeholder={t("filters.maxPurchase")}
           />
+        </div>
         </div>
       </div>
 

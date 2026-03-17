@@ -10,7 +10,7 @@ export interface NavItem {
 export const navigationConfig: NavItem[] = [
   {
     name: "Dashboard",
-    icon: "dashboard",
+    icon: "layout-dashboard",
     url: "/dashboard",
     permission: "dashboard.view",
   },
@@ -697,14 +697,14 @@ export const navigationConfig: NavItem[] = [
       {
         name: "Supplier Research",
         url: "/reports/supplier-research",
-        icon: "bar-chart-3",
+        icon: "truck",
         permission: "report_supplier_research.read",
       },
     ],
   },
   {
     name: "AI Assistant",
-    icon: "bot",
+    icon: "sparkles",
     url: "/ai-assistant",
     children: [
       {
