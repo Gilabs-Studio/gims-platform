@@ -125,6 +125,15 @@ export const recruitmentId = {
       updateFilled: "Perbarui Jumlah Terisi",
     },
 
+    // Tabs
+    tabs: {
+      general: "Umum",
+      requirements: "Persyaratan",
+      workflow: "Alur Kerja",
+      info: "Informasi",
+      applicants: "Pelamar",
+    },
+
     // Views
     views: {
       card: "Kartu",
@@ -147,15 +156,6 @@ export const recruitmentId = {
       maxLength: "Panjang maksimum terlampaui",
       invalidEmail: "Alamat email tidak valid",
       invalidUrl: "URL tidak valid",
-    },
-
-    // Tabs
-    tabs: {
-      general: "Umum",
-      requirements: "Persyaratan",
-      workflow: "Alur Kerja",
-      info: "Informasi",
-      applicants: "Pelamar",
     },
 
     // Navigation

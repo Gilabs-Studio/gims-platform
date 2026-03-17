@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@ta
 import * as targetsService from "../services/targets-service";
 import type { ListParams } from "../types";
 
-export function useYearlyTargets(params?: ListParams & { year?: number; area_id?: string; status?: string }) {
+export function useYearlyTargets(params?: ListParams & { year?: number; area_id?: string }) {
   return useQuery({
     queryKey: ["yearly-targets", params],
     queryFn: () => targetsService.getYearlyTargets(params),
@@ -52,13 +52,14 @@ export function useDeleteYearlyTarget() {
   });
 }
 
-export function useUpdateTargetStatus() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: targetsService.updateTargetStatus,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["yearly-targets"] });
-      queryClient.invalidateQueries({ queryKey: ["yearly-target", data.data.id] });
-    },
+export function useYearlyTargetAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["yearly-target", "audit-trail", id, params],
+    queryFn: () => targetsService.getYearlyTargetAuditTrail(id, params),
+    enabled: !!id && (options?.enabled ?? true),
   });
 }

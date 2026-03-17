@@ -125,6 +125,15 @@ export const recruitmentEn = {
       updateFilled: "Update Filled Count",
     },
 
+    // Tabs
+    tabs: {
+      general: "General",
+      requirements: "Requirements",
+      workflow: "Workflow",
+      info: "Information",
+      applicants: "Applicants",
+    },
+
     // Views
     views: {
       card: "Card",
@@ -147,15 +156,6 @@ export const recruitmentEn = {
       maxLength: "Maximum length exceeded",
       invalidEmail: "Invalid email address",
       invalidUrl: "Invalid URL",
-    },
-
-    // Tabs
-    tabs: {
-      general: "General",
-      requirements: "Requirements",
-      workflow: "Workflow",
-      info: "Information",
-      applicants: "Applicants",
     },
 
     // Navigation

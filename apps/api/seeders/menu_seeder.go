@@ -611,6 +611,12 @@ func SeedMenus() error {
 	if _, err := createChildMenu("Geo Performance", "map", "/reports/geo-performance", &reportsMenu.ID, 3); err != nil {
 		return err
 	}
+	if _, err := createChildMenu("Customer Research", "users", "/reports/customer-research", &reportsMenu.ID, 4); err != nil {
+		return err
+	}
+	if _, err := createChildMenu("Supplier Research", "truck", "/reports/supplier-research", &reportsMenu.ID, 5); err != nil {
+		return err
+	}
 
 	log.Println("ERP menus seeded successfully")
 	return nil

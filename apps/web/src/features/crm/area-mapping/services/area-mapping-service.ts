@@ -6,11 +6,25 @@ import type {
   HeatmapApiResponse,
   CoverageApiResponse,
   ListCapturesParams,
+  AreaMappingApiResponse,
+  AreaMappingRequest,
 } from "../types";
 
 const BASE_URL = "/crm/area-mapping";
 
 export const areaMappingService = {
+    /**
+     * Get area mapping data for map visualization
+     * Returns customers and leads with their locations and activity metrics
+     */
+    async getAreaMapping(params?: AreaMappingRequest): Promise<AreaMappingApiResponse> {
+      const response = await apiClient.get<AreaMappingApiResponse>(
+        `${BASE_URL}/map`,
+        { params }
+      );
+      return response.data;
+    },
+
   async capture(data: CreateAreaCaptureData): Promise<AreaCaptureResponse> {
     const response = await apiClient.post<AreaCaptureResponse>(
       `${BASE_URL}/capture`,

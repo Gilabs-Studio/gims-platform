@@ -29,6 +29,7 @@ type PurchaseOrderRepository interface {
 type PurchaseOrderListParams struct {
 	Search  string
 	Status  string
+	SupplierID string
 	SortBy  string
 	SortDir string
 	Limit   int
@@ -65,6 +66,9 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	if strings.TrimSpace(params.Status) != "" {
 		base = base.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
 	}
+	if strings.TrimSpace(params.SupplierID) != "" {
+		base = base.Where("supplier_id = ?", strings.TrimSpace(params.SupplierID))
+	}
 
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -82,6 +86,9 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
+	}
+	if strings.TrimSpace(params.SupplierID) != "" {
+		query = query.Where("supplier_id = ?", strings.TrimSpace(params.SupplierID))
 	}
 
 	sortField := normalizePOSortField(params.SortBy)

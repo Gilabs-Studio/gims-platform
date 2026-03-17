@@ -99,6 +99,7 @@ type MonthlySalesRow struct {
 	Month           int
 	Year            int
 	TotalRevenue    float64
+	TotalCashIn     float64
 	TotalOrders     int
 	TotalVisits     int
 	TotalDeliveries int
@@ -184,10 +185,10 @@ func (r *salesOverviewRepository) ListSalesRepPerformance(ctx context.Context, p
 		params.Page = 1
 	}
 
-	// Base query: employees with Sales Representative position
+	// Base query: include all employees (do not restrict to Sales Representative position)
 	baseQuery := `
 		FROM employees e
-		INNER JOIN job_positions jp ON jp.id = e.job_position_id AND jp.name = 'Sales Representative'
+		LEFT JOIN job_positions jp ON jp.id = e.job_position_id
 		LEFT JOIN divisions d ON d.id = e.division_id
 		LEFT JOIN users u ON u.id = e.user_id
 		LEFT JOIN (
@@ -315,6 +316,7 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 			EXTRACT(MONTH FROM so.order_date)::int AS month,
 			EXTRACT(YEAR FROM so.order_date)::int AS year,
 			COALESCE(SUM(so.total_amount), 0) AS total_revenue,
+			COALESCE(payment_counts.total_cash_in, 0) AS total_cash_in,
 			COUNT(so.id) AS total_orders,
 			COALESCE(visit_counts.total_visits, 0) AS total_visits,
 			COALESCE(delivery_counts.total_deliveries, 0) AS total_deliveries
@@ -331,6 +333,17 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 		) visit_counts ON visit_counts.month = EXTRACT(MONTH FROM so.order_date) AND visit_counts.year = EXTRACT(YEAR FROM so.order_date)
 		LEFT JOIN (
 			SELECT
+				EXTRACT(MONTH FROM sp.payment_date::date)::int AS month,
+				EXTRACT(YEAR FROM sp.payment_date::date)::int AS year,
+				COALESCE(SUM(sp.amount), 0) AS total_cash_in
+			FROM sales_payments sp
+			WHERE sp.deleted_at IS NULL
+				AND sp.status = 'CONFIRMED'
+				AND sp.payment_date::date BETWEEN @startDate AND @endDate
+			GROUP BY EXTRACT(MONTH FROM sp.payment_date::date), EXTRACT(YEAR FROM sp.payment_date::date)
+		) payment_counts ON payment_counts.month = EXTRACT(MONTH FROM so.order_date) AND payment_counts.year = EXTRACT(YEAR FROM so.order_date)
+		LEFT JOIN (
+			SELECT
 				EXTRACT(MONTH FROM dord.delivery_date)::int AS month,
 				EXTRACT(YEAR FROM dord.delivery_date)::int AS year,
 				COUNT(dord.id) AS total_deliveries
@@ -344,7 +357,7 @@ func (r *salesOverviewRepository) GetMonthlySalesOverview(ctx context.Context, s
 			AND so.status NOT IN ('draft', 'cancelled')
 			AND so.order_date BETWEEN @startDate AND @endDate
 		GROUP BY EXTRACT(MONTH FROM so.order_date), EXTRACT(YEAR FROM so.order_date),
-			visit_counts.total_visits, delivery_counts.total_deliveries
+			payment_counts.total_cash_in, visit_counts.total_visits, delivery_counts.total_deliveries
 		ORDER BY year, month
 	`
 
@@ -369,7 +382,6 @@ func (r *salesOverviewRepository) GetMonthlyTargets(ctx context.Context, startDa
 		INNER JOIN yearly_targets yt ON yt.id = mt.yearly_target_id
 		WHERE yt.deleted_at IS NULL
 			AND mt.deleted_at IS NULL
-			AND yt.status = 'approved'
 			AND yt.year BETWEEN EXTRACT(YEAR FROM @startDate::date) AND EXTRACT(YEAR FROM @endDate::date)
 		GROUP BY mt.month, yt.year
 		ORDER BY yt.year, mt.month
@@ -696,11 +708,13 @@ func (r *salesOverviewRepository) GetSalesRepYearlyTarget(ctx context.Context, e
 	query := `
 		SELECT COALESCE(SUM(yt.total_target), 0)
 		FROM yearly_targets yt
-		INNER JOIN employee_areas ea ON ea.area_id = yt.area_id
-		WHERE ea.employee_id = @employeeID
-			AND ea.deleted_at IS NULL
+		INNER JOIN (
+			SELECT DISTINCT area_id
+			FROM employee_areas
+			WHERE employee_id = @employeeID
+		) ea ON ea.area_id = yt.area_id
+		WHERE yt.area_id IS NOT NULL
 			AND yt.year = @year
-			AND yt.status = 'approved'
 			AND yt.deleted_at IS NULL
 	`
 	var target float64

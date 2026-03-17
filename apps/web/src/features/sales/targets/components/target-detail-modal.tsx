@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Send, Info, DollarSign, Calendar, History, BarChart2 } from "lucide-react";
+import { Edit, Trash2, Info, DollarSign, Calendar, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,15 +10,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { TargetForm } from "./target-form";
 import { AchievementChart } from "./achievement-chart";
+import { TargetAuditTrailContent } from "./target-audit-trail";
 import {
   useDeleteYearlyTarget,
-  useUpdateTargetStatus,
   useYearlyTarget,
 } from "../hooks/use-targets";
 import { toast } from "sonner";
@@ -40,7 +39,6 @@ export function TargetDetailModal({
   target,
 }: TargetDetailModalProps) {
   const deleteTarget = useDeleteYearlyTarget();
-  const updateStatus = useUpdateTargetStatus();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const t = useTranslations("targets");
@@ -50,48 +48,12 @@ export function TargetDetailModal({
 
   const canEdit = useUserPermission("sales_target.update");
   const canDelete = useUserPermission("sales_target.delete");
-  const canApprove = useUserPermission("sales_target.approve");
-  const canReject = useUserPermission("sales_target.reject");
+  const canAuditTrail = useUserPermission("sales_target.audit_trail");
 
   if (!target) return null;
 
   // Use detailed data if available, otherwise use passed target
   const displayTarget = detailData?.data ?? target;
-
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "draft":
-        return (
-          <Badge variant="secondary" className="text-xs font-medium">
-            <FileText className="h-3 w-3 mr-1.5" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "submitted":
-        return (
-          <Badge variant="info" className="text-xs font-medium">
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.submitted")}
-          </Badge>
-        );
-      case "approved":
-        return (
-          <Badge variant="success" className="text-xs font-medium">
-            <CheckCircle2 className="h-3 w-3 mr-1.5" />
-            {t("status.approved")}
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive" className="text-xs font-medium">
-            <XCircle className="h-3 w-3 mr-1.5" />
-            {t("status.rejected")}
-          </Badge>
-        );
-      default:
-        return <Badge className="text-xs font-medium">{status}</Badge>;
-    }
-  };
 
   const handleDelete = async () => {
     if (!target?.id) return;
@@ -99,19 +61,6 @@ export function TargetDetailModal({
       await deleteTarget.mutateAsync(target.id);
       toast.success(t("deleted"));
       onClose();
-    } catch (error) {
-      toast.error(t("common.error"));
-    }
-  };
-
-  const handleStatusChange = async (status: string) => {
-    if (!target?.id) return;
-    try {
-      await updateStatus.mutateAsync({
-        id: target.id,
-        status,
-      });
-      toast.success(t(`status.${status}`));
     } catch (error) {
       toast.error(t("common.error"));
     }
@@ -126,14 +75,13 @@ export function TargetDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayTarget.code}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {getStatusBadge(displayTarget.status)}
                   <span className="text-sm text-muted-foreground">
                     {displayTarget.year} - {displayTarget.area?.name}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && displayTarget.status === "draft" && (
+                {canEdit && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -144,7 +92,7 @@ export function TargetDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && displayTarget.status === "draft" && (
+                {canDelete && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -153,30 +101,6 @@ export function TargetDetailModal({
                     title={t("common.delete")}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {displayTarget.status === "submitted" && canApprove && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleStatusChange("approved")}
-                    disabled={updateStatus.isPending}
-                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
-                    title={t("actions.approve")}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </Button>
-                )}
-                {displayTarget.status === "submitted" && canReject && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleStatusChange("rejected")}
-                    disabled={updateStatus.isPending}
-                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
-                    title={t("actions.reject")}
-                  >
-                    <XCircle className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -206,6 +130,7 @@ export function TargetDetailModal({
                   <BarChart2 className="h-4 w-4 mr-2" />
                   {t("achievement")}
                 </TabsTrigger>
+                {canAuditTrail && <TabsTrigger value="audit_trail">{t("auditTrail.title")}</TabsTrigger>}
               </TabsList>
 
             <TabsContent value="overview" className="space-y-8 py-6">
@@ -229,52 +154,6 @@ export function TargetDetailModal({
                       )}
                     </div>
 
-                     {(displayTarget.submitted_at || displayTarget.approved_at || displayTarget.rejected_at) && (
-                      <div className="flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-xl p-4 border shadow-sm min-w-[200px]">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                          <History className="h-3.5 w-3.5" />
-                          {t("common.workflow")}
-                        </div>
-                        {displayTarget.submitted_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <Send className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-primary">{t("status.submitted")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayTarget.submitted_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {displayTarget.approved_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-success dark:text-success">{t("status.approved")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayTarget.approved_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        {displayTarget.rejected_at && (
-                          <div className="flex items-start gap-2.5 text-sm">
-                            <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-destructive dark:text-destructive">{t("status.rejected")}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(displayTarget.rejected_at).toLocaleString()}
-                              </p>
-                               {displayTarget.rejection_reason && (
-                                <p className="text-xs mt-1.5 italic text-muted-foreground border-l-2 border-red-300 pl-2">
-                                  {displayTarget.rejection_reason}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -390,6 +269,12 @@ export function TargetDetailModal({
             <TabsContent value="achievement" className="py-4">
                 <AchievementChart target={displayTarget} />
             </TabsContent>
+
+            {canAuditTrail && (
+              <TabsContent value="audit_trail" className="py-4">
+                <TargetAuditTrailContent enabled={open} targetId={displayTarget.id} />
+              </TabsContent>
+            )}
           </Tabs>
           )}
         </DialogContent>

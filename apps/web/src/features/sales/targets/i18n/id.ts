@@ -59,6 +59,22 @@ export const targetsId = {
       targetVsActual: "Target vs Aktual",
       achievementTrend: "Tren Pencapaian (%)"
     },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada log audit",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu"
+      },
+      actions: {
+        create: "Buat",
+        update: "Ubah",
+        delete: "Hapus",
+        view: "Lihat",
+        auditTrail: "Audit Trail"
+      }
+    },
     common: {
       error: "Terjadi kesalahan",
       validationError: "Validasi gagal. Mohon periksa form kembali.",

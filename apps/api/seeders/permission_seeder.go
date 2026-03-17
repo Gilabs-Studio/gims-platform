@@ -244,14 +244,13 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+		{"/sales/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
 		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
 		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
 		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
 		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
-		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
-		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
 		// Sales Payments
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
@@ -517,6 +516,14 @@ func SeedPermissions() error {
 		// Reports - Geo Performance
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
 		{"/reports/geo-performance", "report_geo_performance.export", "Export Geo Performance Report", "EXPORT", "report_geo_performance"},
+
+		// Reports - Customer Research
+		{"/reports/customer-research", "report_customer_research.read", "View Customer Research Report", "VIEW", "report_customer_research"},
+		{"/reports/customer-research", "report_customer_research.export", "Export Customer Research Report", "EXPORT", "report_customer_research"},
+
+		// Reports - Supplier Research
+		{"/reports/supplier-research", "report_supplier_research.read", "View Supplier Research Report", "VIEW", "report_supplier_research"},
+		{"/reports/supplier-research", "report_supplier_research.export", "Export Supplier Research Report", "EXPORT", "report_supplier_research"},
 
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},

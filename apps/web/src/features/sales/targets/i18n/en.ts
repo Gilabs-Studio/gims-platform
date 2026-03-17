@@ -59,6 +59,22 @@ export const targetsEn = {
       targetVsActual: "Target vs Actual",
       achievementTrend: "Achievement Trend (%)"
     },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit logs",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time"
+      },
+      actions: {
+        create: "Create",
+        update: "Update",
+        delete: "Delete",
+        view: "View",
+        auditTrail: "Audit Trail"
+      }
+    },
     common: {
       error: "An error occurred",
       validationError: "Validation failed. Please check the form.",

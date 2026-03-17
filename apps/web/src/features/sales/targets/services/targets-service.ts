@@ -1,12 +1,12 @@
 import apiClient from "@/lib/api-client";
 import type { ApiResponse, ListParams } from "../types";
-import type { YearlyTarget } from "../types";
+import type { SalesTargetAuditTrailEntry, YearlyTarget } from "../types";
 import type { CreateTargetFormData, UpdateTargetFormData } from "../schemas/target.schema";
 
 const BASE_PATH = "/sales/yearly-targets";
 
 export const targetsService = {
-  async getYearlyTargets(params?: ListParams & { year?: number; area_id?: string; status?: string }) {
+  async getYearlyTargets(params?: ListParams & { year?: number; area_id?: string }) {
     const response = await apiClient.get<ApiResponse<YearlyTarget[]>>(BASE_PATH, {
       params,
     });
@@ -33,13 +33,12 @@ export const targetsService = {
     return response.data;
   },
 
-  async updateTargetStatus({ id, status, rejection_reason }: { id: string; status: string; rejection_reason?: string }) {
-    const response = await apiClient.patch<ApiResponse<YearlyTarget>>(`${BASE_PATH}/${id}/status`, {
-      status,
-      rejection_reason,
+  async getYearlyTargetAuditTrail(id: string, params?: { page?: number; per_page?: number }) {
+    const response = await apiClient.get<ApiResponse<SalesTargetAuditTrailEntry[]>>(`${BASE_PATH}/${id}/audit-trail`, {
+      params,
     });
     return response.data;
-  }
+  },
 };
 
 // Export individual functions for cleaner usage in hooks (matching previous API)
@@ -48,4 +47,4 @@ export const getYearlyTarget = targetsService.getYearlyTarget;
 export const createYearlyTarget = targetsService.createYearlyTarget;
 export const updateYearlyTarget = targetsService.updateYearlyTarget;
 export const deleteYearlyTarget = targetsService.deleteYearlyTarget;
-export const updateTargetStatus = targetsService.updateTargetStatus;
+export const getYearlyTargetAuditTrail = targetsService.getYearlyTargetAuditTrail;

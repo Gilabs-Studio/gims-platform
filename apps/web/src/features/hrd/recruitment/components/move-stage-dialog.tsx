@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,14 @@ interface MoveStageDialogProps {
 }
 
 export function MoveStageDialog({
+  open,
+  ...rest
+}: MoveStageDialogProps) {
+  // Keying by `open` ensures the dialog form state resets when opened.
+  return <MoveStageDialogContent key={open ? "open" : "closed"} open={open} {...rest} />;
+}
+
+function MoveStageDialogContent({
   applicant,
   open,
   defaultTargetStageId,
@@ -38,14 +46,6 @@ export function MoveStageDialog({
 
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) {
-      setReason("");
-      setNotes("");
-    }
-  }, [open]);
 
   const targetStage = stages.find((s) => s.id === defaultTargetStageId);
   const isTerminal = targetStage?.is_won || targetStage?.is_lost;
@@ -63,7 +63,7 @@ export function MoveStageDialog({
         },
       });
       onSuccess();
-    } catch (error) {
+    } catch {
       // Error is handled by the mutation
     }
   };
@@ -75,8 +75,8 @@ export function MoveStageDialog({
           <DialogTitle>{t("applicants.moveStage.title")}</DialogTitle>
           <DialogDescription>
             {t("applicants.moveStage.description", {
-              name: applicant?.full_name || "",
-              stage: targetStage?.name || "",
+              name: applicant?.full_name ?? "",
+              stage: targetStage?.name ?? "",
             })}
           </DialogDescription>
         </DialogHeader>
@@ -94,7 +94,11 @@ export function MoveStageDialog({
             <div className="flex items-center gap-2">
               <span
                 className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: targetStage?.color }}
+                style={
+                  targetStage?.color
+                    ? { backgroundColor: targetStage.color }
+                    : undefined
+                }
               />
               <span className="font-medium">{targetStage?.name}</span>
             </div>
@@ -113,7 +117,7 @@ export function MoveStageDialog({
                 placeholder={t("applicants.moveStage.reasonPlaceholder")}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="min-h-[80px]"
+                className="min-h-20"
               />
             </div>
           )}
@@ -125,7 +129,7 @@ export function MoveStageDialog({
               placeholder={t("applicants.moveStage.notesPlaceholder")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-20"
             />
           </div>
         </div>

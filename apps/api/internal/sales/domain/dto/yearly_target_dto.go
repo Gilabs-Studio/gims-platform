@@ -37,16 +37,9 @@ type ListYearlyTargetsRequest struct {
 	PerPage  int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Year     *int   `form:"year"`
 	AreaID   string `form:"area_id"`
-	Status   string `form:"status"`
 	Search   string `form:"search"`
 	SortBy   string `form:"sort_by"`
 	SortDir  string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
-}
-
-// UpdateYearlyTargetStatusRequest represents the request to update target status
-type UpdateYearlyTargetStatusRequest struct {
-	Status          string  `json:"status" binding:"required,oneof=submitted approved rejected"`
-	RejectionReason *string `json:"rejection_reason"`
 }
 
 // YearlyTargetResponse represents the response for a yearly target
@@ -60,21 +53,14 @@ type YearlyTargetResponse struct {
 	TotalActual        float64                  `json:"total_actual"`
 	AchievementPercent float64                  `json:"achievement_percent"`
 	Notes              string                   `json:"notes"`
-	Status             string                   `json:"status"`
-	
-	SubmittedAt     *string `json:"submitted_at"`
-	SubmittedBy     *string `json:"submitted_by"`
-	ApprovedAt      *string `json:"approved_at"`
-	ApprovedBy      *string `json:"approved_by"`
-	RejectedAt      *string `json:"rejected_at"`
-	RejectedBy      *string `json:"rejected_by"`
-	RejectionReason string  `json:"rejection_reason"`
 	
 	MonthlyTargets []MonthlyTargetResponse `json:"monthly_targets,omitempty"`
 	
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
+
+type SalesTargetAuditTrailEntry = CustomerInvoiceAuditTrailEntry
 
 // MonthlyTargetResponse represents the response for a monthly target
 type MonthlyTargetResponse struct {

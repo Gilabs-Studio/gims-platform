@@ -1,4 +1,7 @@
 export const supplierInvoiceEn = {
+  common: {
+    view: "View",
+  },
   title: "Supplier Invoices",
   description: "Create invoices from closed goods receipts.",
   search: "Search by code, invoice number...",

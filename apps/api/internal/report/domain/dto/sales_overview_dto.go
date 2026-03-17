@@ -47,6 +47,7 @@ type MonthlySalesDataResponse struct {
 	MonthName       string  `json:"month_name"`
 	Year            int     `json:"year"`
 	TotalRevenue    float64 `json:"total_revenue"`
+	TotalCashIn     float64 `json:"total_cash_in"`
 	TotalOrders     int     `json:"total_orders"`
 	TotalVisits     int     `json:"total_visits"`
 	TotalDeliveries int     `json:"total_deliveries"`
@@ -57,6 +58,7 @@ type MonthlySalesDataResponse struct {
 type MonthlySalesOverviewResponse struct {
 	MonthlyData     []MonthlySalesDataResponse `json:"monthly_data"`
 	TotalRevenue    float64                    `json:"total_revenue"`
+	TotalCashIn     float64                    `json:"total_cash_in"`
 	TotalOrders     int                        `json:"total_orders"`
 	TotalVisits     int                        `json:"total_visits"`
 	TotalDeliveries int                        `json:"total_deliveries"`

@@ -1,5 +1,3 @@
-export type YearlyTargetStatus = "draft" | "submitted" | "approved" | "rejected";
-
 export interface MonthlyTarget {
   readonly id: string;
   readonly month: number;
@@ -23,19 +21,26 @@ export interface YearlyTarget {
   readonly total_actual: number;
   readonly achievement_percent: number;
   readonly notes?: string;
-  readonly status: YearlyTargetStatus;
   readonly monthly_targets?: MonthlyTarget[];
-  
-  readonly submitted_at?: string;
-  readonly submitted_by?: string;
-  readonly approved_at?: string;
-  readonly approved_by?: string;
-  readonly rejected_at?: string;
-  readonly rejected_by?: string;
-  readonly rejection_reason?: string;
   
   readonly created_at: string;
   readonly updated_at: string;
+}
+
+export interface SalesTargetAuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface SalesTargetAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata: Record<string, unknown>;
+  user?: SalesTargetAuditTrailUser | null;
+  created_at: string;
 }
 
 export interface ListParams {
