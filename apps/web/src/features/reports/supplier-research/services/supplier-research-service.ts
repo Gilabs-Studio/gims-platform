@@ -76,9 +76,16 @@ export const supplierResearchService = {
     return response.data;
   },
 
-  async getSupplierDetail(supplierId: string): Promise<SupplierDetailResponse> {
+  async getSupplierDetail(
+    supplierId: string,
+    params?: {
+      start_date?: string;
+      end_date?: string;
+    }
+  ): Promise<SupplierDetailResponse> {
     const response = await apiClient.get<SupplierDetailResponse>(
-      `/reports/supplier-research/suppliers/${supplierId}`
+      `/reports/supplier-research/suppliers/${supplierId}`,
+      { params }
     );
 
     return response.data;

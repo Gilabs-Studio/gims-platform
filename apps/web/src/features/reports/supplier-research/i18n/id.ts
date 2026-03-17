@@ -27,6 +27,17 @@ export const supplierResearchReportId = {
       leadTime: "Lead Time",
       onTimeRate: "Tingkat Tepat Waktu",
     },
+    chart: {
+      title: "Tren Pengeluaran Supplier",
+      description: "Tren nilai pembelian berdasarkan interval dan rentang tanggal.",
+      total_purchase_value: "Total Nilai Pembelian",
+      no_data: "Tidak ada data tren untuk periode yang dipilih.",
+      interval: {
+        daily: "Harian",
+        weekly: "Mingguan",
+        monthly: "Bulanan",
+      },
+    },
     table: {
       title: "Tabel Supplier",
       description: "Analitik supplier detail dengan sorting dan pagination",
@@ -56,6 +67,38 @@ export const supplierResearchReportId = {
       onTimeRate: "Tingkat Tepat Waktu",
       lateDeliveries: "Pengiriman Terlambat",
       dependencyScore: "Skor Ketergantungan",
+      days: "hari",
+      tabs: {
+        products: "Produk Pembelian",
+      },
+      products: {
+        title: "Produk yang Dibeli dari Supplier Ini",
+        description: "Daftar produk dan kontribusi pembeliannya pada periode terpilih.",
+        empty: "Tidak ada produk pembelian pada periode yang dipilih.",
+        noPermission: "Anda tidak memiliki izin untuk melihat detail produk.",
+        columns: {
+          product: "Produk",
+          code: "Kode",
+          totalQty: "Total Qty",
+          totalOrders: "Total PO",
+          totalAmount: "Total Nilai",
+        },
+      },
+      orders: {
+        title: "Purchase Order",
+        description: "Semua purchase order yang terhubung ke supplier ini.",
+        empty: "Tidak ada purchase order untuk supplier ini.",
+        activeAlert: "Ada {count} purchase order aktif untuk supplier ini.",
+        noPermission: "Anda tidak memiliki izin untuk melihat purchase order.",
+        viewDetail: "Lihat Detail",
+        columns: {
+          code: "Kode PO",
+          status: "Status",
+          orderDate: "Tanggal Order",
+          totalAmount: "Total Nilai",
+          action: "Aksi",
+        },
+      },
     },
   },
 };

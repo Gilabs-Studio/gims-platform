@@ -118,14 +118,35 @@ type SupplierTableRowResponse struct {
 
 // SupplierDetailResponse represents supplier details for report page.
 type SupplierDetailResponse struct {
-	SupplierID          string  `json:"supplier_id"`
-	SupplierCode        string  `json:"supplier_code,omitempty"`
-	SupplierName        string  `json:"supplier_name"`
-	CategoryName        string  `json:"category_name,omitempty"`
-	TotalPurchaseValue  float64 `json:"total_purchase_value"`
-	TotalPurchaseOrders int     `json:"total_purchase_orders"`
-	AverageLeadTimeDays float64 `json:"average_lead_time_days"`
-	SupplierOnTimeRate  float64 `json:"supplier_on_time_rate"`
-	LateDeliveryCount   int     `json:"late_delivery_count"`
-	DependencyScore     float64 `json:"dependency_score"`
+	SupplierID          string                                   `json:"supplier_id"`
+	SupplierCode        string                                   `json:"supplier_code,omitempty"`
+	SupplierName        string                                   `json:"supplier_name"`
+	CategoryName        string                                   `json:"category_name,omitempty"`
+	TotalPurchaseValue  float64                                  `json:"total_purchase_value"`
+	TotalPurchaseOrders int                                      `json:"total_purchase_orders"`
+	AverageLeadTimeDays float64                                  `json:"average_lead_time_days"`
+	SupplierOnTimeRate  float64                                  `json:"supplier_on_time_rate"`
+	LateDeliveryCount   int                                      `json:"late_delivery_count"`
+	DependencyScore     float64                                  `json:"dependency_score"`
+	Products            []SupplierDetailPurchasedProductResponse `json:"products,omitempty"`
+	PurchaseOrders      []SupplierDetailPurchaseOrderResponse    `json:"purchase_orders,omitempty"`
+}
+
+// SupplierDetailPurchasedProductResponse is a compact product row used in supplier detail page.
+type SupplierDetailPurchasedProductResponse struct {
+	ProductID   string  `json:"product_id"`
+	ProductCode string  `json:"product_code"`
+	ProductName string  `json:"product_name"`
+	TotalQty    float64 `json:"total_qty"`
+	TotalOrders int     `json:"total_orders"`
+	TotalAmount float64 `json:"total_amount"`
+}
+
+// SupplierDetailPurchaseOrderResponse is a compact PO row used in supplier detail page.
+type SupplierDetailPurchaseOrderResponse struct {
+	PurchaseOrderID string  `json:"purchase_order_id"`
+	Code            string  `json:"code"`
+	Status          string  `json:"status"`
+	OrderDate       string  `json:"order_date"`
+	TotalAmount     float64 `json:"total_amount"`
 }

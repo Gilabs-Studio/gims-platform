@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   Card,
   CardContent,
@@ -21,7 +21,6 @@ import { formatCurrency } from "@/lib/utils";
 import type {
   SupplierDeliveryTimeItem,
   SupplierPurchaseVolumeItem,
-  SupplierSpendTrendPoint,
 } from "../types";
 
 interface SupplierResearchChartsProps {
@@ -29,8 +28,6 @@ interface SupplierResearchChartsProps {
   readonly isPurchaseVolumeLoading: boolean;
   readonly deliveryTime: SupplierDeliveryTimeItem[];
   readonly isDeliveryTimeLoading: boolean;
-  readonly spendTrend: SupplierSpendTrendPoint[];
-  readonly isSpendTrendLoading: boolean;
 }
 
 const purchaseVolumeChartConfig = {
@@ -47,13 +44,6 @@ const deliveryTimeChartConfig = {
   },
 } satisfies ChartConfig;
 
-const spendTrendChartConfig = {
-  spend: {
-    label: "Spend",
-    color: "hsl(var(--chart-3))",
-  },
-} satisfies ChartConfig;
-
 function ChartLoading() {
   return <Skeleton className="h-80 w-full" />;
 }
@@ -63,8 +53,6 @@ export function SupplierResearchCharts({
   isPurchaseVolumeLoading,
   deliveryTime,
   isDeliveryTimeLoading,
-  spendTrend,
-  isSpendTrendLoading,
 }: SupplierResearchChartsProps) {
   const t = useTranslations("supplierResearchReport.charts");
 
@@ -83,15 +71,8 @@ export function SupplierResearchCharts({
     }));
   }, [deliveryTime]);
 
-  const spendTrendChartData = useMemo(() => {
-    return (spendTrend ?? []).map((point) => ({
-      period: point.period,
-      spend: point.total_purchase_value,
-    }));
-  }, [spendTrend]);
-
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>{t("purchaseVolume")}</CardTitle>
@@ -182,45 +163,6 @@ export function SupplierResearchCharts({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("spendTrend")}</CardTitle>
-          <CardDescription>{t("purchaseValue")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isSpendTrendLoading ? (
-            <ChartLoading />
-          ) : spendTrendChartData.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              {t("noData")}
-            </div>
-          ) : (
-            <ChartContainer config={spendTrendChartConfig} className="h-80 w-full">
-              <LineChart data={spendTrendChartData} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="period" tickLine={false} axisLine={false} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `${Math.round(value / 1000000)}M`}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="spend"
-                  stroke="var(--color-spend)"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

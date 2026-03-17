@@ -186,6 +186,29 @@ func (uc *supplierResearchUsecase) GetSupplierDetail(ctx context.Context, suppli
 		return nil, fmt.Errorf("supplier not found")
 	}
 
+	purchaseOrders := make([]dto.SupplierDetailPurchaseOrderResponse, 0, len(row.PurchaseOrders))
+	for _, po := range row.PurchaseOrders {
+		purchaseOrders = append(purchaseOrders, dto.SupplierDetailPurchaseOrderResponse{
+			PurchaseOrderID: po.PurchaseOrderID,
+			Code:            po.Code,
+			Status:          po.Status,
+			OrderDate:       po.OrderDate,
+			TotalAmount:     po.TotalAmount,
+		})
+	}
+
+	products := make([]dto.SupplierDetailPurchasedProductResponse, 0, len(row.Products))
+	for _, item := range row.Products {
+		products = append(products, dto.SupplierDetailPurchasedProductResponse{
+			ProductID:   item.ProductID,
+			ProductCode: item.ProductCode,
+			ProductName: item.ProductName,
+			TotalQty:    round2(item.TotalQuantity),
+			TotalOrders: item.TotalOrders,
+			TotalAmount: item.TotalAmount,
+		})
+	}
+
 	return &dto.SupplierDetailResponse{
 		SupplierID:          row.SupplierID,
 		SupplierCode:        row.SupplierCode,
@@ -197,6 +220,8 @@ func (uc *supplierResearchUsecase) GetSupplierDetail(ctx context.Context, suppli
 		SupplierOnTimeRate:  round2(row.SupplierOnTimeRate),
 		LateDeliveryCount:   row.LateDeliveryCount,
 		DependencyScore:     round2(row.DependencyScore),
+		Products:            products,
+		PurchaseOrders:      purchaseOrders,
 	}, nil
 }
 

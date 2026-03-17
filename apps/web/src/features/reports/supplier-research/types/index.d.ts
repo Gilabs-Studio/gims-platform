@@ -136,5 +136,24 @@ export interface SupplierDetailResponse {
     supplier_on_time_rate: number;
     late_delivery_count: number;
     dependency_score: number;
+    products?: SupplierDetailPurchasedProduct[];
+    purchase_orders?: SupplierDetailPurchaseOrder[];
   };
+}
+
+export interface SupplierDetailPurchasedProduct {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  total_qty: number;
+  total_orders: number;
+  total_amount: number;
+}
+
+export interface SupplierDetailPurchaseOrder {
+  purchase_order_id: string;
+  code: string;
+  status: string;
+  order_date: string;
+  total_amount: number;
 }

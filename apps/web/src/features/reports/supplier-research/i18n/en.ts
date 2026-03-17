@@ -27,6 +27,17 @@ export const supplierResearchReportEn = {
       leadTime: "Lead Time",
       onTimeRate: "On-Time Rate",
     },
+    chart: {
+      title: "Supplier Spend Trend",
+      description: "Purchase value trend by selected interval and date range.",
+      total_purchase_value: "Total Purchase Value",
+      no_data: "No trend data found for the selected period.",
+      interval: {
+        daily: "Daily",
+        weekly: "Weekly",
+        monthly: "Monthly",
+      },
+    },
     table: {
       title: "Supplier Table",
       description: "Detailed supplier analytics with sorting and pagination",
@@ -56,6 +67,38 @@ export const supplierResearchReportEn = {
       onTimeRate: "On-Time Rate",
       lateDeliveries: "Late Deliveries",
       dependencyScore: "Dependency Score",
+      days: "days",
+      tabs: {
+        products: "Purchased Products",
+      },
+      products: {
+        title: "Products Purchased from This Supplier",
+        description: "List of products and their purchase contribution in the selected period.",
+        empty: "No purchased products found for the selected period.",
+        noPermission: "You don't have permission to view product details.",
+        columns: {
+          product: "Product",
+          code: "Code",
+          totalQty: "Total Qty",
+          totalOrders: "Total PO",
+          totalAmount: "Total Amount",
+        },
+      },
+      orders: {
+        title: "Purchase Orders",
+        description: "All purchase orders connected to this supplier.",
+        empty: "No purchase orders found for this supplier.",
+        activeAlert: "There are {count} active purchase orders for this supplier.",
+        noPermission: "You don't have permission to view purchase orders.",
+        viewDetail: "View Detail",
+        columns: {
+          code: "PO Code",
+          status: "Status",
+          orderDate: "Order Date",
+          totalAmount: "Total Amount",
+          action: "Action",
+        },
+      },
     },
   },
 };

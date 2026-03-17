@@ -58,6 +58,25 @@ type SupplierAnalyticsRow struct {
 	SupplierOnTimeRate  float64
 	LateDeliveryCount   int
 	DependencyScore     float64
+	PurchaseOrders      []SupplierPurchaseOrderRow    `gorm:"-"`
+	Products            []SupplierPurchasedProductRow `gorm:"-"`
+}
+
+type SupplierPurchaseOrderRow struct {
+	PurchaseOrderID string  `gorm:"column:purchase_order_id"`
+	Code            string  `gorm:"column:code"`
+	Status          string  `gorm:"column:status"`
+	OrderDate       string  `gorm:"column:order_date"`
+	TotalAmount     float64 `gorm:"column:total_amount"`
+}
+
+type SupplierPurchasedProductRow struct {
+	ProductID     string  `gorm:"column:product_id"`
+	ProductCode   string  `gorm:"column:product_code"`
+	ProductName   string  `gorm:"column:product_name"`
+	TotalQuantity float64 `gorm:"column:total_qty"`
+	TotalOrders   int     `gorm:"column:total_orders"`
+	TotalAmount   float64 `gorm:"column:total_amount"`
 }
 
 type SupplierSpendTrendPointRow struct {
@@ -154,6 +173,61 @@ func (r *supplierResearchRepository) GetSupplierDetail(ctx context.Context, supp
 	if row.SupplierID == "" {
 		return nil, nil
 	}
+
+	purchaseOrdersQuery := `
+		SELECT
+			po.id AS purchase_order_id,
+			COALESCE(po.code, '') AS code,
+			COALESCE(po.status, '') AS status,
+			COALESCE(po.order_date, '') AS order_date,
+			COALESCE(po.total_amount, 0) AS total_amount
+		FROM purchase_orders po
+		WHERE po.deleted_at IS NULL
+			AND po.supplier_id = @supplierID
+		ORDER BY NULLIF(po.order_date, '')::date DESC NULLS LAST, po.created_at DESC
+		LIMIT 100
+	`
+
+	var purchaseOrders []SupplierPurchaseOrderRow
+	if err := r.db.WithContext(ctx).Raw(purchaseOrdersQuery, map[string]interface{}{"supplierID": supplierID}).Scan(&purchaseOrders).Error; err != nil {
+		return nil, fmt.Errorf("failed to get supplier purchase orders: %w", err)
+	}
+
+	productsQuery := `
+		SELECT
+			COALESCE(p.id::text, '') AS product_id,
+			COALESCE(NULLIF(p.code, ''), NULLIF(poi.product_code_snapshot, ''), '-') AS product_code,
+			COALESCE(NULLIF(p.name, ''), NULLIF(poi.product_name_snapshot, ''), '-') AS product_name,
+			COALESCE(SUM(poi.quantity), 0) AS total_qty,
+			COUNT(DISTINCT po.id) AS total_orders,
+			COALESCE(SUM(poi.subtotal), 0) AS total_amount
+		FROM purchase_order_items poi
+		INNER JOIN purchase_orders po ON po.id = poi.purchase_order_id
+			AND po.deleted_at IS NULL
+			AND po.supplier_id = @supplierID
+			AND po.status NOT IN ('DRAFT', 'REJECTED')
+			AND (
+				NULLIF(po.order_date, '') IS NULL
+				OR NULLIF(po.order_date, '')::date BETWEEN CAST(@startDate AS date) AND CAST(@endDate AS date)
+			)
+		LEFT JOIN products p ON p.id = poi.product_id
+			AND p.deleted_at IS NULL
+		GROUP BY p.id, p.code, p.name, poi.product_code_snapshot, poi.product_name_snapshot
+		ORDER BY total_amount DESC
+		LIMIT 20
+	`
+
+	var products []SupplierPurchasedProductRow
+	if err := r.db.WithContext(ctx).Raw(productsQuery, map[string]interface{}{
+		"supplierID": supplierID,
+		"startDate":  params.StartDate.Format("2006-01-02"),
+		"endDate":    params.EndDate.Format("2006-01-02"),
+	}).Scan(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to get supplier purchased products: %w", err)
+	}
+
+	row.PurchaseOrders = purchaseOrders
+	row.Products = products
 
 	return &row, nil
 }
