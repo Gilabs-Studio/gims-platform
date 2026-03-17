@@ -58,6 +58,7 @@ export const goodsReceiptEn = {
     receiptDate: "Receipt Date",
     supplier: "Supplier",
     notes: "Notes",
+    proofPhoto: "Proof Photo",
     status: "Status",
     submittedAt: "Submitted At",
     approvedAt: "Approved At",

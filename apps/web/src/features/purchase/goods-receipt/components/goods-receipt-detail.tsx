@@ -34,7 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate } from "@/lib/utils";
+import { formatDate, resolveImageUrl } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
@@ -325,6 +325,26 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("fields.notes")}</TableCell>
                           <TableCell colSpan={3}>{gr.notes}</TableCell>
+                        </TableRow>
+                      )}
+                      {gr.proof_image_url && (
+                        <TableRow>
+                          <TableCell className="font-medium bg-muted/50">{t("fields.proofPhoto")}</TableCell>
+                          <TableCell colSpan={3}>
+                            <a
+                              href={resolveImageUrl(gr.proof_image_url) ?? gr.proof_image_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex cursor-pointer flex-col gap-2"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={resolveImageUrl(gr.proof_image_url) ?? gr.proof_image_url}
+                                alt={t("fields.proofPhoto")}
+                                className="h-28 w-28 rounded-md border object-cover"
+                              />
+                            </a>
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>

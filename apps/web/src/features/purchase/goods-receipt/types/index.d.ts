@@ -56,6 +56,7 @@ export interface GoodsReceiptListItem {
   supplier?: GoodsReceiptSupplierMini | null;
   receipt_date?: string | null;
   notes?: string | null;
+  proof_image_url?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
   total_items_received?: number;
@@ -94,6 +95,7 @@ export interface GoodsReceiptDetail {
   supplier?: GoodsReceiptSupplierMini | null;
   receipt_date?: string | null;
   notes?: string | null;
+  proof_image_url?: string | null;
   status: GoodsReceiptStatus;
   created_by: string;
   items: GoodsReceiptItemDetail[];
@@ -120,11 +122,13 @@ export interface GoodsReceiptItemInput {
 export interface CreateGoodsReceiptInput {
   purchase_order_id: string;
   notes?: string | null;
+  proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];
 }
 
 export interface UpdateGoodsReceiptInput {
   notes?: string | null;
+  proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];
 }
 

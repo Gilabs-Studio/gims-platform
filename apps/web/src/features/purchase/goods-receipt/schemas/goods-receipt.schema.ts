@@ -11,6 +11,7 @@ export const goodsReceiptSchema = z
   .object({
     purchase_order_id: z.string().uuid(),
     notes: z.string().nullable().optional(),
+    proof_image_url: z.string().nullable().optional(),
     items: z.array(goodsReceiptItemSchema).min(1),
   })
   .superRefine((val, ctx) => {

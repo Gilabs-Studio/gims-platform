@@ -27,19 +27,20 @@ type GoodsReceipt struct {
 
 	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 
-	PurchaseOrderID string        `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
+	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
 
-	SupplierID string                `gorm:"type:uuid;index;not null" json:"supplier_id"`
-	Supplier   *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
-	SupplierCodeSnapshot string      `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
-	SupplierNameSnapshot string      `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
+	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
+	Supplier             *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`
+	SupplierCodeSnapshot string                   `gorm:"type:varchar(50)" json:"supplier_code_snapshot,omitempty"`
+	SupplierNameSnapshot string                   `gorm:"type:varchar(200)" json:"supplier_name_snapshot,omitempty"`
 
-	ReceiptDate *time.Time        `gorm:"index" json:"receipt_date,omitempty"`
-	Notes       *string           `gorm:"type:text" json:"notes,omitempty"`
-	Status      GoodsReceiptStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
+	ReceiptDate   *time.Time         `gorm:"index" json:"receipt_date,omitempty"`
+	Notes         *string            `gorm:"type:text" json:"notes,omitempty"`
+	ProofImageURL *string            `gorm:"type:varchar(500)" json:"proof_image_url,omitempty"`
+	Status        GoodsReceiptStatus `gorm:"type:varchar(20);default:'DRAFT';index" json:"status"`
 
-	CreatedBy string          `gorm:"type:uuid;index;not null" json:"created_by"`
+	CreatedBy string           `gorm:"type:uuid;index;not null" json:"created_by"`
 	Creator   *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
 
 	SubmittedAt *time.Time `gorm:"index" json:"submitted_at,omitempty"`

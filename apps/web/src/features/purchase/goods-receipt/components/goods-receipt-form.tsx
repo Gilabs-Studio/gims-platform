@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ButtonLoading } from "@/components/loading";
@@ -77,7 +78,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
-    defaultValues: { purchase_order_id: "", notes: null, items: [] },
+    defaultValues: { purchase_order_id: "", notes: null, proof_image_url: null, items: [] },
     mode: "onSubmit",
   });
 
@@ -111,7 +112,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     if (!open) return;
     setActiveTab("basic");
     if (!isEdit) {
-      resetForm({ purchase_order_id: defaultPurchaseOrderId ?? "", notes: null, items: [] });
+      resetForm({ purchase_order_id: defaultPurchaseOrderId ?? "", notes: null, proof_image_url: null, items: [] });
       replaceItems([]);
       // Do not clear poDetail here — the PO-watch effect will load it when defaultPurchaseOrderId is set.
       if (!defaultPurchaseOrderId) setPoDetail(null);
@@ -121,6 +122,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     resetForm({
       purchase_order_id: grDetailSnapshot.purchase_order?.id ?? "",
       notes: grDetailSnapshot.notes ?? null,
+      proof_image_url: grDetailSnapshot.proof_image_url ?? null,
       items: grDetailSnapshot.items.map((it) => ({
         purchase_order_item_id: it.purchase_order_item_id,
         product_id: it.product?.id ?? "",
@@ -175,6 +177,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
           id: goodsReceiptId,
           data: {
             notes: values.notes ?? null,
+            proof_image_url: values.proof_image_url ?? null,
             items: values.items.map((it) => ({
               purchase_order_item_id: it.purchase_order_item_id,
               product_id: it.product_id,
@@ -188,6 +191,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
         const result = await createMutation.mutateAsync({
           purchase_order_id: values.purchase_order_id,
           notes: values.notes ?? null,
+          proof_image_url: values.proof_image_url ?? null,
           items: values.items.map((it) => ({
             purchase_order_item_id: it.purchase_order_item_id,
             product_id: it.product_id,
@@ -293,6 +297,20 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                 {form.formState.errors.notes?.message ? (
                   <FieldError>{String(form.formState.errors.notes.message)}</FieldError>
                 ) : null}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("fields.proofPhoto")}</FieldLabel>
+                <Controller
+                  name="proof_image_url"
+                  control={form.control}
+                  render={({ field }) => (
+                    <ImageUpload
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(value || null)}
+                    />
+                  )}
+                />
               </Field>
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t">

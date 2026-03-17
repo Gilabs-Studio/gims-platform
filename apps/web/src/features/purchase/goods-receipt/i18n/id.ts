@@ -58,6 +58,7 @@ export const goodsReceiptId = {
     receiptDate: "Tanggal Terima",
     supplier: "Supplier",
     notes: "Catatan",
+    proofPhoto: "Foto Bukti",
     status: "Status",
     submittedAt: "Diajukan Pada",
     approvedAt: "Disetujui Pada",

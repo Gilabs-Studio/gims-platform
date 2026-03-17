@@ -34,6 +34,7 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		Code:               gr.Code,
 		ReceiptDate:        receiptDate,
 		Notes:              gr.Notes,
+		ProofImageURL:      gr.ProofImageURL,
 		Status:             string(gr.Status),
 		CreatedBy:          gr.CreatedBy,
 		TotalItemsReceived: totalItemsReceived,
@@ -77,13 +78,14 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	}
 
 	resp := &dto.GoodsReceiptDetailResponse{
-		ID:          gr.ID,
-		Code:        gr.Code,
-		ReceiptDate: receiptDate,
-		Notes:       gr.Notes,
-		Status:      string(gr.Status),
-		CreatedBy:   gr.CreatedBy,
-		Items:       make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
+		ID:            gr.ID,
+		Code:          gr.Code,
+		ReceiptDate:   receiptDate,
+		Notes:         gr.Notes,
+		ProofImageURL: gr.ProofImageURL,
+		Status:        string(gr.Status),
+		CreatedBy:     gr.CreatedBy,
+		Items:         make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
 
 		SubmittedAt:                  gr.SubmittedAt,
 		ApprovedAt:                   gr.ApprovedAt,
@@ -104,10 +106,10 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 
 	for _, it := range gr.Items {
 		item := dto.GoodsReceiptItemResponse{
-			ID:                 it.ID,
+			ID:                  it.ID,
 			PurchaseOrderItemID: it.PurchaseOrderItemID,
-			QuantityReceived:   it.QuantityReceived,
-			Notes:              it.Notes,
+			QuantityReceived:    it.QuantityReceived,
+			Notes:               it.Notes,
 		}
 		if strings.TrimSpace(it.ProductNameSnapshot) != "" || strings.TrimSpace(it.ProductCodeSnapshot) != "" {
 			sku := (*string)(nil)

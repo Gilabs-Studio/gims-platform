@@ -159,7 +159,8 @@ func (r *goodsReceiptRepository) Update(ctx context.Context, gr *models.GoodsRec
 		}
 
 		if err := tx.Model(&existing).Updates(map[string]interface{}{
-			"notes": gr.Notes,
+			"notes":           gr.Notes,
+			"proof_image_url": gr.ProofImageURL,
 		}).Error; err != nil {
 			return err
 		}
