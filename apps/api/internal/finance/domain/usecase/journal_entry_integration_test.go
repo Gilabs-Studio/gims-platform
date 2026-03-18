@@ -349,7 +349,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	require.NotNil(t, cashAccount.Transactions[0].ReferenceID)
 	require.Equal(t, postedRefID, *cashAccount.Transactions[0].ReferenceID)
 
-	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil)
+	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, bs.AssetTotal)
 

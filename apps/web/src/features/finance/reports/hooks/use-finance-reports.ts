@@ -5,6 +5,8 @@ type ReportDateRange = {
   start_date: string;
   end_date: string;
   company_id?: string;
+  include_zero?: boolean;
+  account_id?: string;
 };
 
 export const financeReportKeys = {

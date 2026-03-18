@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,18 @@ func parseOptionalCompanyID(c *gin.Context) *string {
 	return &value
 }
 
+func parseIncludeZero(c *gin.Context) bool {
+	raw := strings.TrimSpace(c.Query("include_zero"))
+	if raw == "" {
+		return false
+	}
+	parsed, err := strconv.ParseBool(raw)
+	if err == nil {
+		return parsed
+	}
+	return raw == "1"
+}
+
 func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
@@ -56,8 +69,9 @@ func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
+	includeZero := parseIncludeZero(c)
 
-	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate, companyID)
+	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate, companyID, includeZero)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "BALANCE_SHEET_FAILED", err.Error(), nil, nil)
 		return
@@ -98,8 +112,9 @@ func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
+	includeZero := parseIncludeZero(c)
 
-	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate, companyID)
+	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate, companyID, includeZero)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return

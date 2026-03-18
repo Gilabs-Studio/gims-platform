@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/utils";
+import { resolveSourceRoute } from "@/features/finance/shared/reference-source-matrix";
 
 import type {
   JournalTableColumn,
@@ -198,18 +199,7 @@ export function getSourceHref(
   referenceType?: string | null,
   referenceID?: string | null,
 ): string | undefined {
-  if (!referenceType || !referenceID) return undefined;
-  const value = referenceType.toUpperCase();
-  const compact = value.replace(/[^A-Z0-9]/g, "");
-
-  if (compact === "SALESORDER") return `/sales/orders/${referenceID}`;
-  if (compact === "DELIVERYORDER" || compact === "DO") return `/sales/deliveries/${referenceID}`;
-  if (compact === "GOODSRECEIPT") return `/purchase/receipts/${referenceID}`;
-  if (compact === "SALESINVOICE" || compact === "SALESINVOICEDP") return `/sales/invoices/${referenceID}`;
-  if (compact === "SUPPLIERINVOICE" || compact === "SUPPLIERINVOICEDP" || compact === "PI") {
-    return `/purchase/invoices/${referenceID}`;
-  }
-  return undefined;
+  return resolveSourceRoute(referenceType, referenceID);
 }
 
 export function mapJournalToUnifiedRow<

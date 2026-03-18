@@ -2,12 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, Scale, TrendingUp } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, ChevronRight, Scale, TrendingUp } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -33,15 +37,47 @@ export function BalanceSheetView() {
     from: new Date(now.getFullYear(), 0, 1),
     to: now,
   });
+  const [companyID, setCompanyID] = useState<string>("");
+  const [showZeroBalance, setShowZeroBalance] = useState<boolean>(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const dateRange = useMemo(() => ({
     start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
     end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
+    company_id: companyID.trim() || undefined,
+    include_zero: showZeroBalance,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [pickerRange]);
+  }), [pickerRange, companyID, showZeroBalance]);
 
   const { data, isLoading, isError } = useBalanceSheet(dateRange);
   const report = data?.data;
+
+  const toggleExpand = (accountID: string) => {
+    setExpanded((prev) => ({ ...prev, [accountID]: !prev[accountID] }));
+  };
+
+  const flattenRows = (rows: BSReportRow[], parentVisible = true): Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> => {
+    const out: Array<{ row: BSReportRow; hasChildren: boolean; visible: boolean }> = [];
+    for (const row of rows) {
+      const children = row.children ?? [];
+      const hasChildren = children.length > 0;
+      const rowVisible = parentVisible;
+      out.push({ row, hasChildren, visible: rowVisible });
+      const isOpen = row.account_id ? expanded[row.account_id] ?? true : true;
+      const childVisible = rowVisible && (!hasChildren || isOpen);
+      out.push(...flattenRows(children, childVisible));
+    }
+    return out;
+  };
+
+  const sectionRows = useMemo(() => ({
+    assets: flattenRows(report?.assets ?? []),
+    liabilities: flattenRows(report?.liabilities ?? []),
+    equities: flattenRows(report?.equities ?? []),
+  }), [report?.assets, report?.liabilities, report?.equities, expanded]);
+
+  const isBalanced = report?.is_balanced ?? true;
+  const imbalanceAmount = report?.imbalance_amount ?? 0;
 
   const handleExport = async () => {
     try {
@@ -59,10 +95,25 @@ export function BalanceSheetView() {
     }
   };
 
+  const openGeneralLedger = (row: BSReportRow) => {
+    const accountID = row.account_id;
+    if (!accountID) return;
+    const params = new URLSearchParams({
+      account_id: accountID,
+      start_date: dateRange.start_date,
+      end_date: dateRange.end_date,
+    });
+    if (dateRange.company_id) {
+      params.set("company_id", dateRange.company_id);
+    }
+    window.location.href = `/finance/reports/general-ledger?${params.toString()}`;
+  };
+
   const metrics = [
     { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp },
     { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2 },
-    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale },
+    { label: t("total_equity"), value: formatCurrency(report?.equity_total_final ?? report?.equity_total ?? 0), Icon: Scale },
+    { label: t("net_profit_loss"), value: formatCurrency(report?.current_year_profit ?? 0), Icon: TrendingUp },
   ];
 
   return (
@@ -76,13 +127,39 @@ export function BalanceSheetView() {
 
       <FilterToolbar>
         <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
+        <Input
+          value={companyID}
+          onChange={(event) => setCompanyID(event.target.value)}
+          placeholder={t("company_id_placeholder")}
+          className="w-full sm:w-[280px]"
+        />
+        <div className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2">
+          <Switch
+            checked={showZeroBalance}
+            onCheckedChange={setShowZeroBalance}
+            aria-label="Toggle zero balance accounts"
+          />
+          <span className="text-sm">{t("show_zero_balance")}</span>
+        </div>
         {canExport ? (
           <ExportButton label={t("export")} onClick={handleExport} />
         ) : null}
       </FilterToolbar>
 
+      {report ? (
+        <Alert variant={isBalanced ? "default" : "destructive"}>
+          {isBalanced ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          <AlertTitle>{isBalanced ? t("bs_balanced_title") : t("bs_unbalanced_title")}</AlertTitle>
+          <AlertDescription>
+            {isBalanced
+              ? `${t("bs_balanced_desc")} ${(report.balance_tolerance ?? 0.01).toFixed(2)}.`
+                : `${t("bs_unbalanced_desc")} ${formatCurrency(imbalanceAmount)}.`}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       {/* Summary metrics */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, Icon }) => (
           <Card key={label}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -108,6 +185,30 @@ export function BalanceSheetView() {
 
       {report && (
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("equity_reconciliation")}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">{t("base_equity")}</p>
+                <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.equity_total ?? 0)}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">{t("retained_earnings")}</p>
+                <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.retained_earnings ?? 0)}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">{t("current_year_profit")}</p>
+                <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.current_year_profit ?? 0)}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">{t("final_equity")}</p>
+                <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.equity_total_final ?? report.equity_total ?? 0)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Assets */}
           <div className="space-y-3">
             <div className="p-3 bg-muted/50 font-semibold rounded-md border">{t("assets")}</div>
@@ -115,22 +216,58 @@ export function BalanceSheetView() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[54px]">{t("tree")}</TableHead>
                     <TableHead>{t("account_code")}</TableHead>
                     <TableHead>{t("account_name")}</TableHead>
                     <TableHead className="text-right">{t("balance")}</TableHead>
+                    <TableHead className="text-right">{t("subtotal")}</TableHead>
+                    <TableHead className="text-right w-[180px]">{t("action")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {report.assets?.map((a: BSReportRow, idx: number) => (
-                    <TableRow key={`${a.code}-${idx}`}>
-                      <TableCell className="font-mono text-xs">{a.code}</TableCell>
-                      <TableCell>{a.name}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(a.amount ?? 0)}</TableCell>
+                  {sectionRows.assets.filter((x) => x.visible).map(({ row, hasChildren }, idx: number) => (
+                    <TableRow key={`${row.code}-${idx}`}>
+                      <TableCell>
+                        {hasChildren ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 cursor-pointer"
+                            onClick={() => row.account_id && toggleExpand(row.account_id)}
+                          >
+                            {row.account_id && (expanded[row.account_id] ?? true) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                      <TableCell>
+                        <span style={{ paddingLeft: `${(row.level ?? 0) * 12}px` }}>{row.name}</span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.subtotal_amount ?? row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => openGeneralLedger(row)}
+                          disabled={!row.account_id}
+                        >
+                          {t("open_gl")}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2}>{t("total_assets")}</TableCell>
+                    <TableCell colSpan={4}>{t("total_assets")}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.asset_total ?? 0)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>
@@ -144,22 +281,58 @@ export function BalanceSheetView() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[54px]">{t("tree")}</TableHead>
                     <TableHead>{t("account_code")}</TableHead>
                     <TableHead>{t("account_name")}</TableHead>
                     <TableHead className="text-right">{t("balance")}</TableHead>
+                    <TableHead className="text-right">{t("subtotal")}</TableHead>
+                    <TableHead className="text-right w-[180px]">{t("action")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {report.liabilities?.map((l: BSReportRow, idx: number) => (
-                    <TableRow key={`${l.code}-${idx}`}>
-                      <TableCell className="font-mono text-xs">{l.code}</TableCell>
-                      <TableCell>{l.name}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(l.amount ?? 0)}</TableCell>
+                  {sectionRows.liabilities.filter((x) => x.visible).map(({ row, hasChildren }, idx: number) => (
+                    <TableRow key={`${row.code}-${idx}`}>
+                      <TableCell>
+                        {hasChildren ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 cursor-pointer"
+                            onClick={() => row.account_id && toggleExpand(row.account_id)}
+                          >
+                            {row.account_id && (expanded[row.account_id] ?? true) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                      <TableCell>
+                        <span style={{ paddingLeft: `${(row.level ?? 0) * 12}px` }}>{row.name}</span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.subtotal_amount ?? row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => openGeneralLedger(row)}
+                          disabled={!row.account_id}
+                        >
+                          {t("open_gl")}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2}>{t("total_liabilities")}</TableCell>
+                    <TableCell colSpan={4}>{t("total_liabilities")}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.liability_total ?? 0)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>
@@ -173,22 +346,68 @@ export function BalanceSheetView() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[54px]">{t("tree")}</TableHead>
                     <TableHead>{t("account_code")}</TableHead>
                     <TableHead>{t("account_name")}</TableHead>
                     <TableHead className="text-right">{t("balance")}</TableHead>
+                    <TableHead className="text-right">{t("subtotal")}</TableHead>
+                    <TableHead className="text-right w-[180px]">{t("action")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {report.equities?.map((e: BSReportRow, idx: number) => (
-                    <TableRow key={`${e.code}-${idx}`}>
-                      <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                      <TableCell>{e.name}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
+                  {sectionRows.equities.filter((x) => x.visible).map(({ row, hasChildren }, idx: number) => (
+                    <TableRow key={`${row.code}-${idx}`}>
+                      <TableCell>
+                        {hasChildren ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 cursor-pointer"
+                            onClick={() => row.account_id && toggleExpand(row.account_id)}
+                          >
+                            {row.account_id && (expanded[row.account_id] ?? true) ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.code}</TableCell>
+                      <TableCell>
+                        <span style={{ paddingLeft: `${(row.level ?? 0) * 12}px` }}>{row.name}</span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(row.subtotal_amount ?? row.amount ?? 0)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => openGeneralLedger(row)}
+                          disabled={!row.account_id}
+                        >
+                          {t("open_gl")}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2}>{t("total_equity")}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.equity_total ?? 0)}</TableCell>
+                    <TableCell colSpan={4}>{t("total_equity")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.equity_total_final ?? report.equity_total ?? 0)}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                  <TableRow className="font-semibold bg-muted/20">
+                    <TableCell colSpan={4}>{t("retained_earnings")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.retained_earnings ?? 0)}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                  <TableRow className="font-semibold bg-muted/20">
+                    <TableCell colSpan={4}>{t("current_year_profit")}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.current_year_profit ?? 0)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableBody>
               </Table>

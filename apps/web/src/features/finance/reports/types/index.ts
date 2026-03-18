@@ -47,33 +47,68 @@ export interface GeneralLedgerResponse {
 }
 
 export interface ReportRow {
+  account_id?: string;
   code: string;
   name: string;
+  account_type?: string;
+  parent_id?: string | null;
   amount: number;
+  subtotal_amount?: number;
+  level?: number;
+  children?: ReportRow[];
+  drilldown?: {
+    general_ledger_url: string;
+  };
   is_total?: boolean;
 }
 
 export interface BalanceSheetResponse {
   start_date: string;
   end_date: string;
+  include_zero?: boolean;
   assets: ReportRow[];
   asset_total: number;
   liabilities: ReportRow[];
   liability_total: number;
   equities: ReportRow[];
   equity_total: number;
+  retained_earnings?: number;
+  current_year_profit?: number;
+  equity_total_final?: number;
   liability_equity_total: number;
+  imbalance_amount?: number;
+  is_balanced?: boolean;
+  balance_tolerance?: number;
 }
 
 export type BSReportRow = ReportRow;
 export type PLReportRow = ReportRow;
+
+export interface ProfitAndLossComparison {
+  start_date: string;
+  end_date: string;
+  revenue_total: number;
+  cogs_total: number;
+  expense_total: number;
+  gross_profit: number;
+  net_profit: number;
+}
 
 export interface ProfitAndLossResponse {
   start_date: string;
   end_date: string;
   revenues: ReportRow[];
   revenue_total: number;
+  cogs: ReportRow[];
+  cogs_total: number;
   expenses: ReportRow[];
   expense_total: number;
+  gross_profit: number;
   net_profit: number;
+  retained_earnings?: number;
+  gross_margin?: number;
+  net_margin?: number;
+  expense_ratio?: number;
+  previous_period?: ProfitAndLossComparison;
+  year_to_date?: ProfitAndLossComparison;
 }
