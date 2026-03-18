@@ -10,6 +10,9 @@ import type {
   LeadProductItem,
   BulkUpsertLeadRequest,
   BulkUpsertLeadResponse,
+  LeadAutomationConnectionResponse,
+  LeadAutomationTriggerRequest,
+  LeadAutomationTriggerResponse,
   ApiResponse,
 } from "../types";
 
@@ -63,6 +66,23 @@ export const leadService = {
 
   getProductItems: async (id: string): Promise<ApiResponse<LeadProductItem[]>> => {
     const response = await apiClient.get<ApiResponse<LeadProductItem[]>>(`${BASE_URL}/${id}/product-items`);
+    return response.data;
+  },
+
+  testAutomationConnection: async (): Promise<ApiResponse<LeadAutomationConnectionResponse>> => {
+    const response = await apiClient.post<ApiResponse<LeadAutomationConnectionResponse>>(
+      `${BASE_URL}/automation/test-connection`
+    );
+    return response.data;
+  },
+
+  triggerAutomation: async (
+    data: LeadAutomationTriggerRequest
+  ): Promise<ApiResponse<LeadAutomationTriggerResponse>> => {
+    const response = await apiClient.post<ApiResponse<LeadAutomationTriggerResponse>>(
+      `${BASE_URL}/automation/trigger`,
+      data
+    );
     return response.data;
   },
 };

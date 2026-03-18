@@ -38,12 +38,14 @@ const VALID_DASHBOARD_ROUTES = [
   "/sales/orders",
   "/sales/delivery-orders",
   "/sales/invoices",
+  "/sales/returns",
   "/sales/targets",
   // Purchase routes
   "/purchase/purchase-requisitions",
   "/purchase/purchase-orders",
   "/purchase/goods-receipt",
   "/purchase/supplier-invoices",
+  "/purchase/returns",
   "/purchase/payments",
   // Stock routes
   "/stock/inventory",
@@ -68,6 +70,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/assets",
   "/finance/asset-categories",
   "/finance/asset-locations",
+  "/finance/asset-budgets",
   "/finance/up-country-cost",
   "/finance/salary",
   "/finance/reports/general-ledger",
@@ -99,6 +102,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/reports/sales-overview",
   "/reports/product-analysis",
   "/reports/geo-performance",
+  "/reports/customer-research",
+  "/reports/supplier-research",
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",

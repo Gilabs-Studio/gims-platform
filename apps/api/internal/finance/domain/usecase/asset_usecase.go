@@ -32,6 +32,7 @@ type AssetUsecase interface {
 	ApproveDepreciation(ctx context.Context, id string) (*dto.AssetResponse, error)
 	Transfer(ctx context.Context, id string, req *dto.TransferAssetRequest) (*dto.AssetResponse, error)
 	Dispose(ctx context.Context, id string, req *dto.DisposeAssetRequest) (*dto.AssetResponse, error)
+	Sell(ctx context.Context, id string, req *dto.SellAssetRequest) (*dto.AssetResponse, error)
 	Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error)
 	Adjust(ctx context.Context, id string, req *dto.AdjustAssetRequest) (*dto.AssetResponse, error)
 	ApproveTransaction(ctx context.Context, txID string) (*dto.AssetResponse, error)
@@ -103,6 +104,7 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 	item := &financeModels.Asset{
 		Code:                    code,
 		Name:                    strings.TrimSpace(req.Name),
+		Description:             strings.TrimSpace(req.Description),
 		CategoryID:              strings.TrimSpace(req.CategoryID),
 		LocationID:              strings.TrimSpace(req.LocationID),
 		AcquisitionDate:         acqDate,
@@ -188,6 +190,7 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 	updates := map[string]interface{}{
 		"code":             strings.TrimSpace(req.Code),
 		"name":             strings.TrimSpace(req.Name),
+		"description":      strings.TrimSpace(req.Description),
 		"category_id":      strings.TrimSpace(req.CategoryID),
 		"location_id":      strings.TrimSpace(req.LocationID),
 		"acquisition_date": acqDate,
@@ -346,6 +349,10 @@ func (uc *assetUsecase) Depreciate(ctx context.Context, id string, req *dto.Depr
 	cat, err := uc.catRepo.FindByID(ctx, asset.CategoryID)
 	if err != nil {
 		return nil, err
+	}
+
+	if !cat.IsDepreciable || cat.DepreciationMethod == financeModels.DepreciationMethodNone {
+		return nil, errors.New("this asset category is not depreciable")
 	}
 
 	// validate COA references exist
@@ -697,6 +704,83 @@ func (uc *assetUsecase) Dispose(ctx context.Context, id string, req *dto.Dispose
 			CreatedAt:       apptime.Now(),
 		}
 		return tx.Create(tr).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, asset.ID, true)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(full, true)
+	return &res, nil
+}
+
+func (uc *assetUsecase) Sell(ctx context.Context, id string, req *dto.SellAssetRequest) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	disposalDate, err := parseAssetDateStrict(req.DisposalDate)
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrAssetNotFound
+		}
+		return nil, err
+	}
+	if asset.Status == financeModels.AssetStatusDisposed || asset.Status == financeModels.AssetStatusSold {
+		full, err := uc.repo.FindByID(ctx, asset.ID, true)
+		if err != nil {
+			return nil, err
+		}
+		res := uc.mapper.ToResponse(full, true)
+		return &res, nil
+	}
+
+	saleAmountStr := fmt.Sprintf("%.2f", req.SaleAmount)
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+		if err := ensureNotClosed(ctx, tx, disposalDate); err != nil {
+			return err
+		}
+
+		desc := strings.TrimSpace(req.Description)
+		if desc == "" {
+			desc = "Asset sold"
+		}
+		tr := &financeModels.AssetTransaction{
+			AssetID:         asset.ID,
+			Type:            financeModels.AssetTransactionTypeDispose,
+			TransactionDate: disposalDate,
+			Amount:          req.SaleAmount,
+			Description:     fmt.Sprintf("%s (sale amount: %s)", desc, saleAmountStr),
+			Status:          financeModels.AssetTransactionStatusDraft,
+			CreatedBy:       &actorID,
+			CreatedAt:       apptime.Now(),
+		}
+		if err := tx.Create(tr).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Updates(map[string]interface{}{
+			"status":      financeModels.AssetStatusSold,
+			"disposed_at": disposalDate,
+		}).Error
 	})
 	if err != nil {
 		return nil, err

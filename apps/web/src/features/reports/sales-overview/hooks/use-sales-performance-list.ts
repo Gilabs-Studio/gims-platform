@@ -37,7 +37,7 @@ export function useSalesPerformanceList(
   const startDate = filters?.startDate ?? internalStartDate;
   const endDate = filters?.endDate ?? internalEndDate;
   const [sortBy, setSortBy] = useState<
-    "revenue" | "orders" | "visits" | "name" | "target" | "achievement"
+    "revenue" | "orders" | "visits" | "name" | "target"
   >("revenue");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
 

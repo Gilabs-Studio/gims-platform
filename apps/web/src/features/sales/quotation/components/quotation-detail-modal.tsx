@@ -29,7 +29,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { SalesQuotation } from "../types";
 import { QuotationPrintDialog } from "./quotation-print-dialog";
@@ -205,7 +205,7 @@ export function QuotationDetailModal({
                 <div className="flex items-center gap-3">
                   {quotation && getStatusBadge(quotation.status)}
                   <span className="text-sm text-muted-foreground">
-                    {displayQuotation?.quotation_date && new Date(displayQuotation.quotation_date).toLocaleDateString()}
+                    {displayQuotation?.quotation_date && formatDate(displayQuotation.quotation_date)}
                   </span>
                 </div>
               </div>
@@ -305,13 +305,13 @@ export function QuotationDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayQuotation.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("quotationDate")}</TableCell>
-                        <TableCell>{displayQuotation.quotation_date ? new Date(displayQuotation.quotation_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{displayQuotation.quotation_date ? formatDate(displayQuotation.quotation_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
                         <TableCell>{getStatusBadge(displayQuotation.status)}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("validUntil")}</TableCell>
-                        <TableCell>{displayQuotation.valid_until ? new Date(displayQuotation.valid_until).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{displayQuotation.valid_until ? formatDate(displayQuotation.valid_until) : "-"}</TableCell>
                       </TableRow>
                       {displayQuotation.payment_terms && (
                         <TableRow>

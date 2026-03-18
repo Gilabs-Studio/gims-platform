@@ -34,7 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 
@@ -177,7 +177,7 @@ export function PurchaseOrderDetail({
                 <div className="flex items-center gap-3">
                   {po && <PurchaseOrderStatusBadge status={po.status} />}
                   <span className="text-sm text-muted-foreground">
-                    {po?.order_date && new Date(po.order_date).toLocaleDateString()}
+                    {po?.order_date && formatDate(po.order_date)}
                   </span>
                 </div>
               </div>
@@ -306,7 +306,7 @@ export function PurchaseOrderDetail({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.code")}</TableCell>
                         <TableCell>{po.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.orderDate")}</TableCell>
-                        <TableCell>{po.order_date ? new Date(po.order_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{po.order_date ? formatDate(po.order_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
@@ -314,7 +314,7 @@ export function PurchaseOrderDetail({
                           <PurchaseOrderStatusBadge status={po.status} />
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.dueDate")}</TableCell>
-                        <TableCell>{po.due_date ? new Date(po.due_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{po.due_date ? formatDate(po.due_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.paymentTerms")}</TableCell>

@@ -679,6 +679,7 @@ export function InvoiceList() {
           invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
+
     </div>
   );
 }

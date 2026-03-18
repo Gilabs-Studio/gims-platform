@@ -113,6 +113,21 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "http",
+        hostname: "localhost",
+        // allow any port and any file under /uploads
+        pathname: "/uploads/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        pathname: "/uploads/**",
+      },
+    ],
+  },
 
   poweredByHeader: false,
 };

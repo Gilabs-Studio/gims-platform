@@ -1,11 +1,14 @@
 import { apiClient } from "@/lib/api-client";
 import type {
+  AdjustAssetInput,
   ApiResponse,
   Asset,
   AssetInput,
   DepreciateAssetInput,
   DisposeAssetInput,
   ListAssetsParams,
+  RevalueAssetInput,
+  SellAssetInput,
   TransferAssetInput,
 } from "../types";
 
@@ -52,18 +55,23 @@ export const financeAssetsService = {
     return response.data;
   },
 
-  revalue: async (id: string, data: any): Promise<ApiResponse<Asset>> => {
+  sell: async (id: string, data: SellAssetInput): Promise<ApiResponse<Asset>> => {
+    const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/sell`, data);
+    return response.data;
+  },
+
+  revalue: async (id: string, data: RevalueAssetInput): Promise<ApiResponse<Asset>> => {
     const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/revalue`, data);
     return response.data;
   },
 
-  adjust: async (id: string, data: any): Promise<ApiResponse<Asset>> => {
+  adjust: async (id: string, data: AdjustAssetInput): Promise<ApiResponse<Asset>> => {
     const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/${id}/adjust`, data);
     return response.data;
   },
 
-  approveTransaction: async (txId: string): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post<ApiResponse<any>>(`${BASE_URL}/transactions/${txId}/approve`);
+  approveTransaction: async (txId: string): Promise<ApiResponse<Asset>> => {
+    const response = await apiClient.post<ApiResponse<Asset>>(`${BASE_URL}/transactions/${txId}/approve`);
     return response.data;
   },
 };

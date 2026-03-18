@@ -5,13 +5,6 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,11 +100,9 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
           <ArrowLeft className="h-4 w-4 mr-2" />
           {t("detail.back")}
         </Button>
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">{t("detail.notFound")}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border p-8 text-center">
+          <p className="text-muted-foreground">{t("detail.notFound")}</p>
+        </div>
       </PageMotion>
     );
   }
@@ -138,8 +129,8 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
 
   return (
     <PageMotion className="space-y-6">
-      {/* Header with Back Button */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="h-20 w-20 rounded-lg border overflow-hidden shrink-0 bg-muted">
             {detail.product_image ? (
@@ -155,17 +146,19 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
             )}
           </div>
           <div>
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              className="mb-2 cursor-pointer -ml-3"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("detail.back")}
-            </Button>
-            <h1 className="text-3xl font-medium tracking-tight">
-              {detail.product_name}
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="cursor-pointer mt-0.5 shrink-0"
+                onClick={() => router.back()}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {detail.product_name}
+              </h1>
+            </div>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="secondary">{detail.product_code}</Badge>
               {detail.category_name && (
@@ -177,111 +170,98 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
             </div>
           </div>
         </div>
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateChange={handleDateRangeChange}
-        />
+
+        <div className="flex items-center justify-end">
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateChange={handleDateRangeChange}
+          />
+        </div>
       </div>
 
       {/* Key Metrics (Statistics Cards) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+        <div className="rounded-lg border p-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="text-sm font-medium text-muted-foreground">
               {t("detail.totalRevenue")}
-            </CardTitle>
+            </div>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">
-              {statistics?.total_revenue_formatted ?? "-"}
+          </div>
+          <div className="text-2xl font-medium">{statistics?.total_revenue_formatted ?? "-"}</div>
+          {comparison?.revenue_change !== undefined && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {renderChangeIndicator(comparison.revenue_change)}
             </div>
-            {comparison?.revenue_change !== undefined && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {renderChangeIndicator(comparison.revenue_change)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+          )}
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="text-sm font-medium text-muted-foreground">
               {t("detail.totalQty")}
-            </CardTitle>
+            </div>
             <Hash className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">
-              {statistics?.total_qty?.toLocaleString("id-ID") ?? "-"}
+          </div>
+          <div className="text-2xl font-medium">
+            {statistics?.total_qty?.toLocaleString("id-ID") ?? "-"}
+          </div>
+          {comparison?.qty_change !== undefined && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {renderChangeIndicator(comparison.qty_change)}
             </div>
-            {comparison?.qty_change !== undefined && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {renderChangeIndicator(comparison.qty_change)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+          )}
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="text-sm font-medium text-muted-foreground">
               {t("detail.totalOrders")}
-            </CardTitle>
+            </div>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">
-              {statistics?.total_orders?.toLocaleString("id-ID") ?? "-"}
+          </div>
+          <div className="text-2xl font-medium">
+            {statistics?.total_orders?.toLocaleString("id-ID") ?? "-"}
+          </div>
+          {comparison?.orders_change !== undefined && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {renderChangeIndicator(comparison.orders_change)}
             </div>
-            {comparison?.orders_change !== undefined && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {renderChangeIndicator(comparison.orders_change)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+          )}
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="flex items-center justify-between pb-2">
+            <div className="text-sm font-medium text-muted-foreground">
               {t("detail.avgPrice")}
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">
-              {statistics?.avg_price_formatted ?? "-"}
             </div>
-          </CardContent>
-        </Card>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="text-2xl font-medium">{statistics?.avg_price_formatted ?? "-"}</div>
+        </div>
       </div>
 
       {/* 2/3 + 1/3 Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3: Tabs (Customers, Sales Reps, Trend) */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("detail.tabsTitle")}</CardTitle>
-              <CardDescription>{t("detail.tabsDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProductDetailTabs
-                productId={productId}
-                startDate={startDate}
-                endDate={endDate}
-              />
-            </CardContent>
-          </Card>
+        <div className="lg:col-span-2 space-y-4">
+          <div>
+            <h2 className="text-sm font-medium">{t("detail.tabsTitle")}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("detail.tabsDescription")}
+            </p>
+          </div>
+          <ProductDetailTabs
+            productId={productId}
+            startDate={startDate}
+            endDate={endDate}
+          />
         </div>
 
         {/* Right Column - 1/3: Product Info Sidebar */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("detail.productInfo")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="rounded-lg border">
+            <div className="px-3 py-3 border-b">
+              <h2 className="text-base font-medium">{t("detail.productInfo")}</h2>
+            </div>
+            <div className="p-3 space-y-4">
               {/* Product Image */}
               <div className="w-full aspect-square rounded-lg border overflow-hidden bg-muted">
                 {detail.product_image ? (
@@ -330,17 +310,15 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Pricing & Stock Summary Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {t("detail.pricingStock")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <div className="rounded-lg border">
+            <div className="px-3 py-3 border-b">
+              <h2 className="text-base font-medium">{t("detail.pricingStock")}</h2>
+            </div>
+            <div className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   {t("detail.sellingPrice")}
@@ -367,8 +345,8 @@ export function ProductDetailPage({ productId }: ProductDetailPageProps) {
                   {detail.current_stock?.toLocaleString("id-ID") ?? "-"}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </PageMotion>

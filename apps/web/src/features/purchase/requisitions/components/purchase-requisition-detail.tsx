@@ -36,7 +36,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
@@ -183,7 +183,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                 <div className="flex items-center gap-3">
                   {pr && <PurchaseRequisitionStatusBadge status={pr.status} />}
                   <span className="text-sm text-muted-foreground">
-                    {pr?.request_date && new Date(pr.request_date).toLocaleDateString()}
+                    {pr?.request_date && formatDate(pr.request_date)}
                   </span>
                 </div>
               </div>
@@ -300,7 +300,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.code")}</TableCell>
                         <TableCell>{pr.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.requestDate")}</TableCell>
-                        <TableCell>{pr.request_date ? new Date(pr.request_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{pr.request_date ? formatDate(pr.request_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>

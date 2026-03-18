@@ -7,7 +7,7 @@ import (
 )
 
 // SetupRecruitmentRequestRoutes registers all recruitment request routes
-func SetupRecruitmentRequestRoutes(router *gin.RouterGroup, h *handler.RecruitmentRequestHandler) {
+func SetupRecruitmentRequestRoutes(router *gin.RouterGroup, h *handler.RecruitmentRequestHandler, ah *handler.RecruitmentApplicantHandler) {
 	recruitment := router.Group("/recruitment-requests")
 	{
 		// CRITICAL: form-data before /:id to avoid route conflicts
@@ -31,5 +31,8 @@ func SetupRecruitmentRequestRoutes(router *gin.RouterGroup, h *handler.Recruitme
 
 		// Filled count management
 		recruitment.PUT("/:id/filled-count", middleware.RequirePermission("recruitment.update"), h.UpdateFilledCount)
+
+		// Nested applicants route
+		recruitment.GET("/:id/applicants", middleware.RequirePermission("recruitment.read"), ah.GetByRecruitmentRequest)
 	}
 }

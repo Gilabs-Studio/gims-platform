@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -66,6 +67,8 @@ import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
+import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
+import { usePurchaseReturns } from "@/features/purchase/returns/hooks/use-purchase-returns";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -93,6 +96,7 @@ export function GoodsReceiptsList() {
   const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
   const [siFormGRId, setSiFormGRId] = useState<string | null>(null);
   const [siLinkedData, setSiLinkedData] = useState<{ id: string; code: string; purchase_order_id: string } | null>(null);
+  const [purchaseReturnGRId, setPurchaseReturnGRId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -107,6 +111,7 @@ export function GoodsReceiptsList() {
   const canClose = useUserPermission("goods_receipt.close");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
+  const canCreatePurchaseReturn = useUserPermission("purchase_return.create");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
@@ -119,6 +124,12 @@ export function GoodsReceiptsList() {
 
   const items: GoodsReceiptListItem[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const { data: purchaseReturnsData } = usePurchaseReturns({ per_page: 100 });
+  const returnedGoodsReceiptIDs = new Set(
+    (purchaseReturnsData?.data ?? [])
+      .map((row) => row.goods_receipt_id)
+      .filter((id): id is string => !!id),
+  );
 
   const deleteMutation = useDeleteGoodsReceipt();
   const submitMutation = useSubmitGoodsReceipt();
@@ -308,14 +319,21 @@ export function GoodsReceiptsList() {
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
-                    <GoodsReceiptStatusBadge
-                      status={it.status ?? ""}
-                      onClick={
-                        it.status === "CLOSED" || it.status === "PARTIAL"
-                          ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
-                          : undefined
-                      }
-                    />
+                    {returnedGoodsReceiptIDs.has(it.id) ? (
+                      <Badge variant="warning" className="text-xs font-medium">
+                        <FileText className="h-3 w-3 mr-1" />
+                        {t("status.returned")}
+                      </Badge>
+                    ) : (
+                      <GoodsReceiptStatusBadge
+                        status={it.status ?? ""}
+                        onClick={
+                          it.status === "CLOSED" || it.status === "PARTIAL"
+                            ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
+                            : undefined
+                        }
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     {canShowActions && (
@@ -377,6 +395,16 @@ export function GoodsReceiptsList() {
                             >
                               <FileText className="h-4 w-4 mr-2" />
                               {t("convertToSupplierInvoice")}
+                            </DropdownMenuItem>
+                          )}
+
+                          {canCreatePurchaseReturn && ["APPROVED", "PARTIAL", "CLOSED"].includes((it.status ?? "").toUpperCase()) && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPurchaseReturnGRId(it.id)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              {t("actions.createReturn")}
                             </DropdownMenuItem>
                           )}
 
@@ -547,6 +575,16 @@ export function GoodsReceiptsList() {
           purchaseOrderId={siLinkedData.purchase_order_id}
         />
       )}
+
+      <CreatePurchaseReturnDialog
+        open={!!purchaseReturnGRId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPurchaseReturnGRId(null);
+          }
+        }}
+        goodsReceiptId={purchaseReturnGRId ?? undefined}
+      />
     </div>
   );
 }

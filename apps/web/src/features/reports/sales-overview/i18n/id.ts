@@ -62,6 +62,7 @@ export const salesOverviewReportId = {
       noData: "Tidak ada data untuk periode yang dipilih",
       metrics: {
         revenue: "Pendapatan",
+        cashIn: "Kas Masuk",
         orders: "Pesanan",
         visits: "Kunjungan Selesai",
         deliveries: "Pengiriman Selesai",

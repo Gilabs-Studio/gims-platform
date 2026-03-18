@@ -235,6 +235,11 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
+		{"/sales/returns", "sales_return.read", "View Sales Returns", "VIEW", "sales_return"},
+		{"/sales/returns", "sales_return.create", "Create Sales Returns", "CREATE", "sales_return"},
+		{"/sales/returns", "sales_return.update", "Edit Sales Returns", "EDIT", "sales_return"},
+		{"/sales/returns", "sales_return.delete", "Delete Sales Returns", "DELETE", "sales_return"},
+
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
@@ -244,14 +249,13 @@ func SeedPermissions() error {
 		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+		{"/sales/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
 		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
 		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
 		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
 		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
-		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
-		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
 
 		// Sales Payments
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
@@ -328,6 +332,12 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
+
+		{"/purchase/returns", "purchase_return.read", "View Purchase Returns", "VIEW", "purchase_return"},
+		{"/purchase/returns", "purchase_return.create", "Create Purchase Returns", "CREATE", "purchase_return"},
+		{"/purchase/returns", "purchase_return.update", "Edit Purchase Returns", "EDIT", "purchase_return"},
+		{"/purchase/returns", "purchase_return.delete", "Delete Purchase Returns", "DELETE", "purchase_return"},
+
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
@@ -471,6 +481,12 @@ func SeedPermissions() error {
 		{"/finance/asset-locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
 		{"/finance/asset-locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
 
+		// Asset Budgets
+		{"/finance/asset-budgets", "asset_budget.read", "View Asset Budgets", "VIEW", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.create", "Create Asset Budgets", "CREATE", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
+
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
 		{"/hrd/attendance", "attendance.create", "Create Attendance", "CREATE", "attendance"},
@@ -529,6 +545,14 @@ func SeedPermissions() error {
 		// Reports - Geo Performance
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
 		{"/reports/geo-performance", "report_geo_performance.export", "Export Geo Performance Report", "EXPORT", "report_geo_performance"},
+
+		// Reports - Customer Research
+		{"/reports/customer-research", "report_customer_research.read", "View Customer Research Report", "VIEW", "report_customer_research"},
+		{"/reports/customer-research", "report_customer_research.export", "Export Customer Research Report", "EXPORT", "report_customer_research"},
+
+		// Reports - Supplier Research
+		{"/reports/supplier-research", "report_supplier_research.read", "View Supplier Research Report", "VIEW", "report_supplier_research"},
+		{"/reports/supplier-research", "report_supplier_research.export", "Export Supplier Research Report", "EXPORT", "report_supplier_research"},
 
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},

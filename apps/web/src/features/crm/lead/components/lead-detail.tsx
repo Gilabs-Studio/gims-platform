@@ -908,10 +908,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                         </Button>
                       </div>
                       {lead.latitude != null && lead.longitude != null ? (
-                        <button
-                          type="button"
+                        <div
+                          role="button"
+                          tabIndex={0}
                           className="w-full h-48 rounded-md border overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group relative"
                           onClick={() => setShowMapPicker(true)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setShowMapPicker(true);
+                            }
+                          }}
                           title={t("clickToUpdateLocation")}
                         >
                           <MapView
@@ -943,7 +950,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                               {t("clickToUpdateLocation")}
                             </Badge>
                           </div>
-                        </button>
+                        </div>
                       ) : (
                         <button
                           type="button"

@@ -49,9 +49,7 @@ into the ERP via the bulk upsert endpoint.
 ```
 features/crm/lead/
 ├── n8n/                              # n8n workflow templates
-│   ├── google-maps-workflow.json     # Google Maps scraper workflow
-│   ├── linkedin-workflow.json        # LinkedIn scraper workflow
-│   └── universal-workflow.json       # Combined workflow with source routing
+│   └── universal-workflow.json       # Combined workflow (Google Maps + LinkedIn)
 ├── hooks/
 │   ├── use-generate-leads.ts         # Hook for generate leads dialog state + actions
 │   └── use-leads.ts                  # Added useBulkUpsertLeads mutation
@@ -129,16 +127,10 @@ features/crm/lead/
 }
 ```
 
-### Workflow Variants
+### Workflow Template
 
-1. **Google Maps Workflow** (`google-maps-workflow.json`):
-   - Webhook Trigger -> Serper Maps Search -> Map to Lead Format -> Send to GIMS ERP -> Respond
-
-2. **LinkedIn Workflow** (`linkedin-workflow.json`):
-   - Webhook Trigger -> Apify LinkedIn Search -> Map to Lead Format -> Has Valid Leads? -> Send to GIMS ERP / Respond No Leads
-
-3. **Universal Workflow** (`universal-workflow.json`):
-   - Webhook Trigger -> Route by Type (If) -> [LinkedIn OR Google Maps] -> Map Data -> Merge -> Has Valid Leads? -> Send to GIMS ERP
+- **Universal Workflow** (`universal-workflow.json`):
+  - Webhook Trigger -> Route by Type (If) -> [LinkedIn OR Google Maps] -> Map Data -> Has Valid Leads? -> Send to GIMS ERP / Respond No Leads
 
 ## Cara Test Manual
 

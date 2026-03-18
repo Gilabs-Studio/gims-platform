@@ -47,22 +47,20 @@ export function SalesRepStatistics({ statistics }: SalesRepStatisticsProps) {
         const Icon = stat.icon;
 
         return (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+          <div key={index} className="rounded-lg border p-3">
+            <div className="flex items-center justify-between pb-2">
+              <div className="text-sm font-medium text-muted-foreground">
                 {stat.label}
-              </CardTitle>
+              </div>
               <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-medium">{stat.value}</div>
-              {stat.subtitle && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {stat.subtitle}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+            <div className="text-2xl font-medium">{stat.value}</div>
+            {stat.subtitle && (
+              <div className="text-xs text-muted-foreground mt-1">
+                {stat.subtitle}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

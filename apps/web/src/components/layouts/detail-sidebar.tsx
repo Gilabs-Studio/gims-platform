@@ -161,7 +161,7 @@ const TreeItem = memo(function TreeItem({
               )}
               <span
                 className={cn(
-                  "flex-1 min-w-0 max-w-full break-words transition-colors",
+                  "flex-1 min-w-0 max-w-full wrap-break-word transition-colors",
                   isActive ? "text-primary font-medium" : "text-foreground/80 group-hover:text-foreground"
                 )}
               >
@@ -277,7 +277,7 @@ const TreeItem = memo(function TreeItem({
         )}
         <span
           className={cn(
-            "flex-1 min-w-0 max-w-full break-words transition-colors",
+            "flex-1 min-w-0 max-w-full wrap-break-word transition-colors",
             isActive
               ? "text-primary font-medium"
               : "text-foreground/70 group-hover:text-foreground"

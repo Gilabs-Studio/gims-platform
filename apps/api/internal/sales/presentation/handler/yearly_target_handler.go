@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 // YearlyTargetHandler handles yearly target HTTP requests
@@ -58,10 +61,6 @@ func (h *YearlyTargetHandler) List(c *gin.Context) {
 	if req.AreaID != "" {
 		meta.Filters["area_id"] = req.AreaID
 	}
-	if req.Status != "" {
-		meta.Filters["status"] = req.Status
-	}
-
 	response.SuccessResponse(c, targets, meta)
 }
 
@@ -133,12 +132,6 @@ func (h *YearlyTargetHandler) Update(c *gin.Context) {
 			}, nil)
 			return
 		}
-		if err == usecase.ErrInvalidTargetStatus {
-			errors.ErrorResponse(c, "INVALID_TARGET_STATUS", map[string]interface{}{
-				"message": "Cannot modify target in current status",
-			}, nil)
-			return
-		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -165,12 +158,6 @@ func (h *YearlyTargetHandler) Delete(c *gin.Context) {
 			}, nil)
 			return
 		}
-		if err == usecase.ErrInvalidTargetStatus {
-			errors.ErrorResponse(c, "INVALID_TARGET_STATUS", map[string]interface{}{
-				"message": "Cannot delete target in current status",
-			}, nil)
-			return
-		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -185,48 +172,36 @@ func (h *YearlyTargetHandler) Delete(c *gin.Context) {
 	response.SuccessResponseDeleted(c, "yearly_target", id, meta)
 }
 
-// UpdateStatus handles update yearly target status request
-func (h *YearlyTargetHandler) UpdateStatus(c *gin.Context) {
+// AuditTrail handles GET /sales/yearly-targets/:id/audit-trail
+func (h *YearlyTargetHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")
-	var req dto.UpdateYearlyTargetStatusRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		if validationErrors, ok := err.(validator.ValidationErrors); ok {
-			errors.HandleValidationError(c, validationErrors)
-			return
-		}
-		errors.InvalidRequestBodyResponse(c)
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
 		return
 	}
 
-	var userID *string
-	if uid, exists := c.Get("user_id"); exists {
-		if id, ok := uid.(string); ok {
-			userID = &id
-		}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
 	}
 
-	target, err := h.targetUC.UpdateStatus(c.Request.Context(), id, &req, userID)
+	items, total, err := h.targetUC.ListAuditTrail(c.Request.Context(), id, page, perPage)
 	if err != nil {
-		if err == usecase.ErrYearlyTargetNotFound {
-			errors.ErrorResponse(c, "YEARLY_TARGET_NOT_FOUND", map[string]interface{}{
-				"target_id": id,
-			}, nil)
-			return
-		}
-		if err == usecase.ErrInvalidStatusTransition {
-			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
-				"message": "Invalid status transition",
-			}, nil)
-			return
-		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
-	meta := &response.Meta{}
-	if userID != nil {
-		meta.UpdatedBy = *userID
-	}
-
-	response.SuccessResponse(c, target, meta)
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, items, meta)
 }

@@ -22,7 +22,7 @@ import { QuotationForm } from "./quotation-form";
 import { QuotationDetailModal } from "./quotation-detail-modal";
 import type { SalesQuotation, SalesQuotationStatus } from "../types";
 import { QuotationPrintDialog } from "./quotation-print-dialog";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { EmployeeDetailModal } from "@/features/master-data/employee/components/employee-detail-modal";
 import type { Employee as MdEmployee } from "@/features/master-data/employee/types";
@@ -285,7 +285,7 @@ export function QuotationList() {
                   </TableCell>
                   <TableCell>
                     {quotation.quotation_date
-                      ? new Date(quotation.quotation_date).toLocaleDateString()
+                      ? formatDate(quotation.quotation_date)
                       : "-"}
                   </TableCell>
                   <TableCell>

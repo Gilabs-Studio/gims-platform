@@ -23,7 +23,7 @@ export function SalesOverviewPage() {
     new Date().getFullYear()
   );
   const [selectedMetric, setSelectedMetric] = useState<
-    "revenue" | "orders" | "visits" | "deliveries"
+    "revenue" | "cash_in" | "orders" | "visits" | "deliveries"
   >("revenue");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     () => {

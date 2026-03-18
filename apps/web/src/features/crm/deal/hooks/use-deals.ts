@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { dealService } from "../services/deal-service";
+import { activityKeys } from "../../activity/hooks/use-activities";
 import type {
   Deal,
   DealListParams,
@@ -240,6 +241,33 @@ export function useMoveDealStage() {
       qc.invalidateQueries({ queryKey: dealKeys.detail(id) });
       // Invalidate history so reason & notes of the new entry are immediately visible
       qc.invalidateQueries({ queryKey: dealKeys.history(id) });
+
+      // Invalidate deal activity timeline so the new pipeline stage activity is visible.
+      qc.invalidateQueries({
+        queryKey: activityKeys.all,
+        predicate: (query) => {
+          const key = query.queryKey as unknown[];
+          // Match timeline queries for this deal (any page).
+          if (key[0] !== "crm-activities" || key[1] !== "timeline") return false;
+          const params = key[2] as Record<string, unknown> | undefined;
+          return params?.deal_id === id;
+        },
+      });
+
+      // Also invalidate activity timeline for the linked lead, if available in cache.
+      const cachedDeal = qc.getQueryData<{ data?: { lead_id?: string } }>(dealKeys.detail(id));
+      const leadId = cachedDeal?.data?.lead_id;
+      if (leadId) {
+        qc.invalidateQueries({
+          queryKey: activityKeys.all,
+          predicate: (query) => {
+            const key = query.queryKey as unknown[];
+            if (key[0] !== "crm-activities" || key[1] !== "timeline") return false;
+            const params = key[2] as Record<string, unknown> | undefined;
+            return params?.lead_id === leadId;
+          },
+        });
+      }
     },
   });
 }

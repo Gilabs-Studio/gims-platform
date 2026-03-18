@@ -348,8 +348,9 @@ func SeedMenus() error {
 		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
+		{"Returns", "rotate-ccw", "/sales/returns", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/sales/targets", 8},
+		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -374,7 +375,9 @@ func SeedMenus() error {
 		{"Goods Receipt", "package", "/purchase/goods-receipt", 3},
 		{"Supplier Invoices", "receipt", "/purchase/supplier-invoices", 4},
 		{"Supplier Invoice Down Payments", "receipt", "/purchase/supplier-invoice-down-payments", 5},
-		{"Payments", "credit-card", "/purchase/payments", 6},
+		{"Returns", "rotate-ccw", "/purchase/returns", 6},
+		{"Payments", "credit-card", "/purchase/payments", 7},
+		{"Payable Recap", "bar-chart-3", "/purchase/payable-recap", 8},
 	}
 	for _, child := range purchaseChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &purchaseMenu.ID, child.order); err != nil {
@@ -424,8 +427,9 @@ func SeedMenus() error {
 		{"Asset Management", "briefcase", "/finance/assets", 10},
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 13},
-		{"Salary", "dollar-sign", "/finance/salary", 14},
+		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 14},
+		{"Salary", "dollar-sign", "/finance/salary", 15},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
@@ -619,6 +623,12 @@ func SeedMenus() error {
 		return err
 	}
 	if _, err := createChildMenu("Geo Performance", "map", "/reports/geo-performance", &reportsMenu.ID, 3); err != nil {
+		return err
+	}
+	if _, err := createChildMenu("Customer Research", "users", "/reports/customer-research", &reportsMenu.ID, 4); err != nil {
+		return err
+	}
+	if _, err := createChildMenu("Supplier Research", "truck", "/reports/supplier-research", &reportsMenu.ID, 5); err != nil {
 		return err
 	}
 

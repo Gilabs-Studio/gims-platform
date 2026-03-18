@@ -32,7 +32,7 @@ export interface ListSalesRepPerformanceRequest {
   end_date?: string;
   page?: number;
   per_page?: number;
-  sort_by?: "revenue" | "orders" | "visits" | "name" | "target" | "achievement";
+  sort_by?: "revenue" | "orders" | "visits" | "name" | "target";
   order?: "asc" | "desc";
 }
 
@@ -56,6 +56,7 @@ export interface MonthlySalesData {
   month_name: string;
   year: number;
   total_revenue: number;
+  total_cash_in: number;
   total_orders: number;
   total_visits: number;
   total_deliveries: number;
@@ -65,6 +66,7 @@ export interface MonthlySalesData {
 export interface MonthlySalesOverviewData {
   monthly_data: MonthlySalesData[];
   total_revenue: number;
+  total_cash_in: number;
   total_orders: number;
   total_visits: number;
   total_deliveries: number;

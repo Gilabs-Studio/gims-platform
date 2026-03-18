@@ -6692,6 +6692,109 @@
       "description": "Customer Relationship Management endpoints",
       "item": [
         {
+          "name": "Leads",
+          "description": "Lead generation automation endpoints (n8n)",
+          "item": [
+            {
+              "name": "Test n8n Connection",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/crm/leads/automation/test-connection",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "crm",
+                    "leads",
+                    "automation",
+                    "test-connection"
+                  ]
+                },
+                "description": "Test connectivity from backend to the configured n8n webhook. Returns upstream status and diagnostic text when failing."
+              },
+              "response": []
+            },
+            {
+              "name": "Trigger Lead Automation",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-CSRF-Token",
+                    "value": "{{csrf_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": 1,\n  \"keyword\": \"Distributor\",\n  \"city\": \"Semarang\",\n  \"limit\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/crm/leads/automation/trigger",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "crm",
+                    "leads",
+                    "automation",
+                    "trigger"
+                  ]
+                },
+                "description": "Trigger the configured n8n workflow via server-side proxy. `type` is numeric: 0=google_maps, 1=linkedin. Payload will be merged with server credentials on backend."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Contacts",
           "description": "CRM Contact management endpoints with CRUD operations",
           "item": [

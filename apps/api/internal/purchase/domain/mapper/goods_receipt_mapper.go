@@ -33,7 +33,9 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		ID:                 gr.ID,
 		Code:               gr.Code,
 		ReceiptDate:        receiptDate,
+		WarehouseID:        gr.WarehouseID,
 		Notes:              gr.Notes,
+		ProofImageURL:      gr.ProofImageURL,
 		Status:             string(gr.Status),
 		CreatedBy:          gr.CreatedBy,
 		TotalItemsReceived: totalItemsReceived,
@@ -48,6 +50,9 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 
 	if gr.PurchaseOrder != nil {
 		resp.PurchaseOrder = &dto.GoodsReceiptPurchaseOrderMini{ID: gr.PurchaseOrder.ID, Code: gr.PurchaseOrder.Code}
+	}
+	if gr.Warehouse != nil {
+		resp.Warehouse = &dto.GoodsReceiptWarehouseMini{ID: gr.Warehouse.ID, Name: gr.Warehouse.Name}
 	}
 	if strings.TrimSpace(gr.SupplierNameSnapshot) != "" || strings.TrimSpace(gr.SupplierCodeSnapshot) != "" {
 		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.SupplierID, Name: strings.TrimSpace(gr.SupplierNameSnapshot)}
@@ -77,13 +82,15 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	}
 
 	resp := &dto.GoodsReceiptDetailResponse{
-		ID:          gr.ID,
-		Code:        gr.Code,
-		ReceiptDate: receiptDate,
-		Notes:       gr.Notes,
-		Status:      string(gr.Status),
-		CreatedBy:   gr.CreatedBy,
-		Items:       make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
+		ID:            gr.ID,
+		Code:          gr.Code,
+		ReceiptDate:   receiptDate,
+		WarehouseID:   gr.WarehouseID,
+		Notes:         gr.Notes,
+		ProofImageURL: gr.ProofImageURL,
+		Status:        string(gr.Status),
+		CreatedBy:     gr.CreatedBy,
+		Items:         make([]dto.GoodsReceiptItemResponse, 0, len(gr.Items)),
 
 		SubmittedAt:                  gr.SubmittedAt,
 		ApprovedAt:                   gr.ApprovedAt,
@@ -96,6 +103,9 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 	if gr.PurchaseOrder != nil {
 		resp.PurchaseOrder = &dto.GoodsReceiptPurchaseOrderDetail{ID: gr.PurchaseOrder.ID, Code: gr.PurchaseOrder.Code, Status: string(gr.PurchaseOrder.Status)}
 	}
+	if gr.Warehouse != nil {
+		resp.Warehouse = &dto.GoodsReceiptWarehouseMini{ID: gr.Warehouse.ID, Name: gr.Warehouse.Name}
+	}
 	if strings.TrimSpace(gr.SupplierNameSnapshot) != "" || strings.TrimSpace(gr.SupplierCodeSnapshot) != "" {
 		resp.Supplier = &dto.GoodsReceiptSupplierMini{ID: gr.SupplierID, Name: strings.TrimSpace(gr.SupplierNameSnapshot)}
 	} else if gr.Supplier != nil {
@@ -104,10 +114,10 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 
 	for _, it := range gr.Items {
 		item := dto.GoodsReceiptItemResponse{
-			ID:                 it.ID,
+			ID:                  it.ID,
 			PurchaseOrderItemID: it.PurchaseOrderItemID,
-			QuantityReceived:   it.QuantityReceived,
-			Notes:              it.Notes,
+			QuantityReceived:    it.QuantityReceived,
+			Notes:               it.Notes,
 		}
 		if strings.TrimSpace(it.ProductNameSnapshot) != "" || strings.TrimSpace(it.ProductCodeSnapshot) != "" {
 			sku := (*string)(nil)

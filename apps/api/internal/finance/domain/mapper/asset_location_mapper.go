@@ -16,10 +16,13 @@ func (m *AssetLocationMapper) ToResponse(item *financeModels.AssetLocation) dto.
 		return dto.AssetLocationResponse{}
 	}
 	return dto.AssetLocationResponse{
-		ID: item.ID,
-		Name: item.Name,
+		ID:          item.ID,
+		Name:        item.Name,
 		Description: item.Description,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		Address:     item.Address,
+		Latitude:    item.Latitude,
+		Longitude:   item.Longitude,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }

@@ -5,6 +5,9 @@ export const financeAssetLocationsId = {
   fields: {
     name: "Nama",
     description: "Deskripsi",
+    address: "Alamat",
+    latitude: "Garis Lintang",
+    longitude: "Garis Bujur",
   },
   actions: {
     create: "Buat",

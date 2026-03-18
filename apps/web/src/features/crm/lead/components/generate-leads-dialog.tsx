@@ -133,27 +133,7 @@ export function GenerateLeadsDialog({ open, onClose, onSuccess }: GenerateLeadsD
             </p>
           </div>
 
-          {/* n8n Webhook URL */}
-          <div className="space-y-1.5">
-            <Label htmlFor="gen-webhook" className="text-sm">
-              {t("generate.webhookUrl")}
-            </Label>
-            <Input
-              id="gen-webhook"
-              placeholder={t("generate.webhookUrlPlaceholder")}
-              value={state.n8nWebhookUrl}
-              onChange={(e) => actions.setN8nWebhookUrl(e.target.value)}
-            />
-            {state.n8nWebhookUrl.includes("/webhook-test/") && (
-              <p className="text-xs text-warning dark:text-warning flex items-center gap-1">
-                <Wifi className="h-3 w-3 shrink-0" />
-                {t("generate.webhookTestModeWarning")}
-              </p>
-            )}
-            {!state.n8nWebhookUrl && (
-              <p className="text-xs text-muted-foreground">{t("generate.webhookUrlHint")}</p>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground">{t("generate.serverManagedMessage")}</p>
 
           <Separator />
 
@@ -195,7 +175,7 @@ export function GenerateLeadsDialog({ open, onClose, onSuccess }: GenerateLeadsD
           <Button
             variant="outline"
             onClick={() => actions.testN8nConnection()}
-            disabled={state.isTesting || !state.n8nWebhookUrl}
+            disabled={state.isTesting}
             className="cursor-pointer"
           >
             <Wifi className="mr-2 h-4 w-4" />
@@ -203,7 +183,7 @@ export function GenerateLeadsDialog({ open, onClose, onSuccess }: GenerateLeadsD
           </Button>
           <Button
             onClick={() => actions.triggerWorkflow()}
-            disabled={state.isRunning || !state.n8nWebhookUrl || !state.keyword || !state.city}
+            disabled={state.isRunning || !state.keyword || !state.city}
             className="cursor-pointer"
           >
             <Play className="mr-2 h-4 w-4" />

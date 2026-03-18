@@ -60,6 +60,7 @@ export const deliveryId = {
       prepared: "Disiapkan",
       shipped: "Dikirim",
       delivered: "Terkirim",
+      returned: "Diretur",
       cancelled: "Dibatalkan",
     },
 
@@ -138,6 +139,7 @@ export const deliveryId = {
       selectBatches: "Pilih Batch",
       captureSignature: "Ambil Tanda Tangan",
       createInvoice: "Buat Faktur",
+      createReturn: "Buat Retur",
     },
 
     // Batch Selection

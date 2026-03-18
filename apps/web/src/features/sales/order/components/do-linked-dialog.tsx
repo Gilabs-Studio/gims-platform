@@ -12,6 +12,7 @@ import { DOStatusBadge } from "./do-status-badge";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
 import type { DeliveryOrder } from "../../delivery/types";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 
 interface DOLinkedDialogProps {
   salesOrderCode: string;
@@ -98,7 +99,7 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
                     </TableCell>
                     <TableCell>
                       {do_.delivery_date
-                        ? new Date(do_.delivery_date).toLocaleDateString()
+                        ? formatDate(do_.delivery_date)
                         : "-"}
                     </TableCell>
                     <TableCell>

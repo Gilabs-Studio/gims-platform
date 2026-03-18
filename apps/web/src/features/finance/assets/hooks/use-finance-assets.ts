@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { financeAssetsService } from "../services/finance-assets-service";
-import type { AssetInput, DepreciateAssetInput, DisposeAssetInput, ListAssetsParams, TransferAssetInput } from "../types";
+import type { AdjustAssetInput, AssetInput, DepreciateAssetInput, DisposeAssetInput, ListAssetsParams, RevalueAssetInput, SellAssetInput, TransferAssetInput } from "../types";
 
 export const financeAssetKeys = {
   all: ["finance-assets"] as const,
@@ -88,10 +88,21 @@ export function useDisposeFinanceAsset() {
   });
 }
 
+export function useSellFinanceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: SellAssetInput }) => financeAssetsService.sell(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
+    },
+  });
+}
+
 export function useRevalueFinanceAsset() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => financeAssetsService.revalue(id, data),
+    mutationFn: ({ id, data }: { id: string; data: RevalueAssetInput }) => financeAssetsService.revalue(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
@@ -102,7 +113,7 @@ export function useRevalueFinanceAsset() {
 export function useAdjustFinanceAsset() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => financeAssetsService.adjust(id, data),
+    mutationFn: ({ id, data }: { id: string; data: AdjustAssetInput }) => financeAssetsService.adjust(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });

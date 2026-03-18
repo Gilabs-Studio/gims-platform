@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -211,7 +213,7 @@ func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.Sto
 }
 
 func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error {
-	for _, item := range req.Items {
+	for idx, item := range req.Items {
 		// 1. Calculate New Average Cost (Weighted Average)
 		currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
 		if err != nil {
@@ -233,7 +235,18 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 		}
 
 		// 3. Create Batch
-		batchNumber := "GR-" + apptime.Now().Format("20060102-150405")
+		batchToken := sanitizeBatchToken(req.SourceNumber)
+		if batchToken == "" {
+			batchToken = sanitizeBatchToken(req.SourceID)
+		}
+		if batchToken == "" {
+			batchToken = apptime.Now().Format("20060102150405")
+		}
+
+		batchNumber := fmt.Sprintf("GR-%s-%03d", batchToken, idx+1)
+		if len(batchNumber) > 100 {
+			batchNumber = batchNumber[:100]
+		}
 		if item.BatchNumber != nil && *item.BatchNumber != "" {
 			batchNumber = *item.BatchNumber
 		}
@@ -278,6 +291,29 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 		}
 	}
 	return nil
+}
+
+func sanitizeBatchToken(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		" ", "-",
+		":", "-",
+		".", "-",
+	)
+
+	normalized := strings.ToUpper(replacer.Replace(trimmed))
+	normalized = strings.Trim(normalized, "-")
+	for strings.Contains(normalized, "--") {
+		normalized = strings.ReplaceAll(normalized, "--", "-")
+	}
+
+	return normalized
 }
 
 func (u *inventoryUsecase) ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error {

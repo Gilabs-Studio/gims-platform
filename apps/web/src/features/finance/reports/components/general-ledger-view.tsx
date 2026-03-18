@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useGeneralLedger } from "../hooks/use-finance-reports";
 import { financeReportsService } from "../services/finance-reports-service";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
 import { toast } from "sonner";
 import type { GeneralLedgerAccount, GLTransactionRow } from "../types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";

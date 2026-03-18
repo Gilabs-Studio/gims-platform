@@ -1,0 +1,31 @@
+export const payableRecapEn = {
+  title: "Payable Recap",
+  description: "Monitor and manage supplier payable recaps.",
+  search: "Search by supplier name...",
+  summary: {
+    totalSuppliers: "Total Suppliers",
+    totalPayable: "Total Payable",
+    totalPaid: "Total Paid",
+    totalOutstanding: "Total Outstanding",
+  },
+  aging: {
+    current: "Current",
+    overdue1_30: "Overdue 1-30 Days",
+    overdue31_60: "Overdue 31-60 Days",
+    overdue61_90: "Overdue 61-90 Days",
+    badDebt: "Bad Debt (>90 Days)",
+  },
+  columns: {
+    supplierName: "Supplier Name",
+    totalPayable: "Total Payable",
+    downPayment: "Down Payment",
+    paidAmount: "Paid Amount",
+    outstandingAmount: "Outstanding Amount",
+    lastTransaction: "Last Transaction",
+    agingCategory: "Aging",
+  },
+  export: "Export CSV",
+  exportSuccess: "Successfully exported payable recap data",
+  exportError: "Failed to export payable recap data",
+  empty: "No payable recap data found",
+};

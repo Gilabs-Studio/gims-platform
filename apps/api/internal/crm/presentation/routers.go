@@ -36,6 +36,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	reminderRepo := repositories.NewReminderRepository(db)
 	scheduleRepo := repositories.NewScheduleRepository(db)
 	areaCaptureRepo := repositories.NewAreaCaptureRepository(db)
+	areaMappingRepo := repositories.NewAreaMappingRepository(db)
 	customerRepo := customerRepos.NewCustomerRepository(db)
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
 	businessTypeRepo := orgRepos.NewBusinessTypeRepository(db)
@@ -52,12 +53,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	activityTypeUC := usecase.NewActivityTypeUsecase(activityTypeRepo)
 	contactUC := usecase.NewContactUsecase(contactRepo, contactRoleRepo, customerRepo)
 	leadUC := usecase.NewLeadUsecase(leadRepo, leadStatusRepo, leadSourceRepo, dealRepo, pipelineStageRepo, activityRepo, taskRepo, employeeRepo, businessTypeRepo, areaRepo, paymentTermsRepo)
-	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, salesQuotationRepo, db)
+	leadAutomationUC := usecase.NewLeadAutomationUsecase()
+	dealUC := usecase.NewDealUsecase(dealRepo, pipelineStageRepo, customerRepo, contactRepo, employeeRepo, productRepo, leadRepo, activityRepo, salesQuotationRepo, db)
 	visitReportUC := usecase.NewVisitReportUsecase(visitReportRepo, activityRepo, customerRepo, contactRepo, employeeRepo, dealRepo, leadRepo, productRepo)
 	activityUC := usecase.NewActivityUsecase(activityRepo, activityTypeRepo, leadRepo)
 	taskUC := usecase.NewTaskUsecase(taskRepo, scheduleRepo, reminderRepo, contactRepo, dealRepo, leadRepo, customerRepo, employeeRepo)
 	scheduleUC := usecase.NewScheduleUsecase(scheduleRepo, taskRepo, employeeRepo)
 	areaCaptureUC := usecase.NewAreaCaptureUsecase(areaCaptureRepo)
+	areaMappingUC := usecase.NewAreaMappingUsecase(areaMappingRepo)
 
 	// Initialize handlers
 	pipelineStageH := handler.NewPipelineStageHandler(pipelineStageUC)
@@ -67,6 +70,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	activityTypeH := handler.NewActivityTypeHandler(activityTypeUC)
 	contactH := handler.NewContactHandler(contactUC)
 	leadH := handler.NewLeadHandler(leadUC)
+	leadAutomationH := handler.NewLeadAutomationHandler(leadAutomationUC)
 	dealH := handler.NewDealHandler(dealUC)
 	visitReportH := handler.NewVisitReportHandler(visitReportUC)
 	visitReportPrintH := handler.NewVisitReportPrintHandler(visitReportUC)
@@ -74,6 +78,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taskH := handler.NewTaskHandler(taskUC)
 	scheduleH := handler.NewScheduleHandler(scheduleUC)
 	areaCaptureH := handler.NewAreaCaptureHandler(areaCaptureUC)
+	areaMappingH := handler.NewAreaMappingHandler(areaMappingUC)
 
 	// Create CRM group under API with auth middleware
 	group := api.Group("/crm")
@@ -87,10 +92,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterActivityTypeRoutes(group, activityTypeH)
 	router.RegisterContactRoutes(group, contactH)
 	router.RegisterLeadRoutes(group, leadH)
+	router.RegisterLeadAutomationRoutes(group, leadAutomationH)
 	router.RegisterDealRoutes(group, dealH)
 	router.RegisterVisitReportRoutes(group, visitReportH, visitReportPrintH)
 	router.RegisterActivityRoutes(group, activityH)
 	router.RegisterTaskRoutes(group, taskH)
 	router.RegisterScheduleRoutes(group, scheduleH)
 	router.RegisterAreaCaptureRoutes(group, areaCaptureH)
+	router.RegisterAreaMappingRoutes(group, areaMappingH)
 }
