@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Star, Mail, Phone, FileText, Calendar } from "lucide-react";
+import { Star, Mail, Phone, FileText, Calendar, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { RecruitmentApplicant, ApplicantSource } from "../types";
@@ -86,12 +86,23 @@ export function ApplicantCard({ applicant, onClick, className }: ApplicantCardPr
       {/* Header: Rating and Source */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <RatingStars rating={applicant.rating} />
-        <Badge
-          variant="secondary"
-          className={cn("text-[10px] px-1.5 py-0", getSourceColor(applicant.source))}
-        >
-          {sourceLabel}
-        </Badge>
+        <div className="flex items-center gap-1">
+          {applicant.employee_id && (
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800"
+            >
+              <UserCheck className="h-3 w-3 mr-1" />
+              {applicant.employee?.employee_code || t("applicants.converted")}
+            </Badge>
+          )}
+          <Badge
+            variant="secondary"
+            className={cn("text-[10px] px-1.5 py-0", getSourceColor(applicant.source))}
+          >
+            {sourceLabel}
+          </Badge>
+        </div>
       </div>
 
       {/* Name */}

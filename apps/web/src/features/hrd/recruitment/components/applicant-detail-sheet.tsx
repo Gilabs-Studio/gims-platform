@@ -13,7 +13,12 @@ import {
   Tag,
   Trash2,
   Pencil,
+  UserPlus,
+  UserCheck,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "@/i18n/routing";
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -28,7 +33,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useApplicant,
   useApplicantActivities,
+  useCanConvertToEmployee,
 } from "../hooks/use-applicants";
+import { ConvertToEmployeeDialog } from "./convert-to-employee-dialog";
 import type { RecruitmentApplicant, ApplicantSource, ActivityType } from "../types";
 
 interface ApplicantDetailSheetProps {
@@ -86,6 +93,8 @@ function getActivityIcon(type: ActivityType) {
       return <FileText className="h-4 w-4" />;
     case "rating_changed":
       return <Star className="h-4 w-4" />;
+    case "converted":
+      return <UserCheck className="h-4 w-4" />;
     default:
       return <Tag className="h-4 w-4" />;
   }
@@ -118,6 +127,7 @@ export function ApplicantDetailSheet({
   onDelete,
 }: ApplicantDetailSheetProps) {
   const t = useTranslations("recruitment");
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   const { data: applicantData, isLoading: isLoadingApplicant } = useApplicant(
     applicantId || "",
@@ -127,8 +137,11 @@ export function ApplicantDetailSheet({
   const { data: activitiesData, isLoading: isLoadingActivities } =
     useApplicantActivities(applicantId || "", 1, 50);
 
+  const { data: canConvertData } = useCanConvertToEmployee(applicantId || "");
+
   const applicant = applicantData?.data;
   const activities = activitiesData?.data || [];
+  const canConvert = canConvertData?.data?.can_convert && !applicant?.employee_id;
 
   // Helper function to get full URL for resume
   const getResumeUrl = (resumePath: string) => {
@@ -260,6 +273,48 @@ export function ApplicantDetailSheet({
               <Separator />
 
               {/* Activity History */}
+              <Separator />
+
+              {/* Employee Info (if converted) */}
+              {applicant.employee_id && applicant.employee && (
+                <section className="space-y-3">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-primary" />
+                    {t("applicants.employeeInfo")}
+                  </h4>
+                  <div className="rounded-lg bg-primary/10 p-3 border border-primary/20">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{t("applicants.employeeCode")}</span>
+                        <span className="font-medium">{applicant.employee.employee_code}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{t("applicants.fields.name")}</span>
+                        <span className="font-medium">{applicant.employee.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">{t("applicants.fields.email")}</span>
+                        <span className="font-medium">{applicant.employee.email}</span>
+                      </div>
+                      <div className="pt-2">
+                        <Link
+                          href={{
+                            pathname: "/master-data/employees",
+                            query: { openId: applicant.employee.id },
+                          }}
+                          className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
+                        >
+                          {t("applicants.viewEmployee")}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              <Separator />
+
               <section className="space-y-3">
                 <h4 className="text-sm font-semibold">
                   {t("applicants.activityHistory")}
@@ -310,29 +365,58 @@ export function ApplicantDetailSheet({
 
         {/* Actions */}
         {applicant && (
-          <div className="flex items-center gap-2 pt-4 px-6 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onEdit?.(applicant)}
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              {t("common.edit")}
-            </Button>
-            <Button
-              variant="destructive"
-              className="flex-1"
-              onClick={() => {
-                onDelete?.(applicant.id);
-                onOpenChange(false);
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {t("common.delete")}
-            </Button>
+          <div className="flex flex-col gap-2 pt-4 px-6 border-t">
+            {/* Convert to Employee Button */}
+            {canConvert && (
+              <Button
+                variant="default"
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={() => setConvertDialogOpen(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                {t("applicants.convertToEmployee")}
+              </Button>
+            )}
+            {applicant.employee_id && (
+              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-2 rounded-md border border-primary/20">
+                <UserCheck className="h-4 w-4" />
+                <span>{t("applicants.alreadyConverted")}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onEdit?.(applicant)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                {t("common.edit")}
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => {
+                  onDelete?.(applicant.id);
+                  onOpenChange(false);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t("common.delete")}
+              </Button>
+            </div>
           </div>
         )}
       </SheetContent>
+
+      {/* Convert to Employee Dialog */}
+      <ConvertToEmployeeDialog
+        applicant={applicant || null}
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        onSuccess={() => {
+          // Refresh applicant data
+        }}
+      />
     </Sheet>
   );
 }

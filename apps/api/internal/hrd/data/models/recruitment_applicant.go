@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	organizationModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -32,6 +33,10 @@ type RecruitmentApplicant struct {
 	// Relations
 	Stage              ApplicantStage      `gorm:"foreignKey:StageID" json:"stage,omitempty"`
 	RecruitmentRequest RecruitmentRequest  `gorm:"foreignKey:RecruitmentRequestID" json:"recruitment_request,omitempty"`
+
+	// Link to Employee (set when converted)
+	EmployeeID *string                         `gorm:"type:uuid;index;column:employee_id" json:"employee_id"`
+	Employee   *organizationModels.Employee     `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 
 	// Timestamps
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`

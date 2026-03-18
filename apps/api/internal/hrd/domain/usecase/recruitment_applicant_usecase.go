@@ -41,4 +41,10 @@ type RecruitmentApplicantUsecase interface {
 
 	// GetByRecruitmentRequest retrieves applicants for a specific recruitment request
 	GetByRecruitmentRequest(ctx context.Context, recruitmentRequestID string, page, perPage int) ([]*dto.RecruitmentApplicantResponse, *response.PaginationMeta, error)
+
+	// ConvertToEmployee converts an applicant to an employee
+	ConvertToEmployee(ctx context.Context, applicantID string, req *dto.ConvertApplicantToEmployeeDTO, userID string) (*dto.RecruitmentApplicantResponse, error)
+
+	// CanConvertToEmployee checks if an applicant can be converted to an employee
+	CanConvertToEmployee(ctx context.Context, applicantID string) (bool, string, error)
 }
