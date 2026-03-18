@@ -17,7 +17,7 @@ type CreateJournalEntryRequest struct {
 	EntryDate         string               `json:"entry_date" binding:"required"`
 	Description       string               `json:"description"`
 	ReferenceType     *string              `json:"reference_type"`
-	ReferenceID       *string              `json:"reference_id" binding:"omitempty,uuid"`
+	ReferenceID       *string              `json:"reference_id"`
 	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
 	IsSystemGenerated bool                 `json:"is_system_generated"`
 	SourceDocumentURL *string              `json:"source_document_url"`
@@ -27,15 +27,26 @@ type UpdateJournalEntryRequest struct {
 	EntryDate     string               `json:"entry_date" binding:"required"`
 	Description   string               `json:"description"`
 	ReferenceType *string              `json:"reference_type"`
-	ReferenceID   *string              `json:"reference_id" binding:"omitempty,uuid"`
+	ReferenceID   *string              `json:"reference_id"`
 	Lines         []JournalLineRequest `json:"lines" binding:"required,min=2"`
+}
+
+// CreateAdjustmentJournalRequest is used for the dedicated adjustment journal endpoint.
+// reference_type is always forced to "MANUAL_ADJUSTMENT" on the backend.
+// description is required for audit trail.
+type CreateAdjustmentJournalRequest struct {
+	EntryDate         string               `json:"entry_date" binding:"required"`
+	Description       string               `json:"description" binding:"required,min=3"`
+	SourceDocumentURL *string              `json:"source_document_url"`
+	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
 }
 
 type ListJournalEntriesRequest struct {
 	Page          int                          `form:"page" binding:"omitempty,min=1"`
 	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search        string                       `form:"search"`
-	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted"`
+	Domain        *string                      `form:"domain" binding:"omitempty,oneof=sales purchase inventory stock cash_bank finance adjustment valuation"`
+	Status        *financeModels.JournalStatus `form:"status" binding:"omitempty,oneof=draft posted reversed"`
 	StartDate     *string                      `form:"start_date"`
 	EndDate       *string                      `form:"end_date"`
 	SortBy        string                       `form:"sort_by"`
@@ -58,6 +69,7 @@ type JournalEntryResponse struct {
 	Description       string                      `json:"description"`
 	ReferenceType     *string                     `json:"reference_type"`
 	ReferenceID       *string                     `json:"reference_id"`
+	ReferenceCode     *string                     `json:"reference_code"`
 	Status            financeModels.JournalStatus `json:"status"`
 	PostedAt          *time.Time                  `json:"posted_at"`
 	PostedBy          *string                     `json:"posted_by"`
@@ -66,6 +78,9 @@ type JournalEntryResponse struct {
 	Lines             []JournalLineResponse       `json:"lines"`
 	DebitTotal        float64                     `json:"debit_total"`
 	CreditTotal       float64                     `json:"credit_total"`
+	IsValuation       bool                        `json:"is_valuation"`
+	Source            string                      `json:"source"`
+	ValuationRunID    *string                     `json:"valuation_run_id,omitempty"`
 	CreatedAt         time.Time                   `json:"created_at"`
 	UpdatedAt         time.Time                   `json:"updated_at"`
 }
@@ -154,4 +169,54 @@ type BankAccountFormOption struct {
 // JournalEntryFormDataResponse for journal entry form options.
 type JournalEntryFormDataResponse struct {
 	ChartOfAccounts []COAFormOption `json:"chart_of_accounts"`
+}
+
+// ===== Valuation DTOs =====
+
+// RunValuationRequest is the request payload for triggering a valuation run.
+type RunValuationRequest struct {
+	ValuationType string `json:"valuation_type" binding:"required,oneof=inventory currency depreciation cost"`
+	PeriodStart   string `json:"period_start" binding:"required"` // YYYY-MM-DD
+	PeriodEnd     string `json:"period_end" binding:"required"`   // YYYY-MM-DD
+	ReferenceID   string `json:"reference_id"`                    // optional, for idempotency
+}
+
+// ValuationRunResponse is the API response for a valuation run record.
+type ValuationRunResponse struct {
+	ID             string  `json:"id"`
+	ReferenceID    string  `json:"reference_id"`
+	ValuationType  string  `json:"valuation_type"`
+	PeriodStart    string  `json:"period_start"`
+	PeriodEnd      string  `json:"period_end"`
+	Status         string  `json:"status"`
+	TotalDebit     float64 `json:"total_debit"`
+	TotalCredit    float64 `json:"total_credit"`
+	JournalEntryID *string `json:"journal_entry_id,omitempty"`
+	ErrorMessage   *string `json:"error_message,omitempty"`
+	CreatedBy      *string `json:"created_by,omitempty"`
+	CompletedAt    *string `json:"completed_at,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+	UpdatedAt      string  `json:"updated_at"`
+}
+
+// ValuationKPIMeta is additional metadata returned with valuation list endpoints.
+type ValuationKPIMeta struct {
+	TotalEntries   int64   `json:"total_entries"`
+	TotalDebitSum  float64 `json:"total_debit_sum"`
+	TotalCreditSum float64 `json:"total_credit_sum"`
+	CompletedRuns  int64   `json:"completed_runs"`
+	ProcessingRuns int64   `json:"processing_runs"`
+	FailedRuns     int64   `json:"failed_runs"`
+}
+
+// ListValuationRunsRequest for filtering valuation runs.
+type ListValuationRunsRequest struct {
+	Page          int     `form:"page" binding:"omitempty,min=1"`
+	PerPage       int     `form:"per_page" binding:"omitempty,min=1,max=100"`
+	ValuationType *string `form:"valuation_type" binding:"omitempty,oneof=inventory currency depreciation cost"`
+	Status        *string `form:"status" binding:"omitempty,oneof=requested processing completed no_difference failed"`
+	StartDate     *string `form:"start_date"`
+	EndDate       *string `form:"end_date"`
+	SortBy        string  `form:"sort_by"`
+	SortDir       string  `form:"sort_dir"`
 }

@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { PageMotion } from "@/components/motion";
 
 const FinanceJournalsContainer = dynamic(
   () =>
@@ -46,9 +47,11 @@ function JournalsSkeleton() {
 export default function FinanceJournalsPage() {
   return (
     <PermissionGuard requiredPermission="journal.read">
-      <Suspense fallback={<JournalsSkeleton />}>
-        <FinanceJournalsContainer />
-      </Suspense>
+      <PageMotion>
+        <Suspense fallback={<JournalsSkeleton />}>
+          <FinanceJournalsContainer />
+        </Suspense>
+      </PageMotion>
     </PermissionGuard>
   );
 }

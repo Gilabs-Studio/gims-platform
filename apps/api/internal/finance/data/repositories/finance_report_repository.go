@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -17,8 +19,8 @@ type GLAccountBalance struct {
 }
 
 type FinanceReportRepository interface {
-	GetAccountBalances(ctx context.Context, startDate, endDate time.Time) ([]GLAccountBalance, error)
-	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time) ([]financeModels.JournalLine, error)
+	GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error)
+	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID *string) ([]financeModels.JournalLine, error)
 }
 
 type financeReportRepository struct {
@@ -29,7 +31,34 @@ func NewFinanceReportRepository(db *gorm.DB) FinanceReportRepository {
 	return &financeReportRepository{db: db}
 }
 
-func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startDate, endDate time.Time) ([]GLAccountBalance, error) {
+func normalizeCompanyID(companyID *string) *string {
+	if companyID == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*companyID)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func (r *financeReportRepository) validateCompanyFilterSupport(ctx context.Context, companyID *string) error {
+	if companyID == nil {
+		return nil
+	}
+	hasColumn := r.db.WithContext(ctx).Migrator().HasColumn(&financeModels.JournalEntry{}, "company_id")
+	if !hasColumn {
+		return fmt.Errorf("company_id filter is not supported: journal_entries.company_id column not found")
+	}
+	return nil
+}
+
+func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error) {
+	companyID = normalizeCompanyID(companyID)
+	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
+		return nil, err
+	}
+
 	// 1. Calculate Opening Balance (posted journals before startDate)
 	type opRow struct {
 		CoAID   string  `gorm:"column:coa_id"`
@@ -48,10 +77,23 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
 		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
-		WHERE je.status = 'posted' AND je.entry_date < ?
+		WHERE je.status = 'posted'
+			AND je.entry_date < ?
+			AND je.deleted_at IS NULL
+			AND jl.deleted_at IS NULL
+			AND coa.deleted_at IS NULL
+	`
+	opArgs := []interface{}{startDate}
+	if companyID != nil {
+		opQuery += `
+			AND je.company_id = ?
+		`
+		opArgs = append(opArgs, *companyID)
+	}
+	opQuery += `
 		GROUP BY jl.chart_of_account_id
 	`
-	if err := r.db.WithContext(ctx).Raw(opQuery, startDate).Scan(&ops).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(opQuery, opArgs...).Scan(&ops).Error; err != nil {
 		return nil, err
 	}
 	opMap := make(map[string]float64)
@@ -73,10 +115,23 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 			SUM(jl.credit) as credit
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
-		WHERE je.status = 'posted' AND je.entry_date >= ? AND je.entry_date <= ?
+		WHERE je.status = 'posted'
+			AND je.entry_date >= ?
+			AND je.entry_date <= ?
+			AND je.deleted_at IS NULL
+			AND jl.deleted_at IS NULL
+	`
+	moveArgs := []interface{}{startDate, endDate}
+	if companyID != nil {
+		moveQuery += `
+			AND je.company_id = ?
+		`
+		moveArgs = append(moveArgs, *companyID)
+	}
+	moveQuery += `
 		GROUP BY jl.chart_of_account_id
 	`
-	if err := r.db.WithContext(ctx).Raw(moveQuery, startDate, endDate).Scan(&moves).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(moveQuery, moveArgs...).Scan(&moves).Error; err != nil {
 		return nil, err
 	}
 
@@ -117,16 +172,27 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 	return res, nil
 }
 
-func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time) ([]financeModels.JournalLine, error) {
+func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID *string) ([]financeModels.JournalLine, error) {
+	companyID = normalizeCompanyID(companyID)
+	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
+		return nil, err
+	}
+
 	var lines []financeModels.JournalLine
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
 		Where("journal_entries.status = 'posted'").
+		Where("journal_entries.deleted_at IS NULL").
+		Where("journal_lines.deleted_at IS NULL").
 		Where("journal_entries.entry_date >= ?", startDate).
-		Where("journal_entries.entry_date <= ?", endDate).
-		Order("journal_entries.entry_date asc, journal_entries.created_at asc").
+		Where("journal_entries.entry_date <= ?", endDate)
+	if companyID != nil {
+		query = query.Where("journal_entries.company_id = ?", *companyID)
+	}
+	err := query.
+		Order("journal_entries.entry_date asc, journal_entries.id asc, journal_lines.id asc").
 		Find(&lines).Error
 	return lines, err
 }

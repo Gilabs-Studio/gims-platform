@@ -12,7 +12,7 @@ import (
 func SeedRoles() error {
 	// Check if roles already exist
 	// Refactored to Upsert/Ensure existence of Fixed Roles
-	
+
 	roles := []models.Role{
 		{
 			ID:          AdminRoleID,
@@ -61,6 +61,20 @@ func SeedRoles() error {
 			Name:        "Finance Manager",
 			Code:        "finance_manager",
 			Description: "Manager with division-level access to finance data",
+			Status:      "active",
+		},
+		{
+			ID:          AccountantRoleID,
+			Name:        "Accountant",
+			Code:        "accountant",
+			Description: "Finance accountant focused on journaling and operational accounting",
+			Status:      "active",
+		},
+		{
+			ID:          AuditorRoleID,
+			Name:        "Auditor",
+			Code:        "auditor",
+			Description: "Read-only audit role for financial controls and review",
 			Status:      "active",
 		},
 	}

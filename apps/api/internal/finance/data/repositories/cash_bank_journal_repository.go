@@ -11,15 +11,16 @@ import (
 )
 
 type CashBankJournalListParams struct {
-	Search    string
-	Type      *financeModels.CashBankType
-	Status    *financeModels.CashBankStatus
-	StartDate *time.Time
-	EndDate   *time.Time
-	SortBy    string
-	SortDir   string
-	Limit     int
-	Offset    int
+	Search        string
+	Type          *financeModels.CashBankType
+	Status        *financeModels.CashBankStatus
+	BankAccountID *string
+	StartDate     *time.Time
+	EndDate       *time.Time
+	SortBy        string
+	SortDir       string
+	Limit         int
+	Offset        int
 }
 
 type CashBankJournalRepository interface {
@@ -48,12 +49,12 @@ func (r *cashBankJournalRepository) FindByID(ctx context.Context, id string, wit
 }
 
 var cashBankAllowedSort = map[string]string{
-	"created_at":        "cash_bank_journals.created_at",
-	"updated_at":        "cash_bank_journals.updated_at",
-	"transaction_date":  "cash_bank_journals.transaction_date",
-	"status":            "cash_bank_journals.status",
-	"type":              "cash_bank_journals.type",
-	"total_amount":      "cash_bank_journals.total_amount",
+	"created_at":       "cash_bank_journals.created_at",
+	"updated_at":       "cash_bank_journals.updated_at",
+	"transaction_date": "cash_bank_journals.transaction_date",
+	"status":           "cash_bank_journals.status",
+	"type":             "cash_bank_journals.type",
+	"total_amount":     "cash_bank_journals.total_amount",
 }
 
 func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJournalListParams) ([]financeModels.CashBankJournal, int64, error) {
@@ -74,6 +75,9 @@ func (r *cashBankJournalRepository) List(ctx context.Context, params CashBankJou
 	}
 	if params.Status != nil {
 		q = q.Where("cash_bank_journals.status = ?", *params.Status)
+	}
+	if params.BankAccountID != nil {
+		q = q.Where("cash_bank_journals.bank_account_id = ?", *params.BankAccountID)
 	}
 	if params.StartDate != nil {
 		q = q.Where("cash_bank_journals.transaction_date >= ?", *params.StartDate)

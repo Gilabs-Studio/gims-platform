@@ -277,6 +277,12 @@ export const navigationConfig: NavItem[] = [
         icon: "bar-chart-3",
         permission: "sales_payment.read",
       },
+      {
+        name: "Sales Target",
+        url: "/sales/targets",
+        icon: "check-square",
+        permission: "sales_target.read",
+      },
     ],
   },
   {
@@ -385,6 +391,36 @@ export const navigationConfig: NavItem[] = [
                 url: "/finance/journals",
                 icon: "file-text",
                 permission: "journal.read",
+              },
+              {
+                name: "Sales Journal",
+                url: "/finance/journals/sales",
+                icon: "receipt",
+                permission: "sales_journal.read",
+              },
+              {
+                name: "Purchase Journal",
+                url: "/finance/journals/purchase",
+                icon: "shopping-cart",
+                permission: "purchase_journal.read",
+              },
+              {
+                name: "Adjustment Journal",
+                url: "/finance/journals/adjustment",
+                icon: "pencil",
+                permission: "adjustment_journal.read",
+              },
+              {
+                name: "Journal Valuation",
+                url: "/finance/journals/valuation",
+                icon: "calculator",
+                permission: "journal_valuation.read",
+              },
+              {
+                name: "Cash & Bank Journal",
+                url: "/finance/journals/cash-bank",
+                icon: "banknote",
+                permission: "cash_bank_journal.read",
               },
               {
                 name: "Journal Lines",

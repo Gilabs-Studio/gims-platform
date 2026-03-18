@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"math"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -45,6 +50,8 @@ type customerInvoiceUsecase struct {
 	invoiceRepo    repositories.CustomerInvoiceRepository
 	productRepo    productRepos.ProductRepository
 	salesOrderRepo repositories.SalesOrderRepository
+	journalUC      finUsecase.JournalEntryUsecase
+	coaUC          finUsecase.ChartOfAccountUsecase
 }
 
 // NewCustomerInvoiceUsecase creates a new CustomerInvoiceUsecase
@@ -53,12 +60,16 @@ func NewCustomerInvoiceUsecase(
 	invoiceRepo repositories.CustomerInvoiceRepository,
 	productRepo productRepos.ProductRepository,
 	salesOrderRepo repositories.SalesOrderRepository,
+	journalUC finUsecase.JournalEntryUsecase,
+	coaUC finUsecase.ChartOfAccountUsecase,
 ) CustomerInvoiceUsecase {
 	return &customerInvoiceUsecase{
 		db:             db,
 		invoiceRepo:    invoiceRepo,
 		productRepo:    productRepo,
 		salesOrderRepo: salesOrderRepo,
+		journalUC:      journalUC,
+		coaUC:          coaUC,
 	}
 }
 
@@ -530,7 +541,226 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		return nil, err
 	}
 
+	if shouldTriggerSalesInvoiceJournal(invoice.Status, newStatus, updatedInvoice.Type) {
+		triggerCtx := withActorContext(ctx, userID, updatedInvoice.CreatedBy)
+		if err := uc.triggerSalesInvoiceJournal(triggerCtx, updatedInvoice); err != nil {
+			return nil, fmt.Errorf("failed to trigger sales invoice journal: %w", err)
+		}
+	}
+
+	if shouldTriggerSalesInvoiceReversal(invoice.Status, newStatus, updatedInvoice.Type) {
+		triggerCtx := withActorContext(ctx, userID, updatedInvoice.CreatedBy)
+		if err := uc.triggerSalesInvoiceJournalReversal(triggerCtx, updatedInvoice); err != nil {
+			return nil, fmt.Errorf("failed to reverse sales invoice journal: %w", err)
+		}
+	}
+
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
+}
+
+func shouldTriggerSalesInvoiceJournal(previousStatus, currentStatus models.CustomerInvoiceStatus, invoiceType models.CustomerInvoiceType) bool {
+	if invoiceType != models.CustomerInvoiceTypeRegular {
+		return false
+	}
+
+	if currentStatus != models.CustomerInvoiceStatusUnpaid {
+		return false
+	}
+
+	return previousStatus != models.CustomerInvoiceStatusUnpaid
+}
+
+func shouldTriggerSalesInvoiceReversal(previousStatus, currentStatus models.CustomerInvoiceStatus, invoiceType models.CustomerInvoiceType) bool {
+	if invoiceType != models.CustomerInvoiceTypeRegular {
+		return false
+	}
+
+	if currentStatus != models.CustomerInvoiceStatusCancelled {
+		return false
+	}
+
+	return previousStatus == models.CustomerInvoiceStatusUnpaid ||
+		previousStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		previousStatus == models.CustomerInvoiceStatusPartial ||
+		previousStatus == models.CustomerInvoiceStatusPaid
+}
+
+func withActorContext(ctx context.Context, preferredUserID, fallbackUserID *string) context.Context {
+	if actor, _ := ctx.Value("user_id").(string); strings.TrimSpace(actor) != "" {
+		return ctx
+	}
+
+	if preferredUserID != nil && strings.TrimSpace(*preferredUserID) != "" {
+		return context.WithValue(ctx, "user_id", strings.TrimSpace(*preferredUserID))
+	}
+
+	if fallbackUserID != nil && strings.TrimSpace(*fallbackUserID) != "" {
+		return context.WithValue(ctx, "user_id", strings.TrimSpace(*fallbackUserID))
+	}
+
+	return ctx
+}
+
+func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice == nil || uc.journalUC == nil || uc.coaUC == nil {
+		return nil
+	}
+
+	receivableAccount, err := uc.coaUC.GetByCode(ctx, "11300")
+	if err != nil {
+		return fmt.Errorf("trade receivables account lookup failed: %w", err)
+	}
+	revenueAccount, err := uc.coaUC.GetByCode(ctx, "4100")
+	if err != nil {
+		return fmt.Errorf("sales revenue account lookup failed: %w", err)
+	}
+	taxOutputAccount, err := uc.coaUC.GetByCode(ctx, "21500")
+	if err != nil {
+		return fmt.Errorf("vat output account lookup failed: %w", err)
+	}
+	salesAdvanceAccount, err := uc.coaUC.GetByCode(ctx, "21200")
+	if err != nil {
+		return fmt.Errorf("sales advance account lookup failed: %w", err)
+	}
+	cogsAccount, err := uc.coaUC.GetByCode(ctx, "5100")
+	if err != nil {
+		return fmt.Errorf("cogs account lookup failed: %w", err)
+	}
+	inventoryAccount, err := uc.coaUC.GetByCode(ctx, "11400")
+	if err != nil {
+		return fmt.Errorf("inventory account lookup failed: %w", err)
+	}
+
+	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
+	cogsTotal := 0.0
+	for _, item := range invoice.Items {
+		if item.HPPAmount <= 0 || item.Quantity <= 0 {
+			continue
+		}
+		cogsTotal += item.HPPAmount * item.Quantity
+	}
+
+	lines := make([]finDto.JournalLineRequest, 0, 6)
+	lines = append(lines, finDto.JournalLineRequest{
+		ChartOfAccountID: receivableAccount.ID,
+		Debit:            invoice.Amount,
+		Credit:           0,
+		Memo:             fmt.Sprintf("Trade receivable %s", invoice.Code),
+	})
+
+	if invoice.DownPaymentAmount > 0 {
+		lines = append(lines, finDto.JournalLineRequest{
+			ChartOfAccountID: salesAdvanceAccount.ID,
+			Debit:            invoice.DownPaymentAmount,
+			Credit:           0,
+			Memo:             fmt.Sprintf("Apply down payment %s", invoice.Code),
+		})
+	}
+
+	lines = append(lines, finDto.JournalLineRequest{
+		ChartOfAccountID: revenueAccount.ID,
+		Debit:            0,
+		Credit:           revenueBase,
+		Memo:             fmt.Sprintf("Revenue recognition %s", invoice.Code),
+	})
+
+	if invoice.TaxAmount > 0 {
+		lines = append(lines, finDto.JournalLineRequest{
+			ChartOfAccountID: taxOutputAccount.ID,
+			Debit:            0,
+			Credit:           invoice.TaxAmount,
+			Memo:             fmt.Sprintf("VAT Output %s", invoice.Code),
+		})
+	}
+
+	if cogsTotal > 0 {
+		lines = append(lines,
+			finDto.JournalLineRequest{
+				ChartOfAccountID: cogsAccount.ID,
+				Debit:            cogsTotal,
+				Credit:           0,
+				Memo:             fmt.Sprintf("COGS recognition %s", invoice.Code),
+			},
+			finDto.JournalLineRequest{
+				ChartOfAccountID: inventoryAccount.ID,
+				Debit:            0,
+				Credit:           cogsTotal,
+				Memo:             fmt.Sprintf("Inventory release %s", invoice.Code),
+			},
+		)
+	}
+
+	debitTotal := 0.0
+	creditTotal := 0.0
+	for _, line := range lines {
+		debitTotal += line.Debit
+		creditTotal += line.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.0001 {
+		return fmt.Errorf("generated journal is not balanced: debit %.2f credit %.2f", debitTotal, creditTotal)
+	}
+
+	refType := "SALES_INVOICE"
+	refID := invoice.ID
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	req := &finDto.CreateJournalEntryRequest{
+		EntryDate:         invoice.InvoiceDate.Format(dateFormat),
+		Description:       fmt.Sprintf("Sales Invoice %s", invoice.Code),
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	}
+
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "sales_customer_invoice",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "sales_customer_invoice",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "sales_customer_invoice",
+	})
+
+	return nil
+}
+
+func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	if invoice == nil || uc.journalUC == nil {
+		return nil
+	}
+
+	refType := "SALES_INVOICE"
+	var existing financeModels.JournalEntry
+	err := uc.db.WithContext(ctx).
+		Where("reference_type = ? AND reference_id = ?", refType, invoice.ID).
+		Where("status = ?", financeModels.JournalStatusPosted).
+		First(&existing).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = uc.journalUC.Reverse(ctx, existing.ID)
+	return err
 }
 
 // isValidStatusTransition checks if the status transition is valid

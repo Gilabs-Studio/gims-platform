@@ -10,6 +10,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
@@ -41,10 +43,12 @@ type StockOpnameUsecase interface {
 type stockOpnameUsecase struct {
 	repo        repository.StockOpnameRepository
 	inventoryUC inventoryUC.InventoryUsecase
+	journalUC   finUC.JournalEntryUsecase
+	coaUC       finUC.ChartOfAccountUsecase
 }
 
-func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase) StockOpnameUsecase {
-	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC}
+func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase, journalUC finUC.JournalEntryUsecase, coaUC finUC.ChartOfAccountUsecase) StockOpnameUsecase {
+	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC, journalUC: journalUC, coaUC: coaUC}
 }
 
 func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpnameRequest, createdBy *string) (*dto.StockOpnameResponse, error) {
@@ -281,6 +285,10 @@ func (u *stockOpnameUsecase) Post(ctx context.Context, id string, postedBy *stri
 		if err := u.inventoryUC.AdjustStockFromOpname(ctx, adjustReq); err != nil {
 			return nil, fmt.Errorf("failed to create stock adjustments: %w", err)
 		}
+
+		if err := u.triggerStockOpnameJournal(ctx, opname, items); err != nil {
+			return nil, fmt.Errorf("failed to post stock opname journal: %w", err)
+		}
 	}
 
 	// 5. Update status to posted
@@ -292,4 +300,74 @@ func (u *stockOpnameUsecase) updateStatus(ctx context.Context, id string, status
 		return nil, err
 	}
 	return u.GetByID(ctx, id)
+}
+
+func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opname *models.StockOpname, items []models.StockOpnameItem) error {
+	if u.journalUC == nil || u.coaUC == nil {
+		return nil
+	}
+
+	inventoryAccount, err := u.coaUC.GetByCode(ctx, "11400")
+	if err != nil {
+		return err
+	}
+	varianceAccount, err := u.coaUC.GetByCode(ctx, "61000")
+	if err != nil {
+		return err
+	}
+
+	lines := make([]finDTO.JournalLineRequest, 0)
+	totalVarianceValue := 0.0
+
+	for _, item := range items {
+		if item.VarianceQty == 0 || item.Product == nil {
+			continue
+		}
+
+		unitCost := item.Product.CurrentHpp
+		if unitCost <= 0 {
+			unitCost = item.Product.CostPrice
+		}
+		if unitCost <= 0 {
+			continue
+		}
+
+		lineValue := math.Abs(item.VarianceQty * unitCost)
+		if lineValue <= 0 {
+			continue
+		}
+
+		totalVarianceValue += lineValue
+		memo := fmt.Sprintf("Stock opname %s - %s", opname.OpnameNumber, item.Product.Name)
+
+		if item.VarianceQty > 0 {
+			lines = append(lines,
+				finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
+				finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
+			)
+			continue
+		}
+
+		lines = append(lines,
+			finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
+			finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
+		)
+	}
+
+	if totalVarianceValue <= 0 || len(lines) == 0 {
+		return nil
+	}
+
+	refType := "STOCK_OPNAME"
+	refID := opname.ID
+	req := &finDTO.CreateJournalEntryRequest{
+		EntryDate:     opname.Date.Format("2006-01-02"),
+		Description:   fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
+		ReferenceType: &refType,
+		ReferenceID:   &refID,
+		Lines:         lines,
+	}
+
+	_, err = u.journalUC.PostOrUpdateJournal(ctx, req)
+	return err
 }
