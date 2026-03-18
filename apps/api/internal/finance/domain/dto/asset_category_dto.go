@@ -8,10 +8,12 @@ import (
 
 type CreateAssetCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
+	Type financeModels.AssetCategoryType `json:"type" binding:"omitempty,oneof=FIXED CURRENT INTANGIBLE OTHER"`
 
-	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB"`
-	UsefulLifeMonths   int                              `json:"useful_life_months" binding:"required,gt=0"`
-	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gt=0"`
+	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB NONE"`
+	UsefulLifeMonths   int                              `json:"useful_life_months" binding:"omitempty,gte=0"`
+	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
+	IsDepreciable      *bool                            `json:"is_depreciable"`
 
 	AssetAccountID                     string `json:"asset_account_id" binding:"required,uuid"`
 	AccumulatedDepreciationAccountID   string `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
@@ -22,10 +24,12 @@ type CreateAssetCategoryRequest struct {
 
 type UpdateAssetCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
+	Type financeModels.AssetCategoryType `json:"type" binding:"omitempty,oneof=FIXED CURRENT INTANGIBLE OTHER"`
 
-	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB"`
-	UsefulLifeMonths   int                              `json:"useful_life_months" binding:"required,gt=0"`
-	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gt=0"`
+	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB NONE"`
+	UsefulLifeMonths   int                              `json:"useful_life_months" binding:"omitempty,gte=0"`
+	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
+	IsDepreciable      *bool                            `json:"is_depreciable"`
 
 	AssetAccountID                     string `json:"asset_account_id" binding:"required,uuid"`
 	AccumulatedDepreciationAccountID   string `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
@@ -43,12 +47,14 @@ type ListAssetCategoriesRequest struct {
 }
 
 type AssetCategoryResponse struct {
-	ID string `json:"id"`
-	Name string `json:"name"`
+	ID   string                          `json:"id"`
+	Name string                          `json:"name"`
+	Type financeModels.AssetCategoryType `json:"type"`
 
 	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method"`
 	UsefulLifeMonths   int                              `json:"useful_life_months"`
 	DepreciationRate   float64                          `json:"depreciation_rate"`
+	IsDepreciable      bool                             `json:"is_depreciable"`
 
 	AssetAccountID                   string `json:"asset_account_id"`
 	AccumulatedDepreciationAccountID string `json:"accumulated_depreciation_account_id"`

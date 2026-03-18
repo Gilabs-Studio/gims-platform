@@ -19,6 +19,7 @@ import { usePurchaseRequisitions } from "@/features/purchase/requisitions/hooks/
 import { usePurchaseOrders } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import { useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { formatDate as formatDateUtil } from "@/lib/utils";
 
 const PER_PAGE = 8;
 type PurchaseTab = "requisition" | "order" | "goods-receipt" | "supplier-invoice";
@@ -34,11 +35,7 @@ function formatIDR(amount: number) {
 
 function formatDate(dateStr?: string | null) {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDateUtil(dateStr);
 }
 
 function RowSkeleton({ count = 3 }: { count?: number }) {

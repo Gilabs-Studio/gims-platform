@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventoryTree, useInventoryTreeProducts, useInventoryTreeBatches } from "../hooks/use-inventory-tree";
 import { InventoryTreeWarehouse, InventoryStockItem } from "../types";
-import { resolveImageUrl } from "@/lib/utils";
+import { formatDate, resolveImageUrl } from "@/lib/utils";
 
 // --- Sub-components for cleaner file ---
 
@@ -64,7 +64,7 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
           <span className="text-muted-foreground/50">▶</span>
           <span className="font-mono truncate">{batch.batch_number}</span>
           <span className="tabular-nums">
-            {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "—"}
+            {batch.expiry_date ? formatDate(batch.expiry_date) : "—"}
           </span>
           <span className="font-medium tabular-nums text-right">{batch.current_quantity}</span>
           <span className="tabular-nums text-right">{batch.reserved_quantity}</span>

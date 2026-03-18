@@ -1,0 +1,50 @@
+export const salesReturnsId = {
+  salesReturns: {
+    title: "Retur Penjualan",
+    subtitle: "Kelola pengembalian barang dari pelanggan",
+    add: "Buat Retur",
+    search: "Cari nomor retur atau alasan",
+    empty: "Belum ada data retur penjualan",
+    columns: {
+      code: "Nomor Retur",
+      invoice: "Invoice",
+      action: "Aksi",
+      status: "Status",
+      createdAt: "Dibuat",
+      amount: "Nilai",
+    },
+    common: {
+      add: "Buat Retur",
+      updated: "Retur penjualan berhasil diperbarui",
+      deleted: "Retur penjualan berhasil dihapus",
+      deleteConfirmation: "Apakah Anda yakin ingin menghapus retur penjualan ini?",
+      error: "Terjadi kesalahan",
+    },
+    validation: {
+      duplicateItem: "Produk duplikat tidak diperbolehkan pada item retur.",
+      qtyExceeds: "Qty melebihi kuantitas retur yang tersedia untuk {product}. Diminta: {requested}, Terkirim: {delivered}, Sudah diretur: {returned}, Tersedia: {available}",
+    },
+    status: {
+      draft: "Draft",
+      submitted: "Diajukan",
+      processed: "Diproses",
+      rejected: "Ditolak",
+    },
+    actions: {
+      view: "Lihat",
+      submit: "Ajukan",
+      process: "Proses",
+      reject: "Tolak",
+      delete: "Hapus",
+    },
+    detail: {
+      title: "Detail Retur Penjualan",
+      status: "Status",
+      delivery: "Delivery",
+      salesOrder: "Sales Order",
+      action: "Aksi",
+      amount: "Nilai",
+      createdAt: "Dibuat",
+    },
+  },
+};

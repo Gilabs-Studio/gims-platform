@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leadService } from "../services/lead-service";
+import { activityKeys } from "../../activity/hooks/use-activities";
 import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest } from "../types";
 
 const QUERY_KEY = "crm-leads";
@@ -71,8 +72,22 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateLeadData }) =>
       leadService.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
+      // Keep lead list/detail in sync.
       qc.invalidateQueries({ queryKey: leadKeys.all });
+      // Ensure activity timeline updates immediately after a lead status/details change.
+      qc.invalidateQueries({
+        queryKey: activityKeys.all,
+        predicate: (query) => {
+          const key = query.queryKey as unknown[];
+          // Match timeline queries for this lead (any page).
+          return (
+            key[0] === "crm-activities" &&
+            key[1] === "timeline" &&
+            (key[2] as Record<string, unknown> | undefined)?.lead_id === id
+          );
+        },
+      });
     },
   });
 }

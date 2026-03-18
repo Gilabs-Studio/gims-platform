@@ -99,6 +99,7 @@ export function AssetLocationList() {
             <TableRow>
               <TableHead>{t("fields.name")}</TableHead>
               <TableHead>{t("fields.description")}</TableHead>
+              <TableHead>{t("fields.address")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -106,14 +107,14 @@ export function AssetLocationList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={3}>
+                  <TableCell colSpan={4}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -122,6 +123,7 @@ export function AssetLocationList() {
                 <TableRow key={item.id}>
                   <TableCell>{item.name}</TableCell>
                   <TableCell className="max-w-[520px] truncate">{item.description || "-"}</TableCell>
+                  <TableCell className="max-w-[300px] truncate">{item.address || "-"}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

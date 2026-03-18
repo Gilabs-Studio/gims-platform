@@ -1,5 +1,98 @@
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 
+// Area Mapping types
+
+/** Item type for area mapping */
+type AreaMappingItemType = "customer" | "lead";
+
+/** Customer data on the map */
+export interface AreaMappingCustomerData {
+  id: string;
+  code: string;
+  name: string;
+  type: "customer";
+  latitude: number;
+  longitude: number;
+  province: string;
+  city: string;
+  activity_count: number;
+  deal_count: number;
+  total_deal_value: number;
+  last_activity_at?: string;
+  intensity_score: number;
+}
+
+/** Lead data on the map */
+export interface AreaMappingLeadData {
+  id: string;
+  code: string;
+  name: string;
+  type: "lead";
+  latitude: number;
+  longitude: number;
+  province: string;
+  city: string;
+  lead_status: string;
+  lead_score: number;
+  estimated_value: number;
+  assigned_to?: string;
+  assigned_name?: string;
+  activity_count: number;
+  task_count: number;
+  last_activity_at?: string;
+  intensity_score: number;
+}
+
+/** Area mapping item (union type of customer or lead) */
+export interface AreaMappingItem {
+  type: AreaMappingItemType;
+  customer?: AreaMappingCustomerData;
+  lead?: AreaMappingLeadData;
+}
+
+/** Area mapping summary stats */
+export interface AreaMappingSummary {
+  total_customers: number;
+  total_leads: number;
+  total_activities: number;
+  total_pipeline_value: number;
+  max_intensity_score: number;
+  min_intensity_score: number;
+}
+
+/** Area mapping filter meta */
+export interface AreaMappingFilterMeta {
+  month?: number;
+  year?: number;
+}
+
+/** Cluster summary by province for GeoJSON intensity rendering */
+export interface AreaMappingCluster {
+  city: string;
+  total_points: number;
+  customer_count: number;
+  lead_count: number;
+  avg_intensity: number;
+  max_intensity: number;
+  center_lat: number;
+  center_lng: number;
+}
+
+/** Full area mapping response */
+export interface AreaMappingResponse {
+  items: AreaMappingItem[];
+  clusters: AreaMappingCluster[];
+  summary: AreaMappingSummary;
+  filters: AreaMappingFilterMeta;
+}
+
+export interface AreaMappingRequest {
+  month?: number;
+  year?: number;
+}
+
+export type AreaMappingApiResponse = ApiResponse<AreaMappingResponse>;
+
 // Area Capture types matching backend DTO
 export interface AreaCapture {
   id: string;

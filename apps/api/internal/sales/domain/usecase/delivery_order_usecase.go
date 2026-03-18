@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -20,14 +21,14 @@ import (
 )
 
 var (
-	ErrDeliveryOrderNotFound      = errors.New("delivery order not found")
-	ErrDeliveryOrderAlreadyExists = errors.New("delivery order with this code already exists")
+	ErrDeliveryOrderNotFound           = errors.New("delivery order not found")
+	ErrDeliveryOrderAlreadyExists      = errors.New("delivery order with this code already exists")
 	ErrInvalidDeliveryStatusTransition = errors.New("invalid delivery status transition")
-	ErrDeliveryProductNotFound            = errors.New("product not found in delivery")
-	ErrInvalidDeliveryOrderStatus = errors.New("cannot modify delivery order in current status")
-	ErrDeliverySalesOrderNotFound         = errors.New("sales order not found for delivery")
-	ErrInsufficientBatchStock     = errors.New("insufficient stock in selected batch")
-	ErrBatchNotFound              = errors.New("inventory batch not found")
+	ErrDeliveryProductNotFound         = errors.New("product not found in delivery")
+	ErrInvalidDeliveryOrderStatus      = errors.New("cannot modify delivery order in current status")
+	ErrDeliverySalesOrderNotFound      = errors.New("sales order not found for delivery")
+	ErrInsufficientBatchStock          = errors.New("insufficient stock in selected batch")
+	ErrBatchNotFound                   = errors.New("inventory batch not found")
 )
 
 // DeliveryOrderUsecase defines the interface for delivery order business logic
@@ -47,8 +48,8 @@ type DeliveryOrderUsecase interface {
 type deliveryOrderUsecase struct {
 	db                *gorm.DB
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository
-	salesOrderRepo   salesOrderRepos.SalesOrderRepository
-	productRepo      productRepos.ProductRepository
+	salesOrderRepo    salesOrderRepos.SalesOrderRepository
+	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
 }
 
@@ -167,6 +168,12 @@ func (u *deliveryOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Del
 }
 
 func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDeliveryOrderRequest, createdBy *string) (*dto.DeliveryOrderResponse, error) {
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		return nil, errors.New("warehouse_id is required")
+	}
+	req.WarehouseID = warehouseID
+
 	// Verify sales order exists
 	salesOrder, err := u.salesOrderRepo.FindByID(ctx, req.SalesOrderID)
 	if err != nil {
@@ -310,6 +317,16 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	// Check if delivery order can be modified
 	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusApproved && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryOrderStatus
+	}
+	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
+		return nil, errors.New("warehouse_id is required")
+	}
+	if req.WarehouseID != nil {
+		trimmedWarehouseID := strings.TrimSpace(*req.WarehouseID)
+		if trimmedWarehouseID == "" {
+			return nil, errors.New("warehouse_id is required")
+		}
+		req.WarehouseID = &trimmedWarehouseID
 	}
 
 	// Validate products and batches if items are being updated
@@ -512,6 +529,9 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	if deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
+	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
+		return nil, errors.New("warehouse_id is required")
+	}
 
 	// Ship delivery order
 	if err := u.deliveryOrderRepo.Ship(ctx, id, userID, req.TrackingNumber); err != nil {
@@ -533,9 +553,9 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 
 			// Deduct from batch
 			if err := u.inventoryUC.DeductStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
-				return nil, err 
+				return nil, err
 			}
-			
+
 			// Create stock movement record (Outbound)
 			movementReq := &inventoryDto.StockMovementRequest{
 				InventoryBatchID: *item.InventoryBatchID,
@@ -622,19 +642,19 @@ func (u *deliveryOrderUsecase) SelectBatches(ctx context.Context, req *dto.Batch
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Map to response DTO
 	var responseBatches []dto.BatchInfo
 	var totalAvailable float64
-	
+
 	for _, b := range batches {
 		responseBatches = append(responseBatches, dto.BatchInfo{
-			ID:          b.ID,
-			BatchNumber: b.BatchNumber,
-			Quantity:    b.Quantity, // Current Quantity
-			ExpiryDate:  b.ExpiredAt,
+			ID:           b.ID,
+			BatchNumber:  b.BatchNumber,
+			Quantity:     b.Quantity, // Current Quantity
+			ExpiryDate:   b.ExpiredAt,
 			ReceivedDate: b.ReceivedAt,
-			Available:   float64(b.Quantity), // Simplified available
+			Available:    float64(b.Quantity), // Simplified available
 		})
 		totalAvailable += float64(b.Quantity)
 	}
@@ -710,4 +730,3 @@ func (u *deliveryOrderUsecase) isPartialDelivery(salesOrder *models.SalesOrder, 
 
 	return false
 }
-

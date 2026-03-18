@@ -5,6 +5,9 @@ export const financeAssetLocationsEn = {
   fields: {
     name: "Name",
     description: "Description",
+    address: "Address",
+    latitude: "Latitude",
+    longitude: "Longitude",
   },
   actions: {
     create: "Create",

@@ -10,7 +10,7 @@ export interface NavItem {
 export const navigationConfig: NavItem[] = [
   {
     name: "Dashboard",
-    icon: "dashboard",
+    icon: "layout-dashboard",
     url: "/dashboard",
     permission: "dashboard.view",
   },
@@ -260,6 +260,12 @@ export const navigationConfig: NavItem[] = [
         permission: "customer_invoice_dp.read",
       },
       {
+        name: "Returns",
+        url: "/sales/returns",
+        icon: "rotate-ccw",
+        permission: "sales_return.read",
+      },
+      {
         name: "Payments",
         url: "/sales/payments",
         icon: "credit-card",
@@ -315,9 +321,21 @@ export const navigationConfig: NavItem[] = [
         permission: "supplier_invoice_dp.read",
       },
       {
+        name: "Returns",
+        url: "/purchase/returns",
+        icon: "rotate-ccw",
+        permission: "purchase_return.read",
+      },
+      {
         name: "Payments",
         url: "/purchase/payments",
         icon: "credit-card",
+        permission: "purchase_payment.read",
+      },
+      {
+        name: "Payable Recap",
+        url: "/purchase/payable-recap",
+        icon: "bar-chart-3",
         permission: "purchase_payment.read",
       },
     ],
@@ -403,6 +421,12 @@ export const navigationConfig: NavItem[] = [
                 url: "/finance/journals/cash-bank",
                 icon: "banknote",
                 permission: "cash_bank_journal.read",
+              },
+              {
+                name: "Journal Lines",
+                url: "/finance/journal-lines",
+                icon: "table",
+                permission: "journal_line.read",
               },
             ],
           },
@@ -511,6 +535,12 @@ export const navigationConfig: NavItem[] = [
             url: "/finance/asset-locations",
             icon: "map-pin",
             permission: "asset_location.read",
+          },
+          {
+            name: "Asset Budgets",
+            url: "/finance/asset-budgets",
+            icon: "wallet",
+            permission: "asset_budget.read",
           },
         ],
       },
@@ -632,6 +662,12 @@ export const navigationConfig: NavItem[] = [
         permission: "crm_sales_performance.read",
       },
       {
+        name: "Sales Target",
+        url: "/crm/targets",
+        icon: "check-square",
+        permission: "sales_target.read",
+      },
+      {
         name: "Product Analytics",
         url: "/crm/product-analytics",
         icon: "pie-chart",
@@ -706,11 +742,23 @@ export const navigationConfig: NavItem[] = [
         icon: "map",
         permission: "report_geo_performance.read",
       },
+      {
+        name: "Customer Research",
+        url: "/reports/customer-research",
+        icon: "users",
+        permission: "report_customer_research.read",
+      },
+      {
+        name: "Supplier Research",
+        url: "/reports/supplier-research",
+        icon: "truck",
+        permission: "report_supplier_research.read",
+      },
     ],
   },
   {
     name: "AI Assistant",
-    icon: "bot",
+    icon: "sparkles",
     url: "/ai-assistant",
     children: [
       {

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -172,7 +172,7 @@ export function SalaryList() {
               items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.employee_id}</TableCell>
-                  <TableCell>{new Date(item.effective_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(item.effective_date)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatCurrency(item.basic_salary)}
                   </TableCell>

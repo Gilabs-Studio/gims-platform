@@ -11,8 +11,8 @@ func RegisterYearlyTargetRoutes(rg *gin.RouterGroup, h *handler.YearlyTargetHand
 	g := rg.Group("/yearly-targets")
 	g.GET("", middleware.RequirePermission("sales_target.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("sales_target.read"), h.GetByID)
+	g.GET("/:id/audit-trail", middleware.RequirePermission("sales_target.audit_trail"), h.AuditTrail)
 	g.POST("", middleware.RequirePermission("sales_target.create"), h.Create)
 	g.PUT("/:id", middleware.RequirePermission("sales_target.update"), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission("sales_target.delete"), h.Delete)
-	g.PATCH("/:id/status", middleware.RequirePermission("sales_target.update"), h.UpdateStatus)
 }

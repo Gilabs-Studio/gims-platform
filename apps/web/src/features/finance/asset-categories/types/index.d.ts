@@ -20,11 +20,15 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type DepreciationMethod = "SL" | "DB";
+export type DepreciationMethod = "SL" | "DB" | "NONE";
+
+export type AssetCategoryType = "FIXED" | "CURRENT" | "INTANGIBLE" | "OTHER";
 
 export interface AssetCategory {
   id: string;
   name: string;
+  type: AssetCategoryType;
+  is_depreciable: boolean;
   depreciation_method: DepreciationMethod;
   useful_life_months: number;
   depreciation_rate: number;
@@ -46,6 +50,8 @@ export interface ListAssetCategoryParams {
 
 export interface AssetCategoryInput {
   name: string;
+  type: AssetCategoryType;
+  is_depreciable: boolean;
   depreciation_method: DepreciationMethod;
   useful_life_months: number;
   depreciation_rate?: number;

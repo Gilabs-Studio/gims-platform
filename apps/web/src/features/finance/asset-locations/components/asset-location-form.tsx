@@ -33,6 +33,9 @@ export function AssetLocationForm({ open, onOpenChange, mode, initialData }: Pro
     () => ({
       name: initialData?.name ?? "",
       description: initialData?.description ?? "",
+      address: initialData?.address ?? "",
+      latitude: initialData?.latitude ?? null,
+      longitude: initialData?.longitude ?? null,
     }),
     [initialData],
   );
@@ -53,6 +56,9 @@ export function AssetLocationForm({ open, onOpenChange, mode, initialData }: Pro
       const payload = {
         name: values.name,
         description: values.description ?? "",
+        address: values.address ?? "",
+        latitude: values.latitude ?? null,
+        longitude: values.longitude ?? null,
       };
 
       if (mode === "create") {
@@ -85,7 +91,35 @@ export function AssetLocationForm({ open, onOpenChange, mode, initialData }: Pro
 
           <div className="space-y-2">
             <Label htmlFor="description">{t("fields.description")}</Label>
-            <Textarea id="description" rows={4} {...form.register("description")} />
+            <Textarea id="description" rows={3} {...form.register("description")} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">{t("fields.address")}</Label>
+            <Textarea id="address" rows={2} {...form.register("address")} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="latitude">{t("fields.latitude")}</Label>
+              <Input
+                id="latitude"
+                type="number"
+                step="0.0000001"
+                placeholder="-6.2088"
+                {...form.register("latitude", { valueAsNumber: true, setValueAs: (v: string) => v === "" ? null : parseFloat(v) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="longitude">{t("fields.longitude")}</Label>
+              <Input
+                id="longitude"
+                type="number"
+                step="0.0000001"
+                placeholder="106.8456"
+                {...form.register("longitude", { valueAsNumber: true, setValueAs: (v: string) => v === "" ? null : parseFloat(v) })}
+              />
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">

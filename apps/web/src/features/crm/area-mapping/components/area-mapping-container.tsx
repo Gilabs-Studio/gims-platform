@@ -19,6 +19,7 @@ import { useAreaCoverage } from "../hooks/use-area-mapping";
 import type { Area } from "@/features/master-data/organization/types";
 import type { AreaCoverage } from "../types";
 import { AreaMapView } from "@/features/master-data/organization/components/area/area-map-view";
+import { formatDate } from "@/lib/utils";
 
 export function AreaMappingContainer() {
   const t = useTranslations("areaMapping");
@@ -165,7 +166,7 @@ export function AreaMappingContainer() {
                   <Clock className="w-3 h-3" />
                   <span>
                     {t("coverage.lastCapture")}:{" "}
-                    {new Date(selectedCoverage.last_capture_at).toLocaleDateString()}
+                    {formatDate(selectedCoverage.last_capture_at)}
                   </span>
                 </div>
               )}

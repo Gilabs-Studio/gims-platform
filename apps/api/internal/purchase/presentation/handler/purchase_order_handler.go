@@ -50,12 +50,14 @@ func (h *PurchaseOrderHandler) List(c *gin.Context) {
 
 	search := c.Query("search")
 	status := c.Query("status")
+	supplierID := strings.TrimSpace(c.Query("supplier_id"))
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortDir := c.DefaultQuery("sort_dir", "desc")
 
 	params := repositories.PurchaseOrderListParams{
 		Search:  search,
 		Status:  status,
+		SupplierID: supplierID,
 		SortBy:  sortBy,
 		SortDir: sortDir,
 		Limit:   perPage,
@@ -85,6 +87,9 @@ func (h *PurchaseOrderHandler) List(c *gin.Context) {
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		meta.Filters["status"] = params.Status
+	}
+	if strings.TrimSpace(params.SupplierID) != "" {
+		meta.Filters["supplier_id"] = params.SupplierID
 	}
 	meta.Pagination.TotalPages = totalPages
 	meta.Pagination.HasNext = page < totalPages

@@ -1,0 +1,31 @@
+export const payableRecapId = {
+  title: "Rekap Hutang",
+  description: "Pantau dan kelola rekap hutang supplier.",
+  search: "Cari berdasarkan nama supplier...",
+  summary: {
+    totalSuppliers: "Total Supplier",
+    totalPayable: "Total Hutang",
+    totalPaid: "Total Dibayar",
+    totalOutstanding: "Total Belum Dibayar",
+  },
+  aging: {
+    current: "Lancar",
+    overdue1_30: "Menunggak 1-30 Hari",
+    overdue31_60: "Menunggak 31-60 Hari",
+    overdue61_90: "Menunggak 61-90 Hari",
+    badDebt: "Macet (>90 Hari)",
+  },
+  columns: {
+    supplierName: "Nama Supplier",
+    totalPayable: "Total Hutang",
+    downPayment: "Pembayaran Dimuka",
+    paidAmount: "Hutang Terbayar",
+    outstandingAmount: "Saldo Hutang",
+    lastTransaction: "Transaksi Terakhir",
+    agingCategory: "Umur Hutang",
+  },
+  export: "Ekspor CSV",
+  exportSuccess: "Berhasil mengekspor data rekap hutang",
+  exportError: "Gagal mengekspor data rekap hutang",
+  empty: "Tidak ada data rekap hutang yang ditemukan",
+};

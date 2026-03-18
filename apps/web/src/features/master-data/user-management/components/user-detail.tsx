@@ -10,6 +10,7 @@ import { useUser, useDeleteUser, useUserPermissions, useUpdateUser } from "../ho
 import { useHasPermission } from "../hooks/use-has-permission";
 import { toast } from "sonner";
 import { useState } from "react";
+import { formatDate } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -208,7 +209,7 @@ export function UserDetail({ userId }: UserDetailProps) {
               </div>
               <div className="text-base font-medium">
                 {user.created_at
-                  ? new Date(user.created_at).toLocaleDateString()
+                  ? formatDate(user.created_at)
                   : t("userInfo.notAvailable")}
               </div>
             </div>
@@ -220,7 +221,7 @@ export function UserDetail({ userId }: UserDetailProps) {
               </div>
               <div className="text-base font-medium">
                 {user.updated_at
-                  ? new Date(user.updated_at).toLocaleDateString()
+                  ? formatDate(user.updated_at)
                   : t("userInfo.notAvailable")}
               </div>
             </div>

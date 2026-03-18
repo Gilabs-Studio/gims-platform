@@ -14,7 +14,7 @@ import { invoiceKeys } from "../../invoice/hooks/use-invoices";
 import { customerInvoiceDPService } from "../../customer-invoice-down-payments/services/customer-invoice-dp-service";
 import { customerInvoiceDPKeys } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { InvoiceDetailModal } from "../../invoice/components/invoice-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
@@ -238,12 +238,12 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                             </TableCell>
                             <TableCell>
                               {invoice.invoice_date
-                                ? new Date(invoice.invoice_date).toLocaleDateString()
+                                ? formatDate(invoice.invoice_date)
                                 : "-"}
                             </TableCell>
                             <TableCell>
                               {invoice.due_date
-                                ? new Date(invoice.due_date).toLocaleDateString()
+                                ? formatDate(invoice.due_date)
                                 : "-"}
                             </TableCell>
                             <TableCell>
@@ -326,12 +326,12 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                             </TableCell>
                             <TableCell>
                               {dp.invoice_date
-                                ? new Date(dp.invoice_date).toLocaleDateString()
+                                ? formatDate(dp.invoice_date)
                                 : "-"}
                             </TableCell>
                             <TableCell>
                               {dp.due_date
-                                ? new Date(dp.due_date).toLocaleDateString()
+                                ? formatDate(dp.due_date)
                                 : "-"}
                             </TableCell>
                             <TableCell>

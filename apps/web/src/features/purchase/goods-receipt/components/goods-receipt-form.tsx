@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ButtonLoading } from "@/components/loading";
@@ -35,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import type { PurchaseOrderDetail } from "@/features/purchase/orders/types";
 import { purchaseOrdersService } from "@/features/purchase/orders/services/purchase-orders-service";
+import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 
 import {
   useCreateGoodsReceipt,
@@ -77,7 +79,7 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
-    defaultValues: { purchase_order_id: "", notes: null, items: [] },
+    defaultValues: { purchase_order_id: "", warehouse_id: "", notes: null, proof_image_url: null, items: [] },
     mode: "onSubmit",
   });
 
@@ -88,16 +90,20 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const createMutation = useCreateGoodsReceipt();
   const updateMutation = useUpdateGoodsReceipt();
+  const warehousesQuery = useWarehouses({ page: 1, per_page: 100 }, { enabled: open });
 
   const [poDetail, setPoDetail] = useState<PurchaseOrderDetail | null>(null);
   const [poLoading, setPoLoading] = useState(false);
 
   const eligiblePOs = addDataQuery.data?.data?.eligible_purchase_orders ?? [];
+  const warehouseOptions = warehousesQuery.data?.data ?? [];
   const grDetail = detailQuery.data?.data;
   const grDetailSnapshot = useMemo(() => grDetail ?? null, [grDetail]);
 
   const selectedPOId = form.watch("purchase_order_id");
   const resetForm = form.reset;
+  const getFormValues = form.getValues;
+  const setFormValue = form.setValue;
   const replaceItems = itemsArray.replace;
   const poItems = useMemo(() => poDetail?.items ?? [], [poDetail]);
   // Lookup map by PO item ID so the table renders correctly even when
@@ -111,7 +117,13 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     if (!open) return;
     setActiveTab("basic");
     if (!isEdit) {
-      resetForm({ purchase_order_id: defaultPurchaseOrderId ?? "", notes: null, items: [] });
+      resetForm({
+        purchase_order_id: defaultPurchaseOrderId ?? "",
+        warehouse_id: "",
+        notes: null,
+        proof_image_url: null,
+        items: [],
+      });
       replaceItems([]);
       // Do not clear poDetail here — the PO-watch effect will load it when defaultPurchaseOrderId is set.
       if (!defaultPurchaseOrderId) setPoDetail(null);
@@ -120,7 +132,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     if (!grDetailSnapshot) return;
     resetForm({
       purchase_order_id: grDetailSnapshot.purchase_order?.id ?? "",
+      warehouse_id: grDetailSnapshot.warehouse_id ?? grDetailSnapshot.warehouse?.id ?? "",
       notes: grDetailSnapshot.notes ?? null,
+      proof_image_url: grDetailSnapshot.proof_image_url ?? null,
       items: grDetailSnapshot.items.map((it) => ({
         purchase_order_item_id: it.purchase_order_item_id,
         product_id: it.product?.id ?? "",
@@ -137,6 +151,18 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
       })),
     );
   }, [open, isEdit, grDetailSnapshot, resetForm, replaceItems, defaultPurchaseOrderId]);
+
+  useEffect(() => {
+    if (!open || isEdit) {
+      return;
+    }
+
+    const defaultWarehouseID = warehouseOptions[0]?.id;
+    const selectedWarehouseID = getFormValues("warehouse_id");
+    if (!selectedWarehouseID && defaultWarehouseID) {
+      setFormValue("warehouse_id", defaultWarehouseID, { shouldValidate: true });
+    }
+  }, [open, isEdit, warehouseOptions, getFormValues, setFormValue]);
 
   useEffect(() => {
     const loadPO = async (poId: string) => {
@@ -174,7 +200,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
         await updateMutation.mutateAsync({
           id: goodsReceiptId,
           data: {
+            warehouse_id: values.warehouse_id,
             notes: values.notes ?? null,
+            proof_image_url: values.proof_image_url ?? null,
             items: values.items.map((it) => ({
               purchase_order_item_id: it.purchase_order_item_id,
               product_id: it.product_id,
@@ -187,7 +215,9 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
       } else {
         const result = await createMutation.mutateAsync({
           purchase_order_id: values.purchase_order_id,
+          warehouse_id: values.warehouse_id,
           notes: values.notes ?? null,
+          proof_image_url: values.proof_image_url ?? null,
           items: values.items.map((it) => ({
             purchase_order_item_id: it.purchase_order_item_id,
             product_id: it.product_id,
@@ -234,41 +264,104 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
               </div>
 
               {!isEdit ? (
-                <Field data-invalid={!!form.formState.errors.purchase_order_id} orientation="vertical">
-                  <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
-                  <Controller
-                    name="purchase_order_id"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="cursor-pointer">
-                          <SelectValue placeholder={t("placeholders.select")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addDataQuery.isLoading ? (
-                            <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
-                          ) : eligiblePOs.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
-                          ) : (
-                            eligiblePOs.map((po) => (
-                              <SelectItem key={po.id} value={po.id} className="cursor-pointer">
-                                {po.code} — {po.supplier?.name ?? "-"}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.purchase_order_id?.message ? (
-                    <FieldError>{String(form.formState.errors.purchase_order_id.message)}</FieldError>
-                  ) : null}
-                </Field>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field data-invalid={!!form.formState.errors.purchase_order_id} orientation="vertical">
+                    <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
+                    <Controller
+                      name="purchase_order_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder={t("placeholders.select")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {addDataQuery.isLoading ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
+                            ) : eligiblePOs.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
+                            ) : (
+                              eligiblePOs.map((po) => (
+                                <SelectItem key={po.id} value={po.id} className="cursor-pointer">
+                                  {po.code} — {po.supplier?.name ?? "-"}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.purchase_order_id?.message ? (
+                      <FieldError>{String(form.formState.errors.purchase_order_id.message)}</FieldError>
+                    ) : null}
+                  </Field>
+
+                  <Field data-invalid={!!form.formState.errors.warehouse_id} orientation="vertical">
+                    <FieldLabel>{t("fields.warehouse")}</FieldLabel>
+                    <Controller
+                      name="warehouse_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder={t("placeholders.select")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {warehousesQuery.isLoading ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
+                            ) : warehouseOptions.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
+                            ) : (
+                              warehouseOptions.map((warehouse) => (
+                                <SelectItem key={warehouse.id} value={warehouse.id} className="cursor-pointer">
+                                  {warehouse.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.warehouse_id?.message ? (
+                      <FieldError>{String(form.formState.errors.warehouse_id.message)}</FieldError>
+                    ) : null}
+                  </Field>
+                </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <Field orientation="vertical">
                     <FieldLabel>{t("fields.purchaseOrder")}</FieldLabel>
                     <Input value={grDetail?.purchase_order?.code ?? "-"} readOnly />
+                  </Field>
+                  <Field data-invalid={!!form.formState.errors.warehouse_id} orientation="vertical">
+                    <FieldLabel>{t("fields.warehouse")}</FieldLabel>
+                    <Controller
+                      name="warehouse_id"
+                      control={form.control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder={t("placeholders.select")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {warehousesQuery.isLoading ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("loading")}</div>
+                            ) : warehouseOptions.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground">{tCommon("empty")}</div>
+                            ) : (
+                              warehouseOptions.map((warehouse) => (
+                                <SelectItem key={warehouse.id} value={warehouse.id} className="cursor-pointer">
+                                  {warehouse.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.warehouse_id?.message ? (
+                      <FieldError>{String(form.formState.errors.warehouse_id.message)}</FieldError>
+                    ) : null}
                   </Field>
                   <Field orientation="vertical">
                     <FieldLabel>{t("fields.status")}</FieldLabel>
@@ -293,6 +386,20 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                 {form.formState.errors.notes?.message ? (
                   <FieldError>{String(form.formState.errors.notes.message)}</FieldError>
                 ) : null}
+              </Field>
+
+              <Field orientation="vertical">
+                <FieldLabel>{t("fields.proofPhoto")}</FieldLabel>
+                <Controller
+                  name="proof_image_url"
+                  control={form.control}
+                  render={({ field }) => (
+                    <ImageUpload
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(value || null)}
+                    />
+                  )}
+                />
               </Field>
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t">

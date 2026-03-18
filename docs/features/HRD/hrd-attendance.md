@@ -211,13 +211,17 @@ apps/web/src/features/hrd/
 │   ├── hooks/
 │   │   ├── use-attendance-records.ts
 │   │   ├── use-attendance-calendar.ts
-│   │   └── use-geolocation.ts
+│   │   ├── use-geolocation.ts
+│   │   └── use-location-permission.ts
 │   └── components/
 │       ├── attendance-record-form.tsx
 │       ├── attendance-record-list.tsx
 │       ├── attendance-calendar.tsx
 │       ├── attendance-day-view.tsx
 │       ├── attendance-event-detail.tsx
+│       ├── header-attendance-button.tsx
+│       ├── clock-in-camera-dialog.tsx
+│       ├── location-settings-dialog.tsx
 │       └── index.ts
 ├── work-schedules/
 │   ├── types/index.d.ts
@@ -561,6 +565,7 @@ See [Holiday Management](hrd-holidays.md#frontend-components) for full component
 | `useEmployeeSchedule`   | use-attendance-records.ts  | Fetch employee work schedule |
 | `useAttendanceCalendar` | use-attendance-calendar.ts | Calendar data fetching       |
 | `useGeolocation`        | use-geolocation.ts         | Browser GPS access       |
+| `useLocationPermission` | use-location-permission.ts | Permission state + fallback dialog trigger |
 | `useWorkSchedules`      | use-work-schedules.ts      | Schedule CRUD            |
 | `useHolidays`           | use-holidays.ts            | Holiday CRUD + calendar  |
 | `useOvertime`           | use-overtime.ts            | Overtime CRUD + approval |
@@ -857,6 +862,14 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
   - Clock-in renders as disabled `DropdownMenuItem` with block reason text
   - Clock-out button disabled with reason text appended when on holiday/off-day
 
+- **Location Permission Fix**:
+  - **Root Cause:** `Permissions-Policy` header in `next.config.ts` had `geolocation=()` and `camera=()` which completely blocked both APIs at HTTP level, overriding browser user permissions
+  - **Fix:** Changed to `geolocation=(self)` and `camera=(self)` to allow the app's own origin to use these APIs
+  - Added `useLocationPermission` hook: uses `getCurrentPosition()` as ground truth (not `permissions.query()` which caches stale state)
+  - Added `visibilitychange` + `focus` event listeners to re-probe permission when page regains focus (catches padlock menu changes)
+  - Added `LocationSettingsDialog` component: browser-specific instructions fallback when native prompt is blocked
+  - Updated `header-attendance-button.tsx` and `clock-in-camera-dialog.tsx` to use `requestPermissionOrFallback`
+
 - **Future Improvement**:
   - Add attendance report export (CSV/Excel)
   - Add team attendance dashboard for managers
@@ -865,4 +878,4 @@ See [Work Schedule Management](hrd-work-schedules.md#configuration) for full sch
 
 ---
 
-_Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 19)_
+_Document generated for GIMS Platform - Sprint 13: HRD Attendance (Updated Sprint 20 — Location Permission Fix)_

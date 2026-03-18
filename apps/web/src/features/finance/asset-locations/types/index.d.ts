@@ -24,6 +24,9 @@ export interface AssetLocation {
   id: string;
   name: string;
   description: string;
+  address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,4 +42,7 @@ export interface ListAssetLocationParams {
 export interface AssetLocationInput {
   name: string;
   description?: string;
+  address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }

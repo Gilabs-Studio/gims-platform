@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDate } from "@/lib/utils";
 
 import { useFinanceJournal } from "../hooks/use-finance-journals";
 
@@ -18,9 +19,7 @@ type Props = {
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function formatNumber(value?: number | null): string {

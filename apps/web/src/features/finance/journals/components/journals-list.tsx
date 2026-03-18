@@ -31,7 +31,6 @@ import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
 
-
 export function JournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");

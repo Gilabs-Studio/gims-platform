@@ -180,7 +180,14 @@ func (h *LeadHandler) Update(c *gin.Context) {
 		return
 	}
 
-	result, err := h.uc.Update(c.Request.Context(), id, req)
+	updatedBy := ""
+	if userID, exists := c.Get("user_id"); exists {
+		if uid, ok := userID.(string); ok {
+			updatedBy = uid
+		}
+	}
+
+	result, err := h.uc.Update(c.Request.Context(), id, req, updatedBy)
 	if err != nil {
 		handleLeadError(c, err)
 		return

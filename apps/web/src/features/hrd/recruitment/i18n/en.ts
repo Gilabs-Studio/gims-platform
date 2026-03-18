@@ -32,6 +32,9 @@ export const recruitmentEn = {
       workflow: "Workflow",
     },
 
+    // Detail Page
+    detailInfo: "Detail Information",
+
     // Page
     title: "Recruitment Requests",
     subtitle: "Manage recruitment requests and track hiring progress",
@@ -74,6 +77,7 @@ export const recruitmentEn = {
     requiredCount: "Required Count",
     filledCount: "Filled Count",
     openPositions: "Open Positions",
+    progressLabel: "Progress",
     expectedStartDate: "Expected Start Date",
     salaryRange: "Salary Range",
     salaryRangeMin: "Min Salary",
@@ -121,6 +125,19 @@ export const recruitmentEn = {
       general: "General",
       requirements: "Requirements",
       workflow: "Workflow",
+      info: "Information",
+      applicants: "Applicants",
+    },
+
+    // Views
+    views: {
+      card: "Card",
+      list: "List",
+    },
+
+    // Card
+    card: {
+      clickToView: "Click to view details",
     },
 
     // Validation
@@ -132,6 +149,87 @@ export const recruitmentEn = {
       mustBeInteger: "Must be a whole number",
       salaryMin: "Salary cannot be negative",
       maxLength: "Maximum length exceeded",
+      invalidEmail: "Invalid email address",
+      invalidUrl: "Invalid URL",
+    },
+
+    // Navigation
+    backToList: "Back to List",
+    requestNotFound: "The requested recruitment request could not be found",
+
+    // Applicants
+    applicants: {
+      title: "Applicants",
+      add: "Add Applicant",
+      edit: "Edit Applicant",
+      delete: "Delete Applicant",
+      detail: "Applicant Detail",
+      empty: "No applicants in this stage",
+      noStages: "No pipeline stages configured",
+      singular: "Applicant",
+      dragHelp: "Drag applicants to move between stages",
+      noResume: "No CV",
+      contactInfo: "Contact Information",
+      applicationDetails: "Application Details",
+      activityHistory: "Activity History",
+      noActivities: "No activities recorded yet",
+      viewResume: "View Resume",
+      appliedAt: "Applied",
+      addDescription: "Add a new applicant to this recruitment request",
+      editDescription: "Update applicant information",
+      deleteDesc: "Are you sure you want to delete this applicant? This action cannot be undone.",
+      created: "Applicant added successfully",
+      updated: "Applicant updated successfully",
+      deleted: "Applicant deleted successfully",
+
+      fields: {
+        fullName: "Full Name",
+        email: "Email",
+        phone: "Phone",
+        resume: "Resume/CV URL",
+        source: "Source",
+        rating: "Rating",
+        appliedAt: "Applied Date",
+        stage: "Stage",
+        notes: "Notes",
+      },
+
+      placeholders: {
+        fullName: "Enter full name",
+        email: "Enter email address",
+        phone: "Enter phone number",
+        resume: "https://example.com/cv.pdf",
+        notes: "Add notes about the applicant...",
+      },
+
+      sources: {
+        linkedin: "LinkedIn",
+        jobstreet: "JobStreet",
+        glints: "Glints",
+        referral: "Referral",
+        direct: "Direct Application",
+        other: "Other",
+      },
+
+      actions: {
+        moveStage: "Move Stage",
+        scheduleInterview: "Schedule Interview",
+        sendOffer: "Send Offer",
+        hire: "Hire",
+        reject: "Reject",
+      },
+
+      moveStage: {
+        title: "Move Applicant",
+        description: "Move {name} to {stage}?",
+        fromStage: "Current Stage",
+        toStage: "Target Stage",
+        reason: "Reason",
+        reasonPlaceholder: "Enter reason for stage change (required for rejection)...",
+        notes: "Additional Notes",
+        notesPlaceholder: "Add any additional notes...",
+        confirm: "Move Applicant",
+      },
     },
   },
 };

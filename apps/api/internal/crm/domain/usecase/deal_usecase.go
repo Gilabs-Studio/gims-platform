@@ -51,6 +51,7 @@ type dealUsecase struct {
 	employeeRepo       orgRepos.EmployeeRepository
 	productRepo        productRepos.ProductRepository
 	leadRepo           repositories.LeadRepository
+	activityRepo       repositories.ActivityRepository
 	salesQuotationRepo salesRepos.SalesQuotationRepository
 	db                 *gorm.DB
 }
@@ -64,6 +65,7 @@ func NewDealUsecase(
 	employeeRepo orgRepos.EmployeeRepository,
 	productRepo productRepos.ProductRepository,
 	leadRepo repositories.LeadRepository,
+	activityRepo repositories.ActivityRepository,
 	salesQuotationRepo salesRepos.SalesQuotationRepository,
 	db *gorm.DB,
 ) DealUsecase {
@@ -75,6 +77,7 @@ func NewDealUsecase(
 		employeeRepo:       employeeRepo,
 		productRepo:        productRepo,
 		leadRepo:           leadRepo,
+		activityRepo:       activityRepo,
 		salesQuotationRepo: salesQuotationRepo,
 		db:                 db,
 	}
@@ -574,6 +577,22 @@ func (u *dealUsecase) MoveStage(ctx context.Context, id string, req dto.MoveDeal
 	if err != nil {
 		return dto.MoveDealStageResponse{}, err
 	}
+
+	// Log activity for stage movement (best-effort, non-blocking)
+	activityEmployeeID := changedBy
+	if activityEmployeeID == "" {
+		activityEmployeeID = "system"
+	}
+	stageActivity := &models.Activity{
+		Type:           "deal_stage_change",
+		ActivityTypeID: strPtr(activityTypeFollowUpID),
+		DealID:         &updated.ID,
+		LeadID:         updated.LeadID,
+		EmployeeID:     activityEmployeeID,
+		Description:    fmt.Sprintf("Pipeline stage moved from %s to %s", fromStageName, toStage.Name),
+		Timestamp:      apptime.Now(),
+	}
+	_ = u.activityRepo.Create(ctx, stageActivity)
 
 	response := dto.MoveDealStageResponse{
 		Deal: mapper.ToDealResponse(updated),

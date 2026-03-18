@@ -16,16 +16,18 @@ func (m *AssetCategoryMapper) ToResponse(item *financeModels.AssetCategory) dto.
 		return dto.AssetCategoryResponse{}
 	}
 	return dto.AssetCategoryResponse{
-		ID: item.ID,
-		Name: item.Name,
-		DepreciationMethod: item.DepreciationMethod,
-		UsefulLifeMonths: item.UsefulLifeMonths,
-		DepreciationRate: item.DepreciationRate,
-		AssetAccountID: item.AssetAccountID,
+		ID:                               item.ID,
+		Name:                             item.Name,
+		Type:                             item.Type,
+		DepreciationMethod:               item.DepreciationMethod,
+		UsefulLifeMonths:                 item.UsefulLifeMonths,
+		DepreciationRate:                 item.DepreciationRate,
+		IsDepreciable:                    item.IsDepreciable,
+		AssetAccountID:                   item.AssetAccountID,
 		AccumulatedDepreciationAccountID: item.AccumulatedDepreciationAccountID,
-		DepreciationExpenseAccountID: item.DepreciationExpenseAccountID,
-		IsActive: item.IsActive,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		DepreciationExpenseAccountID:     item.DepreciationExpenseAccountID,
+		IsActive:                         item.IsActive,
+		CreatedAt:                        item.CreatedAt,
+		UpdatedAt:                        item.UpdatedAt,
 	}
 }

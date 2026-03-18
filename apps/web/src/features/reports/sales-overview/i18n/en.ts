@@ -62,6 +62,7 @@ export const salesOverviewReportEn = {
       noData: "No data available for the selected period",
       metrics: {
         revenue: "Revenue",
+        cashIn: "Cash In",
         orders: "Orders",
         visits: "Visits Completed",
         deliveries: "Deliveries Completed",

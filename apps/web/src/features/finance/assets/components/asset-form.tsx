@@ -3,21 +3,38 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceAssetCategories } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 
 import { assetFormSchema, type AssetFormValues } from "../schemas/asset.schema";
 import type { Asset } from "../types";
-import { useCreateFinanceAsset, useUpdateFinanceAsset } from "../hooks/use-finance-assets";
+import {
+  useCreateFinanceAsset,
+  useUpdateFinanceAsset,
+} from "../hooks/use-finance-assets";
+import { DatePicker } from "./date-picker";
 
 type Props = {
   open: boolean;
@@ -29,8 +46,18 @@ type Props = {
 export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
   const t = useTranslations("financeAssets");
 
-  const { data: categoriesData } = useFinanceAssetCategories({ page: 1, per_page: 100, sort_by: "name", sort_dir: "asc" });
-  const { data: locationsData } = useFinanceAssetLocations({ page: 1, per_page: 100, sort_by: "name", sort_dir: "asc" });
+  const { data: categoriesData } = useFinanceAssetCategories({
+    page: 1,
+    per_page: 100,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
+  const { data: locationsData } = useFinanceAssetLocations({
+    page: 1,
+    per_page: 100,
+    sort_by: "name",
+    sort_dir: "asc",
+  });
 
   const categoryOptions = categoriesData?.data ?? [];
   const locationOptions = locationsData?.data ?? [];
@@ -92,7 +119,9 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
+          <DialogTitle>
+            {mode === "create" ? t("form.createTitle") : t("form.editTitle")}
+          </DialogTitle>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -112,14 +141,20 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
               <Label>{t("fields.category")}</Label>
               <Select
                 value={form.watch("category_id") || ""}
-                onValueChange={(v) => form.setValue("category_id", v, { shouldDirty: true })}
+                onValueChange={(v) =>
+                  form.setValue("category_id", v, { shouldDirty: true })
+                }
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("placeholders.select")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categoryOptions.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                    <SelectItem
+                      key={c.id}
+                      value={c.id}
+                      className="cursor-pointer"
+                    >
                       {c.name}
                     </SelectItem>
                   ))}
@@ -130,14 +165,20 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
               <Label>{t("fields.location")}</Label>
               <Select
                 value={form.watch("location_id") || ""}
-                onValueChange={(v) => form.setValue("location_id", v, { shouldDirty: true })}
+                onValueChange={(v) =>
+                  form.setValue("location_id", v, { shouldDirty: true })
+                }
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("placeholders.select")} />
                 </SelectTrigger>
                 <SelectContent>
                   {locationOptions.map((l) => (
-                    <SelectItem key={l.id} value={l.id} className="cursor-pointer">
+                    <SelectItem
+                      key={l.id}
+                      value={l.id}
+                      className="cursor-pointer"
+                    >
                       {l.name}
                     </SelectItem>
                   ))}
@@ -148,25 +189,52 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="acquisition_date">{t("fields.acquisitionDate")}</Label>
-              <Input id="acquisition_date" type="date" {...form.register("acquisition_date")} />
+              <Label htmlFor="acquisition_date">
+                {t("fields.acquisitionDate")}
+              </Label>
+              <Controller
+                name="acquisition_date"
+                control={form.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="acquisition_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="acquisition_cost">{t("fields.acquisitionCost")}</Label>
-              <Input
-                id="acquisition_cost"
-                type="number"
-                step="0.01"
-                {...form.register("acquisition_cost", { valueAsNumber: true })}
+              <Label htmlFor="acquisition_cost">
+                {t("fields.acquisitionCost")}
+              </Label>
+              <Controller
+                name="acquisition_cost"
+                control={form.control}
+                render={({ field }) => (
+                  <NumericInput
+                    id="acquisition_cost"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="0"
+                  />
+                )}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="salvage_value">{t("fields.salvageValue")}</Label>
-              <Input
-                id="salvage_value"
-                type="number"
-                step="0.01"
-                {...form.register("salvage_value", { valueAsNumber: true })}
+              <Controller
+                name="salvage_value"
+                control={form.control}
+                render={({ field }) => (
+                  <NumericInput
+                    id="salvage_value"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="0"
+                  />
+                )}
               />
             </div>
           </div>
@@ -181,7 +249,11 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
             >
               {t("form.cancel")}
             </Button>
-            <Button type="submit" className="cursor-pointer" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              className="cursor-pointer"
+              disabled={isSubmitting}
+            >
               {t("form.submit")}
             </Button>
           </DialogFooter>
