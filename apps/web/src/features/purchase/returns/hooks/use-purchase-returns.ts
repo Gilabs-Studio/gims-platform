@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseReturnsService } from "../services/purchase-returns-service";
+import { inventoryService } from "@/features/stock/inventory/services/inventory-service";
 import type { CreatePurchaseReturnInput, PurchaseReturnListParams, PurchaseReturnStatus } from "../types";
 
 export const purchaseReturnsKeys = {
@@ -11,6 +12,7 @@ export const purchaseReturnsKeys = {
   details: () => [...purchaseReturnsKeys.all, "detail"] as const,
   detail: (id: string) => [...purchaseReturnsKeys.details(), id] as const,
   formData: () => [...purchaseReturnsKeys.all, "form-data"] as const,
+  warehouseAvailability: (warehouseId?: string) => [...purchaseReturnsKeys.all, "warehouse-availability", warehouseId] as const,
 };
 
 export function usePurchaseReturns(params?: PurchaseReturnListParams, options?: { enabled?: boolean }) {
@@ -33,6 +35,16 @@ export function usePurchaseReturnFormData() {
   return useQuery({
     queryKey: purchaseReturnsKeys.formData(),
     queryFn: () => purchaseReturnsService.getFormData(),
+  });
+}
+
+export function useWarehouseInventoryAvailability(warehouseId?: string) {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.warehouseAvailability(warehouseId),
+    queryFn: () => inventoryService.getTreeProducts(warehouseId ?? "", { page: 1, per_page: 500 }),
+    enabled: !!warehouseId,
+    staleTime: 15000,
+    refetchInterval: 15000,
   });
 }
 

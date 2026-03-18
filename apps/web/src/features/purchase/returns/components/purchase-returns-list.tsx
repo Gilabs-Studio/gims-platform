@@ -110,6 +110,40 @@ export function PurchaseReturnsList() {
     }
   };
 
+  const getActionBadge = (action: string) => {
+    const normalizedAction = action.toUpperCase();
+    const getActionLabel = () => {
+      if (normalizedAction === "SUPPLIER_CREDIT") {
+        return "Supplier Credit";
+      }
+      if (normalizedAction === "REPLACEMENT") {
+        return "Replacement";
+      }
+      if (normalizedAction === "REFUND") {
+        return "Refund";
+      }
+
+      return normalizedAction
+        .toLowerCase()
+        .split("_")
+        .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+        .join(" ");
+    };
+
+    const label = getActionLabel();
+
+    switch (normalizedAction) {
+      case "SUPPLIER_CREDIT":
+        return <Badge variant="info">{label}</Badge>;
+      case "REPLACEMENT":
+        return <Badge variant="warning">{label}</Badge>;
+      case "REFUND":
+        return <Badge variant="secondary">{label}</Badge>;
+      default:
+        return <Badge variant="outline">{label || "-"}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -176,7 +210,7 @@ export function PurchaseReturnsList() {
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.return_number}</TableCell>
                   <TableCell>{goodsReceiptCodeMap.get(row.goods_receipt_id) ?? "-"}</TableCell>
-                  <TableCell>{row.action}</TableCell>
+                  <TableCell>{getActionBadge(row.action)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
                   <TableCell>{formatDate(row.created_at)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.total_amount ?? 0)}</TableCell>

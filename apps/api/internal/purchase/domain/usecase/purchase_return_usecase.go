@@ -271,6 +271,10 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 		return nil, errors.New("warehouse_id is required")
 	}
 
+	if err := u.validateRequestedQtyAgainstWarehouseStock(ctx, warehouseID, req.Items); err != nil {
+		return nil, err
+	}
+
 	supplierID := strings.TrimSpace(req.SupplierID)
 	if supplierID == "" {
 		supplierID = strings.TrimSpace(goodsReceipt.SupplierID)
@@ -359,6 +363,83 @@ func (u *purchaseReturnUsecase) validateRequestedQty(
 	}
 
 	return nil
+}
+
+func (u *purchaseReturnUsecase) validateRequestedQtyAgainstWarehouseStock(
+	ctx context.Context,
+	warehouseID string,
+	items []dto.CreatePurchaseReturnItemRequest,
+) error {
+	if u.invUC == nil {
+		return nil
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	productIDs := make(map[string]struct{})
+
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" {
+			continue
+		}
+		requestedQtyByProduct[productID] += item.Qty
+		productIDs[productID] = struct{}{}
+	}
+
+	availableQtyByProduct, err := u.getWarehouseAvailableQtyByProduct(ctx, warehouseID, productIDs)
+	if err != nil {
+		return err
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty > availableQty+0.0001 {
+			return fmt.Errorf("return quantity exceeds available warehouse stock for product %s", productID)
+		}
+	}
+
+	return nil
+}
+
+func (u *purchaseReturnUsecase) getWarehouseAvailableQtyByProduct(
+	ctx context.Context,
+	warehouseID string,
+	productIDs map[string]struct{},
+) (map[string]float64, error) {
+	availableQtyByProduct := make(map[string]float64)
+
+	if len(productIDs) == 0 {
+		return availableQtyByProduct, nil
+	}
+
+	page := 1
+	perPage := 200
+
+	for {
+		result, err := u.invUC.GetTreeProducts(ctx, &invDto.GetInventoryTreeProductsRequest{
+			WarehouseID: warehouseID,
+			Page:        page,
+			PerPage:     perPage,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range result.Data {
+			productID := strings.TrimSpace(item.ProductID)
+			if _, ok := productIDs[productID]; !ok {
+				continue
+			}
+			availableQtyByProduct[productID] = item.Available
+		}
+
+		if !result.Meta.HasNext {
+			break
+		}
+		page++
+	}
+
+	return availableQtyByProduct, nil
 }
 
 func (u *purchaseReturnUsecase) createStockMovements(

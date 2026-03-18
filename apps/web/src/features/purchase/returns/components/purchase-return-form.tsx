@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 import { useGoodsReceipt, useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
-import { useCreatePurchaseReturn, usePurchaseReturnFormData, usePurchaseReturns } from "../hooks/use-purchase-returns";
+import { useCreatePurchaseReturn, usePurchaseReturnFormData, usePurchaseReturns, useWarehouseInventoryAvailability } from "../hooks/use-purchase-returns";
 import { purchaseReturnSchema, type PurchaseReturnFormData } from "../schemas/purchase-return.schema";
 
 interface PurchaseReturnFormProps {
@@ -27,9 +27,18 @@ type EligibleItem = {
   productId: string;
   productCode: string;
   productName: string;
+  receivedQty: number;
+  returnedQty: number;
+  warehouseAvailableQty: number;
   availableQty: number;
   dealCost: number;
 };
+
+const formatQty = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  }).format(value);
 
 export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: PurchaseReturnFormProps) {
   const t = useTranslations("purchaseReturns");
@@ -67,6 +76,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
   const selectedGoodsReceiptId = useWatch({ control, name: "goods_receipt_id" });
+  const selectedWarehouseId = useWatch({ control, name: "warehouse_id" });
 
   const { data: goodsReceiptResponse, isLoading: isLoadingGoodsReceipt, isError: isGoodsReceiptError } = useGoodsReceipt(
     selectedGoodsReceiptId ?? "",
@@ -81,10 +91,17 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
     { enabled: !!selectedGoodsReceiptId },
   );
 
+  const { data: warehouseAvailabilityResponse } = useWarehouseInventoryAvailability(selectedWarehouseId);
+
   const goodsReceipt = goodsReceiptResponse?.data;
+  const goodsReceiptWarehouseId = (goodsReceipt as { warehouse_id?: string } | undefined)?.warehouse_id ?? "";
   const goodsReceiptItems = useMemo(() => goodsReceipt?.items ?? [], [goodsReceipt?.items]);
   const goodsReceiptOptions = useMemo(() => goodsReceiptsResponse?.data ?? [], [goodsReceiptsResponse?.data]);
   const returnHistory = useMemo(() => returnHistoryResponse?.data ?? [], [returnHistoryResponse?.data]);
+  const warehouseInventoryProducts = useMemo(
+    () => warehouseAvailabilityResponse?.data?.data ?? [],
+    [warehouseAvailabilityResponse?.data?.data],
+  );
 
   const { data: purchaseOrderResponse } = usePurchaseOrder(goodsReceipt?.purchase_order?.id ?? "", {
     enabled: !!goodsReceipt?.purchase_order?.id,
@@ -106,8 +123,13 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
 
   const returnedQtyByProduct = useMemo(() => {
     const map = new Map<string, number>();
+    const effectiveStatuses = new Set(["SUBMITTED", "APPROVED"]);
 
     returnHistory.forEach((history) => {
+      if (!effectiveStatuses.has((history.status ?? "").toUpperCase())) {
+        return;
+      }
+
       (history.items ?? []).forEach((item) => {
         const productId = item.product_id ?? "";
         if (!productId) {
@@ -121,25 +143,42 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
     return map;
   }, [returnHistory]);
 
+  const warehouseAvailableQtyByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    warehouseInventoryProducts.forEach((item) => {
+      const productID = item.product_id?.trim();
+      if (!productID) {
+        return;
+      }
+      map.set(productID, Math.max(0, item.available ?? 0));
+    });
+    return map;
+  }, [warehouseInventoryProducts]);
+
   const eligibleItems = useMemo<EligibleItem[]>(() => {
     return goodsReceiptItems
       .map((item) => {
         const productId = item.product?.id ?? "";
         const receivedQty = item.quantity_received ?? 0;
         const returnedQty = returnedQtyByProduct.get(productId) ?? 0;
-        const availableQty = Math.max(0, receivedQty - returnedQty);
+        const sourceAvailableQty = Math.max(0, receivedQty - returnedQty);
+        const warehouseAvailableQty = warehouseAvailableQtyByProduct.get(productId) ?? 0;
+        const availableQty = Math.max(0, Math.min(sourceAvailableQty, warehouseAvailableQty));
 
         return {
           goodsReceiptItemID: item.id,
           productId,
           productCode: item.product?.sku ?? "-",
           productName: item.product?.name ?? productId,
+          receivedQty,
+          returnedQty,
+          warehouseAvailableQty,
           availableQty,
           dealCost: dealCostByProduct.get(productId) ?? 0,
         };
       })
       .filter((item) => item.productId && item.availableQty > 0);
-  }, [goodsReceiptItems, returnedQtyByProduct, dealCostByProduct]);
+  }, [goodsReceiptItems, returnedQtyByProduct, warehouseAvailableQtyByProduct, dealCostByProduct]);
 
   const eligibleItemMap = useMemo(() => {
     const map = new Map<string, EligibleItem>();
@@ -168,7 +207,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
       goods_receipt_id: selectedGoodsReceiptId,
       purchase_order_id: goodsReceipt?.purchase_order?.id ?? "",
       supplier_id: goodsReceipt?.supplier?.id ?? "",
-      warehouse_id: warehouses[0]?.id ?? "",
+      warehouse_id: goodsReceiptWarehouseId || warehouses[0]?.id || "",
       reason: reasons[0]?.value ?? "OTHER",
       action: actions[0]?.value ?? "SUPPLIER_CREDIT",
       notes: "",
@@ -188,6 +227,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
     selectedGoodsReceiptId,
     goodsReceipt?.purchase_order?.id,
     goodsReceipt?.supplier?.id,
+    goodsReceiptWarehouseId,
     warehouses,
     reasons,
     actions,
@@ -209,6 +249,21 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
   };
 
   const onSubmit = async (values: PurchaseReturnFormData) => {
+    form.clearErrors("items");
+
+    const selectedProducts = values.items
+      .map((item) => item.product_id)
+      .filter((productId): productId is string => !!productId);
+
+    const uniqueSelectedProducts = new Set(selectedProducts);
+    if (uniqueSelectedProducts.size !== selectedProducts.length) {
+      form.setError("items", {
+        type: "manual",
+        message: t("validation.duplicateItem"),
+      });
+      return;
+    }
+
     const requestedQtyByProduct = new Map<string, number>();
 
     for (const item of values.items) {
@@ -222,30 +277,46 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
     }
 
     for (const [productId, requestedQty] of requestedQtyByProduct.entries()) {
-      const availableQty = eligibleItemMap.get(productId)?.availableQty ?? 0;
+      const selectedItem = eligibleItemMap.get(productId);
+      const availableQty = selectedItem?.availableQty ?? 0;
       if (requestedQty > availableQty) {
         form.setError("items", {
           type: "manual",
-          message: "Qty exceeds available return quantity",
+          message: t("validation.qtyExceeds", {
+            product: selectedItem?.productCode ?? productId,
+            requested: formatQty(requestedQty),
+            received: formatQty(selectedItem?.receivedQty ?? 0),
+            returned: formatQty(selectedItem?.returnedQty ?? 0),
+            available: formatQty(availableQty),
+          }),
         });
         return;
       }
     }
 
-    await createMutation.mutateAsync({
-      ...values,
-      purchase_order_id: values.purchase_order_id || undefined,
-      supplier_id: values.supplier_id || undefined,
-      notes: values.notes || undefined,
-      items: values.items.map((item) => {
-        const matched = eligibleItemMap.get(item.product_id);
-        return {
-          ...item,
-          goods_receipt_item_id: matched?.goodsReceiptItemID ?? item.goods_receipt_item_id,
-          unit_cost: matched?.dealCost ?? item.unit_cost,
-        };
-      }),
-    });
+    try {
+      await createMutation.mutateAsync({
+        ...values,
+        warehouse_id: goodsReceiptWarehouseId || values.warehouse_id,
+        purchase_order_id: values.purchase_order_id || undefined,
+        supplier_id: values.supplier_id || undefined,
+        notes: values.notes || undefined,
+        items: values.items.map((item) => {
+          const matched = eligibleItemMap.get(item.product_id);
+          return {
+            ...item,
+            goods_receipt_item_id: matched?.goodsReceiptItemID ?? item.goods_receipt_item_id,
+            unit_cost: matched?.dealCost ?? item.unit_cost,
+          };
+        }),
+      });
+    } catch {
+      form.setError("items", {
+        type: "manual",
+        message: "Stock in selected warehouse changed. Please review available quantity and try again.",
+      });
+      return;
+    }
 
     onSuccess?.();
   };
@@ -338,7 +409,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="cursor-pointer">
+                  <SelectTrigger className="cursor-pointer" disabled={!!goodsReceiptWarehouseId}>
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -351,6 +422,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
                 </Select>
               )}
             />
+            {goodsReceiptWarehouseId && <p className="text-xs text-muted-foreground">Warehouse is locked from selected goods receipt.</p>}
             {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
           </Field>
 
@@ -421,6 +493,12 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
           {fields.map((field, index) => {
             const selectedProductId = watchedItems?.[index]?.product_id;
             const selectedItem = selectedProductId ? eligibleItemMap.get(selectedProductId) : null;
+            const selectedProductIdsInOtherRows = new Set(
+              (watchedItems ?? [])
+                .filter((_, itemIndex) => itemIndex !== index)
+                .map((item) => item?.product_id)
+                .filter((productId): productId is string => !!productId),
+            );
 
             return (
               <div key={field.id} className="space-y-4 rounded-lg border bg-card p-4">
@@ -459,15 +537,27 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
                             <SelectValue placeholder="Select eligible product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {eligibleItems.map((item) => (
-                              <SelectItem key={item.productId} value={item.productId} className="cursor-pointer">
-                                {item.productCode} - {item.productName} | Avl: {item.availableQty.toFixed(3)} | Deal: {formatCurrency(item.dealCost)}
-                              </SelectItem>
-                            ))}
+                            {eligibleItems
+                              .filter((item) => {
+                                if (item.productId === itemField.value) {
+                                  return true;
+                                }
+                                return !selectedProductIdsInOtherRows.has(item.productId);
+                              })
+                              .map((item) => (
+                                <SelectItem key={item.productId} value={item.productId} className="cursor-pointer">
+                                  {item.productCode} - {item.productName} | Rec: {formatQty(item.receivedQty)} | Ret: {formatQty(item.returnedQty)} | Wh Avl: {formatQty(item.warehouseAvailableQty)} | Ret Avl: {formatQty(item.availableQty)} | Deal: {formatCurrency(item.dealCost)}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       )}
                     />
+                    {selectedItem && (
+                      <p className="text-xs text-muted-foreground">
+                        Received: {formatQty(selectedItem.receivedQty)} | Already returned: {formatQty(selectedItem.returnedQty)} | Warehouse available: {formatQty(selectedItem.warehouseAvailableQty)} | Return available: {formatQty(selectedItem.availableQty)}
+                      </p>
+                    )}
                     {errors.items?.[index]?.product_id && <FieldError>{errors.items[index]?.product_id?.message}</FieldError>}
                   </Field>
 
@@ -479,13 +569,17 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
                       render={({ field: itemField }) => (
                         <NumericInput
                           value={itemField.value}
-                          onChange={(value) => itemField.onChange(value ?? 0)}
+                          onChange={(value) => {
+                            const normalized = Math.max(0, value ?? 0);
+                            const maxQty = selectedItem?.availableQty;
+                            itemField.onChange(maxQty !== undefined ? Math.min(normalized, maxQty) : normalized);
+                          }}
                           min={0}
                           max={selectedItem?.availableQty ?? undefined}
                         />
                       )}
                     />
-                    {selectedItem && <p className="text-xs text-muted-foreground">Available: {selectedItem.availableQty.toFixed(3)}</p>}
+                    {selectedItem && <p className="text-xs text-muted-foreground">Return available: {formatQty(selectedItem.availableQty)}</p>}
                     {errors.items?.[index]?.qty && <FieldError>{errors.items[index]?.qty?.message}</FieldError>}
                   </Field>
 

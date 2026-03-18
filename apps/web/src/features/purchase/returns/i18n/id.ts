@@ -20,6 +20,10 @@ export const purchaseReturnsId = {
       deleteConfirmation: "Apakah Anda yakin ingin menghapus retur pembelian ini?",
       error: "Terjadi kesalahan",
     },
+    validation: {
+      duplicateItem: "Produk duplikat tidak diperbolehkan pada item retur.",
+      qtyExceeds: "Qty melebihi kuantitas retur yang tersedia untuk {product}. Diminta: {requested}, Diterima: {received}, Sudah diretur: {returned}, Tersedia: {available}",
+    },
     status: {
       draft: "Draft",
       submitted: "Diajukan",

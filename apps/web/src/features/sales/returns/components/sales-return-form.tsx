@@ -28,9 +28,17 @@ type EligibleItem = {
   productId: string;
   productCode: string;
   productName: string;
+  deliveredQty: number;
+  returnedQty: number;
   availableQty: number;
   dealPrice: number;
 };
+
+const formatQty = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  }).format(value);
 
 export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
   const t = useTranslations("salesReturns");
@@ -83,6 +91,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   );
 
   const delivery = deliveryResponse?.data;
+  const deliveryWarehouseId = delivery?.warehouse_id ?? "";
   const deliveryItems = useMemo(() => delivery?.items ?? [], [delivery?.items]);
   const deliveryOptions = useMemo(() => deliveryOptionsResponse?.data ?? [], [deliveryOptionsResponse?.data]);
   const returnHistory = useMemo(() => returnHistoryResponse?.data ?? [], [returnHistoryResponse?.data]);
@@ -107,8 +116,13 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const returnedQtyByProduct = useMemo(() => {
     const map = new Map<string, number>();
+    const effectiveStatuses = new Set(["SUBMITTED", "PROCESSED"]);
 
     returnHistory.forEach((history) => {
+      if (!effectiveStatuses.has((history.status ?? "").toUpperCase())) {
+        return;
+      }
+
       (history.items ?? []).forEach((item) => {
         const productId = item.product_id ?? "";
         if (!productId) {
@@ -135,6 +149,8 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
           productId,
           productCode: item.product?.code ?? "-",
           productName: item.product?.name ?? productId,
+          deliveredQty,
+          returnedQty,
           availableQty,
           dealPrice,
         };
@@ -168,7 +184,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     form.reset({
       invoice_id: defaultInvoiceId ?? "",
       delivery_id: selectedDeliveryId,
-      warehouse_id: delivery?.warehouse_id ?? warehouses[0]?.id ?? "",
+      warehouse_id: deliveryWarehouseId || warehouses[0]?.id || "",
       customer_id: "",
       reason: reasons[0]?.value ?? "OTHER",
       action: actions[0]?.value ?? "CREDIT_NOTE",
@@ -188,7 +204,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   }, [
     selectedDeliveryId,
     defaultInvoiceId,
-    delivery?.warehouse_id,
+    deliveryWarehouseId,
     warehouses,
     reasons,
     actions,
@@ -214,6 +230,21 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
       return;
     }
 
+    form.clearErrors("items");
+
+    const selectedProducts = values.items
+      .map((item) => item.product_id)
+      .filter((productId): productId is string => !!productId);
+
+    const uniqueSelectedProducts = new Set(selectedProducts);
+    if (uniqueSelectedProducts.size !== selectedProducts.length) {
+      form.setError("items", {
+        type: "manual",
+        message: t("validation.duplicateItem"),
+      });
+      return;
+    }
+
     const requestedQtyByProduct = new Map<string, number>();
 
     for (const item of values.items) {
@@ -227,11 +258,18 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     }
 
     for (const [productId, requestedQty] of requestedQtyByProduct.entries()) {
-      const availableQty = eligibleItemMap.get(productId)?.availableQty ?? 0;
+      const selectedItem = eligibleItemMap.get(productId);
+      const availableQty = selectedItem?.availableQty ?? 0;
       if (requestedQty > availableQty) {
         form.setError("items", {
           type: "manual",
-          message: "Qty exceeds available return quantity",
+          message: t("validation.qtyExceeds", {
+            product: selectedItem?.productCode ?? productId,
+            requested: formatQty(requestedQty),
+            delivered: formatQty(selectedItem?.deliveredQty ?? 0),
+            returned: formatQty(selectedItem?.returnedQty ?? 0),
+            available: formatQty(availableQty),
+          }),
         });
         return;
       }
@@ -240,6 +278,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     await createMutation.mutateAsync({
       ...values,
       delivery_id: selectedDeliveryId,
+      warehouse_id: deliveryWarehouseId || values.warehouse_id,
       invoice_id: values.invoice_id || undefined,
       customer_id: values.customer_id || undefined,
       notes: values.notes || undefined,
@@ -357,7 +396,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="cursor-pointer">
+                  <SelectTrigger className="cursor-pointer" disabled={!!deliveryWarehouseId}>
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -370,6 +409,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                 </Select>
               )}
             />
+            {deliveryWarehouseId && <p className="text-xs text-muted-foreground">Warehouse is locked from selected delivery order.</p>}
             {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
           </Field>
 
@@ -440,6 +480,12 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
           {fields.map((field, index) => {
             const selectedProductId = watchedItems?.[index]?.product_id;
             const selectedItem = selectedProductId ? eligibleItemMap.get(selectedProductId) : null;
+            const selectedProductIdsInOtherRows = new Set(
+              (watchedItems ?? [])
+                .filter((_, itemIndex) => itemIndex !== index)
+                .map((item) => item?.product_id)
+                .filter((productId): productId is string => !!productId),
+            );
 
             return (
               <div key={field.id} className="space-y-4 rounded-lg border bg-card p-4">
@@ -476,15 +522,27 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                             <SelectValue placeholder="Select eligible product" />
                           </SelectTrigger>
                           <SelectContent>
-                            {eligibleItems.map((item) => (
-                              <SelectItem key={item.productId} value={item.productId} className="cursor-pointer">
-                                {item.productCode} - {item.productName} | Avl: {item.availableQty.toFixed(3)} | Deal: {formatCurrency(item.dealPrice)}
-                              </SelectItem>
-                            ))}
+                            {eligibleItems
+                              .filter((item) => {
+                                if (item.productId === itemField.value) {
+                                  return true;
+                                }
+                                return !selectedProductIdsInOtherRows.has(item.productId);
+                              })
+                              .map((item) => (
+                                <SelectItem key={item.productId} value={item.productId} className="cursor-pointer">
+                                  {item.productCode} - {item.productName} | Del: {formatQty(item.deliveredQty)} | Ret: {formatQty(item.returnedQty)} | Avl: {formatQty(item.availableQty)} | Deal: {formatCurrency(item.dealPrice)}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       )}
                     />
+                    {selectedItem && (
+                      <p className="text-xs text-muted-foreground">
+                        Delivered: {formatQty(selectedItem.deliveredQty)} | Already returned: {formatQty(selectedItem.returnedQty)} | Available: {formatQty(selectedItem.availableQty)}
+                      </p>
+                    )}
                     {errors.items?.[index]?.product_id && <FieldError>{errors.items[index]?.product_id?.message}</FieldError>}
                   </Field>
 
@@ -496,13 +554,17 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                       render={({ field: itemField }) => (
                         <NumericInput
                           value={itemField.value}
-                          onChange={(value) => itemField.onChange(value ?? 0)}
+                          onChange={(value) => {
+                            const normalized = Math.max(0, value ?? 0);
+                            const maxQty = selectedItem?.availableQty;
+                            itemField.onChange(maxQty !== undefined ? Math.min(normalized, maxQty) : normalized);
+                          }}
                           min={0}
                           max={selectedItem?.availableQty ?? undefined}
                         />
                       )}
                     />
-                    {selectedItem && <p className="text-xs text-muted-foreground">Available: {selectedItem.availableQty.toFixed(3)}</p>}
+                    {selectedItem && <p className="text-xs text-muted-foreground">Available: {formatQty(selectedItem.availableQty)}</p>}
                     {errors.items?.[index]?.qty && <FieldError>{errors.items[index]?.qty?.message}</FieldError>}
                   </Field>
 

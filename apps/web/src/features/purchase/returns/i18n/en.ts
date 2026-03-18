@@ -20,6 +20,10 @@ export const purchaseReturnsEn = {
       deleteConfirmation: "Are you sure you want to delete this purchase return?",
       error: "Something went wrong",
     },
+    validation: {
+      duplicateItem: "Duplicate products are not allowed in return items.",
+      qtyExceeds: "Qty exceeds available return quantity for {product}. Requested: {requested}, Received: {received}, Already returned: {returned}, Available: {available}",
+    },
     status: {
       draft: "Draft",
       submitted: "Submitted",
