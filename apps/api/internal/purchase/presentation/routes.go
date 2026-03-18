@@ -25,6 +25,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	grRepo := repositories.NewGoodsReceiptRepository(db)
 	siRepo := repositories.NewSupplierInvoiceRepository(db)
 	payRepo := repositories.NewPurchasePaymentRepository(db)
+	returnRepo := repositories.NewPurchaseReturnRepository(db)
+	recapRepo := repositories.NewPayableRecapRepository(db)
 	auditService := audit.NewAuditService(db)
 
 	poUc := usecase.NewPurchaseOrderUsecase(db, poRepo, prRepo, auditService)
@@ -51,6 +53,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	payH := handler.NewPurchasePaymentHandler(payUc)
 	payPrintH := handler.NewPurchasePaymentPrintHandler(payUc, db)
 
+	returnUC := usecase.NewPurchaseReturnUsecase(db, returnRepo, invUC)
+	returnH := handler.NewPurchaseReturnHandler(returnUC)
+
+	recapUc := usecase.NewPayableRecapUsecase(recapRepo)
+	recapH := handler.NewPayableRecapHandler(recapUc)
+
 	group := api.Group("/purchase")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 	group.Use(middleware.ScopeMiddleware(db))
@@ -61,4 +69,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterSupplierInvoiceRoutes(group, siH, siPrintH)
 	router.RegisterSupplierInvoiceDownPaymentRoutes(group, siDpH, siDpPrintH)
 	router.RegisterPurchasePaymentRoutes(group, payH, payPrintH)
+	router.RegisterPurchaseReturnRoutes(group, returnH)
+	router.RegisterPayableRecapRoutes(group, recapH)
 }

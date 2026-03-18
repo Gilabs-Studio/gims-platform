@@ -153,6 +153,8 @@ func AutoMigrate() error {
 		// Customer Invoice entities (Sprint 7)
 		&sales.CustomerInvoice{},
 		&sales.CustomerInvoiceItem{},
+		&sales.SalesReturn{},
+		&sales.SalesReturnItem{},
 		// Sales Payment entities
 		&sales.SalesPayment{},
 		// Sales Visit entities (Sprint 7)
@@ -208,6 +210,8 @@ func AutoMigrate() error {
 		&purchase.SupplierInvoice{},
 		&purchase.SupplierInvoiceItem{},
 		&purchase.PurchasePayment{},
+		&purchase.PurchaseReturn{},
+		&purchase.PurchaseReturnItem{},
 		// AI Assistant entities
 		&ai.AIChatSession{},
 		&ai.AIChatMessage{},

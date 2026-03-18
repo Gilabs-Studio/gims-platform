@@ -314,6 +314,12 @@ export const navigationConfig: NavItem[] = [
         icon: "credit-card",
         permission: "purchase_payment.read",
       },
+      {
+        name: "Payable Recap",
+        url: "/purchase/payable-recap",
+        icon: "bar-chart-3",
+        permission: "purchase_payment.read",
+      },
     ],
   },
   {

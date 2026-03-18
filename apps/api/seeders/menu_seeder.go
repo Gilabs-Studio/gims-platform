@@ -375,6 +375,7 @@ func SeedMenus() error {
 		{"Supplier Invoices", "receipt", "/purchase/supplier-invoices", 4},
 		{"Supplier Invoice Down Payments", "receipt", "/purchase/supplier-invoice-down-payments", 5},
 		{"Payments", "credit-card", "/purchase/payments", 6},
+		{"Payable Recap", "bar-chart-3", "/purchase/payable-recap", 7},
 	}
 	for _, child := range purchaseChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &purchaseMenu.ID, child.order); err != nil {
