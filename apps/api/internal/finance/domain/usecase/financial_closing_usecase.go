@@ -2,8 +2,10 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -18,6 +20,8 @@ import (
 
 var (
 	ErrFinancialClosingNotFound = errors.New("financial closing not found")
+	// periodClosingNamespace is a deterministic namespace UUID for creating stable reference IDs
+	periodClosingNamespace = uuid.MustParse("d9b5f22a-0000-0000-0000-000000000000")
 )
 
 type FinancialClosingUsecase interface {
@@ -31,15 +35,288 @@ type FinancialClosingUsecase interface {
 }
 
 type financialClosingUsecase struct {
-	db        *gorm.DB
-	coaRepo   repositories.ChartOfAccountRepository
-	repo      repositories.FinancialClosingRepository
-	journalUC JournalEntryUsecase
-	mapper    *mapper.FinancialClosingMapper
+	db             *gorm.DB
+	coaRepo        repositories.ChartOfAccountRepository
+	repo           repositories.FinancialClosingRepository
+	accountingRepo repositories.AccountingPeriodRepository
+	snapshotRepo   repositories.FinancialClosingSnapshotRepository
+	logRepo        repositories.FinancialClosingLogRepository
+	journalUC      JournalEntryUsecase
+	mapper         *mapper.FinancialClosingMapper
 }
 
-func NewFinancialClosingUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.FinancialClosingRepository, journalUC JournalEntryUsecase, mapper *mapper.FinancialClosingMapper) FinancialClosingUsecase {
-	return &financialClosingUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
+func NewFinancialClosingUsecase(
+	db *gorm.DB,
+	coaRepo repositories.ChartOfAccountRepository,
+	repo repositories.FinancialClosingRepository,
+	accountingRepo repositories.AccountingPeriodRepository,
+	snapshotRepo repositories.FinancialClosingSnapshotRepository,
+	logRepo repositories.FinancialClosingLogRepository,
+	journalUC JournalEntryUsecase,
+	mapper *mapper.FinancialClosingMapper,
+) FinancialClosingUsecase {
+	return &financialClosingUsecase{db: db, coaRepo: coaRepo, repo: repo, accountingRepo: accountingRepo, snapshotRepo: snapshotRepo, logRepo: logRepo, journalUC: journalUC, mapper: mapper}
+}
+
+func (uc *financialClosingUsecase) getClosingPeriodRange(ctx context.Context, endDate time.Time) (time.Time, time.Time, error) {
+	start := time.Time{}
+	latest, err := uc.repo.LatestApproved(ctx)
+	if err == nil {
+		// start is the day after the latest approved closing
+		start = latest.PeriodEndDate.AddDate(0, 0, 1)
+	} else if err != nil && err != gorm.ErrRecordNotFound {
+		return time.Time{}, time.Time{}, err
+	}
+	return start, endDate, nil
+}
+
+func (uc *financialClosingUsecase) validateClosingPeriod(ctx context.Context, start, end time.Time) ([]dto.FinancialClosingValidationResult, error) {
+	results := []dto.FinancialClosingValidationResult{}
+
+	// 1) All journal entries within the period must be posted
+	var unpostedCount int64
+	if err := uc.db.WithContext(ctx).
+		Model(&financeModels.JournalEntry{}).
+		Where("entry_date >= ? AND entry_date <= ?", start, end).
+		Where("status != ?", financeModels.JournalStatusPosted).
+		Count(&unpostedCount).Error; err != nil {
+		return nil, err
+	}
+	if unpostedCount == 0 {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "posted_journals", Passed: true, Message: "All journal entries are posted"})
+	} else {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "posted_journals", Passed: false, Message: fmt.Sprintf("Found %d unposted journal entries", unpostedCount)})
+	}
+
+	// 2) Trial balance must be balanced
+	type aggRow struct {
+		DebitTotal  float64
+		CreditTotal float64
+	}
+	var tb aggRow
+	if err := uc.db.WithContext(ctx).
+		Table("journal_lines").
+		Select("COALESCE(SUM(debit),0) AS debit_total, COALESCE(SUM(credit),0) AS credit_total").
+		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
+		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
+		Where("journal_entries.entry_date >= ? AND journal_entries.entry_date <= ?", start, end).
+		Scan(&tb).Error; err != nil {
+		return nil, err
+	}
+	if math.Abs(tb.DebitTotal-tb.CreditTotal) < 0.0001 {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "trial_balance", Passed: true, Message: "Trial balance is balanced"})
+	} else {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "trial_balance", Passed: false, Message: fmt.Sprintf("Trial balance mismatch: debit %.2f vs credit %.2f", tb.DebitTotal, tb.CreditTotal)})
+	}
+
+	// 3) No orphan journal entries (no lines)
+	var orphanCount int64
+	if err := uc.db.WithContext(ctx).
+		Raw(`
+		SELECT COUNT(*) FROM journal_entries je
+		WHERE je.entry_date >= ? AND je.entry_date <= ?
+		AND NOT EXISTS (SELECT 1 FROM journal_lines jl WHERE jl.journal_entry_id = je.id)
+	`, start, end).
+		Scan(&orphanCount).Error; err != nil {
+		return nil, err
+	}
+	if orphanCount == 0 {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "orphan_entries", Passed: true, Message: "No orphan journal entries found"})
+	} else {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "orphan_entries", Passed: false, Message: fmt.Sprintf("Found %d journal entries without lines", orphanCount)})
+	}
+
+	// 4) No reversed journal entries in period
+	var reversedCount int64
+	if err := uc.db.WithContext(ctx).
+		Model(&financeModels.JournalEntry{}).
+		Where("entry_date >= ? AND entry_date <= ?", start, end).
+		Where("status = ?", financeModels.JournalStatusReversed).
+		Count(&reversedCount).Error; err != nil {
+		return nil, err
+	}
+	if reversedCount == 0 {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "reversed_entries", Passed: true, Message: "No reversed journal entries in period"})
+	} else {
+		results = append(results, dto.FinancialClosingValidationResult{Name: "reversed_entries", Passed: false, Message: fmt.Sprintf("Found %d reversed journal entries", reversedCount)})
+	}
+
+	return results, nil
+}
+
+func (uc *financialClosingUsecase) createPeriodClosingJournal(ctx context.Context, start, end time.Time, periodEndDate time.Time) (float64, error) {
+	// Find retained earnings account
+	retainedCoA, err := uc.coaRepo.FindByCode(ctx, COACodeRetainedEarnings)
+	if err != nil {
+		return 0, fmt.Errorf("retained earnings account (code %s) not found: %w", COACodeRetainedEarnings, err)
+	}
+
+	// Get all Revenue and Expense COAs, so we can close them.
+	allCOAs, err := uc.coaRepo.FindAll(ctx, true)
+	if err != nil {
+		return 0, err
+	}
+
+	revenueIDs := make(map[string]bool)
+	expenseIDs := make(map[string]bool)
+	for _, coa := range allCOAs {
+		t := strings.ToUpper(string(coa.Type))
+		if t == "REVENUE" {
+			revenueIDs[coa.ID] = true
+		} else if t == "EXPENSE" || t == "COST_OF_GOODS_SOLD" || t == "SALARY_WAGES" || t == "OPERATIONAL" {
+			expenseIDs[coa.ID] = true
+		}
+	}
+
+	type aggRow struct {
+		ChartOfAccountID string
+		DebitTotal       float64
+		CreditTotal      float64
+	}
+
+	var rows []aggRow
+	if err := uc.db.WithContext(ctx).
+		Table("journal_lines").
+		Select("journal_lines.chart_of_account_id as chart_of_account_id, COALESCE(SUM(journal_lines.debit),0) as debit_total, COALESCE(SUM(journal_lines.credit),0) as credit_total").
+		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
+		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
+		Where("journal_entries.entry_date >= ? AND journal_entries.entry_date <= ?", start, end).
+		Group("journal_lines.chart_of_account_id").
+		Scan(&rows).Error; err != nil {
+		return 0, err
+	}
+
+	var lines []dto.JournalLineRequest
+	var totalRevenue, totalExpense float64
+	for _, r := range rows {
+		if revenueIDs[r.ChartOfAccountID] {
+			balance := r.CreditTotal - r.DebitTotal
+			if balance == 0 {
+				continue
+			}
+			totalRevenue += balance
+			if balance > 0 {
+				lines = append(lines, dto.JournalLineRequest{
+					ChartOfAccountID: r.ChartOfAccountID,
+					Debit:            balance,
+					Credit:           0,
+					Memo:             fmt.Sprintf("Period closing %s — close revenue", periodEndDate.Format("2006-01-02")),
+				})
+			} else {
+				lines = append(lines, dto.JournalLineRequest{
+					ChartOfAccountID: r.ChartOfAccountID,
+					Debit:            0,
+					Credit:           -balance,
+					Memo:             fmt.Sprintf("Period closing %s — close revenue (deficit)", periodEndDate.Format("2006-01-02")),
+				})
+			}
+		} else if expenseIDs[r.ChartOfAccountID] {
+			balance := r.DebitTotal - r.CreditTotal
+			if balance == 0 {
+				continue
+			}
+			totalExpense += balance
+			if balance > 0 {
+				lines = append(lines, dto.JournalLineRequest{
+					ChartOfAccountID: r.ChartOfAccountID,
+					Debit:            0,
+					Credit:           balance,
+					Memo:             fmt.Sprintf("Period closing %s — close expense", periodEndDate.Format("2006-01-02")),
+				})
+			} else {
+				lines = append(lines, dto.JournalLineRequest{
+					ChartOfAccountID: r.ChartOfAccountID,
+					Debit:            -balance,
+					Credit:           0,
+					Memo:             fmt.Sprintf("Period closing %s — close expense (surplus)", periodEndDate.Format("2006-01-02")),
+				})
+			}
+		}
+	}
+
+	netProfit := totalRevenue - totalExpense
+	if netProfit > 0 {
+		lines = append(lines, dto.JournalLineRequest{
+			ChartOfAccountID: retainedCoA.ID,
+			Debit:            0,
+			Credit:           netProfit,
+			Memo:             fmt.Sprintf("Period closing %s — net income to retained earnings", periodEndDate.Format("2006-01-02")),
+		})
+	} else if netProfit < 0 {
+		lines = append(lines, dto.JournalLineRequest{
+			ChartOfAccountID: retainedCoA.ID,
+			Debit:            -netProfit,
+			Credit:           0,
+			Memo:             fmt.Sprintf("Period closing %s — net loss to retained earnings", periodEndDate.Format("2006-01-02")),
+		})
+	}
+
+	if len(lines) == 0 {
+		return 0, errors.New("no revenue or expense balances found for the period")
+	}
+
+	// Create or update a single closing journal entry for this period.
+	refType := "PERIOD_CLOSING"
+	refID := uuid.NewSHA1(periodClosingNamespace, []byte(periodEndDate.Format("2006-01-02"))).String()
+	journalReq := &dto.CreateJournalEntryRequest{
+		EntryDate:         periodEndDate.Format("2006-01-02"),
+		Description:       fmt.Sprintf("Period closing for %s", periodEndDate.Format("2006-01-02")),
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	}
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create period closing journal: %w", err)
+	}
+
+	return netProfit, nil
+}
+
+func (uc *financialClosingUsecase) createSnapshot(ctx context.Context, start, end time.Time, netProfit float64, periodEnd time.Time, createdBy string) (*financeModels.FinancialClosingSnapshot, error) {
+	// Calculate retained earnings balance at end of period
+	retainedCoA, err := uc.coaRepo.FindByCode(ctx, COACodeRetainedEarnings)
+	if err != nil {
+		return nil, fmt.Errorf("retained earnings account (code %s) not found: %w", COACodeRetainedEarnings, err)
+	}
+	balances, err := uc.calculateBalances(ctx, nil, &end)
+	if err != nil {
+		return nil, err
+	}
+	retainedBalance := balances[retainedCoA.ID]
+
+	snapshotData := map[string]any{
+		"net_profit":                netProfit,
+		"retained_earnings_balance": retainedBalance,
+		"period_start":              start.Format("2006-01-02"),
+		"period_end":                end.Format("2006-01-02"),
+	}
+	snapshotJSON, _ := json.Marshal(snapshotData)
+
+	snapshot := &financeModels.FinancialClosingSnapshot{
+		PeriodEndDate:          periodEnd,
+		NetProfit:              netProfit,
+		RetainedEarningsBalance: retainedBalance,
+		SnapshotJSON:           string(snapshotJSON),
+		CreatedBy:              &createdBy,
+	}
+	if err := uc.snapshotRepo.Create(ctx, snapshot); err != nil {
+		return nil, err
+	}
+	return snapshot, nil
+}
+
+func (uc *financialClosingUsecase) logAction(ctx context.Context, periodEnd time.Time, action financeModels.FinancialClosingLogAction, reason string) error {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	logItem := &financeModels.FinancialClosingLog{
+		PeriodEndDate: periodEnd,
+		Action:        action,
+		Reason:        reason,
+		CreatedBy:     &actorID,
+	}
+	return uc.logRepo.Create(ctx, logItem)
 }
 
 func (uc *financialClosingUsecase) Create(ctx context.Context, req *dto.CreateFinancialClosingRequest) (*dto.FinancialClosingResponse, error) {
@@ -66,6 +343,19 @@ func (uc *financialClosingUsecase) Create(ctx context.Context, req *dto.CreateFi
 	}
 	if err := uc.db.WithContext(ctx).Create(item).Error; err != nil {
 		return nil, err
+	}
+
+	// Create an open accounting period spanning from the last closed period to this period end.
+	start, end, err := uc.getClosingPeriodRange(ctx, item.PeriodEndDate)
+	if err == nil {
+		periodName := fmt.Sprintf("%04d-%02d", item.PeriodEndDate.Year(), item.PeriodEndDate.Month())
+		period := &financeModels.AccountingPeriod{
+			PeriodName: periodName,
+			StartDate:  start,
+			EndDate:    end,
+			Status:     financeModels.AccountingPeriodStatusOpen,
+		}
+		_ = uc.accountingRepo.Create(ctx, period)
 	}
 
 	res := uc.mapper.ToResponse(item)
@@ -102,9 +392,70 @@ func (uc *financialClosingUsecase) Approve(ctx context.Context, id string) (*dto
 		if !item.PeriodEndDate.After(latest.PeriodEndDate) {
 			return nil, errors.New("cannot approve closing period on/before latest approved period")
 		}
+	} else if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
 	}
 
+	// Determine the period range we are closing
+	start, end, err := uc.getClosingPeriodRange(ctx, item.PeriodEndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	validations, err := uc.validateClosingPeriod(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	failed := make([]string, 0)
+	for _, v := range validations {
+		if !v.Passed {
+			failed = append(failed, fmt.Sprintf("%s: %s", v.Name, v.Message))
+		}
+	}
+	if len(failed) > 0 {
+		// Log validation attempt
+		_ = uc.logAction(ctx, item.PeriodEndDate, financeModels.FinancialClosingLogActionValidate, strings.Join(failed, "; "))
+		return nil, fmt.Errorf("validation failed: %s", strings.Join(failed, "; "))
+	}
+
+	// Create closing journal and snapshot (net profit -> retained earnings)
+	netProfit, err := uc.createPeriodClosingJournal(ctx, start, end, item.PeriodEndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := uc.createSnapshot(ctx, start, end, netProfit, item.PeriodEndDate, actorID); err != nil {
+		return nil, err
+	}
+
+	// Lock the accounting period
 	now := apptime.Now()
+	period, err := uc.accountingRepo.FindByDate(ctx, item.PeriodEndDate)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	if err == gorm.ErrRecordNotFound {
+		periodName := fmt.Sprintf("%04d-%02d", item.PeriodEndDate.Year(), item.PeriodEndDate.Month())
+		period = &financeModels.AccountingPeriod{
+			PeriodName: periodName,
+			StartDate:  start,
+			EndDate:    end,
+			Status:     financeModels.AccountingPeriodStatusClosed,
+			LockedAt:   &now,
+			LockedBy:   &actorID,
+		}
+		if err := uc.accountingRepo.Create(ctx, period); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := uc.accountingRepo.UpdateStatus(ctx, period.ID, financeModels.AccountingPeriodStatusClosed, &now, &actorID); err != nil {
+			return nil, err
+		}
+	}
+
+	_ = uc.logAction(ctx, item.PeriodEndDate, financeModels.FinancialClosingLogActionClose, "approved")
+
+	now = apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.FinancialClosing{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      financeModels.FinancialClosingStatusApproved,
 		"approved_at": now,
@@ -177,6 +528,15 @@ func (uc *financialClosingUsecase) GetAnalysis(ctx context.Context, id string) (
 		return nil, err
 	}
 
+	// Determine the period range for this closing
+	start, end, err := uc.getClosingPeriodRange(ctx, item.PeriodEndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	validations, _ := uc.validateClosingPeriod(ctx, start, end)
+	_ = uc.logAction(ctx, item.PeriodEndDate, financeModels.FinancialClosingLogActionValidate, "analysis_requested")
+
 	// Calculate Opening Balance (Start of Year)
 	startOfYear := time.Date(item.PeriodEndDate.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 
@@ -218,9 +578,21 @@ func (uc *financialClosingUsecase) GetAnalysis(ctx context.Context, id string) (
 		})
 	}
 
+	var snapshot *dto.FinancialClosingSnapshotResponse
+	if snap, err := uc.snapshotRepo.FindByPeriodEndDate(ctx, item.PeriodEndDate.Format("2006-01-02")); err == nil {
+		snapshot = &dto.FinancialClosingSnapshotResponse{
+			NetProfit:               snap.NetProfit,
+			RetainedEarningsBalance: snap.RetainedEarningsBalance,
+			PeriodEndDate:           snap.PeriodEndDate.Format("2006-01-02"),
+			SnapshotJSON:            snap.SnapshotJSON,
+		}
+	}
+
 	return &dto.FinancialClosingAnalysisResponse{
-		Closing: uc.mapper.ToResponse(item),
-		Rows:    rows,
+		Closing:     uc.mapper.ToResponse(item),
+		Rows:        rows,
+		Validations: validations,
+		Snapshot:    snapshot,
 	}, nil
 }
 
@@ -313,6 +685,24 @@ func (uc *financialClosingUsecase) Reopen(ctx context.Context, id string) (*dto.
 			return nil, errors.New("cannot reopen this period — a later period is already closed; reopen the latest first")
 		}
 	}
+
+	// Reverse the closing journal entry (if it exists)
+	refID := uuid.NewSHA1(periodClosingNamespace, []byte(item.PeriodEndDate.Format("2006-01-02"))).String()
+	var closingEntry financeModels.JournalEntry
+	if err := uc.db.WithContext(ctx).Where("reference_type = ? AND reference_id = ?", "PERIOD_CLOSING", refID).First(&closingEntry).Error; err == nil {
+		// Only reverse posted entries
+		if closingEntry.Status == financeModels.JournalStatusPosted {
+			_, _ = uc.journalUC.Reverse(ctx, closingEntry.ID)
+		}
+	}
+
+	// Unlock the accounting period (if any)
+	period, err := uc.accountingRepo.FindByDate(ctx, item.PeriodEndDate)
+	if err == nil {
+		_ = uc.accountingRepo.UpdateStatus(ctx, period.ID, financeModels.AccountingPeriodStatusOpen, nil, nil)
+	}
+
+	_ = uc.logAction(ctx, item.PeriodEndDate, financeModels.FinancialClosingLogActionReopen, "reopened")
 
 	if err := uc.db.WithContext(ctx).Model(&financeModels.FinancialClosing{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":      financeModels.FinancialClosingStatusDraft,

@@ -33,6 +33,33 @@ export interface FinancialClosing {
   updated_at: string;
 }
 
+export interface FinancialClosingValidationResult {
+  name: string;
+  passed: boolean;
+  message: string;
+}
+
+export interface FinancialClosingSnapshot {
+  net_profit: number;
+  retained_earnings_balance: number;
+  period_end_date: string;
+  snapshot_json: string;
+}
+
+export interface FinancialClosingAnalysis {
+  closing: FinancialClosing;
+  rows: Array<{
+    account_id: string;
+    account_code: string;
+    account_name: string;
+    closing_balance: number;
+    opening_balance: number;
+    difference: number;
+  }>;
+  validations?: FinancialClosingValidationResult[];
+  snapshot?: FinancialClosingSnapshot;
+}
+
 export interface ListFinancialClosingParams {
   page?: number;
   per_page?: number;

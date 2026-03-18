@@ -35,6 +35,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetLocationRepo := repositories.NewAssetLocationRepository(db)
 	assetRepo := repositories.NewAssetRepository(db)
 	financialClosingRepo := repositories.NewFinancialClosingRepository(db)
+	accountingPeriodRepo := repositories.NewAccountingPeriodRepository(db)
+	financialClosingSnapshotRepo := repositories.NewFinancialClosingSnapshotRepository(db)
+	financialClosingLogRepo := repositories.NewFinancialClosingLogRepository(db)
 	taxInvoiceRepo := repositories.NewTaxInvoiceRepository(db)
 	nonTradePayableRepo := repositories.NewNonTradePayableRepository(db)
 	salaryRepo := repositories.NewSalaryStructureRepository(db)
@@ -67,7 +70,16 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper)
-	financialClosingUC := usecase.NewFinancialClosingUsecase(db, coaRepo, financialClosingRepo, journalUC, financialClosingMapper)
+	financialClosingUC := usecase.NewFinancialClosingUsecase(
+		db,
+		coaRepo,
+		financialClosingRepo,
+		accountingPeriodRepo,
+		financialClosingSnapshotRepo,
+		financialClosingLogRepo,
+		journalUC,
+		financialClosingMapper,
+	)
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)

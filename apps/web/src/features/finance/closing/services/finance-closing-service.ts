@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { ApiResponse, CreateFinancialClosingInput, FinancialClosing, ListFinancialClosingParams } from "../types";
+import type { ApiResponse, CreateFinancialClosingInput, FinancialClosing, FinancialClosingAnalysis, ListFinancialClosingParams } from "../types";
 
 const BASE_URL = "/finance/closing";
 
@@ -31,8 +31,8 @@ export const financeClosingService = {
     return response.data;
   },
 
-  getAnalysis: async (id: string): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get<ApiResponse<any>>(`${BASE_URL}/${id}/analysis`);
+  getAnalysis: async (id: string): Promise<ApiResponse<FinancialClosingAnalysis>> => {
+    const response = await apiClient.get<ApiResponse<FinancialClosingAnalysis>>(`${BASE_URL}/${id}/analysis`);
     return response.data;
   },
 };

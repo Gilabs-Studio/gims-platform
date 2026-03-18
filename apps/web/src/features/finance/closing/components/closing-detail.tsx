@@ -89,6 +89,48 @@ export function ClosingDetail({ open, onOpenChange, closingId }: Props) {
                 </Table>
               </CardContent>
             </Card>
+
+            {analysis?.validations && analysis.validations.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">{t("validation.title") || "Validation"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {analysis.validations.map((v) => (
+                      <li key={v.name} className="flex items-start gap-2">
+                        <span className={v.passed ? "text-emerald-600" : "text-destructive"}>
+                          {v.passed ? "✔" : "✖"}
+                        </span>
+                        <span className="text-sm">
+                          <span className="font-medium">{t(`validation.${v.name}`) ?? v.name}</span>: {v.message}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {analysis?.snapshot && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">{t("snapshot.title") || "Snapshot"}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs text-muted-foreground">{t("snapshot.netProfit") || "Net Profit"}</div>
+                      <div className="text-lg font-semibold">{formatCurrency(analysis.snapshot.net_profit)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">{t("snapshot.retainedEarnings") || "Retained Earnings"}</div>
+                      <div className="text-lg font-semibold">{formatCurrency(analysis.snapshot.retained_earnings_balance)}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </DialogContent>
