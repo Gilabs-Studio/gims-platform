@@ -1,6 +1,7 @@
 export interface NavItem {
   id?: string;
   name: string;
+  i18nKey?: string;
   icon: string; // string key for lib/menu-icons.tsx
   url: string;
   permission?: string;
@@ -10,58 +11,68 @@ export interface NavItem {
 export const navigationConfig: NavItem[] = [
   {
     name: "Dashboard",
+    i18nKey: "dashboard",
     icon: "layout-dashboard",
     url: "/dashboard",
     permission: "dashboard.view",
   },
   {
     name: "Master Data",
+    i18nKey: "masterData",
     icon: "database",
     url: "/master-data",
     children: [
       {
         name: "Geographic",
+    i18nKey: "geographic",
         url: "/master-data/geographic",
         icon: "globe",
         permission: "geographic.read",
       },
       {
         name: "Organization",
+    i18nKey: "organization",
         url: "/master-data/organization",
         icon: "building",
         children: [
           {
             name: "Company",
+    i18nKey: "company",
             url: "/master-data/company",
             icon: "building",
             permission: "company.read",
           },
           {
             name: "Divisions",
+    i18nKey: "divisions",
             url: "/master-data/divisions",
             icon: "layers",
             permission: "division.read",
           },
           {
             name: "Job Positions",
+    i18nKey: "jobPositions",
             url: "/master-data/job-positions",
             icon: "user-cog",
             permission: "job_position.read",
           },
           {
             name: "Business Units",
+    i18nKey: "businessUnits",
             url: "/master-data/business-units",
             icon: "layout-list",
             permission: "business_unit.read",
           },
           {
             name: "Business Types",
+    i18nKey: "businessTypes",
             url: "/master-data/business-types",
             icon: "tag",
             permission: "business_type.read",
           },
           {
             name: "Areas",
+    i18nKey: "areas",
             url: "/master-data/areas",
             icon: "map",
             permission: "area.read",
@@ -70,29 +81,34 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Employees",
+    i18nKey: "employees",
         url: "/master-data/employees",
         icon: "users",
         permission: "employee.read",
       },
       {
         name: "Supplier",
+    i18nKey: "supplier",
         url: "/master-data/supplier",
         icon: "truck",
         children: [
           {
             name: "Suppliers",
+    i18nKey: "suppliers",
             url: "/master-data/suppliers",
             icon: "truck",
             permission: "supplier.read",
           },
           {
             name: "Supplier Types",
+    i18nKey: "supplierTypes",
             url: "/master-data/supplier-types",
             icon: "tag",
             permission: "supplier_type.read",
           },
           {
             name: "Banks",
+    i18nKey: "banks",
             url: "/master-data/banks",
             icon: "landmark",
             permission: "bank.read",
@@ -101,17 +117,20 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Customer",
+    i18nKey: "customer",
         url: "/master-data/customer",
         icon: "user",
         children: [
           {
             name: "Customers",
+    i18nKey: "customers",
             url: "/master-data/customers",
             icon: "user-check",
             permission: "customer.read",
           },
           {
             name: "Customer Types",
+    i18nKey: "customerTypes",
             url: "/master-data/customer-types",
             icon: "tag",
             permission: "customer_type.read",
@@ -120,53 +139,62 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Product",
+    i18nKey: "product",
         url: "/master-data/product",
         icon: "package",
         children: [
           {
             name: "Products",
+    i18nKey: "products",
             url: "/master-data/products",
             icon: "package",
             permission: "product.read",
           },
           {
             name: "Categories",
+    i18nKey: "categories",
             url: "/master-data/product-categories",
             icon: "folder-tree",
             permission: "product_category.read",
           },
           {
             name: "Brands",
+    i18nKey: "brands",
             url: "/master-data/product-brands",
             icon: "tag",
             permission: "product_brand.read",
           },
           {
             name: "Segments",
+    i18nKey: "segments",
             url: "/master-data/product-segments",
             icon: "percent",
             permission: "product_segment.read",
           },
           {
             name: "Types",
+    i18nKey: "types",
             url: "/master-data/product-types",
             icon: "tag",
             permission: "product_type.read",
           },
           {
             name: "Packaging",
+    i18nKey: "packaging",
             url: "/master-data/packaging",
             icon: "box",
             permission: "packaging.read",
           },
           {
             name: "Unit of Measure",
+    i18nKey: "unitofMeasure",
             url: "/master-data/uom",
             icon: "hammer",
             permission: "uom.read",
           },
           {
             name: "Procurement Types",
+    i18nKey: "procurementTypes",
             url: "/master-data/procurement-types",
             icon: "shopping-cart",
             permission: "procurement_type.read",
@@ -175,35 +203,41 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Warehouses",
+    i18nKey: "warehouses",
         url: "/master-data/warehouses",
         icon: "warehouse",
         permission: "warehouse.read",
       },
       {
         name: "Payment & Courier",
+    i18nKey: "paymentCourier",
         url: "/master-data/payment-courier",
         icon: "credit-card",
         children: [
           {
             name: "Currencies",
+    i18nKey: "currencies",
             url: "/master-data/currencies",
             icon: "coins",
             permission: "currency.read",
           },
           {
             name: "Payment Terms",
+    i18nKey: "paymentTerms",
             url: "/master-data/payment-terms",
             icon: "clock",
             permission: "payment_term.read",
           },
           {
             name: "Courier Agencies",
+    i18nKey: "courierAgencies",
             url: "/master-data/courier-agencies",
             icon: "truck",
             permission: "courier_agency.read",
           },
           {
             name: "SO Sources",
+    i18nKey: "sOSources",
             url: "/master-data/so-sources",
             icon: "file-text",
             permission: "so_source.read",
@@ -212,12 +246,14 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Leave Types",
+    i18nKey: "leaveTypes",
         url: "/master-data/leave-types",
         icon: "calendar",
         permission: "leave_type.read",
       },
       {
         name: "Users",
+    i18nKey: "users",
         url: "/master-data/users",
         icon: "users",
         permission: "user.read",
@@ -226,59 +262,69 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "Sales",
+    i18nKey: "sales",
     icon: "shopping-cart",
     url: "/sales",
     children: [
       {
         name: "Quotations",
+    i18nKey: "quotations",
         url: "/sales/quotations",
         icon: "file-text",
         permission: "sales_quotation.read",
       },
       {
         name: "Sales Orders",
+    i18nKey: "salesOrders",
         url: "/sales/orders",
         icon: "shopping-cart",
         permission: "sales_order.read",
       },
       {
         name: "Delivery Orders",
+    i18nKey: "deliveryOrders",
         url: "/sales/delivery-orders",
         icon: "truck",
         permission: "delivery_order.read",
       },
       {
         name: "Customer Invoices",
+    i18nKey: "customerInvoices",
         url: "/sales/invoices",
         icon: "receipt",
         permission: "customer_invoice.read",
       },
       {
         name: "Customer Invoices DP",
+    i18nKey: "customerInvoicesDP",
         url: "/sales/customer-invoice-down-payments",
         icon: "banknote",
         permission: "customer_invoice_dp.read",
       },
       {
         name: "Returns",
+    i18nKey: "returns",
         url: "/sales/returns",
         icon: "rotate-ccw",
         permission: "sales_return.read",
       },
       {
         name: "Payments",
+    i18nKey: "payments",
         url: "/sales/payments",
         icon: "credit-card",
         permission: "sales_payment.read",
       },
       {
         name: "Receivables Recap",
+    i18nKey: "receivablesRecap",
         url: "/sales/receivables-recap",
         icon: "bar-chart-3",
         permission: "sales_payment.read",
       },
       {
         name: "Sales Target",
+    i18nKey: "salesTarget",
         url: "/sales/targets",
         icon: "check-square",
         permission: "sales_target.read",
@@ -287,53 +333,62 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "Purchase",
+    i18nKey: "purchase",
     icon: "truck",
     url: "/purchase",
     children: [
       {
         name: "Requisitions",
+    i18nKey: "requisitions",
         url: "/purchase/purchase-requisitions",
         icon: "clipboard-list",
         permission: "purchase_requisition.read",
       },
       {
         name: "Purchase Orders",
+    i18nKey: "purchaseOrders",
         url: "/purchase/purchase-orders",
         icon: "shopping-cart",
         permission: "purchase_order.read",
       },
       {
         name: "Goods Receipt",
+    i18nKey: "goodsReceipt",
         url: "/purchase/goods-receipt",
         icon: "package",
         permission: "goods_receipt.read",
       },
       {
         name: "Supplier Invoices",
+    i18nKey: "supplierInvoices",
         url: "/purchase/supplier-invoices",
         icon: "receipt",
         permission: "supplier_invoice.read",
       },
       {
         name: "Supplier Invoices DP",
+    i18nKey: "supplierInvoicesDP",
         url: "/purchase/supplier-invoice-down-payments",
         icon: "banknote",
         permission: "supplier_invoice_dp.read",
       },
       {
         name: "Returns",
+    i18nKey: "returns",
         url: "/purchase/returns",
         icon: "rotate-ccw",
         permission: "purchase_return.read",
       },
       {
         name: "Payments",
+    i18nKey: "payments",
         url: "/purchase/payments",
         icon: "credit-card",
         permission: "purchase_payment.read",
       },
       {
         name: "Payable Recap",
+    i18nKey: "payableRecap",
         url: "/purchase/payable-recap",
         icon: "bar-chart-3",
         permission: "purchase_payment.read",
@@ -342,23 +397,27 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "Stock",
+    i18nKey: "stock",
     icon: "warehouse",
     url: "/stock",
     children: [
       {
         name: "Inventory",
+    i18nKey: "inventory",
         url: "/stock/inventory",
         icon: "box",
         permission: "inventory.read",
       },
       {
         name: "Stock Movement",
+    i18nKey: "stockMovement",
         url: "/stock/movements",
         icon: "arrow-right-left",
         permission: "stock_movement.read",
       },
       {
         name: "Stock Opname",
+    i18nKey: "stockOpname",
         url: "/stock/opname",
         icon: "clipboard-list",
         permission: "stock_opname.read",
@@ -367,63 +426,74 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "Finance",
+    i18nKey: "finance",
     icon: "credit-card",
     url: "/finance",
     children: [
       {
         name: "Accounting",
+    i18nKey: "accounting",
         url: "/finance/accounting",
         icon: "book-open",
         children: [
           {
             name: "Chart of Accounts",
+    i18nKey: "chartofAccounts",
             url: "/finance/coa",
             icon: "book-open",
             permission: "coa.read",
           },
           {
             name: "Journal",
+    i18nKey: "journal",
             url: "/finance/journal",
             icon: "book-open",
             children: [
               {
                 name: "Journal Entries",
+    i18nKey: "journalEntries",
                 url: "/finance/journals",
                 icon: "file-text",
                 permission: "journal.read",
               },
               {
                 name: "Sales Journal",
+    i18nKey: "salesJournal",
                 url: "/finance/journals/sales",
                 icon: "receipt",
                 permission: "sales_journal.read",
               },
               {
                 name: "Purchase Journal",
+    i18nKey: "purchaseJournal",
                 url: "/finance/journals/purchase",
                 icon: "shopping-cart",
                 permission: "purchase_journal.read",
               },
               {
                 name: "Adjustment Journal",
+    i18nKey: "adjustmentJournal",
                 url: "/finance/journals/adjustment",
                 icon: "pencil",
                 permission: "adjustment_journal.read",
               },
               {
                 name: "Journal Valuation",
+    i18nKey: "journalValuation",
                 url: "/finance/journals/valuation",
                 icon: "calculator",
                 permission: "journal_valuation.read",
               },
               {
                 name: "Cash & Bank Journal",
+    i18nKey: "cashBankJournal",
                 url: "/finance/journals/cash-bank",
                 icon: "banknote",
                 permission: "cash_bank_journal.read",
               },
               {
                 name: "Journal Lines",
+    i18nKey: "journalLines",
                 url: "/finance/journal-lines",
                 icon: "table",
                 permission: "journal_line.read",
@@ -432,6 +502,7 @@ export const navigationConfig: NavItem[] = [
           },
           {
             name: "Financial Closing",
+    i18nKey: "financialClosing",
             url: "/finance/closing",
             icon: "shield-check",
             permission: "financial_closing.read",
@@ -440,23 +511,27 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Banking & Payments",
+    i18nKey: "bankingPayments",
         url: "/finance/banking",
         icon: "landmark",
         children: [
           {
             name: "Bank Accounts",
+    i18nKey: "bankAccounts",
             url: "/finance/bank-accounts",
             icon: "landmark",
             permission: "bank_account.read",
           },
           {
             name: "Payments",
+    i18nKey: "payments",
             url: "/finance/payments",
             icon: "credit-card",
             permission: "payment.read",
           },
           {
             name: "Cash Bank Journal",
+    i18nKey: "cashBankJournal",
             url: "/finance/cash-bank",
             icon: "banknote",
             permission: "cash_bank.read",
@@ -465,23 +540,27 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Receivables & Payables",
+    i18nKey: "receivablesPayables",
         url: "/finance/receivables-payables",
         icon: "receipt",
         children: [
           {
             name: "Non-Trade Payables",
+    i18nKey: "nonTradePayables",
             url: "/finance/non-trade-payables",
             icon: "file-text",
             permission: "non_trade_payable.read",
           },
           {
             name: "Tax Invoices",
+    i18nKey: "taxInvoices",
             url: "/finance/tax-invoices",
             icon: "receipt",
             permission: "tax_invoice.read",
           },
           {
             name: "Aging Reports",
+    i18nKey: "agingReports",
             url: "/finance/aging-reports",
             icon: "clock",
             permission: "journal.read",
@@ -490,23 +569,27 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Budgeting & Cost",
+    i18nKey: "budgetingCost",
         url: "/finance/budgeting",
         icon: "percent",
         children: [
           {
             name: "Budget",
+    i18nKey: "budget",
             url: "/finance/budget",
             icon: "percent",
             permission: "budget.read",
           },
           {
             name: "Salary",
+    i18nKey: "salary",
             url: "/finance/salary",
             icon: "coins",
             permission: "salary.read",
           },
           {
             name: "Up Country Cost",
+    i18nKey: "upCountryCost",
             url: "/finance/up-country-cost",
             icon: "map-pin",
             permission: "up_country_cost.read",
@@ -515,29 +598,34 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Asset Management",
+    i18nKey: "assetManagement",
         url: "/finance/asset-management",
         icon: "building-2",
         children: [
           {
             name: "Assets",
+    i18nKey: "assets",
             url: "/finance/assets",
             icon: "building-2",
             permission: "asset.read",
           },
           {
             name: "Asset Categories",
+    i18nKey: "assetCategories",
             url: "/finance/asset-categories",
             icon: "folder-tree",
             permission: "asset_category.read",
           },
           {
             name: "Asset Locations",
+    i18nKey: "assetLocations",
             url: "/finance/asset-locations",
             icon: "map-pin",
             permission: "asset_location.read",
           },
           {
             name: "Asset Budgets",
+    i18nKey: "assetBudgets",
             url: "/finance/asset-budgets",
             icon: "wallet",
             permission: "asset_budget.read",
@@ -546,23 +634,27 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Financial Statements",
+    i18nKey: "financialStatements",
         url: "/finance/statements",
         icon: "bar-chart-3",
         children: [
           {
             name: "General Ledger",
+    i18nKey: "generalLedger",
             url: "/finance/reports/general-ledger",
             icon: "book-open",
             permission: "general_ledger_report.read",
           },
           {
             name: "Balance Sheet",
+    i18nKey: "balanceSheet",
             url: "/finance/reports/balance-sheet",
             icon: "scale",
             permission: "balance_sheet_report.read",
           },
           {
             name: "Profit & Loss",
+    i18nKey: "profitLoss",
             url: "/finance/reports/profit-loss",
             icon: "trending-up",
             permission: "profit_loss_report.read",
@@ -573,41 +665,48 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "HRD",
+    i18nKey: "hRD",
     icon: "users",
     url: "/hrd",
     children: [
       {
         name: "Attendance",
+    i18nKey: "attendance",
         url: "/hrd/attendance",
         icon: "clock",
         permission: "attendance.read",
       },
       {
         name: "Leave Requests",
+    i18nKey: "leaveRequests",
         url: "/hrd/leave-requests",
         icon: "calendar",
         permission: "leave_request.read",
       },
       {
         name: "Evaluation",
+    i18nKey: "evaluation",
         url: "/hrd/evaluation",
         icon: "check-square",
         permission: "evaluation.read",
       },
       {
         name: "Recruitment",
+    i18nKey: "recruitment",
         url: "/hrd/recruitment",
         icon: "user-plus",
         permission: "recruitment.read",
       },
       {
         name: "Work Schedule",
+    i18nKey: "workSchedule",
         url: "/hrd/work-schedule",
         icon: "calendar-check",
         permission: "work_schedule.read",
       },
       {
         name: "Holidays",
+    i18nKey: "holidays",
         url: "/hrd/holidays",
         icon: "calendar",
         permission: "holiday.read",
@@ -616,100 +715,117 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "CRM",
+    i18nKey: "cRM",
     icon: "handshake",
     url: "/crm",
     children: [
       {
         name: "Leads",
+    i18nKey: "leads",
         url: "/crm/leads",
         icon: "users",
         permission: "crm_lead.read",
       },
       {
         name: "Pipeline",
+    i18nKey: "pipeline",
         url: "/crm/pipeline",
         icon: "kanban",
         permission: "crm_deal.read",
       },
       {
         name: "Tasks",
+    i18nKey: "tasks",
         url: "/crm/tasks",
         icon: "check-square",
         permission: "crm_task.read",
       },
       {
         name: "Visit Reports",
+    i18nKey: "visitReports",
         url: "/crm/visits",
         icon: "map-pin",
         permission: "crm_visit.read",
       },
       {
         name: "Area Mapping",
+    i18nKey: "areaMapping",
         url: "/crm/area-mapping",
         icon: "map",
         permission: "crm_area_mapping.read",
       },
       {
         name: "Route Optimization",
+    i18nKey: "routeOptimization",
         url: "/crm/routes",
         icon: "route",
         permission: "crm_route.read",
       },
       {
         name: "Sales Performance",
+    i18nKey: "salesPerformance",
         url: "/crm/sales-performance",
         icon: "bar-chart-3",
         permission: "crm_sales_performance.read",
       },
       {
         name: "Sales Target",
+    i18nKey: "salesTarget",
         url: "/crm/targets",
         icon: "check-square",
         permission: "sales_target.read",
       },
       {
         name: "Product Analytics",
+    i18nKey: "productAnalytics",
         url: "/crm/product-analytics",
         icon: "pie-chart",
         permission: "crm_product_analytics.read",
       },
       {
         name: "CRM Targets",
+    i18nKey: "cRMTargets",
         url: "/crm/targets",
         icon: "target",
         permission: "crm_target.read",
       },
       {
         name: "CRM Settings",
+    i18nKey: "cRMSettings",
         url: "/crm/settings",
         icon: "settings",
         children: [
           {
             name: "Pipeline Stages",
+    i18nKey: "pipelineStages",
             url: "/crm/settings/pipeline-stages",
             icon: "layers",
             permission: "crm_pipeline_stage.read",
           },
           {
             name: "Lead Sources",
+    i18nKey: "leadSources",
             url: "/crm/settings/lead-sources",
             icon: "funnel",
             permission: "crm_lead_source.read",
           },
           {
             name: "Lead Statuses",
+    i18nKey: "leadStatuses",
             url: "/crm/settings/lead-statuses",
             icon: "tag",
             permission: "crm_lead_status.read",
           },
           {
             name: "Contact Roles",
+    i18nKey: "contactRoles",
             url: "/crm/settings/contact-roles",
             icon: "user-cog",
             permission: "crm_contact_role.read",
           },
           {
             name: "Activity Types",
+    i18nKey: "activityTypes",
             url: "/crm/settings/activity-types",
             icon: "zap",
             permission: "crm_activity_type.read",
@@ -720,36 +836,42 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "Reports",
+    i18nKey: "reports",
     icon: "bar-chart-3",
     url: "/reports",
     permission: "report.view",
     children: [
       {
         name: "Sales Overview",
+    i18nKey: "salesOverview",
         url: "/reports/sales-overview",
         icon: "trending-up",
         permission: "report_sales_overview.read",
       },
       {
         name: "Top Product",
+    i18nKey: "topProduct",
         url: "/reports/product-analysis",
         icon: "bar-chart-3",
         permission: "report_product_analysis.read",
       },
       {
         name: "Geo Performance",
+    i18nKey: "geoPerformance",
         url: "/reports/geo-performance",
         icon: "map",
         permission: "report_geo_performance.read",
       },
       {
         name: "Customer Research",
+    i18nKey: "customerResearch",
         url: "/reports/customer-research",
         icon: "users",
         permission: "report_customer_research.read",
       },
       {
         name: "Supplier Research",
+    i18nKey: "supplierResearch",
         url: "/reports/supplier-research",
         icon: "truck",
         permission: "report_supplier_research.read",
@@ -758,17 +880,20 @@ export const navigationConfig: NavItem[] = [
   },
   {
     name: "AI Assistant",
+    i18nKey: "aIAssistant",
     icon: "sparkles",
     url: "/ai-assistant",
     children: [
       {
         name: "Chatbot",
+    i18nKey: "chatbot",
         url: "/ai-chatbot",
         icon: "bot",
         permission: "ai_chatbot.view",
       },
       {
         name: "Settings",
+    i18nKey: "settings",
         url: "/ai-settings",
         icon: "settings",
         permission: "ai_settings.view",

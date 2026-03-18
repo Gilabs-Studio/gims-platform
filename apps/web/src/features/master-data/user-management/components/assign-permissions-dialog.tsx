@@ -111,6 +111,7 @@ interface TreeCounts {
 function buildPermissionTree(
   navConfig: NavItem[],
   permissions: Permission[],
+  tNav?: (key: string) => string
 ): PermissionTreeNode[] {
   // Index permissions by resource prefix (e.g. "country" -> [country.read, country.create, ...])
   const permsByResource = new Map<string, Permission[]>();
@@ -127,6 +128,7 @@ function buildPermissionTree(
   const usedResources = new Set<string>();
 
   function processNode(nav: NavItem, depth: number): PermissionTreeNode | null {
+    const translatedName = nav.i18nKey && tNav ? tNav(nav.i18nKey) || nav.name : nav.name;
     // Leaf - has permission and no children
     if (nav.permission && !nav.children?.length) {
       const [resource] = nav.permission.split(".");
@@ -138,7 +140,7 @@ function buildPermissionTree(
 
       return {
         id: `resource-${resource}-${safeSuffix}`,
-        name: nav.name,
+        name: translatedName,
         icon: nav.icon,
         type: "resource",
         resource,
@@ -155,8 +157,8 @@ function buildPermissionTree(
       }
       if (children.length === 0) return null;
       return {
-        id: `${depth === 0 ? "section" : "group"}-${nav.name}`,
-        name: nav.name,
+        id: `${depth === 0 ? "section" : "group"}-${translatedName}`,
+        name: translatedName,
         icon: nav.icon,
         type: depth === 0 ? "section" : "group",
         children,
@@ -280,16 +282,22 @@ const TreeResourceRow = memo(function TreeResourceRow({
   onUpdateScope: (id: string, scope: PermissionScope) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
-  const perms = node.permissions ?? [];
-  const selectedCount = perms.filter((p) => p.id in selected).length;
+  const perms = useMemo(() => node.permissions ?? [], [node.permissions]);
+  const permIds = useMemo(() => perms.map((p) => p.id), [perms]);
+
+  const selectedCount = useMemo(() => perms.filter((p) => p.id in selected).length, [perms, selected]);
   const allSelected = selectedCount === perms.length && perms.length > 0;
   const someSelected = selectedCount > 0 && !allSelected;
 
   // Determine the scope to display (common scope across selected perms)
-  const scopeApplicablePerms = perms.filter((p) => {
-    const [, action] = p.code.split(".");
-    return p.id in selected && isScopeApplicable(action);
-  });
+  const scopeApplicablePerms = useMemo(
+    () =>
+      perms.filter((p) => {
+        const [, action] = p.code.split(".");
+        return p.id in selected && isScopeApplicable(action);
+      }),
+    [perms, selected],
+  );
   const displayScope = scopeApplicablePerms.length > 0
     ? (selected[scopeApplicablePerms[0].id] ?? "ALL")
     : "ALL";
@@ -297,9 +305,8 @@ const TreeResourceRow = memo(function TreeResourceRow({
     scopeApplicablePerms.some((p) => selected[p.id] !== displayScope);
 
   const handleMasterToggle = useCallback(() => {
-    const ids = perms.map((p) => p.id);
-    onToggleAll(ids, !allSelected);
-  }, [perms, allSelected, onToggleAll]);
+    onToggleAll(permIds, !allSelected);
+  }, [permIds, allSelected, onToggleAll]);
 
   const handleScopeChange = useCallback(
     (scope: string) => {
@@ -551,11 +558,15 @@ function PermissionsSelector({
 }) {
   const assignPermissions = useAssignPermissionsToRole();
   const t = useTranslations("userManagement.assignPermissions");
+  const tNav = useTranslations("navigation");
+
+  // Provide a stable, typed translator function for buildPermissionTree
+  const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
 
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
-    () => buildPermissionTree(navigationConfig, permissions),
-    [permissions],
+    () => buildPermissionTree(navigationConfig, permissions, tNavFn),
+    [permissions, tNavFn],
   );
 
   // Valid permission ID set for filtering stale IDs from the role
