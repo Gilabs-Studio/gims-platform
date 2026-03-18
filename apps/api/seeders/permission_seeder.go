@@ -235,6 +235,11 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
+		{"/sales/returns", "sales_return.read", "View Sales Returns", "VIEW", "sales_return"},
+		{"/sales/returns", "sales_return.create", "Create Sales Returns", "CREATE", "sales_return"},
+		{"/sales/returns", "sales_return.update", "Edit Sales Returns", "EDIT", "sales_return"},
+		{"/sales/returns", "sales_return.delete", "Delete Sales Returns", "DELETE", "sales_return"},
+
 		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
@@ -327,6 +332,12 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
+
+		{"/purchase/returns", "purchase_return.read", "View Purchase Returns", "VIEW", "purchase_return"},
+		{"/purchase/returns", "purchase_return.create", "Create Purchase Returns", "CREATE", "purchase_return"},
+		{"/purchase/returns", "purchase_return.update", "Edit Purchase Returns", "EDIT", "purchase_return"},
+		{"/purchase/returns", "purchase_return.delete", "Delete Purchase Returns", "DELETE", "purchase_return"},
+
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},

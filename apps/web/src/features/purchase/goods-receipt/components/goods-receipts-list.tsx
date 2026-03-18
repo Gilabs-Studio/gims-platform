@@ -66,6 +66,7 @@ import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
+import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -93,6 +94,7 @@ export function GoodsReceiptsList() {
   const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
   const [siFormGRId, setSiFormGRId] = useState<string | null>(null);
   const [siLinkedData, setSiLinkedData] = useState<{ id: string; code: string; purchase_order_id: string } | null>(null);
+  const [purchaseReturnGRId, setPurchaseReturnGRId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
@@ -107,6 +109,7 @@ export function GoodsReceiptsList() {
   const canClose = useUserPermission("goods_receipt.close");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
+  const canCreatePurchaseReturn = useUserPermission("purchase_return.create");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
@@ -380,6 +383,16 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canCreatePurchaseReturn && ["APPROVED", "PARTIAL", "CLOSED"].includes((it.status ?? "").toUpperCase()) && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPurchaseReturnGRId(it.id)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              Create Return
+                            </DropdownMenuItem>
+                          )}
+
                           {canApprove && (it.status ?? "").toUpperCase() === "SUBMITTED" && (
                             <DropdownMenuItem
                               className="cursor-pointer text-success focus:text-success"
@@ -547,6 +560,16 @@ export function GoodsReceiptsList() {
           purchaseOrderId={siLinkedData.purchase_order_id}
         />
       )}
+
+      <CreatePurchaseReturnDialog
+        open={!!purchaseReturnGRId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPurchaseReturnGRId(null);
+          }
+        }}
+        goodsReceiptId={purchaseReturnGRId ?? undefined}
+      />
     </div>
   );
 }

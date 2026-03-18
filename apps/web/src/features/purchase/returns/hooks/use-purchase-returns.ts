@@ -1,0 +1,47 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { purchaseReturnsService } from "../services/purchase-returns-service";
+import type { CreatePurchaseReturnInput, PurchaseReturnListParams } from "../types";
+
+export const purchaseReturnsKeys = {
+  all: ["purchase-returns"] as const,
+  lists: () => [...purchaseReturnsKeys.all, "list"] as const,
+  list: (params?: PurchaseReturnListParams) => [...purchaseReturnsKeys.lists(), params] as const,
+  details: () => [...purchaseReturnsKeys.all, "detail"] as const,
+  detail: (id: string) => [...purchaseReturnsKeys.details(), id] as const,
+  formData: () => [...purchaseReturnsKeys.all, "form-data"] as const,
+};
+
+export function usePurchaseReturns(params?: PurchaseReturnListParams) {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.list(params),
+    queryFn: () => purchaseReturnsService.list(params),
+  });
+}
+
+export function usePurchaseReturnDetail(id: string, enabled = true) {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.detail(id),
+    queryFn: () => purchaseReturnsService.getById(id),
+    enabled: enabled && !!id,
+  });
+}
+
+export function usePurchaseReturnFormData() {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.formData(),
+    queryFn: () => purchaseReturnsService.getFormData(),
+  });
+}
+
+export function useCreatePurchaseReturn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreatePurchaseReturnInput) => purchaseReturnsService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+    },
+  });
+}

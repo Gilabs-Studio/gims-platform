@@ -150,6 +150,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales/Purchase Returns seeder (depends on invoices and goods receipts)
+	if err := SeedReturns(); err != nil {
+		return err
+	}
+
 	// Sales Visit Interest Questions seeder (Sprint 7)
 	if err := SeedSalesVisitInterestQuestions(); err != nil {
 		return err

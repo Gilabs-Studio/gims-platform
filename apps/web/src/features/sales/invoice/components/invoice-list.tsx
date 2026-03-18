@@ -34,6 +34,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
+import { CreateSalesReturnDialog } from "@/features/sales/returns/components/create-sales-return-dialog";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -101,6 +102,7 @@ export function InvoiceList() {
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [salesReturnInvoiceId, setSalesReturnInvoiceId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useInvoices({
     page,
@@ -120,6 +122,7 @@ export function InvoiceList() {
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
   const canPrint = useUserPermission("customer_invoice.print");
+  const canCreateSalesReturn = useUserPermission("sales_return.create");
 
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
@@ -368,7 +371,7 @@ export function InvoiceList() {
             )}
           </TableCell>
           <TableCell>
-            {(canUpdate || canDelete || canView) && (
+            {(canUpdate || canDelete || canView || canCreateSalesReturn) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="cursor-pointer">
@@ -444,6 +447,15 @@ export function InvoiceList() {
                     >
                       <Printer className="h-4 w-4 mr-2" />
                       {t("print")}
+                    </DropdownMenuItem>
+                  )}
+                  {canCreateSalesReturn && (
+                    <DropdownMenuItem
+                      onClick={() => setSalesReturnInvoiceId(invoice.id)}
+                      className="cursor-pointer"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Return
                     </DropdownMenuItem>
                   )}
                   {canDelete && (status === "draft" || status === "unpaid") && (
@@ -679,6 +691,16 @@ export function InvoiceList() {
           invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
+
+      <CreateSalesReturnDialog
+        open={!!salesReturnInvoiceId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSalesReturnInvoiceId(null);
+          }
+        }}
+        invoiceId={salesReturnInvoiceId ?? undefined}
+      />
     </div>
   );
 }

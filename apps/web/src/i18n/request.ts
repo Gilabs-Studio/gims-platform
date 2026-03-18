@@ -46,6 +46,8 @@ import { deliveryEn } from "@/features/sales/delivery/i18n/en";
 import { deliveryId } from "@/features/sales/delivery/i18n/id";
 import { invoiceEn } from "@/features/sales/invoice/i18n/en";
 import { invoiceId } from "@/features/sales/invoice/i18n/id";
+import { salesReturnsEn } from "@/features/sales/returns/i18n/en";
+import { salesReturnsId } from "@/features/sales/returns/i18n/id";
 import { commandPaletteEn } from "@/features/command-palette/i18n/en";
 import { commandPaletteId } from "@/features/command-palette/i18n/id";
 import { targetsEn } from "@/features/crm/targets/i18n/en";
@@ -76,6 +78,8 @@ import { goodsReceiptId } from "@/features/purchase/goods-receipt/i18n/id";
 
 import { supplierInvoiceEn } from "@/features/purchase/supplier-invoices/i18n/en";
 import { supplierInvoiceId } from "@/features/purchase/supplier-invoices/i18n/id";
+import { purchaseReturnsEn } from "@/features/purchase/returns/i18n/en";
+import { purchaseReturnsId } from "@/features/purchase/returns/i18n/id";
 
 import { supplierInvoiceDPEn } from "@/features/purchase/supplier-invoice-down-payments/i18n/en";
 import { supplierInvoiceDPId } from "@/features/purchase/supplier-invoice-down-payments/i18n/id";
@@ -91,6 +95,9 @@ import { salesPaymentId } from "@/features/sales/payments/i18n/id";
 
 import { receivablesRecapEn } from "@/features/sales/receivables-recap/i18n/en";
 import { receivablesRecapId } from "@/features/sales/receivables-recap/i18n/id";
+
+import { payableRecapEn } from "@/features/purchase/payable-recap/i18n/en";
+import { payableRecapId } from "@/features/purchase/payable-recap/i18n/id";
 
 import { financeCoaEn } from "@/features/finance/coa/i18n/en";
 import { financeCoaId } from "@/features/finance/coa/i18n/id";
@@ -192,6 +199,7 @@ const messages = {
     ...orderEn,
     ...deliveryEn,
     ...invoiceEn,
+    ...salesReturnsEn,
     customerInvoiceDP: customerInvoiceDPEn,
     ...commandPaletteEn,
     ...targetsEn,
@@ -208,10 +216,12 @@ const messages = {
     purchaseOrder: purchaseOrderEn,
     goodsReceipt: goodsReceiptEn,
     supplierInvoice: supplierInvoiceEn,
+    ...purchaseReturnsEn,
     supplierInvoiceDP: supplierInvoiceDPEn,
     purchasePayment: purchasePaymentEn,
     salesPayment: salesPaymentEn,
     receivablesRecap: receivablesRecapEn,
+    payableRecap: payableRecapEn,
     financeCoa: financeCoaEn,
     financeJournals: financeJournalsEn,
     ...journalLinesEn,
@@ -272,6 +282,7 @@ const messages = {
     ...orderId,
     ...deliveryId,
     ...invoiceId,
+    ...salesReturnsId,
     customerInvoiceDP: customerInvoiceDPId,
     ...commandPaletteId,
     ...targetsId,
@@ -287,10 +298,12 @@ const messages = {
     purchaseOrder: purchaseOrderId,
     goodsReceipt: goodsReceiptId,
     supplierInvoice: supplierInvoiceId,
+    ...purchaseReturnsId,
     supplierInvoiceDP: supplierInvoiceDPId,
     purchasePayment: purchasePaymentId,
     salesPayment: salesPaymentId,
     receivablesRecap: receivablesRecapId,
+    payableRecap: payableRecapId,
     financeCoa: financeCoaId,
     financeJournals: financeJournalsId,
     ...journalLinesId,

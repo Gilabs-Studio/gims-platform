@@ -260,6 +260,12 @@ export const navigationConfig: NavItem[] = [
         permission: "customer_invoice_dp.read",
       },
       {
+        name: "Returns",
+        url: "/sales/returns",
+        icon: "rotate-ccw",
+        permission: "sales_return.read",
+      },
+      {
         name: "Payments",
         url: "/sales/payments",
         icon: "credit-card",
@@ -307,6 +313,12 @@ export const navigationConfig: NavItem[] = [
         url: "/purchase/supplier-invoice-down-payments",
         icon: "banknote",
         permission: "supplier_invoice_dp.read",
+      },
+      {
+        name: "Returns",
+        url: "/purchase/returns",
+        icon: "rotate-ccw",
+        permission: "purchase_return.read",
       },
       {
         name: "Payments",

@@ -34,6 +34,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	visitRepo := salesRepos.NewSalesVisitRepository(db)
 	yearlyTargetRepo := salesRepos.NewYearlyTargetRepository(db)
+	salesReturnRepo := salesRepos.NewSalesReturnRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	employeeRepo := organizationRepos.NewEmployeeRepository(db)
 
@@ -46,6 +47,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(db, yearlyTargetRepo, auditService)
+	salesReturnUC := usecase.NewSalesReturnUsecase(db, salesReturnRepo, invUC)
 
 	// Sales Payment
 	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
@@ -67,6 +69,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	invoiceDpPrintHandler := handler.NewCustomerInvoiceDPPrintHandler(invoiceDpUC, db)
 	visitHandler := handler.NewSalesVisitHandler(visitUC)
 	yearlyTargetHandler := handler.NewYearlyTargetHandler(yearlyTargetUC)
+	salesReturnHandler := handler.NewSalesReturnHandler(salesReturnUC)
 	salesPaymentHandler := handler.NewSalesPaymentHandler(salesPaymentUC)
 	salesPaymentPrintHandler := handler.NewSalesPaymentPrintHandler(salesPaymentUC, db)
 	recapHandler := handler.NewReceivablesRecapHandler(recapUC)
@@ -84,6 +87,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterCustomerInvoiceDownPaymentRoutes(salesGroup, invoiceDpHandler, invoiceDpPrintHandler)
 	router.RegisterSalesVisitRoutes(salesGroup, visitHandler)
 	router.RegisterYearlyTargetRoutes(salesGroup, yearlyTargetHandler)
+	router.RegisterSalesReturnRoutes(salesGroup, salesReturnHandler)
 	router.RegisterSalesPaymentRoutes(salesGroup, salesPaymentHandler, salesPaymentPrintHandler)
 	router.RegisterReceivablesRecapRoutes(salesGroup, recapHandler)
 

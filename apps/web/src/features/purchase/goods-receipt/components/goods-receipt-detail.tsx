@@ -39,6 +39,7 @@ import { SupplierDetailModal } from "@/features/master-data/supplier/components/
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
+import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
 import {
   useGoodsReceipt,
@@ -74,6 +75,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isSIDetailOpen, setIsSIDetailOpen] = useState(false);
   const [isSIFormOpen, setIsSIFormOpen] = useState(false);
   const [siLinkedOpen, setSiLinkedOpen] = useState(false);
+  const [isCreateReturnOpen, setIsCreateReturnOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
 
@@ -83,6 +85,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const canApprove = useUserPermission("goods_receipt.approve");
   const canReject = useUserPermission("goods_receipt.reject");
   const canClose = useUserPermission("goods_receipt.close");
+  const canCreatePurchaseReturn = useUserPermission("purchase_return.create");
   const canPrint = useUserPermission("goods_receipt.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
@@ -256,6 +259,17 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     onClick={handleConvertToSI}
                     className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("convertToSupplierInvoice")}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                )}
+                {(status === "APPROVED" || status === "PARTIAL" || status === "CLOSED") && canCreatePurchaseReturn && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateReturnOpen(true)}
+                    className="cursor-pointer"
+                    title="Create Return"
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
@@ -573,6 +587,12 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
           purchaseOrderId={gr.purchase_order?.id ?? ""}
         />
       )}
+
+      <CreatePurchaseReturnDialog
+        open={isCreateReturnOpen}
+        onOpenChange={setIsCreateReturnOpen}
+        goodsReceiptId={gr?.id}
+      />
     </>
   );
 }
