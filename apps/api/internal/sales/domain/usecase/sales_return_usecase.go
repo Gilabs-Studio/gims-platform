@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -23,6 +24,8 @@ var (
 )
 
 const errDBNil = "db is nil"
+
+const salesReturnWarehouseOverridePermission = "sales_return.warehouse_override"
 
 type salesReturnCreateContext struct {
 	DeliveryID  string
@@ -42,20 +45,23 @@ type SalesReturnUsecase interface {
 }
 
 type salesReturnUsecase struct {
-	db      *gorm.DB
-	repo    repositories.SalesReturnRepository
-	invUC   invUsecase.InventoryUsecase
+	db           *gorm.DB
+	repo         repositories.SalesReturnRepository
+	invUC        invUsecase.InventoryUsecase
+	auditService audit.AuditService
 }
 
 func NewSalesReturnUsecase(
 	db *gorm.DB,
 	repo repositories.SalesReturnRepository,
 	invUC invUsecase.InventoryUsecase,
+	auditService audit.AuditService,
 ) SalesReturnUsecase {
 	return &salesReturnUsecase{
-		db:    db,
-		repo:  repo,
-		invUC: invUC,
+		db:           db,
+		repo:         repo,
+		invUC:        invUC,
+		auditService: auditService,
 	}
 }
 
@@ -288,6 +294,16 @@ func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.
 		}
 		warehouseID = strings.TrimSpace(*delivery.WarehouseID)
 	}
+	if delivery.WarehouseID != nil {
+		sourceWarehouseID := strings.TrimSpace(*delivery.WarehouseID)
+		if sourceWarehouseID != "" && warehouseID != sourceWarehouseID {
+			if !hasWarehouseOverridePermission(ctx, salesReturnWarehouseOverridePermission) {
+				u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "denied")
+				return nil, errors.New("warehouse_id must match delivery warehouse")
+			}
+			u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "allowed")
+		}
+	}
 
 	customerID := strings.TrimSpace(req.CustomerID)
 	if customerID == "" {
@@ -308,6 +324,51 @@ func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.
 		InvoiceID:   invoiceID,
 		Action:      action,
 	}, nil
+}
+
+func (u *salesReturnUsecase) logWarehouseMismatchAttempt(
+	ctx context.Context,
+	deliveryID string,
+	sourceWarehouseID string,
+	requestedWarehouseID string,
+	result string,
+) {
+	if u.auditService == nil {
+		return
+	}
+
+	u.auditService.Log(ctx, "sales_return.warehouse_override", deliveryID, map[string]interface{}{
+		"delivery_id":              deliveryID,
+		"source_warehouse_id":      sourceWarehouseID,
+		"requested_warehouse_id":   requestedWarehouseID,
+		"required_permission_code": salesReturnWarehouseOverridePermission,
+		"result":                   result,
+	})
+}
+
+func hasWarehouseOverridePermission(ctx context.Context, permissionCode string) bool {
+	if strings.EqualFold(strings.TrimSpace(getContextString(ctx, "user_role")), "admin") {
+		return true
+	}
+
+	if permissions, ok := ctx.Value("user_permissions").(map[string]bool); ok {
+		return permissions[permissionCode]
+	}
+
+	if scopedPermissions, ok := ctx.Value("user_permissions_scope").(map[string]string); ok {
+		_, exists := scopedPermissions[permissionCode]
+		return exists
+	}
+
+	return false
+}
+
+func getContextString(ctx context.Context, key string) string {
+	if ctx == nil {
+		return ""
+	}
+	v, _ := ctx.Value(key).(string)
+	return strings.TrimSpace(v)
 }
 
 func normalizeSalesReturnAction(raw string) (models.SalesReturnAction, error) {

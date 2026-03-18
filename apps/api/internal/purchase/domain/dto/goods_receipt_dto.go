@@ -6,6 +6,8 @@ type GoodsReceiptListResponse struct {
 	ID                 string                         `json:"id"`
 	Code               string                         `json:"code"`
 	PurchaseOrder      *GoodsReceiptPurchaseOrderMini `json:"purchase_order,omitempty"`
+	Warehouse          *GoodsReceiptWarehouseMini     `json:"warehouse,omitempty"`
+	WarehouseID        *string                        `json:"warehouse_id,omitempty"`
 	Supplier           *GoodsReceiptSupplierMini      `json:"supplier,omitempty"`
 	ReceiptDate        *string                        `json:"receipt_date,omitempty"`
 	Notes              *string                        `json:"notes,omitempty"`
@@ -32,10 +34,17 @@ type GoodsReceiptSupplierMini struct {
 	Name string `json:"name"`
 }
 
+type GoodsReceiptWarehouseMini struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type GoodsReceiptDetailResponse struct {
 	ID            string                           `json:"id"`
 	Code          string                           `json:"code"`
 	PurchaseOrder *GoodsReceiptPurchaseOrderDetail `json:"purchase_order,omitempty"`
+	Warehouse     *GoodsReceiptWarehouseMini       `json:"warehouse,omitempty"`
+	WarehouseID   *string                          `json:"warehouse_id,omitempty"`
 	Supplier      *GoodsReceiptSupplierMini        `json:"supplier,omitempty"`
 	ReceiptDate   *string                          `json:"receipt_date,omitempty"`
 	Notes         *string                          `json:"notes,omitempty"`

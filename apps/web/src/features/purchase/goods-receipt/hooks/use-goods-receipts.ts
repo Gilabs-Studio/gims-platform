@@ -52,6 +52,7 @@ export function useCreateGoodsReceipt() {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.addData() });
       // Invalidate PO list so fulfillment + GR column reflects the new GR immediately.
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -65,6 +66,7 @@ export function useUpdateGoodsReceipt() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -89,6 +91,7 @@ export function useConfirmGoodsReceipt() {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -102,6 +105,7 @@ export function useSubmitGoodsReceipt() {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -115,6 +119,7 @@ export function useApproveGoodsReceipt() {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }

@@ -56,6 +56,7 @@ export const goodsReceiptEn = {
     code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Receipt Date",
+    warehouse: "Warehouse",
     supplier: "Supplier",
     notes: "Notes",
     proofPhoto: "Proof Photo",

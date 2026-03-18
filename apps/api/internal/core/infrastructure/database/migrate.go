@@ -273,13 +273,19 @@ func AutoMigrate() error {
 		log.Printf("Warning: Area supervisor migration skipped or failed: %v", err)
 	}
 
+	// Safety net for rollout compatibility: older databases may miss the
+	// newly introduced goods_receipts.warehouse_id column.
+	if err := ensureGoodsReceiptWarehouseColumn(); err != nil {
+		return fmt.Errorf("failed to ensure goods receipt warehouse column: %w", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
 	return nil
-}
+} 	
 
 // migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
 // employee_areas with is_supervisor=true. This is idempotent — if the source
@@ -328,6 +334,44 @@ func migrateAreaSupervisorsToEmployeeAreas() error {
 		log.Printf("Sprint 17 migration: Migrated %d area supervisor records to employee_areas", result.RowsAffected)
 	} else {
 		log.Println("Sprint 17 migration: No new records to migrate (already migrated or no matches).")
+	}
+
+	return nil
+}
+
+func ensureGoodsReceiptWarehouseColumn() error {
+	if err := DB.Exec(`
+		ALTER TABLE goods_receipts
+		ADD COLUMN IF NOT EXISTS warehouse_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_goods_receipts_warehouse_id
+		ON goods_receipts (warehouse_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_goods_receipts_warehouse'
+			) THEN
+				ALTER TABLE goods_receipts
+				ADD CONSTRAINT fk_goods_receipts_warehouse
+				FOREIGN KEY (warehouse_id)
+				REFERENCES warehouses(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
 	}
 
 	return nil

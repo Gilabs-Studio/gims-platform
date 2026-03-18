@@ -53,7 +53,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	payH := handler.NewPurchasePaymentHandler(payUc)
 	payPrintH := handler.NewPurchasePaymentPrintHandler(payUc, db)
 
-	returnUC := usecase.NewPurchaseReturnUsecase(db, returnRepo, invUC)
+	returnUC := usecase.NewPurchaseReturnUsecase(db, returnRepo, invUC, auditService)
 	returnH := handler.NewPurchaseReturnHandler(returnUC)
 
 	recapUc := usecase.NewPayableRecapUsecase(recapRepo)

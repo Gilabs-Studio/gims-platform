@@ -278,7 +278,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
     await createMutation.mutateAsync({
       ...values,
       delivery_id: selectedDeliveryId,
-      warehouse_id: deliveryWarehouseId || values.warehouse_id,
+      warehouse_id: values.warehouse_id,
       invoice_id: values.invoice_id || undefined,
       customer_id: values.customer_id || undefined,
       notes: values.notes || undefined,
@@ -396,7 +396,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="cursor-pointer" disabled={!!deliveryWarehouseId}>
+                  <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -409,7 +409,11 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                 </Select>
               )}
             />
-            {deliveryWarehouseId && <p className="text-xs text-muted-foreground">Warehouse is locked from selected delivery order.</p>}
+            {deliveryWarehouseId && (
+              <p className="text-xs text-muted-foreground">
+                Defaulted from delivery order. Override requires warehouse override permission.
+              </p>
+            )}
             {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
           </Field>
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -23,6 +24,8 @@ var (
 )
 
 const errPurchaseReturnDBNil = "db is nil"
+
+const purchaseReturnWarehouseOverridePermission = "purchase_return.warehouse_override"
 
 type purchaseReturnCreateContext struct {
 	GoodsReceiptID string
@@ -41,17 +44,19 @@ type PurchaseReturnUsecase interface {
 }
 
 type purchaseReturnUsecase struct {
-	db    *gorm.DB
-	repo  repositories.PurchaseReturnRepository
-	invUC invUsecase.InventoryUsecase
+	db           *gorm.DB
+	repo         repositories.PurchaseReturnRepository
+	invUC        invUsecase.InventoryUsecase
+	auditService audit.AuditService
 }
 
 func NewPurchaseReturnUsecase(
 	db *gorm.DB,
 	repo repositories.PurchaseReturnRepository,
 	invUC invUsecase.InventoryUsecase,
+	auditService audit.AuditService,
 ) PurchaseReturnUsecase {
-	return &purchaseReturnUsecase{db: db, repo: repo, invUC: invUC}
+	return &purchaseReturnUsecase{db: db, repo: repo, invUC: invUC, auditService: auditService}
 }
 
 func (u *purchaseReturnUsecase) GetFormData(ctx context.Context) (*dto.PurchaseReturnFormDataResponse, error) {
@@ -270,6 +275,17 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 	if warehouseID == "" {
 		return nil, errors.New("warehouse_id is required")
 	}
+	sourceWarehouseID := ""
+	if goodsReceipt.WarehouseID != nil {
+		sourceWarehouseID = strings.TrimSpace(*goodsReceipt.WarehouseID)
+	}
+	if sourceWarehouseID != "" && sourceWarehouseID != warehouseID {
+		if !hasWarehouseOverridePermission(ctx, purchaseReturnWarehouseOverridePermission) {
+			u.logWarehouseMismatchAttempt(ctx, goodsReceiptID, sourceWarehouseID, warehouseID, "denied")
+			return nil, errors.New("warehouse_id must match goods receipt warehouse")
+		}
+		u.logWarehouseMismatchAttempt(ctx, goodsReceiptID, sourceWarehouseID, warehouseID, "allowed")
+	}
 
 	if err := u.validateRequestedQtyAgainstWarehouseStock(ctx, warehouseID, req.Items); err != nil {
 		return nil, err
@@ -289,6 +305,51 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 		SupplierID:     supplierID,
 		Action:         action,
 	}, nil
+}
+
+func (u *purchaseReturnUsecase) logWarehouseMismatchAttempt(
+	ctx context.Context,
+	goodsReceiptID string,
+	sourceWarehouseID string,
+	requestedWarehouseID string,
+	result string,
+) {
+	if u.auditService == nil {
+		return
+	}
+
+	u.auditService.Log(ctx, "purchase_return.warehouse_override", goodsReceiptID, map[string]interface{}{
+		"goods_receipt_id":         goodsReceiptID,
+		"source_warehouse_id":      sourceWarehouseID,
+		"requested_warehouse_id":   requestedWarehouseID,
+		"required_permission_code": purchaseReturnWarehouseOverridePermission,
+		"result":                   result,
+	})
+}
+
+func hasWarehouseOverridePermission(ctx context.Context, permissionCode string) bool {
+	if strings.EqualFold(strings.TrimSpace(getContextString(ctx, "user_role")), "admin") {
+		return true
+	}
+
+	if permissions, ok := ctx.Value("user_permissions").(map[string]bool); ok {
+		return permissions[permissionCode]
+	}
+
+	if scopedPermissions, ok := ctx.Value("user_permissions_scope").(map[string]string); ok {
+		_, exists := scopedPermissions[permissionCode]
+		return exists
+	}
+
+	return false
+}
+
+func getContextString(ctx context.Context, key string) string {
+	if ctx == nil {
+		return ""
+	}
+	v, _ := ctx.Value(key).(string)
+	return strings.TrimSpace(v)
 }
 
 func normalizePurchaseReturnAction(raw string) (models.PurchaseReturnAction, error) {
@@ -568,15 +629,15 @@ func mapPurchaseReturnRow(row *models.PurchaseReturn) *dto.PurchaseReturnRespons
 	items := make([]dto.PurchaseReturnItemResponse, 0, len(row.Items))
 	for _, item := range row.Items {
 		items = append(items, dto.PurchaseReturnItemResponse{
-			ID:                item.ID,
+			ID:                 item.ID,
 			GoodsReceiptItemID: item.GoodsReceiptItemID,
-			ProductID:         item.ProductID,
-			UOMID:             item.UOMID,
-			Condition:         item.Condition,
-			Notes:             item.Notes,
-			Qty:               item.Quantity,
-			UnitCost:          item.UnitCost,
-			Subtotal:          item.Subtotal,
+			ProductID:          item.ProductID,
+			UOMID:              item.UOMID,
+			Condition:          item.Condition,
+			Notes:              item.Notes,
+			Qty:                item.Quantity,
+			UnitCost:           item.UnitCost,
+			Subtotal:           item.Subtotal,
 		})
 	}
 

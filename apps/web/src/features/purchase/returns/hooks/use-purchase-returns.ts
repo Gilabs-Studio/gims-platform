@@ -55,6 +55,7 @@ export function useCreatePurchaseReturn() {
     mutationFn: (payload: CreatePurchaseReturnInput) => purchaseReturnsService.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -68,6 +69,7 @@ export function useUpdatePurchaseReturnStatus() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }

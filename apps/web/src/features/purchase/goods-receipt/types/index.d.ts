@@ -49,10 +49,17 @@ export interface GoodsReceiptSupplierMini {
   name: string;
 }
 
+export interface GoodsReceiptWarehouseMini {
+  id: string;
+  name: string;
+}
+
 export interface GoodsReceiptListItem {
   id: string;
   code: string;
   purchase_order?: GoodsReceiptPurchaseOrderMini | null;
+  warehouse?: GoodsReceiptWarehouseMini | null;
+  warehouse_id?: string | null;
   supplier?: GoodsReceiptSupplierMini | null;
   receipt_date?: string | null;
   notes?: string | null;
@@ -92,6 +99,8 @@ export interface GoodsReceiptDetail {
   id: string;
   code: string;
   purchase_order?: GoodsReceiptPurchaseOrderDetail | null;
+  warehouse?: GoodsReceiptWarehouseMini | null;
+  warehouse_id?: string | null;
   supplier?: GoodsReceiptSupplierMini | null;
   receipt_date?: string | null;
   notes?: string | null;
@@ -121,12 +130,14 @@ export interface GoodsReceiptItemInput {
 
 export interface CreateGoodsReceiptInput {
   purchase_order_id: string;
+  warehouse_id: string;
   notes?: string | null;
   proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];
 }
 
 export interface UpdateGoodsReceiptInput {
+  warehouse_id: string;
   notes?: string | null;
   proof_image_url?: string | null;
   items: GoodsReceiptItemInput[];

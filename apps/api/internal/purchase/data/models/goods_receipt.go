@@ -5,6 +5,7 @@ import (
 
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
+	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -27,8 +28,10 @@ type GoodsReceipt struct {
 
 	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 
-	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
-	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
+	PurchaseOrderID string                     `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
+	PurchaseOrder   *PurchaseOrder             `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
+	WarehouseID     *string                    `gorm:"type:uuid;index" json:"warehouse_id,omitempty"`
+	Warehouse       *warehouseModels.Warehouse `gorm:"foreignKey:WarehouseID" json:"warehouse,omitempty"`
 
 	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
 	Supplier             *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`

@@ -84,6 +84,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 
 	query = query.
 		Preload("Supplier").
+		Preload("Warehouse").
 		Preload("Creator").
 		Preload("PurchaseOrder").
 		Preload("Items")
@@ -100,6 +101,7 @@ func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*model
 	err := r.db.WithContext(ctx).
 		Model(&models.GoodsReceipt{}).
 		Preload("Supplier").
+		Preload("Warehouse").
 		Preload("Creator").
 		Preload("PurchaseOrder.Supplier").
 		Preload("PurchaseOrder.Items.Product").
@@ -159,6 +161,7 @@ func (r *goodsReceiptRepository) Update(ctx context.Context, gr *models.GoodsRec
 		}
 
 		if err := tx.Model(&existing).Updates(map[string]interface{}{
+			"warehouse_id":    gr.WarehouseID,
 			"notes":           gr.Notes,
 			"proof_image_url": gr.ProofImageURL,
 		}).Error; err != nil {

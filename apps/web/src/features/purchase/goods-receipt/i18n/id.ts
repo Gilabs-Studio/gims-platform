@@ -56,6 +56,7 @@ export const goodsReceiptId = {
     code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Tanggal Terima",
+    warehouse: "Gudang",
     supplier: "Supplier",
     notes: "Catatan",
     proofPhoto: "Foto Bukti",

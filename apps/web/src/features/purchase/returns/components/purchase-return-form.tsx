@@ -297,7 +297,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
     try {
       await createMutation.mutateAsync({
         ...values,
-        warehouse_id: goodsReceiptWarehouseId || values.warehouse_id,
+        warehouse_id: values.warehouse_id,
         purchase_order_id: values.purchase_order_id || undefined,
         supplier_id: values.supplier_id || undefined,
         notes: values.notes || undefined,
@@ -409,7 +409,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
               control={control}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="cursor-pointer" disabled={!!goodsReceiptWarehouseId}>
+                  <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
@@ -422,7 +422,11 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
                 </Select>
               )}
             />
-            {goodsReceiptWarehouseId && <p className="text-xs text-muted-foreground">Warehouse is locked from selected goods receipt.</p>}
+            {goodsReceiptWarehouseId && (
+              <p className="text-xs text-muted-foreground">
+                Defaulted from goods receipt. Override requires warehouse override permission.
+              </p>
+            )}
             {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
           </Field>
 
