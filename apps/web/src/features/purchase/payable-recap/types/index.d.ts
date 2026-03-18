@@ -2,6 +2,7 @@ export interface PayableRecapRow {
   supplier_id: string;
   supplier_name: string;
   total_payable: number;
+  down_payment: number;
   paid_amount: number;
   outstanding_amount: number;
   last_transaction: string;

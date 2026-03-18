@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingDown, Users, DollarSign } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingDown, Users, DollarSign, ExternalLink } from "lucide-react";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +69,9 @@ export function ReceivablesRecapList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
 
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const params = {
     page,
     per_page: pageSize,
@@ -76,6 +82,7 @@ export function ReceivablesRecapList() {
 
   const { data, isLoading } = useReceivablesRecap(params);
   const { data: summaryData, isLoading: summaryLoading } = useReceivablesSummary();
+  const hasCustomerPermission = useHasPermission("customer.read");
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -90,9 +97,9 @@ export function ReceivablesRecapList() {
       link.download = "receivables_recap.csv";
       link.click();
       window.URL.revokeObjectURL(url);
-      toast.success(t("toast.exported"));
+      toast.success(t("exportSuccess"));
     } catch {
-      toast.error(t("toast.failed"));
+      toast.error(t("exportError"));
     }
   };
 
@@ -126,7 +133,7 @@ export function ReceivablesRecapList() {
         />
         <StatCard
           icon={AlertTriangle}
-          label={t("summary.badDebt")}
+          label={t("aging.badDebt")}
           value={summaryLoading ? null : (summary?.bad_debt_count ?? 0).toLocaleString("id-ID")}
           color="bg-destructive/10 text-destructive"
         />
@@ -149,7 +156,7 @@ export function ReceivablesRecapList() {
         </div>
         <Button variant="outline" size="sm" onClick={handleExport} id="receivables-recap-export" className="cursor-pointer">
           <Download className="mr-2 h-4 w-4" />
-          {t("actions.export")}
+          {t("export")}
         </Button>
       </div>
 
@@ -158,11 +165,11 @@ export function ReceivablesRecapList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("columns.customer")}</TableHead>
+              <TableHead>{t("columns.customerName")}</TableHead>
               <TableHead className="text-right">{t("columns.totalReceivable")}</TableHead>
-              <TableHead className="text-right">{t("columns.paid")}</TableHead>
-              <TableHead className="text-right">{t("columns.outstanding")}</TableHead>
-              <TableHead className="text-center">{t("columns.agingDays")}</TableHead>
+              <TableHead className="text-right">{t("columns.downPayment", { defaultValue: "Pembayaran Dimuka" })}</TableHead>
+              <TableHead className="text-right">{t("columns.paidAmount")}</TableHead>
+              <TableHead className="text-right">{t("columns.outstandingAmount")}</TableHead>
               <TableHead className="text-center">{t("columns.agingCategory")}</TableHead>
               <TableHead>{t("columns.lastTransaction")}</TableHead>
             </TableRow>
@@ -187,9 +194,27 @@ export function ReceivablesRecapList() {
             ) : (
               items.map((row) => (
                 <TableRow key={row.customer_id}>
-                  <TableCell className="font-medium">{row.customer_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {hasCustomerPermission ? (
+                      <span 
+                        onClick={() => {
+                          setSelectedCustomerId(row.customer_id);
+                          setIsModalOpen(true);
+                        }} 
+                        className="text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        {row.customer_name}
+                        <ExternalLink className="h-3 w-3" />
+                      </span>
+                    ) : (
+                      <span className="text-foreground">{row.customer_name}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(row.total_receivable)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(row.down_payment)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-success dark:text-success">
                     {formatCurrency(row.paid_amount)}
@@ -197,9 +222,9 @@ export function ReceivablesRecapList() {
                   <TableCell className="text-right tabular-nums font-semibold">
                     {formatCurrency(row.outstanding_amount)}
                   </TableCell>
-                  <TableCell className="text-center tabular-nums">{row.aging_days}</TableCell>
                   <TableCell className="text-center">
                     <AgingBadge category={row.aging_category} />
+                    <div className="text-xs text-muted-foreground mt-1">{row.aging_days} {t("aging.current").includes("Hari") || t("aging.overdue1_30").includes("Hari") ? "Hari" : "Days"}</div>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(row.last_transaction)}
@@ -222,6 +247,18 @@ export function ReceivablesRecapList() {
             setPageSize(size);
             setPage(1);
           }}
+        />
+      )}
+
+      {/* Customer Detail Modal */}
+      {selectedCustomerId && (
+        <CustomerDetailModal
+          open={isModalOpen}
+          onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setTimeout(() => setSelectedCustomerId(null), 300);
+          }}
+          customerId={selectedCustomerId}
         />
       )}
     </div>

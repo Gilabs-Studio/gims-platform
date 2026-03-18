@@ -13,6 +13,7 @@ type PayableRecapRow struct {
 	SupplierID        string    `json:"supplier_id"`
 	SupplierName      string    `json:"supplier_name"`
 	TotalPayable      float64   `json:"total_payable"`
+	DownPayment       float64   `json:"down_payment"`
 	PaidAmount        float64   `json:"paid_amount"`
 	OutstandingAmount float64   `json:"outstanding_amount"`
 	LastTransaction   time.Time `json:"last_transaction"`
@@ -56,6 +57,7 @@ WITH supplier_payables AS (
         s.id                              AS supplier_id,
         s.name                            AS supplier_name,
         COALESCE(SUM(DISTINCT si.amount), 0)       AS total_payable,
+        COALESCE(SUM(DISTINCT CASE WHEN si.type = 'DOWN_PAYMENT' THEN si.amount ELSE NULL END), 0) AS down_payment,
         COALESCE(SUM(CASE WHEN pp.status = 'CONFIRMED' THEN pp.amount ELSE 0 END), 0)
                                            AS paid_amount,
         COALESCE(SUM(DISTINCT si.amount), 0) -
@@ -95,6 +97,7 @@ SELECT
     supplier_id,
     supplier_name,
     total_payable,
+    down_payment,
     paid_amount,
     outstanding_amount,
     last_transaction,
@@ -113,6 +116,7 @@ FROM supplier_payables`
 var allowedSortCols = map[string]bool{
 	"supplier_name":      true,
 	"total_payable":      true,
+	"down_payment":       true,
 	"paid_amount":        true,
 	"outstanding_amount": true,
 	"aging_days":         true,

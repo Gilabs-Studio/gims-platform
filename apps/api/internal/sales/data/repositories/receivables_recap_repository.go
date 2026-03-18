@@ -13,6 +13,7 @@ type ReceivablesRecapRow struct {
 	CustomerID        string    `json:"customer_id"`
 	CustomerName      string    `json:"customer_name"`
 	TotalReceivable   float64   `json:"total_receivable"`
+	DownPayment       float64   `json:"down_payment"`
 	PaidAmount        float64   `json:"paid_amount"`
 	OutstandingAmount float64   `json:"outstanding_amount"`
 	LastTransaction   time.Time `json:"last_transaction"`
@@ -57,6 +58,7 @@ WITH customer_receivables AS (
         c.id                              AS customer_id,
         c.name                            AS customer_name,
         COALESCE(SUM(DISTINCT ci.amount), 0)       AS total_receivable,
+        COALESCE(SUM(DISTINCT CASE WHEN ci.type = 'down_payment' THEN ci.amount ELSE NULL END), 0) AS down_payment,
         COALESCE(SUM(CASE WHEN sp.status = 'CONFIRMED' THEN sp.amount ELSE 0 END), 0)
                                            AS paid_amount,
         COALESCE(SUM(DISTINCT ci.amount), 0) -
@@ -96,6 +98,7 @@ SELECT
     customer_id,
     customer_name,
     total_receivable,
+    down_payment,
     paid_amount,
     outstanding_amount,
     last_transaction,
@@ -114,6 +117,7 @@ FROM customer_receivables`
 var allowedSortCols = map[string]bool{
 	"customer_name":      true,
 	"total_receivable":   true,
+	"down_payment":       true,
 	"paid_amount":        true,
 	"outstanding_amount": true,
 	"aging_days":         true,

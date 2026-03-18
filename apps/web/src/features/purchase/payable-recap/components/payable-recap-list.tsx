@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingUp, Users, DollarSign } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingUp, Users, DollarSign, ExternalLink } from "lucide-react";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
+import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +69,9 @@ export function PayableRecapList() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
 
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const params = {
     page,
     per_page: pageSize,
@@ -76,6 +82,7 @@ export function PayableRecapList() {
 
   const { data, isLoading } = usePayableRecap(params);
   const { data: summaryData, isLoading: summaryLoading } = usePayableSummary();
+  const hasSupplierPermission = useHasPermission("supplier.read");
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -160,6 +167,7 @@ export function PayableRecapList() {
             <TableRow>
               <TableHead>{t("columns.supplierName")}</TableHead>
               <TableHead className="text-right">{t("columns.totalPayable")}</TableHead>
+              <TableHead className="text-right">{t("columns.downPayment", { defaultValue: "Pembayaran Dimuka" })}</TableHead>
               <TableHead className="text-right">{t("columns.paidAmount")}</TableHead>
               <TableHead className="text-right">{t("columns.outstandingAmount")}</TableHead>
               <TableHead className="text-center">{t("columns.agingCategory")}</TableHead>
@@ -170,7 +178,7 @@ export function PayableRecapList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((__, j) => (
+                  {Array.from({ length: 7 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-5 w-full" />
                     </TableCell>
@@ -179,16 +187,34 @@ export function PayableRecapList() {
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   {t("empty")}
                 </TableCell>
               </TableRow>
             ) : (
               items.map((row) => (
                 <TableRow key={row.supplier_id}>
-                  <TableCell className="font-medium">{row.supplier_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {hasSupplierPermission ? (
+                      <span 
+                        onClick={() => {
+                          setSelectedSupplierId(row.supplier_id);
+                          setIsModalOpen(true);
+                        }} 
+                        className="text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        {row.supplier_name}
+                        <ExternalLink className="h-3 w-3" />
+                      </span>
+                    ) : (
+                      <span className="text-foreground">{row.supplier_name}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(row.total_payable)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(row.down_payment)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-success dark:text-success">
                     {formatCurrency(row.paid_amount)}
@@ -221,6 +247,18 @@ export function PayableRecapList() {
             setPageSize(size);
             setPage(1);
           }}
+        />
+      )}
+
+      {/* Supplier Detail Modal */}
+      {selectedSupplierId && (
+        <SupplierDetailModal
+          open={isModalOpen}
+          onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setTimeout(() => setSelectedSupplierId(null), 300);
+          }}
+          supplierId={selectedSupplierId}
         />
       )}
     </div>
