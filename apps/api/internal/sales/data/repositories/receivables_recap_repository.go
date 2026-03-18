@@ -65,7 +65,7 @@ WITH return_totals AS (
 	  AND sr.status IN ('SUBMITTED', 'PROCESSED', 'COMPLETED')
 	GROUP BY sr.customer_id
 ),
-WITH customer_receivables AS (
+customer_receivables AS (
     SELECT 
         c.id                              AS customer_id,
         c.name                            AS customer_name,
