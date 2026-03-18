@@ -404,29 +404,9 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
 
           <Field orientation="vertical">
             <FieldLabel>Warehouse</FieldLabel>
-            <Controller
-              name="warehouse_id"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger className="cursor-pointer">
-                    <SelectValue placeholder="Select warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouses.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id} className="cursor-pointer">
-                        {warehouse.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {goodsReceiptWarehouseId && (
-              <p className="text-xs text-muted-foreground">
-                Defaulted from goods receipt. Override requires warehouse override permission.
-              </p>
-            )}
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+              {warehouses.find((w) => w.id === selectedWarehouseId)?.name || "No warehouse selected"}
+            </div>
             {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
           </Field>
 
