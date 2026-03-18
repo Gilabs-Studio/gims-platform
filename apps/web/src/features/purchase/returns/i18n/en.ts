@@ -2,6 +2,7 @@ export const purchaseReturnsEn = {
   purchaseReturns: {
     title: "Purchase Returns",
     subtitle: "Manage goods returns to suppliers",
+    add: "Create Return",
     search: "Search return number or reason",
     empty: "No purchase returns found",
     columns: {
@@ -13,7 +14,33 @@ export const purchaseReturnsEn = {
       amount: "Amount",
     },
     common: {
+      add: "Create Return",
+      updated: "Purchase return updated successfully",
+      deleted: "Purchase return deleted successfully",
+      deleteConfirmation: "Are you sure you want to delete this purchase return?",
       error: "Something went wrong",
+    },
+    status: {
+      draft: "Draft",
+      submitted: "Submitted",
+      approved: "Approved",
+      rejected: "Rejected",
+    },
+    actions: {
+      view: "View",
+      submit: "Submit",
+      approve: "Approve",
+      reject: "Reject",
+      delete: "Delete",
+    },
+    detail: {
+      title: "Purchase Return Detail",
+      status: "Status",
+      goodsReceipt: "Goods Receipt",
+      supplier: "Supplier",
+      action: "Action",
+      amount: "Amount",
+      createdAt: "Created At",
     },
   },
 };

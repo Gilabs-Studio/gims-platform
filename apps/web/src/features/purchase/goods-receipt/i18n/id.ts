@@ -93,6 +93,7 @@ export const goodsReceiptId = {
     partial: "Parsial",
     closed: "Ditutup",
     rejected: "Ditolak",
+    returned: "Diretur",
   },
   actions: {
     create: "Buat",
@@ -112,6 +113,7 @@ export const goodsReceiptId = {
     next: "Selanjutnya",
     back: "Kembali",
     print: "Cetak",
+    createReturn: "Buat Retur",
   },
   convertToSupplierInvoice: "Konversi ke Tagihan Supplier",
   placeholders: {

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseReturnsService } from "../services/purchase-returns-service";
-import type { CreatePurchaseReturnInput, PurchaseReturnListParams } from "../types";
+import type { CreatePurchaseReturnInput, PurchaseReturnListParams, PurchaseReturnStatus } from "../types";
 
 export const purchaseReturnsKeys = {
   all: ["purchase-returns"] as const,
@@ -13,10 +13,11 @@ export const purchaseReturnsKeys = {
   formData: () => [...purchaseReturnsKeys.all, "form-data"] as const,
 };
 
-export function usePurchaseReturns(params?: PurchaseReturnListParams) {
+export function usePurchaseReturns(params?: PurchaseReturnListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: purchaseReturnsKeys.list(params),
     queryFn: () => purchaseReturnsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -40,6 +41,30 @@ export function useCreatePurchaseReturn() {
 
   return useMutation({
     mutationFn: (payload: CreatePurchaseReturnInput) => purchaseReturnsService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+    },
+  });
+}
+
+export function useUpdatePurchaseReturnStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: PurchaseReturnStatus }) =>
+      purchaseReturnsService.updateStatus(id, { status }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useDeletePurchaseReturn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchaseReturnsService.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
     },

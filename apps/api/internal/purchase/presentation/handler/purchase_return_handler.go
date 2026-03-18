@@ -19,6 +19,11 @@ type PurchaseReturnHandler struct {
 	uc usecase.PurchaseReturnUsecase
 }
 
+const (
+	purchaseReturnIDRequiredMessage = "ID is required"
+	purchaseInvalidIDFormatMessage  = "Invalid ID format"
+)
+
 func NewPurchaseReturnHandler(uc usecase.PurchaseReturnUsecase) *PurchaseReturnHandler {
 	return &PurchaseReturnHandler{uc: uc}
 }
@@ -90,11 +95,11 @@ func (h *PurchaseReturnHandler) List(c *gin.Context) {
 func (h *PurchaseReturnHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseReturnIDRequiredMessage}, nil)
 		return
 	}
 	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseInvalidIDFormatMessage}, nil)
 		return
 	}
 
@@ -133,4 +138,70 @@ func (h *PurchaseReturnHandler) Create(c *gin.Context) {
 	}
 
 	response.SuccessResponseCreated(c, item, nil)
+}
+
+func (h *PurchaseReturnHandler) UpdateStatus(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseInvalidIDFormatMessage}, nil)
+		return
+	}
+
+	var req dto.UpdatePurchaseReturnStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		return
+	}
+
+	item, err := h.uc.UpdateStatus(c.Request.Context(), id, req.Status)
+	if err != nil {
+		if err == usecase.ErrPurchaseReturnNotFound {
+			errors.NotFoundResponse(c, "purchase_return", id)
+			return
+		}
+		if err == usecase.ErrPurchaseReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, item, nil)
+}
+
+func (h *PurchaseReturnHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": purchaseInvalidIDFormatMessage}, nil)
+		return
+	}
+
+	err := h.uc.Delete(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrPurchaseReturnNotFound {
+			errors.NotFoundResponse(c, "purchase_return", id)
+			return
+		}
+		if err == usecase.ErrPurchaseReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"id": id}, nil)
 }

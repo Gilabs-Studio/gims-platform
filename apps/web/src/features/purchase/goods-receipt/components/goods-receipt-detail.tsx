@@ -34,12 +34,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate, resolveImageUrl } from "@/lib/utils";
+import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
+import { usePurchaseReturns } from "@/features/purchase/returns/hooks/use-purchase-returns";
 
 import {
   useGoodsReceipt,
@@ -95,7 +96,16 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const { data, isLoading } = useGoodsReceipt(id, {
     enabled: open && !!goodsReceiptId,
   });
+  const { data: purchaseReturnHistoryResponse } = usePurchaseReturns(
+    {
+      per_page: 100,
+      goods_receipt_id: goodsReceiptId ?? undefined,
+    },
+    { enabled: open && !!goodsReceiptId },
+  );
   const gr = data?.data;
+  const purchaseReturnHistory = purchaseReturnHistoryResponse?.data ?? [];
+  const hasPurchaseReturn = purchaseReturnHistory.length > 0;
 
   const deleteMutation = useDeleteGoodsReceipt();
   const submitMutation = useSubmitGoodsReceipt();
@@ -166,14 +176,21 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                 </DialogTitle>
                 <div className="flex items-center gap-3">
                   {gr && (
-                    <GoodsReceiptStatusBadge
-                      status={gr.status}
-                      onClick={
-                        status === "CLOSED" || status === "PARTIAL"
-                          ? () => setSiLinkedOpen(true)
-                          : undefined
-                      }
-                    />
+                    hasPurchaseReturn ? (
+                      <Badge variant="warning" className="text-xs font-medium">
+                        <FileText className="h-3 w-3 mr-1" />
+                        {t("status.returned")}
+                      </Badge>
+                    ) : (
+                      <GoodsReceiptStatusBadge
+                        status={gr.status}
+                        onClick={
+                          status === "CLOSED" || status === "PARTIAL"
+                            ? () => setSiLinkedOpen(true)
+                            : undefined
+                        }
+                      />
+                    )
                   )}
                   <span className="text-sm text-muted-foreground">
                     {gr?.receipt_date && formatDate(gr.receipt_date)}
@@ -269,7 +286,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     size="icon"
                     onClick={() => setIsCreateReturnOpen(true)}
                     className="cursor-pointer"
-                    title="Create Return"
+                    title={t("actions.createReturn")}
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
@@ -307,14 +324,21 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.status")}</TableCell>
                         <TableCell>
-                          <GoodsReceiptStatusBadge
-                            status={gr.status}
-                            onClick={
-                              status === "CLOSED" || status === "PARTIAL"
-                                ? () => setSiLinkedOpen(true)
-                                : undefined
-                            }
-                          />
+                          {hasPurchaseReturn ? (
+                            <Badge variant="warning" className="text-xs font-medium">
+                              <FileText className="h-3 w-3 mr-1" />
+                              {t("status.returned")}
+                            </Badge>
+                          ) : (
+                            <GoodsReceiptStatusBadge
+                              status={gr.status}
+                              onClick={
+                                status === "CLOSED" || status === "PARTIAL"
+                                  ? () => setSiLinkedOpen(true)
+                                  : undefined
+                              }
+                            />
+                          )}
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.purchaseOrder")}</TableCell>
                         <TableCell>
@@ -462,6 +486,41 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     </div>
                   </>
                 )}
+
+                <Separator />
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Return History</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Return Number</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {purchaseReturnHistory.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                              No return history for this goods receipt.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          purchaseReturnHistory.map((history) => (
+                            <TableRow key={history.id}>
+                              <TableCell className="font-medium">{history.return_number}</TableCell>
+                              <TableCell>{history.status}</TableCell>
+                              <TableCell>{formatDate(history.created_at)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(history.total_amount ?? 0)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="items" className="space-y-4 py-4">

@@ -5,6 +5,7 @@ export const purchaseReturnItemSchema = z.object({
   product_id: z.string().min(1),
   uom_id: z.string().optional(),
   condition: z.string().min(1),
+  notes: z.string().optional(),
   qty: z.number().positive(),
   unit_cost: z.number().min(0),
 });
@@ -12,7 +13,7 @@ export const purchaseReturnItemSchema = z.object({
 export const purchaseReturnSchema = z.object({
   goods_receipt_id: z.string().min(1),
   purchase_order_id: z.string().optional(),
-  supplier_id: z.string().min(1),
+  supplier_id: z.string().optional(),
   warehouse_id: z.string().min(1),
   reason: z.string().min(1),
   action: z.string().min(1),

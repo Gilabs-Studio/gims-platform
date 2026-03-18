@@ -28,7 +28,7 @@ type SalesReturn struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
 	Code       string             `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	InvoiceID  string             `gorm:"type:uuid;index;not null" json:"invoice_id"`
+	InvoiceID  *string            `gorm:"type:uuid;index" json:"invoice_id,omitempty"`
 	DeliveryID *string            `gorm:"type:uuid;index" json:"delivery_id,omitempty"`
 	WarehouseID string            `gorm:"type:uuid;index;not null" json:"warehouse_id"`
 	CustomerID string             `gorm:"type:uuid;index;not null" json:"customer_id"`
@@ -70,6 +70,7 @@ type SalesReturnItem struct {
 	ProductID     string       `gorm:"type:uuid;index;not null" json:"product_id"`
 	UOMID         *string      `gorm:"type:uuid;index" json:"uom_id,omitempty"`
 	Condition     string       `gorm:"type:varchar(30);not null" json:"condition"`
+	Notes         *string      `gorm:"type:text" json:"notes,omitempty"`
 	Quantity      float64      `gorm:"type:decimal(15,3);not null" json:"quantity"`
 	UnitPrice     float64      `gorm:"type:decimal(15,2);not null" json:"unit_price"`
 	Subtotal      float64      `gorm:"type:decimal(15,2);not null" json:"subtotal"`

@@ -1,50 +1,62 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
-import { useMemo } from "react";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { FileText, Plus, ShoppingCart, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateSalesReturn, useSalesReturnFormData } from "../hooks/use-sales-returns";
+import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/lib/utils";
+import { useDeliveryOrder, useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
+import { useOrder } from "@/features/sales/order/hooks/use-orders";
+import { useCreateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
 import { salesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
 
 interface SalesReturnFormProps {
   readonly defaultInvoiceId?: string;
+  readonly defaultDeliveryId?: string;
+  readonly onSuccess?: () => void;
 }
 
-export function SalesReturnForm({ defaultInvoiceId }: SalesReturnFormProps) {
+type EligibleItem = {
+  productId: string;
+  productCode: string;
+  productName: string;
+  availableQty: number;
+  dealPrice: number;
+};
+
+export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
+  const t = useTranslations("salesReturns");
+  const isDeliveryLocked = !!defaultDeliveryId;
+
   const { data: formDataResponse } = useSalesReturnFormData();
+  const { data: deliveryOptionsResponse } = useDeliveryOrders({ per_page: 100, status: "delivered" });
   const createMutation = useCreateSalesReturn();
-
-  const warehouses = formDataResponse?.data?.warehouses ?? [];
-  const reasons = formDataResponse?.data?.return_reasons ?? [];
-  const actions = formDataResponse?.data?.actions ?? [];
-  const conditions = formDataResponse?.data?.item_conditions ?? [];
-
-  const defaultWarehouseId = useMemo(() => warehouses[0]?.id ?? "", [warehouses]);
-  const defaultReason = useMemo(() => reasons[0]?.value ?? "OTHER", [reasons]);
-  const defaultAction = useMemo(() => actions[0]?.value ?? "CREDIT_NOTE", [actions]);
-  const defaultCondition = useMemo(() => conditions[0]?.value ?? "GOOD", [conditions]);
 
   const form = useForm<SalesReturnFormData>({
     resolver: zodResolver(salesReturnSchema),
-    values: {
+    defaultValues: {
       invoice_id: defaultInvoiceId ?? "",
-      delivery_id: "",
-      warehouse_id: defaultWarehouseId,
+      delivery_id: defaultDeliveryId ?? "",
+      warehouse_id: "",
       customer_id: "",
-      reason: defaultReason,
-      action: defaultAction,
+      reason: "OTHER",
+      action: "CREDIT_NOTE",
       notes: "",
       items: [
         {
           invoice_item_id: "",
           product_id: "",
           uom_id: "",
-          condition: defaultCondition,
+          condition: "GOOD",
+          notes: "",
           qty: 1,
           unit_price: 0,
         },
@@ -52,192 +64,510 @@ export function SalesReturnForm({ defaultInvoiceId }: SalesReturnFormProps) {
     },
   });
 
-  const onSubmit = async (values: SalesReturnFormData) => {
-    await createMutation.mutateAsync(values);
-    form.reset({ ...values, notes: "" });
+  const { control, formState: { errors } } = form;
+  const { fields, append, remove } = useFieldArray({ control, name: "items" });
+
+  const selectedDeliveryId = useWatch({ control, name: "delivery_id" });
+
+  const { data: deliveryResponse, isLoading: isLoadingDelivery, isError: isDeliveryError } = useDeliveryOrder(
+    selectedDeliveryId ?? "",
+    { enabled: !!selectedDeliveryId },
+  );
+
+  const { data: returnHistoryResponse } = useSalesReturns(
+    {
+      per_page: 100,
+      delivery_id: selectedDeliveryId,
+    },
+    { enabled: !!selectedDeliveryId },
+  );
+
+  const delivery = deliveryResponse?.data;
+  const deliveryItems = useMemo(() => delivery?.items ?? [], [delivery?.items]);
+  const deliveryOptions = useMemo(() => deliveryOptionsResponse?.data ?? [], [deliveryOptionsResponse?.data]);
+  const returnHistory = useMemo(() => returnHistoryResponse?.data ?? [], [returnHistoryResponse?.data]);
+
+  const { data: orderResponse } = useOrder(delivery?.sales_order_id ?? "", {
+    enabled: !!delivery?.sales_order_id,
+  });
+
+  const orderItems = useMemo(() => orderResponse?.data?.items ?? [], [orderResponse?.data?.items]);
+
+  const dealPriceByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    orderItems.forEach((item) => {
+      const productId = item.product_id?.trim();
+      if (!productId) {
+        return;
+      }
+      map.set(productId, item.price ?? 0);
+    });
+    return map;
+  }, [orderItems]);
+
+  const returnedQtyByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+
+    returnHistory.forEach((history) => {
+      (history.items ?? []).forEach((item) => {
+        const productId = item.product_id ?? "";
+        if (!productId) {
+          return;
+        }
+        const current = map.get(productId) ?? 0;
+        map.set(productId, current + (item.qty ?? 0));
+      });
+    });
+
+    return map;
+  }, [returnHistory]);
+
+  const eligibleItems = useMemo<EligibleItem[]>(() => {
+    return deliveryItems
+      .map((item) => {
+        const productId = item.product_id ?? "";
+        const deliveredQty = item.quantity ?? 0;
+        const returnedQty = returnedQtyByProduct.get(productId) ?? 0;
+        const availableQty = Math.max(0, deliveredQty - returnedQty);
+        const dealPrice = dealPriceByProduct.get(productId) ?? item.price ?? 0;
+
+        return {
+          productId,
+          productCode: item.product?.code ?? "-",
+          productName: item.product?.name ?? productId,
+          availableQty,
+          dealPrice,
+        };
+      })
+      .filter((item) => item.productId && item.availableQty > 0);
+  }, [deliveryItems, returnedQtyByProduct, dealPriceByProduct]);
+
+  const eligibleItemMap = useMemo(() => {
+    const map = new Map<string, EligibleItem>();
+    eligibleItems.forEach((item) => map.set(item.productId, item));
+    return map;
+  }, [eligibleItems]);
+
+  const warehouses = useMemo(() => formDataResponse?.data?.warehouses ?? [], [formDataResponse?.data?.warehouses]);
+  const reasons = useMemo(() => formDataResponse?.data?.return_reasons ?? [], [formDataResponse?.data?.return_reasons]);
+  const actions = useMemo(() => formDataResponse?.data?.actions ?? [], [formDataResponse?.data?.actions]);
+  const conditions = useMemo(() => formDataResponse?.data?.item_conditions ?? [], [formDataResponse?.data?.item_conditions]);
+  const watchedItems = useWatch({ control, name: "items" });
+
+  useEffect(() => {
+    if (!selectedDeliveryId && defaultDeliveryId) {
+      form.setValue("delivery_id", defaultDeliveryId);
+    }
+  }, [selectedDeliveryId, defaultDeliveryId, form]);
+
+  useEffect(() => {
+    if (!selectedDeliveryId) {
+      return;
+    }
+
+    form.reset({
+      invoice_id: defaultInvoiceId ?? "",
+      delivery_id: selectedDeliveryId,
+      warehouse_id: delivery?.warehouse_id ?? warehouses[0]?.id ?? "",
+      customer_id: "",
+      reason: reasons[0]?.value ?? "OTHER",
+      action: actions[0]?.value ?? "CREDIT_NOTE",
+      notes: "",
+      items: [
+        {
+          invoice_item_id: "",
+          product_id: eligibleItems[0]?.productId ?? "",
+          uom_id: "",
+          condition: conditions[0]?.value ?? "GOOD",
+          notes: "",
+          qty: 1,
+          unit_price: eligibleItems[0]?.dealPrice ?? 0,
+        },
+      ],
+    });
+  }, [
+    selectedDeliveryId,
+    defaultInvoiceId,
+    delivery?.warehouse_id,
+    warehouses,
+    reasons,
+    actions,
+    conditions,
+    eligibleItems,
+    form,
+  ]);
+
+  const handleAddItem = () => {
+    append({
+      invoice_item_id: "",
+      product_id: "",
+      uom_id: "",
+      condition: conditions[0]?.value ?? "GOOD",
+      notes: "",
+      qty: 1,
+      unit_price: 0,
+    });
   };
 
-  const {
-    control,
-    formState: { errors },
-  } = form;
+  const onSubmit = async (values: SalesReturnFormData) => {
+    if (!selectedDeliveryId) {
+      return;
+    }
+
+    const requestedQtyByProduct = new Map<string, number>();
+
+    for (const item of values.items) {
+      const productId = item.product_id;
+      if (!productId) {
+        continue;
+      }
+
+      const current = requestedQtyByProduct.get(productId) ?? 0;
+      requestedQtyByProduct.set(productId, current + (item.qty ?? 0));
+    }
+
+    for (const [productId, requestedQty] of requestedQtyByProduct.entries()) {
+      const availableQty = eligibleItemMap.get(productId)?.availableQty ?? 0;
+      if (requestedQty > availableQty) {
+        form.setError("items", {
+          type: "manual",
+          message: "Qty exceeds available return quantity",
+        });
+        return;
+      }
+    }
+
+    await createMutation.mutateAsync({
+      ...values,
+      delivery_id: selectedDeliveryId,
+      invoice_id: values.invoice_id || undefined,
+      customer_id: values.customer_id || undefined,
+      notes: values.notes || undefined,
+      items: values.items.map((item) => ({
+        ...item,
+        unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
+      })),
+    });
+
+    onSuccess?.();
+  };
+
+  if (!selectedDeliveryId) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">Reference</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-4">
+          <Field orientation="vertical">
+            <FieldLabel>Delivery Order</FieldLabel>
+            <Controller
+              name="delivery_id"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder="Select delivery order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deliveryOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id} className="cursor-pointer">
+                        {option.code} - {option.sales_order?.code ?? "-"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.delivery_id && <FieldError>{errors.delivery_id.message}</FieldError>}
+          </Field>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingDelivery) {
+    return <div className="text-sm text-muted-foreground">Loading delivery reference...</div>;
+  }
+
+  if (isDeliveryError || !delivery) {
+    return <div className="text-sm text-destructive">Failed to load delivery reference.</div>;
+  }
+
+  if (eligibleItems.length === 0) {
+    return <div className="text-sm text-muted-foreground">No eligible items left for return from this delivery order.</div>;
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Sales Return</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Field orientation="vertical">
-              <FieldLabel>Invoice ID</FieldLabel>
-              <Controller
-                name="invoice_id"
-                control={control}
-                render={({ field }) => <Input {...field} className="cursor-text" />}
-              />
-              {errors.invoice_id && <FieldError>{errors.invoice_id.message}</FieldError>}
-            </Field>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">Reference Information</h3>
+        </div>
 
-            <Field orientation="vertical">
-              <FieldLabel>Customer ID</FieldLabel>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {!isDeliveryLocked && (
+            <Field orientation="vertical" className="md:col-span-2">
+              <FieldLabel>Delivery Order</FieldLabel>
               <Controller
-                name="customer_id"
-                control={control}
-                render={({ field }) => <Input {...field} className="cursor-text" />}
-              />
-              {errors.customer_id && <FieldError>{errors.customer_id.message}</FieldError>}
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>Warehouse</FieldLabel>
-              <Controller
-                name="warehouse_id"
+                name="delivery_id"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder="Select warehouse" />
+                      <SelectValue placeholder="Select delivery order" />
                     </SelectTrigger>
                     <SelectContent>
-                      {warehouses.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id} className="cursor-pointer">
-                          {warehouse.name}
+                      {deliveryOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id} className="cursor-pointer">
+                          {option.code} - {option.sales_order?.code ?? "-"}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
+              {errors.delivery_id && <FieldError>{errors.delivery_id.message}</FieldError>}
             </Field>
+          )}
 
-            <Field orientation="vertical">
-              <FieldLabel>Reason</FieldLabel>
-              <Controller
-                name="reason"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder="Select reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reasons.map((reason) => (
-                        <SelectItem key={reason.value} value={reason.value} className="cursor-pointer">
-                          {reason.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.reason && <FieldError>{errors.reason.message}</FieldError>}
-            </Field>
+          <Field orientation="vertical">
+            <FieldLabel>Invoice Reference</FieldLabel>
+            <Controller
+              name="invoice_id"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  className="cursor-text"
+                  placeholder="Auto-derived from delivery (optional override)"
+                />
+              )}
+            />
+            {errors.invoice_id && <FieldError>{errors.invoice_id.message}</FieldError>}
+          </Field>
 
-            <Field orientation="vertical">
-              <FieldLabel>Action</FieldLabel>
-              <Controller
-                name="action"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder="Select action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {actions.map((action) => (
-                        <SelectItem key={action.value} value={action.value} className="cursor-pointer">
-                          {action.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.action && <FieldError>{errors.action.message}</FieldError>}
-            </Field>
+          <Field orientation="vertical">
+            <FieldLabel>Warehouse</FieldLabel>
+            <Controller
+              name="warehouse_id"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id} className="cursor-pointer">
+                        {warehouse.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.warehouse_id && <FieldError>{errors.warehouse_id.message}</FieldError>}
+          </Field>
 
-            <Field orientation="vertical">
-              <FieldLabel>Product ID</FieldLabel>
-              <Controller
-                name="items.0.product_id"
-                control={control}
-                render={({ field }) => <Input {...field} className="cursor-text" />}
-              />
-              {errors.items?.[0]?.product_id && <FieldError>{errors.items[0].product_id?.message}</FieldError>}
-            </Field>
+          <Field orientation="vertical">
+            <FieldLabel>Reason</FieldLabel>
+            <Controller
+              name="reason"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder="Select reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reasons.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value} className="cursor-pointer">
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.reason && <FieldError>{errors.reason.message}</FieldError>}
+          </Field>
 
-            <Field orientation="vertical">
-              <FieldLabel>Qty</FieldLabel>
-              <Controller
-                name="items.0.qty"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.001"
-                    value={field.value}
-                    onChange={(event) => field.onChange(Number(event.target.value || 0))}
-                    className="cursor-text"
-                  />
-                )}
-              />
-              {errors.items?.[0]?.qty && <FieldError>{errors.items[0].qty?.message}</FieldError>}
-            </Field>
+          <Field orientation="vertical">
+            <FieldLabel>Action</FieldLabel>
+            <Controller
+              name="action"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder="Select action" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {actions.map((action) => (
+                      <SelectItem key={action.value} value={action.value} className="cursor-pointer">
+                        {action.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.action && <FieldError>{errors.action.message}</FieldError>}
+          </Field>
 
-            <Field orientation="vertical">
-              <FieldLabel>Unit Price</FieldLabel>
-              <Controller
-                name="items.0.unit_price"
-                control={control}
-                render={({ field }) => (
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={field.value}
-                    onChange={(event) => field.onChange(Number(event.target.value || 0))}
-                    className="cursor-text"
-                  />
-                )}
-              />
-              {errors.items?.[0]?.unit_price && <FieldError>{errors.items[0].unit_price?.message}</FieldError>}
-            </Field>
+          <Field orientation="vertical" className="md:col-span-2">
+            <FieldLabel>Notes</FieldLabel>
+            <Controller
+              name="notes"
+              control={control}
+              render={({ field }) => <Textarea {...field} value={field.value ?? ""} rows={3} />}
+            />
+          </Field>
+        </div>
+      </div>
 
-            <Field orientation="vertical">
-              <FieldLabel>Item Condition</FieldLabel>
-              <Controller
-                name="items.0.condition"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder="Select condition" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {conditions.map((condition) => (
-                        <SelectItem key={condition.value} value={condition.value} className="cursor-pointer">
-                          {condition.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.items?.[0]?.condition && <FieldError>{errors.items[0].condition?.message}</FieldError>}
-            </Field>
-          </div>
+      <div className="space-y-4">
+        <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
+          <ShoppingCart className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">Return Items ({fields.length})</h3>
+        </div>
 
-          <div className="flex justify-end">
-            <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Saving..." : "Submit Return"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        <div className="space-y-3">
+          {fields.map((field, index) => {
+            const selectedProductId = watchedItems?.[index]?.product_id;
+            const selectedItem = selectedProductId ? eligibleItemMap.get(selectedProductId) : null;
+
+            return (
+              <div key={field.id} className="space-y-4 rounded-lg border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Item #{index + 1}</p>
+                  {fields.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="cursor-pointer text-destructive hover:text-destructive"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field orientation="vertical" className="md:col-span-2">
+                    <FieldLabel>Product</FieldLabel>
+                    <Controller
+                      name={`items.${index}.product_id`}
+                      control={control}
+                      render={({ field: itemField }) => (
+                        <Select
+                          value={itemField.value}
+                          onValueChange={(value) => {
+                            itemField.onChange(value);
+                            form.setValue(`items.${index}.unit_price`, eligibleItemMap.get(value)?.dealPrice ?? 0);
+                          }}
+                        >
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder="Select eligible product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {eligibleItems.map((item) => (
+                              <SelectItem key={item.productId} value={item.productId} className="cursor-pointer">
+                                {item.productCode} - {item.productName} | Avl: {item.availableQty.toFixed(3)} | Deal: {formatCurrency(item.dealPrice)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.items?.[index]?.product_id && <FieldError>{errors.items[index]?.product_id?.message}</FieldError>}
+                  </Field>
+
+                  <Field orientation="vertical">
+                    <FieldLabel>Qty</FieldLabel>
+                    <Controller
+                      name={`items.${index}.qty`}
+                      control={control}
+                      render={({ field: itemField }) => (
+                        <NumericInput
+                          value={itemField.value}
+                          onChange={(value) => itemField.onChange(value ?? 0)}
+                          min={0}
+                          max={selectedItem?.availableQty ?? undefined}
+                        />
+                      )}
+                    />
+                    {selectedItem && <p className="text-xs text-muted-foreground">Available: {selectedItem.availableQty.toFixed(3)}</p>}
+                    {errors.items?.[index]?.qty && <FieldError>{errors.items[index]?.qty?.message}</FieldError>}
+                  </Field>
+
+                  <Field orientation="vertical">
+                    <FieldLabel>Unit Price (Deal Price)</FieldLabel>
+                    <Controller
+                      name={`items.${index}.unit_price`}
+                      control={control}
+                      render={({ field: itemField }) => (
+                        <NumericInput value={itemField.value} onChange={(value) => itemField.onChange(value ?? 0)} min={0} disabled />
+                      )}
+                    />
+                    {errors.items?.[index]?.unit_price && <FieldError>{errors.items[index]?.unit_price?.message}</FieldError>}
+                  </Field>
+
+                  <Field orientation="vertical">
+                    <FieldLabel>Item Condition</FieldLabel>
+                    <Controller
+                      name={`items.${index}.condition`}
+                      control={control}
+                      render={({ field: itemField }) => (
+                        <Select onValueChange={itemField.onChange} value={itemField.value}>
+                          <SelectTrigger className="cursor-pointer">
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {conditions.map((condition) => (
+                              <SelectItem key={condition.value} value={condition.value} className="cursor-pointer">
+                                {condition.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.items?.[index]?.condition && <FieldError>{errors.items[index]?.condition?.message}</FieldError>}
+                  </Field>
+
+                  <Field orientation="vertical" className="md:col-span-2">
+                    <FieldLabel>Item Memo</FieldLabel>
+                    <Controller
+                      name={`items.${index}.notes`}
+                      control={control}
+                      render={({ field: itemField }) => <Textarea {...itemField} value={itemField.value ?? ""} rows={2} />}
+                    />
+                  </Field>
+                </div>
+              </div>
+            );
+          })}
+
+          <Button type="button" variant="outline" className="w-full cursor-pointer border-dashed" onClick={handleAddItem}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Item
+          </Button>
+
+          {errors.items?.message && <FieldError>{errors.items.message}</FieldError>}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="submit" className="cursor-pointer" disabled={createMutation.isPending}>
+          {createMutation.isPending ? "Saving..." : t("add")}
+        </Button>
+      </div>
+    </form>
   );
 }

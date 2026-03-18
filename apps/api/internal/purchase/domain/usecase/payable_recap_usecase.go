@@ -51,6 +51,7 @@ func (u *payableRecapUsecase) ExportCSV(ctx context.Context, params repositories
 	header := []string{
 		"Supplier Name",
 		"Total Payable",
+		"Return Amount",
 		"Paid Amount",
 		"Outstanding Amount",
 		"Aging Days",
@@ -65,6 +66,7 @@ func (u *payableRecapUsecase) ExportCSV(ctx context.Context, params repositories
 		record := []string{
 			r.SupplierName,
 			strconv.FormatFloat(r.TotalPayable, 'f', 2, 64),
+			strconv.FormatFloat(r.ReturnAmount, 'f', 2, 64),
 			strconv.FormatFloat(r.PaidAmount, 'f', 2, 64),
 			strconv.FormatFloat(r.OutstandingAmount, 'f', 2, 64),
 			strconv.Itoa(r.AgingDays),

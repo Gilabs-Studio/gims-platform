@@ -19,6 +19,11 @@ type SalesReturnHandler struct {
 	uc usecase.SalesReturnUsecase
 }
 
+const (
+	salesReturnIDRequiredMessage = "ID is required"
+	invalidIDFormatMessage       = "Invalid ID format"
+)
+
 func NewSalesReturnHandler(uc usecase.SalesReturnUsecase) *SalesReturnHandler {
 	return &SalesReturnHandler{uc: uc}
 }
@@ -51,6 +56,7 @@ func (h *SalesReturnHandler) List(c *gin.Context) {
 		Status:    c.Query("status"),
 		Action:    c.Query("action"),
 		InvoiceID: c.Query("invoice_id"),
+		DeliveryID: c.Query("delivery_id"),
 		SortBy:    c.DefaultQuery("sort_by", "created_at"),
 		SortDir:   c.DefaultQuery("sort_dir", "desc"),
 		Limit:     perPage,
@@ -83,6 +89,9 @@ func (h *SalesReturnHandler) List(c *gin.Context) {
 	if strings.TrimSpace(params.InvoiceID) != "" {
 		meta.Filters["invoice_id"] = params.InvoiceID
 	}
+	if strings.TrimSpace(params.DeliveryID) != "" {
+		meta.Filters["delivery_id"] = params.DeliveryID
+	}
 
 	response.SuccessResponse(c, items, meta)
 }
@@ -90,11 +99,11 @@ func (h *SalesReturnHandler) List(c *gin.Context) {
 func (h *SalesReturnHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": salesReturnIDRequiredMessage}, nil)
 		return
 	}
 	if _, err := uuid.Parse(id); err != nil {
-		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": invalidIDFormatMessage}, nil)
 		return
 	}
 
@@ -133,4 +142,70 @@ func (h *SalesReturnHandler) Create(c *gin.Context) {
 	}
 
 	response.SuccessResponseCreated(c, item, nil)
+}
+
+func (h *SalesReturnHandler) UpdateStatus(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": salesReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": invalidIDFormatMessage}, nil)
+		return
+	}
+
+	var req dto.UpdateSalesReturnStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		return
+	}
+
+	item, err := h.uc.UpdateStatus(c.Request.Context(), id, req.Status)
+	if err != nil {
+		if err == usecase.ErrSalesReturnNotFound {
+			errors.NotFoundResponse(c, "sales_return", id)
+			return
+		}
+		if err == usecase.ErrSalesReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, item, nil)
+}
+
+func (h *SalesReturnHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": salesReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": invalidIDFormatMessage}, nil)
+		return
+	}
+
+	err := h.uc.Delete(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSalesReturnNotFound {
+			errors.NotFoundResponse(c, "sales_return", id)
+			return
+		}
+		if err == usecase.ErrSalesReturnInvalid {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"id": id}, nil)
 }

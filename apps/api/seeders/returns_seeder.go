@@ -77,7 +77,7 @@ func SeedSalesReturns() error {
 		row := salesModels.SalesReturn{
 			ID:          target.id,
 			Code:        target.code,
-			InvoiceID:   invoice.ID,
+			InvoiceID:   stringPtr(invoice.ID),
 			DeliveryID:  invoice.DeliveryOrderID,
 			WarehouseID: warehouse.ID,
 			CustomerID:  *invoice.SalesOrder.CustomerID,

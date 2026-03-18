@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { salesReturnsService } from "../services/sales-returns-service";
-import type { CreateSalesReturnInput, SalesReturnListParams } from "../types";
+import type { CreateSalesReturnInput, SalesReturnListParams, SalesReturnStatus } from "../types";
 
 export const salesReturnsKeys = {
   all: ["sales-returns"] as const,
@@ -13,10 +13,11 @@ export const salesReturnsKeys = {
   formData: () => [...salesReturnsKeys.all, "form-data"] as const,
 };
 
-export function useSalesReturns(params?: SalesReturnListParams) {
+export function useSalesReturns(params?: SalesReturnListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: salesReturnsKeys.list(params),
     queryFn: () => salesReturnsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -40,6 +41,30 @@ export function useCreateSalesReturn() {
 
   return useMutation({
     mutationFn: (payload: CreateSalesReturnInput) => salesReturnsService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateSalesReturnStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: SalesReturnStatus }) =>
+      salesReturnsService.updateStatus(id, { status }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesReturnsKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useDeleteSalesReturn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => salesReturnsService.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
     },

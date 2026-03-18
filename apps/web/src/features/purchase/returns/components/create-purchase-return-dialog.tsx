@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PurchaseReturnForm } from "./purchase-return-form";
 
@@ -10,13 +11,15 @@ interface CreatePurchaseReturnDialogProps {
 }
 
 export function CreatePurchaseReturnDialog({ open, onOpenChange, goodsReceiptId }: CreatePurchaseReturnDialogProps) {
+  const t = useTranslations("purchaseReturns");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Purchase Return</DialogTitle>
+          <DialogTitle>{t("add")}</DialogTitle>
         </DialogHeader>
-        <PurchaseReturnForm defaultGoodsReceiptId={goodsReceiptId} />
+        <PurchaseReturnForm defaultGoodsReceiptId={goodsReceiptId} onSuccess={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );

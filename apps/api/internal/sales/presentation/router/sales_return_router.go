@@ -6,10 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	salesReturnReadPermission   = "sales_return.read"
+	salesReturnCreatePermission = "sales_return.create"
+	salesReturnUpdatePermission = "sales_return.update"
+	salesReturnDeletePermission = "sales_return.delete"
+)
+
 func RegisterSalesReturnRoutes(rg *gin.RouterGroup, h *handler.SalesReturnHandler) {
 	g := rg.Group("/returns")
-	g.GET("/form-data", middleware.RequirePermission("sales_return.read"), h.GetFormData)
-	g.GET("", middleware.RequirePermission("sales_return.read"), h.List)
-	g.POST("", middleware.RequirePermission("sales_return.create"), h.Create)
-	g.GET("/:id", middleware.RequirePermission("sales_return.read"), h.GetByID)
+	g.GET("/form-data", middleware.RequirePermission(salesReturnReadPermission), h.GetFormData)
+	g.GET("", middleware.RequirePermission(salesReturnReadPermission), h.List)
+	g.POST("", middleware.RequirePermission(salesReturnCreatePermission), h.Create)
+	g.PATCH("/:id/status", middleware.RequirePermission(salesReturnUpdatePermission), h.UpdateStatus)
+	g.DELETE("/:id", middleware.RequirePermission(salesReturnDeletePermission), h.Delete)
+	g.GET("/:id", middleware.RequirePermission(salesReturnReadPermission), h.GetByID)
 }

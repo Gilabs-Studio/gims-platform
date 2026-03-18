@@ -93,6 +93,7 @@ export const goodsReceiptEn = {
     partial: "Partial",
     closed: "Closed",
     rejected: "Rejected",
+    returned: "Returned",
   },
   actions: {
     create: "Create",
@@ -112,6 +113,7 @@ export const goodsReceiptEn = {
     next: "Next",
     back: "Back",
     print: "Print",
+    createReturn: "Create Return",
   },
   convertToSupplierInvoice: "Convert to Supplier Invoice",
   placeholders: {

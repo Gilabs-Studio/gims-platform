@@ -13,6 +13,7 @@ type SalesReturnListParams struct {
 	Status    string
 	Action    string
 	InvoiceID string
+	DeliveryID string
 	SortBy    string
 	SortDir   string
 	Limit     int
@@ -23,6 +24,8 @@ type SalesReturnRepository interface {
 	List(ctx context.Context, params SalesReturnListParams) ([]*models.SalesReturn, int64, error)
 	GetByID(ctx context.Context, id string) (*models.SalesReturn, error)
 	Create(ctx context.Context, row *models.SalesReturn) error
+	UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error
+	Delete(ctx context.Context, id string) error
 }
 
 type salesReturnRepository struct {
@@ -38,6 +41,8 @@ var salesReturnAllowedSort = map[string]string{
 	"updated_at": "sales_returns.updated_at",
 	"code":       "sales_returns.code",
 }
+
+const salesReturnIDFilter = "id = ?"
 
 func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnListParams) ([]*models.SalesReturn, int64, error) {
 	rows := make([]*models.SalesReturn, 0)
@@ -57,6 +62,9 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 	}
 	if inv := strings.TrimSpace(params.InvoiceID); inv != "" {
 		q = q.Where("sales_returns.invoice_id = ?", inv)
+	}
+	if deliveryID := strings.TrimSpace(params.DeliveryID); deliveryID != "" {
+		q = q.Where("sales_returns.delivery_id = ?", deliveryID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -88,7 +96,7 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 
 func (r *salesReturnRepository) GetByID(ctx context.Context, id string) (*models.SalesReturn, error) {
 	var row models.SalesReturn
-	if err := r.db.WithContext(ctx).Preload("Items").First(&row, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Items").First(&row, salesReturnIDFilter, id).Error; err != nil {
 		return nil, err
 	}
 	return &row, nil
@@ -96,4 +104,15 @@ func (r *salesReturnRepository) GetByID(ctx context.Context, id string) (*models
 
 func (r *salesReturnRepository) Create(ctx context.Context, row *models.SalesReturn) error {
 	return r.db.WithContext(ctx).Create(row).Error
+}
+
+func (r *salesReturnRepository) UpdateStatus(ctx context.Context, id string, status models.SalesReturnStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&models.SalesReturn{}).
+		Where(salesReturnIDFilter, id).
+		Update("status", status).Error
+}
+
+func (r *salesReturnRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.SalesReturn{}, salesReturnIDFilter, id).Error
 }

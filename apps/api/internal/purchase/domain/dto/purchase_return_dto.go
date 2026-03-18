@@ -24,6 +24,7 @@ type CreatePurchaseReturnItemRequest struct {
 	ProductID          string  `json:"product_id" binding:"required"`
 	UOMID              *string `json:"uom_id"`
 	Condition          string  `json:"condition" binding:"required"`
+	Notes              *string `json:"notes"`
 	Qty                float64 `json:"qty" binding:"required,gt=0"`
 	UnitCost           float64 `json:"unit_cost" binding:"required,gte=0"`
 }
@@ -31,12 +32,16 @@ type CreatePurchaseReturnItemRequest struct {
 type CreatePurchaseReturnRequest struct {
 	GoodsReceiptID string                           `json:"goods_receipt_id" binding:"required"`
 	PurchaseOrderID *string                         `json:"purchase_order_id"`
-	SupplierID    string                            `json:"supplier_id" binding:"required"`
+	SupplierID    string                            `json:"supplier_id"`
 	WarehouseID   string                            `json:"warehouse_id" binding:"required"`
 	Reason        string                            `json:"reason" binding:"required"`
 	Action        string                            `json:"action" binding:"required"`
 	Notes         *string                           `json:"notes"`
 	Items         []CreatePurchaseReturnItemRequest `json:"items" binding:"required,min=1"`
+}
+
+type UpdatePurchaseReturnStatusRequest struct {
+	Status string `json:"status" binding:"required"`
 }
 
 type PurchaseReturnItemResponse struct {
@@ -45,6 +50,7 @@ type PurchaseReturnItemResponse struct {
 	ProductID        string  `json:"product_id"`
 	UOMID            *string `json:"uom_id,omitempty"`
 	Condition        string  `json:"condition"`
+	Notes            *string `json:"notes,omitempty"`
 	Qty              float64 `json:"qty"`
 	UnitCost         float64 `json:"unit_cost"`
 	Subtotal         float64 `json:"subtotal"`

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, CreditCard, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
@@ -29,7 +29,6 @@ import { formatCurrency, formatDate, formatWhatsAppLink } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { CreateSalesReturnDialog } from "@/features/sales/returns/components/create-sales-return-dialog";
 
 import { useInvoiceDetail } from "../hooks/use-invoice-detail";
 import { OrderDetailModal } from "../../order/components/order-detail-modal";
@@ -64,7 +63,6 @@ export function InvoiceDetailModal({
   const canDelete = useUserPermission("customer_invoice.delete");
   const canPay = useUserPermission("customer_invoice.pay");
   const canCreatePayment = useUserPermission("sales_payment.create") || canPay;
-  const canCreateSalesReturn = useUserPermission("sales_return.create");
   const canViewCustomer = useUserPermission("customer.read");
 
   const {
@@ -82,7 +80,6 @@ export function InvoiceDetailModal({
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
-  const [isCreateReturnOpen, setIsCreateReturnOpen] = useState(false);
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
@@ -239,17 +236,6 @@ export function InvoiceDetailModal({
                     title={t("actions.markAsPaid")}
                   >
                     <DollarSign className="h-4 w-4" />
-                  </Button>
-                )}
-                {canCreateSalesReturn && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsCreateReturnOpen(true)}
-                    className="cursor-pointer"
-                    title="Create Return"
-                  >
-                    <Clock className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -569,12 +555,6 @@ export function InvoiceDetailModal({
           defaultInvoiceId={invoice.id}
         />
       )}
-
-      <CreateSalesReturnDialog
-        open={isCreateReturnOpen}
-        onOpenChange={setIsCreateReturnOpen}
-        invoiceId={invoice?.id ?? undefined}
-      />
 
     </>
   );

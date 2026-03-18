@@ -69,6 +69,7 @@ type PurchaseReturnItem struct {
 	ProductID          string  `gorm:"type:uuid;index;not null" json:"product_id"`
 	UOMID              *string `gorm:"type:uuid;index" json:"uom_id,omitempty"`
 	Condition          string  `gorm:"type:varchar(30);not null" json:"condition"`
+	Notes              *string `gorm:"type:text" json:"notes,omitempty"`
 	Quantity           float64 `gorm:"type:decimal(15,3);not null" json:"quantity"`
 	UnitCost           float64 `gorm:"type:decimal(15,2);not null" json:"unit_cost"`
 	Subtotal           float64 `gorm:"type:decimal(15,2);not null" json:"subtotal"`

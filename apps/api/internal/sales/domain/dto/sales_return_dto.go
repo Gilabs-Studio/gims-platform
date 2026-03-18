@@ -25,19 +25,24 @@ type CreateSalesReturnItemRequest struct {
 	ProductID     string  `json:"product_id" binding:"required"`
 	UOMID         *string `json:"uom_id"`
 	Condition     string  `json:"condition" binding:"required"`
+	Notes         *string `json:"notes"`
 	Qty           float64 `json:"qty" binding:"required,gt=0"`
 	UnitPrice     float64 `json:"unit_price" binding:"required,gte=0"`
 }
 
 type CreateSalesReturnRequest struct {
-	InvoiceID   string                        `json:"invoice_id" binding:"required"`
+	InvoiceID   *string                       `json:"invoice_id"`
 	DeliveryID  *string                       `json:"delivery_id"`
 	WarehouseID string                        `json:"warehouse_id" binding:"required"`
-	CustomerID  string                        `json:"customer_id" binding:"required"`
+	CustomerID  string                        `json:"customer_id"`
 	Reason      string                        `json:"reason" binding:"required"`
 	Action      string                        `json:"action" binding:"required"`
 	Notes       *string                       `json:"notes"`
 	Items       []CreateSalesReturnItemRequest `json:"items" binding:"required,min=1"`
+}
+
+type UpdateSalesReturnStatusRequest struct {
+	Status string `json:"status" binding:"required"`
 }
 
 type SalesReturnItemResponse struct {
@@ -46,6 +51,7 @@ type SalesReturnItemResponse struct {
 	ProductID     string  `json:"product_id"`
 	UOMID         *string `json:"uom_id,omitempty"`
 	Condition     string  `json:"condition"`
+	Notes         *string `json:"notes,omitempty"`
 	Qty           float64 `json:"qty"`
 	UnitPrice     float64 `json:"unit_price"`
 	Subtotal      float64 `json:"subtotal"`
@@ -54,7 +60,7 @@ type SalesReturnItemResponse struct {
 type SalesReturnResponse struct {
 	ID                string                    `json:"id"`
 	Code              string                    `json:"return_number"`
-	InvoiceID         string                    `json:"invoice_id"`
+	InvoiceID         *string                   `json:"invoice_id,omitempty"`
 	DeliveryID        *string                   `json:"delivery_id,omitempty"`
 	WarehouseID       string                    `json:"warehouse_id"`
 	CustomerID        string                    `json:"customer_id"`

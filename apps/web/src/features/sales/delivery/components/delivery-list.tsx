@@ -13,6 +13,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Package, Truck, CheckCircle2, XCircle, FileText, Send, Receipt } from "lucide-react";
 import { useDeliveryOrders, useDeleteDeliveryOrder, useUpdateDeliveryOrderStatus, useApproveDeliveryOrder, useShipDeliveryOrder, useDeliverDeliveryOrder } from "../hooks/use-deliveries";
+import { useSalesReturns } from "@/features/sales/returns/hooks/use-sales-returns";
+import { CreateSalesReturnDialog } from "@/features/sales/returns/components/create-sales-return-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryForm } from "./delivery-form";
@@ -44,6 +46,7 @@ export function DeliveryList() {
 
   const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
   const [deliverDeliveryId, setDeliverDeliveryId] = useState<string | null>(null);
+  const [createReturnDeliveryId, setCreateReturnDeliveryId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
@@ -89,8 +92,13 @@ export function DeliveryList() {
   const canShip = useUserPermission("delivery_order.ship");
   const canDeliver = useUserPermission("delivery_order.deliver");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canCreateSalesReturn = useUserPermission("sales_return.create");
 
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
+  const { data: salesReturnsData } = useSalesReturns({ per_page: 100 });
+  const returnedDeliveryIDs = new Set(
+    (salesReturnsData?.data ?? []).map((row) => row.delivery_id).filter((id): id is string => !!id),
+  );
 
   const handleEdit = (delivery: DeliveryOrder) => {
     setEditingDelivery(delivery);
@@ -232,6 +240,19 @@ export function DeliveryList() {
     }
   };
 
+  const getDeliveryBadge = (delivery: DeliveryOrder) => {
+    if (returnedDeliveryIDs.has(delivery.id)) {
+      return (
+        <Badge variant="warning" className="text-xs font-medium">
+          <Receipt className="h-3 w-3 mr-1.5" />
+          {t("status.returned")}
+        </Badge>
+      );
+    }
+
+    return getStatusBadge(delivery.status);
+  };
+
   if (isError) {
     return (
       <div className="text-center py-8 text-destructive">
@@ -347,7 +368,7 @@ export function DeliveryList() {
                       <span>{delivery.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(delivery.status)}</TableCell>
+                  <TableCell>{getDeliveryBadge(delivery)}</TableCell>
                   <TableCell>{delivery.tracking_number || "-"}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
@@ -426,6 +447,15 @@ export function DeliveryList() {
                             >
                               <Receipt className="h-4 w-4 mr-2" />
                               {t("actions.createInvoice")}
+                            </DropdownMenuItem>
+                          )}
+                          {canCreateSalesReturn && delivery.status === "delivered" && (
+                            <DropdownMenuItem
+                              onClick={() => setCreateReturnDeliveryId(delivery.id)}
+                              className="cursor-pointer text-warning focus:text-warning"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              {t("actions.createReturn")}
                             </DropdownMenuItem>
                           )}
                           {canDelete && delivery.status === "draft" && (
@@ -521,6 +551,12 @@ export function DeliveryList() {
           defaultSalesOrderId={createInvoiceForOrderId}
         />
       )}
+
+      <CreateSalesReturnDialog
+        open={!!createReturnDeliveryId}
+        onOpenChange={(open) => !open && setCreateReturnDeliveryId(null)}
+        deliveryId={createReturnDeliveryId ?? undefined}
+      />
     </div>
   );
 }

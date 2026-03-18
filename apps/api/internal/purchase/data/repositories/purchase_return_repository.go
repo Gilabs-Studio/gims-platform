@@ -23,6 +23,8 @@ type PurchaseReturnRepository interface {
 	List(ctx context.Context, params PurchaseReturnListParams) ([]*models.PurchaseReturn, int64, error)
 	GetByID(ctx context.Context, id string) (*models.PurchaseReturn, error)
 	Create(ctx context.Context, row *models.PurchaseReturn) error
+	UpdateStatus(ctx context.Context, id string, status models.PurchaseReturnStatus) error
+	Delete(ctx context.Context, id string) error
 }
 
 type purchaseReturnRepository struct {
@@ -38,6 +40,8 @@ var purchaseReturnAllowedSort = map[string]string{
 	"updated_at": "purchase_returns.updated_at",
 	"code":       "purchase_returns.code",
 }
+
+const purchaseReturnIDFilter = "id = ?"
 
 func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseReturnListParams) ([]*models.PurchaseReturn, int64, error) {
 	rows := make([]*models.PurchaseReturn, 0)
@@ -88,7 +92,7 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 
 func (r *purchaseReturnRepository) GetByID(ctx context.Context, id string) (*models.PurchaseReturn, error) {
 	var row models.PurchaseReturn
-	if err := r.db.WithContext(ctx).Preload("Items").First(&row, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Items").First(&row, purchaseReturnIDFilter, id).Error; err != nil {
 		return nil, err
 	}
 	return &row, nil
@@ -96,4 +100,15 @@ func (r *purchaseReturnRepository) GetByID(ctx context.Context, id string) (*mod
 
 func (r *purchaseReturnRepository) Create(ctx context.Context, row *models.PurchaseReturn) error {
 	return r.db.WithContext(ctx).Create(row).Error
+}
+
+func (r *purchaseReturnRepository) UpdateStatus(ctx context.Context, id string, status models.PurchaseReturnStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&models.PurchaseReturn{}).
+		Where(purchaseReturnIDFilter, id).
+		Update("status", status).Error
+}
+
+func (r *purchaseReturnRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.PurchaseReturn{}, purchaseReturnIDFilter, id).Error
 }

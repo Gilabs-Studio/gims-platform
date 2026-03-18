@@ -13,6 +13,7 @@ type PayableRecapRow struct {
 	SupplierID        string    `json:"supplier_id"`
 	SupplierName      string    `json:"supplier_name"`
 	TotalPayable      float64   `json:"total_payable"`
+	ReturnAmount      float64   `json:"return_amount"`
 	DownPayment       float64   `json:"down_payment"`
 	PaidAmount        float64   `json:"paid_amount"`
 	OutstandingAmount float64   `json:"outstanding_amount"`
@@ -25,6 +26,7 @@ type PayableRecapRow struct {
 type PayableSummary struct {
 	TotalSuppliers    int     `json:"total_suppliers"`
 	TotalPayable      float64 `json:"total_payable"`
+	TotalReturn       float64 `json:"total_return"`
 	TotalPaid         float64 `json:"total_paid"`
 	TotalOutstanding  float64 `json:"total_outstanding"`
 	CurrentCount      int     `json:"current_count"`
@@ -52,20 +54,33 @@ func NewPayableRecapRepository(db *gorm.DB) *PayableRecapRepository {
 
 // baseCTE is the core CTE used by all methods.
 const baseCTE = `
+WITH return_totals AS (
+	SELECT
+		pr.supplier_id AS supplier_id,
+		COALESCE(SUM(pr.total_amount), 0) AS total_return,
+		MAX(pr.created_at) AS last_return_at
+	FROM purchase_returns pr
+	WHERE pr.deleted_at IS NULL
+	  AND pr.status IN ('SUBMITTED', 'APPROVED', 'COMPLETED')
+	GROUP BY pr.supplier_id
+),
 WITH supplier_payables AS (
     SELECT 
         s.id                              AS supplier_id,
         s.name                            AS supplier_name,
         COALESCE(SUM(DISTINCT si.amount), 0)       AS total_payable,
+		COALESCE(rt.total_return, 0)      AS return_amount,
         COALESCE(SUM(DISTINCT CASE WHEN si.type = 'DOWN_PAYMENT' THEN si.amount ELSE NULL END), 0) AS down_payment,
         COALESCE(SUM(CASE WHEN pp.status = 'CONFIRMED' THEN pp.amount ELSE 0 END), 0)
                                            AS paid_amount,
         COALESCE(SUM(DISTINCT si.amount), 0) -
+			COALESCE(rt.total_return, 0) -
             COALESCE(SUM(CASE WHEN pp.status = 'CONFIRMED' THEN pp.amount ELSE 0 END), 0)
                                            AS outstanding_amount,
         GREATEST(
             COALESCE(MAX(si.created_at), '1970-01-01'::timestamp),
-            COALESCE(MAX(pp.payment_date::timestamp), '1970-01-01'::timestamp)
+			COALESCE(MAX(pp.payment_date::timestamp), '1970-01-01'::timestamp),
+			COALESCE(MAX(rt.last_return_at), '1970-01-01'::timestamp)
         ) AS last_transaction,
         COALESCE(
             CASE
@@ -89,14 +104,16 @@ WITH supplier_payables AS (
         AND si.deleted_at IS NULL
     LEFT JOIN purchase_payments pp ON si.id = pp.supplier_invoice_id
         AND pp.deleted_at IS NULL
+	LEFT JOIN return_totals rt ON s.id = rt.supplier_id
     WHERE s.deleted_at IS NULL
-    GROUP BY s.id, s.name
-    HAVING COALESCE(SUM(DISTINCT si.amount), 0) > 0
+	GROUP BY s.id, s.name, rt.total_return
+	HAVING COALESCE(SUM(DISTINCT si.amount), 0) > 0 OR COALESCE(rt.total_return, 0) > 0
 )
 SELECT
     supplier_id,
     supplier_name,
     total_payable,
+	return_amount,
     down_payment,
     paid_amount,
     outstanding_amount,
@@ -116,6 +133,7 @@ FROM supplier_payables`
 var allowedSortCols = map[string]bool{
 	"supplier_name":      true,
 	"total_payable":      true,
+	"return_amount":      true,
 	"down_payment":       true,
 	"paid_amount":        true,
 	"outstanding_amount": true,
@@ -163,6 +181,7 @@ func (r *PayableRecapRepository) GetSummary() (*PayableSummary, error) {
 		SELECT
 			COUNT(*)                                                           AS total_suppliers,
 			COALESCE(SUM(total_payable), 0)                                    AS total_payable,
+			COALESCE(SUM(return_amount), 0)                                    AS total_return,
 			COALESCE(SUM(paid_amount), 0)                                      AS total_paid,
 			COALESCE(SUM(outstanding_amount), 0)                               AS total_outstanding,
 			COUNT(*) FILTER (WHERE aging_days <= 30 AND outstanding_amount > 0)  AS current_count,

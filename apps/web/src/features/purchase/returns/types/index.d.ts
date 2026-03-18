@@ -44,6 +44,7 @@ export interface PurchaseReturnItem {
   product_id: string;
   uom_id?: string | null;
   condition: string;
+  notes?: string | null;
   qty: number;
   unit_cost: number;
   subtotal: number;
@@ -68,6 +69,8 @@ export interface PurchaseReturn {
   updated_at: string;
 }
 
+export type PurchaseReturnStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+
 export interface PurchaseReturnListParams {
   page?: number;
   per_page?: number;
@@ -82,6 +85,7 @@ export interface CreatePurchaseReturnItemInput {
   product_id: string;
   uom_id?: string;
   condition: string;
+  notes?: string;
   qty: number;
   unit_cost: number;
 }
@@ -89,10 +93,14 @@ export interface CreatePurchaseReturnItemInput {
 export interface CreatePurchaseReturnInput {
   goods_receipt_id: string;
   purchase_order_id?: string;
-  supplier_id: string;
+  supplier_id?: string;
   warehouse_id: string;
   reason: string;
   action: string;
   notes?: string;
   items: CreatePurchaseReturnItemInput[];
+}
+
+export interface UpdatePurchaseReturnStatusInput {
+  status: PurchaseReturnStatus;
 }

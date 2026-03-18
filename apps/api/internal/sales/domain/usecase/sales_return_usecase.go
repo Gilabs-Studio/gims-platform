@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -21,11 +22,23 @@ var (
 	ErrSalesReturnInvalid  = errors.New("invalid sales return request")
 )
 
+const errDBNil = "db is nil"
+
+type salesReturnCreateContext struct {
+	DeliveryID  string
+	WarehouseID string
+	CustomerID  string
+	InvoiceID   *string
+	Action      models.SalesReturnAction
+}
+
 type SalesReturnUsecase interface {
 	GetFormData(ctx context.Context) (*dto.SalesReturnFormDataResponse, error)
 	List(ctx context.Context, params repositories.SalesReturnListParams) ([]*dto.SalesReturnResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.SalesReturnResponse, error)
 	Create(ctx context.Context, req *dto.CreateSalesReturnRequest) (*dto.SalesReturnResponse, error)
+	UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type salesReturnUsecase struct {
@@ -48,7 +61,7 @@ func NewSalesReturnUsecase(
 
 func (u *salesReturnUsecase) GetFormData(ctx context.Context) (*dto.SalesReturnFormDataResponse, error) {
 	if u.db == nil {
-		return nil, errors.New("db is nil")
+		return nil, errors.New(errDBNil)
 	}
 
 	var warehouses []warehouseModels.Warehouse
@@ -127,13 +140,6 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 		return nil, ErrSalesReturnInvalid
 	}
 
-	action := strings.ToUpper(strings.TrimSpace(req.Action))
-	if action != string(models.SalesReturnActionRefund) &&
-		action != string(models.SalesReturnActionCreditNote) &&
-		action != string(models.SalesReturnActionReplacement) {
-		return nil, ErrSalesReturnInvalid
-	}
-
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -141,7 +147,12 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 	}
 
 	if u.db == nil {
-		return nil, errors.New("db is nil")
+		return nil, errors.New(errDBNil)
+	}
+
+	createCtx, err := u.prepareCreateContext(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
 	now := apptime.Now()
@@ -149,12 +160,12 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 
 	row := &models.SalesReturn{
 		Code:        code,
-		InvoiceID:   strings.TrimSpace(req.InvoiceID),
-		DeliveryID:  req.DeliveryID,
-		WarehouseID: strings.TrimSpace(req.WarehouseID),
-		CustomerID:  strings.TrimSpace(req.CustomerID),
+		InvoiceID:   createCtx.InvoiceID,
+		DeliveryID:  &createCtx.DeliveryID,
+		WarehouseID: createCtx.WarehouseID,
+		CustomerID:  createCtx.CustomerID,
 		Reason:      strings.TrimSpace(req.Reason),
-		Action:      models.SalesReturnAction(action),
+		Action:      createCtx.Action,
 		Status:      models.SalesReturnStatusDraft,
 		Notes:       req.Notes,
 		CreatedBy:   actorID,
@@ -167,10 +178,11 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 		totalAmount += subtotal
 
 		items = append(items, models.SalesReturnItem{
-			InvoiceItemID: item.InvoiceItemID,
+			InvoiceItemID: normalizeOptionalString(item.InvoiceItemID),
 			ProductID:     strings.TrimSpace(item.ProductID),
-			UOMID:         item.UOMID,
+			UOMID:         normalizeOptionalString(item.UOMID),
 			Condition:     strings.ToUpper(strings.TrimSpace(item.Condition)),
+			Notes:         normalizeOptionalString(item.Notes),
 			Quantity:      item.Qty,
 			UnitPrice:     item.UnitPrice,
 			Subtotal:      subtotal,
@@ -183,29 +195,350 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 		return nil, err
 	}
 
-	if u.invUC != nil {
-		for _, item := range req.Items {
-			moveReq := &invDto.CreateManualMovementRequest{
-				ProductID:       strings.TrimSpace(item.ProductID),
-				WarehouseID:     strings.TrimSpace(req.WarehouseID),
-				Type:            "IN",
-				Quantity:        item.Qty,
-				ReferenceNumber: row.Code,
-				Description:     "Sales return stock adjustment",
-				CreatedBy:       actorID,
-			}
-			if err := u.invUC.CreateManualStockMovement(ctx, moveReq); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	created, err := u.repo.GetByID(ctx, row.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	return mapSalesReturnRow(created), nil
+}
+
+func (u *salesReturnUsecase) UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error) {
+	row, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSalesReturnNotFound
+		}
+		return nil, err
+	}
+
+	nextStatus, err := normalizeSalesReturnStatus(status)
+	if err != nil {
+		return nil, ErrSalesReturnInvalid
+	}
+
+	if !canTransitionSalesReturnStatus(row.Status, nextStatus) {
+		return nil, ErrSalesReturnInvalid
+	}
+
+	if err := u.repo.UpdateStatus(ctx, id, nextStatus); err != nil {
+		return nil, err
+	}
+
+	if nextStatus == models.SalesReturnStatusProcessed {
+		actorID, _ := ctx.Value("user_id").(string)
+		actorID = strings.TrimSpace(actorID)
+		if err := u.createStockMovementsFromRows(ctx, row.Items, row.WarehouseID, row.Code, actorID); err != nil {
+			return nil, err
+		}
+	}
+
+	updated, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapSalesReturnRow(updated), nil
+}
+
+func (u *salesReturnUsecase) Delete(ctx context.Context, id string) error {
+	row, err := u.repo.GetByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrSalesReturnNotFound
+		}
+		return err
+	}
+
+	if row.Status != models.SalesReturnStatusDraft && row.Status != models.SalesReturnStatusRejected {
+		return ErrSalesReturnInvalid
+	}
+
+	return u.repo.Delete(ctx, id)
+}
+
+func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.CreateSalesReturnRequest) (*salesReturnCreateContext, error) {
+	deliveryID := ""
+	if req.DeliveryID != nil {
+		deliveryID = strings.TrimSpace(*req.DeliveryID)
+	}
+	if deliveryID == "" {
+		return nil, errors.New("delivery_id is required")
+	}
+
+	action, err := normalizeSalesReturnAction(req.Action)
+	if err != nil {
+		return nil, err
+	}
+
+	delivery, err := u.getDeliveryOrder(ctx, deliveryID)
+	if err != nil {
+		return nil, err
+	}
+
+	invoiceID, err := u.resolveInvoiceIDForDelivery(ctx, deliveryID, req.InvoiceID)
+	if err != nil {
+		return nil, err
+	}
+
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		if delivery.WarehouseID == nil || strings.TrimSpace(*delivery.WarehouseID) == "" {
+			return nil, errors.New("warehouse_id is required")
+		}
+		warehouseID = strings.TrimSpace(*delivery.WarehouseID)
+	}
+
+	customerID := strings.TrimSpace(req.CustomerID)
+	if customerID == "" {
+		if delivery.SalesOrder == nil || delivery.SalesOrder.CustomerID == nil || strings.TrimSpace(*delivery.SalesOrder.CustomerID) == "" {
+			return nil, errors.New("customer_id is required")
+		}
+		customerID = strings.TrimSpace(*delivery.SalesOrder.CustomerID)
+	}
+
+	if err := u.validateRequestedQty(ctx, deliveryID, req.Items); err != nil {
+		return nil, err
+	}
+
+	return &salesReturnCreateContext{
+		DeliveryID:  deliveryID,
+		WarehouseID: warehouseID,
+		CustomerID:  customerID,
+		InvoiceID:   invoiceID,
+		Action:      action,
+	}, nil
+}
+
+func normalizeSalesReturnAction(raw string) (models.SalesReturnAction, error) {
+	action := strings.ToUpper(strings.TrimSpace(raw))
+	switch action {
+	case string(models.SalesReturnActionRefund), string(models.SalesReturnActionCreditNote), string(models.SalesReturnActionReplacement):
+		return models.SalesReturnAction(action), nil
+	default:
+		return "", ErrSalesReturnInvalid
+	}
+}
+
+func normalizeSalesReturnStatus(raw string) (models.SalesReturnStatus, error) {
+	status := strings.ToUpper(strings.TrimSpace(raw))
+	switch status {
+	case string(models.SalesReturnStatusDraft), string(models.SalesReturnStatusSubmitted), string(models.SalesReturnStatusProcessed), string(models.SalesReturnStatusRejected):
+		return models.SalesReturnStatus(status), nil
+	default:
+		return "", ErrSalesReturnInvalid
+	}
+}
+
+func canTransitionSalesReturnStatus(current, next models.SalesReturnStatus) bool {
+	if current == next {
+		return true
+	}
+
+	switch current {
+	case models.SalesReturnStatusDraft:
+		return next == models.SalesReturnStatusSubmitted || next == models.SalesReturnStatusRejected
+	case models.SalesReturnStatusSubmitted:
+		return next == models.SalesReturnStatusProcessed || next == models.SalesReturnStatusRejected
+	case models.SalesReturnStatusRejected:
+		return next == models.SalesReturnStatusDraft
+	default:
+		return false
+	}
+}
+
+func normalizeOptionalString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func (u *salesReturnUsecase) validateRequestedQty(
+	ctx context.Context,
+	deliveryID string,
+	items []dto.CreateSalesReturnItemRequest,
+) error {
+	availableQtyByProduct, err := u.getAvailableDeliveryQtyByProduct(ctx, deliveryID)
+	if err != nil {
+		return err
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		requestedQtyByProduct[productID] += item.Qty
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
+			return errors.New("return quantity exceeds available quantity from delivery order")
+		}
+	}
+
+	return nil
+}
+
+func (u *salesReturnUsecase) createStockMovements(
+	ctx context.Context,
+	items []dto.CreateSalesReturnItemRequest,
+	warehouseID string,
+	referenceNumber string,
+	actorID string,
+) error {
+	if u.invUC == nil {
+		return nil
+	}
+
+	for _, item := range items {
+		moveReq := &invDto.CreateManualMovementRequest{
+			ProductID:       strings.TrimSpace(item.ProductID),
+			WarehouseID:     warehouseID,
+			Type:            "IN",
+			Quantity:        item.Qty,
+			ReferenceNumber: referenceNumber,
+			Description:     "Sales return stock adjustment",
+			CreatedBy:       actorID,
+		}
+		if err := u.invUC.CreateManualStockMovement(ctx, moveReq); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *salesReturnUsecase) createStockMovementsFromRows(
+	ctx context.Context,
+	items []models.SalesReturnItem,
+	warehouseID string,
+	referenceNumber string,
+	actorID string,
+) error {
+	if u.invUC == nil {
+		return nil
+	}
+
+	for _, item := range items {
+		moveReq := &invDto.CreateManualMovementRequest{
+			ProductID:       strings.TrimSpace(item.ProductID),
+			WarehouseID:     warehouseID,
+			Type:            "IN",
+			Quantity:        item.Quantity,
+			ReferenceNumber: referenceNumber,
+			Description:     "Sales return stock adjustment",
+			CreatedBy:       actorID,
+		}
+		if err := u.invUC.CreateManualStockMovement(ctx, moveReq); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *salesReturnUsecase) getDeliveryOrder(ctx context.Context, deliveryID string) (*models.DeliveryOrder, error) {
+	if u.db == nil {
+		return nil, errors.New(errDBNil)
+	}
+
+	var delivery models.DeliveryOrder
+	if err := u.db.WithContext(ctx).
+		Preload("SalesOrder").
+		Preload("Items").
+		First(&delivery, "id = ?", deliveryID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("delivery order not found")
+		}
+		return nil, err
+	}
+
+	return &delivery, nil
+}
+
+func (u *salesReturnUsecase) resolveInvoiceIDForDelivery(ctx context.Context, deliveryID string, invoiceID *string) (*string, error) {
+	trimmed := ""
+	if invoiceID != nil {
+		trimmed = strings.TrimSpace(*invoiceID)
+	}
+	if trimmed != "" {
+		return &trimmed, nil
+	}
+
+	if u.db == nil {
+		return nil, errors.New(errDBNil)
+	}
+
+	var invoice models.CustomerInvoice
+	err := u.db.WithContext(ctx).
+		Model(&models.CustomerInvoice{}).
+		Where("delivery_order_id = ?", deliveryID).
+		Order("created_at DESC").
+		First(&invoice).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	resolved := strings.TrimSpace(invoice.ID)
+	if resolved == "" {
+		return nil, nil
+	}
+
+	return &resolved, nil
+}
+
+func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Context, deliveryID string) (map[string]float64, error) {
+	if u.db == nil {
+		return nil, errors.New(errDBNil)
+	}
+
+	type productQtyRow struct {
+		ProductID string
+		Qty       float64
+	}
+
+	sourceRows := make([]productQtyRow, 0)
+	if err := u.db.WithContext(ctx).
+		Model(&models.DeliveryOrderItem{}).
+		Select("product_id, COALESCE(SUM(quantity), 0) AS qty").
+		Where("delivery_order_id = ?", deliveryID).
+		Group("product_id").
+		Scan(&sourceRows).Error; err != nil {
+		return nil, err
+	}
+
+	returnedRows := make([]productQtyRow, 0)
+	if err := u.db.WithContext(ctx).
+		Model(&models.SalesReturnItem{}).
+		Select("sales_return_items.product_id, COALESCE(SUM(sales_return_items.quantity), 0) AS qty").
+		Joins("JOIN sales_returns ON sales_returns.id = sales_return_items.sales_return_id").
+		Where("sales_returns.delivery_id = ?", deliveryID).
+		Where("sales_returns.deleted_at IS NULL").
+		Where("sales_returns.status <> ?", models.SalesReturnStatusRejected).
+		Group("sales_return_items.product_id").
+		Scan(&returnedRows).Error; err != nil {
+		return nil, err
+	}
+
+	returnedQtyByProduct := make(map[string]float64)
+	for _, row := range returnedRows {
+		returnedQtyByProduct[row.ProductID] = row.Qty
+	}
+
+	availableByProduct := make(map[string]float64)
+	for _, row := range sourceRows {
+		availableByProduct[row.ProductID] = math.Max(0, row.Qty-returnedQtyByProduct[row.ProductID])
+	}
+
+	return availableByProduct, nil
 }
 
 func mapSalesReturnRow(row *models.SalesReturn) *dto.SalesReturnResponse {
@@ -217,6 +550,7 @@ func mapSalesReturnRow(row *models.SalesReturn) *dto.SalesReturnResponse {
 			ProductID:     item.ProductID,
 			UOMID:         item.UOMID,
 			Condition:     item.Condition,
+			Notes:         item.Notes,
 			Qty:           item.Quantity,
 			UnitPrice:     item.UnitPrice,
 			Subtotal:      item.Subtotal,

@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate, resolveImageUrl } from "@/lib/utils";
+import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -37,6 +37,8 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
+import { CreateSalesReturnDialog } from "../../returns/components/create-sales-return-dialog";
+import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -70,12 +72,22 @@ export function DeliveryDetailModal({
   const canDeliver = useUserPermission("delivery_order.deliver");
   const canApprove = useUserPermission("delivery_order.approve");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canCreateSalesReturn = useUserPermission("sales_return.create");
   const canUpdate = useUserPermission("delivery_order.update");
 
   const updateStatus = useUpdateDeliveryOrderStatus();
   const approveMutation = useApproveDeliveryOrder();
 
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+  const [isCreateReturnOpen, setIsCreateReturnOpen] = useState(false);
+
+  const { data: salesReturnHistoryResponse } = useSalesReturns(
+    {
+      per_page: 100,
+      delivery_id: delivery?.id,
+    },
+    { enabled: open && !!delivery?.id },
+  );
 
   const {
     canViewProduct,
@@ -89,6 +101,8 @@ export function DeliveryDetailModal({
 
   const displayDelivery = detailData?.data ?? delivery;
   const allItems = displayDelivery.items ?? [];
+  const salesReturnHistory = salesReturnHistoryResponse?.data ?? [];
+  const hasSalesReturn = salesReturnHistory.length > 0;
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
     (itemsPage - 1) * pageSize,
@@ -166,6 +180,12 @@ export function DeliveryDetailModal({
                 <DialogTitle className="text-xl mb-2">{displayDelivery?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
                   {delivery && getStatusBadge(delivery.status)}
+                  {hasSalesReturn && (
+                    <Badge variant="warning" className="text-xs font-medium">
+                      <Receipt className="h-3 w-3 mr-1.5" />
+                      {t("status.returned")}
+                    </Badge>
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {displayDelivery?.delivery_date && formatDate(displayDelivery.delivery_date)}
                   </span>
@@ -319,6 +339,17 @@ export function DeliveryDetailModal({
                     <Receipt className="h-4 w-4" />
                   </Button>
                 )}
+                {displayDelivery?.status === "delivered" && canCreateSalesReturn && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateReturnOpen(true)}
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-warning/10"
+                    title="Create Return"
+                  >
+                    <Receipt className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </DialogHeader>
@@ -349,7 +380,16 @@ export function DeliveryDetailModal({
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
-                        <TableCell>{getStatusBadge(displayDelivery.status)}</TableCell>
+                        <TableCell>
+                          {hasSalesReturn ? (
+                            <Badge variant="warning" className="text-xs font-medium">
+                              <Receipt className="h-3 w-3 mr-1.5" />
+                              {t("status.returned")}
+                            </Badge>
+                          ) : (
+                            getStatusBadge(displayDelivery.status)
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("salesOrder")}</TableCell>
                         <TableCell>
                           {canViewSalesOrder && displayDelivery.sales_order_id ? (
@@ -467,6 +507,41 @@ export function DeliveryDetailModal({
                     </div>
                   </>
                 )}
+
+                <Separator />
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Return History</h3>
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Return Number</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesReturnHistory.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                              No return history for this delivery order.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          salesReturnHistory.map((history) => (
+                            <TableRow key={history.id}>
+                              <TableCell className="font-medium">{history.return_number}</TableCell>
+                              <TableCell>{history.status}</TableCell>
+                              <TableCell>{formatDate(history.created_at)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(history.total_amount ?? 0)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="items" className="space-y-4 py-4">
@@ -614,6 +689,12 @@ export function DeliveryDetailModal({
           defaultDeliveryOrderId={displayDelivery?.id}
         />
       )}
+
+      <CreateSalesReturnDialog
+        open={isCreateReturnOpen}
+        onOpenChange={setIsCreateReturnOpen}
+        deliveryId={displayDelivery?.id}
+      />
     </>
   );
 }

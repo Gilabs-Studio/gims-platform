@@ -6,10 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	purchaseReturnReadPermission   = "purchase_return.read"
+	purchaseReturnCreatePermission = "purchase_return.create"
+	purchaseReturnUpdatePermission = "purchase_return.update"
+	purchaseReturnDeletePermission = "purchase_return.delete"
+)
+
 func RegisterPurchaseReturnRoutes(r *gin.RouterGroup, h *handler.PurchaseReturnHandler) {
 	g := r.Group("/returns")
-	g.GET("/form-data", middleware.RequirePermission("purchase_return.read"), h.GetFormData)
-	g.GET("", middleware.RequirePermission("purchase_return.read"), h.List)
-	g.POST("", middleware.RequirePermission("purchase_return.create"), h.Create)
-	g.GET("/:id", middleware.RequirePermission("purchase_return.read"), h.GetByID)
+	g.GET("/form-data", middleware.RequirePermission(purchaseReturnReadPermission), h.GetFormData)
+	g.GET("", middleware.RequirePermission(purchaseReturnReadPermission), h.List)
+	g.POST("", middleware.RequirePermission(purchaseReturnCreatePermission), h.Create)
+	g.PATCH("/:id/status", middleware.RequirePermission(purchaseReturnUpdatePermission), h.UpdateStatus)
+	g.DELETE("/:id", middleware.RequirePermission(purchaseReturnDeletePermission), h.Delete)
+	g.GET("/:id", middleware.RequirePermission(purchaseReturnReadPermission), h.GetByID)
 }

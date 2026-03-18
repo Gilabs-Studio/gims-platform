@@ -45,6 +45,7 @@ export interface SalesReturnItem {
   product_id: string;
   uom_id?: string | null;
   condition: string;
+  notes?: string | null;
   qty: number;
   unit_price: number;
   subtotal: number;
@@ -69,6 +70,8 @@ export interface SalesReturn {
   updated_at: string;
 }
 
+export type SalesReturnStatus = "DRAFT" | "SUBMITTED" | "PROCESSED" | "REJECTED";
+
 export interface SalesReturnListParams {
   page?: number;
   per_page?: number;
@@ -76,6 +79,7 @@ export interface SalesReturnListParams {
   status?: string;
   action?: string;
   invoice_id?: string;
+  delivery_id?: string;
 }
 
 export interface CreateSalesReturnItemInput {
@@ -83,17 +87,22 @@ export interface CreateSalesReturnItemInput {
   product_id: string;
   uom_id?: string;
   condition: string;
+  notes?: string;
   qty: number;
   unit_price: number;
 }
 
 export interface CreateSalesReturnInput {
-  invoice_id: string;
+  invoice_id?: string;
   delivery_id?: string;
   warehouse_id: string;
-  customer_id: string;
+  customer_id?: string;
   reason: string;
   action: string;
   notes?: string;
   items: CreateSalesReturnItemInput[];
+}
+
+export interface UpdateSalesReturnStatusInput {
+  status: SalesReturnStatus;
 }

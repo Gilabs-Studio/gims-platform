@@ -2,6 +2,7 @@ export const purchaseReturnsId = {
   purchaseReturns: {
     title: "Retur Pembelian",
     subtitle: "Kelola pengembalian barang ke supplier",
+    add: "Buat Retur",
     search: "Cari nomor retur atau alasan",
     empty: "Belum ada data retur pembelian",
     columns: {
@@ -13,7 +14,33 @@ export const purchaseReturnsId = {
       amount: "Nilai",
     },
     common: {
+      add: "Buat Retur",
+      updated: "Retur pembelian berhasil diperbarui",
+      deleted: "Retur pembelian berhasil dihapus",
+      deleteConfirmation: "Apakah Anda yakin ingin menghapus retur pembelian ini?",
       error: "Terjadi kesalahan",
+    },
+    status: {
+      draft: "Draft",
+      submitted: "Diajukan",
+      approved: "Disetujui",
+      rejected: "Ditolak",
+    },
+    actions: {
+      view: "Lihat",
+      submit: "Ajukan",
+      approve: "Setujui",
+      reject: "Tolak",
+      delete: "Hapus",
+    },
+    detail: {
+      title: "Detail Retur Pembelian",
+      status: "Status",
+      goodsReceipt: "Goods Receipt",
+      supplier: "Supplier",
+      action: "Aksi",
+      amount: "Nilai",
+      createdAt: "Dibuat",
     },
   },
 };

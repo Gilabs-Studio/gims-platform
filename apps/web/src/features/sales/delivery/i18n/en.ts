@@ -60,6 +60,7 @@ export const deliveryEn = {
       prepared: "Prepared",
       shipped: "Shipped",
       delivered: "Delivered",
+      returned: "Returned",
       cancelled: "Cancelled",
     },
 
@@ -138,6 +139,7 @@ export const deliveryEn = {
       selectBatches: "Select Batches",
       captureSignature: "Capture Signature",
       createInvoice: "Create Invoice",
+      createReturn: "Create Return",
     },
 
     // Batch Selection
