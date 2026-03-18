@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Bot,
@@ -33,9 +33,20 @@ import type {
 
 export default function AIChatbotPage() {
   const t = useTranslations("aiChat");
-  const { activeSessionId, setActiveSession, startNewChat } =
+  const {
+    activeSessionId,
+    selectedModel,
+    setActiveSession,
+    startNewChat,
+    closeChat,
+  } =
     useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(true);
+
+  useEffect(() => {
+    // Ensure floating widget is closed while using the dedicated chatbot page.
+    closeChat();
+  }, [closeChat]);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
     useAIChatSessionDetail(activeSessionId);
@@ -52,6 +63,7 @@ export default function AIChatbotPage() {
         {
           message: content,
           session_id: activeSessionId ?? undefined,
+          model: selectedModel ?? undefined,
         },
         {
           onSuccess: (response) => {
@@ -65,7 +77,7 @@ export default function AIChatbotPage() {
         }
       );
     },
-    [activeSessionId, sendMessage, setActiveSession, t]
+    [activeSessionId, selectedModel, sendMessage, setActiveSession, t]
   );
 
   return (
