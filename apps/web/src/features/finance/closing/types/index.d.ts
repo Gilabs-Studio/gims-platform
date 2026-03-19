@@ -44,3 +44,17 @@ export interface CreateFinancialClosingInput {
   period_end_date: string;
   notes?: string;
 }
+
+export interface FinancialClosingAnalysisRow {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  closing_balance: number;
+  opening_balance: number;
+  difference: number;
+}
+
+export interface FinancialClosingAnalysisResponse {
+  closing: FinancialClosing;
+  rows: FinancialClosingAnalysisRow[];
+}
