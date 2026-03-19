@@ -1,6 +1,6 @@
 export const financeAgingReportsEn = {
   title: "Aging Reports",
-  description: "View AR/AP aging by due date.",
+  description: "Monitor accounts receivable and payable by due date to manage cash flow and collection strategy.",
   fields: {
     asOfDate: "As of Date",
     search: "Search",
@@ -18,8 +18,20 @@ export const financeAgingReportsEn = {
     supplier: "Supplier",
   },
   sections: {
-    ar: "AR Aging",
-    ap: "AP Aging",
+    ar: "Accounts Receivable (AR)",
+    ap: "Accounts Payable (AP)",
   },
-  searchPlaceholder: "Search invoices...",
+  summary: {
+    totalAR: "Total Outstanding AR",
+    totalAP: "Total Outstanding AP",
+    notYetDue: "Not Yet Due",
+    overdue: "Overdue",
+    overdue1_30: "1-30 Days Overdue",
+    overdue31_60: "31-60 Days Overdue",
+    overdue61_90: "61-90 Days Overdue",
+    overdue90Plus: "> 90 Days Overdue",
+    actions: "Actions",
+    viewDetails: "View Details",
+  },
+  searchPlaceholder: "Search by invoice number or code...",
 };
