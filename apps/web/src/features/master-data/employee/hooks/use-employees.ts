@@ -6,7 +6,6 @@ import type {
   ListEmployeesParams,
   CreateEmployeeData,
   UpdateEmployeeData,
-
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
   CreateEmployeeContractData,
@@ -30,7 +29,10 @@ export const employeeKeys = {
   formData: () => ["employees", "form-data"] as const,
 };
 
-export function useEmployees(params?: ListEmployeesParams, options?: { enabled?: boolean }) {
+export function useEmployees(
+  params?: ListEmployeesParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: employeeKeys.list(params ?? {}),
     queryFn: () => employeeService.list(params),
@@ -38,7 +40,10 @@ export function useEmployees(params?: ListEmployeesParams, options?: { enabled?:
   });
 }
 
-export function useEmployee(id: string | undefined, options?: { enabled?: boolean }) {
+export function useEmployee(
+  id: string | undefined,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: employeeKeys.detail(id ?? ""),
     queryFn: () => employeeService.getById(id!),
@@ -80,7 +85,6 @@ export function useDeleteEmployee() {
     },
   });
 }
-
 
 export function useAssignEmployeeAreas() {
   const queryClient = useQueryClient();
@@ -133,7 +137,11 @@ export function useRemoveEmployeeArea() {
   });
 }
 
-export function useAvailableUsers(search?: string, excludeEmployeeId?: string, options?: { enabled?: boolean }) {
+export function useAvailableUsers(
+  search?: string,
+  excludeEmployeeId?: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: employeeKeys.availableUsers(search, excludeEmployeeId),
     queryFn: () =>
@@ -346,13 +354,10 @@ export const educationKeys = {
     [...educationKeys.all, "list", employeeId] as const,
 };
 
-export function useEmployeeEducationHistories(
-  employeeId: string | undefined,
-) {
+export function useEmployeeEducationHistories(employeeId: string | undefined) {
   return useQuery({
     queryKey: educationKeys.lists(employeeId ?? ""),
-    queryFn: () =>
-      employeeService.getEmployeeEducationHistories(employeeId!),
+    queryFn: () => employeeService.getEmployeeEducationHistories(employeeId!),
     enabled: !!employeeId,
   });
 }
@@ -367,8 +372,7 @@ export function useCreateEmployeeEducationHistory() {
     }: {
       employeeId: string;
       data: CreateEmployeeEducationHistoryData;
-    }) =>
-      employeeService.createEmployeeEducationHistory(employeeId, data),
+    }) => employeeService.createEmployeeEducationHistory(employeeId, data),
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({
         queryKey: educationKeys.lists(employeeId),
@@ -420,10 +424,7 @@ export function useDeleteEmployeeEducationHistory() {
       employeeId: string;
       educationId: string;
     }) =>
-      employeeService.deleteEmployeeEducationHistory(
-        employeeId,
-        educationId,
-      ),
+      employeeService.deleteEmployeeEducationHistory(employeeId, educationId),
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({
         queryKey: educationKeys.lists(employeeId),
@@ -442,13 +443,10 @@ export const certificationKeys = {
     [...certificationKeys.all, "list", employeeId] as const,
 };
 
-export function useEmployeeCertifications(
-  employeeId: string | undefined,
-) {
+export function useEmployeeCertifications(employeeId: string | undefined) {
   return useQuery({
     queryKey: certificationKeys.lists(employeeId ?? ""),
-    queryFn: () =>
-      employeeService.getEmployeeCertifications(employeeId!),
+    queryFn: () => employeeService.getEmployeeCertifications(employeeId!),
     enabled: !!employeeId,
   });
 }
@@ -487,12 +485,7 @@ export function useUpdateEmployeeCertification() {
       employeeId: string;
       certId: string;
       data: import("../types").UpdateEmployeeCertificationData;
-    }) =>
-      employeeService.updateEmployeeCertification(
-        employeeId,
-        certId,
-        data,
-      ),
+    }) => employeeService.updateEmployeeCertification(employeeId, certId, data),
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({
         queryKey: certificationKeys.lists(employeeId),
@@ -514,8 +507,7 @@ export function useDeleteEmployeeCertification() {
     }: {
       employeeId: string;
       certId: string;
-    }) =>
-      employeeService.deleteEmployeeCertification(employeeId, certId),
+    }) => employeeService.deleteEmployeeCertification(employeeId, certId),
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({
         queryKey: certificationKeys.lists(employeeId),
@@ -627,6 +619,58 @@ export function useDeleteEmployeeAsset() {
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({
         queryKey: assetKeys.lists(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+// Signature query keys
+export const signatureKeys = {
+  all: ["employee-signatures"] as const,
+  detail: (employeeId: string) =>
+    [...signatureKeys.all, "detail", employeeId] as const,
+};
+
+export function useEmployeeSignature(
+  employeeId: string | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: signatureKeys.detail(employeeId ?? ""),
+    queryFn: () => employeeService.getEmployeeSignature(employeeId!),
+    enabled: options?.enabled !== undefined ? options.enabled : !!employeeId,
+  });
+}
+
+export function useUploadEmployeeSignature() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ employeeId, file }: { employeeId: string; file: File }) =>
+      employeeService.uploadEmployeeSignature(employeeId, file),
+    onSuccess: (_, { employeeId }) => {
+      queryClient.invalidateQueries({
+        queryKey: signatureKeys.detail(employeeId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: employeeKeys.detail(employeeId),
+      });
+    },
+  });
+}
+
+export function useDeleteEmployeeSignature() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (employeeId: string) =>
+      employeeService.deleteEmployeeSignature(employeeId),
+    onSuccess: (_, employeeId) => {
+      queryClient.invalidateQueries({
+        queryKey: signatureKeys.detail(employeeId),
       });
       queryClient.invalidateQueries({
         queryKey: employeeKeys.detail(employeeId),

@@ -34,7 +34,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindByID(ctx context.Context, id st
 	defer cancel()
 
 	var applicant models.RecruitmentApplicant
-	if err := r.db.WithContext(ctx).Preload("Stage").Where("id = ?", id).First(&applicant).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Stage").Preload("Employee").Where("id = ?", id).First(&applicant).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -124,6 +124,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindByRecruitmentRequest(ctx contex
 }
 
 func (r *recruitmentApplicantRepositoryImpl) FindByStage(ctx context.Context, stageID, recruitmentRequestID string, page, perPage int) ([]models.RecruitmentApplicant, int64, error) {
+
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -151,6 +152,7 @@ func (r *recruitmentApplicantRepositoryImpl) FindByStage(ctx context.Context, st
 	}
 
 	offset := (page - 1) * perPage
+
 	query = query.Preload("Stage").
 		Offset(offset).Limit(perPage).
 		Order("last_activity_at DESC")

@@ -26,7 +26,7 @@ type CreateRecruitmentApplicantDTO struct {
 	Phone                *string `json:"phone" binding:"omitempty,max=20"`
 	Source               string  `json:"source" binding:"required,oneof=linkedin jobstreet glints referral direct other"`
 	Notes                *string `json:"notes" binding:"omitempty,max=5000"`
-	ResumeURL            *string `json:"resume_url" binding:"omitempty,max=500,url"`
+	ResumeURL            *string `json:"resume_url" binding:"omitempty,max=500"`
 }
 
 // UpdateRecruitmentApplicantDTO represents the request to update an applicant
@@ -36,7 +36,7 @@ type UpdateRecruitmentApplicantDTO struct {
 	Phone     *string `json:"phone" binding:"omitempty,max=20"`
 	Source    *string `json:"source" binding:"omitempty,oneof=linkedin jobstreet glints referral direct other"`
 	Notes     *string `json:"notes" binding:"omitempty,max=5000"`
-	ResumeURL *string `json:"resume_url" binding:"omitempty,max=500,url"`
+	ResumeURL *string `json:"resume_url" binding:"omitempty,max=500"`
 	Rating    *int    `json:"rating" binding:"omitempty,min=1,max=5"`
 }
 
@@ -45,6 +45,14 @@ type MoveApplicantStageDTO struct {
 	ToStageID string  `json:"to_stage_id" binding:"required,uuid"`
 	Reason    *string `json:"reason" binding:"omitempty,max=1000"`
 	Notes     *string `json:"notes" binding:"omitempty,max=2000"`
+}
+
+// EmployeeSummaryResponse represents a brief employee response for applicant conversion
+type EmployeeSummaryResponse struct {
+	ID           string `json:"id"`
+	EmployeeCode string `json:"employee_code"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
 }
 
 // RecruitmentApplicantResponse represents an applicant in API responses
@@ -62,6 +70,8 @@ type RecruitmentApplicantResponse struct {
 	Rating               *int                    `json:"rating"`
 	Notes                *string                 `json:"notes"`
 	Stage                *ApplicantStageResponse `json:"stage,omitempty"`
+	EmployeeID           *string                 `json:"employee_id,omitempty"`
+	Employee             *EmployeeSummaryResponse `json:"employee,omitempty"`
 	CreatedAt            time.Time               `json:"created_at"`
 	UpdatedAt            time.Time               `json:"updated_at"`
 }
@@ -116,4 +126,30 @@ type ListApplicantsByStageParams struct {
 	Page                 int    `form:"page" binding:"omitempty,min=1"`
 	PerPage              int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search               string `form:"search" binding:"omitempty,max=100"`
+}
+
+// ConvertApplicantToEmployeeDTO represents the request to convert applicant to employee
+// All fields are optional - if not provided, backend will use applicant data and defaults
+type ConvertApplicantToEmployeeDTO struct {
+	// Pre-filled from applicant (editable)
+	Name          string  `json:"name" binding:"omitempty,max=200"`
+	Email         string  `json:"email" binding:"omitempty,email,max=100"`
+	Phone         string  `json:"phone" binding:"max=20"`
+	DivisionID    *string `json:"division_id"`
+	JobPositionID *string `json:"job_position_id"`
+
+	// Additional employee fields (optional, user can fill later in employee module)
+	NIK          string  `json:"nik" binding:"omitempty,max=20"`
+	DateOfBirth  *string `json:"date_of_birth"` // Format: "2006-01-02"
+	PlaceOfBirth string  `json:"place_of_birth" binding:"omitempty,max=100"`
+	Gender       string  `json:"gender" binding:"omitempty,oneof=male female"`
+	Religion     string  `json:"religion" binding:"omitempty,max=50"`
+	Address      string  `json:"address" binding:"omitempty,max=500"`
+	VillageID    *string `json:"village_id"`
+
+	// Contract info (optional, can be added later in employee module)
+	ContractType   string `json:"contract_type" binding:"omitempty,oneof=PKWTT PKWT Intern"`
+	ContractNumber string `json:"contract_number" binding:"omitempty,max=50"`
+	StartDate      string `json:"start_date" binding:"omitempty"` // Format: "2006-01-02"
+	EndDate        string `json:"end_date"`                       // Optional
 }

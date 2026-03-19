@@ -12,6 +12,7 @@ import type {
   CreateActivityData,
   RecruitmentApplicant,
   RecruitmentApplicantListResponse,
+  ConvertApplicantToEmployeeData,
 } from "../types";
 
 // Query keys
@@ -28,6 +29,8 @@ export const applicantKeys = {
   stages: () => [...applicantKeys.all, "stages"] as const,
   activities: (applicantId: string) =>
     [...applicantKeys.detail(applicantId), "activities"] as const,
+  canConvert: (applicantId: string) =>
+    [...applicantKeys.detail(applicantId), "can-convert"] as const,
 };
 
 // List applicants
@@ -440,4 +443,37 @@ export function useProgressiveApplicantKanban({
     resetExtraPages,
     invalidateAll,
   };
+}
+
+// Check if applicant can be converted to employee
+export function useCanConvertToEmployee(applicantId: string) {
+  return useQuery({
+    queryKey: applicantKeys.canConvert(applicantId),
+    queryFn: () => applicantService.canConvertToEmployee(applicantId),
+    enabled: !!applicantId,
+  });
+}
+
+// Convert applicant to employee
+export function useConvertToEmployee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: ConvertApplicantToEmployeeData;
+    }) => applicantService.convertToEmployee(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: applicantKeys.detail(variables.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: applicantKeys.canConvert(variables.id),
+      });
+      queryClient.invalidateQueries({ queryKey: applicantKeys.byStage() });
+    },
+  });
 }

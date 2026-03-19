@@ -238,6 +238,47 @@ func (h *RecruitmentApplicantHandler) GetByRecruitmentRequest(c *gin.Context) {
 	response.SuccessResponse(c, applicants, &response.Meta{Pagination: meta})
 }
 
+// CanConvertToEmployee handles GET /applicants/:id/can-convert
+func (h *RecruitmentApplicantHandler) CanConvertToEmployee(c *gin.Context) {
+	id := c.Param("id")
+
+	canConvert, reason, err := h.usecase.CanConvertToEmployee(c.Request.Context(), id)
+	if err != nil {
+		handleApplicantError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, gin.H{
+		"can_convert": canConvert,
+		"reason":      reason,
+	}, nil)
+}
+
+// ConvertToEmployee handles POST /applicants/:id/convert-to-employee
+func (h *RecruitmentApplicantHandler) ConvertToEmployee(c *gin.Context) {
+	id := c.Param("id")
+
+	var reqDTO dto.ConvertApplicantToEmployeeDTO
+	if err := c.ShouldBindJSON(&reqDTO); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body", err.Error(), nil)
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		errors.ErrorResponse(c, "UNAUTHORIZED", nil, nil)
+		return
+	}
+
+	result, err := h.usecase.ConvertToEmployee(c.Request.Context(), id, &reqDTO, userID.(string))
+	if err != nil {
+		handleApplicantError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
 // handleApplicantError maps usecase errors to appropriate HTTP responses
 func handleApplicantError(c *gin.Context, err error) {
 	msg := err.Error()
@@ -253,10 +294,20 @@ func handleApplicantError(c *gin.Context, err error) {
 		errors.ErrorResponse(c, "TARGET_STAGE_NOT_FOUND", map[string]interface{}{"message": msg}, nil)
 	case msg == "invalid applicant source":
 		errors.ErrorResponse(c, "INVALID_SOURCE", map[string]interface{}{"message": msg}, nil)
+	case msg == "applicant already converted to employee":
+		errors.ErrorResponse(c, "ALREADY_CONVERTED", map[string]interface{}{"message": msg}, nil)
+	case msg == "applicant must be in hired stage to convert":
+		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]interface{}{"message": msg}, nil)
+	case msg == "applicant must be in hired stage":
+		errors.ErrorResponse(c, "NOT_IN_HIRED_STAGE", map[string]interface{}{"message": msg}, nil)
 	case strings.Contains(msg, "cannot move applicant from terminal stage"):
 		errors.ErrorResponse(c, "CANNOT_MOVE_FROM_TERMINAL", map[string]interface{}{"message": msg}, nil)
 	case strings.Contains(msg, "cannot delete stage with existing applicants"):
 		errors.ErrorResponse(c, "STAGE_IN_USE", map[string]interface{}{"message": msg}, nil)
+	case strings.Contains(msg, "failed to create employee"):
+		errors.ErrorResponse(c, "EMPLOYEE_CREATION_FAILED", map[string]interface{}{"message": msg}, nil)
+	case strings.Contains(msg, "failed to link applicant to employee"):
+		errors.ErrorResponse(c, "LINK_FAILED", map[string]interface{}{"message": msg}, nil)
 	default:
 		errors.ErrorResponse(c, "INTERNAL_ERROR", map[string]interface{}{"message": "An unexpected error occurred"}, nil)
 	}

@@ -6,7 +6,6 @@ import type {
   ListEmployeesParams,
   CreateEmployeeData,
   UpdateEmployeeData,
-
   AssignEmployeeAreasData,
   BulkUpdateEmployeeAreasData,
   AvailableUsersResponse,
@@ -27,6 +26,7 @@ import type {
   CreateEmployeeAssetData,
   UpdateEmployeeAssetData,
   ReturnEmployeeAssetData,
+  EmployeeSignature,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -72,7 +72,6 @@ export const employeeService = {
     );
     return response.data;
   },
-
 
   async assignAreas(
     id: string,
@@ -278,10 +277,7 @@ export const employeeService = {
   ): Promise<EmployeeCertification> {
     const response = await apiClient.put<{
       data: EmployeeCertification;
-    }>(
-      `${BASE_PATH}/employees/${employeeId}/certifications/${certId}`,
-      data,
-    );
+    }>(`${BASE_PATH}/employees/${employeeId}/certifications/${certId}`, data);
     return response.data.data;
   },
 
@@ -341,5 +337,43 @@ export const employeeService = {
     await apiClient.delete(
       `${BASE_PATH}/employees/${employeeId}/assets/${assetId}`,
     );
+  },
+
+  // Employee Signature methods
+  async getEmployeeSignature(
+    employeeId: string,
+  ): Promise<EmployeeSignature | null> {
+    try {
+      const response = await apiClient.get<{
+        data: EmployeeSignature;
+      }>(`${BASE_PATH}/employees/${employeeId}/signature`);
+      return response.data.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async uploadEmployeeSignature(
+    employeeId: string,
+    file: File,
+  ): Promise<EmployeeSignature> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<{
+      data: EmployeeSignature;
+    }>(`${BASE_PATH}/employees/${employeeId}/signature`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data.data;
+  },
+
+  async deleteEmployeeSignature(employeeId: string): Promise<void> {
+    await apiClient.delete(`${BASE_PATH}/employees/${employeeId}/signature`);
   },
 };

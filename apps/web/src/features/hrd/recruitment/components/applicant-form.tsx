@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FileUpload } from "@/components/ui/file-upload";
 import {
   Select,
   SelectContent,
@@ -35,14 +36,16 @@ import {
 import { useApplicantStages, useCreateApplicant, useUpdateApplicant } from "../hooks/use-applicants";
 import type { RecruitmentApplicant, ApplicantSource } from "../types";
 
-const applicantSources: { value: ApplicantSource; label: string }[] = [
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "jobstreet", label: "JobStreet" },
-  { value: "glints", label: "Glints" },
-  { value: "referral", label: "Referral" },
-  { value: "direct", label: "Direct Application" },
-  { value: "other", label: "Other" },
-];
+function useApplicantSources(t: (key: string) => string): { value: ApplicantSource; label: string }[] {
+  return [
+    { value: "linkedin", label: t("applicants.sources.linkedin") },
+    { value: "jobstreet", label: t("applicants.sources.jobstreet") },
+    { value: "glints", label: t("applicants.sources.glints") },
+    { value: "referral", label: t("applicants.sources.referral") },
+    { value: "direct", label: t("applicants.sources.direct") },
+    { value: "other", label: t("applicants.sources.other") },
+  ];
+}
 
 function getFormSchema(t: (key: string) => string) {
   return z.object({
@@ -52,7 +55,7 @@ function getFormSchema(t: (key: string) => string) {
     source: z.enum(["linkedin", "jobstreet", "glints", "referral", "direct", "other"]),
     stage_id: z.string().min(1, t("validation.required")),
     notes: z.string().optional(),
-    resume_url: z.string().url(t("validation.invalidUrl")).optional().or(z.literal("")),
+    resume_url: z.string().optional().or(z.literal("")),
   });
 }
 
@@ -80,6 +83,7 @@ export function ApplicantForm({
 
   const stages = stagesData?.data || [];
   const isEditing = !!applicant;
+  const applicantSources = useApplicantSources(t);
 
   const formSchema = getFormSchema(t);
 
@@ -294,9 +298,11 @@ export function ApplicantForm({
                 <FormItem>
                   <FormLabel>{t("applicants.fields.resume")}</FormLabel>
                   <FormControl>
-                    <Input
+                    <FileUpload
+                      value={field.value}
+                      onChange={(url) => field.onChange(url || "")}
                       placeholder={t("applicants.placeholders.resume")}
-                      {...field}
+                      accept=".pdf,.doc,.docx"
                     />
                   </FormControl>
                   <FormMessage />

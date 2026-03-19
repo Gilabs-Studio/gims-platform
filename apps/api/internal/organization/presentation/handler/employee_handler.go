@@ -1,8 +1,19 @@
 package handler
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
+	"path/filepath"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -331,7 +342,7 @@ func (h *EmployeeHandler) GetFormData(c *gin.Context) {
 // GetEmployeeContracts handles GET /employees/:id/contracts
 func (h *EmployeeHandler) GetEmployeeContracts(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	contracts, err := h.employeeUC.GetEmployeeContracts(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -343,14 +354,14 @@ func (h *EmployeeHandler) GetEmployeeContracts(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, contracts, nil)
 }
 
 // CreateEmployeeContract handles POST /employees/:id/contracts
 func (h *EmployeeHandler) CreateEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req dto.CreateEmployeeContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -360,14 +371,14 @@ func (h *EmployeeHandler) CreateEmployeeContract(c *gin.Context) {
 		errors.InvalidRequestBodyResponse(c)
 		return
 	}
-	
+
 	userID := ""
 	if uid, exists := c.Get("user_id"); exists {
 		if id, ok := uid.(string); ok {
 			userID = id
 		}
 	}
-	
+
 	resp, err := h.employeeUC.CreateEmployeeContract(c.Request.Context(), id, req, userID)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -379,14 +390,14 @@ func (h *EmployeeHandler) CreateEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponseCreated(c, resp, nil)
 }
 
 // GetActiveContract handles GET /employees/:id/contracts/active
 func (h *EmployeeHandler) GetActiveContract(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	contract, err := h.employeeUC.GetActiveContract(c.Request.Context(), id)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -398,12 +409,12 @@ func (h *EmployeeHandler) GetActiveContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	if contract == nil {
 		response.SuccessResponse(c, nil, nil)
 		return
 	}
-	
+
 	response.SuccessResponse(c, contract, nil)
 }
 
@@ -411,7 +422,7 @@ func (h *EmployeeHandler) GetActiveContract(c *gin.Context) {
 func (h *EmployeeHandler) UpdateEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
 	contractID := c.Param("contract_id")
-	
+
 	var req dto.UpdateEmployeeContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -421,7 +432,7 @@ func (h *EmployeeHandler) UpdateEmployeeContract(c *gin.Context) {
 		errors.InvalidRequestBodyResponse(c)
 		return
 	}
-	
+
 	resp, err := h.employeeUC.UpdateEmployeeContract(c.Request.Context(), id, contractID, req)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -433,7 +444,7 @@ func (h *EmployeeHandler) UpdateEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, resp, nil)
 }
 
@@ -441,7 +452,7 @@ func (h *EmployeeHandler) UpdateEmployeeContract(c *gin.Context) {
 func (h *EmployeeHandler) DeleteEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
 	contractID := c.Param("contract_id")
-	
+
 	if err := h.employeeUC.DeleteEmployeeContract(c.Request.Context(), id, contractID); err != nil {
 		if err == usecase.ErrEmployeeNotFound {
 			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
@@ -452,7 +463,7 @@ func (h *EmployeeHandler) DeleteEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, nil, nil)
 }
 
@@ -460,7 +471,7 @@ func (h *EmployeeHandler) DeleteEmployeeContract(c *gin.Context) {
 func (h *EmployeeHandler) TerminateEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
 	contractID := c.Param("contract_id")
-	
+
 	var req dto.TerminateEmployeeContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -470,14 +481,14 @@ func (h *EmployeeHandler) TerminateEmployeeContract(c *gin.Context) {
 		errors.InvalidRequestBodyResponse(c)
 		return
 	}
-	
+
 	userID := ""
 	if uid, exists := c.Get("user_id"); exists {
 		if id, ok := uid.(string); ok {
 			userID = id
 		}
 	}
-	
+
 	resp, err := h.employeeUC.TerminateEmployeeContract(c.Request.Context(), id, contractID, req, userID)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -489,7 +500,7 @@ func (h *EmployeeHandler) TerminateEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, resp, nil)
 }
 
@@ -497,7 +508,7 @@ func (h *EmployeeHandler) TerminateEmployeeContract(c *gin.Context) {
 func (h *EmployeeHandler) RenewEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
 	contractID := c.Param("contract_id")
-	
+
 	var req dto.RenewEmployeeContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -507,14 +518,14 @@ func (h *EmployeeHandler) RenewEmployeeContract(c *gin.Context) {
 		errors.InvalidRequestBodyResponse(c)
 		return
 	}
-	
+
 	userID := ""
 	if uid, exists := c.Get("user_id"); exists {
 		if id, ok := uid.(string); ok {
 			userID = id
 		}
 	}
-	
+
 	resp, err := h.employeeUC.RenewEmployeeContract(c.Request.Context(), id, contractID, req, userID)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -526,14 +537,14 @@ func (h *EmployeeHandler) RenewEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, resp, nil)
 }
 
 // CorrectActiveEmployeeContract handles PATCH /employees/:id/contracts/active
 func (h *EmployeeHandler) CorrectActiveEmployeeContract(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	var req dto.CorrectEmployeeContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -543,14 +554,14 @@ func (h *EmployeeHandler) CorrectActiveEmployeeContract(c *gin.Context) {
 		errors.InvalidRequestBodyResponse(c)
 		return
 	}
-	
+
 	userID := ""
 	if uid, exists := c.Get("user_id"); exists {
 		if id, ok := uid.(string); ok {
 			userID = id
 		}
 	}
-	
+
 	resp, err := h.employeeUC.CorrectActiveEmployeeContract(c.Request.Context(), id, req, userID)
 	if err != nil {
 		if err == usecase.ErrEmployeeNotFound {
@@ -562,7 +573,7 @@ func (h *EmployeeHandler) CorrectActiveEmployeeContract(c *gin.Context) {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-	
+
 	response.SuccessResponse(c, resp, nil)
 }
 
@@ -981,4 +992,138 @@ func (h *EmployeeHandler) DeleteEmployeeAsset(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, map[string]string{"message": "Asset deleted successfully"}, nil)
+}
+
+// GetEmployeeSignature handles GET /employees/:id/signature
+func (h *EmployeeHandler) GetEmployeeSignature(c *gin.Context) {
+	id := c.Param("id")
+
+	signature, err := h.employeeUC.GetEmployeeSignature(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	// Return success even if signature is nil (employee doesn't have signature yet)
+	// Frontend will handle the null case
+	response.SuccessResponse(c, signature, nil)
+}
+
+// UploadEmployeeSignature handles POST /employees/:id/signature
+func (h *EmployeeHandler) UploadEmployeeSignature(c *gin.Context) {
+	id := c.Param("id")
+
+	// Get uploaded file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		errors.ErrorResponse(c, "FILE_REQUIRED", map[string]interface{}{
+			"message": "Signature file is required",
+		}, nil)
+		return
+	}
+	defer file.Close()
+
+	// Get user ID from context
+	userID := ""
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(string); ok {
+			userID = id
+		}
+	}
+
+	// Get employee to retrieve name for filename
+	employee, err := h.employeeUC.GetByID(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, "Failed to retrieve employee details")
+		return
+	}
+
+	// Save file to storage using the existing utility
+	uploadConfig := utils.FileUploadConfig{
+		UploadDir:    filepath.Join(config.AppConfig.Storage.UploadDir, "signatures"),
+		MaxSize:      5 * 1024 * 1024, // 5MB
+		BaseURL:      "/uploads/signatures",
+		OriginalName: employee.Name + " signature",
+	}
+
+	uploadedFile, err := utils.SaveSignatureFile(file, header, uploadConfig)
+	if err != nil {
+		switch err {
+		case utils.ErrInvalidFileType:
+			errors.ErrorResponse(c, "INVALID_FILE_TYPE", map[string]interface{}{
+				"message": "Only PNG and JPG files are allowed",
+			}, nil)
+		case utils.ErrFileTooLarge:
+			errors.ErrorResponse(c, "FILE_TOO_LARGE", map[string]interface{}{
+				"message": "File size must be less than 5MB",
+			}, nil)
+		default:
+			errors.InternalServerErrorResponse(c, fmt.Sprintf("Failed to save file: %v", err))
+		}
+		return
+	}
+
+	// Calculate file hash for integrity
+	hash := sha256.New()
+	file.Seek(0, 0) // Reset file pointer to beginning
+	if _, err := io.Copy(hash, file); err != nil {
+		// Non-critical error, use placeholder
+		// Continue with upload
+	}
+	fileHash := hex.EncodeToString(hash.Sum(nil))
+
+	// Get image dimensions
+	file.Seek(0, 0) // Reset file pointer
+	img, _, err := image.Decode(file)
+	width, height := 0, 0
+	if err == nil {
+		bounds := img.Bounds()
+		width = bounds.Dx()
+		height = bounds.Dy()
+	}
+
+	signature, err := h.employeeUC.UploadEmployeeSignature(c.Request.Context(), id, uploadedFile.Path, uploadedFile.Filename, uploadedFile.Size, fileHash, uploadedFile.MimeType, width, height, userID)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, signature, nil)
+}
+
+// DeleteEmployeeSignature handles DELETE /employees/:id/signature
+func (h *EmployeeHandler) DeleteEmployeeSignature(c *gin.Context) {
+	id := c.Param("id")
+
+	err := h.employeeUC.DeleteEmployeeSignature(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrEmployeeNotFound {
+			errors.ErrorResponse(c, "EMPLOYEE_NOT_FOUND", map[string]interface{}{
+				"employee_id": id,
+			}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, map[string]string{"message": "Signature deleted successfully"}, nil)
 }

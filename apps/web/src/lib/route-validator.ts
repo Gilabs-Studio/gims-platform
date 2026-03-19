@@ -71,6 +71,7 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/asset-categories",
   "/finance/asset-locations",
   "/finance/asset-budgets",
+  "/finance/asset-maintenance",
   "/finance/up-country-cost",
   "/finance/salary",
   "/finance/reports/general-ledger",

@@ -236,6 +236,21 @@ export interface EmployeeAssetBrief {
   days_borrowed: number;
 }
 
+// Employee Signature types
+export interface EmployeeSignature {
+  id: string;
+  file_path: string;
+  file_url: string;
+  file_name: string; // Original filename (e.g., "signature.jpg")
+  file_size: number;
+  file_hash: string;
+  mime_type: string;
+  width: number;
+  height: number;
+  uploaded_by: string;
+  uploaded_at: string;
+}
+
 export interface CreateEmployeeAssetData {
   asset_name: string;
   asset_code: string;
@@ -342,6 +357,7 @@ export interface Employee {
   current_contract?: EmployeeContract;
   latest_education?: EmployeeEducationBrief;
   latest_certification?: EmployeeCertificationBrief;
+  signature?: EmployeeSignature | null;
   ptkp_status?: PTKPStatus;
   is_disability?: boolean;
   replacement_for_id?: string;
@@ -413,7 +429,6 @@ export interface UpdateEmployeeData {
   supervised_area_ids?: string[];
   is_active?: boolean;
 }
-
 
 export interface AssignEmployeeAreasData {
   area_ids: string[];

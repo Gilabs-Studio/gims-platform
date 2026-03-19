@@ -12,6 +12,8 @@ import type {
   UpdateApplicantData,
   MoveStageData,
   CreateActivityData,
+  ConvertApplicantToEmployeeData,
+  CanConvertResponse,
 } from "../types";
 
 const BASE_PATH = "/hrd/applicants";
@@ -130,6 +132,26 @@ export const applicantService = {
     const response = await apiClient.get<RecruitmentApplicantListResponse>(
       `/hrd/recruitment-requests/${recruitmentRequestId}/applicants`,
       { params: { page, per_page: perPage } }
+    );
+    return response.data;
+  },
+
+  // Check if applicant can be converted to employee
+  async canConvertToEmployee(id: string): Promise<CanConvertResponse> {
+    const response = await apiClient.get<CanConvertResponse>(
+      `${BASE_PATH}/${id}/can-convert`
+    );
+    return response.data;
+  },
+
+  // Convert applicant to employee
+  async convertToEmployee(
+    id: string,
+    data: ConvertApplicantToEmployeeData
+  ): Promise<RecruitmentApplicantSingleResponse> {
+    const response = await apiClient.post<RecruitmentApplicantSingleResponse>(
+      `${BASE_PATH}/${id}/convert-to-employee`,
+      data
     );
     return response.data;
   },
