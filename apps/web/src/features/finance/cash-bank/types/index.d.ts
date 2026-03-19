@@ -117,3 +117,27 @@ export interface CashBankJournalInput {
   bank_account_id: string;
   lines: CashBankJournalLineInput[];
 }
+
+// Journal Lines types (previously imported from finance/journal-lines — inlined here after that feature was removed)
+export interface ListJournalLinesParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  sort_by?: string;
+  sort_dir?: string;
+}
+
+export interface JournalLineRow {
+  id: string;
+  chart_of_account_id?: string | null;
+  chart_of_account_name?: string | null;
+  debit: number;
+  credit: number;
+  memo?: string | null;
+}
+
+export interface ListJournalLinesResponse {
+  lines: JournalLineRow[];
+}

@@ -19,16 +19,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import type { PeriodChartData } from "../types";
-
-function formatIDR(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 interface RevenueBarChartCardProps {
   readonly revenueData?: PeriodChartData;
@@ -86,7 +78,7 @@ export function RevenueBarChartCard({
               {t("revenueChart.revenue")}
             </span>
             <span className="text-lg font-bold sm:text-2xl">
-              {formatIDR(revenueTotal)}
+              {formatCurrency(revenueTotal)}
             </span>
           </button>
           <button
@@ -98,7 +90,7 @@ export function RevenueBarChartCard({
               {t("revenueChart.costs")}
             </span>
             <span className="text-lg font-bold sm:text-2xl">
-              {formatIDR(costsTotal)}
+              {formatCurrency(costsTotal)}
             </span>
           </button>
         </div>
@@ -133,7 +125,7 @@ export function RevenueBarChartCard({
                 color: "hsl(var(--popover-foreground))",
                 fontSize: 12,
               }}
-              formatter={(v: number) => [formatIDR(v)]}
+              formatter={(v: number) => [formatCurrency(v)]}
               labelFormatter={(label) => String(label)}
             />
             <Bar

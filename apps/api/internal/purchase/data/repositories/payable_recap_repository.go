@@ -64,7 +64,7 @@ WITH return_totals AS (
 	  AND pr.status IN ('SUBMITTED', 'APPROVED', 'COMPLETED')
 	GROUP BY pr.supplier_id
 ),
-WITH supplier_payables AS (
+supplier_payables AS (
     SELECT 
         s.id                              AS supplier_id,
         s.name                            AS supplier_name,

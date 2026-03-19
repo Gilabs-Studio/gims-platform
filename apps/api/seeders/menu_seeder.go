@@ -82,7 +82,7 @@ func SeedMenus() error {
 		Name:   "Master Data",
 		Icon:   "database",
 		URL:    "/master-data",
-		Order:  2,
+		Order:  9,
 		Status: "active",
 	}
 	if err := createMenu(masterDataMenu); err != nil {
@@ -166,7 +166,7 @@ func SeedMenus() error {
 		Name:   "AI Assistant",
 		Icon:   "sparkles",
 		URL:    "/ai-assistant",
-		Order:  9,
+		Order:  10,
 		Status: "active",
 	}
 	if err := createMenu(aiMenu); err != nil {
@@ -178,7 +178,7 @@ func SeedMenus() error {
 		Name:   "CRM",
 		Icon:   "handshake",
 		URL:    "/crm",
-		Order:  10,
+		Order:  2,
 		Status: "active",
 	}
 	if err := createMenu(crmMenu); err != nil {
@@ -350,7 +350,6 @@ func SeedMenus() error {
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
 		{"Returns", "rotate-ccw", "/sales/returns", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -438,16 +437,28 @@ func SeedMenus() error {
 		}
 	}
 
-	// Journal Group (has sub-menus: Journal Entries, Journal Lines)
+	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {
 		return err
 	}
-	if _, err := createChildMenu("Journal Entries", "book-open", "/finance/journals", &journalMenu.ID, 1); err != nil {
-		return err
+	journalSubMenus := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Journal Entries", "file-text", "/finance/journals", 1},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
+		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
+		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
+		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
 	}
-	if _, err := createChildMenu("Journal Lines", "table", "/finance/journal-lines", &journalMenu.ID, 2); err != nil {
-		return err
+	for _, sub := range journalSubMenus {
+		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
+			return err
+		}
 	}
 
 	// Finance Reports Group
@@ -574,6 +585,11 @@ func SeedMenus() error {
 
 	// CRM Area Mapping menu (Sprint 24)
 	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
+	// Sales Target (moved from Sales to CRM)
+	if _, err := createChildMenu("Sales Target", "check-square", "/crm/targets", &crmMenu.ID, 8); err != nil {
 		return err
 	}
 

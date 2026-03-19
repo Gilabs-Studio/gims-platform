@@ -1,0 +1,103 @@
+﻿?   	github.com/gilabs/gims/api/internal/finance/data/models	[no test files]
+?   	github.com/gilabs/gims/api/internal/finance/data/repositories	[no test files]
+?   	github.com/gilabs/gims/api/internal/finance/domain/dto	[no test files]
+?   	github.com/gilabs/gims/api/internal/finance/domain/mapper	[no test files]
+=== RUN   TestAdjustmentJournal_ShouldCreatePostAndReverse
+=== PAUSE TestAdjustmentJournal_ShouldCreatePostAndReverse
+=== RUN   TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata
+=== PAUSE TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata
+=== RUN   TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal
+=== PAUSE TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal
+=== RUN   TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal
+=== PAUSE TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal
+=== RUN   TestJournalEntryRepository_ShouldFilterByReferenceTypes
+=== PAUSE TestJournalEntryRepository_ShouldFilterByReferenceTypes
+=== RUN   TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport
+=== PAUSE TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport
+=== RUN   TestValidateLines_ShouldRejectUnbalancedEntries
+=== PAUSE TestValidateLines_ShouldRejectUnbalancedEntries
+=== RUN   TestJournalReferenceTypesForDomain_ShouldMapKnownDomain
+=== PAUSE TestJournalReferenceTypesForDomain_ShouldMapKnownDomain
+=== RUN   TestValidateLines_ShouldRejectSingleLine
+=== PAUSE TestValidateLines_ShouldRejectSingleLine
+=== RUN   TestValidateLines_ShouldRejectLineWithBothDebitAndCredit
+=== PAUSE TestValidateLines_ShouldRejectLineWithBothDebitAndCredit
+=== RUN   TestValidateLines_ShouldRejectLineWithZeroDebitAndCredit
+=== PAUSE TestValidateLines_ShouldRejectLineWithZeroDebitAndCredit
+=== RUN   TestValidateLines_ShouldPassBalancedEntry
+=== PAUSE TestValidateLines_ShouldPassBalancedEntry
+=== RUN   TestValidateLines_ShouldPassMultiLineBalancedEntry
+=== PAUSE TestValidateLines_ShouldPassMultiLineBalancedEntry
+=== RUN   TestJournalReferenceTypesForDomain_ShouldMapAdjustmentDomain
+=== PAUSE TestJournalReferenceTypesForDomain_ShouldMapAdjustmentDomain
+=== RUN   TestJournalReferenceTypesForDomain_ShouldMapValuationDomain
+=== PAUSE TestJournalReferenceTypesForDomain_ShouldMapValuationDomain
+=== RUN   TestJournalReferenceTypesForDomain_ShouldReturnNilForNilDomain
+=== PAUSE TestJournalReferenceTypesForDomain_ShouldReturnNilForNilDomain
+=== RUN   TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain
+=== PAUSE TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain
+=== RUN   TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances
+=== PAUSE TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances
+=== RUN   TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements
+=== PAUSE TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements
+=== RUN   TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain
+=== PAUSE TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain
+=== CONT  TestAdjustmentJournal_ShouldCreatePostAndReverse
+=== CONT  TestValidateLines_ShouldRejectLineWithZeroDebitAndCredit
+=== CONT  TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport
+--- PASS: TestValidateLines_ShouldRejectLineWithZeroDebitAndCredit (0.00s)
+=== CONT  TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain
+=== NAME  TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport
+    journal_entry_integration_test.go:258: sqlite integration test skipped because CGO is disabled in this environment
+=== NAME  TestAdjustmentJournal_ShouldCreatePostAndReverse
+    adjustment_journal_integration_test.go:22: sqlite integration test skipped because CGO is disabled in this environment
+=== NAME  TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain
+    valuation_journal_integration_test.go:22: sqlite integration test skipped because CGO is disabled in this environment
+=== CONT  TestValidateLines_ShouldRejectSingleLine
+--- SKIP: TestAdjustmentJournal_ShouldCreatePostAndReverse (0.00s)
+--- SKIP: TestJournalEntry_ShouldRunValuationAndBeListedInValuationDomain (0.00s)
+=== CONT  TestJournalReferenceTypesForDomain_ShouldMapKnownDomain
+=== CONT  TestJournalReferenceTypesForDomain_ShouldMapAdjustmentDomain
+=== CONT  TestValidateLines_ShouldRejectUnbalancedEntries
+=== CONT  TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal
+=== CONT  TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal
+=== CONT  TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata
+=== NAME  TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal
+    journal_entry_integration_test.go:82: sqlite integration test skipped because CGO is disabled in this environment
+=== CONT  TestJournalReferenceTypesForDomain_ShouldReturnNilForNilDomain
+=== CONT  TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements
+=== NAME  TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal
+    journal_entry_integration_test.go:146: sqlite integration test skipped because CGO is disabled in this environment
+=== CONT  TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances
+--- SKIP: TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport (0.00s)
+--- PASS: TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances (0.00s)
+--- PASS: TestValidateLines_ShouldRejectSingleLine (0.00s)
+--- PASS: TestValidateLines_ShouldRejectUnbalancedEntries (0.00s)
+--- PASS: TestJournalReferenceTypesForDomain_ShouldMapAdjustmentDomain (0.00s)
+--- PASS: TestJournalReferenceTypesForDomain_ShouldMapKnownDomain (0.00s)
+--- PASS: TestJournalReferenceTypesForDomain_ShouldReturnNilForNilDomain (0.00s)
+--- SKIP: TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceJournal (0.00s)
+=== CONT  TestValidateLines_ShouldRejectLineWithBothDebitAndCredit
+=== CONT  TestJournalReferenceTypesForDomain_ShouldMapValuationDomain
+=== CONT  TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain
+=== CONT  TestJournalEntryRepository_ShouldFilterByReferenceTypes
+=== CONT  TestValidateLines_ShouldPassBalancedEntry
+=== CONT  TestValidateLines_ShouldPassMultiLineBalancedEntry
+=== NAME  TestJournalEntryRepository_ShouldFilterByReferenceTypes
+    journal_entry_integration_test.go:217: sqlite integration test skipped because CGO is disabled in this environment
+=== NAME  TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata
+    journal_entry_integration_test.go:23: sqlite integration test skipped because CGO is disabled in this environment
+--- PASS: TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements (0.00s)
+--- SKIP: TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvoiceDPJournal (0.00s)
+--- PASS: TestValidateLines_ShouldRejectLineWithBothDebitAndCredit (0.00s)
+--- PASS: TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain (0.00s)
+--- PASS: TestJournalReferenceTypesForDomain_ShouldMapValuationDomain (0.00s)
+--- PASS: TestValidateLines_ShouldPassBalancedEntry (0.00s)
+--- PASS: TestValidateLines_ShouldPassMultiLineBalancedEntry (0.00s)
+--- SKIP: TestJournalEntryRepository_ShouldFilterByReferenceTypes (0.00s)
+--- SKIP: TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata (0.00s)
+PASS
+ok  	github.com/gilabs/gims/api/internal/finance/domain/usecase	0.208s
+?   	github.com/gilabs/gims/api/internal/finance/presentation	[no test files]
+?   	github.com/gilabs/gims/api/internal/finance/presentation/handler	[no test files]
+?   	github.com/gilabs/gims/api/internal/finance/presentation/router	[no test files]

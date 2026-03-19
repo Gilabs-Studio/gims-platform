@@ -2,21 +2,38 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, MinusCircle, Plus, Search, Trash2, Pencil } from "lucide-react";
+import { CheckCircle2, MinusCircle, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import type { ChartOfAccountTreeNode, CoaType } from "../types";
-import { useDeleteFinanceCoa, useFinanceCoaTree } from "../hooks/use-finance-coa";
+import { useDeleteFinanceCoa, useFinanceCoaTree, useUpdateFinanceCoa } from "../hooks/use-finance-coa";
 import { CoaForm } from "./coa-form";
+
+const COA_TYPE_BADGES: Record<CoaType, { labelKey: string; variant: "default" | "secondary" | "outline" | "success" | "warning" | "info" | "active" | "inactive" | "soft" | "destructive" }> = {
+  ASSET: { labelKey: "asset", variant: "default" },
+  CASH_BANK: { labelKey: "cash_bank", variant: "success" },
+  CURRENT_ASSET: { labelKey: "current_asset", variant: "secondary" },
+  COST_OF_GOODS_SOLD: { labelKey: "cost_of_goods_sold", variant: "outline" },
+  EQUITY: { labelKey: "equity", variant: "secondary" },
+  EXPENSE: { labelKey: "expense", variant: "destructive" },
+  FIXED_ASSET: { labelKey: "fixed_asset", variant: "secondary" },
+  LIABILITY: { labelKey: "liability", variant: "warning" },
+  OPERATIONAL: { labelKey: "operational", variant: "soft" },
+  REVENUE: { labelKey: "revenue", variant: "success" },
+  SALARY_WAGES: { labelKey: "salary_wages", variant: "secondary" },
+  TRADE_PAYABLE: { labelKey: "trade_payable", variant: "outline" },
+};
 
 type FlatNode = {
   id: string;
@@ -66,6 +83,7 @@ export function CoaList() {
 
   const { data, isLoading, isError } = useFinanceCoaTree({ only_active: false });
   const deleteMutation = useDeleteFinanceCoa();
+  const updateMutation = useUpdateFinanceCoa();
 
   const tree = data?.data;
   const flat = useMemo(() => flatten(tree ?? []), [tree]);
@@ -98,6 +116,24 @@ export function CoaList() {
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
+
+  const handleActiveChange = async (row: FlatNode, is_active: boolean) => {
+    try {
+      await updateMutation.mutateAsync({
+        id: row.id,
+        data: {
+          code: row.code,
+          name: row.name,
+          type: row.type,
+          parent_id: row.parent_id ?? null,
+          is_active,
+        },
+      });
+      toast.success(t("toast.updated"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -168,45 +204,62 @@ export function CoaList() {
                   <TableCell>
                     <div style={{ paddingLeft: row.depth * 16 }}>{row.name}</div>
                   </TableCell>
-                  <TableCell className="capitalize">{t(`types.${row.type?.toLowerCase() ?? row.type}`)}</TableCell>
-                  <TableCell>{row.is_active ? (
-                    <Badge variant="success" className="text-xs font-medium">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      {tCommon("yes")}
-                    </Badge>
-                  ) : (
-                    <Badge variant="inactive" className="text-xs font-medium">
-                      <MinusCircle className="h-3 w-3 mr-1" />
-                      {tCommon("no")}
-                    </Badge>
-                  )}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {canUpdate && (
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => {
-                            setFormMode("edit");
-                            setEditingId(row.id);
-                            setFormOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="cursor-pointer"
-                          onClick={() => setDeletingId(row.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                  <TableCell>
+                    {(() => {
+                      const typeBadge = COA_TYPE_BADGES[row.type];
+                      return (
+                        <Badge variant={typeBadge.variant} className="text-xs font-medium capitalize">
+                          {t(`types.${typeBadge.labelKey}`)}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={row.is_active}
+                        onCheckedChange={(checked) => handleActiveChange(row, checked)}
+                        disabled={!canUpdate || updateMutation.isPending}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {row.is_active ? tCommon("yes") : tCommon("no")}
+                      </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="cursor-pointer">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {canUpdate && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFormMode("edit");
+                              setEditingId(row.id);
+                              setFormOpen(true);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            {t("actions.edit")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && canDelete && <DropdownMenuSeparator />}
+                        {canDelete && (
+                          <DropdownMenuItem
+                            onClick={() => setDeletingId(row.id)}
+                            className="cursor-pointer text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("actions.delete")}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

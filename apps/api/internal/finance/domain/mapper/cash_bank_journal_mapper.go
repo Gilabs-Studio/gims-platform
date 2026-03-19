@@ -21,12 +21,18 @@ func (m *CashBankJournalMapper) ToResponse(item *financeModels.CashBankJournal) 
 		return dto.CashBankJournalResponse{}
 	}
 
+	referenceType, referenceID := resolveCashBankReference(item)
+
 	resp := dto.CashBankJournalResponse{
 		ID:              item.ID,
 		TransactionDate: item.TransactionDate,
 		Type:            item.Type,
+		TransactionType: item.Type,
 		Description:     item.Description,
 		BankAccountID:   item.BankAccountID,
+		ReferenceType:   referenceType,
+		ReferenceID:     referenceID,
+		ReferenceCode:   buildReferenceCode(referenceType, referenceID),
 		TotalAmount:     item.TotalAmount,
 		Status:          item.Status,
 		JournalEntryID:  item.JournalEntryID,
@@ -83,4 +89,68 @@ func (m *CashBankJournalMapper) ToResponse(item *financeModels.CashBankJournal) 
 	}
 
 	return resp
+}
+
+func resolveCashBankReference(item *financeModels.CashBankJournal) (string, string) {
+	referenceType := "CB"
+	referenceID := strings.TrimSpace(item.ID)
+
+	if item.Type == financeModels.CashBankTypeTransfer {
+		referenceType = "TRF"
+	}
+
+	for _, ln := range item.Lines {
+		lineReferenceType := strings.ToUpper(strings.TrimSpace(valueOrEmpty(ln.ReferenceType)))
+		lineReferenceID := strings.TrimSpace(valueOrEmpty(ln.ReferenceID))
+
+		if lineReferenceType == "" && lineReferenceID == "" {
+			continue
+		}
+
+		if strings.Contains(lineReferenceType, "PAY") {
+			referenceType = "PAY"
+		} else if strings.Contains(lineReferenceType, "TRF") {
+			referenceType = "TRF"
+		} else if lineReferenceType != "" {
+			referenceType = "CB"
+		}
+
+		if lineReferenceID != "" {
+			referenceID = lineReferenceID
+		}
+		break
+	}
+
+	if referenceID == "" {
+		referenceID = strings.TrimSpace(item.ID)
+	}
+
+	return referenceType, referenceID
+}
+
+func buildReferenceCode(referenceType string, referenceID string) string {
+	typeCode := strings.ToUpper(strings.TrimSpace(referenceType))
+	id := strings.TrimSpace(referenceID)
+	if id == "" {
+		return typeCode + "-N/A"
+	}
+
+	segments := strings.Split(id, "-")
+	shortID := strings.ToUpper(segments[0])
+	if len(shortID) > 10 {
+		shortID = shortID[:10]
+	}
+
+	if typeCode == "" {
+		typeCode = "REF"
+	}
+
+	return typeCode + "-" + shortID
+}
+
+func valueOrEmpty(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }

@@ -5,6 +5,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/utils";
 import type { CategoryPerformance } from "../types";
 import {
   Table,
@@ -56,12 +57,7 @@ export function CategoryPerformanceList({
   order,
   setOrder,
 }: CategoryPerformanceListProps) {
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(Math.round(amount));
+  const formatCurrencyAmount = (amount: number) => formatCurrency(Math.round(amount));
   const t = useTranslations("productAnalysisReport");
 
   const handleSort = (column: SortBy) => {
@@ -252,7 +248,7 @@ export function CategoryPerformanceList({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(item.total_revenue)}
+                      {formatCurrencyAmount(item.total_revenue)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.total_qty.toLocaleString("id-ID")}

@@ -1,0 +1,15 @@
+﻿go : github.com/kolesa-team/go-webp/decoder: build 
+constraints exclude all Go files in C:\Users\Advan\go\
+pkg\mod\github.com\kolesa-team\go-webp@v1.0.5\decoder
+At line:1 char:1
++ go build ./... 2>&1 | Out-File -Encoding utf8 
+build_errors.txt
++ ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (github.c 
+   om/kole...@v1.0.5\decoder:String) [], RemoteExcep  
+  tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+github.com/kolesa-team/go-webp/encoder: build 
+constraints exclude all Go files in C:\Users\Advan\go\
+pkg\mod\github.com\kolesa-team\go-webp@v1.0.5\encoder

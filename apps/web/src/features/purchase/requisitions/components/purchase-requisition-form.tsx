@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -218,8 +218,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	});
 
 	const formatMoney = useCallback((value: number | null | undefined): string => {
-		const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-		return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(safe);
+		return formatCurrency(value ?? 0);
 	}, []);
 
 	const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {

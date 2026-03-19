@@ -9,7 +9,7 @@ import (
 type CreateChartOfAccountRequest struct {
 	Code     string                    `json:"code" binding:"required"`
 	Name     string                    `json:"name" binding:"required"`
-	Type     financeModels.AccountType `json:"type" binding:"required,oneof=asset liability equity revenue expense"`
+	Type     financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive *bool                     `json:"is_active"`
 }
@@ -17,7 +17,7 @@ type CreateChartOfAccountRequest struct {
 type UpdateChartOfAccountRequest struct {
 	Code     string                    `json:"code" binding:"required"`
 	Name     string                    `json:"name" binding:"required"`
-	Type     financeModels.AccountType `json:"type" binding:"required,oneof=asset liability equity revenue expense"`
+	Type     financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive *bool                     `json:"is_active"`
 }
@@ -26,7 +26,7 @@ type ListChartOfAccountsRequest struct {
 	Page     int                        `form:"page" binding:"omitempty,min=1"`
 	PerPage  int                        `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search   string                     `form:"search"`
-	Type     *financeModels.AccountType `form:"type" binding:"omitempty,oneof=asset liability equity revenue expense"`
+	Type     *financeModels.AccountType `form:"type" binding:"omitempty,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID *string                    `form:"parent_id" binding:"omitempty,uuid"`
 	IsActive *bool                      `form:"is_active"`
 	SortBy   string                     `form:"sort_by"`

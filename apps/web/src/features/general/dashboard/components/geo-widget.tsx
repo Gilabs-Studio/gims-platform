@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo } from "react";
-import { formatIDR } from "../utils/format";
+import { formatCurrency } from "@/lib/utils";
 import type { GeoOverviewData } from "../types";
 import { MapIcon } from "lucide-react";
 
@@ -48,7 +48,7 @@ export function GeoWidget({ data }: GeoWidgetProps) {
           </CardTitle>
           {data?.total_value !== undefined && (
             <span className="text-sm font-semibold text-primary">
-              {formatIDR(data.total_value)}
+              {formatCurrency(data.total_value)}
             </span>
           )}
         </div>
