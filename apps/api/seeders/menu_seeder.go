@@ -82,7 +82,7 @@ func SeedMenus() error {
 		Name:   "Master Data",
 		Icon:   "database",
 		URL:    "/master-data",
-		Order:  2,
+		Order:  9,
 		Status: "active",
 	}
 	if err := createMenu(masterDataMenu); err != nil {
@@ -166,7 +166,7 @@ func SeedMenus() error {
 		Name:   "AI Assistant",
 		Icon:   "sparkles",
 		URL:    "/ai-assistant",
-		Order:  9,
+		Order:  10,
 		Status: "active",
 	}
 	if err := createMenu(aiMenu); err != nil {
@@ -178,7 +178,7 @@ func SeedMenus() error {
 		Name:   "CRM",
 		Icon:   "handshake",
 		URL:    "/crm",
-		Order:  10,
+		Order:  2,
 		Status: "active",
 	}
 	if err := createMenu(crmMenu); err != nil {
