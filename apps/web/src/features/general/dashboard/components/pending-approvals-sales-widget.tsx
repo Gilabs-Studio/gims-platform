@@ -26,19 +26,10 @@ import type { SalesQuotation } from "@/features/sales/quotation/types";
 import type { SalesOrder } from "@/features/sales/order/types";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
 import type { CustomerInvoice } from "@/features/sales/invoice/types";
-import { formatDate as formatDateUtil } from "@/lib/utils";
+import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
 
 const PER_PAGE = 8;
 type SalesTab = "quotation" | "order" | "delivery" | "invoice";
-
-function formatIDR(amount: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 function formatDate(dateStr: string) {
   return formatDateUtil(dateStr);
@@ -252,7 +243,7 @@ export function PendingApprovalsSalesWidget() {
                       code={q.code}
                       date={formatDate(q.quotation_date)}
                       party={q.customer?.name}
-                      amount={formatIDR(q.total_amount)}
+                      amount={formatCurrency(q.total_amount)}
                       onClick={() => setSelectedQuotation(q)}
                     />
                   ))}
@@ -274,7 +265,7 @@ export function PendingApprovalsSalesWidget() {
                       code={o.code}
                       date={formatDate(o.order_date)}
                       party={o.customer?.name}
-                      amount={formatIDR(o.total_amount)}
+                      amount={formatCurrency(o.total_amount)}
                       onClick={() => setSelectedOrder(o)}
                     />
                   ))}
@@ -317,7 +308,7 @@ export function PendingApprovalsSalesWidget() {
                       code={inv.code}
                       date={formatDate(inv.invoice_date)}
                       party={inv.sales_order?.customer?.name}
-                      amount={formatIDR(inv.amount)}
+                      amount={formatCurrency(inv.amount)}
                       onClick={() => setSelectedInvoice(inv)}
                     />
                   ))}

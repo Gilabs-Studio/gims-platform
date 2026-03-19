@@ -19,7 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { resolveImageUrl } from "@/lib/utils";
+import { formatCurrency, resolveImageUrl } from "@/lib/utils";
 
 type SortBy = "revenue" | "qty" | "orders" | "name";
 
@@ -63,12 +63,7 @@ export function ProductPerformanceList({
 }: ProductPerformanceListProps) {
   const t = useTranslations("productAnalysisReport");
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(Math.round(amount));
+  const formatCurrencyAmount = (amount: number) => formatCurrency(Math.round(amount));
 
   const handleSort = (column: SortBy) => {
     if (sortBy === column) {
@@ -275,7 +270,7 @@ export function ProductPerformanceList({
                       )}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(item.total_revenue)}
+                      {formatCurrencyAmount(item.total_revenue)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.total_qty.toLocaleString("id-ID")}

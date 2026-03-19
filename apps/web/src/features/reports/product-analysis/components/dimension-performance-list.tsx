@@ -5,6 +5,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -79,12 +80,7 @@ export function DimensionPerformanceList({
 }: DimensionPerformanceListProps) {
   const t = useTranslations("productAnalysisReport");
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(Math.round(amount));
+  const formatCurrencyAmount = (amount: number) => formatCurrency(Math.round(amount));
 
   const handleSort = (column: SortBy) => {
     if (sortBy === column) {
@@ -245,7 +241,7 @@ export function DimensionPerformanceList({
                       <Badge variant="secondary">{item.product_count}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(item.total_revenue)}
+                      {formatCurrencyAmount(item.total_revenue)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.total_qty.toLocaleString("id-ID")}

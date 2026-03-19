@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -352,9 +352,7 @@ export function PurchaseOrderForm({
   const otherCost = watch("other_cost") ?? 0;
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
-  const formatMoney = useCallback((v: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v),
-    []);
+  const formatMoney = useCallback((v: number) => formatCurrency(v), []);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

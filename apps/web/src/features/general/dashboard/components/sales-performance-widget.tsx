@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { formatIDR } from "../utils/format";
+import { formatCurrency } from "@/lib/utils";
 import type { SalesPerformanceRow } from "../types";
 
 interface SalesPerformanceWidgetProps {
@@ -38,7 +38,7 @@ export function SalesPerformanceWidget({ data }: SalesPerformanceWidgetProps) {
                     <span className="text-sm font-medium">{row.name}</span>
                   </div>
                   <span className="text-sm font-semibold">
-                    {formatIDR(row.revenue)}
+                    {formatCurrency(row.revenue)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

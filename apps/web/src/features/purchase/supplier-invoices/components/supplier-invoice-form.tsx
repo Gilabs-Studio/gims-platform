@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { CalendarIcon, DollarSign, FileText, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -243,9 +244,7 @@ export function SupplierInvoiceFormDialog({
   );
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
-  const formatMoney = useCallback((v: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v),
-    []);
+  const formatMoney = useCallback((v: number) => formatCurrency(v), []);
 
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
