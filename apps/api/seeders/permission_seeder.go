@@ -422,6 +422,10 @@ func SeedPermissions() error {
 		{"/finance/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.submit", "Submit Non-Trade Payables", "SUBMIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.approve", "Approve Non-Trade Payables", "APPROVE", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.reject", "Reject Non-Trade Payables", "REJECT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
 
 		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
@@ -738,20 +742,22 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
 	assignScopedPermissionsToRole("manager", map[string]string{
-		"sales":    "DIVISION",
-		"purchase": "DIVISION",
-		"hrd":      "DIVISION",
-		"finance":  "DIVISION",
-		"stock":    "ALL",
+		"sales":             "DIVISION",
+		"purchase":          "DIVISION",
+		"hrd":               "DIVISION",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"stock":             "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
 	assignScopedPermissionsToRole("staff", map[string]string{
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "OWN",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"finance":           "OWN",
+		"non_trade_payable": "OWN",
+		"stock":             "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
@@ -774,11 +780,12 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
 	assignScopedPermissionsToRole("finance_manager", map[string]string{
-		"finance":  "DIVISION",
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"stock":    "OWN",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
 		// Finance journal domain pages — explicit DIVISION scope
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
 		//  standard module prefix, so they must be mapped explicitly)
@@ -788,11 +795,12 @@ func SeedPermissions() error {
 	}, "ALL")
 
 	assignScopedPermissionsToRole("accountant", map[string]string{
-		"finance":  "DIVISION",
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"stock":    "OWN",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",
 		"journal_valuation":  "DIVISION",

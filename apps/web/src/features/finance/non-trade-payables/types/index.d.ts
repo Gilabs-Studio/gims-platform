@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type NonTradePayableStatus = "DRAFT" | "APPROVED" | "PAID" | "CANCELLED";
+export type NonTradePayableStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "PAID" | "CANCELLED";
 
 export interface NonTradePayable {
   id: string;
