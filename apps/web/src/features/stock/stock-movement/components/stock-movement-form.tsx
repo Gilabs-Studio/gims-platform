@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@/i18n/routing";
 import { PageMotion } from "@/components/motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,6 +47,7 @@ export function StockMovementForm() {
   const t = useTranslations("stock_movement");
   const tCommon = useTranslations("common");
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // ─── Form state ───────────────────────────────────────────────────────────
   const [type, setType] = useState<MovementType>("TRANSFER");
@@ -181,6 +183,8 @@ export function StockMovementForm() {
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
+      const batchReferenceNumber = referenceNumber || `MANUAL-${Date.now()}`;
+
       for (const productId of Array.from(selectedIds)) {
         await stockMovementService.createMovement({
           type,
@@ -188,10 +192,12 @@ export function StockMovementForm() {
           warehouse_id: sourceWarehouseId,
           target_warehouse_id: type === "TRANSFER" ? targetWarehouseId : undefined,
           quantity: quantities[productId] ?? 0,
-          reference_number: referenceNumber || undefined,
+          reference_number: batchReferenceNumber,
           description: description || undefined,
         });
       }
+
+      queryClient.removeQueries({ queryKey: ["stock-movements"] });
       toast.success(t("form.createSuccess"));
       router.push("/stock/movements");
     } catch (error: unknown) {

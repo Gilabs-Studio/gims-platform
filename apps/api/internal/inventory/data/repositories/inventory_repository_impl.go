@@ -499,6 +499,10 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 	case req.Type == "ADJUST" && req.Quantity < 0:
 		// Shortage: physical count < system → stock decreases
 		movement.QtyOut = -req.Quantity // Store as positive value
+	case req.Type == "TRANSFER" && req.MovementDirection == "IN":
+		movement.QtyIn = req.Quantity
+	case req.Type == "TRANSFER" && req.MovementDirection == "OUT":
+		movement.QtyOut = req.Quantity
 	default:
 		// OUT or TRANSFER
 		movement.QtyOut = req.Quantity
