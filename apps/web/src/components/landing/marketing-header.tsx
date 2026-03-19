@@ -1,18 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 export function MarketingHeader() {
-  const pathname = usePathname();
-
   const navItems = [
-    { label: "Features", href: "/#features" },
-    { label: "Modules", href: "/#modules" },
-    { label: "Pricing", href: "/pricing" },
+    { label: "Fitur", href: "#features" },
+    { label: "Modul", href: "#modules" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "Scenario", href: "#scenarios" },
   ];
 
   return (
@@ -42,12 +39,7 @@ export function MarketingHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm transition-colors hover:text-foreground",
-                pathname === item.href
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground"
-              )}
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               {item.label}
             </Link>
@@ -62,12 +54,12 @@ export function MarketingHeader() {
               size="sm"
               className="cursor-pointer text-muted-foreground hover:text-foreground"
             >
-              Sign in
+              Masuk
             </Button>
           </Link>
-          <Link href="/login" prefetch={false}>
+          <Link href="#pricing">
             <Button size="sm" className="cursor-pointer">
-              Get started
+              Lihat pricing
             </Button>
           </Link>
         </div>
