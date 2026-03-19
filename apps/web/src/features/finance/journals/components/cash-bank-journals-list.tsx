@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import type { DateRange } from "react-day-picker";
 import { ArrowUpRight, ArrowDownRight, Activity, Lock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,15 +31,21 @@ import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journ
 export function CashBankJournalsList() {
   const t = useTranslations("financeJournals");
 
+  const now = new Date();
   const [search, setSearch] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(now.getFullYear(), 0, 1),
+    to: now,
+  });
   const [transactionType, setTransactionType] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
+
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const canExport = useUserPermission("cash_bank_journal.export");
 
@@ -125,21 +132,15 @@ export function CashBankJournalsList() {
         <div className="flex-1">
           <FilterToolbar
             search={search}
-            startDate={startDate}
-            endDate={endDate}
+            dateRange={dateRange}
             searchPlaceholder={t("search")}
-            startDateLabel={t("fields.startDate")}
-            endDateLabel={t("fields.endDate")}
+            dateRangeLabel={t("fields.dateRange")}
             onSearchChange={(value) => {
               setSearch(value);
               setPage(1);
             }}
-            onStartDateChange={(value) => {
-              setStartDate(value);
-              setPage(1);
-            }}
-            onEndDateChange={(value) => {
-              setEndDate(value);
+            onDateRangeChange={(value) => {
+              setDateRange(value);
               setPage(1);
             }}
           />

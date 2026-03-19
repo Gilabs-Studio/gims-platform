@@ -22,6 +22,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 import type {
+  JournalReferenceTypeBadgeMeta,
   JournalTableColumn,
   JournalTableColumnKey,
   UnifiedJournalRow,
@@ -79,12 +80,12 @@ function buildReferenceCode(referenceType?: string | null, referenceID?: string 
   return `${prefix}-${short}`;
 }
 
-function getReferenceSourceMeta(type: string | null) {
+function getReferenceSourceMeta(type: string | null): JournalReferenceTypeBadgeMeta {
   if (!type) {
     return {
       label: "Unknown",
       title: "Unknown Source",
-      color: "bg-muted text-muted-foreground border-border",
+      variant: "inactive" as const,
     };
   }
 
@@ -95,63 +96,63 @@ function getReferenceSourceMeta(type: string | null) {
     return {
       label: "Payment SO",
       title: "Sales Order Payment",
-      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      variant: "success" as const,
     };
   }
   if (compact === "PURCHASEPAYMENT") {
     return {
       label: "Payment PO",
       title: "Purchase Order Payment",
-      color: "bg-lime-500/10 text-lime-600 border-lime-500/20",
+      variant: "secondary" as const,
     };
   }
   if (compact === "SALESINVOICE") {
     return {
       label: "Invoice SO",
       title: "Sales Invoice",
-      color: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      variant: "info" as const,
     };
   }
   if (compact === "SALESINVOICEDP") {
     return {
       label: "Invoice DP SO",
       title: "Sales Down Payment Invoice",
-      color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
+      variant: "soft" as const,
     };
   }
   if (compact === "SUPPLIERINVOICE") {
     return {
       label: "Invoice PO",
       title: "Supplier Invoice",
-      color: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      variant: "info" as const,
     };
   }
   if (compact === "SUPPLIERINVOICEDP") {
     return {
       label: "Invoice DP PO",
       title: "Supplier Down Payment Invoice",
-      color: "bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20",
+      variant: "soft" as const,
     };
   }
   if (compact === "PAYMENT") {
     return {
       label: "Payment Finance",
       title: "Finance Payment",
-      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      variant: "success" as const,
     };
   }
   if (compact === "DO" || compact.includes("DELIVERY")) {
     return {
       label: "Delivery SO",
       title: "Delivery Order",
-      color: "bg-sky-500/10 text-sky-500 border-sky-500/20",
+      variant: "outline" as const,
     };
   }
   if (compact.includes("GOODSRECEIPT")) {
     return {
       label: "Receipt PO",
       title: "Goods Receipt",
-      color: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+      variant: "outline" as const,
     };
   }
   if (
@@ -165,28 +166,28 @@ function getReferenceSourceMeta(type: string | null) {
     return {
       label: compact === "TRF" || compact === "TRANSFER" ? "Transfer Bank" : "Cash/Bank",
       title: "Cash & Bank Transaction",
-      color: "bg-teal-500/10 text-teal-500 border-teal-500/20",
+      variant: "secondary" as const,
     };
   }
   if (compact.includes("ADJUST") || compact === "CORRECTION") {
     return {
       label: "Adjustment",
       title: "Adjustment Journal",
-      color: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+      variant: "warning" as const,
     };
   }
   if (compact.includes("VALUATION") || compact.includes("REVALUATION") || compact.includes("COST")) {
     return {
       label: "Valuation",
       title: "Valuation Journal",
-      color: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      variant: "outline" as const,
     };
   }
 
   return {
     label: value,
     title: value,
-    color: "bg-secondary text-secondary-foreground border-border",
+    variant: "outline" as const,
   };
 }
 
@@ -245,6 +246,7 @@ export function mapJournalToUnifiedRow<
     description: item.description ?? null,
     journalType: item.source ?? item.reference_type ?? null,
     referenceType: item.reference_type ?? null,
+    referenceTypeBadge: getReferenceBadge(item.reference_type ?? null),
     referenceId: item.reference_id ?? null,
     referenceCode: item.reference_code ?? buildReferenceCode(item.reference_type, item.reference_id),
     status: item.status ?? "draft",
@@ -296,6 +298,7 @@ export function mapCashBankToUnifiedRow<
     description: item.description ?? null,
     journalType: "cash_bank",
     referenceType: item.reference_type ?? item.type.toUpperCase(),
+    referenceTypeBadge: getReferenceBadge(item.reference_type ?? item.type.toUpperCase()),
     referenceId: item.reference_id ?? item.id,
     referenceCode: item.reference_code ?? `CB-${item.id.slice(0, 8).toUpperCase()}`,
     transactionType,
@@ -365,10 +368,10 @@ function renderCell<T>(
   }
 
   if (key === "referenceType") {
-    const badge = getReferenceBadge(row.referenceType);
+    const badge = row.referenceTypeBadge ?? getReferenceBadge(row.referenceType);
     return (
       <TableCell>
-        <Badge variant="outline" className={`font-mono text-xs ${badge.color}`} title={badge.title}>
+        <Badge variant={badge.variant} className="font-mono text-xs uppercase" title={badge.title}>
           {badge.label}
         </Badge>
       </TableCell>

@@ -467,7 +467,7 @@ export const navigationConfig: NavItem[] = [
                 name: "Adjustment Journal",
     i18nKey: "adjustmentJournal",
                 url: "/finance/journals/adjustment",
-                icon: "pencil",
+                icon: "edit-3",
                 permission: "adjustment_journal.read",
               },
               {

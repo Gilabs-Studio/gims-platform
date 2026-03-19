@@ -450,7 +450,7 @@ func SeedMenus() error {
 		{"Journal Entries", "file-text", "/finance/journals", 1},
 		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
 		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
-		{"Adjustment Journal", "pencil", "/finance/journals/adjustment", 4},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
 		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
 		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
 	}

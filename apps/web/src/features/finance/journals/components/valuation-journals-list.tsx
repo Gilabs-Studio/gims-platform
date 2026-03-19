@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import type { DateRange } from "react-day-picker";
 
 import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -39,8 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
-
 import {
   useFinanceValuationJournals,
   useRunFinanceValuationJournal,
@@ -76,9 +75,12 @@ function RunStatusBadge({ status }: { readonly status: string }) {
 export function ValuationJournalsList() {
   const t = useTranslations("financeJournals");
 
+  const now = new Date();
   const [search, setSearch] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(now.getFullYear(), 0, 1),
+    to: now,
+  });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
@@ -92,6 +94,9 @@ export function ValuationJournalsList() {
     reference_id: "",
   });
   const debouncedSearch = useDebounce(search, 300);
+
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const canRun = useUserPermission("journal_valuation.run");
   const canExport = useUserPermission("journal_valuation.export");
@@ -197,55 +202,45 @@ export function ValuationJournalsList() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Hash className="h-4 w-4" />
-              <span>Total Entries</span>
-            </div>
-            <p className="text-2xl font-bold mt-1">{pagination?.total ?? items.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span>Total Debit</span>
-            </div>
-            <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400 tabular-nums">
-              {formatCurrency(totalDebit)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <TrendingDown className="h-4 w-4 text-red-500" />
-              <span>Total Credit</span>
-            </div>
-            <p className="text-2xl font-bold mt-1 text-red-600 dark:text-red-400 tabular-nums">
-              {formatCurrency(totalCredit)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <AlertCircle className="h-4 w-4" />
-              <span>Runs</span>
-            </div>
-            <div className="flex items-baseline gap-2 mt-1">
-              <p className="text-2xl font-bold">{kpi?.completed_runs ?? 0}</p>
-              <span className="text-xs text-muted-foreground">
-                completed
-                {(kpi?.processing_runs ?? 0) > 0 &&
-                  ` · ${kpi?.processing_runs} processing`}
-                {(kpi?.failed_runs ?? 0) > 0 &&
-                  ` · ${kpi?.failed_runs} failed`}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border bg-background/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Hash className="h-4 w-4" />
+            <span>Total Entries</span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tracking-tight">{pagination?.total ?? items.length}</p>
+        </div>
+        <div className="rounded-xl border bg-background/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4 text-success" />
+            <span>Total Debit</span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-success">
+            {formatCurrency(totalDebit)}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-background/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingDown className="h-4 w-4 text-destructive" />
+            <span>Total Credit</span>
+          </div>
+          <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums text-destructive">
+            {formatCurrency(totalCredit)}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-background/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <AlertCircle className="h-4 w-4" />
+            <span>Runs</span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <p className="text-2xl font-bold tracking-tight">{kpi?.completed_runs ?? 0}</p>
+            <span className="text-xs text-muted-foreground">
+              completed
+              {(kpi?.processing_runs ?? 0) > 0 && ` · ${kpi?.processing_runs} processing`}
+              {(kpi?.failed_runs ?? 0) > 0 && ` · ${kpi?.failed_runs} failed`}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Recent Runs */}
@@ -411,21 +406,15 @@ export function ValuationJournalsList() {
       {/* Filters */}
       <FilterToolbar
         search={search}
-        startDate={startDate}
-        endDate={endDate}
+        dateRange={dateRange}
         searchPlaceholder={t("search")}
-        startDateLabel={t("fields.startDate")}
-        endDateLabel={t("fields.endDate")}
+        dateRangeLabel={t("fields.dateRange")}
         onSearchChange={(value) => {
           setSearch(value);
           setPage(1);
         }}
-        onStartDateChange={(value) => {
-          setStartDate(value);
-          setPage(1);
-        }}
-        onEndDateChange={(value) => {
-          setEndDate(value);
+        onDateRangeChange={(value) => {
+          setDateRange(value);
           setPage(1);
         }}
       />
