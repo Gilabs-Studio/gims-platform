@@ -61,6 +61,7 @@ import {
   ReturnAssetDialog,
   DeleteAssetDialog,
 } from "./assets";
+import { EmployeeSignatureSection } from "./signature";
 
 interface EmployeePermission {
   permissions?: string[];
@@ -171,15 +172,14 @@ export function EmployeeDetailModal({
                 <FileText className="h-4 w-4 mr-1" />
                 {t("tabs.contractHistory")}
               </TabsTrigger>
+              <TabsTrigger value="signature">{t("tabs.signature")}</TabsTrigger>
               <TabsTrigger value="education-history">
                 {t("tabs.educationHistory")}
               </TabsTrigger>
               <TabsTrigger value="certifications">
                 {t("tabs.certifications")}
               </TabsTrigger>
-              <TabsTrigger value="assets">
-                {t("tabs.assets")}
-              </TabsTrigger>
+              <TabsTrigger value="assets">{t("tabs.assets")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 py-4">
@@ -634,6 +634,10 @@ export function EmployeeDetailModal({
 
             <TabsContent value="contract-history" className="space-y-6 py-4">
               <ContractTimeline contracts={contractsData || []} />
+            </TabsContent>
+
+            <TabsContent value="signature" className="space-y-6 py-4">
+              <EmployeeSignatureSection employeeId={displayEmployee.id} />
             </TabsContent>
 
             <TabsContent value="education-history" className="space-y-6 py-4">

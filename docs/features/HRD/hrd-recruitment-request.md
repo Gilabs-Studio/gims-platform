@@ -2,11 +2,11 @@
 
 > **Module:** HRD (Human Resource Development)
 > **Sprint:** 15-16
-> **Version:** 2.0.0
+> **Version:** 2.1.0
 > **Status:** ✅ Complete (API + Frontend — including Kanban Board Applicant Management)
 > **Last Updated:** March 2026
 >
-> **Recent Changes (v2.0.0):**
+> **Recent Changes (v2.1.0):**
 >
 > - 🎯 **NEW**: Applicant Management with Kanban Board (Pipeline stages: New → Screening → Interview → Offer → Hired/Rejected)
 > - 🎯 **NEW**: Drag-and-drop applicant movement between stages
@@ -16,6 +16,9 @@
 > - 🔧 Removed terminal stage restriction — Hired/Rejected applicants can still be moved
 > - 💰 Added Rupiah currency formatting for salary inputs
 > - 📝 Enabled editing for REJECTED status (resubmit workflow)
+> - 📎 **NEW**: File upload support for applicant resume/CV (PDF, DOC, DOCX)
+> - 🔧 Fixed i18n translation keys for employment types (camelCase + UPPERCASE variants)
+> - 🔧 Fixed resume URL handling to support both full URLs and file paths
 
 ---
 
@@ -75,6 +78,7 @@ Fitur Recruitment Request Management memungkinkan perusahaan mengelola pengajuan
 - **Applicant Tracking**: Full name, email, phone, resume, source, rating, notes
 - **Activity Logging**: Automatic audit trail for all actions
 - **Bidirectional Filled Count**: Auto-increment when hiring, auto-decrement when moving from hired
+- **File Upload**: Resume/CV upload with support for PDF, DOC, DOCX formats
 
 ---
 
@@ -150,8 +154,14 @@ apps/api/internal/hrd/
 
 ```
 apps/api/seeders/
-└── recruitment_request_seeder.go  # 5 sample records with various statuses
+├── recruitment_request_seeder.go      # 5 sample records with various statuses
+├── recruitment_applicant_seeder.go    # Sample applicants for RR-202602-0002 & RR-202602-0003
+└── seed_all.go                        # Calls SeedApplicantStages() and SeedRecruitmentApplicants()
 ```
+
+**Seeded Applicants:**
+- RR-202602-0002 (Junior Developer): 1 applicant in Screening stage
+- RR-202602-0003 (Sales Representative): 2 applicants (1 in Interview, 1 in New)
 
 ### Frontend
 
@@ -241,7 +251,7 @@ apps/web/app/[locale]/(dashboard)/hrd/
 | full_name              | varchar(255)  | NOT NULL                      | Candidate full name                                   |
 | email                  | varchar(255)  | NOT NULL                      | Email address                                         |
 | phone                  | varchar(20)   | nullable                      | Phone number                                          |
-| resume_url             | varchar(500)  | nullable                      | CV/Resume file URL                                    |
+| resume_url             | varchar(500)  | nullable                      | CV/Resume file URL or file path (e.g., `/uploads/filename.pdf`) |
 | source                 | varchar(50)   | NOT NULL                      | linkedin, jobstreet, glints, referral, direct, other  |
 | applied_at             | timestamp     | NOT NULL                      | Application date                                      |
 | last_activity_at       | timestamp     | NOT NULL                      | Last update timestamp                                 |
@@ -396,6 +406,27 @@ apps/web/app/[locale]/(dashboard)/hrd/
   "filled_count": 1
 }
 ```
+
+**Create Applicant:**
+
+```json
+{
+  "recruitment_request_id": "uuid",
+  "stage_id": "uuid",
+  "full_name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+6281234567890",
+  "source": "linkedin",
+  "resume_url": "/uploads/resume_abc123.pdf",
+  "notes": "Strong React experience"
+}
+```
+
+**Notes:**
+- `resume_url` can be a full URL (`https://...`) or a file path (`/uploads/...`)
+- File upload is handled via `FileUpload` component which returns the file path
+- Supported formats: PDF, DOC, DOCX
+- Max file size: 10MB (configurable in upload handler)
 
 ### Error Codes
 
@@ -608,6 +639,7 @@ cd apps/api && go test ./internal/hrd/...
   - Organization module (Division, JobPosition repositories)
   - Employee module (Employee repository for requester/approver lookup)
   - Core errors (centralized error code mapping)
+  - File upload handler (for resume/CV uploads)
 
 - **Frontend**:
   - TanStack Query (data fetching, caching, optimistic updates)
@@ -615,6 +647,7 @@ cd apps/api && go test ./internal/hrd/...
   - react-hook-form (form state management with zodResolver)
   - next-intl (internationalization — EN + ID)
   - shadcn/ui (UI components: Dialog, Table, Badge, Tabs, Select, Calendar, etc.)
+  - FileUpload component (custom component for file upload with drag-and-drop)
   - date-fns (date formatting and parsing)
   - Sonner (toast notifications)
   - Lucide React (icons)
@@ -638,16 +671,18 @@ cd apps/api && go test ./internal/hrd/...
 - **Known Limitations**:
   - Single-level approval (satu approver). Belum support multi-level approval chain.
   - Belum ada email notifications untuk status changes
+  - File upload tidak ada preview, hanya download link
 
-- **Completed (v2.0.0)**:
+- **Completed (v2.1.0)**:
   - ✅ Candidate tracking dengan Kanban board
   - ✅ Auto-update filled_count saat applicant hired/rejected
   - ✅ Bidirectional filled_count updates (increment on hire, decrement on un-hire)
   - ✅ Activity logging untuk semua applicant actions
   - ✅ Detail page dengan Kanban board integration
+  - ✅ File upload untuk applicant resume/CV (PDF, DOC, DOCX)
+  - ✅ Fixed i18n translation keys untuk employment types
 
 - **Future Improvement**:
-  - Add attachment support (job description documents, applicant CV upload)
   - Multi-level approval workflow (Department Head → HR → Director)
   - Auto-close recruitment request when filled_count == required_count
   - Email notifications untuk status changes
@@ -659,3 +694,31 @@ cd apps/api && go test ./internal/hrd/...
   - LEFT JOIN untuk search by requester name
   - Progressive loading (pagination per stage) untuk Kanban board
   - Optimistic updates untuk smooth drag-and-drop UX
+
+### Internationalization (i18n)
+
+**Employment Type Keys** (supports both formats):
+```typescript
+employmentType: {
+  label: "Employment Type",
+  // camelCase variants (for display)
+  fullTime: "Full Time",
+  partTime: "Part Time",
+  contract: "Contract",
+  intern: "Intern",
+  // UPPERCASE variants (from backend enum: FULL_TIME, PART_TIME, CONTRACT, INTERN)
+  FULL_TIME: "Full Time",
+  PART_TIME: "Part Time",
+  CONTRACT: "Contract",
+  INTERN: "Intern",
+}
+```
+
+**Applicant Keys**:
+```typescript
+applicants: {
+  title: "Applicants",
+  notes: "Notes",  // Section header for applicant notes
+  // ... other keys
+}
+```

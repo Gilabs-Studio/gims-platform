@@ -206,8 +206,17 @@ export interface RecruitmentApplicant {
   rating?: number;
   notes?: string;
   stage?: ApplicantStage;
+  employee_id?: string;
+  employee?: EmployeeSummary;
   created_at: string;
   updated_at: string;
+}
+
+export interface EmployeeSummary {
+  id: string;
+  employee_code: string;
+  name: string;
+  email: string;
 }
 
 export interface ApplicantActivity {
@@ -234,7 +243,8 @@ export type ActivityType =
   | "created"
   | "updated"
   | "resume_uploaded"
-  | "rating_changed";
+  | "rating_changed"
+  | "converted";
 
 // ---- Applicant List/Filter Params ----
 
@@ -342,4 +352,36 @@ export interface CreateActivityData {
   type: ActivityType;
   description: string;
   metadata?: Record<string, unknown>;
+}
+
+// Convert applicant to employee types
+// All fields are optional - if not provided, backend will use applicant data and defaults
+
+export interface ConvertApplicantToEmployeeData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  division_id?: string;
+  job_position_id?: string;
+  nik?: string;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: 'male' | 'female';
+  religion?: string;
+  address?: string;
+  village_id?: string;
+  contract_type?: 'PKWTT' | 'PKWT' | 'Intern';
+  contract_number?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface CanConvertResponse {
+  success: boolean;
+  data: {
+    can_convert: boolean;
+    reason: string;
+  };
+  timestamp: string;
+  request_id: string;
 }

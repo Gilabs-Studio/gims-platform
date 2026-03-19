@@ -235,6 +235,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// HRD - Applicant Stages seeder (Sprint 15)
+	if err := SeedApplicantStages(); err != nil {
+		return err
+	}
+
+	// HRD - Recruitment Applicants seeder (Sprint 15)
+	if err := SeedRecruitmentApplicants(); err != nil {
+		return err
+	}
+
 	// Stock Movement seeder (Sprint 9)
 	if err := SeedStockMovement(); err != nil {
 		return err

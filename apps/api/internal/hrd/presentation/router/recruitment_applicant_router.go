@@ -27,6 +27,10 @@ func SetupRecruitmentApplicantRoutes(router *gin.RouterGroup, h *handler.Recruit
 		// Activities
 		applicants.GET("/:id/activities", middleware.RequirePermission("recruitment.read"), h.GetActivities)
 		applicants.POST("/:id/activities", middleware.RequirePermission("recruitment.update"), h.AddActivity)
+
+		// Convert to employee
+		applicants.GET("/:id/can-convert", middleware.RequirePermission("recruitment.read"), h.CanConvertToEmployee)
+		applicants.POST("/:id/convert-to-employee", middleware.RequirePermission("recruitment.update"), h.ConvertToEmployee)
 	}
 
 	// Applicants by recruitment request (nested under recruitment-requests)

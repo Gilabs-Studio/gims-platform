@@ -169,8 +169,10 @@ type EmployeeResponse struct {
 	LatestEducation *EmployeeEducationBriefResponse `json:"latest_education,omitempty"`
 	// LatestCertification is the employee's most recent valid certification (if any)
 	LatestCertification *EmployeeCertificationBriefResponse `json:"latest_certification,omitempty"`
-	ReplacementForID    *string                             `json:"replacement_for_id"`
-	ReplacementFor   *EmployeeBriefResponse         `json:"replacement_for,omitempty"`
+	// Signature is the employee's digital signature (if uploaded)
+	Signature        *EmployeeSignatureResponse `json:"signature,omitempty"`
+	ReplacementForID *string                    `json:"replacement_for_id"`
+	ReplacementFor   *EmployeeBriefResponse     `json:"replacement_for,omitempty"`
 	// Areas contains all assigned areas with their role (supervisor or member).
 	Areas []EmployeeAreaSummary `json:"areas,omitempty"`
 	// IsAreaSupervisor is true when the employee supervises at least one area.
@@ -179,6 +181,26 @@ type EmployeeResponse struct {
 	IsActive         bool    `json:"is_active"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at"`
+}
+
+// EmployeeSignatureResponse represents an employee's digital signature response
+type EmployeeSignatureResponse struct {
+	ID         string `json:"id"`
+	FilePath   string `json:"file_path"`
+	FileURL    string `json:"file_url"`
+	FileName   string `json:"file_name"` // Original filename (e.g., "signature.jpg")
+	FileSize   int64  `json:"file_size"`
+	FileHash   string `json:"file_hash"`
+	MimeType   string `json:"mime_type"`
+	Width      int    `json:"width"`
+	Height     int    `json:"height"`
+	UploadedBy string `json:"uploaded_by"`
+	UploadedAt string `json:"uploaded_at"`
+}
+
+// UploadEmployeeSignatureRequest represents the request to upload a signature
+type UploadEmployeeSignatureRequest struct {
+	// File will be handled via multipart form, not JSON
 }
 
 // EmployeeBriefResponse represents a brief employee response (for nested refs)
@@ -241,15 +263,15 @@ type ProvinceResponse struct {
 
 // EmployeeListItemResponse represents a brief employee response for lists (no PII)
 type EmployeeListItemResponse struct {
-	ID           string                        `json:"id"`
-	EmployeeCode string                        `json:"employee_code"`
-	Name         string                        `json:"name"`
-	Email        string                        `json:"email"`
-	Phone        string                        `json:"phone"`
-	Division     *DivisionResponse             `json:"division,omitempty"`
-	JobPosition  *JobPositionResponse          `json:"job_position,omitempty"`
-	Company      *CompanyBriefResponse         `json:"company,omitempty"`
+	ID              string                         `json:"id"`
+	EmployeeCode    string                         `json:"employee_code"`
+	Name            string                         `json:"name"`
+	Email           string                         `json:"email"`
+	Phone           string                         `json:"phone"`
+	Division        *DivisionResponse              `json:"division,omitempty"`
+	JobPosition     *JobPositionResponse           `json:"job_position,omitempty"`
+	Company         *CompanyBriefResponse          `json:"company,omitempty"`
 	CurrentContract *EmployeeContractBriefResponse `json:"current_contract,omitempty"`
-	Status       string                        `json:"status"`
-	IsActive     bool                          `json:"is_active"`
+	Status          string                         `json:"status"`
+	IsActive        bool                           `json:"is_active"`
 }
