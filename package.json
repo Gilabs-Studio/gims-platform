@@ -33,7 +33,8 @@
     "overrides": {
       "ajv": "6.14.0",
       "flatted": "3.4.0",
-      "minimatch": "9.0.7"
+      "minimatch": "9.0.7",
+      "js-yaml": "4.1.1"
     }
   }
 }
