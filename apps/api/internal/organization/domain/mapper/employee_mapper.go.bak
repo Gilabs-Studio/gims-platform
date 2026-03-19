@@ -1,7 +1,6 @@
 package mapper
 
 import (
-	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -249,23 +248,10 @@ func ToEmployeeSignatureResponse(signature *models.EmployeeSignature) *dto.Emplo
 		return nil
 	}
 
-	// Convert absolute path to relative URL
-	// FilePath example: /app/uploads/signatures/xxx.webp -> FileURL: /uploads/signatures/xxx.webp
-	fileURL := signature.FilePath
-	// Remove /app prefix if present (Docker container path)
-	if strings.HasPrefix(fileURL, "/app/") {
-		fileURL = strings.TrimPrefix(fileURL, "/app")
-	}
-	// Ensure leading slash
-	if !strings.HasPrefix(fileURL, "/") {
-		fileURL = "/" + fileURL
-	}
-
-	response := &dto.EmployeeSignatureResponse{
+	return &dto.EmployeeSignatureResponse{
 		ID:         signature.ID.String(),
-		FilePath:   signature.FilePath, // Keep original absolute path for reference
-		FileURL:    fileURL,            // Relative URL for browser access
-		FileName:   signature.FileName,
+		FilePath:   signature.FilePath,
+		FileURL:    signature.FilePath, // In production, this might be a signed URL
 		FileSize:   signature.FileSize,
 		FileHash:   signature.FileHash,
 		MimeType:   signature.MimeType,
@@ -274,6 +260,4 @@ func ToEmployeeSignatureResponse(signature *models.EmployeeSignature) *dto.Emplo
 		UploadedBy: signature.UploadedBy,
 		UploadedAt: signature.UploadedAt.Format(time.RFC3339),
 	}
-
-	return response
 }

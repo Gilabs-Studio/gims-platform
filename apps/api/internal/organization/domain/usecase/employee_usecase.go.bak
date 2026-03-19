@@ -1644,27 +1644,18 @@ func (u *employeeUsecase) DeleteEmployeeAsset(ctx context.Context, employeeID st
 
 // GetEmployeeSignature retrieves the employee's signature
 func (u *employeeUsecase) GetEmployeeSignature(ctx context.Context, employeeID string) (*dto.EmployeeSignatureResponse, error) {
-	log.Printf("[DEBUG] GetEmployeeSignature called for employeeID: %s", employeeID)
-
 	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
-		log.Printf("[DEBUG] GetEmployeeSignature: employee not found for ID: %s", employeeID)
 		return nil, ErrEmployeeNotFound
 	}
-	log.Printf("[DEBUG] GetEmployeeSignature: employee found for ID: %s", employeeID)
 
 	signature, err := u.signatureRepo.GetByEmployeeID(ctx, employeeID)
 	if err != nil {
-		log.Printf("[DEBUG] GetEmployeeSignature: failed to get signature for employeeID: %s, error: %v", employeeID, err)
 		return nil, fmt.Errorf("failed to get signature: %w", err)
 	}
 
 	if signature == nil {
-		log.Printf("[DEBUG] GetEmployeeSignature: no signature found for employeeID: %s", employeeID)
 		return nil, nil
 	}
-
-	log.Printf("[DEBUG] GetEmployeeSignature: signature found for employeeID: %s, fileName: %s, filePath: %s, dimensions: %dx%d",
-		employeeID, signature.FileName, signature.FilePath, signature.Width, signature.Height)
 
 	return mapper.ToEmployeeSignatureResponse(signature), nil
 }
@@ -1675,17 +1666,15 @@ func (u *employeeUsecase) UploadEmployeeSignature(ctx context.Context, employeeI
 		return nil, ErrEmployeeNotFound
 	}
 
-	// Check if employee already has a signature (including soft deleted), if so hard delete it
-	// Using GetAnyByEmployeeID with Unscoped to find signatures including soft deleted ones
-	existingSignature, err := u.signatureRepo.GetAnyByEmployeeID(ctx, employeeID)
+	// Check if employee already has a signature, if so soft delete it
+	existingSignature, err := u.signatureRepo.GetByEmployeeID(ctx, employeeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing signature: %w", err)
 	}
 
 	if existingSignature != nil {
-		// Hard delete the existing signature to avoid unique constraint violation
-		// Soft delete would keep the record in DB causing duplicate key error on new insert
-		if err := u.signatureRepo.HardDelete(ctx, existingSignature.ID.String()); err != nil {
+		// Soft delete the existing signature
+		if err := u.signatureRepo.SoftDelete(ctx, existingSignature.ID.String()); err != nil {
 			return nil, fmt.Errorf("failed to delete existing signature: %w", err)
 		}
 	}

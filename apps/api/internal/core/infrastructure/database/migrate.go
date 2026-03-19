@@ -198,6 +198,8 @@ func AutoMigrate() error {
 		&hrd.RecruitmentApplicant{},
 		&hrd.ApplicantStage{},
 		&hrd.ApplicantActivity{},
+		// Organization Employee Signature
+		&organization.EmployeeSignature{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},

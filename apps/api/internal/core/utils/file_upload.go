@@ -46,9 +46,10 @@ var AllowedDocumentTypes = map[string]bool{
 
 // FileUploadConfig holds configuration for file uploads
 type FileUploadConfig struct {
-	MaxSize   int64  // Maximum file size in bytes
-	UploadDir string // Directory to save uploaded files
-	BaseURL   string // Base URL for serving files
+	MaxSize      int64  // Maximum file size in bytes
+	UploadDir    string // Directory to save uploaded files
+	BaseURL      string // Base URL for serving files
+	OriginalName string // Optional custom name for file (e.g., "Employee Name signature")
 }
 
 // UploadedFile represents an uploaded file
