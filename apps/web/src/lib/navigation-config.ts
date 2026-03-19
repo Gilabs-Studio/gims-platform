@@ -322,13 +322,6 @@ export const navigationConfig: NavItem[] = [
         icon: "bar-chart-3",
         permission: "sales_payment.read",
       },
-      {
-        name: "Sales Target",
-    i18nKey: "salesTarget",
-        url: "/sales/targets",
-        icon: "check-square",
-        permission: "sales_target.read",
-      },
     ],
   },
   {
@@ -755,39 +748,11 @@ export const navigationConfig: NavItem[] = [
         permission: "crm_area_mapping.read",
       },
       {
-        name: "Route Optimization",
-    i18nKey: "routeOptimization",
-        url: "/crm/routes",
-        icon: "route",
-        permission: "crm_route.read",
-      },
-      {
-        name: "Sales Performance",
-    i18nKey: "salesPerformance",
-        url: "/crm/sales-performance",
-        icon: "bar-chart-3",
-        permission: "crm_sales_performance.read",
-      },
-      {
         name: "Sales Target",
     i18nKey: "salesTarget",
         url: "/crm/targets",
         icon: "check-square",
         permission: "sales_target.read",
-      },
-      {
-        name: "Product Analytics",
-    i18nKey: "productAnalytics",
-        url: "/crm/product-analytics",
-        icon: "pie-chart",
-        permission: "crm_product_analytics.read",
-      },
-      {
-        name: "CRM Targets",
-    i18nKey: "cRMTargets",
-        url: "/crm/targets",
-        icon: "target",
-        permission: "crm_target.read",
       },
       {
         name: "CRM Settings",

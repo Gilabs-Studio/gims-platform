@@ -350,7 +350,6 @@ func SeedMenus() error {
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
 		{"Returns", "rotate-ccw", "/sales/returns", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -585,6 +584,11 @@ func SeedMenus() error {
 
 	// CRM Area Mapping menu (Sprint 24)
 	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
+	// Sales Target (moved from Sales to CRM)
+	if _, err := createChildMenu("Sales Target", "check-square", "/crm/targets", &crmMenu.ID, 8); err != nil {
 		return err
 	}
 
