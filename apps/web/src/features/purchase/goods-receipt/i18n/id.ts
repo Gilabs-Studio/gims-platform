@@ -56,8 +56,10 @@ export const goodsReceiptId = {
     code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Tanggal Terima",
+    warehouse: "Gudang",
     supplier: "Supplier",
     notes: "Catatan",
+    proofPhoto: "Foto Bukti",
     status: "Status",
     submittedAt: "Diajukan Pada",
     approvedAt: "Disetujui Pada",
@@ -92,6 +94,7 @@ export const goodsReceiptId = {
     partial: "Parsial",
     closed: "Ditutup",
     rejected: "Ditolak",
+    returned: "Diretur",
   },
   actions: {
     create: "Buat",
@@ -111,6 +114,7 @@ export const goodsReceiptId = {
     next: "Selanjutnya",
     back: "Kembali",
     print: "Cetak",
+    createReturn: "Buat Retur",
   },
   convertToSupplierInvoice: "Konversi ke Tagihan Supplier",
   placeholders: {

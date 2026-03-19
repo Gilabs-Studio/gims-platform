@@ -11,7 +11,7 @@ import {
   type CreateTargetFormData,
   type UpdateTargetFormData,
 } from "../schemas/target.schema";
-import { useCreateYearlyTarget, useUpdateYearlyTarget, useYearlyTarget } from "../hooks/use-targets";
+import { useCreateYearlyTarget, useUpdateYearlyTarget, useYearlyTarget } from "./use-targets";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import type { YearlyTarget } from "../types";
 import { sortOptions } from "@/lib/utils";

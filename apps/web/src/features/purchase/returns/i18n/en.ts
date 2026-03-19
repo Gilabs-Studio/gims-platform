@@ -1,0 +1,50 @@
+export const purchaseReturnsEn = {
+  purchaseReturns: {
+    title: "Purchase Returns",
+    subtitle: "Manage goods returns to suppliers",
+    add: "Create Return",
+    search: "Search return number or reason",
+    empty: "No purchase returns found",
+    columns: {
+      code: "Return Number",
+      goodsReceipt: "Goods Receipt",
+      action: "Action",
+      status: "Status",
+      createdAt: "Created At",
+      amount: "Amount",
+    },
+    common: {
+      add: "Create Return",
+      updated: "Purchase return updated successfully",
+      deleted: "Purchase return deleted successfully",
+      deleteConfirmation: "Are you sure you want to delete this purchase return?",
+      error: "Something went wrong",
+    },
+    validation: {
+      duplicateItem: "Duplicate products are not allowed in return items.",
+      qtyExceeds: "Qty exceeds available return quantity for {product}. Requested: {requested}, Received: {received}, Already returned: {returned}, Available: {available}",
+    },
+    status: {
+      draft: "Draft",
+      submitted: "Submitted",
+      approved: "Approved",
+      rejected: "Rejected",
+    },
+    actions: {
+      view: "View",
+      submit: "Submit",
+      approve: "Approve",
+      reject: "Reject",
+      delete: "Delete",
+    },
+    detail: {
+      title: "Purchase Return Detail",
+      status: "Status",
+      goodsReceipt: "Goods Receipt",
+      supplier: "Supplier",
+      action: "Action",
+      amount: "Amount",
+      createdAt: "Created At",
+    },
+  },
+};

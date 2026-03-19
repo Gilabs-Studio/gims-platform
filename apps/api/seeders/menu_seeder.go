@@ -348,8 +348,9 @@ func SeedMenus() error {
 		{"Delivery Orders", "truck", "/sales/delivery-orders", 3},
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
+		{"Returns", "rotate-ccw", "/sales/returns", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/sales/targets", 8},
+		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -374,7 +375,9 @@ func SeedMenus() error {
 		{"Goods Receipt", "package", "/purchase/goods-receipt", 3},
 		{"Supplier Invoices", "receipt", "/purchase/supplier-invoices", 4},
 		{"Supplier Invoice Down Payments", "receipt", "/purchase/supplier-invoice-down-payments", 5},
-		{"Payments", "credit-card", "/purchase/payments", 6},
+		{"Returns", "rotate-ccw", "/purchase/returns", 6},
+		{"Payments", "credit-card", "/purchase/payments", 7},
+		{"Payable Recap", "bar-chart-3", "/purchase/payable-recap", 8},
 	}
 	for _, child := range purchaseChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &purchaseMenu.ID, child.order); err != nil {

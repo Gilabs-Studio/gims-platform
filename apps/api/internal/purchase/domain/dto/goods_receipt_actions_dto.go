@@ -1,8 +1,10 @@
 package dto
 
 type CreateGoodsReceiptRequest struct {
-	PurchaseOrderID string `json:"purchase_order_id" binding:"required,uuid"`
-	Notes           *string `json:"notes,omitempty"`
+	PurchaseOrderID string                          `json:"purchase_order_id" binding:"required,uuid"`
+	WarehouseID     string                          `json:"warehouse_id" binding:"required,uuid"`
+	Notes           *string                         `json:"notes,omitempty"`
+	ProofImageURL   *string                         `json:"proof_image_url,omitempty" binding:"omitempty,max=500"`
 	Items           []CreateGoodsReceiptItemRequest `json:"items" binding:"required,dive"`
 }
 
@@ -14,6 +16,8 @@ type CreateGoodsReceiptItemRequest struct {
 }
 
 type UpdateGoodsReceiptRequest struct {
-	Notes *string `json:"notes,omitempty"`
-	Items []CreateGoodsReceiptItemRequest `json:"items" binding:"required,dive"`
+	WarehouseID   string                          `json:"warehouse_id" binding:"required,uuid"`
+	Notes         *string                         `json:"notes,omitempty"`
+	ProofImageURL *string                         `json:"proof_image_url,omitempty" binding:"omitempty,max=500"`
+	Items         []CreateGoodsReceiptItemRequest `json:"items" binding:"required,dive"`
 }

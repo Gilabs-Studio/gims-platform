@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, CreditCard, Send } from "lucide-react";
+import { Edit, Trash2, CheckCircle2, XCircle, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {

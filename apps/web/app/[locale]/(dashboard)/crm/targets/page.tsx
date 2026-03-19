@@ -4,7 +4,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
 const TargetsList = dynamic(
   () =>
-    import("@/features/sales/targets/components/targets-list").then(
+    import("@/features/crm/targets/components/targets-list").then(
       (mod) => ({ default: mod.TargetsList })
     ),
   { loading: () => null }

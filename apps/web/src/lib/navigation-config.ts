@@ -260,6 +260,12 @@ export const navigationConfig: NavItem[] = [
         permission: "customer_invoice_dp.read",
       },
       {
+        name: "Returns",
+        url: "/sales/returns",
+        icon: "rotate-ccw",
+        permission: "sales_return.read",
+      },
+      {
         name: "Payments",
         url: "/sales/payments",
         icon: "credit-card",
@@ -270,12 +276,6 @@ export const navigationConfig: NavItem[] = [
         url: "/sales/receivables-recap",
         icon: "bar-chart-3",
         permission: "sales_payment.read",
-      },
-      {
-        name: "Sales Target",
-        url: "/sales/targets",
-        icon: "check-square",
-        permission: "sales_target.read",
       },
     ],
   },
@@ -315,9 +315,21 @@ export const navigationConfig: NavItem[] = [
         permission: "supplier_invoice_dp.read",
       },
       {
+        name: "Returns",
+        url: "/purchase/returns",
+        icon: "rotate-ccw",
+        permission: "purchase_return.read",
+      },
+      {
         name: "Payments",
         url: "/purchase/payments",
         icon: "credit-card",
+        permission: "purchase_payment.read",
+      },
+      {
+        name: "Payable Recap",
+        url: "/purchase/payable-recap",
+        icon: "bar-chart-3",
         permission: "purchase_payment.read",
       },
     ],
@@ -618,6 +630,12 @@ export const navigationConfig: NavItem[] = [
         url: "/crm/sales-performance",
         icon: "bar-chart-3",
         permission: "crm_sales_performance.read",
+      },
+      {
+        name: "Sales Target",
+        url: "/crm/targets",
+        icon: "check-square",
+        permission: "sales_target.read",
       },
       {
         name: "Product Analytics",

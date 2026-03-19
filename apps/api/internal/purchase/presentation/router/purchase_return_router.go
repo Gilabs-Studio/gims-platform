@@ -1,0 +1,24 @@
+package router
+
+import (
+	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/purchase/presentation/handler"
+	"github.com/gin-gonic/gin"
+)
+
+const (
+	purchaseReturnReadPermission   = "purchase_return.read"
+	purchaseReturnCreatePermission = "purchase_return.create"
+	purchaseReturnUpdatePermission = "purchase_return.update"
+	purchaseReturnDeletePermission = "purchase_return.delete"
+)
+
+func RegisterPurchaseReturnRoutes(r *gin.RouterGroup, h *handler.PurchaseReturnHandler) {
+	g := r.Group("/returns")
+	g.GET("/form-data", middleware.RequirePermission(purchaseReturnReadPermission), h.GetFormData)
+	g.GET("", middleware.RequirePermission(purchaseReturnReadPermission), h.List)
+	g.POST("", middleware.RequirePermission(purchaseReturnCreatePermission), h.Create)
+	g.PATCH("/:id/status", middleware.RequirePermission(purchaseReturnUpdatePermission), h.UpdateStatus)
+	g.DELETE("/:id", middleware.RequirePermission(purchaseReturnDeletePermission), h.Delete)
+	g.GET("/:id", middleware.RequirePermission(purchaseReturnReadPermission), h.GetByID)
+}

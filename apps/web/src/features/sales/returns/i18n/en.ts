@@ -1,0 +1,50 @@
+export const salesReturnsEn = {
+  salesReturns: {
+    title: "Sales Returns",
+    subtitle: "Manage customer goods returns",
+    add: "Create Return",
+    search: "Search return number or reason",
+    empty: "No sales returns found",
+    columns: {
+      code: "Return Number",
+      invoice: "Invoice",
+      action: "Action",
+      status: "Status",
+      createdAt: "Created At",
+      amount: "Amount",
+    },
+    common: {
+      add: "Create Return",
+      updated: "Sales return updated successfully",
+      deleted: "Sales return deleted successfully",
+      deleteConfirmation: "Are you sure you want to delete this sales return?",
+      error: "Something went wrong",
+    },
+    validation: {
+      duplicateItem: "Duplicate products are not allowed in return items.",
+      qtyExceeds: "Qty exceeds available return quantity for {product}. Requested: {requested}, Delivered: {delivered}, Already returned: {returned}, Available: {available}",
+    },
+    status: {
+      draft: "Draft",
+      submitted: "Submitted",
+      processed: "Processed",
+      rejected: "Rejected",
+    },
+    actions: {
+      view: "View",
+      submit: "Submit",
+      process: "Process",
+      reject: "Reject",
+      delete: "Delete",
+    },
+    detail: {
+      title: "Sales Return Detail",
+      status: "Status",
+      delivery: "Delivery",
+      salesOrder: "Sales Order",
+      action: "Action",
+      amount: "Amount",
+      createdAt: "Created At",
+    },
+  },
+};

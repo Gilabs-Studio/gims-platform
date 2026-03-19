@@ -63,7 +63,7 @@ export function OrderList() {
   const canViewSalesQuotation = useUserPermission("sales_quotation.read");
   const canCreateDO = useUserPermission("delivery_order.create");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
-  const canCreateInvoiceDP = useUserPermission("customer_invoice_dp.create");
+  const canCreateInvoiceDP = useUserPermission("customer_invoice_down_payment.create");
   const canPrint = useUserPermission("sales_order.print");
 
   const [selectedSalesRepId, setSelectedSalesRepId] = useState<string | null>(null);
