@@ -47,6 +47,8 @@ export const financeReportsEn = {
   memo: "Memo",
   running_balance: "Running Balance",
   action: "Action",
+  journal: "Journal",
+  source: "Source",
   open_journal: "Open Journal",
   open_source: "Open Source",
   no_data: "No data available. Please select a date range and generate the report.",

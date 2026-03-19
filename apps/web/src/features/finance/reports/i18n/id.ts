@@ -47,6 +47,8 @@ export const financeReportsId = {
   memo: "Memo",
   running_balance: "Saldo Berjalan",
   action: "Aksi",
+  journal: "Jurnal",
+  source: "Sumber",
   open_journal: "Buka Jurnal",
   open_source: "Buka Sumber",
   no_data: "Tidak ada data. Pilih rentang tanggal dan buat laporan.",

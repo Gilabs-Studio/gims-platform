@@ -2,20 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ChevronDown, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 
-import { useProfitAndLoss } from "../hooks/use-finance-reports";
-import { financeReportsService } from "../services/finance-reports-service";
-import type { PLReportRow } from "../types";
+import { useProfitAndLoss } from "../hooks/use-profit-loss";
+import { profitLossService } from "../services/profit-loss-service";
+import type { ReportRow } from "../types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
 
@@ -33,6 +34,10 @@ export function ProfitLossView() {
     from: new Date(now.getFullYear(), 0, 1),
     to: now,
   });
+  const [openSections, setOpenSections] = useState({
+    revenue: true,
+    expenses: true,
+  });
 
   const dateRange = useMemo(() => ({
     start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
@@ -47,7 +52,7 @@ export function ProfitLossView() {
 
   const handleExport = async () => {
     try {
-      const blob = await financeReportsService.exportProfitAndLoss(dateRange);
+      const blob = await profitLossService.exportProfitAndLoss(dateRange);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
@@ -120,62 +125,88 @@ export function ProfitLossView() {
       {report && (
         <div className="space-y-6">
           {/* Revenue */}
-          <div className="space-y-3">
-            <div className="p-3 bg-muted/50 font-semibold rounded-md border">{t("revenue")}</div>
+          <Collapsible
+            open={openSections.revenue}
+            onOpenChange={(open) => setOpenSections((prev) => ({ ...prev, revenue: open }))}
+          >
             <div className="rounded-md border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("account_code")}</TableHead>
-                    <TableHead>{t("account_name")}</TableHead>
-                    <TableHead className="text-right">{t("balance")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.revenues?.map((r: PLReportRow, idx: number) => (
-                    <TableRow key={`${r.code}-${idx}`}>
-                      <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between p-3 bg-muted/50 font-semibold rounded-t-md cursor-pointer"
+                >
+                  <span>{t("revenue")}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${openSections.revenue ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("account_code")}</TableHead>
+                      <TableHead>{t("account_name")}</TableHead>
+                      <TableHead className="text-right">{t("balance")}</TableHead>
                     </TableRow>
-                  ))}
-                  <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {report.revenues?.map((r: ReportRow, idx: number) => (
+                      <TableRow key={`${r.code}-${idx}`}>
+                        <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                        <TableCell>{r.name}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted/30">
+                      <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CollapsibleContent>
             </div>
-          </div>
+          </Collapsible>
 
           {/* Expenses */}
-          <div className="space-y-3">
-            <div className="p-3 bg-muted/50 font-semibold rounded-md border">{t("expenses")}</div>
+          <Collapsible
+            open={openSections.expenses}
+            onOpenChange={(open) => setOpenSections((prev) => ({ ...prev, expenses: open }))}
+          >
             <div className="rounded-md border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("account_code")}</TableHead>
-                    <TableHead>{t("account_name")}</TableHead>
-                    <TableHead className="text-right">{t("balance")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.expenses?.map((e: PLReportRow, idx: number) => (
-                    <TableRow key={`${e.code}-${idx}`}>
-                      <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                      <TableCell>{e.name}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between p-3 bg-muted/50 font-semibold rounded-t-md cursor-pointer"
+                >
+                  <span>{t("expenses")}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${openSections.expenses ? "rotate-180" : ""}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("account_code")}</TableHead>
+                      <TableHead>{t("account_name")}</TableHead>
+                      <TableHead className="text-right">{t("balance")}</TableHead>
                     </TableRow>
-                  ))}
-                  <TableRow className="font-bold bg-muted/30">
-                    <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {report.expenses?.map((e: ReportRow, idx: number) => (
+                      <TableRow key={`${e.code}-${idx}`}>
+                        <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                        <TableCell>{e.name}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted/30">
+                      <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CollapsibleContent>
             </div>
-          </div>
+          </Collapsible>
 
           {/* Net Profit/Loss */}
           <div className="rounded-md border p-4 bg-muted/20">
