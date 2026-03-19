@@ -485,22 +485,7 @@ Memberikan rekap piutang customer.
 - Membantu follow-up penagihan
 - Menjadi dasar kontrol cash flow
 - Memberikan gambaran kesehatan piutang
-
-## 3.9 Sales Target
-
-### Tujuan
-Mengelola target penjualan untuk individu atau tim.
-
-### Yang bisa dilakukan pengguna
-- Mengisi target periode tertentu
-- Membandingkan target vs realisasi
-- Memantau progres pencapaian
-
-### Manfaat
-- Memudahkan evaluasi kinerja sales
-- Membantu manajemen mengambil keputusan
-- Menjadikan aktivitas penjualan lebih terukur
-
+ 
 ---
 
 # 4. Purchase
@@ -998,54 +983,21 @@ Membagi area kerja customer atau tim sales.
 - Memastikan cakupan wilayah lebih teratur
 - Menghindari tumpang tindih penugasan
 
-## 8.6 Route Optimization
+## 8.6 Sales Targets
 
 ### Tujuan
-Menyusun rute kunjungan yang lebih efisien.
+Mengelola target penjualan untuk individu atau tim.
 
-### Fungsi untuk pengguna
-- Menentukan urutan visit
-- Meminimalkan waktu tempuh
-- Memaksimalkan produktivitas lapangan
-
-## 8.7 Sales Performance
-
-### Tujuan
-Menampilkan performa penjualan tim atau individu.
-
-### Fungsi untuk pengguna
-- Melihat pencapaian sales
-- Membandingkan target dan realisasi
-- Mengevaluasi performa berdasarkan periode
-
-## 8.8 Sales Target
-
-### Tujuan
-Mengelola target penjualan di CRM.
-
-### Fungsi untuk pengguna
-- Mengatur target tim atau individu
+### Yang bisa dilakukan pengguna
+- Mengisi target periode tertentu
+- Membandingkan target vs realisasi
 - Memantau progres pencapaian
-- Mengukur efektivitas kerja sales
 
-## 8.9 Product Analytics
+### Manfaat
+- Memudahkan evaluasi kinerja sales
+- Membantu manajemen mengambil keputusan
+- Menjadikan aktivitas penjualan lebih terukur
 
-### Tujuan
-Menganalisis performa produk dari sisi CRM dan aktivitas pasar.
-
-### Fungsi untuk pengguna
-- Melihat produk yang paling aktif
-- Memahami pola penjualan per produk
-- Mendukung keputusan promosi dan stok
-
-## 8.10 CRM Targets
-
-### Tujuan
-Mengelola target khusus di modul CRM.
-
-### Fungsi untuk pengguna
-- Membuat target yang lebih spesifik
-- Mengawasi pencapaian berdasarkan parameter tertentu
 
 ## 8.11 CRM Settings
 
