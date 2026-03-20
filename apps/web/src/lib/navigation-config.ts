@@ -533,6 +533,12 @@ export const navigationConfig: NavItem[] = [
         permission: "leave_request.read",
       },
       {
+        name: "Overtime",
+        url: "/hrd/overtime",
+        icon: "clock",
+        permission: "overtime.read",
+      },
+      {
         name: "Evaluation",
         i18nKey: "evaluation",
         url: "/hrd/evaluation",

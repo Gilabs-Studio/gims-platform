@@ -240,11 +240,6 @@ func SeedPermissions() error {
 		{"/sales/returns", "sales_return.update", "Edit Sales Returns", "EDIT", "sales_return"},
 		{"/sales/returns", "sales_return.delete", "Delete Sales Returns", "DELETE", "sales_return"},
 
-		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
-
 		{"/crm/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
 		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
@@ -400,9 +395,6 @@ func SeedPermissions() error {
 		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
 		{"/finance/journals/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
 
-		// Deprecated: Journal Lines page merged into Journal Entries (kept for backward compatibility)
-		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
-
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
@@ -477,9 +469,6 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
-		{"/finance/reports/trial-balance", "trial_balance_report.read", "View Trial Balance Report", "VIEW", "trial_balance_report"},
-		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
-
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
 		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
@@ -567,9 +556,6 @@ func SeedPermissions() error {
 
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
-		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
-		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
-
 		// CRM Settings - Pipeline Stages
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.read", "View Pipeline Stages", "VIEW", "crm_pipeline_stage"},
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.create", "Create Pipeline Stages", "CREATE", "crm_pipeline_stage"},
@@ -699,6 +685,19 @@ func SeedPermissions() error {
 	}
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
+
+	// Remove legacy permissions whose pages were removed from dashboard.
+	removeDeprecatedPermissions([]string{
+		"sales_estimation.read",
+		"sales_estimation.create",
+		"sales_estimation.update",
+		"sales_estimation.delete",
+		"journal_line.read",
+		"trial_balance_report.read",
+		"trial_balance_report.export",
+		"ai_settings.view",
+		"ai_settings.edit",
+	})
 
 	// Assign all permissions to admin role with ALL scope
 	var adminRole role.Role
@@ -920,6 +919,53 @@ func assignViewPermissionsToRole(roleCode, scope string) {
 	})
 
 	log.Printf("Assigned %d VIEW permissions to %s role (scope=%s)", count, roleCode, scope)
+}
+
+func getPermissionIDsByCodes(tx *gorm.DB, codes []string) ([]string, error) {
+	var deprecatedPerms []permission.Permission
+	if err := tx.Unscoped().Where("code IN ?", codes).Find(&deprecatedPerms).Error; err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, 0, len(deprecatedPerms))
+	for _, perm := range deprecatedPerms {
+		ids = append(ids, perm.ID)
+	}
+
+	return ids, nil
+}
+
+func removePermissionsByIDs(tx *gorm.DB, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := tx.Exec("DELETE FROM role_permissions WHERE permission_id IN ?", ids).Error; err != nil {
+		return err
+	}
+
+	if err := tx.Unscoped().Where("id IN ?", ids).Delete(&permission.Permission{}).Error; err != nil {
+		return err
+	}
+
+	log.Printf("Removed %d deprecated permissions", len(ids))
+	return nil
+}
+
+func removeDeprecatedPermissions(codes []string) {
+	if len(codes) == 0 {
+		return
+	}
+
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		ids, err := getPermissionIDsByCodes(tx, codes)
+		if err != nil {
+			return err
+		}
+		return removePermissionsByIDs(tx, ids)
+	}); err != nil {
+		log.Printf("Warning: Failed to remove deprecated permissions: %v", err)
+	}
 }
 
 // matchesModule checks if a permission resource belongs to a given module.
