@@ -310,19 +310,9 @@ export default function LandingPage() {
             </p>
 
             <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="#features">
+              <Link href="/login" prefetch={false}>
                 <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
-                  Lihat fitur
-                </Button>
-              </Link>
-              <Link href="#modules">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="cursor-pointer px-6 text-base text-muted-foreground"
-                >
-                  Lihat modul
-                  <ArrowUpRight className="ml-1.5 h-4 w-4" />
+                  Masuk
                 </Button>
               </Link>
             </div>
