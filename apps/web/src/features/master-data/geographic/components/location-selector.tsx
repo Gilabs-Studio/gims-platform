@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import type { Control, UseFormSetValue } from "react-hook-form";
 import {
@@ -47,6 +47,8 @@ interface LocationSelectorProps {
   readonly fieldNames?: Partial<FieldNames>;
   readonly labels?: LocationSelectorLabels;
   readonly className?: string;
+  readonly lazyLoad?: boolean;
+  readonly pageSize?: number;
   /** Fired when user explicitly selects a province. Provides province ID and name. */
   readonly onProvinceChange?: (id: string, name: string) => void;
 }
@@ -84,10 +86,15 @@ export function LocationSelector({
   fieldNames: customFieldNames,
   labels: customLabels,
   className,
+  lazyLoad = false,
+  pageSize = 100,
   onProvinceChange,
 }: LocationSelectorProps) {
   const fields = { ...DEFAULT_FIELD_NAMES, ...customFieldNames };
   const labels = { ...DEFAULT_LABELS, ...customLabels };
+  const [shouldLoadProvinces, setShouldLoadProvinces] = useState(!lazyLoad);
+  const [shouldLoadCities, setShouldLoadCities] = useState(!lazyLoad);
+  const [shouldLoadDistricts, setShouldLoadDistricts] = useState(!lazyLoad);
 
   const provinceId = useWatch({ control, name: fields.province_id });
   const cityId = useWatch({ control, name: fields.city_id });
@@ -95,16 +102,16 @@ export function LocationSelector({
 
   // Fetch data with cascading dependencies
   const { data: provincesData } = useProvinces(
-    { per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled }
+    { per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && (shouldLoadProvinces || !!provinceId) }
   );
   const { data: citiesData } = useCities(
-    { province_id: String(provinceId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: enabled && !!provinceId }
+    { province_id: String(provinceId ?? ""), per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && !!provinceId && (shouldLoadCities || !!cityId) }
   );
   const { data: districtsData } = useDistricts(
-    { city_id: String(cityId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: enabled && !!cityId }
+    { city_id: String(cityId ?? ""), per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && !!cityId && (shouldLoadDistricts || !!districtId) }
   );
 
   const provinces = provincesData?.data ?? [];
@@ -130,6 +137,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadProvinces(true);
+                }
+              }}
               onValueChange={(val) => {
                 if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
@@ -164,6 +176,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadCities(true);
+                }
+              }}
               onValueChange={(val) => {
                 if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
@@ -201,6 +218,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadDistricts(true);
+                }
+              }}
               onValueChange={(val) => {
                 field.onChange(val);
               }}

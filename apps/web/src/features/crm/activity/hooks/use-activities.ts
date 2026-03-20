@@ -10,7 +10,7 @@ const TIMELINE_PER_PAGE = 10;
  * Fetches page 1 via useQuery; subsequent pages are loaded manually
  * via fetchMore(), intended to be triggered by an IntersectionObserver sentinel.
  */
-export function useLeadActivityTimeline(leadId: string) {
+export function useLeadActivityTimeline(leadId: string, options?: { enabled?: boolean }) {
   const baseParams: ActivityListParams = {
     lead_id: leadId,
     per_page: TIMELINE_PER_PAGE,
@@ -21,7 +21,7 @@ export function useLeadActivityTimeline(leadId: string) {
   const page1Query = useQuery({
     queryKey: activityKeys.timeline({ ...baseParams, page: 1 }),
     queryFn: () => activityService.timeline({ ...baseParams, page: 1 }),
-    enabled: !!leadId,
+    enabled: (options?.enabled ?? true) && !!leadId,
     staleTime: 2 * 60 * 1000,
   });
 

@@ -22,6 +22,7 @@ import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 
 interface LeadActivityFeedProps {
   readonly leadId: string;
+  readonly enabled?: boolean;
   readonly canCreateActivity: boolean;
   readonly canCreateVisit?: boolean;
   readonly onLogActivity: () => void;
@@ -32,6 +33,7 @@ interface LeadActivityFeedProps {
 
 export function LeadActivityFeed({
   leadId,
+  enabled = true,
   canCreateActivity,
   canCreateVisit,
   onLogActivity,
@@ -51,7 +53,7 @@ export function LeadActivityFeed({
     isLoadingMore,
     hasMore,
     fetchMore,
-  } = useLeadActivityTimeline(leadId);
+  } = useLeadActivityTimeline(leadId, { enabled });
 
   // refreshKey change is handled externally via invalidateQueries in useCreateActivity
 

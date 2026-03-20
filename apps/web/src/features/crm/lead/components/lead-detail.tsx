@@ -214,9 +214,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
   const { data: formDataRes } = useLeadFormData();
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
   const authUser = useAuthStore((state) => state.user);
-  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
 
@@ -235,14 +233,28 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("activities");
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
-  const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId);
+  const isActivitiesTabActive = activeTab === "activities";
+  const isTasksTabActive = activeTab === "tasks";
+  const isProductItemsTabActive = activeTab === "productItems";
+  const { data: activityTypesData } = useActivityTypes(
+    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { enabled: showActivityDialog }
+  );
+  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
+
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId, undefined, {
+    enabled: isTasksTabActive,
+  });
+  const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId, {
+    enabled: isProductItemsTabActive,
+  });
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
   // Fetch interest questions for resolving survey answers in the product tooltip
-  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: true });
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isProductItemsTabActive });
   const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
 
   /** Resolves raw { question_id, option_id }[] JSON to display-friendly text array */
@@ -509,7 +521,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             )}
 
             {/* Tabs: Activities | Tasks | Information */}
-            <Tabs defaultValue="activities">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="activities" className="cursor-pointer gap-1.5">
                   <History className="h-4 w-4" />
@@ -547,6 +559,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
               <TabsContent value="activities" className="mt-4">
                 <LeadActivityFeed
                   leadId={lead.id}
+                  enabled={isActivitiesTabActive}
                   canCreateActivity={canCreateActivity}
                   canCreateVisit={canCreateVisit}
                   onLogActivity={() => setShowActivityDialog(true)}

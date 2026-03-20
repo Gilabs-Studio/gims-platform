@@ -17,7 +17,9 @@ import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LeadAnalytics } from "./lead-analytics";
 import { GenerateLeadsDialog } from "./generate-leads-dialog";
 import { useLeadList } from "../hooks/use-lead-list";
-import { useLeadFormData, useUpdateLead } from "../hooks/use-leads";
+import { useUpdateLead } from "../hooks/use-leads";
+import { useLeadSources } from "../../lead-source/hooks/use-lead-source";
+import { useLeadStatuses } from "../../lead-status/hooks/use-lead-status";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
@@ -25,13 +27,25 @@ import { toast } from "sonner";
 export function LeadList() {
   const { state, actions, data, permissions, translations } = useLeadList();
   const { t, tCommon } = translations;
-  const { data: formData } = useLeadFormData();
   const router = useRouter();
   const updateMutation = useUpdateLead();
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [shouldLoadFilterOptions, setShouldLoadFilterOptions] = useState(false);
+  const [shouldLoadStatusActionOptions, setShouldLoadStatusActionOptions] = useState(false);
 
-  const leadSources = formData?.data?.lead_sources ?? [];
-  const leadStatuses = formData?.data?.lead_statuses ?? [];
+  const { data: leadSourcesResponse, isLoading: isLeadSourcesLoading } = useLeadSources(
+    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { enabled: shouldLoadFilterOptions },
+  );
+  const { data: leadStatusesResponse, isLoading: isLeadStatusesLoading } = useLeadStatuses(
+    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { enabled: shouldLoadFilterOptions || shouldLoadStatusActionOptions },
+  );
+
+  const leadSources = shouldLoadFilterOptions ? (leadSourcesResponse?.data ?? []) : [];
+  const leadStatuses = shouldLoadFilterOptions || shouldLoadStatusActionOptions
+    ? (leadStatusesResponse?.data ?? [])
+    : [];
 
   const handleStatusChange = async (leadId: string, statusId: string) => {
     try {
@@ -95,6 +109,11 @@ export function LeadList() {
         </div>
         <Select
           value={state.statusFilter}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setShouldLoadFilterOptions(true);
+            }
+          }}
           onValueChange={(value) => {
             actions.setStatusFilter(value === "all" ? "" : value);
             actions.setPage(1);
@@ -106,6 +125,11 @@ export function LeadList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
+            {isLeadStatusesLoading && (
+              <SelectItem value="__loading__" disabled>
+                Loading...
+              </SelectItem>
+            )}
             {leadStatuses.map((status) => (
               <SelectItem key={status.id} value={status.id} className="cursor-pointer">
                 {status.name}
@@ -115,6 +139,11 @@ export function LeadList() {
         </Select>
         <Select
           value={state.sourceFilter}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setShouldLoadFilterOptions(true);
+            }
+          }}
           onValueChange={(value) => {
             actions.setSourceFilter(value === "all" ? "" : value);
             actions.setPage(1);
@@ -126,6 +155,11 @@ export function LeadList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="cursor-pointer">{t("allSources")}</SelectItem>
+            {isLeadSourcesLoading && (
+              <SelectItem value="__loading__" disabled>
+                Loading...
+              </SelectItem>
+            )}
             {leadSources.map((source) => (
               <SelectItem key={source.id} value={source.id} className="cursor-pointer">
                 {source.name}
@@ -263,7 +297,13 @@ export function LeadList() {
                     </TableCell>
                     {(permissions.canUpdate || permissions.canDelete || permissions.canConvert) && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
+                        <DropdownMenu
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadStatusActionOptions(true);
+                            }
+                          }}
+                        >
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="cursor-pointer">
                               <MoreHorizontal className="h-4 w-4" />
@@ -289,14 +329,24 @@ export function LeadList() {
                                 {t("convertTitle")}
                               </DropdownMenuItem>
                             )}
-                            {permissions.canUpdate && !isConverted && leadStatuses.length > 0 && (
+                            {permissions.canUpdate && !isConverted && (isLeadStatusesLoading || leadStatuses.length > 0) && (
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger className="cursor-pointer">
                                   <ChevronRight className="mr-2 h-4 w-4" />
                                   {t("changeStatus")}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                  {leadStatuses
+                                  {isLeadStatusesLoading && (
+                                    <DropdownMenuItem disabled>
+                                      Loading...
+                                    </DropdownMenuItem>
+                                  )}
+                                  {!isLeadStatusesLoading && leadStatuses.length === 0 && (
+                                    <DropdownMenuItem disabled>
+                                      {tCommon("noData")}
+                                    </DropdownMenuItem>
+                                  )}
+                                  {!isLeadStatusesLoading && leadStatuses
                                     .slice()
                                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                                     .map((status) => {

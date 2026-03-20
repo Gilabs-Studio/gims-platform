@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Controller, useWatch } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { Controller } from "react-hook-form";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -37,8 +37,13 @@ import { LeadStatusDialog } from "../../lead-status/components/lead-status-dialo
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
+import { useLeadSources } from "../../lead-source/hooks/use-lead-source";
+import { useLeadStatuses } from "../../lead-status/hooks/use-lead-status";
+import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
+import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
+import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useLeadForm, type UseLeadFormProps } from "../hooks/use-lead-form";
-import { useLeadFormData, leadKeys } from "../hooks/use-leads";
 import type { Lead } from "../types";
 
 interface LeadFormDialogProps {
@@ -63,6 +68,14 @@ export function LeadFormDialog({
     type: "source" | "status" | "businessType" | "paymentTerm" | null;
     query: string;
   }>({ type: null, query: "" });
+  const [shouldLoadLeadSources, setShouldLoadLeadSources] = useState(false);
+  const [shouldLoadLeadStatuses, setShouldLoadLeadStatuses] = useState(false);
+  const [shouldLoadEmployees, setShouldLoadEmployees] = useState(false);
+  const [shouldLoadBusinessTypes, setShouldLoadBusinessTypes] = useState(false);
+  const [shouldLoadAreas, setShouldLoadAreas] = useState(false);
+  const [shouldLoadPaymentTerms, setShouldLoadPaymentTerms] = useState(false);
+  const [shouldLoadBankAccounts, setShouldLoadBankAccounts] = useState(false);
+  const [pendingAreaProvinceName, setPendingAreaProvinceName] = useState("");
 
   const openQuickCreate = (type: "source" | "status" | "businessType" | "paymentTerm", query: string) => {
     setQuickCreate({ type, query });
@@ -73,24 +86,28 @@ export function LeadFormDialog({
   };
 
   const handleSourceCreated = (item: { id: string; name: string }) => {
-    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    queryClient.invalidateQueries({ queryKey: ["lead-sources"] });
+    setShouldLoadLeadSources(true);
     form.setValue("lead_source_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     closeQuickCreate();
   };
 
   const handleStatusCreated = (item: { id: string; name: string }) => {
-    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    queryClient.invalidateQueries({ queryKey: ["lead-statuses"] });
+    setShouldLoadLeadStatuses(true);
     form.setValue("lead_status_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     closeQuickCreate();
   };
 
   const handleBusinessTypeCreated = () => {
-    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    queryClient.invalidateQueries({ queryKey: ["businessTypes"] });
+    setShouldLoadBusinessTypes(true);
     closeQuickCreate();
   };
 
   const handlePaymentTermCreated = (item: { id: string; name: string }) => {
-    queryClient.invalidateQueries({ queryKey: leadKeys.formData() });
+    queryClient.invalidateQueries({ queryKey: ["payment-terms"] });
+    setShouldLoadPaymentTerms(true);
     form.setValue("payment_terms_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     closeQuickCreate();
   };
@@ -108,16 +125,41 @@ export function LeadFormDialog({
   };
 
   const { form, onSubmit, isSubmitting } = useLeadForm(formProps);
-  const { data: formDataRes } = useLeadFormData({ enabled: open });
-  const { data: bankAccountsRes } = useFinanceBankAccounts({ per_page: 100, sort_by: "name", sort_dir: "asc" });
+  const { data: leadSourcesRes, isLoading: isLeadSourcesLoading } = useLeadSources(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: open && shouldLoadLeadSources }
+  );
+  const { data: leadStatusesRes, isLoading: isLeadStatusesLoading } = useLeadStatuses(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: open && shouldLoadLeadStatuses }
+  );
+  const { data: employeesRes, isLoading: isEmployeesLoading } = useEmployees(
+    { per_page: 20, is_active: true, sort_by: "name", sort_dir: "asc" },
+    { enabled: open && shouldLoadEmployees }
+  );
+  const { data: businessTypesRes, isLoading: isBusinessTypesLoading } = useBusinessTypes(
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
+    { enabled: open && shouldLoadBusinessTypes }
+  );
+  const { data: areasRes, isLoading: isAreasLoading } = useAreas(
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
+    { enabled: open && shouldLoadAreas }
+  );
+  const { data: paymentTermsRes, isLoading: isPaymentTermsLoading } = usePaymentTerms(
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
+    { enabled: open && shouldLoadPaymentTerms }
+  );
+  const { data: bankAccountsRes, isLoading: isBankAccountsLoading } = useFinanceBankAccounts(
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
+    { enabled: open && shouldLoadBankAccounts }
+  );
 
-  const formData = formDataRes?.data;
-  const leadSources = formData?.lead_sources ?? [];
-  const leadStatuses = formData?.lead_statuses ?? [];
-  const employees = formData?.employees ?? [];
-  const businessTypes = formData?.business_types ?? [];
-  const areas = formData?.areas ?? [];
-  const paymentTermsList = formData?.payment_terms ?? [];
+  const leadSources = leadSourcesRes?.data ?? [];
+  const leadStatuses = leadStatusesRes?.data ?? [];
+  const employees = employeesRes?.data ?? [];
+  const businessTypes = businessTypesRes?.data ?? [];
+  const areas = areasRes?.data ?? [];
+  const paymentTermsList = paymentTermsRes?.data ?? [];
   const bankAccounts = bankAccountsRes?.data ?? [];
 
   const {
@@ -127,6 +169,28 @@ export function LeadFormDialog({
     watch,
     formState: { errors },
   } = form;
+
+  useEffect(() => {
+    if (!open || !lead) return;
+
+    if (lead.lead_source_id) setShouldLoadLeadSources(true);
+    if (lead.lead_status_id) setShouldLoadLeadStatuses(true);
+    if (lead.assigned_to) setShouldLoadEmployees(true);
+    if (lead.business_type_id) setShouldLoadBusinessTypes(true);
+    if (lead.area_id) setShouldLoadAreas(true);
+    if (lead.payment_terms_id) setShouldLoadPaymentTerms(true);
+    if (lead.bank_account_id) setShouldLoadBankAccounts(true);
+  }, [open, lead]);
+
+  useEffect(() => {
+    if (!pendingAreaProvinceName || areas.length === 0) return;
+
+    const matched = areas.find(
+      (area) => area.province && area.province.toLowerCase() === pendingAreaProvinceName.toLowerCase()
+    );
+    setValue("area_id", matched?.id ?? "", { shouldDirty: true });
+    setPendingAreaProvinceName("");
+  }, [pendingAreaProvinceName, areas, setValue]);
 
   return (
     <>
@@ -226,6 +290,8 @@ export function LeadFormDialog({
             <LocationSelector
               control={control}
               setValue={setValue}
+              lazyLoad
+              pageSize={20}
               fieldNames={{
                 province_id: "province_id",
                 city_id: "city_id",
@@ -242,10 +308,8 @@ export function LeadFormDialog({
               }}
               onProvinceChange={(_id, name) => {
                 if (!name) return;
-                const matched = areas.find(
-                  (a) => a.province && a.province.toLowerCase() === name.toLowerCase()
-                );
-                setValue("area_id", matched?.id ?? "", { shouldDirty: true });
+                setShouldLoadAreas(true);
+                setPendingAreaProvinceName(name);
               }}
             />
 
@@ -258,12 +322,22 @@ export function LeadFormDialog({
                 render={({ field }) => (
                   <Select
                     value={field.value ?? ""}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setShouldLoadAreas(true);
+                      }
+                    }}
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder={t("form.areaPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
+                      {isAreasLoading && (
+                        <SelectItem value="__loading__" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
                       {areas.map((area) => (
                         <SelectItem key={area.id} value={area.id} className="cursor-pointer">
                           {area.name}
@@ -294,7 +368,13 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setShouldLoadLeadSources(true);
+                        }
+                      }}
                       ariaInvalid={!!errors.lead_source_id}
+                      isLoading={isLeadSourcesLoading}
                       options={leadSources.map((s) => ({
                         value: s.id,
                         label: s.name,
@@ -318,7 +398,13 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setShouldLoadLeadStatuses(true);
+                        }
+                      }}
                       ariaInvalid={!!errors.lead_status_id}
+                      isLoading={isLeadStatusesLoading}
                       options={leadStatuses
                         .filter((s) => !s.is_converted)
                         .map((s) => ({
@@ -344,12 +430,22 @@ export function LeadFormDialog({
                 render={({ field }) => (
                   <Select
                     value={field.value ?? ""}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setShouldLoadEmployees(true);
+                      }
+                    }}
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger aria-invalid={!!errors.assigned_to} className="cursor-pointer">
                       <SelectValue placeholder={t("form.assignedToPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
+                      {isEmployeesLoading && (
+                        <SelectItem value="__loading__" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
                       {employees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id} className="cursor-pointer">
                           {emp.name} ({emp.employee_code})
@@ -377,12 +473,25 @@ export function LeadFormDialog({
                 control={control}
                 name="bank_account_id"
                 render={({ field }) => (
-                  <Select value={field.value || "__none__"} onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}>
+                  <Select
+                    value={field.value || "__none__"}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setShouldLoadBankAccounts(true);
+                      }
+                    }}
+                    onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}
+                  >
                     <SelectTrigger aria-invalid={!!errors.bank_account_id} className="cursor-pointer">
                       <SelectValue placeholder={t("form.bankAccountPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__" className="cursor-pointer">-</SelectItem>
+                      {isBankAccountsLoading && (
+                        <SelectItem value="__loading__" disabled>
+                          Loading...
+                        </SelectItem>
+                      )}
                       {bankAccounts.map((account) => (
                         <SelectItem key={account.id} value={account.id} className="cursor-pointer">
                           {account.name} - {account.account_number} ({account.currency}) [{t(`form.bankAccountOwnerType.${account.owner_type}`)}: {account.owner_name}]
@@ -414,7 +523,13 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setShouldLoadBusinessTypes(true);
+                        }
+                      }}
                       ariaInvalid={!!errors.business_type_id}
+                      isLoading={isBusinessTypesLoading}
                       options={businessTypes.map((bt) => ({
                         value: bt.id,
                         label: bt.name,
@@ -438,7 +553,13 @@ export function LeadFormDialog({
                     <CreatableCombobox
                       value={field.value ?? ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setShouldLoadPaymentTerms(true);
+                        }
+                      }}
                       ariaInvalid={!!errors.payment_terms_id}
+                      isLoading={isPaymentTermsLoading}
                       options={paymentTermsList.map((pt) => ({
                         value: pt.id,
                         label: `${pt.name} (${pt.days} ${tCommon("days")})`,
