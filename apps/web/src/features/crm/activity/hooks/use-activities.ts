@@ -217,10 +217,14 @@ export function useCreateActivity() {
   });
 }
 
-export function useMyActivities(params?: ActivityListParams) {
+export function useMyActivities(
+  params?: ActivityListParams,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: [...activityKeys.all, "my-activities", params] as const,
     queryFn: () => activityService.myActivities(params),
+    enabled: options?.enabled ?? true,
     staleTime: 2 * 60 * 1000,
   });
 }

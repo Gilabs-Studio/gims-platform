@@ -58,11 +58,15 @@ export function ActivityFeedDialog({
     ...(typeFilter !== "all" ? { activity_type_id: typeFilter } : {}),
   };
 
-  const { data, isLoading, isError } = useMyActivities(params);
+  const { data, isLoading, isError } = useMyActivities(params, {
+    enabled: open,
+  });
   const { data: typesData } = useActivityTypes({
-    per_page: 100,
+    per_page: 20,
     sort_by: "order",
     sort_dir: "asc",
+  }, {
+    enabled: open,
   });
 
   const activities = data?.data ?? [];
