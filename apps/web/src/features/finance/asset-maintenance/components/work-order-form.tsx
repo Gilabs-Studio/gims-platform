@@ -225,7 +225,7 @@ export function WorkOrderForm({ open, onOpenChange, mode, workOrder }: WorkOrder
                 <Calendar
                   mode="single"
                   selected={formData.planned_date}
-                  onSelect={(date) =>
+                  onSelect={(date: Date | undefined) =>
                     setFormData({ ...formData, planned_date: date || new Date() })
                   }
                 />

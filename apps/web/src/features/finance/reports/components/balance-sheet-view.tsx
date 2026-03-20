@@ -13,9 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 
-import { useBalanceSheet } from "../hooks/use-finance-reports";
-import { financeReportsService } from "../services/finance-reports-service";
-import type { BSReportRow } from "../types";
+import { useBalanceSheet } from "../balance-sheet/hooks/use-balance-sheet";
+import { balanceSheetService } from "../balance-sheet/services/balance-sheet-service";
+import type { ReportRow as BSReportRow } from "../balance-sheet/types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
 
@@ -45,7 +45,7 @@ export function BalanceSheetView() {
 
   const handleExport = async () => {
     try {
-      const blob = await financeReportsService.exportBalanceSheet(dateRange);
+      const blob = await balanceSheetService.exportBalanceSheet(dateRange);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
