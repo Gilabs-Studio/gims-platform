@@ -119,6 +119,7 @@ function SelectContent({
   const context = React.useContext(SelectContext);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
 
   // Auto focus search input when content opens and search is enabled
   React.useEffect(() => {
@@ -131,6 +132,23 @@ function SelectContent({
 
     return () => clearTimeout(timer);
   }, [context?.showSearch]);
+
+  const handleViewportWheel = React.useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const viewportElement = viewportRef.current;
+      if (!viewportElement) return;
+
+      const hasScrollableContent =
+        viewportElement.scrollHeight > viewportElement.clientHeight;
+      if (!hasScrollableContent) return;
+
+      // Keep wheel/touchpad scrolling working when parent modal scroll-lock is active.
+      e.preventDefault();
+      e.stopPropagation();
+      viewportElement.scrollTop += e.deltaY;
+    },
+    [],
+  );
 
   return (
     <SelectPrimitive.Portal>
@@ -180,6 +198,8 @@ function SelectContent({
           </div>
         )}
         <SelectPrimitive.Viewport
+          ref={viewportRef}
+          onWheel={handleViewportWheel}
           className={cn(
             "p-1",
             position === "popper" &&
