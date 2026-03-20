@@ -629,14 +629,30 @@ func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string,
 		if strings.TrimSpace(r.Metadata) != "" {
 			_ = json.Unmarshal([]byte(r.Metadata), &metaMap)
 		}
+		if metaMap == nil {
+			metaMap = map[string]interface{}{}
+		}
+
+		var usr *dto.AuditTrailUser
+		if r.ActorID != "" {
+			email := ""
+			name := ""
+			if r.ActorEmail != nil {
+				email = *r.ActorEmail
+			}
+			if r.ActorName != nil {
+				name = *r.ActorName
+			}
+			usr = &dto.AuditTrailUser{ID: r.ActorID, Email: email, Name: name}
+		}
+
 		entries = append(entries, dto.PurchasePaymentAuditTrailEntry{
 			ID:             r.ID,
-			ActorID:        r.ActorID,
-			ActorEmail:     r.ActorEmail,
-			ActorName:      r.ActorName,
 			PermissionCode: r.PermissionCode,
 			Action:         r.Action,
+			TargetID:       r.TargetID,
 			Metadata:       metaMap,
+			User:           usr,
 			CreatedAt:      r.CreatedAt,
 		})
 	}

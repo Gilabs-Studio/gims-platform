@@ -233,7 +233,6 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.approve", "Approve Down Payments", "APPROVE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
-		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
 		{"/sales/returns", "sales_return.read", "View Sales Returns", "VIEW", "sales_return"},
 		{"/sales/returns", "sales_return.create", "Create Sales Returns", "CREATE", "sales_return"},
@@ -244,7 +243,6 @@ func SeedPermissions() error {
 		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/crm/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
-		{"/crm/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
 		{"/crm/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
@@ -259,7 +257,6 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
 		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
 		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
-		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -498,7 +495,6 @@ func SeedPermissions() error {
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
 		{"/hrd/evaluation", "evaluation.update", "Edit Evaluations", "EDIT", "evaluation"},
 		{"/hrd/evaluation", "evaluation.delete", "Delete Evaluations", "DELETE", "evaluation"},
-		{"/hrd/evaluation", "evaluation.audit_trail", "View Evaluation Audit Trail", "VIEW", "evaluation_audit"},
 
 		{"/hrd/recruitment", "recruitment.read", "View Recruitment", "VIEW", "recruitment"},
 		{"/hrd/recruitment", "recruitment.create", "Create Recruitment", "CREATE", "recruitment"},

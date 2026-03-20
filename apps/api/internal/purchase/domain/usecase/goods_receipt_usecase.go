@@ -1247,6 +1247,9 @@ func (uc *goodsReceiptUsecase) ListAuditTrail(ctx context.Context, id string, pa
 		if strings.TrimSpace(r.Metadata) != "" {
 			_ = json.Unmarshal([]byte(r.Metadata), &meta)
 		}
+		if meta == nil {
+			meta = map[string]interface{}{}
+		}
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {
 			email := ""
