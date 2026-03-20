@@ -45,6 +45,7 @@ export const goodsReceiptId = {
     basic: "Info Dasar",
     items: "Item",
     general: "Umum",
+    auditTrail: "Jejak Audit",
     audit_trail: "Jejak Audit",
   },
   sections: {

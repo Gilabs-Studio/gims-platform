@@ -12,7 +12,6 @@ const (
 	purchasePaymentDelete     = "purchase_payment.delete"
 	purchasePaymentConfirm    = "purchase_payment.confirm"
 	purchasePaymentExport     = "purchase_payment.export"
-	purchasePaymentAuditTrail = "purchase_payment.audit_trail"
 	purchasePaymentPrint      = "purchase_payment.print"
 )
 
@@ -23,7 +22,7 @@ func RegisterPurchasePaymentRoutes(r *gin.RouterGroup, h *handler.PurchasePaymen
 	g.GET("/export", middleware.RequirePermission(purchasePaymentExport), h.Export)
 	g.POST("", middleware.RequirePermission(purchasePaymentCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(purchasePaymentRead), h.GetByID)
-	g.GET("/:id/audit-trail", middleware.RequirePermission(purchasePaymentAuditTrail), h.AuditTrail)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(purchasePaymentRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission(purchasePaymentPrint), printH.PrintPurchasePayment)
 	g.DELETE("/:id", middleware.RequirePermission(purchasePaymentDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(purchasePaymentConfirm), h.Confirm)

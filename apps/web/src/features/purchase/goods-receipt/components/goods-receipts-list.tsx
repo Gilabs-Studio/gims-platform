@@ -101,7 +101,7 @@ export function GoodsReceiptsList() {
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
-  const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
+  const canAuditTrail = useUserPermission("goods_receipt.read");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");

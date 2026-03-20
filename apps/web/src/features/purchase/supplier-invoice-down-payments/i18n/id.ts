@@ -17,6 +17,10 @@ export const supplierInvoiceDPId = {
     title: "Detail Down Payment",
     failed: "Gagal memuat data DP faktur",
   },
+  tabs: {
+    general: "Invoice",
+    auditTrail: "Jejak Audit",
+  },
   auditTrail: {
     title: "Jejak Audit",
     empty: "Belum ada data jejak audit",

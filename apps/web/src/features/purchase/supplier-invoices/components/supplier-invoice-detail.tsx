@@ -8,9 +8,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
-  FileText,
   Printer,
-  Receipt,
   Send,
   Trash2,
   XCircle,
@@ -36,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { AuditTrailTable } from "@/components/ui/audit-trail-table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
@@ -85,40 +84,37 @@ const PurchasePaymentForm = dynamic(
 
 function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
   const t = useTranslations("supplierInvoice");
-  const { data, isLoading } = useSupplierInvoiceAuditTrail(invoiceId, { page: 1, per_page: 50 });
+  const tCommon = useTranslations("common");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data, isLoading, isError } = useSupplierInvoiceAuditTrail(invoiceId, {
+    page,
+    per_page: pageSize,
+  });
   const entries = data?.data ?? [];
-
-  if (isLoading) return <Skeleton className="h-32 w-full mt-4" />;
-  if (entries.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        {t("auditTrail.empty")}
-      </p>
-    );
+  const pagination = data?.meta?.pagination;
 
   return (
-    <div className="rounded-md border mt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("auditTrail.columns.action")}</TableHead>
-            <TableHead>{t("auditTrail.columns.user")}</TableHead>
-            <TableHead>{t("auditTrail.columns.time")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.id}>
-              <TableCell className="font-medium">{entry.action}</TableCell>
-              <TableCell>{entry.user?.name ?? entry.user?.email ?? "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {entry.created_at ? formatDate(entry.created_at) : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <AuditTrailTable
+      entries={entries}
+      isLoading={isLoading && entries.length === 0}
+      errorText={isError && entries.length === 0 ? tCommon("error") : undefined}
+      pagination={pagination}
+      onPageChange={(nextPage) => setPage(nextPage)}
+      onPageSizeChange={(nextPageSize) => {
+        setPageSize(nextPageSize);
+        setPage(1);
+      }}
+      labels={{
+        empty: t("auditTrail.empty"),
+        columns: {
+          action: t("auditTrail.columns.action"),
+          user: t("auditTrail.columns.user"),
+          time: t("auditTrail.columns.time"),
+          details: t("auditTrail.columns.details"),
+        },
+      }}
+    />
   );
 }
 
@@ -160,18 +156,9 @@ function SupplierInvoiceDetailView({
     <>
       <Tabs defaultValue="general" className="w-full">
         <TabsList>
-          <TabsTrigger value="general">
-            <Receipt className="h-3.5 w-3.5 mr-1.5" />
-            {t("tabs.general") || "General"}
-          </TabsTrigger>
-          <TabsTrigger value="items">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            {t("tabs.items") || "Items"}
-          </TabsTrigger>
-          <TabsTrigger value="audit">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            {t("auditTrail.title")}
-          </TabsTrigger>
+          <TabsTrigger value="general">{t("tabs.general") || "General"}</TabsTrigger>
+          <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
+          <TabsTrigger value="audit">{t("tabs.auditTrail") || t("auditTrail.title")}</TabsTrigger>
         </TabsList>
 
         {/* ── General tab ───────────────────────────────────────────────── */}

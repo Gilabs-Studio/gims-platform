@@ -35,6 +35,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
@@ -90,7 +91,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const canPrint = useUserPermission("goods_receipt.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
-  const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
+  const canAuditTrail = useUserPermission("goods_receipt.read");
 
   const id = goodsReceiptId ?? "";
   const { data, isLoading } = useGoodsReceipt(id, {
@@ -123,8 +124,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
       toast.success(t("toast.deleted"));
       setIsDeleteOpen(false);
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -133,8 +134,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     try {
       await submitMutation.mutateAsync(id);
       toast.success(t("toast.submitted"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -143,8 +144,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -153,8 +154,8 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -307,7 +308,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
-                {canAuditTrail && <TabsTrigger value="audit_trail">{t("auditTrail.title")}</TabsTrigger>}
+                {canAuditTrail && <TabsTrigger value="audit_trail">{t("tabs.auditTrail")}</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">

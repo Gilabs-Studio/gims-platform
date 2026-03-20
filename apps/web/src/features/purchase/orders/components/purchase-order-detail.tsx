@@ -35,6 +35,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 
@@ -90,7 +91,7 @@ export function PurchaseOrderDetail({
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
-  const canAuditTrail = useUserPermission("purchase_order.audit_trail");
+  const canAuditTrail = useUserPermission("purchase_order.read");
 
   const id = purchaseOrderId ?? "";
   const { data, isLoading } = usePurchaseOrder(id, {
@@ -115,8 +116,8 @@ export function PurchaseOrderDetail({
       toast.success(t("toast.deleted"));
       setIsDeleteOpen(false);
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -125,8 +126,8 @@ export function PurchaseOrderDetail({
     try {
       await submitMutation.mutateAsync(id);
       toast.success(t("toast.submitted"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -135,8 +136,8 @@ export function PurchaseOrderDetail({
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -145,8 +146,8 @@ export function PurchaseOrderDetail({
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -155,8 +156,8 @@ export function PurchaseOrderDetail({
     try {
       await closeMutation.mutateAsync(id);
       toast.success(t("toast.closed"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 

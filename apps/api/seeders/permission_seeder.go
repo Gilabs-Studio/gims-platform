@@ -271,7 +271,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
-		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.print", "Print Purchase Requisitions", "PRINT", "purchase_requisition"},
 
 		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
@@ -285,7 +284,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-orders", "purchase_order.close", "Close Purchase Orders", "CLOSE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
-		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
 		{"/purchase/purchase-orders", "purchase_order.print", "Print Purchase Orders", "PRINT", "purchase_order"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
@@ -299,7 +297,6 @@ func SeedPermissions() error {
 		{"/purchase/goods-receipt", "goods_receipt.close", "Close Goods Receipts", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.convert", "Convert Goods Receipts to Supplier Invoice", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
-		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
 		{"/purchase/goods-receipt", "goods_receipt.print", "Print Goods Receipts", "PRINT", "goods_receipt"},
 
 		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
@@ -312,7 +309,6 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoices", "supplier_invoice.reject", "Reject Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.cancel", "Cancel Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
-		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
 		{"/purchase/supplier-invoices", "supplier_invoice.print", "Print Supplier Invoices", "PRINT", "supplier_invoice"},
 
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
@@ -324,7 +320,6 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.approve", "Approve Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.reject", "Reject Supplier Invoice Down Payments", "REJECT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.cancel", "Cancel Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
-		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
 
@@ -339,7 +334,6 @@ func SeedPermissions() error {
 		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
-		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
 		{"/purchase/payments", "purchase_payment.print", "Print Purchase Payments", "PRINT", "purchase_payment"},
 
 		// Stock

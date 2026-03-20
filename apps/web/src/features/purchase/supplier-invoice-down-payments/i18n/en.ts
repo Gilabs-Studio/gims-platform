@@ -17,6 +17,10 @@ export const supplierInvoiceDPEn = {
     title: "Down Payment Detail",
     failed: "Failed to load down payment invoice",
   },
+  tabs: {
+    general: "Invoice",
+    auditTrail: "Audit Trail",
+  },
   auditTrail: {
     title: "Audit Trail",
     empty: "No audit trail entries",

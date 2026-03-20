@@ -37,6 +37,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
@@ -84,7 +85,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
   const canPrint = useUserPermission("purchase_requisition.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
-  const canAuditTrail = useUserPermission("purchase_requisition.audit_trail");
+  const canAuditTrail = useUserPermission("purchase_requisition.read");
   const hasPurchaseOrderRead = useUserPermission("purchase_order.read");
   const purchaseOrderScope = usePermissionScope("purchase_order.read");
   const { user } = useAuthStore();
@@ -123,8 +124,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
       toast.success(t("toast.deleted"));
       setIsDeleteOpen(false);
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -133,8 +134,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await submitMutation.mutateAsync(id);
       toast.success(t("toast.submitted"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -143,8 +144,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -153,8 +154,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -165,8 +166,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
       const poId = res?.data?.purchase_order_id;
       toast.success(t("toast.converted"));
       if (poId && canViewLinkedPurchaseOrder()) setSelectedPurchaseOrderId(poId);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -287,7 +288,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
-                {canAuditTrail && <TabsTrigger value="audit_trail">{t("auditTrail.title")}</TabsTrigger>}
+                {canAuditTrail && <TabsTrigger value="audit_trail">{t("tabs.auditTrail")}</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">

@@ -53,6 +53,7 @@ export const purchaseRequisitionId = {
     general: "Umum",
     basic: "Informasi Dasar",
     items: "Item",
+    auditTrail: "Audit Trail",
   },
   sections: {
     procurement: "Pengadaan",

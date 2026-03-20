@@ -25,6 +25,7 @@ export const supplierInvoiceEn = {
     general: "General",
     basic: "Basic Info",
     items: "Items",
+    auditTrail: "Audit Trail",
   },
   sections: {
     invoiceInfo: "Invoice Information",

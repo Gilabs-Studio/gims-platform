@@ -17,7 +17,6 @@ const (
 	supplierInvoiceDPReject     = "supplier_invoice_dp.reject"
 	supplierInvoiceDPCancel     = "supplier_invoice_dp.cancel"
 	supplierInvoiceDPExport     = "supplier_invoice_dp.export"
-	supplierInvoiceDPAuditTrail = "supplier_invoice_dp.audit_trail"
 	supplierInvoiceDPPrint      = "supplier_invoice_dp.print"
 )
 
@@ -28,7 +27,7 @@ func RegisterSupplierInvoiceDownPaymentRoutes(r *gin.RouterGroup, h *handler.Sup
 	g.GET("/export", middleware.RequirePermission(supplierInvoiceDPExport), h.Export)
 	g.POST("", middleware.RequirePermission(supplierInvoiceDPCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(supplierInvoiceDPRead), h.GetByID)
-	g.GET("/:id/audit-trail", middleware.RequirePermission(supplierInvoiceDPAuditTrail), h.AuditTrail)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(supplierInvoiceDPRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission(supplierInvoiceDPPrint), printH.PrintSupplierInvoiceDP)
 	g.PUT("/:id", middleware.RequirePermission(supplierInvoiceDPUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(supplierInvoiceDPDelete), h.Delete)

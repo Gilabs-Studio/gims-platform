@@ -52,6 +52,7 @@ export const purchaseRequisitionEn = {
     general: "General",
     basic: "Basic Info",
     items: "Items",
+    auditTrail: "Audit Trail",
   },
   sections: {
     procurement: "Procurement",

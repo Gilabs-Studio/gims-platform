@@ -25,6 +25,7 @@ export const supplierInvoiceId = {
     general: "Umum",
     basic: "Informasi Dasar",
     items: "Item",
+    auditTrail: "Jejak Audit",
   },
   sections: {
     invoiceInfo: "Informasi Faktur",
