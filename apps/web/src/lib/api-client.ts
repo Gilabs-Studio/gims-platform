@@ -10,9 +10,47 @@ import { formatError } from "./i18n/error-messages";
 import { useRateLimitStore } from "./stores/useRateLimitStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
+const CSRF_BOOTSTRAP_COOLDOWN_MS = 2000;
 
 // Memory cache for CSRF token to support cross-origin API calls
 let memoryCsrfToken: string | null = null;
+let csrfBootstrapPromise: Promise<string | null> | null = null;
+let csrfBootstrapCooldownUntil = 0;
+
+type AuthTelemetryEvent =
+  | "csrf_bootstrap_failed"
+  | "csrf_invalid_retry"
+  | "csrf_retry_failed";
+
+export function emitAuthTelemetry(
+  event: AuthTelemetryEvent,
+  details?: Record<string, unknown>,
+): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("gims:auth-telemetry", {
+        detail: {
+          event,
+          details,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    );
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.warn("[auth-telemetry]", event, details ?? {});
+  }
+}
+
+const csrfBootstrapClient = axios.create({
+  baseURL: `${API_BASE_URL}/api/v1`,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 10000,
+  withCredentials: true,
+});
 
 /**
  * Robustly extract CSRF token from an Axios headers object.
@@ -68,6 +106,87 @@ export function setCSRFTokenMemory(token: string): void {
   }
 }
 
+export function clearCSRFTokenMemory(): void {
+  memoryCsrfToken = null;
+}
+
+function isCSRFInvalidError(error: unknown): boolean {
+  const axiosError = error as {
+    response?: { status?: number; data?: { error?: { code?: string } } };
+  };
+
+  return (
+    axiosError?.response?.status === 403 &&
+    axiosError?.response?.data?.error?.code === "CSRF_INVALID"
+  );
+}
+
+/**
+ * Ensure CSRF token exists before unsafe requests.
+ *
+ * This prevents first-refresh failures on cold page loads in cross-origin
+ * production setups where document.cookie cannot read API cookies.
+ */
+async function ensureCSRFToken(options?: {
+  forceRefresh?: boolean;
+  reason?: string;
+}): Promise<string | null> {
+  if (options?.forceRefresh) {
+    clearCSRFTokenMemory();
+  }
+
+  const existing = getCSRFToken();
+  if (existing) {
+    return existing;
+  }
+
+  // Double-Submit Cookie only applies to browser requests.
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (Date.now() < csrfBootstrapCooldownUntil) {
+    return null;
+  }
+
+  // Single-flight: avoid parallel /auth/csrf calls returning different tokens.
+  if (csrfBootstrapPromise) {
+    return csrfBootstrapPromise;
+  }
+
+  csrfBootstrapPromise = csrfBootstrapClient
+    .get<{ data?: { csrf_token?: string } }>("/auth/csrf")
+    .then((response) => {
+      const bodyToken = response.data?.data?.csrf_token ?? null;
+      const headerToken = extractCsrfFromHeaders(response.headers);
+      const nextToken = bodyToken ?? headerToken;
+
+      if (nextToken) {
+        memoryCsrfToken = nextToken;
+        csrfBootstrapCooldownUntil = 0;
+      }
+
+      return nextToken;
+    })
+    .catch((bootstrapError: unknown) => {
+      csrfBootstrapCooldownUntil = Date.now() + CSRF_BOOTSTRAP_COOLDOWN_MS;
+      emitAuthTelemetry("csrf_bootstrap_failed", {
+        reason: options?.reason ?? "unknown",
+        cooldown_ms: CSRF_BOOTSTRAP_COOLDOWN_MS,
+        message:
+          bootstrapError instanceof Error
+            ? bootstrapError.message
+            : "bootstrap_failed",
+      });
+      return null;
+    })
+    .finally(() => {
+      csrfBootstrapPromise = null;
+    });
+
+  return csrfBootstrapPromise;
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   headers: {
@@ -98,11 +217,15 @@ const processQueue = (error: AxiosError | null) => {
 
 // Request interceptor for CSRF token
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     // Add CSRF token header for unsafe methods (POST, PUT, PATCH, DELETE)
     const unsafeMethods = ["POST", "PUT", "PATCH", "DELETE"];
     if (config.method && unsafeMethods.includes(config.method.toUpperCase())) {
-      const csrfToken = getCSRFToken();
+      let csrfToken = getCSRFToken();
+      if (!csrfToken) {
+        csrfToken = await ensureCSRFToken();
+      }
+
       if (csrfToken && config.headers) {
         config.headers["X-CSRF-Token"] = csrfToken;
       }
@@ -346,7 +469,7 @@ apiClient.interceptors.response.use(
         });
 
         // Add CSRF token for refresh request
-        const csrfToken = getCSRFToken();
+        const csrfToken = await ensureCSRFToken();
         const headers: Record<string, string> = {};
         if (csrfToken) {
           headers["X-CSRF-Token"] = csrfToken;
@@ -393,7 +516,68 @@ apiClient.interceptors.response.use(
               throw new Error("Refresh token failed");
             }
           })
-          .catch((refreshError) => {
+          .catch(async (refreshError) => {
+            if (isCSRFInvalidError(refreshError)) {
+              emitAuthTelemetry("csrf_invalid_retry", {
+                endpoint: "/auth/refresh-token",
+              });
+
+              const retryCsrfToken = await ensureCSRFToken({
+                forceRefresh: true,
+                reason: "csrf_invalid_refresh",
+              });
+
+              const retryHeaders: Record<string, string> = {};
+              if (retryCsrfToken) {
+                retryHeaders["X-CSRF-Token"] = retryCsrfToken;
+              }
+
+              try {
+                const retryResponse = await refreshClient.post<{
+                  success: boolean;
+                  data?: {
+                    user: {
+                      id: string;
+                      email: string;
+                      name: string;
+                      avatar_url: string;
+                      role: { code: string; name: string };
+                      permissions: Record<string, string>;
+                    };
+                  };
+                }>("/auth/refresh-token", {}, { headers: retryHeaders });
+
+                const retryCsrfHeader = extractCsrfFromHeaders(retryResponse.headers);
+                if (retryCsrfHeader) {
+                  memoryCsrfToken = retryCsrfHeader;
+                }
+
+                const response = retryResponse.data;
+                if (response.success && response.data) {
+                  import("@/features/auth/stores/use-auth-store").then(
+                    ({ useAuthStore }) => {
+                      useAuthStore.getState().setUser(response.data?.user ?? null);
+                      useAuthStore.setState({ isAuthenticated: true });
+                    },
+                  );
+
+                  originalRequest._retry = true;
+                  processQueue(null);
+                  isRefreshing = false;
+                  return apiClient(originalRequest);
+                }
+              } catch (retryError: unknown) {
+                emitAuthTelemetry("csrf_retry_failed", {
+                  endpoint: "/auth/refresh-token",
+                  message:
+                    retryError instanceof Error
+                      ? retryError.message
+                      : "retry_failed",
+                });
+                refreshError = retryError;
+              }
+            }
+
             isRefreshing = false;
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
