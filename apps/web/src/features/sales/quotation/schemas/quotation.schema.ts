@@ -47,7 +47,7 @@ export const getQuotationSchema = (t?: TranslationFn) => z.object({
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),
-  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
+  customer_email: z.string().optional(),
   tax_rate: z.number()
     .min(0, getMsg(t, "validation.taxRateMin", "Tax rate cannot be negative"))
     .max(100, getMsg(t, "validation.taxRateMax", "Tax rate cannot exceed 100%"))

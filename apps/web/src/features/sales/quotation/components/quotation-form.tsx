@@ -8,7 +8,6 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Button } from "@/components/ui/button";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -49,6 +48,8 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     businessTypes,
     employees,
     customers,
+    contacts,
+    selectedContactId,
     calculations,
     watchedItems,
     taxRate,
@@ -60,6 +61,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     handleAddItem,
     handleProductChange,
     handleCustomerChange,
+    handleContactChange,
     handleDialogChange,
     onInvalid,
     quickCreate,
@@ -306,34 +308,22 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
               </Field>
 
               <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerName")}</FieldLabel>
-                <Input {...register("customer_name")} placeholder={t("customerName")} />
-                {errors.customer_name && (
-                  <FieldError>{errors.customer_name.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
                 <FieldLabel>{t("customerContact")}</FieldLabel>
-                <Input {...register("customer_contact")} placeholder={t("customerContact")} />
+                <CreatableCombobox
+                  options={contacts.map((contact) => ({
+                    value: contact.id,
+                    label: [contact.name, contact.phone || undefined, contact.email || undefined]
+                      .filter(Boolean)
+                      .join(" - "),
+                  }))}
+                  value={selectedContactId || undefined}
+                  onValueChange={handleContactChange}
+                  placeholder={t("customerContact")}
+                  emptyText={t("notFound")}
+                  disabled={!form.watch("customer_id")}
+                />
                 {errors.customer_contact && (
                   <FieldError>{errors.customer_contact.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customerPhone")}</FieldLabel>
-                <Input {...register("customer_phone")} placeholder={t("customerPhone")} />
-                {errors.customer_phone && (
-                  <FieldError>{errors.customer_phone.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerEmail")}</FieldLabel>
-                <Input {...register("customer_email")} placeholder={t("customerEmail")} type="email" />
-                {errors.customer_email && (
-                  <FieldError>{errors.customer_email.message}</FieldError>
                 )}
               </Field>
             </div>

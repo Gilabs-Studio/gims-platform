@@ -97,7 +97,6 @@ export function QuotationDetailModal({
     selectedProductId,
     openEmployee,
     openProduct,
-    formatWhatsAppLink,
   } = useQuotationDetail();
 
   const displayQuotation = detailData?.data ?? quotation;
@@ -437,8 +436,7 @@ export function QuotationDetailModal({
                 </div>
 
                 {/* Customer Information Table */}
-                {(displayQuotation.customer_name || displayQuotation.customer_contact ||
-                  displayQuotation.customer_phone || displayQuotation.customer_email) && (
+                {(displayQuotation.customer_id || displayQuotation.customer?.name || displayQuotation.customer_name || displayQuotation.customer_contact) && (
                   <>
                     <Separator />
                     <div>
@@ -447,7 +445,7 @@ export function QuotationDetailModal({
                         <Table>
                           <TableBody>
                             <TableRow>
-                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.customer")}</TableCell>
                               <TableCell>
                                 {canViewCustomer && displayQuotation.customer_id ? (
                                   <button
@@ -457,32 +455,14 @@ export function QuotationDetailModal({
                                     }}
                                     className="text-primary hover:underline cursor-pointer text-left"
                                   >
-                                    {displayQuotation.customer_name ?? displayQuotation.customer_id}
+                                    {displayQuotation.customer?.name ?? displayQuotation.customer_name ?? displayQuotation.customer_id}
                                   </button>
                                 ) : (
-                                  <span>{displayQuotation.customer_name ?? "-"}</span>
+                                  <span>{displayQuotation.customer?.name ?? displayQuotation.customer_name ?? "-"}</span>
                                 )}
                               </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>
-                                {displayQuotation.customer_phone ? (
-                                  <a href={formatWhatsAppLink(displayQuotation.customer_phone)} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                                    {displayQuotation.customer_phone}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
-                              <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>
-                                {displayQuotation.customer_email ? (
-                                  <a href={`mailto:${displayQuotation.customer_email}`} className="text-primary hover:underline">
-                                    {displayQuotation.customer_email}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>

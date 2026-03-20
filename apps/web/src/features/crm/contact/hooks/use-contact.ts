@@ -1,15 +1,21 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { contactService } from "../services/contact-service";
 import { customerKeys } from "@/features/master-data/customer/hooks/use-customers";
 import type { ContactListParams, CreateContactData, UpdateContactData } from "../types";
 
 const QUERY_KEY = "crm-contacts";
+type ContactListResult = Awaited<ReturnType<typeof contactService.list>>;
 
-export function useContacts(params?: ContactListParams) {
+export function useContacts(
+  params?: ContactListParams,
+  options?: Omit<UseQueryOptions<ContactListResult, Error>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: [QUERY_KEY, params],
     queryFn: () => contactService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
+    ...options,
   });
 }
 

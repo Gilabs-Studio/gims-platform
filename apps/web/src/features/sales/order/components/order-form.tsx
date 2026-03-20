@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
-import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, User } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,7 +43,7 @@ interface OrderFormProps {
 
 export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const {
-    form: { register, handleSubmit, control, formState: { errors } },
+    form: { register, handleSubmit, control, watch, formState: { errors } },
     t,
     isEdit,
     activeTab,
@@ -60,6 +59,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     areas,
     quotations,
     customers,
+    contacts,
+    selectedContactId,
     employees,
     fetchProducts,
     calculations,
@@ -68,6 +69,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     handleAddItem,
     handleProductChange,
     handleCustomerChange,
+    handleContactChange,
     handleDialogChange,
     onInvalid,
     selectedProducts,
@@ -317,34 +319,22 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               </Field>
 
               <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerName")}</FieldLabel>
-                <Input {...register("customer_name")} placeholder={t("customerName")} />
-                {errors.customer_name && (
-                  <FieldError>{errors.customer_name.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
                 <FieldLabel>{t("customerContact")}</FieldLabel>
-                <Input {...register("customer_contact")} placeholder={t("customerContact")} />
+                <CreatableCombobox
+                  options={contacts.map((contact) => ({
+                    value: contact.id,
+                    label: [contact.name, contact.phone || undefined, contact.email || undefined]
+                      .filter(Boolean)
+                      .join(" - "),
+                  }))}
+                  value={selectedContactId || undefined}
+                  onValueChange={handleContactChange}
+                  placeholder={t("customerContact")}
+                  emptyText={t("notFound")}
+                  disabled={!watch("customer_id")}
+                />
                 {errors.customer_contact && (
                   <FieldError>{errors.customer_contact.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customerPhone")}</FieldLabel>
-                <Input {...register("customer_phone")} placeholder={t("customerPhone")} />
-                {errors.customer_phone && (
-                  <FieldError>{errors.customer_phone.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerEmail")}</FieldLabel>
-                <Input {...register("customer_email")} placeholder={t("customerEmail")} type="email" />
-                {errors.customer_email && (
-                  <FieldError>{errors.customer_email.message}</FieldError>
                 )}
               </Field>
             </div>

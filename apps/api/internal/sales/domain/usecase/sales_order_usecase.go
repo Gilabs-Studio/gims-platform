@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
+	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
@@ -51,6 +53,7 @@ type salesOrderUsecase struct {
 	orderRepo         salesRepos.SalesOrderRepository
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository
 	quotationRepo     salesQuotationRepos.SalesQuotationRepository
+	customerRepo      customerRepos.CustomerRepository
 	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
 	employeeRepo      organizationRepos.EmployeeRepository
@@ -72,6 +75,7 @@ func NewSalesOrderUsecase(
 		orderRepo:         orderRepo,
 		deliveryOrderRepo: deliveryOrderRepo,
 		quotationRepo:     quotationRepo,
+		customerRepo:      customerRepos.NewCustomerRepository(db),
 		productRepo:       productRepo,
 		inventoryUC:       inventoryUC,
 		employeeRepo:      employeeRepo,
@@ -225,6 +229,10 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 		return nil, err
 	}
 
+	if err := u.applyCustomerSnapshot(ctx, order); err != nil {
+		return nil, err
+	}
+
 	// Calculate totals
 	u.calculateTotals(order)
 
@@ -310,6 +318,10 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 
 	// Update model
 	if err := mapper.UpdateSalesOrderModel(order, req); err != nil {
+		return nil, err
+	}
+
+	if err := u.applyCustomerSnapshot(ctx, order); err != nil {
 		return nil, err
 	}
 
@@ -598,6 +610,48 @@ func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.Sales
 	}
 
 	return ErrSalesOrderNotFound // Access Denied (Obfuscated)
+}
+
+func (u *salesOrderUsecase) applyCustomerSnapshot(ctx context.Context, order *models.SalesOrder) error {
+	if order == nil || order.CustomerID == nil || *order.CustomerID == "" || u.customerRepo == nil {
+		return nil
+	}
+
+	customer, err := u.customerRepo.FindByID(ctx, *order.CustomerID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	order.CustomerName = customer.Name
+	order.CustomerContact = salesOrderFirstNonEmpty(order.CustomerContact, customer.ContactPerson)
+	order.CustomerEmail = salesOrderFirstNonEmpty(order.CustomerEmail, customer.Email)
+	order.CustomerPhone = salesOrderFirstNonEmpty(order.CustomerPhone, salesOrderResolvePrimaryPhone(customer))
+
+	return nil
+}
+
+func salesOrderFirstNonEmpty(current string, fallback string) string {
+	if current != "" {
+		return current
+	}
+	return fallback
+}
+
+func salesOrderResolvePrimaryPhone(customer *customerModels.Customer) string {
+	if customer == nil || len(customer.PhoneNumbers) == 0 {
+		return ""
+	}
+
+	for _, phone := range customer.PhoneNumbers {
+		if phone.IsPrimary {
+			return phone.PhoneNumber
+		}
+	}
+
+	return customer.PhoneNumbers[0].PhoneNumber
 }
 
 // calculateTotals calculates all financial totals for the order

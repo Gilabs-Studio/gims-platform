@@ -62,7 +62,7 @@ export const getOrderSchema = (t?: TranslationFn) => z.object({
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),
-  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
+  customer_email: z.string().optional(),
   items: z.array(getOrderItemSchema(t))
     .min(1, getMsg(t, "validation.itemsMin", "At least one item is required")),
 });
@@ -87,7 +87,7 @@ export const getConvertQuotationToOrderSchema = (t?: TranslationFn) => z.object(
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),
-  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
+  customer_email: z.string().optional(),
   notes: z.string().optional(),
 });
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
+	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -38,6 +40,7 @@ type SalesQuotationUsecase interface {
 type salesQuotationUsecase struct {
 	db            *gorm.DB
 	quotationRepo salesRepos.SalesQuotationRepository
+	customerRepo  customerRepos.CustomerRepository
 	productRepo   productRepos.ProductRepository
 	auditService  audit.AuditService
 }
@@ -52,6 +55,7 @@ func NewSalesQuotationUsecase(
 	return &salesQuotationUsecase{
 		db:            db,
 		quotationRepo: quotationRepo,
+		customerRepo:  customerRepos.NewCustomerRepository(db),
 		productRepo:   productRepo,
 		auditService:  auditService,
 	}
@@ -178,6 +182,10 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 		return nil, err
 	}
 
+	if err := u.applyCustomerSnapshot(ctx, quotation); err != nil {
+		return nil, err
+	}
+
 	// Calculate totals
 	u.calculateTotals(quotation)
 
@@ -249,6 +257,10 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 
 	// Update model
 	if err := mapper.UpdateSalesQuotationModel(quotation, req); err != nil {
+		return nil, err
+	}
+
+	if err := u.applyCustomerSnapshot(ctx, quotation); err != nil {
 		return nil, err
 	}
 
@@ -406,6 +418,48 @@ func (u *salesQuotationUsecase) isValidStatusTransition(current, new models.Sale
 	}
 
 	return false
+}
+
+func (u *salesQuotationUsecase) applyCustomerSnapshot(ctx context.Context, quotation *models.SalesQuotation) error {
+	if quotation == nil || quotation.CustomerID == nil || *quotation.CustomerID == "" || u.customerRepo == nil {
+		return nil
+	}
+
+	customer, err := u.customerRepo.FindByID(ctx, *quotation.CustomerID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	quotation.CustomerName = customer.Name
+	quotation.CustomerContact = salesQuotationFirstNonEmpty(quotation.CustomerContact, customer.ContactPerson)
+	quotation.CustomerEmail = salesQuotationFirstNonEmpty(quotation.CustomerEmail, customer.Email)
+	quotation.CustomerPhone = salesQuotationFirstNonEmpty(quotation.CustomerPhone, salesQuotationResolvePrimaryPhone(customer))
+
+	return nil
+}
+
+func salesQuotationFirstNonEmpty(current string, fallback string) string {
+	if current != "" {
+		return current
+	}
+	return fallback
+}
+
+func salesQuotationResolvePrimaryPhone(customer *customerModels.Customer) string {
+	if customer == nil || len(customer.PhoneNumbers) == 0 {
+		return ""
+	}
+
+	for _, phone := range customer.PhoneNumbers {
+		if phone.IsPrimary {
+			return phone.PhoneNumber
+		}
+	}
+
+	return customer.PhoneNumbers[0].PhoneNumber
 }
 
 func salesQuotationPaymentTermsName(quotation *models.SalesQuotation) string {

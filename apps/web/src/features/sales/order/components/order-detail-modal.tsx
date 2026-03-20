@@ -421,8 +421,7 @@ export function OrderDetailModal({
                 </div>
 
                 {/* Customer Information Table */}
-                {(displayOrder.customer_name || displayOrder.customer_contact || 
-                  displayOrder.customer_phone || displayOrder.customer_email) && (
+                {(displayOrder.customer_id || displayOrder.customer?.name || displayOrder.customer_name || displayOrder.customer_contact) && (
                   <>
                     <Separator />
                     <div>
@@ -431,7 +430,7 @@ export function OrderDetailModal({
                         <Table>
                           <TableBody>
                             <TableRow>
-                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.customer")}</TableCell>
                                 <TableCell>
                                   {canViewCustomer && displayOrder.customer_id ? (
                                     <button
@@ -441,37 +440,14 @@ export function OrderDetailModal({
                                       }}
                                       className="text-primary hover:underline cursor-pointer text-left"
                                     >
-                                      {displayOrder.customer_name ?? displayOrder.customer_id}
+                                      {displayOrder.customer?.name ?? displayOrder.customer_name ?? displayOrder.customer_id}
                                     </button>
                                   ) : (
-                                    <span>{displayOrder.customer_name ?? "-"}</span>
+                                    <span>{displayOrder.customer?.name ?? displayOrder.customer_name ?? "-"}</span>
                                   )}
                                 </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayOrder.customer_contact ?? "-"}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>
-                                {displayOrder.customer_phone ? (
-                                  <a
-                                    href={`https://wa.me/${displayOrder.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary hover:underline"
-                                  >
-                                    {displayOrder.customer_phone}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
-                              <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>
-                                {displayOrder.customer_email ? (
-                                  <a href={`mailto:${displayOrder.customer_email}`} className="text-primary hover:underline">
-                                    {displayOrder.customer_email}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
