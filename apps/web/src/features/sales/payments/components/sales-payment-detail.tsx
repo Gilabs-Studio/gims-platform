@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { useSalesPayment, useSalesPaymentAuditTrail } from "../hooks/use-sales-payments";
 
 interface SalesPaymentDetailProps {
@@ -205,7 +205,7 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
             </TabsContent>
 
             <TabsContent value="audit-trail" className="py-4">
-              <SalesAuditTrailTable
+              <AuditTrailTable
                 entries={auditEntries}
                 isLoading={isAuditLoading && auditEntries.length === 0}
                 errorText={isAuditError && auditEntries.length === 0 ? t("common.error") : undefined}

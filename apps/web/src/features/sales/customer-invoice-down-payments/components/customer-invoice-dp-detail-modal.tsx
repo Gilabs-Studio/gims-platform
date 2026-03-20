@@ -50,7 +50,7 @@ import {
   useCustomerInvoiceDPAuditTrail,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPStatus } from "../types";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 function normalizeStatus(status?: string | null): string {
   const normalized = (status ?? "").toLowerCase();
@@ -97,7 +97,7 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
       );
     case "waiting_payment":
       return (
-        <Badge variant="info" className="text-xs font-medium">
+        <Badge variant="warning" className="text-xs font-medium">
           <Clock className="h-3 w-3 mr-1.5" />
           {t("status.waiting_payment")}
         </Badge>
@@ -439,7 +439,7 @@ export function CustomerInvoiceDPDetailModal({
             </TabsContent>
 
             <TabsContent value="audit-trail" className="py-4">
-              <SalesAuditTrailTable
+              <AuditTrailTable
                 entries={auditEntries}
                 isLoading={auditLoading && auditEntries.length === 0}
                 pagination={auditPagination}

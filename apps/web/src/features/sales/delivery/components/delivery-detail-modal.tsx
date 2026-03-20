@@ -40,7 +40,7 @@ import { QuotationProductDetailModal } from "../../quotation/components/quotatio
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { CreateSalesReturnDialog } from "../../returns/components/create-sales-return-dialog";
 import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -679,7 +679,7 @@ export function DeliveryDetailModal({
               </TabsContent>
 
               <TabsContent value="audit-trail" className="py-4">
-                <SalesAuditTrailTable
+                <AuditTrailTable
                   entries={auditEntries}
                   isLoading={auditLoading && auditEntries.length === 0}
                   errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}

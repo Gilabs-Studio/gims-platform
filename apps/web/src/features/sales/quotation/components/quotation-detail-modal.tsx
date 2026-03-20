@@ -36,7 +36,7 @@ import type { SalesQuotation } from "../types";
 import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface QuotationDetailModalProps {
   readonly open: boolean;
@@ -653,7 +653,7 @@ export function QuotationDetailModal({
               </TabsContent>
 
               <TabsContent value="audit-trail" className="py-4">
-                <SalesAuditTrailTable
+                <AuditTrailTable
                   entries={auditEntries}
                   isLoading={auditLoading && auditEntries.length === 0}
                   errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}

@@ -36,7 +36,7 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -552,7 +552,7 @@ export function InvoiceDetailModal({
               </TabsContent>
 
               <TabsContent value="audit-trail" className="py-4">
-                <SalesAuditTrailTable
+                <AuditTrailTable
                   entries={auditEntries}
                   isLoading={auditLoading && auditEntries.length === 0}
                   errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}

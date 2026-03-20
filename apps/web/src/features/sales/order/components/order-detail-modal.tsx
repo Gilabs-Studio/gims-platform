@@ -39,7 +39,7 @@ import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
 import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -674,7 +674,7 @@ export function OrderDetailModal({
               </TabsContent>
 
               <TabsContent value="audit-trail" className="py-4">
-                <SalesAuditTrailTable
+                <AuditTrailTable
                   entries={auditEntries}
                   isLoading={auditLoading && auditEntries.length === 0}
                   errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}

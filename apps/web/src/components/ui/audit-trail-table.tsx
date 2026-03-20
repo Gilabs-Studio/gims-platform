@@ -11,22 +11,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export interface SalesAuditTrailUser {
+export interface AuditTrailUser {
   id?: string;
   name?: string;
   email?: string;
 }
 
-export interface SalesAuditTrailEntry {
+export interface AuditTrailEntry {
   id: string;
   action: string;
   permission_code?: string;
   metadata?: Record<string, unknown> | null;
-  user?: SalesAuditTrailUser | null;
+  user?: AuditTrailUser | null;
   created_at: string;
 }
 
-export interface SalesAuditTrailPagination {
+export interface AuditTrailPagination {
   page: number;
   per_page: number;
   total: number;
@@ -35,16 +35,16 @@ export interface SalesAuditTrailPagination {
   has_prev: boolean;
 }
 
-export interface SalesAuditTrailApiResponse {
+export interface AuditTrailApiResponse {
   success: boolean;
-  data: SalesAuditTrailEntry[];
+  data: AuditTrailEntry[];
   meta?: {
-    pagination?: SalesAuditTrailPagination;
+    pagination?: AuditTrailPagination;
   };
   error?: string;
 }
 
-export interface SalesAuditTrailLabels {
+export interface AuditTrailLabels {
   empty: string;
   columns: {
     action: string;
@@ -54,12 +54,12 @@ export interface SalesAuditTrailLabels {
   };
 }
 
-interface SalesAuditTrailTableProps {
-  readonly entries: SalesAuditTrailEntry[];
-  readonly labels: SalesAuditTrailLabels;
+interface AuditTrailTableProps {
+  readonly entries: AuditTrailEntry[];
+  readonly labels: AuditTrailLabels;
   readonly isLoading?: boolean;
   readonly errorText?: string;
-  readonly pagination?: SalesAuditTrailPagination;
+  readonly pagination?: AuditTrailPagination;
   readonly onPageChange?: (page: number) => void;
   readonly onPageSizeChange?: (pageSize: number) => void;
 }
@@ -164,6 +164,7 @@ function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
     "code",
     "status",
     "customer_name",
+    "supplier_name",
     "total_amount",
     "amount",
     "order_date",
@@ -314,7 +315,7 @@ function actionLabel(action: string): string {
     .join(" ");
 }
 
-export function buildFallbackAuditTrailEntries(events: FallbackAuditEvent[]): SalesAuditTrailEntry[] {
+export function buildFallbackAuditTrailEntries(events: FallbackAuditEvent[]): AuditTrailEntry[] {
   return events
     .filter((event) => !!event.at)
     .map((event) => ({
@@ -333,7 +334,7 @@ export function buildFallbackAuditTrailEntries(events: FallbackAuditEvent[]): Sa
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export function SalesAuditTrailTable({
+export function AuditTrailTable({
   entries,
   labels,
   isLoading = false,
@@ -341,7 +342,7 @@ export function SalesAuditTrailTable({
   pagination,
   onPageChange,
   onPageSizeChange,
-}: SalesAuditTrailTableProps) {
+}: AuditTrailTableProps) {
   if (errorText && entries.length === 0 && !isLoading) {
     return <div className="text-center py-8 text-destructive">{errorText}</div>;
   }
@@ -390,8 +391,8 @@ export function SalesAuditTrailTable({
                       return summary.plain;
                     }
 
-                    const entries = summary.entries ?? [];
-                    if (entries.length === 0) {
+                    const metadataEntries = summary.entries ?? [];
+                    if (metadataEntries.length === 0) {
                       return "-";
                     }
 
@@ -400,7 +401,7 @@ export function SalesAuditTrailTable({
                         {summary.heading ? (
                           <p className="font-medium text-foreground">{summary.heading}</p>
                         ) : null}
-                        {entries.map((item) => (
+                        {metadataEntries.map((item) => (
                           <p key={`${item.key}-${item.value}`}>
                             <span className="text-foreground/80">{item.key}:</span>{" "}
                             <span>{item.value}</span>

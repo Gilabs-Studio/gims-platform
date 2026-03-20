@@ -12,7 +12,7 @@ import type {
   BatchSelectionRequest,
   BatchSelectionResponse,
 } from "../types";
-import type { SalesAuditTrailApiResponse } from "../../components/sales-audit-trail-table";
+import type { AuditTrailApiResponse } from "@/components/ui/audit-trail-table";
 
 const BASE_PATH = "/sales/delivery-orders";
 
@@ -116,8 +116,8 @@ export const deliveryService = {
   async auditTrail(
     id: string,
     params?: { page?: number; per_page?: number }
-  ): Promise<SalesAuditTrailApiResponse> {
-    const response = await apiClient.get<SalesAuditTrailApiResponse>(
+  ): Promise<AuditTrailApiResponse> {
+    const response = await apiClient.get<AuditTrailApiResponse>(
       `${BASE_PATH}/${id}/audit-trail`,
       { params }
     );

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { useTranslations } from "next-intl";
 import type { SalesReturn } from "../types";
-import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { useSalesReturnAuditTrail } from "../hooks/use-sales-returns";
 
 interface SalesReturnDetailProps {
@@ -117,7 +117,7 @@ export function SalesReturnDetail({ open, onOpenChange, item }: SalesReturnDetai
             </TabsContent>
 
             <TabsContent value="audit-trail" className="py-4">
-              <SalesAuditTrailTable
+              <AuditTrailTable
                 entries={auditEntries}
                 isLoading={auditLoading && auditEntries.length === 0}
                 errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
