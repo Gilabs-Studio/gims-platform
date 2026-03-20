@@ -30,6 +30,7 @@ export interface CreatableComboboxProps {
   isLoading?: boolean;
   className?: string;
   ariaInvalid?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -51,6 +52,7 @@ export function CreatableCombobox({
   isLoading = false,
   className,
   ariaInvalid = false,
+  onOpenChange,
 }: CreatableComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -77,12 +79,13 @@ export function CreatableCombobox({
 
   const handleOpenChange = React.useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
     if (nextOpen) {
       setActiveIndex(-1);
       setSearch("");
       requestAnimationFrame(() => searchInputRef.current?.focus());
     }
-  }, []);
+  }, [onOpenChange]);
 
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue === value ? "" : selectedValue);

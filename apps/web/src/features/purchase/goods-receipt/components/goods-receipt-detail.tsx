@@ -99,7 +99,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   });
   const { data: purchaseReturnHistoryResponse } = usePurchaseReturns(
     {
-      per_page: 100,
+      per_page: 20,
       goods_receipt_id: goodsReceiptId ?? undefined,
     },
     { enabled: open && !!goodsReceiptId },

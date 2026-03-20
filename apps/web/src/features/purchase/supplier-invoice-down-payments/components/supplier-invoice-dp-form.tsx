@@ -16,7 +16,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonLoading } from "@/components/loading";
@@ -34,6 +33,9 @@ import {
   type SupplierInvoiceDPFormData,
 } from "../schemas/supplier-invoice-dp.schema";
 
+const LOADING_VALUE = "__loading__";
+const EMPTY_VALUE = "__empty__";
+
 export function SupplierInvoiceDPFormDialog({
   open,
   onOpenChange,
@@ -47,8 +49,9 @@ export function SupplierInvoiceDPFormDialog({
 }) {
   const t = useTranslations("supplierInvoiceDP");
   const isEdit = !!invoiceId;
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(false);
 
-  const addDataQuery = useSupplierInvoiceDPAddData({ enabled: open });
+  const addDataQuery = useSupplierInvoiceDPAddData({ enabled: open && shouldLoadSelectData });
   const detailQuery = useSupplierInvoiceDP(invoiceId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateSupplierInvoiceDP();
@@ -66,6 +69,16 @@ export function SupplierInvoiceDPFormDialog({
   });
 
   const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadSelectData(false);
+      return;
+    }
+    if (isEdit || !!defaultPurchaseOrderId) {
+      setShouldLoadSelectData(true);
+    }
+  }, [open, isEdit, defaultPurchaseOrderId]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,7 +111,7 @@ export function SupplierInvoiceDPFormDialog({
     });
   }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId, poQuery.data]);
 
-  const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
+  const isBusy = detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
   const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
   const watchedPOId = form.watch("purchase_order_id");
@@ -144,8 +157,6 @@ export function SupplierInvoiceDPFormDialog({
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
 
-        {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
           <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
             <FileText className="h-4 w-4 text-primary" />
@@ -161,13 +172,26 @@ export function SupplierInvoiceDPFormDialog({
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      setShouldLoadSelectData(true);
+                    }
+                  }}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder={t("placeholders.select")} />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(addData?.purchase_orders ?? []).map((po) => (
+                  <SelectContent className="max-h-60">
+                    {addDataQuery.isFetching && (addData?.purchase_orders ?? []).length === 0 ? (
+                      <SelectItem value={LOADING_VALUE} disabled>
+                        Loading...
+                      </SelectItem>
+                    ) : (addData?.purchase_orders ?? []).length === 0 ? (
+                      <SelectItem value={EMPTY_VALUE} disabled>
+                        No data available
+                      </SelectItem>
+                    ) : (addData?.purchase_orders ?? []).map((po) => (
                       <SelectItem key={po.id} value={po.id} className="cursor-pointer">
                         {po.code}
                       </SelectItem>

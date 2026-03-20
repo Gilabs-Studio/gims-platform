@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Receipt } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,8 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
-import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
-import { supplierInvoiceKeys } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 
 interface SILinkedDialogProps {
   goodsReceiptCode: string;
@@ -30,13 +28,10 @@ export function SILinkedDialog({ goodsReceiptCode, goodsReceiptId, purchaseOrder
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // Fetch supplier invoices linked to the purchase order to optimize, 
-  // since there's no direct filter by goods_receipt_id in the list endpoint.
-  const { data: siData, isLoading: siLoading } = useQuery({
-    queryKey: supplierInvoiceKeys.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    queryFn: () => supplierInvoicesService.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    enabled: open && !!purchaseOrderId && canViewSI,
-  });
+  const { data: siData, isLoading: siLoading } = useSupplierInvoices(
+    { purchase_order_id: purchaseOrderId, per_page: 20 },
+    { enabled: open && !!purchaseOrderId && canViewSI },
+  );
 
   const invoices = siData?.data ?? [];
   // Filter invoices for this specific goods receipt

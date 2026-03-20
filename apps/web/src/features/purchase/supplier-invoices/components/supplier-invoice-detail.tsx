@@ -82,7 +82,7 @@ const PurchasePaymentForm = dynamic(
 
 // ─── Audit Trail tab ─────────────────────────────────────────────────────────
 
-function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
+function AuditTrailTab({ invoiceId, enabled }: { invoiceId: string; enabled: boolean }) {
   const t = useTranslations("supplierInvoice");
   const tCommon = useTranslations("common");
   const [page, setPage] = useState(1);
@@ -90,7 +90,7 @@ function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
   const { data, isLoading, isError } = useSupplierInvoiceAuditTrail(invoiceId, {
     page,
     per_page: pageSize,
-  });
+  }, { enabled });
   const entries = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -146,6 +146,7 @@ function SupplierInvoiceDetailView({
   const [isGROpen, setIsGROpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
   const [isDPOpen, setIsDPOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit">("general");
 
   const deleteMutation = useDeleteSupplierInvoice();
 
@@ -154,7 +155,7 @@ function SupplierInvoiceDetailView({
 
   return (
     <>
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "general" | "items" | "audit")} className="w-full">
         <TabsList>
           <TabsTrigger value="general">{t("tabs.general") || "General"}</TabsTrigger>
           <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
@@ -545,7 +546,7 @@ function SupplierInvoiceDetailView({
 
         {/* ── Audit Trail tab ─────────────────────────────────────────── */}
         <TabsContent value="audit">
-          <AuditTrailTab invoiceId={data.id} />
+          <AuditTrailTab invoiceId={data.id} enabled={activeTab === "audit"} />
         </TabsContent>
       </Tabs>
 

@@ -115,6 +115,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 	const [requestDateOpen, setRequestDateOpen] = useState(false);
+	const [shouldLoadSelectData, setShouldLoadSelectData] = useState(isEdit);
 	const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
 	const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
 	const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -180,13 +181,23 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		});
 	}, [detail, isEdit, open, reset]);
 
-	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open });
-	const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-	const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
-	const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
-	const { data: employeesData } = useEmployees({ per_page: 100 });
+	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open && shouldLoadSelectData });
+	const { data: productsData } = useProducts({ per_page: 20, is_approved: true }, { enabled: open && shouldLoadSelectData });
+	const { data: paymentTermsData } = usePaymentTerms({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
+	const { data: businessUnitsData } = useBusinessUnits({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
+	const { data: employeesData } = useEmployees({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
 	const selectedEmployeeId = detail?.employee_id ?? null;
 	const { data: selectedEmployeeData } = useEmployee(open && isEdit && selectedEmployeeId ? selectedEmployeeId : undefined);
+
+	useEffect(() => {
+		if (!open) {
+			setShouldLoadSelectData(false);
+			return;
+		}
+		if (isEdit) {
+			setShouldLoadSelectData(true);
+		}
+	}, [open, isEdit]);
 
 	const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
 	const suppliers = useMemo(() => addDataQuery.data?.data.suppliers ?? [], [addDataQuery.data?.data.suppliers]);
@@ -371,11 +382,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="supplier.create"
 													createLabel={t("actions.createNew") || "Create New Supplier"}
 													onCreateClick={() => openQuickCreate("supplier")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -415,11 +432,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="payment_term.create"
 													createLabel={t("actions.createNew") || "Create Payment Term"}
 													onCreateClick={() => openQuickCreate("paymentTerm")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -433,11 +456,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="business_unit.create"
 													createLabel={t("actions.createNew") || "Create Business Unit"}
 													onCreateClick={() => openQuickCreate("businessUnit")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -451,11 +480,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v ? normalizeEmployeeId(v, mergedEmployees) : null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedEmployees.map((e) => ({ value: e.id, label: e.employee_code ? `${e.employee_code} - ${e.name}` : e.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="employee.create"
 													createLabel={t("actions.createNew") || "Create Employee"}
 													onCreateClick={() => openQuickCreate("employee")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -563,11 +598,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																				}
 																			}
 																		}}
+																		onOpenChange={(isOpen) => {
+																			if (isOpen) {
+																				setShouldLoadSelectData(true);
+																			}
+																		}}
 																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
 																		createLabel={t("actions.createNew") || "Create Product"}
 																		onCreateClick={() => openQuickCreate("product")}
+																		isLoading={addDataQuery.isFetching}
 																	/>
 																)}
 															/>
@@ -683,34 +724,44 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 				)}
 			</DialogContent>
 
-			<SupplierDialog
-				open={quickCreate.type === "supplier"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleSupplierCreated}
-			/>
-			<PaymentTermsDialog
-				open={quickCreate.type === "paymentTerm"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handlePaymentTermCreated}
-			/>
-			<BusinessUnitForm
-				open={quickCreate.type === "businessUnit"}
-				onClose={closeQuickCreate}
-				onCreated={handleBusinessUnitCreated}
-			/>
-			<EmployeeForm
-				open={quickCreate.type === "employee"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				onCreated={handleEmployeeCreated}
-			/>
-			<ProductDialog
-				open={quickCreate.type === "product"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleProductCreated}
-			/>
+			{quickCreate.type === "supplier" && (
+				<SupplierDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleSupplierCreated}
+				/>
+			)}
+			{quickCreate.type === "paymentTerm" && (
+				<PaymentTermsDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handlePaymentTermCreated}
+				/>
+			)}
+			{quickCreate.type === "businessUnit" && (
+				<BusinessUnitForm
+					open
+					onClose={closeQuickCreate}
+					onCreated={handleBusinessUnitCreated}
+				/>
+			)}
+			{quickCreate.type === "employee" && (
+				<EmployeeForm
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					onCreated={handleEmployeeCreated}
+				/>
+			)}
+			{quickCreate.type === "product" && (
+				<ProductDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleProductCreated}
+				/>
+			)}
 		</Dialog>
 	);
 }

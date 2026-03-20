@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Receipt, Banknote } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,13 +12,11 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
-import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
-import { supplierInvoiceKeys } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 
 import { SupplierInvoiceDPDetailModal } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 import { SupplierInvoiceDownPaymentStatusBadge } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-down-payment-status-badge";
-import { supplierInvoiceDPService } from "@/features/purchase/supplier-invoice-down-payments/services/supplier-invoice-dp-service";
-import { supplierInvoiceDPKeys } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
+import { useSupplierInvoiceDPs } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
 interface SILinkedDialogProps {
@@ -38,6 +35,7 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
   const [selectedSIId, setSelectedSIId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"invoices" | "dp">("invoices");
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
 
@@ -46,19 +44,15 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
     return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
   };
 
-  // Fetch supplier invoices linked to the purchase order
-  const { data: siData, isLoading: siLoading } = useQuery({
-    queryKey: supplierInvoiceKeys.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    queryFn: () => supplierInvoicesService.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    enabled: open && !!purchaseOrderId && canViewSI,
-  });
+  const { data: siData, isLoading: siLoading } = useSupplierInvoices(
+    { purchase_order_id: purchaseOrderId, per_page: 20 },
+    { enabled: open && !!purchaseOrderId && canViewSI && activeTab === "invoices" },
+  );
 
-  // Fetch supplier invoice down-payments for the same PO
-  const { data: dpData, isLoading: dpLoading } = useQuery({
-    queryKey: supplierInvoiceDPKeys.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    queryFn: () => supplierInvoiceDPService.list({ purchase_order_id: purchaseOrderId, per_page: 100 }),
-    enabled: open && !!purchaseOrderId && canViewDP,
-  });
+  const { data: dpData, isLoading: dpLoading } = useSupplierInvoiceDPs(
+    { purchase_order_id: purchaseOrderId, per_page: 20 },
+    { enabled: open && !!purchaseOrderId && canViewDP && activeTab === "dp" },
+  );
 
   const invoices = siData?.data ?? [];
   const dpInvoices = dpData?.data ?? [];
@@ -107,7 +101,7 @@ export function SILinkedDialog({ purchaseOrderCode, purchaseOrderId, open, onOpe
                 </div>
               )}
 
-              <Tabs defaultValue="invoices" className="w-full">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoices" | "dp")} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="invoices" className="flex items-center gap-1.5">
                     <Receipt className="h-3.5 w-3.5" />

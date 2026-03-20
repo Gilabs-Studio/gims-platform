@@ -61,7 +61,7 @@ import { SupplierInvoiceDetail } from "../../supplier-invoices/components/suppli
 
 // ─── Audit Trail tab ──────────────────────────────────────────────────────────
 
-function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
+function AuditTrailTab({ invoiceId, enabled }: { invoiceId: string; enabled: boolean }) {
   const t = useTranslations("supplierInvoiceDP");
   const tCommon = useTranslations("common");
   const [page, setPage] = useState(1);
@@ -69,7 +69,7 @@ function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
   const { data, isLoading, isError } = useSupplierInvoiceDPAuditTrail(invoiceId, {
     page,
     per_page: pageSize,
-  });
+  }, { enabled });
   const entries = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -140,6 +140,7 @@ function SupplierInvoiceDPDetailView({
 
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"invoice" | "audit">("invoice");
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
@@ -196,7 +197,7 @@ function SupplierInvoiceDPDetailView({
 
   return (
     <>
-      <Tabs defaultValue="invoice" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoice" | "audit")} className="w-full">
         <div className="flex items-center justify-between mb-4">
           <TabsList className="flex-1">
             <TabsTrigger value="invoice">{t("tabs.general") || "Invoice"}</TabsTrigger>
@@ -333,7 +334,7 @@ function SupplierInvoiceDPDetailView({
           )}
         </TabsContent>
         <TabsContent value="audit">
-          <AuditTrailTab invoiceId={data.id} />
+          <AuditTrailTab invoiceId={data.id} enabled={activeTab === "audit"} />
         </TabsContent>
       </Tabs>
 

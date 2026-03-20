@@ -68,7 +68,6 @@ import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
-import { usePurchaseReturns } from "@/features/purchase/returns/hooks/use-purchase-returns";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -124,12 +123,6 @@ export function GoodsReceiptsList() {
 
   const items: GoodsReceiptListItem[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
-  const { data: purchaseReturnsData } = usePurchaseReturns({ per_page: 100 });
-  const returnedGoodsReceiptIDs = new Set(
-    (purchaseReturnsData?.data ?? [])
-      .map((row) => row.goods_receipt_id)
-      .filter((id): id is string => !!id),
-  );
 
   const deleteMutation = useDeleteGoodsReceipt();
   const submitMutation = useSubmitGoodsReceipt();
@@ -319,21 +312,14 @@ export function GoodsReceiptsList() {
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
-                    {returnedGoodsReceiptIDs.has(it.id) ? (
-                      <Badge variant="warning" className="text-xs font-medium">
-                        <FileText className="h-3 w-3 mr-1" />
-                        {t("status.returned")}
-                      </Badge>
-                    ) : (
-                      <GoodsReceiptStatusBadge
-                        status={it.status ?? ""}
-                        onClick={
-                          it.status === "CLOSED" || it.status === "PARTIAL"
-                            ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
-                            : undefined
-                        }
-                      />
-                    )}
+                    <GoodsReceiptStatusBadge
+                      status={it.status ?? ""}
+                      onClick={
+                        it.status === "CLOSED" || it.status === "PARTIAL"
+                          ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
+                          : undefined
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     {canShowActions && (

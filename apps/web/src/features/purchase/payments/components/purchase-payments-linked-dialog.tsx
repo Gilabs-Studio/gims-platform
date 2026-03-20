@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { CreditCard } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,8 +10,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { PurchasePaymentDetail } from "@/features/purchase/payments/components/purchase-payment-detail";
-import { purchasePaymentsService } from "@/features/purchase/payments/services/purchase-payments-service";
-import { purchasePaymentKeys } from "@/features/purchase/payments/hooks/use-purchase-payments";
+import { usePurchasePayments } from "@/features/purchase/payments/hooks/use-purchase-payments";
 import { PurchasePaymentStatusBadge } from "@/features/purchase/payments/components/purchase-payment-status-badge";
 
 interface PurchasePaymentsLinkedDialogProps {
@@ -28,11 +26,10 @@ export function PurchasePaymentsLinkedDialog({ invoiceCode, invoiceId, open, onO
 
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: purchasePaymentKeys.list({ invoice_id: invoiceId, per_page: 100 }),
-    queryFn: () => purchasePaymentsService.list({ invoice_id: invoiceId, per_page: 100 }),
-    enabled: open && !!invoiceId && canViewPayment,
-  });
+  const { data, isLoading } = usePurchasePayments(
+    { invoice_id: invoiceId, per_page: 20 },
+    { enabled: open && !!invoiceId && canViewPayment },
+  );
 
   const payments = data?.data ?? [];
 

@@ -76,6 +76,8 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const isEdit = !!goodsReceiptId;
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
+  const [shouldLoadPurchaseOrderOptions, setShouldLoadPurchaseOrderOptions] = useState(!!defaultPurchaseOrderId);
+  const [shouldLoadWarehouseOptions, setShouldLoadWarehouseOptions] = useState(isEdit);
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
@@ -85,12 +87,15 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const itemsArray = useFieldArray({ control: form.control, name: "items" });
 
-  const addDataQuery = useGoodsReceiptAddData({ enabled: open && !isEdit });
+  const addDataQuery = useGoodsReceiptAddData({ enabled: open && !isEdit && shouldLoadPurchaseOrderOptions });
   const detailQuery = useGoodsReceipt(goodsReceiptId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateGoodsReceipt();
   const updateMutation = useUpdateGoodsReceipt();
-  const warehousesQuery = useWarehouses({ page: 1, per_page: 100 }, { enabled: open });
+  const warehousesQuery = useWarehouses(
+    { page: 1, per_page: 20 },
+    { enabled: open && (shouldLoadWarehouseOptions || isEdit) },
+  );
 
   const [poDetail, setPoDetail] = useState<PurchaseOrderDetail | null>(null);
   const [poLoading, setPoLoading] = useState(false);
@@ -112,6 +117,20 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
     () => Object.fromEntries(poItems.map((it) => [it.id, it])),
     [poItems],
   );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadPurchaseOrderOptions(!!defaultPurchaseOrderId);
+      setShouldLoadWarehouseOptions(isEdit);
+      return;
+    }
+    if (defaultPurchaseOrderId) {
+      setShouldLoadPurchaseOrderOptions(true);
+    }
+    if (isEdit) {
+      setShouldLoadWarehouseOptions(true);
+    }
+  }, [open, defaultPurchaseOrderId, isEdit]);
 
   useEffect(() => {
     if (!open) return;
@@ -271,7 +290,15 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                       name="purchase_order_id"
                       control={form.control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadPurchaseOrderOptions(true);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
@@ -302,7 +329,15 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                       name="warehouse_id"
                       control={form.control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadWarehouseOptions(true);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
@@ -339,7 +374,15 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
                       name="warehouse_id"
                       control={form.control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadWarehouseOptions(true);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>

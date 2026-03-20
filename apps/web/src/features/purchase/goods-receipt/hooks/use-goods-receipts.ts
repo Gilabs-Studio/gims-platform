@@ -19,10 +19,14 @@ export const goodsReceiptKeys = {
     [...goodsReceiptKeys.all, "audit-trail", id, params] as const,
 };
 
-export function useGoodsReceipts(params?: GoodsReceiptListParams) {
+export function useGoodsReceipts(
+  params?: GoodsReceiptListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: goodsReceiptKeys.list(params),
     queryFn: () => goodsReceiptsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -38,7 +42,9 @@ export function useGoodsReceiptAddData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: goodsReceiptKeys.addData(),
     queryFn: () => goodsReceiptsService.addData(),
-    enabled: options?.enabled !== undefined ? options.enabled : true,
+    enabled: options?.enabled ?? false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

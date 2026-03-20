@@ -114,10 +114,17 @@ export function PurchaseOrderForm({
 
   const [orderDateOpen, setOrderDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(isEdit);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
 
-  const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({ enabled: open });
-  const { data: masterProductsData } = useProducts({ is_approved: true, per_page: 100 }, { enabled: open });
-  const masterProducts = masterProductsData?.data ?? [];
+  const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({
+    enabled: open && shouldLoadSelectData,
+  });
+  const masterProductsQuery = useProducts(
+    { is_approved: true, per_page: 20 },
+    { enabled: open && shouldLoadProductOptions },
+  );
+  const masterProducts = masterProductsQuery.data?.data ?? [];
 
   const suppliers = addData?.data?.suppliers ?? [];
   const paymentTerms = addData?.data?.payment_terms ?? [];
@@ -180,6 +187,18 @@ export function PurchaseOrderForm({
 
   const approvedPRsQuery = useApprovedPurchaseRequisitions({ enabled: open && !isEdit && source === "pr" });
   const approvedSOsQuery = useApprovedSalesOrders({ enabled: open && !isEdit && source === "so" });
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadSelectData(false);
+      setShouldLoadProductOptions(false);
+      return;
+    }
+    if (isEdit) {
+      setShouldLoadSelectData(true);
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit]);
 
   useEffect(() => {
     if (!open) return;
@@ -299,6 +318,7 @@ export function PurchaseOrderForm({
 
   const isSubmitting = (isEdit ? updateMutation.isPending : createMutation.isPending) || (isEdit && poQuery.isFetching);
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
+  const isProductOptionsLoading = shouldLoadProductOptions && (masterProductsQuery.isPending || masterProductsQuery.isFetching);
 
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });
@@ -419,7 +439,15 @@ export function PurchaseOrderForm({
                       control={control}
                       name="source"
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            if (value === "pr" || value === "so") {
+                              setShouldLoadSelectData(true);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
@@ -631,11 +659,17 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
                         createPermission="supplier.create"
                         onCreateClick={() => openQuickCreate("supplier")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Supplier"}
+                        isLoading={isFetchingAddData}
                       />
                     )}
                   />
@@ -677,11 +711,17 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Payment Terms"}
+                        isLoading={isFetchingAddData}
                       />
                     )}
                   />
@@ -696,11 +736,17 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
                         createPermission="business_unit.create"
                         onCreateClick={() => openQuickCreate("businessUnit")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Business Unit"}
+                        isLoading={isFetchingAddData}
                       />
                     )}
                   />
@@ -802,6 +848,11 @@ export function PurchaseOrderForm({
                                         }
                                       }
                                     }}
+                                    onOpenChange={(isOpen) => {
+                                      if (isOpen) {
+                                        setShouldLoadProductOptions(true);
+                                      }
+                                    }}
                                     options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
                                     createPermission="product.create"
                                     onCreateClick={() => {
@@ -810,6 +861,7 @@ export function PurchaseOrderForm({
                                     }}
                                     placeholder={t("placeholders.select")}
                                     createLabel={t("actions.createNew") || "Create New Product"}
+                                    isLoading={isProductOptionsLoading}
                                   />
                                 )}
                               />

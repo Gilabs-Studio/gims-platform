@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +54,8 @@ type InvoiceItem = SupplierInvoiceFormData["items"][number];
 type QuickCreateType = "paymentTerm" | null;
 
 const NONE_VALUE = "__none__";
+const LOADING_VALUE = "__loading__";
+const EMPTY_VALUE = "__empty__";
 
 export function SupplierInvoiceFormDialog({
   open,
@@ -76,10 +77,11 @@ export function SupplierInvoiceFormDialog({
 
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(false);
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
-  const addDataQuery = useSupplierInvoiceAddData({ enabled: open });
+  const addDataQuery = useSupplierInvoiceAddData({ enabled: open && shouldLoadSelectData });
   const detailQuery = useSupplierInvoice(invoiceId ?? "", { enabled: open && isEdit });
   const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
 
@@ -114,6 +116,16 @@ export function SupplierInvoiceFormDialog({
 
   const selectedGRId = form.watch("goods_receipt_id");
   const setFormValue = form.setValue;
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadSelectData(false);
+      return;
+    }
+    if (isEdit || !!defaultGoodsReceiptId || !!defaultPurchaseOrderId) {
+      setShouldLoadSelectData(true);
+    }
+  }, [open, isEdit, defaultGoodsReceiptId, defaultPurchaseOrderId]);
 
   const filteredGRs = useMemo(() => {
     const all = addData?.goods_receipts ?? [];
@@ -226,7 +238,7 @@ export function SupplierInvoiceFormDialog({
     closeQuickCreate();
   }, [form, closeQuickCreate]);
 
-  const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
+  const isBusy = detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
 
   const watchedItems = form.watch("items");
   const taxRate = form.watch("tax_rate") ?? 0;
@@ -293,8 +305,6 @@ export function SupplierInvoiceFormDialog({
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
 
-        {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "basic" | "items")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="basic">{t("common.basicInfo") || t("tabs.basic") || "Basic Information"}</TabsTrigger>
@@ -335,14 +345,27 @@ export function SupplierInvoiceFormDialog({
                 <Select
                   value={selectedGRId}
                   onValueChange={(value) => setFormValue("goods_receipt_id", value, { shouldValidate: true })}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      setShouldLoadSelectData(true);
+                    }
+                  }}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder={t("placeholders.select")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                  {filteredGRs.map((gr) => (
+                    {addDataQuery.isFetching && filteredGRs.length === 0 ? (
+                      <SelectItem value={LOADING_VALUE} disabled>
+                        Loading...
+                      </SelectItem>
+                    ) : filteredGRs.length === 0 ? (
+                      <SelectItem value={EMPTY_VALUE} disabled>
+                        No data available
+                      </SelectItem>
+                    ) : filteredGRs.map((gr) => (
                       <SelectItem key={gr.id} value={gr.id} className="cursor-pointer">
                         {gr.code}{gr.purchase_order ? ` (PO: ${gr.purchase_order.code})` : ""}{gr.supplier ? ` - ${gr.supplier.name}` : ""}
                       </SelectItem>
@@ -445,11 +468,17 @@ export function SupplierInvoiceFormDialog({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Payment Terms"}
+                        isLoading={addDataQuery.isFetching}
                       />
                     )}
                   />

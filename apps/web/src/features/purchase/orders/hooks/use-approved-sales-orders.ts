@@ -10,10 +10,10 @@ export function useApprovedSalesOrders(options?: { enabled?: boolean }) {
     queryFn: () =>
       orderService.list({
         status: "confirmed",
-        per_page: 100,
+        per_page: 20,
         sort_by: "created_at",
         sort_dir: "desc",
       }),
-    enabled: options?.enabled ?? true,
+    enabled: options?.enabled ?? false,
   });
 }

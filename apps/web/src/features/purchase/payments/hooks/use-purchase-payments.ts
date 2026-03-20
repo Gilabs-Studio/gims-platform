@@ -19,10 +19,14 @@ export const purchasePaymentKeys = {
     [...purchasePaymentKeys.all, "audit-trail", id, params] as const,
 };
 
-export function usePurchasePayments(params?: PurchasePaymentListParams) {
+export function usePurchasePayments(
+  params?: PurchasePaymentListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: purchasePaymentKeys.list(params),
     queryFn: () => purchasePaymentsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -38,8 +42,9 @@ export function usePurchasePaymentAddData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: purchasePaymentKeys.addData(),
     queryFn: () => purchasePaymentsService.addData(),
-    enabled: options?.enabled !== undefined ? options.enabled : true,
+    enabled: options?.enabled ?? false,
     staleTime: 60_000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
