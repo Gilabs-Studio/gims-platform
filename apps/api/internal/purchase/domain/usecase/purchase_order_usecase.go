@@ -642,6 +642,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	var suppliers []supplierModels.Supplier
 	if err := uc.db.WithContext(ctx).
 		Model(&supplierModels.Supplier{}).
+		Preload("PhoneNumbers").
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&suppliers).Error; err != nil {
@@ -700,6 +701,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	for _, s := range suppliers {
 		prods := productsBySupplier[s.ID]
 		respProducts := make([]dto.PurchaseOrderAddProduct, 0, len(prods))
+		respPhones := make([]dto.PurchaseOrderAddSupplierPhoneNumber, 0, len(s.PhoneNumbers))
 		for _, p := range prods {
 			respProducts = append(respProducts, dto.PurchaseOrderAddProduct{
 				ID:         p.ID,
@@ -712,11 +714,22 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 				IsApproved: p.IsApproved,
 			})
 		}
+		for _, ph := range s.PhoneNumbers {
+			respPhones = append(respPhones, dto.PurchaseOrderAddSupplierPhoneNumber{
+				ID:          ph.ID,
+				PhoneNumber: ph.PhoneNumber,
+				Label:       ph.Label,
+				IsPrimary:   ph.IsPrimary,
+			})
+		}
 		respSuppliers = append(respSuppliers, dto.PurchaseOrderAddSupplier{
-			ID:       s.ID,
-			Code:     s.Code,
-			Name:     s.Name,
-			Products: respProducts,
+			ID:             s.ID,
+			Code:           s.Code,
+			Name:           s.Name,
+			PaymentTermsID: s.PaymentTermsID,
+			BusinessUnitID: s.BusinessUnitID,
+			PhoneNumbers:   respPhones,
+			Products:       respProducts,
 		})
 	}
 

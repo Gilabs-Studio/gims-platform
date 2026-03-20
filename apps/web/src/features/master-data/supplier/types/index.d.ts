@@ -12,6 +12,18 @@ export interface SupplierType {
   updated_at: string;
 }
 
+export interface SupplierPaymentTerms {
+  id: string;
+  code: string;
+  name: string;
+  days: number;
+}
+
+export interface SupplierBusinessUnit {
+  id: string;
+  name: string;
+}
+
 export interface CreateSupplierTypeData {
   name: string;
   description?: string;
@@ -139,6 +151,10 @@ export interface Supplier {
   name: string;
   supplier_type_id?: string;
   supplier_type?: SupplierType;
+  payment_terms_id?: string;
+  payment_terms?: SupplierPaymentTerms;
+  business_unit_id?: string;
+  business_unit?: SupplierBusinessUnit;
   address?: string;
   province_id?: string;
   province?: { id: string; name: string };
@@ -171,6 +187,8 @@ export interface Supplier {
 export interface CreateSupplierData {
   name: string;
   supplier_type_id?: string;
+  payment_terms_id?: string;
+  business_unit_id?: string;
   address?: string;
   province_id?: string;
   city_id?: string;
@@ -192,6 +210,8 @@ export interface CreateSupplierData {
 export interface UpdateSupplierData {
   name?: string;
   supplier_type_id?: string | null;
+  payment_terms_id?: string | null;
+  business_unit_id?: string | null;
   address?: string;
   province_id?: string | null;
   city_id?: string | null;

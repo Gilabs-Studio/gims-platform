@@ -43,6 +43,8 @@ func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.S
 	var supplier models.Supplier
 	err := r.db.WithContext(ctx).
 		Preload("SupplierType").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
 		Preload("Province").
 		Preload("City").
 		Preload("District").
@@ -61,6 +63,8 @@ func (r *supplierRepository) FindByCode(ctx context.Context, code string) (*mode
 	var supplier models.Supplier
 	err := r.db.WithContext(ctx).
 		Preload("SupplierType").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
 		First(&supplier, "code = ?", code).Error
 	if err != nil {
 		return nil, err
@@ -126,6 +130,8 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 		Preload("City").
 		Preload("District").
 		Preload("SupplierType").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
 		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
 		Preload("BankAccounts.Currency")

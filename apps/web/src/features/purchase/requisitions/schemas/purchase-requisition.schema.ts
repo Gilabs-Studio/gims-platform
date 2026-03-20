@@ -14,6 +14,7 @@ export const purchaseRequisitionItemSchema = z.object({
 export function getPurchaseRequisitionSchema() {
 	return z.object({
 		supplier_id: uuidLike().optional().nullable(),
+		supplier_phone_number_id: uuidLike().optional().nullable(),
 		payment_terms_id: uuidLike().optional().nullable(),
 		business_unit_id: uuidLike().optional().nullable(),
 		employee_id: uuidLike().optional().nullable(),

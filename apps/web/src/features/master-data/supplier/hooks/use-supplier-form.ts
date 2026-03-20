@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "./use-suppliers";
 import { useSupplierTypes } from "./use-supplier-types";
+import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
+import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import type { Supplier } from "../types";
 import { sortOptions } from "@/lib/utils";
 
@@ -15,6 +17,8 @@ export const supplierFormSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name cannot exceed 100 characters"),
   supplier_type_id: z.string().optional(),
+  payment_terms_id: z.string().optional(),
+  business_unit_id: z.string().optional(),
   address: z.string().max(500, "Address cannot exceed 500 characters").optional(),
   province_id: z.string().optional(),
   city_id: z.string().optional(),
@@ -55,6 +59,18 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
   }, { enabled: open });
   const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
 
+  const { data: paymentTermsData } = usePaymentTerms({
+    page: 1,
+    per_page: 100,
+  }, { enabled: open });
+  const paymentTerms = sortOptions(paymentTermsData?.data ?? [], (pt) => pt.name);
+
+  const { data: businessUnitsData } = useBusinessUnits({
+    page: 1,
+    per_page: 100,
+  }, { enabled: open });
+  const businessUnits = sortOptions(businessUnitsData?.data ?? [], (bu) => bu.name);
+
   // Fetch fresh detail if editing to ensure we have latest nested data
   const { data: detailData, isLoading: isLoadingDetail } = useSupplier(editingItem?.id ?? "");
   const activeItem = detailData?.data ?? editingItem;
@@ -80,6 +96,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     defaultValues: {
       name: "",
       supplier_type_id: "",
+      payment_terms_id: "",
+      business_unit_id: "",
       address: "",
       province_id: "",
       city_id: "",
@@ -102,6 +120,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
         form.reset({
           name: activeItem.name,
           supplier_type_id: activeItem.supplier_type_id ?? "",
+          payment_terms_id: activeItem.payment_terms_id ?? "",
+          business_unit_id: activeItem.business_unit_id ?? "",
           address: activeItem.address ?? "",
           province_id: activeItem.province_id ?? "",
           city_id: activeItem.city_id ?? "",
@@ -120,6 +140,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
         form.reset({
           name: "",
           supplier_type_id: "",
+          payment_terms_id: "",
+          business_unit_id: "",
           address: "",
           province_id: "",
           city_id: "",
@@ -148,6 +170,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
       const payload = {
         name: data.name,
         supplier_type_id: data.supplier_type_id || undefined,
+        payment_terms_id: data.payment_terms_id || undefined,
+        business_unit_id: data.business_unit_id || undefined,
         address: data.address || undefined,
         province_id: data.province_id || undefined,
         city_id: data.city_id || undefined,
@@ -190,6 +214,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
     isLoadingDetail,
     activeItem,
     supplierTypes,
+    paymentTerms,
+    businessUnits,
     isQuickCreateOpen,
     quickCreateQuery,
     openQuickCreate,

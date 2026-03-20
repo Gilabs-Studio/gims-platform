@@ -76,6 +76,7 @@ export const purchaseRequisitionId = {
   fields: {
     requestDate: "Tanggal Permintaan",
     supplier: "Supplier",
+    supplierPhoneNumber: "Nomor Telepon Supplier",
     paymentTerms: "Termin Pembayaran",
     businessUnit: "Unit Bisnis",
     employee: "Karyawan",

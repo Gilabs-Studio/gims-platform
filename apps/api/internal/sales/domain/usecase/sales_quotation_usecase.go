@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
-	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
-	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
+	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"

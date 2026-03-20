@@ -78,10 +78,20 @@ export interface PurchaseOrderAddProduct {
   is_approved: boolean;
 }
 
+export interface PurchaseOrderAddSupplierPhoneNumber {
+  id: string;
+  phone_number: string;
+  label?: string;
+  is_primary: boolean;
+}
+
 export interface PurchaseOrderAddSupplier {
   id: string;
   code: string;
   name: string;
+  payment_terms_id?: string | null;
+  business_unit_id?: string | null;
+  phone_numbers?: PurchaseOrderAddSupplierPhoneNumber[];
   products: PurchaseOrderAddProduct[];
 }
 
@@ -113,6 +123,7 @@ export interface PurchaseOrderItemInput {
 
 export interface CreatePurchaseOrderInput {
   supplier_id?: string | null;
+  supplier_phone_number_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   purchase_requisitions_id?: string | null;
@@ -128,6 +139,7 @@ export interface CreatePurchaseOrderInput {
 
 export interface UpdatePurchaseOrderInput {
   supplier_id?: string | null;
+  supplier_phone_number_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   order_date: string;

@@ -75,6 +75,7 @@ export const purchaseRequisitionEn = {
   fields: {
     requestDate: "Request Date",
     supplier: "Supplier",
+    supplierPhoneNumber: "Supplier Phone Number",
     paymentTerms: "Payment Terms",
     businessUnit: "Business Unit",
     employee: "Employee",

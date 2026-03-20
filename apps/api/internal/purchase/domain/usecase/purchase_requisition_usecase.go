@@ -238,6 +238,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	var suppliers []supplierModels.Supplier
 	if err := uc.db.WithContext(ctx).
 		Model(&supplierModels.Supplier{}).
+		Preload("PhoneNumbers").
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&suppliers).Error; err != nil {
@@ -283,11 +284,23 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	addSuppliers := make([]dto.PurchaseRequisitionAddSupplier, 0, len(suppliers))
 	for _, s := range suppliers {
+		addPhones := make([]dto.PurchaseRequisitionAddSupplierPhoneNumber, 0, len(s.PhoneNumbers))
+		for _, ph := range s.PhoneNumbers {
+			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierPhoneNumber{
+				ID:          ph.ID,
+				PhoneNumber: ph.PhoneNumber,
+				Label:       ph.Label,
+				IsPrimary:   ph.IsPrimary,
+			})
+		}
 		addSuppliers = append(addSuppliers, dto.PurchaseRequisitionAddSupplier{
-			ID:       s.ID,
-			Code:     s.Code,
-			Name:     s.Name,
-			Products: productsBySupplier[s.ID],
+			ID:             s.ID,
+			Code:           s.Code,
+			Name:           s.Name,
+			PaymentTermsID: s.PaymentTermsID,
+			BusinessUnitID: s.BusinessUnitID,
+			PhoneNumbers:   addPhones,
+			Products:       productsBySupplier[s.ID],
 		})
 	}
 
@@ -571,16 +584,16 @@ func prAuditItems(items []models.PurchaseRequisitionItem) []map[string]interface
 	out := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
 		out = append(out, map[string]interface{}{
-			"id":           item.ID,
-			"product_id":   item.ProductID,
-			"product_code": item.ProductCodeSnapshot,
-			"product_name": item.ProductNameSnapshot,
-			"quantity":     item.Quantity,
+			"id":             item.ID,
+			"product_id":     item.ProductID,
+			"product_code":   item.ProductCodeSnapshot,
+			"product_name":   item.ProductNameSnapshot,
+			"quantity":       item.Quantity,
 			"purchase_price": item.PurchasePrice,
 			"price":          item.PurchasePrice,
-			"discount":     item.Discount,
-			"subtotal":     item.Subtotal,
-			"notes":        item.Notes,
+			"discount":       item.Discount,
+			"subtotal":       item.Subtotal,
+			"notes":          item.Notes,
 		})
 	}
 

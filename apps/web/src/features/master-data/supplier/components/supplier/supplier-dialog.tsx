@@ -57,6 +57,8 @@ export function SupplierDialog({
     isLoadingDetail,
     activeItem,
     supplierTypes,
+    paymentTerms,
+    businessUnits,
     isQuickCreateOpen,
     quickCreateQuery,
     openQuickCreate,
@@ -74,6 +76,8 @@ export function SupplierDialog({
 
 
   const supplierTypeId = watch("supplier_type_id");
+  const paymentTermsId = watch("payment_terms_id");
+  const businessUnitId = watch("business_unit_id");
   const isActive = watch("is_active");
   const formPhones = watch("phone_numbers") as CreatePhoneNumberData[] ?? [];
   const formBanks = watch("bank_accounts") as CreateSupplierBankData[] ?? [];
@@ -143,6 +147,28 @@ export function SupplierDialog({
                         onCreateClick={(q) => openQuickCreate(q)}
                       />
                       {errors.supplier_type_id && <FieldError>{errors.supplier_type_id.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
+                      <CreatableCombobox
+                        value={paymentTermsId ?? ""}
+                        onValueChange={(val) => setValue("payment_terms_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        placeholder={t("form.paymentTermsPlaceholder")}
+                      />
+                      {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>{t("form.businessUnit")}</FieldLabel>
+                      <CreatableCombobox
+                        value={businessUnitId ?? ""}
+                        onValueChange={(val) => setValue("business_unit_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                        options={businessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
+                        placeholder={t("form.businessUnitPlaceholder")}
+                      />
+                      {errors.business_unit_id && <FieldError>{errors.business_unit_id.message}</FieldError>}
                     </Field>
 
                     <Field>

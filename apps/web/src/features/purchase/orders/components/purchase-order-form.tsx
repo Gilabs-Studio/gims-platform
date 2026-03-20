@@ -159,6 +159,7 @@ export function PurchaseOrderForm({
     defaultValues: {
       source: "manual",
       supplier_id: null,
+      supplier_phone_number_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -187,6 +188,7 @@ export function PurchaseOrderForm({
     reset({
       source: "manual",
       supplier_id: null,
+      supplier_phone_number_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -208,6 +210,7 @@ export function PurchaseOrderForm({
       {
         source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
         supplier_id: po.supplier_id ?? null,
+        supplier_phone_number_id: null,
         payment_terms_id: po.payment_terms_id ?? null,
         business_unit_id: po.business_unit_id ?? null,
         purchase_requisitions_id: po.purchase_requisitions_id ?? null,
@@ -235,6 +238,39 @@ export function PurchaseOrderForm({
 
   const selectedSupplierId = watch("supplier_id");
   const watchedItems = watch("items");
+
+  const selectedSupplier = useMemo(() => {
+    if (!selectedSupplierId) return null;
+    return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
+  }, [selectedSupplierId, mergedSuppliers]);
+
+  const supplierPhoneNumbers = useMemo(() => selectedSupplier?.phone_numbers ?? [], [selectedSupplier]);
+
+  useEffect(() => {
+    if (!selectedSupplierId) {
+      setValue("payment_terms_id", null, { shouldValidate: true });
+      setValue("business_unit_id", null, { shouldValidate: true });
+      setValue("supplier_phone_number_id", null, { shouldValidate: true });
+      return;
+    }
+
+    if (!selectedSupplier) return;
+
+    setValue("payment_terms_id", selectedSupplier.payment_terms_id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("business_unit_id", selectedSupplier.business_unit_id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+
+    const defaultPhone = selectedSupplier.phone_numbers?.find((ph) => ph.is_primary) ?? selectedSupplier.phone_numbers?.[0];
+    setValue("supplier_phone_number_id", defaultPhone?.id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }, [selectedSupplierId, selectedSupplier, setValue]);
 
   const [sourceProducts, setSourceProducts] = useState<ProductOption[]>([]);
   const allProducts = useMemo(() => suppliers.flatMap((s) => s.products ?? []), [suppliers]);
@@ -424,6 +460,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "pr",
                                 supplier_id: pr.supplier_id ?? null,
+                                supplier_phone_number_id: null,
                                 payment_terms_id: pr.payment_terms_id ?? null,
                                 business_unit_id: pr.business_unit_id ?? null,
                                 purchase_requisitions_id: pr.id,
@@ -484,6 +521,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "so",
                                 supplier_id: null,
+                                supplier_phone_number_id: null,
                                 payment_terms_id: so.payment_terms_id ?? null,
                                 business_unit_id: so.business_unit_id ?? null,
                                 purchase_requisitions_id: null,
@@ -599,6 +637,33 @@ export function PurchaseOrderForm({
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Supplier"}
                       />
+                    )}
+                  />
+                </Field>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("fields.supplierPhoneNumber") || "Supplier Phone Number"}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="supplier_phone_number_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? NONE_VALUE}
+                        onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
+                        disabled={!selectedSupplierId || supplierPhoneNumbers.length === 0}
+                      >
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue placeholder={t("placeholders.select")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none")}</SelectItem>
+                          {supplierPhoneNumbers.map((phone) => (
+                            <SelectItem key={phone.id} value={phone.id} className="cursor-pointer">
+                              {phone.phone_number}{phone.label ? ` (${phone.label})` : ""}{phone.is_primary ? " - Primary" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   />
                 </Field>

@@ -165,6 +165,12 @@ export function SupplierDetailModal({
                         <TableCell>{supplier.supplier_type?.name ?? "-"}</TableCell>
                       </TableRow>
                       <TableRow>
+                        <TableCell className="font-medium bg-muted/50">{t("form.paymentTerms")}</TableCell>
+                        <TableCell>{supplier.payment_terms?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.businessUnit")}</TableCell>
+                        <TableCell>{supplier.business_unit?.name ?? "-"}</TableCell>
+                      </TableRow>
+                      <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("form.email")}</TableCell>
                         <TableCell>
                           {supplier.email ? (
@@ -196,6 +202,32 @@ export function SupplierDetailModal({
                   </Table>
                 </div>
               </div>
+
+              {/* Contact Numbers */}
+              {(supplier.phone_numbers?.length ?? 0) > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 mt-6">{t("sections.phoneNumbers")}</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableBody>
+                        {supplier.phone_numbers?.map((phone) => (
+                          <TableRow key={phone.id}>
+                            <TableCell className="font-medium bg-muted/50 w-48">{phone.label || "Phone"}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span>{phone.phone_number}</span>
+                                {phone.is_primary && (
+                                  <Badge variant="secondary" className="text-[10px]">Primary</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
 
               {/* Location */}
               <div>

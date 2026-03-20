@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -133,6 +140,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		resolver,
 		defaultValues: {
 			supplier_id: null,
+			supplier_phone_number_id: null,
 			payment_terms_id: null,
 			business_unit_id: null,
 			employee_id: null,
@@ -148,12 +156,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const { fields, append, remove } = useFieldArray({ control, name: "items" });
 	const watchedItems = watch("items");
+	const selectedSupplierId = watch("supplier_id");
 
 	useEffect(() => {
 		if (!open) { setActiveTab("basic"); return; }
 		if (!isEdit) {
 			reset({
-				supplier_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
+				supplier_id: null, supplier_phone_number_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
 				request_date: todayISO(), address: null, notes: "", tax_rate: 0, delivery_cost: 0, other_cost: 0,
 				items: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 			});
@@ -161,7 +170,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!detail) return;
 		reset({
-			supplier_id: detail.supplier_id ?? null, payment_terms_id: detail.payment_terms_id ?? null,
+			supplier_id: detail.supplier_id ?? null, supplier_phone_number_id: null, payment_terms_id: detail.payment_terms_id ?? null,
 			business_unit_id: detail.business_unit_id ?? null, employee_id: detail.employee_id ?? null,
 			request_date: detail.request_date, address: detail.address ?? null, notes: detail.notes ?? "",
 			tax_rate: detail.tax_rate ?? 0, delivery_cost: detail.delivery_cost ?? 0, other_cost: detail.other_cost ?? 0,
@@ -191,6 +200,39 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		if (selected && !list.some(x => x.id === selected.id)) list.push(selected as any);
 		return list;
 	}, [suppliers, detail?.supplier]);
+
+	const selectedSupplier = useMemo(() => {
+		if (!selectedSupplierId) return null;
+		return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
+	}, [selectedSupplierId, mergedSuppliers]);
+
+	const supplierPhoneNumbers = useMemo(() => selectedSupplier?.phone_numbers ?? [], [selectedSupplier]);
+
+	useEffect(() => {
+		if (!selectedSupplierId) {
+			setValue("payment_terms_id", null, { shouldValidate: true });
+			setValue("business_unit_id", null, { shouldValidate: true });
+			setValue("supplier_phone_number_id", null, { shouldValidate: true });
+			return;
+		}
+
+		if (!selectedSupplier) return;
+
+		setValue("payment_terms_id", selectedSupplier.payment_terms_id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+		setValue("business_unit_id", selectedSupplier.business_unit_id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+
+		const defaultPhone = selectedSupplier.phone_numbers?.find((ph) => ph.is_primary) ?? selectedSupplier.phone_numbers?.[0];
+		setValue("supplier_phone_number_id", defaultPhone?.id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+	}, [selectedSupplierId, selectedSupplier, setValue]);
 
 	const mergedPaymentTerms = useMemo(() => {
 		const list = [...paymentTerms];
@@ -335,6 +377,32 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 													createLabel={t("actions.createNew") || "Create New Supplier"}
 													onCreateClick={() => openQuickCreate("supplier")}
 												/>
+											)}
+										/>
+									</Field>
+
+									<Field orientation="vertical">
+										<FieldLabel>{t("fields.supplierPhoneNumber") || "Supplier Phone Number"}</FieldLabel>
+										<Controller
+											control={control}
+											name="supplier_phone_number_id"
+											render={({ field }) => (
+												<Select
+													value={field.value ?? ""}
+													onValueChange={(v) => field.onChange(v || null)}
+													disabled={!selectedSupplierId || supplierPhoneNumbers.length === 0}
+												>
+													<SelectTrigger className="cursor-pointer">
+														<SelectValue placeholder={t("placeholders.select")} />
+													</SelectTrigger>
+													<SelectContent>
+														{supplierPhoneNumbers.map((phone) => (
+															<SelectItem key={phone.id} value={phone.id} className="cursor-pointer">
+																{phone.phone_number}{phone.label ? ` (${phone.label})` : ""}{phone.is_primary ? " - Primary" : ""}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
 											)}
 										/>
 									</Field>
@@ -486,7 +554,15 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																render={({ field }) => (
 																	<CreatableCombobox
 																		value={field.value || undefined}
-																		onValueChange={(v) => field.onChange(v || "")}
+																		onValueChange={(v) => {
+																			field.onChange(v || "");
+																			if (v) {
+																				const found = products.find((p) => p.id === v);
+																				if (found?.cost_price !== undefined) {
+																					setValue(`items.${idx}.purchase_price`, found.cost_price, { shouldValidate: true });
+																				}
+																			}
+																		}}
 																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
@@ -516,6 +592,15 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<FieldLabel>{t("fields.discount")}</FieldLabel>
 															<Controller control={control} name={`items.${idx}.discount`}
 																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<Field orientation="vertical" className="col-span-2">
+															<FieldLabel>{t("fields.notes")}</FieldLabel>
+															<Controller control={control} name={`items.${idx}.notes`}
+																render={({ field }) => (
+																	<Input value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
+																)}
 															/>
 														</Field>
 

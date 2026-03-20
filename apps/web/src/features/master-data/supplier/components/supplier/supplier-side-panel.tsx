@@ -25,6 +25,8 @@ import { LocationPicker } from "../../../geographic/components/location-picker";
 
 import { useCreateSupplier, useUpdateSupplier, useSupplier } from "../../hooks/use-suppliers";
 import { useSupplierTypes } from "../../hooks/use-supplier-types";
+import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
+import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
 import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
 import { SupplierPhoneList } from "./supplier-phone-list";
 import { SupplierBankList } from "./supplier-bank-list";
@@ -32,6 +34,8 @@ import { SupplierBankList } from "./supplier-bank-list";
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   supplier_type_id: z.string().optional(),
+  payment_terms_id: z.string().optional(),
+  business_unit_id: z.string().optional(),
   address: z.string().max(500).optional(),
   email: z.string().email().optional().or(z.literal("")),
   website: z.string().url().optional().or(z.literal("")),
@@ -85,6 +89,10 @@ export function SupplierSidePanel({
 
   const { data: supplierTypesData } = useSupplierTypes({ per_page: 100 }, { enabled: isOpen });
   const supplierTypes = supplierTypesData?.data ?? [];
+  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: isOpen });
+  const paymentTerms = paymentTermsData?.data ?? [];
+  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: isOpen });
+  const businessUnits = businessUnitsData?.data ?? [];
 
   const {
     register,
@@ -98,6 +106,8 @@ export function SupplierSidePanel({
     defaultValues: {
       name: "",
       supplier_type_id: "",
+      payment_terms_id: "",
+      business_unit_id: "",
       address: "",
       email: "",
       website: "",
@@ -154,6 +164,8 @@ export function SupplierSidePanel({
         reset({
           name: entity.name,
           supplier_type_id: entity.supplier_type_id ?? "",
+          payment_terms_id: entity.payment_terms_id ?? "",
+          business_unit_id: entity.business_unit_id ?? "",
           address: entity.address ?? "",
           email: entity.email ?? "",
           website: entity.website ?? "",
@@ -185,6 +197,8 @@ export function SupplierSidePanel({
       reset({
         name: "",
         supplier_type_id: "",
+        payment_terms_id: "",
+        business_unit_id: "",
         address: "",
         email: "",
         website: "",
@@ -210,6 +224,8 @@ export function SupplierSidePanel({
             name: data.name,
             // Send "" (not null) so backend pointer is non-nil → triggers clear logic
             supplier_type_id: data.supplier_type_id ?? "",
+            payment_terms_id: data.payment_terms_id ?? "",
+            business_unit_id: data.business_unit_id ?? "",
             address: data.address ?? "",
             province_id: data.province_id ?? "",
             city_id: data.city_id ?? "",
@@ -229,6 +245,8 @@ export function SupplierSidePanel({
         await createSupplier.mutateAsync({
           name: data.name,
           supplier_type_id: data.supplier_type_id || undefined,
+          payment_terms_id: data.payment_terms_id || undefined,
+          business_unit_id: data.business_unit_id || undefined,
           address: data.address || undefined,
           province_id: data.province_id || undefined,
           city_id: data.city_id || undefined,
@@ -372,6 +390,60 @@ export function SupplierSidePanel({
                       placeholder={t("form.contactPersonPlaceholder")}
                       {...register("contact_person")}
                       disabled={isViewing}
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="payment_terms_id"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                          disabled={isViewing}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("form.paymentTermsPlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {paymentTerms.map((pt) => (
+                              <SelectItem key={pt.id} value={pt.id}>
+                                {pt.code ? `${pt.code} - ${pt.name}` : pt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </Field>
+
+                  <Field orientation="vertical">
+                    <FieldLabel>{t("form.businessUnit")}</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="business_unit_id"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                          disabled={isViewing}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("form.businessUnitPlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {businessUnits.map((bu) => (
+                              <SelectItem key={bu.id} value={bu.id}>
+                                {bu.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     />
                   </Field>
                 </div>
