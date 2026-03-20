@@ -3,7 +3,9 @@ import type {
   SalesOrder,
   SalesOrderListResponse,
   SalesOrderSingleResponse,
+  SalesOrderItemsListResponse,
   ListSalesOrdersParams,
+  ListSalesOrderItemsParams,
   CreateSalesOrderData,
   UpdateSalesOrderData,
   UpdateSalesOrderStatusData,
@@ -28,6 +30,17 @@ export const orderService = {
   async getById(id: string): Promise<SalesOrderSingleResponse> {
     const response = await apiClient.get<SalesOrderSingleResponse>(
       `${BASE_PATH}/${id}`
+    );
+    return response.data;
+  },
+
+  async getItems(
+    id: string,
+    params?: ListSalesOrderItemsParams,
+  ): Promise<SalesOrderItemsListResponse> {
+    const response = await apiClient.get<SalesOrderItemsListResponse>(
+      `${BASE_PATH}/${id}/items`,
+      { params }
     );
     return response.data;
   },

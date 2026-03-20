@@ -58,6 +58,7 @@ export function QuotationDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const t = useTranslations("quotation");
@@ -69,13 +70,13 @@ export function QuotationDetailModal({
   const { data: itemsData, isLoading: itemsLoading } = useQuotationItems(
     quotation?.id ?? "",
     { page: itemsPage, per_page: pageSize },
-    { enabled: open && !!quotation?.id }
+    { enabled: open && !!quotation?.id && activeTab === "items" }
   );
 
   const { data: auditData, isFetching: auditLoading, isError: auditError } = useQuotationAuditTrail(
     quotation?.id ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!quotation?.id }
+    { enabled: open && !!quotation?.id && activeTab === "audit-trail" }
   );
 
   const canEdit = useUserPermission("sales_quotation.update");
@@ -262,7 +263,15 @@ export function QuotationDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -355,7 +364,13 @@ export function QuotationDetailModal({
               <Skeleton className="h-64 w-full" />
             </div>
           ) : (
-            <Tabs defaultValue="general" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) =>
+                setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+              }
+              className="w-full"
+            >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>

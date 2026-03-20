@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FileText, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
@@ -45,9 +45,16 @@ const formatQty = (value: number) =>
 export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
   const t = useTranslations("salesReturns");
   const isDeliveryLocked = !!defaultDeliveryId;
+  const [shouldLoadDeliveryOptions, setShouldLoadDeliveryOptions] = useState(false);
+  const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!defaultDeliveryId);
 
-  const { data: formDataResponse } = useSalesReturnFormData();
-  const { data: deliveryOptionsResponse } = useDeliveryOrders({ per_page: 100, status: "delivered" });
+  const { data: formDataResponse } = useSalesReturnFormData({
+    enabled: shouldLoadReferenceData,
+  });
+  const { data: deliveryOptionsResponse } = useDeliveryOrders(
+    { per_page: 20, status: "delivered" },
+    { enabled: !isDeliveryLocked && shouldLoadDeliveryOptions },
+  );
   const createMutation = useCreateSalesReturn();
 
   const form = useForm<SalesReturnFormData>({
@@ -79,6 +86,12 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const selectedDeliveryId = useWatch({ control, name: "delivery_id" });
 
+  useEffect(() => {
+    if (selectedDeliveryId) {
+      setShouldLoadReferenceData(true);
+    }
+  }, [selectedDeliveryId]);
+
   const { data: deliveryResponse, isLoading: isLoadingDelivery, isError: isDeliveryError } = useDeliveryOrder(
     selectedDeliveryId ?? "",
     { enabled: !!selectedDeliveryId },
@@ -86,7 +99,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const { data: returnHistoryResponse } = useSalesReturns(
     {
-      per_page: 100,
+      per_page: 20,
       delivery_id: selectedDeliveryId,
     },
     { enabled: !!selectedDeliveryId },
@@ -311,7 +324,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
               name="delivery_id"
               control={control}
               render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      setShouldLoadDeliveryOptions(true);
+                      setShouldLoadReferenceData(true);
+                    }
+                  }}
+                >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder="Select delivery order" />
                   </SelectTrigger>
@@ -369,7 +391,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                 name="delivery_id"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setShouldLoadDeliveryOptions(true);
+                        setShouldLoadReferenceData(true);
+                      }
+                    }}
+                  >
                     <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="Select delivery order" />
                     </SelectTrigger>

@@ -57,6 +57,7 @@ export function InvoiceDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("invoice");
 
   const { data: detailData } = useInvoice(invoice?.id ?? "", {
@@ -65,7 +66,7 @@ export function InvoiceDetailModal({
   const { data: auditData, isFetching: auditLoading, isError: auditError } = useInvoiceAuditTrail(
     invoice?.id ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!invoice?.id },
+    { enabled: open && !!invoice?.id && activeTab === "audit-trail" },
   );
 
   const canEdit = useUserPermission("customer_invoice.update");
@@ -206,7 +207,15 @@ export function InvoiceDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -298,7 +307,13 @@ export function InvoiceDetailModal({
             </div>
           </DialogHeader>
 
-          <Tabs defaultValue="general" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+            }
+            className="w-full"
+          >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>

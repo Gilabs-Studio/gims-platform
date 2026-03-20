@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "../services/order-service";
 import type {
   ListSalesOrdersParams,
+  ListSalesOrderItemsParams,
   CreateSalesOrderData,
   UpdateSalesOrderData,
   UpdateSalesOrderStatusData,
@@ -20,6 +21,8 @@ export const orderKeys = {
     [...orderKeys.lists(), params] as const,
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
+  items: (id: string, params?: ListSalesOrderItemsParams) =>
+    [...orderKeys.detail(id), "items", params] as const,
   auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
     [...orderKeys.detail(id), "audit-trail", params] as const,
 };
@@ -39,6 +42,19 @@ export function useOrder(id: string, options?: { enabled?: boolean }) {
     queryKey: orderKeys.detail(id),
     queryFn: () => orderService.getById(id),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useOrderItems(
+  id: string,
+  params?: ListSalesOrderItemsParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: orderKeys.items(id, params),
+    queryFn: () => orderService.getItems(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    placeholderData: (previousData) => previousData,
   });
 }
 

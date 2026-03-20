@@ -40,6 +40,16 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
+
+  const enableProductOptionsFetch = useCallback(() => {
+    setShouldLoadProductOptions(true);
+  }, []);
 
   // Fetch full quotation data with items when editing
   const { data: fullQuotationData, isLoading: isLoadingQuotation, isFetching: isFetchingQuotation } = useQuotation(
@@ -48,12 +58,43 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   );
 
   // Fetch lookup data — only when the form is actually open to avoid eager API calls
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
-  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
-  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
-  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
+  const { data: productsData } = useProducts(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadProductOptions },
+  );
+  const { data: paymentTermsData } = usePaymentTerms(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessUnitsData } = useBusinessUnits(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessTypesData } = useBusinessTypes(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: employeesData } = useEmployees(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: customersData } = useCustomers(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit);
+      setShouldLoadProductOptions(isEdit);
+      return;
+    }
+
+    if (isEdit) {
+      setShouldLoadReferenceOptions(true);
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit]);
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];
@@ -148,12 +189,12 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     watchedCustomerId
       ? {
           customer_id: watchedCustomerId,
-          per_page: 100,
+          per_page: 20,
           sort_by: "name",
           sort_dir: "asc",
         }
       : undefined,
-    { enabled: open && !!watchedCustomerId }
+    { enabled: open && shouldLoadReferenceOptions && !!watchedCustomerId }
   );
 
   const contacts = useMemo(() => {
@@ -424,7 +465,6 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
       // Auto-fill sales defaults from customer master data
       if (customer.default_business_type_id) setValue("business_type_id", customer.default_business_type_id);
-      if (customer.default_area_id) setValue("delivery_area_id", customer.default_area_id);
       if (customer.default_payment_terms_id) setValue("payment_terms_id", customer.default_payment_terms_id);
       if (customer.default_sales_rep_id) setValue("sales_rep_id", customer.default_sales_rep_id);
       if (customer.default_tax_rate != null) setValue("tax_rate", customer.default_tax_rate);
@@ -617,6 +657,8 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,

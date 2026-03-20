@@ -62,6 +62,8 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
@@ -109,7 +111,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                   name="sales_order_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder={t("salesOrder")} />
                       </SelectTrigger>
@@ -229,6 +239,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                       options={paymentTerms.map(term => ({ value: term.id, label: term.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       onCreateClick={() => openQuickCreate("paymentTerm")}
@@ -426,6 +441,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 onValueChange={(value) => {
                                   field.onChange(value);
                                   handleProductChange(index, value);
+                                }}
+                                onOpenChange={(isOpen) => {
+                                  if (isOpen) {
+                                    enableProductOptionsFetch();
+                                  }
                                 }}
                               >
                                 <SelectTrigger>

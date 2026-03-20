@@ -189,6 +189,30 @@ export interface SalesOrderSingleResponse {
   request_id: string;
 }
 
+export interface ListSalesOrderItemsParams {
+  page?: number;
+  per_page?: number;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+export interface SalesOrderItemsListResponse {
+  success: boolean;
+  data: SalesOrderItem[];
+  meta?: {
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+  timestamp: string;
+  request_id: string;
+}
+
 // Form data types for create/update
 export interface CreateSalesOrderData {
   order_date: string;

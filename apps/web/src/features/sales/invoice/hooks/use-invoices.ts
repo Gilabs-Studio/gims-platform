@@ -27,10 +27,11 @@ export const invoiceKeys = {
 };
 
 // List invoices hook with filters
-export function useInvoices(params?: ListCustomerInvoicesParams) {
+export function useInvoices(params?: ListCustomerInvoicesParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: invoiceKeys.list(params),
     queryFn: () => invoiceService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

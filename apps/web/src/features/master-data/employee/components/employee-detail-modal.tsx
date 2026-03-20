@@ -80,13 +80,18 @@ export function EmployeeDetailModal({
   employee,
 }: EmployeeDetailModalProps) {
   const t = useTranslations("employee");
+  const activeEmployeeId = open ? employee?.id : undefined;
 
   // Fetch fresh employee data when modal opens
-  const { data: detailData, isLoading } = useEmployee(employee?.id);
+  const { data: detailData, isLoading } = useEmployee(activeEmployeeId, {
+    enabled: !!activeEmployeeId,
+  });
 
-  // Load areas list to resolve area names when API doesn't include nested `area` object
-  // Call unconditionally to preserve hook order across renders
-  const { data: areasData } = useAreas({ per_page: 100 });
+  // Load areas only when dialog is open to avoid hidden eager requests.
+  const { data: areasData } = useAreas(
+    { per_page: 20 },
+    { enabled: open },
+  );
 
   // Contract dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -119,16 +124,16 @@ export function EmployeeDetailModal({
   const [deleteAsset, setDeleteAsset] = useState<EmployeeAsset | null>(null);
 
   // Fetch contracts for the timeline
-  const { data: contractsData } = useEmployeeContracts(employee?.id);
+  const { data: contractsData } = useEmployeeContracts(activeEmployeeId);
 
   // Fetch education histories
-  const { data: educationsData } = useEmployeeEducationHistories(employee?.id);
+  const { data: educationsData } = useEmployeeEducationHistories(activeEmployeeId);
 
   // Fetch certifications
-  const { data: certificationsData } = useEmployeeCertifications(employee?.id);
+  const { data: certificationsData } = useEmployeeCertifications(activeEmployeeId);
 
   // Fetch assets
-  const { data: assetsData } = useEmployeeAssets(employee?.id);
+  const { data: assetsData } = useEmployeeAssets(activeEmployeeId);
 
   if (!employee) return null;
 

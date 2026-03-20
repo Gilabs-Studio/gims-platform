@@ -27,10 +27,11 @@ export const deliveryKeys = {
 };
 
 // List delivery orders hook with filters
-export function useDeliveryOrders(params?: ListDeliveryOrdersParams) {
+export function useDeliveryOrders(params?: ListDeliveryOrdersParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: deliveryKeys.list(params),
     queryFn: () => deliveryService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

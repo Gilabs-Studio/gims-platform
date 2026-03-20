@@ -38,11 +38,21 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit || !!defaultSalesOrderId);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
 
   type QuickCreateType = "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
+
+  const enableProductOptionsFetch = useCallback(() => {
+    setShouldLoadProductOptions(true);
+  }, []);
 
   // Fetch full invoice data with items when editing
   const { data: fullInvoiceData, isLoading: isLoadingInvoice, isFetching: isFetchingInvoice } = useInvoice(
@@ -51,9 +61,34 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   );
 
   // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
-  const { data: ordersData } = useOrders({ per_page: 100, status: "approved" }, { enabled: open });
+  const { data: productsData } = useProducts(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadProductOptions },
+  );
+  const { data: paymentTermsData } = usePaymentTerms(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: ordersData } = useOrders(
+    { per_page: 20, status: "approved" },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit || !!defaultSalesOrderId);
+      setShouldLoadProductOptions(isEdit);
+      return;
+    }
+
+    if (isEdit || !!defaultSalesOrderId) {
+      setShouldLoadReferenceOptions(true);
+    }
+
+    if (isEdit) {
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit, defaultSalesOrderId]);
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];
@@ -131,7 +166,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   // Fetch DP invoices linked to the selected SO for DP detection
   const { data: dpInvoicesData } = useCustomerInvoiceDPs(
-    { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
+    { sales_order_id: watchedSalesOrderId ?? "", per_page: 20 },
     { enabled: open && !!watchedSalesOrderId },
   );
 
@@ -482,6 +517,8 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,

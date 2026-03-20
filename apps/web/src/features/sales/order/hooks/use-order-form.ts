@@ -20,12 +20,10 @@ import { useQuotations, useQuotation, useQuotationItems } from "../../quotation/
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useContacts } from "@/features/crm/contact/hooks/use-contact";
-import { productService } from "@/features/master-data/product/services/product-service";
-import { employeeService } from "@/features/master-data/employee/services/employee-service";
+import { useProducts } from "@/features/master-data/product/hooks/use-products";
 
 import type { SalesOrder } from "../types";
 import type { Product } from "@/features/master-data/product/types";
-import type { Employee } from "@/features/master-data/employee/types";
 import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
@@ -45,14 +43,22 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
-  const [selectedRep, setSelectedRep] = useState<Employee | undefined>(order?.sales_rep as Employee | undefined);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
 
   type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "employee" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; itemIndex?: number }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
+
+  const enableProductOptionsFetch = useCallback(() => {
+    setShouldLoadProductOptions(true);
+  }, []);
 
   // Fetch full order data with items when editing
   const { data: fullOrderData, isLoading: isLoadingOrder, isFetching: isFetchingOrder } = useOrder(
@@ -60,39 +66,57 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     { enabled: open && isEdit && !!order?.id }
   );
 
-  // Fetch lookup data
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
-  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
-  const { data: areasData } = useAreas({ per_page: 100 }, { enabled: open });
-  const { data: quotationsData } = useQuotations({ per_page: 100, status: "approved" }, { enabled: open });
-  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
-  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
-  
-  // Async Fetchers
-  const fetchProducts = useCallback(async (query: string) => {
-    const res = await productService.list({ search: query, per_page: 20, is_approved: true });
-    return res.data;
-  }, []);
+  // Fetch lookup data only when user opens related select inputs.
+  const { data: paymentTermsData } = usePaymentTerms(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessUnitsData } = useBusinessUnits(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessTypesData } = useBusinessTypes(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: areasData } = useAreas(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: quotationsData } = useQuotations(
+    { per_page: 20, status: "approved" },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: customersData } = useCustomers(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: employeesData } = useEmployees(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: productsData, isFetching: isProductsLoading } = useProducts(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadProductOptions },
+  );
 
-  const fetchEmployees = useCallback(async (query: string) => {
-    const res = await employeeService.list({ search: query, per_page: 20 });
-    return res.data;
-  }, []);
-
-  // Initialize selected products from order
   useEffect(() => {
-    if (order?.items) {
-      const map: Record<string, Product> = {};
-      order.items.forEach(item => {
-        if (item.product && item.product_id) {
-            // @ts-expect-error - simplified product shape
-            map[item.product_id] = item.product;
-        }
-      });
-      setSelectedProducts(prev => ({ ...prev, ...map }));
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit);
+      setShouldLoadProductOptions(isEdit);
+      return;
     }
-  }, [order]);
+
+    if (isEdit) {
+      setShouldLoadReferenceOptions(true);
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit]);
+
+  const products = useMemo(() => {
+    const data = productsData?.data ?? [];
+    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
+  }, [productsData?.data]);
   
   const paymentTerms = useMemo(() => {
     const data = paymentTermsData?.data ?? [];
@@ -198,7 +222,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     watchedCustomerId
       ? {
           customer_id: watchedCustomerId,
-          per_page: 100,
+          per_page: 20,
           sort_by: "name",
           sort_dir: "asc",
         }
@@ -218,7 +242,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
   // Fetch quotation items when selected
   const { data: quotationItemsData } = useQuotationItems(watchedQuotationId ?? "", {
-     per_page: 100 
+      per_page: 20 
   }, {
     enabled: !!watchedQuotationId && !isEdit && open,
   });
@@ -233,11 +257,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       setValue("sales_rep_id", q.sales_rep_id ?? "", { shouldValidate: true });
       setValue("business_unit_id", q.business_unit_id ?? "", { shouldValidate: true });
       setValue("business_type_id", q.business_type_id ?? undefined, { shouldValidate: true });
-
-      // Update AsyncSelect display for sales rep
-      if (q.sales_rep) {
-        setSelectedRep(q.sales_rep as Employee);
-      }
 
       // --- Customer information ---
       setValue("customer_id", q.customer_id ?? "", { shouldValidate: true });
@@ -267,19 +286,9 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           discount: item.discount ?? 0,
         }));
         setValue("items", newItems, { shouldValidate: true });
-
-        const productMap: Record<string, Product> = {};
-        sourceItems.forEach((item) => {
-          if (item.product && item.product_id) {
-            productMap[item.product_id] = item.product as Product;
-          }
-        });
-        if (Object.keys(productMap).length > 0) {
-          setSelectedProducts((prev) => ({ ...prev, ...productMap }));
-        }
       }
     }
-  }, [quotationData, quotationItemsData, isEdit, setValue, watchedQuotationId, setSelectedRep, setSelectedProducts]);
+  }, [quotationData, quotationItemsData, isEdit, setValue, watchedQuotationId]);
 
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
@@ -527,9 +536,15 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
   const handleProductChange = (index: number, productId: string, product?: Product) => {
     if (product) {
-      setSelectedProducts(prev => ({ ...prev, [productId]: product }));
       setValue(`items.${index}.product_id`, productId, { shouldValidate: true });
       setValue(`items.${index}.price`, product.selling_price, { shouldValidate: true });
+      return;
+    }
+
+    const selectedProduct = products.find((item) => item.id === productId);
+    if (selectedProduct) {
+      setValue(`items.${index}.product_id`, productId, { shouldValidate: true });
+      setValue(`items.${index}.price`, selectedProduct.selling_price, { shouldValidate: true });
     }
   };
 
@@ -654,11 +669,9 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     customers,
     contacts,
     employees,
+    products,
+    isProductsLoading,
     selectedContactId,
-    selectedRep,
-    setSelectedRep,
-    fetchEmployees,
-    fetchProducts,
     calculations,
     handleNext,
     handleFormSubmit,
@@ -668,7 +681,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     handleContactChange,
     handleDialogChange,
     onInvalid,
-    selectedProducts,
     watchedItems,
     taxRate,
     deliveryCost,
@@ -677,6 +689,8 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,

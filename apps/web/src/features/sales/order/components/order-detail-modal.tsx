@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { OrderForm } from "./order-form";
 import {
   useDeleteOrder,
   useUpdateOrderStatus,
-  useOrder,
+  useOrderItems,
   useOrderAuditTrail,
 } from "../hooks/use-orders";
 import { toast } from "sonner";
@@ -60,15 +60,18 @@ export function OrderDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("order");
 
-  const { data: detailData, isLoading } = useOrder(order?.id ?? "", {
-    enabled: open && !!order?.id,
-  });
+  const { data: itemData, isFetching: isItemsLoading } = useOrderItems(
+    order?.id ?? "",
+    { page: itemsPage, per_page: pageSize },
+    { enabled: open && !!order?.id && activeTab === "items" },
+  );
   const { data: auditData, isFetching: auditLoading, isError: auditError } = useOrderAuditTrail(
     order?.id ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!order?.id },
+    { enabled: open && !!order?.id && activeTab === "audit-trail" },
   );
 
   const canEdit = useUserPermission("sales_order.update");
@@ -97,10 +100,12 @@ export function OrderDetailModal({
 
   // Fetch invoices and DPs for the SO to compute financial overview
   const { data: invoicesData } = useInvoices(
-    { sales_order_id: order?.id, per_page: 100 },
+    { sales_order_id: order?.id, per_page: 20 },
+    { enabled: open && !!order?.id && activeTab === "general" },
   );
   const { data: dpData } = useCustomerInvoiceDPs(
-    { sales_order_id: order?.id, per_page: 100 },
+    { sales_order_id: order?.id, per_page: 20 },
+    { enabled: open && !!order?.id && activeTab === "general" },
   );
 
   const financialOverview = useMemo(() => {
@@ -131,7 +136,7 @@ export function OrderDetailModal({
     };
   }, [order, invoicesData, dpData]);
 
-  const displayOrder = detailData?.data ?? order;
+  const displayOrder = order as SalesOrder;
   const fallbackAuditEntries = useMemo(
     () => {
       if (!displayOrder) return [];
@@ -182,14 +187,10 @@ export function OrderDetailModal({
   const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
   const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
 
-  if (!order || !displayOrder) return null;
+  if (!displayOrder) return null;
 
-  const allItems = displayOrder.items ?? [];
-  const totalItems = allItems.length;
-  const paginatedItems = allItems.slice(
-    (itemsPage - 1) * pageSize,
-    itemsPage * pageSize
-  );
+  const paginatedItems = itemData?.data ?? [];
+  const totalItems = itemData?.meta?.pagination?.total ?? paginatedItems.length;
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -255,7 +256,15 @@ export function OrderDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -341,13 +350,13 @@ export function OrderDetailModal({
             </div>
           </DialogHeader>
 
-          {isLoading ? (
-            <div className="space-y-4 py-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-64 w-full" />
-            </div>
-          ) : (
-            <Tabs defaultValue="general" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+            }
+            className="w-full"
+          >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
@@ -592,7 +601,13 @@ export function OrderDetailModal({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedItems.length === 0 ? (
+                        {isItemsLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-4">
+                              <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                          </TableRow>
+                        ) : paginatedItems.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                               {t("noItems")}
@@ -675,8 +690,7 @@ export function OrderDetailModal({
                   }}
                 />
               </TabsContent>
-            </Tabs>
-          )}
+          </Tabs>
         </DialogContent>
       </Dialog>
 

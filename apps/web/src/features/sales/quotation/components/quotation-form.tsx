@@ -67,6 +67,8 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
@@ -119,6 +121,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                     <CreatableCombobox
                       value={field.value ?? undefined}
                       onValueChange={handleCustomerChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       options={customers.map((customer) => ({
                         value: customer.id,
                         label: `${customer.code} - ${customer.name}`,
@@ -216,6 +223,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                     <CreatableCombobox
                       value={field.value}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       options={paymentTerms.map((term) => ({
                         value: term.id,
                         label: term.code ? `${term.code} - ${term.name}` : term.name,
@@ -241,6 +253,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                     <CreatableCombobox
                       value={field.value}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       options={employees.map((emp) => ({
                         value: emp.id,
                         label: `${emp.employee_code} - ${emp.name}`,
@@ -266,6 +283,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                     <CreatableCombobox
                       value={field.value}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       options={businessUnits.map((unit) => ({
                         value: unit.id,
                         label: unit.name,
@@ -291,6 +313,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                     <CreatableCombobox
                       value={field.value ?? undefined}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       options={businessTypes.map((type) => ({
                         value: type.id,
                         label: type.name,
@@ -318,6 +345,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   }))}
                   value={selectedContactId || undefined}
                   onValueChange={handleContactChange}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      enableReferenceOptionsFetch();
+                    }
+                  }}
                   placeholder={t("customerContact")}
                   emptyText={t("notFound")}
                   disabled={!form.watch("customer_id")}
@@ -489,6 +521,11 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 onValueChange={(value) => {
                                   field.onChange(value);
                                   handleProductChange(index, value);
+                                }}
+                                onOpenChange={(isOpen) => {
+                                  if (isOpen) {
+                                    enableProductOptionsFetch();
+                                  }
                                 }}
                                 options={products.map((product) => ({
                                   value: product.id,
@@ -684,38 +721,50 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
       </DialogContent>
 
       {/* Full module forms — rendered outside DialogContent to avoid Dialog nesting */}
-      <PaymentTermsDialog
-        open={quickCreate.type === "paymentTerm"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handlePaymentTermCreated}
-      />
-      <BusinessUnitForm
-        open={quickCreate.type === "businessUnit"}
-        onClose={closeQuickCreate}
-        onCreated={handleBusinessUnitCreated}
-      />
-      <BusinessTypeForm
-        open={quickCreate.type === "businessType"}
-        onClose={closeQuickCreate}
-        onCreated={handleBusinessTypeCreated}
-      />
-      <CustomerSidePanel
-        isOpen={quickCreate.type === "customer"}
-        onClose={closeQuickCreate}
-        mode="create"
-        onCreated={handleCustomerCreated}
-      />
-      <ProductDialog
-        open={quickCreate.type === "product"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={handleProductCreated}
-      />
-      <EmployeeForm
-        open={quickCreate.type === "employee"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleEmployeeCreated}
-      />
+      {quickCreate.type === "paymentTerm" && (
+        <PaymentTermsDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handlePaymentTermCreated}
+        />
+      )}
+      {quickCreate.type === "businessUnit" && (
+        <BusinessUnitForm
+          open
+          onClose={closeQuickCreate}
+          onCreated={handleBusinessUnitCreated}
+        />
+      )}
+      {quickCreate.type === "businessType" && (
+        <BusinessTypeForm
+          open
+          onClose={closeQuickCreate}
+          onCreated={handleBusinessTypeCreated}
+        />
+      )}
+      {quickCreate.type === "customer" && (
+        <CustomerSidePanel
+          isOpen
+          onClose={closeQuickCreate}
+          mode="create"
+          onCreated={handleCustomerCreated}
+        />
+      )}
+      {quickCreate.type === "product" && (
+        <ProductDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          editingItem={null}
+          onCreated={handleProductCreated}
+        />
+      )}
+      {quickCreate.type === "employee" && (
+        <EmployeeForm
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleEmployeeCreated}
+        />
+      )}
     </Dialog>
   );
 }

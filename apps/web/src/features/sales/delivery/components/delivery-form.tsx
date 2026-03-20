@@ -72,6 +72,7 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
   } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
@@ -162,6 +163,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             onValueChange={(value) => {
                               field.onChange(value);
                             }}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             disabled={isEdit}
                           >
                             <SelectTrigger>
@@ -192,6 +198,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             placeholder={t("deliveredBy")}
                             createPermission="employee.create"
                             onCreateClick={() => openQuickCreate("employee")}
@@ -213,6 +224,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={courierAgencies.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             placeholder={t("courierAgency")}
                             createPermission="courier_agency.create"
                             onCreateClick={() => openQuickCreate("courierAgency")}
@@ -347,6 +363,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                                         // Reset batch when warehouse changes
                                         setValue(`items.${index}.inventory_batch_id`, "");
                                       }}
+                                      onOpenChange={(isOpen) => {
+                                        if (isOpen) {
+                                          enableReferenceOptionsFetch();
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder={t("warehouse")} />
@@ -450,16 +471,20 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
         )}
       </DialogContent>
 
-      <EmployeeForm
-        open={quickCreate.type === "employee"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleDeliveredByCreated}
-      />
-      <CourierAgencyDialog
-        open={quickCreate.type === "courierAgency"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleCourierAgencyCreated}
-      />
+      {quickCreate.type === "employee" && (
+        <EmployeeForm
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleDeliveredByCreated}
+        />
+      )}
+      {quickCreate.type === "courierAgency" && (
+        <CourierAgencyDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleCourierAgencyCreated}
+        />
+      )}
     </Dialog>
   );
 }

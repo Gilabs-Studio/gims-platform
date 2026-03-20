@@ -64,6 +64,7 @@ export function DeliveryDetailModal({
   const [pageSize, setPageSize] = useState(10);
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("delivery");
 
   const { data: detailData, isLoading } = useDeliveryOrder(delivery?.id ?? "", {
@@ -72,7 +73,7 @@ export function DeliveryDetailModal({
   const { data: auditData, isFetching: auditLoading, isError: auditError } = useDeliveryOrderAuditTrail(
     delivery?.id ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!delivery?.id },
+    { enabled: open && !!delivery?.id && activeTab === "audit-trail" },
   );
 
   const canEdit = useUserPermission("delivery_order.update");
@@ -92,7 +93,7 @@ export function DeliveryDetailModal({
 
   const { data: salesReturnHistoryResponse } = useSalesReturns(
     {
-      per_page: 100,
+      per_page: 20,
       delivery_id: delivery?.id,
     },
     { enabled: open && !!delivery?.id },
@@ -240,7 +241,15 @@ export function DeliveryDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -428,7 +437,13 @@ export function DeliveryDetailModal({
               <Skeleton className="h-64 w-full" />
             </div>
           ) : (
-            <Tabs defaultValue="general" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) =>
+                setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+              }
+              className="w-full"
+            >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>

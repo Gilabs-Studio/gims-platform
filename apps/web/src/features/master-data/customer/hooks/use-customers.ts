@@ -26,11 +26,12 @@ export const customerKeys = {
 };
 
 // === List Hook ===
-export function useCustomers(params?: CustomerListParams) {
+export function useCustomers(params?: CustomerListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customerKeys.list(params),
     queryFn: () => customerService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

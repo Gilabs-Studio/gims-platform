@@ -68,8 +68,9 @@ export function CustomerInvoiceDPFormDialog({
   const t = useTranslations("customerInvoiceDP");
 
   const isEdit = !!invoiceId;
+  const [shouldLoadSalesOrders, setShouldLoadSalesOrders] = useState(!!defaultSalesOrderId || isEdit);
 
-  const addDataQuery = useCustomerInvoiceDPAddData({ enabled: open });
+  const addDataQuery = useCustomerInvoiceDPAddData({ enabled: open && shouldLoadSalesOrders });
   const detailQuery = useCustomerInvoiceDP(invoiceId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateCustomerInvoiceDP();
@@ -91,6 +92,7 @@ export function CustomerInvoiceDPFormDialog({
   useEffect(() => {
     if (!open) {
       setAttachments([]);
+      setShouldLoadSalesOrders(!!defaultSalesOrderId || isEdit);
       return;
     }
 
@@ -213,6 +215,11 @@ export function CustomerInvoiceDPFormDialog({
             <Select
               value={form.watch("sales_order_id")}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadSalesOrders(true);
+                }
+              }}
               disabled={isBusy || isEdit}
             >
               <SelectTrigger className="cursor-pointer">

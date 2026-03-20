@@ -95,7 +95,7 @@ export function DeliveryList() {
   const canCreateSalesReturn = useUserPermission("sales_return.create");
 
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
-  const { data: salesReturnsData } = useSalesReturns({ per_page: 100 });
+  const { data: salesReturnsData } = useSalesReturns({ per_page: 20 });
   const returnedDeliveryIDs = new Set(
     (salesReturnsData?.data ?? []).map((row) => row.delivery_id).filter((id): id is string => !!id),
   );

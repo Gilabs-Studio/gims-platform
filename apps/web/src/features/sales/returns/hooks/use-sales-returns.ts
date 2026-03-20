@@ -44,10 +44,11 @@ export function useSalesReturnAuditTrail(
   });
 }
 
-export function useSalesReturnFormData() {
+export function useSalesReturnFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: salesReturnsKeys.formData(),
     queryFn: () => salesReturnsService.getFormData(),
+    enabled: options?.enabled ?? true,
   });
 }
 

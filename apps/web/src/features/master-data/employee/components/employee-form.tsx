@@ -105,7 +105,9 @@ export function EmployeeForm({
   const isEditing = !!employee;
 
   // Fetch full employee details when in edit mode
-  const { data: employeeDetailData } = useEmployee(employee?.id);
+  const { data: employeeDetailData } = useEmployee(employee?.id, {
+    enabled: open && !!employee?.id,
+  });
 
   // Use detailed data if available, otherwise fall back to prop data
   const employeeData = employeeDetailData?.data || employee;
@@ -117,14 +119,24 @@ export function EmployeeForm({
   const [divisionFormOpen, setDivisionFormOpen] = useState(false);
   const [jobPositionFormOpen, setJobPositionFormOpen] = useState(false);
 
-  const { data: divisionsData } = useDivisions({ per_page: 100 });
-  const { data: positionsData } = useJobPositions({ per_page: 100 });
-  const { data: companiesData } = useCompanies({ per_page: 100 });
+  const { data: divisionsData } = useDivisions(
+    { per_page: 20 },
+    { enabled: open },
+  );
+  const { data: positionsData } = useJobPositions(
+    { per_page: 20 },
+    { enabled: open },
+  );
+  const { data: companiesData } = useCompanies(
+    { per_page: 20 },
+    { enabled: open },
+  );
   const { data: availableUsersData } = useAvailableUsers(
     undefined,
     employee?.id,
+    { enabled: open },
   );
-  const { data: formDataResp } = useEmployeeFormData();
+  const { data: formDataResp } = useEmployeeFormData({ enabled: open });
 
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
@@ -135,7 +147,7 @@ export function EmployeeForm({
   const createCompany = useCreateCompany();
 
   const createUser = useCreateUser();
-  const { data: rolesData } = useRoles();
+  const { data: rolesData } = useRoles({ enabled: open });
 
   const divisions = sortOptions(divisionsData?.data ?? [], (d) => d.name);
   const positions = sortOptions(positionsData?.data ?? [], (p) => p.name);

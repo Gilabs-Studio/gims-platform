@@ -47,6 +47,7 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
   const t = useTranslations("salesPayment");
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "audit-trail">("general");
 
   const { data, isFetching, isError } = useSalesPayment(paymentId ?? "", {
     enabled: open && !!paymentId,
@@ -54,7 +55,7 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
   const { data: auditData, isFetching: isAuditLoading, isError: isAuditError } = useSalesPaymentAuditTrail(
     paymentId ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!paymentId },
+    { enabled: open && !!paymentId && activeTab === "audit-trail" },
   );
 
   const detail = data?.data;
@@ -100,7 +101,10 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) onClose();
+        if (!v) {
+          setActiveTab("general");
+          onClose();
+        }
       }}
     >
       <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
@@ -121,7 +125,11 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
         ) : isError || !detail ? (
           <div className="text-sm text-destructive py-4">{t("toast.failed")}</div>
         ) : (
-          <Tabs defaultValue="general" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value === "audit-trail" ? "audit-trail" : "general")}
+            className="w-full"
+          >
             <TabsList>
               <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
               <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>

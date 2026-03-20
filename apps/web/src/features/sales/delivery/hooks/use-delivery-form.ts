@@ -37,11 +37,16 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit || !!defaultSalesOrderId);
 
   type QuickCreateType = "employee" | "courierAgency" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
 
   // Fetch full delivery data when editing
   const { data: fullDeliveryData, isLoading: isLoadingDelivery } = useDeliveryOrder(
@@ -50,10 +55,33 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   );
 
   // Fetch lookup data
-  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "approved", unfulfilled_only: true }, { enabled: open });
-  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
-  const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 }, { enabled: open });
-  const { data: warehousesData } = useWarehouses({ per_page: 100 }, { enabled: open });
+  const { data: salesOrdersData } = useOrders(
+    { per_page: 20, status: "approved", unfulfilled_only: true },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: employeesData } = useEmployees(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: courierAgenciesData } = useCourierAgencies(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: warehousesData } = useWarehouses(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit || !!defaultSalesOrderId);
+      return;
+    }
+
+    if (isEdit || !!defaultSalesOrderId) {
+      setShouldLoadReferenceOptions(true);
+    }
+  }, [open, isEdit, defaultSalesOrderId]);
 
   const salesOrders = useMemo(() => {
     const data = salesOrdersData?.data ?? [];
@@ -436,6 +464,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
   };
