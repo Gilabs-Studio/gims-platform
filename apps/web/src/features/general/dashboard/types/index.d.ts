@@ -106,6 +106,19 @@ export interface DashboardDateFilter {
   year: number;
 }
 
+/** Scope selector for partial dashboard overview payloads */
+export type DashboardOverviewScope =
+  | "kpi"
+  | "charts"
+  | "balance"
+  | "costs"
+  | "invoices"
+  | "sales-performance"
+  | "products"
+  | "delivery"
+  | "geo"
+  | "warehouse";
+
 // ---- API Response Types ----
 
 /** KPI summary card data */

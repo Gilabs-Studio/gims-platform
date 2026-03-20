@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Package } from "lucide-react";
@@ -23,14 +24,9 @@ import { OrderStatusBadge } from "@/features/sales/order/components/order-status
 import { useOrders } from "@/features/sales/order/hooks/use-orders";
 import type { SalesOrder } from "@/features/sales/order/types";
 
-interface TrackOrderCardProps {
-  readonly isLoading?: boolean;
-}
-
-export function TrackOrderCard({
-  isLoading,
-}: TrackOrderCardProps) {
+export function TrackOrderCard() {
   const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [doDialogOrder, setDoDialogOrder] = useState<SalesOrder | null>(null);
   const [invoiceDialogOrder, setInvoiceDialogOrder] = useState<SalesOrder | null>(null);
@@ -39,7 +35,12 @@ export function TrackOrderCard({
   const canViewDO = useUserPermission("delivery_order.read");
   const canViewInvoice = useUserPermission("customer_invoice.read");
 
-  const { data, isLoading: isOrdersLoading } = useOrders({
+  const {
+    data,
+    isLoading: isOrdersLoading,
+    isError: isOrdersError,
+    refetch: refetchOrders,
+  } = useOrders({
     page: 1,
     per_page: 8,
     sort_by: "created_at",
@@ -119,7 +120,7 @@ export function TrackOrderCard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(isLoading || isOrdersLoading) ? (
+              {isOrdersLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 6 }).map((__, j) => (
@@ -129,6 +130,25 @@ export function TrackOrderCard({
                     ))}
                   </TableRow>
                 ))
+              ) : isOrdersError ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">{t("error")}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() => {
+                          void refetchOrders();
+                        }}
+                      >
+                        {tCommon("retry")}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ) : orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">

@@ -16,6 +16,7 @@ import (
 // DashboardUsecase defines the business logic interface for dashboard aggregation.
 type DashboardUsecase interface {
 	GetOverview(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardOverviewResponse, error)
+	GetOverviewByScope(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardScopedOverviewResponse, error)
 	GetLayout(ctx context.Context, userID, dashboardType string) (*dto.DashboardLayoutResponse, error)
 	SaveLayout(ctx context.Context, userID string, req dto.DashboardLayoutSaveRequest) error
 }
@@ -121,7 +122,91 @@ func toRevenueVsCostsChartData(points []dto.PeriodChartPoint, revLabel, costLabe
 func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardOverviewResponse, error) {
 	start, end := resolveDateRange(req)
 	resp := &dto.DashboardOverviewResponse{}
+	u.loadKPI(ctx, start, end, resp)
+	u.loadCharts(ctx, start, end, resp)
+	u.loadBalance(ctx, start, end, resp)
+	u.loadCostsByCategory(ctx, start, end, resp)
+	u.loadInvoices(ctx, start, end, resp)
+	u.loadSalesPerformance(ctx, start, end, resp)
+	u.loadTopProducts(ctx, start, end, resp)
+	u.loadDeliveryStatus(ctx, start, end, resp)
+	u.loadGeoOverview(ctx, start, end, resp)
+	u.loadWarehouseOverview(ctx, resp)
 
+	return resp, nil
+}
+
+// GetOverviewByScope aggregates only the requested dashboard section.
+func (u *dashboardUsecase) GetOverviewByScope(ctx context.Context, req dto.DashboardRequest) (*dto.DashboardScopedOverviewResponse, error) {
+	if !req.Scope.IsValid() {
+		return nil, fmt.Errorf("invalid dashboard scope: %s", req.Scope)
+	}
+
+	start, end := resolveDateRange(req)
+	overview := &dto.DashboardOverviewResponse{}
+
+	switch req.Scope {
+	case dto.DashboardOverviewScopeKPI:
+		u.loadKPI(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeCharts:
+		u.loadCharts(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeBalance:
+		u.loadBalance(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeCosts:
+		u.loadCostsByCategory(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeInvoices:
+		u.loadInvoices(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeSalesPerformance:
+		u.loadSalesPerformance(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeProducts:
+		u.loadTopProducts(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeDelivery:
+		u.loadDeliveryStatus(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeGeo:
+		u.loadGeoOverview(ctx, start, end, overview)
+	case dto.DashboardOverviewScopeWarehouse:
+		u.loadWarehouseOverview(ctx, overview)
+	}
+
+	return toScopedOverviewResponse(overview, req.Scope), nil
+}
+
+func toScopedOverviewResponse(
+	overview *dto.DashboardOverviewResponse,
+	scope dto.DashboardOverviewScope,
+) *dto.DashboardScopedOverviewResponse {
+	resp := &dto.DashboardScopedOverviewResponse{}
+
+	switch scope {
+	case dto.DashboardOverviewScopeKPI:
+		resp.KPI = &overview.KPI
+	case dto.DashboardOverviewScopeCharts:
+		resp.RevenueChart = &overview.RevenueChart
+		resp.CostsChart = &overview.CostsChart
+		resp.RevenueVsCosts = &overview.RevenueVsCosts
+	case dto.DashboardOverviewScopeBalance:
+		resp.BalanceOverview = &overview.BalanceOverview
+	case dto.DashboardOverviewScopeCosts:
+		resp.CostsByCategory = overview.CostsByCategory
+	case dto.DashboardOverviewScopeInvoices:
+		resp.InvoicesSummary = &overview.InvoicesSummary
+		resp.RecentInvoices = overview.RecentInvoices
+	case dto.DashboardOverviewScopeSalesPerformance:
+		resp.SalesPerformance = overview.SalesPerformance
+	case dto.DashboardOverviewScopeProducts:
+		resp.TopProducts = overview.TopProducts
+	case dto.DashboardOverviewScopeDelivery:
+		resp.DeliveryStatus = &overview.DeliveryStatus
+	case dto.DashboardOverviewScopeGeo:
+		resp.GeographicOverview = &overview.GeographicOverview
+	case dto.DashboardOverviewScopeWarehouse:
+		resp.WarehouseOverview = &overview.WarehouseOverview
+	}
+
+	return resp
+}
+
+func (u *dashboardUsecase) loadKPI(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if kpi, err := u.repo.GetRevenueKPI(ctx, start, end); err != nil {
 		log.Printf("[dashboard] revenue KPI error: %v", err)
 	} else {
@@ -147,7 +232,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 	} else {
 		resp.KPI.EmployeeCount = toKPICardFormatted(kpi, false)
 	}
+}
 
+func (u *dashboardUsecase) loadCharts(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetRevenueChart(ctx, start, end); err != nil {
 		log.Printf("[dashboard] revenue chart error: %v", err)
 		resp.RevenueChart = dto.PeriodChartData{Series: []dto.ChartSeriesData{}, Period: []string{}}
@@ -166,7 +253,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 	} else {
 		resp.RevenueVsCosts = toRevenueVsCostsChartData(data, "Revenue", "Costs")
 	}
+}
 
+func (u *dashboardUsecase) loadBalance(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetBalance(ctx, start, end); err != nil {
 		log.Printf("[dashboard] balance error: %v", err)
 		resp.BalanceOverview = dto.BalanceOverviewData{ChartData: []dto.BalanceChartPoint{}}
@@ -186,7 +275,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 			ChartData:     chartData,
 		}
 	}
+}
 
+func (u *dashboardUsecase) loadCostsByCategory(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetCostsByCategory(ctx, start, end); err != nil {
 		log.Printf("[dashboard] costs by category error: %v", err)
 		resp.CostsByCategory = []dto.CostCategoryItem{}
@@ -196,7 +287,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 		}
 		resp.CostsByCategory = data
 	}
+}
 
+func (u *dashboardUsecase) loadInvoices(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetInvoiceSummary(ctx, start, end); err != nil {
 		log.Printf("[dashboard] invoice summary error: %v", err)
 	} else {
@@ -211,7 +304,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 		}
 		resp.RecentInvoices = data
 	}
+}
 
+func (u *dashboardUsecase) loadSalesPerformance(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetSalesPerformance(ctx, start, end, 5); err != nil {
 		log.Printf("[dashboard] sales performance error: %v", err)
 		resp.SalesPerformance = []dto.SalesPerformanceRow{}
@@ -221,6 +316,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 		}
 		resp.SalesPerformance = data
 	}
+}
+
+func (u *dashboardUsecase) loadTopProducts(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetTopProducts(ctx, start, end, 6); err != nil {
 		log.Printf("[dashboard] top products error: %v", err)
 		resp.TopProducts = []dto.TopProductRow{}
@@ -230,13 +328,17 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 		}
 		resp.TopProducts = data
 	}
+}
 
+func (u *dashboardUsecase) loadDeliveryStatus(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetDeliveryStatus(ctx, start, end); err != nil {
 		log.Printf("[dashboard] delivery status error: %v", err)
 	} else {
 		resp.DeliveryStatus = data
 	}
+}
 
+func (u *dashboardUsecase) loadGeoOverview(ctx context.Context, start, end time.Time, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetGeoOverview(ctx, start, end); err != nil {
 		log.Printf("[dashboard] geo overview error: %v", err)
 		resp.GeographicOverview = dto.GeoOverviewData{Regions: []dto.GeoRegionData{}}
@@ -247,7 +349,9 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 		data.TotalFormatted = formatIDR(data.TotalValue)
 		resp.GeographicOverview = data
 	}
+}
 
+func (u *dashboardUsecase) loadWarehouseOverview(ctx context.Context, resp *dto.DashboardOverviewResponse) {
 	if data, err := u.repo.GetWarehouses(ctx); err != nil {
 		log.Printf("[dashboard] warehouses error: %v", err)
 		resp.WarehouseOverview = dto.WarehouseOverviewData{Warehouses: []dto.WarehouseItem{}}
@@ -263,8 +367,6 @@ func (u *dashboardUsecase) GetOverview(ctx context.Context, req dto.DashboardReq
 			TotalStockFormatted: formatIDR(totalStock),
 		}
 	}
-
-	return resp, nil
 }
 
 // resolveDateRange determines start/end dates from the request.
