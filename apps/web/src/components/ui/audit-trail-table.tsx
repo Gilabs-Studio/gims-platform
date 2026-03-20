@@ -118,7 +118,19 @@ function isUuidString(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+const VISIBLE_REFERENCE_KEYS = new Set([
+  "payment_terms_id",
+  "supplier_id",
+  "customer_id",
+  "business_unit_id",
+  "employee_id",
+  "sales_rep_id",
+]);
+
 function shouldHideMetadataKey(key: string): boolean {
+  if (VISIBLE_REFERENCE_KEYS.has(key)) {
+    return false;
+  }
   return /(^id$|_id$|request_id$|created_by$|updated_by$|deleted_by$)/i.test(key);
 }
 
@@ -154,6 +166,273 @@ function formatMetadataValue(key: string, value: unknown): string {
   return formatValue(value);
 }
 
+function valuesEqual(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return String(left) === String(right);
+  }
+}
+
+function toObjectArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is Record<string, unknown> => isPlainObject(entry));
+}
+
+function firstNonEmptyString(...values: Array<unknown>): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
+  return "";
+}
+
+function getNestedString(source: Record<string, unknown>, key: string, nestedKey: string): string {
+  const nested = source[key];
+  if (!isPlainObject(nested)) return "";
+  return firstNonEmptyString(nested[nestedKey]);
+}
+
+function resolveReferenceLabel(
+  snapshot: Record<string, unknown>,
+  key: string,
+  rawValue: unknown,
+): string {
+  const keyCandidates: Record<string, string[]> = {
+    payment_terms_id: ["payment_terms_name", "payment_terms_name_snapshot"],
+    supplier_id: ["supplier_name", "supplier_name_snapshot"],
+    customer_id: ["customer_name", "customer_name_snapshot"],
+    business_unit_id: ["business_unit_name", "business_unit_name_snapshot"],
+    employee_id: ["employee_name", "employee_name_snapshot"],
+    sales_rep_id: ["sales_rep_name", "sales_rep_name_snapshot"],
+  };
+
+  const candidateKeys = keyCandidates[key] ?? [];
+  for (const candidate of candidateKeys) {
+    const value = firstNonEmptyString(snapshot[candidate]);
+    if (value) return value;
+  }
+
+  if (key === "payment_terms_id") {
+    const nestedName = getNestedString(snapshot, "payment_terms", "name");
+    if (nestedName) return nestedName;
+  }
+
+  if (typeof rawValue === "string") {
+    const trimmed = rawValue.trim();
+    if (trimmed.length === 0 || isUuidString(trimmed)) return "";
+    return trimmed;
+  }
+
+  if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+    return String(rawValue);
+  }
+
+  return "";
+}
+
+function formatReferenceChange(
+  key: string,
+  beforeSnapshot: Record<string, unknown>,
+  afterSnapshot: Record<string, unknown>,
+  previous: unknown,
+  next: unknown,
+): string {
+  const beforeLabel = resolveReferenceLabel(beforeSnapshot, key, previous);
+  const afterLabel = resolveReferenceLabel(afterSnapshot, key, next);
+
+  if (!beforeLabel && afterLabel) {
+    return `+ ${afterLabel}`;
+  }
+
+  if (beforeLabel && !afterLabel) {
+    return `- ${beforeLabel}`;
+  }
+
+  if (!beforeLabel && !afterLabel) {
+    return "Updated";
+  }
+
+  return `${beforeLabel || "-"} -> ${afterLabel || "-"}`;
+}
+
+function metadataKeyLabel(key: string): string {
+  const map: Record<string, string> = {
+    payment_terms_id: "Payment Terms",
+    supplier_id: "Supplier",
+    customer_id: "Customer",
+    business_unit_id: "Business Unit",
+    employee_id: "Employee",
+    sales_rep_id: "Sales Rep",
+  };
+  return map[key] ?? prettifyKey(key);
+}
+
+function isLineItemsKey(key: string): boolean {
+  return key.toLowerCase() === "items";
+}
+
+interface AuditLineItem {
+  id: string;
+  label: string;
+  quantity: number | null;
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function mapLineItems(items: Record<string, unknown>[]): Map<string, AuditLineItem> {
+  const mapped = new Map<string, AuditLineItem>();
+
+  items.forEach((item, index) => {
+    const id = firstNonEmptyString(
+      item.product_id,
+      item.id,
+      item.product_code,
+      item.product_code_snapshot,
+      item.product_name,
+      item.product_name_snapshot,
+    ) || `line-${index}`;
+
+    const label = firstNonEmptyString(
+      item.product_name,
+      item.product_name_snapshot,
+      getNestedString(item, "product", "name"),
+      item.product_code,
+      item.product_code_snapshot,
+      item.product_id,
+      item.id,
+    ) || id;
+
+    mapped.set(id, {
+      id,
+      label,
+      quantity: toNullableNumber(item.quantity ?? item.qty),
+    });
+  });
+
+  return mapped;
+}
+
+function compactLabelList(values: string[]): string {
+  if (values.length <= 3) {
+    return values.join(", ");
+  }
+
+  const preview = values.slice(0, 3).join(", ");
+  return `${preview} (+${values.length - 3} more)`;
+}
+
+function summarizeLineItemChanges(beforeItemsRaw: unknown, afterItemsRaw: unknown): MetadataEntry[] {
+  const beforeItems = mapLineItems(toObjectArray(beforeItemsRaw));
+  const afterItems = mapLineItems(toObjectArray(afterItemsRaw));
+
+  if (beforeItems.size === 0 && afterItems.size === 0) {
+    return [];
+  }
+
+  const added: string[] = [];
+  const removed: string[] = [];
+  const qtyUpdated: string[] = [];
+
+  for (const [id, afterItem] of afterItems.entries()) {
+    const beforeItem = beforeItems.get(id);
+    if (!beforeItem) {
+      added.push(afterItem.label);
+      continue;
+    }
+    if (
+      beforeItem.quantity !== null &&
+      afterItem.quantity !== null &&
+      beforeItem.quantity !== afterItem.quantity
+    ) {
+      qtyUpdated.push(`${afterItem.label} (${beforeItem.quantity} -> ${afterItem.quantity})`);
+    }
+  }
+
+  for (const [id, beforeItem] of beforeItems.entries()) {
+    if (!afterItems.has(id)) {
+      removed.push(beforeItem.label);
+    }
+  }
+
+  const entries: MetadataEntry[] = [];
+
+  if (added.length > 0) {
+    entries.push({
+      key: "Product Items",
+      value: `+ ${compactLabelList(added)}`,
+    });
+  }
+
+  if (removed.length > 0) {
+    entries.push({
+      key: "Product Items",
+      value: `- ${compactLabelList(removed)}`,
+    });
+  }
+
+  if (qtyUpdated.length > 0) {
+    entries.push({
+      key: "Product Items",
+      value: `~ Qty ${compactLabelList(qtyUpdated)}`,
+    });
+  }
+
+  return entries;
+}
+
+function renderChangedEntries(before: Record<string, unknown>, after: Record<string, unknown>): MetadataEntry[] {
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+  const changed: MetadataEntry[] = [];
+
+  for (const key of keys) {
+    if (shouldHideMetadataKey(key)) {
+      continue;
+    }
+
+    const previous = before[key];
+    const next = after[key];
+
+    if (valuesEqual(previous, next)) {
+      continue;
+    }
+
+    if (isLineItemsKey(key)) {
+      changed.push(...summarizeLineItemChanges(previous, next));
+      continue;
+    }
+
+    if (Array.isArray(previous) || Array.isArray(next) || isPlainObject(previous) || isPlainObject(next)) {
+      continue;
+    }
+
+    const value = VISIBLE_REFERENCE_KEYS.has(key)
+      ? formatReferenceChange(key, before, after, previous, next)
+      : `${formatMetadataValue(key, previous)} -> ${formatMetadataValue(key, next)}`;
+
+    if (!value || value === "- -> -") {
+      continue;
+    }
+
+    changed.push({
+      key: metadataKeyLabel(key),
+      value,
+    });
+  }
+
+  return changed;
+}
+
 function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
   const keys = Object.keys(snapshot).filter((key) => !shouldHideMetadataKey(key));
   if (keys.length === 0) {
@@ -183,10 +462,20 @@ function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
 
   return sortedKeys
     .slice(0, 7)
-    .map((key) => ({
-      key: prettifyKey(key),
-      value: formatMetadataValue(key, snapshot[key]),
-    }))
+    .map((key) => {
+      if (isLineItemsKey(key) && Array.isArray(snapshot[key])) {
+        const totalItems = toObjectArray(snapshot[key]).length;
+        return {
+          key: "Product Items",
+          value: `${totalItems} item(s)`,
+        };
+      }
+
+      return {
+        key: prettifyKey(key),
+        value: formatMetadataValue(key, snapshot[key]),
+      };
+    })
     .filter((entry) => entry.value !== "-");
 }
 
@@ -197,39 +486,16 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
   const after = metadata.after;
 
   if (isPlainObject(before) && isPlainObject(after)) {
-    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
-      .filter((key) => !shouldHideMetadataKey(key))
-      .sort();
-
-    const changed = keys
-      .map((key): MetadataEntry | null => {
-        const previous = before[key];
-        const next = after[key];
-
-        try {
-          if (JSON.stringify(previous) === JSON.stringify(next)) {
-            return null;
-          }
-        } catch {
-          if (String(previous) === String(next)) {
-            return null;
-          }
-        }
-
-        return {
-          key: prettifyKey(key),
-          value: `${formatMetadataValue(key, previous)} -> ${formatMetadataValue(key, next)}`,
-        };
-      })
-      .filter((item): item is MetadataEntry => !!item)
-      .filter((entry) => !entry.value.includes("- -> -"));
+    const changed = renderChangedEntries(before, after);
 
     if (changed.length > 0) {
       return {
         heading: "Changes",
-        entries: changed.slice(0, 5),
+        entries: changed.slice(0, 7),
       };
     }
+
+    return { plain: "-" };
   }
 
   if (isPlainObject(after)) {
