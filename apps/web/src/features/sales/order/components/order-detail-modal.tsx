@@ -19,6 +19,7 @@ import {
   useDeleteOrder,
   useUpdateOrderStatus,
   useOrder,
+  useOrderAuditTrail,
 } from "../hooks/use-orders";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -38,6 +39,7 @@ import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
 import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -56,11 +58,18 @@ export function OrderDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
   const t = useTranslations("order");
 
   const { data: detailData, isLoading } = useOrder(order?.id ?? "", {
     enabled: open && !!order?.id,
   });
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useOrderAuditTrail(
+    order?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!order?.id },
+  );
 
   const canEdit = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
@@ -122,9 +131,59 @@ export function OrderDetailModal({
     };
   }, [order, invoicesData, dpData]);
 
-  if (!order) return null;
-
   const displayOrder = detailData?.data ?? order;
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayOrder) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayOrder.id}-created`,
+          action: "sales_order.create",
+          at: displayOrder.created_at,
+          user: displayOrder.created_by,
+          metadata: {
+            details: `Created order with total ${formatCurrency(displayOrder.total_amount ?? 0)}`,
+          },
+        },
+        {
+          id: `${displayOrder.id}-updated`,
+          action: "sales_order.update",
+          at: displayOrder.updated_at,
+          metadata:
+            displayOrder.updated_at && displayOrder.updated_at !== displayOrder.created_at
+              ? { details: "Order data updated" }
+              : null,
+        },
+        {
+          id: `${displayOrder.id}-confirmed`,
+          action: "sales_order.confirm",
+          at: displayOrder.confirmed_at,
+          user: displayOrder.confirmed_by,
+          metadata: {
+            status: "approved",
+          },
+        },
+        {
+          id: `${displayOrder.id}-cancelled`,
+          action: "sales_order.cancel",
+          at: displayOrder.cancelled_at,
+          user: displayOrder.cancelled_by,
+          metadata: {
+            status: "cancelled",
+            details: displayOrder.cancellation_reason ?? "Order cancelled",
+          },
+        },
+      ]);
+    },
+    [displayOrder],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!order || !displayOrder) return null;
+
   const allItems = displayOrder.items ?? [];
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
@@ -292,6 +351,7 @@ export function OrderDetailModal({
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -612,6 +672,33 @@ export function OrderDetailModal({
                   )}
                 </>
               </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <SalesAuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
+              </TabsContent>
             </Tabs>
           )}
         </DialogContent>
@@ -645,7 +732,7 @@ export function OrderDetailModal({
       <CustomerDetailModal
         open={isCustomerOpen}
         onOpenChange={setIsCustomerOpen}
-        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
+        customerId={selectedCustomerId}
       />
 
       <QuotationDetailModal

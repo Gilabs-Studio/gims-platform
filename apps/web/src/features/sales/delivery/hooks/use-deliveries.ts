@@ -22,6 +22,8 @@ export const deliveryKeys = {
     [...deliveryKeys.lists(), params] as const,
   details: () => [...deliveryKeys.all, "detail"] as const,
   detail: (id: string) => [...deliveryKeys.details(), id] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...deliveryKeys.detail(id), "audit-trail", params] as const,
 };
 
 // List delivery orders hook with filters
@@ -38,6 +40,19 @@ export function useDeliveryOrder(id: string, options?: { enabled?: boolean }) {
     queryKey: deliveryKeys.detail(id),
     queryFn: () => deliveryService.getById(id),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useDeliveryOrderAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: deliveryKeys.auditTrail(id, params),
+    queryFn: () => deliveryService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    placeholderData: (previousData) => previousData,
   });
 }
 

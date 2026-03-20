@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
   useApproveDeliveryOrder,
   useShipDeliveryOrder,
   useDeliverDeliveryOrder,
+  useDeliveryOrderAuditTrail,
 } from "../hooks/use-deliveries";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -39,6 +40,7 @@ import { QuotationProductDetailModal } from "../../quotation/components/quotatio
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { CreateSalesReturnDialog } from "../../returns/components/create-sales-return-dialog";
 import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
+import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -60,11 +62,18 @@ export function DeliveryDetailModal({
   const [isDeliverDialogOpen, setIsDeliverDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
   const t = useTranslations("delivery");
 
   const { data: detailData, isLoading } = useDeliveryOrder(delivery?.id ?? "", {
     enabled: open && !!delivery?.id,
   });
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useDeliveryOrderAuditTrail(
+    delivery?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!delivery?.id },
+  );
 
   const canEdit = useUserPermission("delivery_order.update");
   const canDelete = useUserPermission("delivery_order.delete");
@@ -97,9 +106,68 @@ export function DeliveryDetailModal({
     openProduct, openSalesOrder,
   } = useDeliveryDetail();
 
-  if (!delivery) return null;
-
   const displayDelivery = detailData?.data ?? delivery;
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayDelivery) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayDelivery.id}-created`,
+          action: "delivery_order.create",
+          at: displayDelivery.created_at,
+          user: displayDelivery.created_by,
+          metadata: {
+            details: `Created delivery order ${displayDelivery.code}`,
+          },
+        },
+        {
+          id: `${displayDelivery.id}-updated`,
+          action: "delivery_order.update",
+          at: displayDelivery.updated_at,
+          metadata:
+            displayDelivery.updated_at && displayDelivery.updated_at !== displayDelivery.created_at
+              ? { details: "Delivery order data updated" }
+              : null,
+        },
+        {
+          id: `${displayDelivery.id}-shipped`,
+          action: "delivery_order.ship",
+          at: displayDelivery.shipped_at,
+          user: displayDelivery.shipped_by,
+          metadata: {
+            status: "shipped",
+          },
+        },
+        {
+          id: `${displayDelivery.id}-delivered`,
+          action: "delivery_order.deliver",
+          at: displayDelivery.delivered_at,
+          user: displayDelivery.delivered_by?.name,
+          metadata: {
+            status: "delivered",
+          },
+        },
+        {
+          id: `${displayDelivery.id}-cancelled`,
+          action: "delivery_order.cancel",
+          at: displayDelivery.cancelled_at,
+          user: displayDelivery.cancelled_by,
+          metadata: {
+            status: "cancelled",
+            details: displayDelivery.cancellation_reason ?? "Delivery order cancelled",
+          },
+        },
+      ]);
+    },
+    [displayDelivery],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!delivery || !displayDelivery) return null;
+
   const allItems = displayDelivery.items ?? [];
   const salesReturnHistory = salesReturnHistoryResponse?.data ?? [];
   const hasSalesReturn = salesReturnHistory.length > 0;
@@ -364,6 +432,7 @@ export function DeliveryDetailModal({
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -607,6 +676,33 @@ export function DeliveryDetailModal({
                     />
                   )}
                 </>
+              </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <SalesAuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
               </TabsContent>
             </Tabs>
           )}

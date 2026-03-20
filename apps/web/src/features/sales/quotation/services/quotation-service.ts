@@ -9,6 +9,7 @@ import type {
   UpdateSalesQuotationData,
   UpdateSalesQuotationStatusData,
 } from "../types";
+import type { SalesAuditTrailApiResponse } from "../../components/sales-audit-trail-table";
 
 const BASE_PATH = "/sales/sales-quotations";
 
@@ -77,6 +78,17 @@ export const quotationService = {
     const response = await apiClient.patch<SalesQuotationSingleResponse>(
       `${BASE_PATH}/${id}/status`,
       data
+    );
+    return response.data;
+  },
+
+  async auditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number }
+  ): Promise<SalesAuditTrailApiResponse> {
+    const response = await apiClient.get<SalesAuditTrailApiResponse>(
+      `${BASE_PATH}/${id}/audit-trail`,
+      { params }
     );
     return response.data;
   },

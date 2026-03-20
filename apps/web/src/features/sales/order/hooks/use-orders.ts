@@ -20,6 +20,8 @@ export const orderKeys = {
     [...orderKeys.lists(), params] as const,
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (id: string) => [...orderKeys.details(), id] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...orderKeys.detail(id), "audit-trail", params] as const,
 };
 
 // List orders hook with filters
@@ -37,6 +39,19 @@ export function useOrder(id: string, options?: { enabled?: boolean }) {
     queryKey: orderKeys.detail(id),
     queryFn: () => orderService.getById(id),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useOrderAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: orderKeys.auditTrail(id, params),
+    queryFn: () => orderService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    placeholderData: (previousData) => previousData,
   });
 }
 

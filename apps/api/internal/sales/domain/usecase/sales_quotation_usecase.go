@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -31,21 +32,28 @@ type SalesQuotationUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateSalesQuotationRequest) (*dto.SalesQuotationResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateSalesQuotationStatusRequest, userID *string) (*dto.SalesQuotationResponse, error)
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
 type salesQuotationUsecase struct {
+	db            *gorm.DB
 	quotationRepo salesRepos.SalesQuotationRepository
 	productRepo   productRepos.ProductRepository
+	auditService  audit.AuditService
 }
 
 // NewSalesQuotationUsecase creates a new SalesQuotationUsecase
 func NewSalesQuotationUsecase(
+	db *gorm.DB,
 	quotationRepo salesRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
+	auditService audit.AuditService,
 ) SalesQuotationUsecase {
 	return &salesQuotationUsecase{
+		db:            db,
 		quotationRepo: quotationRepo,
 		productRepo:   productRepo,
+		auditService:  auditService,
 	}
 }
 
@@ -193,6 +201,14 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 	}
 
 	response := mapper.ToSalesQuotationResponse(created)
+	logSalesAudit(u.auditService, ctx, "sales_quotation.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":           created.Code,
+			"status":         created.Status,
+			"quotation_date": created.QuotationDate,
+			"total_amount":   created.TotalAmount,
+		},
+	})
 	return &response, nil
 }
 
@@ -208,6 +224,15 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	// Check if quotation can be modified
 	if quotation.Status != models.SalesQuotationStatusDraft {
 		return nil, ErrInvalidQuotationStatus
+	}
+
+	beforeSnapshot := map[string]interface{}{
+		"status":         quotation.Status,
+		"quotation_date": quotation.QuotationDate,
+		"valid_until":    quotation.ValidUntil,
+		"subtotal":       quotation.Subtotal,
+		"total_amount":   quotation.TotalAmount,
+		"notes":          quotation.Notes,
 	}
 
 	// Validate products if items are being updated
@@ -249,6 +274,17 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	logSalesAudit(u.auditService, ctx, "sales_quotation.update", id, map[string]interface{}{
+		"before": beforeSnapshot,
+		"after": map[string]interface{}{
+			"status":         updated.Status,
+			"quotation_date": updated.QuotationDate,
+			"valid_until":    updated.ValidUntil,
+			"subtotal":       updated.Subtotal,
+			"total_amount":   updated.TotalAmount,
+			"notes":          updated.Notes,
+		},
+	})
 	return &response, nil
 }
 
@@ -279,6 +315,7 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 	}
 
 	newStatus := models.SalesQuotationStatus(req.Status)
+	previousStatus := quotation.Status
 
 	// Validate status transition
 	if !u.isValidStatusTransition(quotation.Status, newStatus) {
@@ -302,7 +339,20 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	logSalesAudit(u.auditService, ctx, "sales_quotation.status_change", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  updated.Status,
+		"reason":        req.RejectionReason,
+	})
 	return &response, nil
+}
+
+func (u *salesQuotationUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, errors.New("db is nil")
+	}
+
+	return listAuditTrailEntries(ctx, u.db, id, "sales_quotation.", page, perPage)
 }
 
 // calculateTotals calculates all financial totals for the quotation

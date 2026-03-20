@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Printer, ExternalLink } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
   useUpdateQuotationStatus,
   useQuotation,
   useQuotationItems,
+  useQuotationAuditTrail,
 } from "../hooks/use-quotations";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -35,6 +36,7 @@ import type { SalesQuotation } from "../types";
 import { QuotationPrintDialog } from "./quotation-print-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
 
 interface QuotationDetailModalProps {
   readonly open: boolean;
@@ -54,6 +56,8 @@ export function QuotationDetailModal({
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const t = useTranslations("quotation");
@@ -65,6 +69,12 @@ export function QuotationDetailModal({
   const { data: itemsData, isLoading: itemsLoading } = useQuotationItems(
     quotation?.id ?? "",
     { page: itemsPage, per_page: pageSize },
+    { enabled: open && !!quotation?.id }
+  );
+
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useQuotationAuditTrail(
+    quotation?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
     { enabled: open && !!quotation?.id }
   );
 
@@ -90,13 +100,70 @@ export function QuotationDetailModal({
     formatWhatsAppLink,
   } = useQuotationDetail();
 
-  if (!quotation) return null;
-
   const displayQuotation = detailData?.data ?? quotation;
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayQuotation) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayQuotation.id}-created`,
+          action: "sales_quotation.create",
+          at: displayQuotation.created_at,
+          user: displayQuotation.created_by,
+          metadata: {
+            details: `Created quotation with total ${formatCurrency(displayQuotation.total_amount ?? 0)}`,
+          },
+        },
+        {
+          id: `${displayQuotation.id}-updated`,
+          action: "sales_quotation.update",
+          at: displayQuotation.updated_at,
+          metadata:
+            displayQuotation.updated_at && displayQuotation.updated_at !== displayQuotation.created_at
+              ? { details: "Quotation data updated" }
+              : null,
+        },
+        {
+          id: `${displayQuotation.id}-approved`,
+          action: "sales_quotation.approve",
+          at: displayQuotation.approved_at,
+          user: displayQuotation.approved_by,
+          metadata: {
+            status: "approved",
+          },
+        },
+        {
+          id: `${displayQuotation.id}-rejected`,
+          action: "sales_quotation.reject",
+          at: displayQuotation.rejected_at,
+          user: displayQuotation.rejected_by,
+          metadata: {
+            status: "rejected",
+            details: displayQuotation.rejection_reason ?? "Quotation rejected",
+          },
+        },
+        {
+          id: `${displayQuotation.id}-converted`,
+          action: "sales_quotation.convert",
+          at: displayQuotation.converted_at,
+          metadata: {
+            status: "converted",
+          },
+        },
+      ]);
+    },
+    [displayQuotation],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
   const items = itemsData?.data ?? [];
   const itemsPagination = itemsData?.meta?.pagination;
 
   const totalItems = itemsPagination?.total ?? 0;
+
+  if (!quotation || !displayQuotation) return null;
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -293,6 +360,7 @@ export function QuotationDetailModal({
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -583,6 +651,33 @@ export function QuotationDetailModal({
                   </>
                 )}
               </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <SalesAuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
+              </TabsContent>
             </Tabs>
           )}
         </DialogContent>
@@ -597,7 +692,7 @@ export function QuotationDetailModal({
       <CustomerDetailModal
         open={isCustomerOpen}
         onOpenChange={setIsCustomerOpen}
-        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
+        customerId={selectedCustomerId}
       />
 
       <QuotationProductDetailModal

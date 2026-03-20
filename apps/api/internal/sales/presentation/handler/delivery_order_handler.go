@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -411,7 +413,7 @@ func (h *DeliveryOrderHandler) SelectBatches(c *gin.Context) {
 // ListItems handles list delivery order items request with pagination
 func (h *DeliveryOrderHandler) ListItems(c *gin.Context) {
 	deliveryOrderID := c.Param("id")
-	
+
 	var req dto.ListDeliveryOrderItemsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -446,4 +448,30 @@ func (h *DeliveryOrderHandler) ListItems(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, items, meta)
+}
+
+// AuditTrail handles list delivery order audit trail with pagination.
+func (h *DeliveryOrderHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	entries, total, err := h.deliveryOrderUC.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, entries, meta)
 }

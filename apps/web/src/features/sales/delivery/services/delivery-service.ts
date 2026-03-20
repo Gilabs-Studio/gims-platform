@@ -12,6 +12,7 @@ import type {
   BatchSelectionRequest,
   BatchSelectionResponse,
 } from "../types";
+import type { SalesAuditTrailApiResponse } from "../../components/sales-audit-trail-table";
 
 const BASE_PATH = "/sales/delivery-orders";
 
@@ -108,6 +109,17 @@ export const deliveryService = {
     const response = await apiClient.post<BatchSelectionResponse>(
       `${BASE_PATH}/select-batches`,
       data
+    );
+    return response.data;
+  },
+
+  async auditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number }
+  ): Promise<SalesAuditTrailApiResponse> {
+    const response = await apiClient.get<SalesAuditTrailApiResponse>(
+      `${BASE_PATH}/${id}/audit-trail`,
+      { params }
     );
     return response.data;
   },

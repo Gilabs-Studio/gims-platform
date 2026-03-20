@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, CheckCircle2, XCircle, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
@@ -21,6 +21,7 @@ import {
   useDeleteInvoice,
   useUpdateInvoiceStatus,
   useInvoice,
+  useInvoiceAuditTrail,
 } from "../hooks/use-invoices";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -35,6 +36,7 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
+import { buildFallbackAuditTrailEntries, SalesAuditTrailTable } from "../../components/sales-audit-trail-table";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -53,11 +55,18 @@ export function InvoiceDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
   const t = useTranslations("invoice");
 
   const { data: detailData } = useInvoice(invoice?.id ?? "", {
     enabled: open && !!invoice?.id,
   });
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useInvoiceAuditTrail(
+    invoice?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!invoice?.id },
+  );
 
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
@@ -97,10 +106,57 @@ export function InvoiceDetailModal({
       } as Customer)
     : null;
 
-  if (!invoice) return null;
-
-  const status = (invoice.status ?? "").toLowerCase();
   const displayInvoice = detailData?.data ?? invoice;
+  const status = (displayInvoice?.status ?? "").toLowerCase();
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayInvoice) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayInvoice.id}-created`,
+          action: "customer_invoice.create",
+          at: displayInvoice.created_at,
+          user: displayInvoice.created_by,
+          metadata: {
+            details: `Created invoice with amount ${formatCurrency(displayInvoice.amount ?? 0)}`,
+          },
+        },
+        {
+          id: `${displayInvoice.id}-updated`,
+          action: "customer_invoice.update",
+          at: displayInvoice.updated_at,
+          metadata:
+            displayInvoice.updated_at && displayInvoice.updated_at !== displayInvoice.created_at
+              ? { details: "Invoice data updated" }
+              : null,
+        },
+        {
+          id: `${displayInvoice.id}-paid`,
+          action: "customer_invoice.pay",
+          at: displayInvoice.payment_at,
+          metadata: {
+            status: "paid",
+          },
+        },
+        {
+          id: `${displayInvoice.id}-status`,
+          action: "customer_invoice.status",
+          at: displayInvoice.updated_at,
+          metadata: {
+            status: displayInvoice.status,
+          },
+        },
+      ]);
+    },
+    [displayInvoice],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!invoice || !displayInvoice) return null;
+
   const allItems = displayInvoice.items ?? [];
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
@@ -246,6 +302,7 @@ export function InvoiceDetailModal({
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -492,6 +549,33 @@ export function InvoiceDetailModal({
                     />
                   )}
                 </>
+              </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <SalesAuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
               </TabsContent>
             </Tabs>
         </DialogContent>

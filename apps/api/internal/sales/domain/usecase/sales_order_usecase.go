@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
@@ -42,6 +43,7 @@ type SalesOrderUsecase interface {
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateSalesOrderStatusRequest, userID *string) (*dto.SalesOrderResponse, error)
 	ConvertFromQuotation(ctx context.Context, req *dto.ConvertFromQuotationRequest, createdBy *string) (*dto.SalesOrderResponse, error)
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
 type salesOrderUsecase struct {
@@ -52,6 +54,7 @@ type salesOrderUsecase struct {
 	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
 	employeeRepo      organizationRepos.EmployeeRepository
+	auditService      audit.AuditService
 }
 
 // NewSalesOrderUsecase creates a new SalesOrderUsecase
@@ -72,6 +75,7 @@ func NewSalesOrderUsecase(
 		productRepo:       productRepo,
 		inventoryUC:       inventoryUC,
 		employeeRepo:      employeeRepo,
+		auditService:      audit.NewAuditService(db),
 	}
 }
 
@@ -251,6 +255,14 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 	}
 
 	response := mapper.ToSalesOrderResponse(created, nil)
+	logSalesAudit(u.auditService, ctx, "sales_order.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":         created.Code,
+			"status":       created.Status,
+			"order_date":   created.OrderDate,
+			"total_amount": created.TotalAmount,
+		},
+	})
 	return &response, nil
 }
 
@@ -271,6 +283,16 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	// Check if order can be modified
 	if order.Status != models.SalesOrderStatusDraft {
 		return nil, ErrInvalidOrderStatus
+	}
+
+	beforeSnapshot := map[string]interface{}{
+		"status":         order.Status,
+		"order_date":     order.OrderDate,
+		"subtotal":       order.Subtotal,
+		"tax_amount":     order.TaxAmount,
+		"total_amount":   order.TotalAmount,
+		"notes":          order.Notes,
+		"reserved_stock": order.ReservedStock,
 	}
 
 	// Validate products if items are being updated
@@ -324,6 +346,18 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
+	logSalesAudit(u.auditService, ctx, "sales_order.update", id, map[string]interface{}{
+		"before": beforeSnapshot,
+		"after": map[string]interface{}{
+			"status":         updated.Status,
+			"order_date":     updated.OrderDate,
+			"subtotal":       updated.Subtotal,
+			"tax_amount":     updated.TaxAmount,
+			"total_amount":   updated.TotalAmount,
+			"notes":          updated.Notes,
+			"reserved_stock": updated.ReservedStock,
+		},
+	})
 	return &response, nil
 }
 
@@ -378,6 +412,7 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 	}
 
 	newStatus := models.SalesOrderStatus(req.Status)
+	previousStatus := order.Status
 
 	// Validate status transition
 	if !u.isValidStatusTransition(order.Status, newStatus) {
@@ -449,6 +484,11 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 	}
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
+	logSalesAudit(u.auditService, ctx, "sales_order.status_change", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  updated.Status,
+		"reason":        req.CancellationReason,
+	})
 	return &response, nil
 }
 
@@ -512,7 +552,24 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 	}
 
 	response := mapper.ToSalesOrderResponse(created, nil)
+	logSalesAudit(u.auditService, ctx, "sales_order.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":               created.Code,
+			"status":             created.Status,
+			"order_date":         created.OrderDate,
+			"total_amount":       created.TotalAmount,
+			"sales_quotation_id": req.QuotationID,
+		},
+	})
 	return &response, nil
+}
+
+func (u *salesOrderUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, errors.New("db is nil")
+	}
+
+	return listAuditTrailEntries(ctx, u.db, id, "sales_order.", page, perPage)
 }
 
 // checkAccess verifies if the current user has access to the order

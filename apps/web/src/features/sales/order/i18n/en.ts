@@ -47,6 +47,18 @@ export const orderEn = {
       financial: "Financial",
       items: "Items",
       history: "History",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit trail entries",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time",
+        details: "Details",
+      },
     },
 
     // Status

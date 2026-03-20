@@ -22,6 +22,8 @@ export const invoiceKeys = {
   detail: (id: string) => [...invoiceKeys.details(), id] as const,
   items: (id: string, params?: ListCustomerInvoiceItemsParams) =>
     [...invoiceKeys.detail(id), "items", params] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...invoiceKeys.detail(id), "audit-trail", params] as const,
 };
 
 // List invoices hook with filters
@@ -52,6 +54,19 @@ export function useInvoiceItems(
     queryFn: () => invoiceService.getItems(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
     // Keep previous data when changing pages for smooth transitions
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useInvoiceAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: invoiceKeys.auditTrail(id, params),
+    queryFn: () => invoiceService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
     placeholderData: (previousData) => previousData,
   });
 }

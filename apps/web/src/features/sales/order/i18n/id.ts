@@ -47,6 +47,18 @@ export const orderId = {
       financial: "Keuangan",
       items: "Item",
       history: "Riwayat",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada data audit trail",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
     },
 
     // Status
