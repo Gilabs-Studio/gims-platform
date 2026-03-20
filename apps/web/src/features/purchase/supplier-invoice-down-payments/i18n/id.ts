@@ -35,6 +35,8 @@ export const supplierInvoiceDPId = {
   sections: {
     invoiceInfo: "Info Faktur",
     poDetail: "Detail Purchase Order",
+    financial: "Keuangan",
+    invoiceSummary: "Ringkasan Faktur",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -51,6 +53,8 @@ export const supplierInvoiceDPId = {
     price: "Harga",
     subtotal: "Subtotal",
     items: "Item",
+    downPayment: "Down Payment",
+    amountDue: "Sisa Tagihan",
   },
   columns: {
     code: "Kode",

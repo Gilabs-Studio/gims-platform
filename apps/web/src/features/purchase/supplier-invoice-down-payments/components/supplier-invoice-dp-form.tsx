@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
-import { CalendarIcon, FileText, Package, ShoppingCart } from "lucide-react";
+import { CalendarIcon, DollarSign, FileText, Package, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -106,6 +106,16 @@ export function SupplierInvoiceDPFormDialog({
     () => addData?.purchase_orders?.find((po) => po.id === watchedPOId) ?? null,
     [addData, watchedPOId],
   );
+  const dpAmount = form.watch("amount");
+
+  const invoiceSummary = useMemo(() => {
+    if (!selectedPO) return null;
+    const orderTotal = selectedPO.total_amount ?? 0;
+    const dpApplied = dpAmount ?? 0;
+    const remaining = Math.max(0, orderTotal - dpApplied);
+    const dpPercentage = orderTotal > 0 ? ((dpApplied / orderTotal) * 100).toFixed(1) : "0.0";
+    return { orderTotal, dpApplied, remaining, dpPercentage };
+  }, [selectedPO, dpAmount]);
 
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
@@ -229,6 +239,11 @@ export function SupplierInvoiceDPFormDialog({
             </div>
           )}
 
+          <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+            <DollarSign className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">{t("sections.financial") || "Financial"}</h3>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field orientation="vertical">
               <FieldLabel>{t("fields.invoiceDate")}</FieldLabel>
@@ -306,6 +321,29 @@ export function SupplierInvoiceDPFormDialog({
               )}
             />
           </Field>
+
+          {invoiceSummary && (
+            <div className="rounded-lg border bg-card p-4 space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                {t("sections.invoiceSummary") || "Invoice Summary"}
+              </h4>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("fields.totalAmount") || "Order Total"}</span>
+                  <span className="font-medium">{formatCurrency(invoiceSummary.orderTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-primary">
+                  <span>{t("fields.downPayment") || "Down Payment"} ({invoiceSummary.dpPercentage}%)</span>
+                  <span className="font-medium">{formatCurrency(invoiceSummary.dpApplied)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
+                  <span>{t("fields.amountDue") || "Amount Due"}</span>
+                  <span className="text-muted-foreground">{formatCurrency(invoiceSummary.remaining)}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <Field orientation="vertical">
             <FieldLabel>{t("fields.notes")}</FieldLabel>
