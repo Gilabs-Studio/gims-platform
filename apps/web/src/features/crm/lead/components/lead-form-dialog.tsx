@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller } from "react-hook-form";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -76,6 +76,7 @@ export function LeadFormDialog({
   const [shouldLoadPaymentTerms, setShouldLoadPaymentTerms] = useState(false);
   const [shouldLoadBankAccounts, setShouldLoadBankAccounts] = useState(false);
   const [pendingAreaProvinceName, setPendingAreaProvinceName] = useState("");
+  const appliedAreaProvinceNameRef = useRef("");
 
   const openQuickCreate = (type: "source" | "status" | "businessType" | "paymentTerm", query: string) => {
     setQuickCreate({ type, query });
@@ -127,38 +128,38 @@ export function LeadFormDialog({
   const { form, onSubmit, isSubmitting } = useLeadForm(formProps);
   const { data: leadSourcesRes, isLoading: isLeadSourcesLoading } = useLeadSources(
     { per_page: 20, sort_by: "order", sort_dir: "asc" },
-    { enabled: open && shouldLoadLeadSources }
+    { enabled: open && (shouldLoadLeadSources || !!lead?.lead_source_id) }
   );
   const { data: leadStatusesRes, isLoading: isLeadStatusesLoading } = useLeadStatuses(
     { per_page: 20, sort_by: "order", sort_dir: "asc" },
-    { enabled: open && shouldLoadLeadStatuses }
+    { enabled: open && (shouldLoadLeadStatuses || !!lead?.lead_status_id) }
   );
   const { data: employeesRes, isLoading: isEmployeesLoading } = useEmployees(
     { per_page: 20, is_active: true, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && shouldLoadEmployees }
+    { enabled: open && (shouldLoadEmployees || !!lead?.assigned_to) }
   );
   const { data: businessTypesRes, isLoading: isBusinessTypesLoading } = useBusinessTypes(
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && shouldLoadBusinessTypes }
+    { enabled: open && (shouldLoadBusinessTypes || !!lead?.business_type_id) }
   );
   const { data: areasRes, isLoading: isAreasLoading } = useAreas(
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && shouldLoadAreas }
+    { enabled: open && (shouldLoadAreas || !!lead?.area_id) }
   );
   const { data: paymentTermsRes, isLoading: isPaymentTermsLoading } = usePaymentTerms(
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && shouldLoadPaymentTerms }
+    { enabled: open && (shouldLoadPaymentTerms || !!lead?.payment_terms_id) }
   );
   const { data: bankAccountsRes, isLoading: isBankAccountsLoading } = useFinanceBankAccounts(
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open && shouldLoadBankAccounts }
+    { enabled: open && (shouldLoadBankAccounts || !!lead?.bank_account_id) }
   );
 
   const leadSources = leadSourcesRes?.data ?? [];
   const leadStatuses = leadStatusesRes?.data ?? [];
   const employees = employeesRes?.data ?? [];
   const businessTypes = businessTypesRes?.data ?? [];
-  const areas = areasRes?.data ?? [];
+  const areas = useMemo(() => areasRes?.data ?? [], [areasRes?.data]);
   const paymentTermsList = paymentTermsRes?.data ?? [];
   const bankAccounts = bankAccountsRes?.data ?? [];
 
@@ -170,27 +171,23 @@ export function LeadFormDialog({
     formState: { errors },
   } = form;
 
-  useEffect(() => {
-    if (!open || !lead) return;
+  const pendingAreaId = useMemo(() => {
+    if (!pendingAreaProvinceName || areas.length === 0) return null;
 
-    if (lead.lead_source_id) setShouldLoadLeadSources(true);
-    if (lead.lead_status_id) setShouldLoadLeadStatuses(true);
-    if (lead.assigned_to) setShouldLoadEmployees(true);
-    if (lead.business_type_id) setShouldLoadBusinessTypes(true);
-    if (lead.area_id) setShouldLoadAreas(true);
-    if (lead.payment_terms_id) setShouldLoadPaymentTerms(true);
-    if (lead.bank_account_id) setShouldLoadBankAccounts(true);
-  }, [open, lead]);
-
-  useEffect(() => {
-    if (!pendingAreaProvinceName || areas.length === 0) return;
-
-    const matched = areas.find(
-      (area) => area.province && area.province.toLowerCase() === pendingAreaProvinceName.toLowerCase()
+    return (
+      areas.find(
+        (area) => area.province && area.province.toLowerCase() === pendingAreaProvinceName.toLowerCase()
+      )?.id ?? null
     );
-    setValue("area_id", matched?.id ?? "", { shouldDirty: true });
-    setPendingAreaProvinceName("");
-  }, [pendingAreaProvinceName, areas, setValue]);
+  }, [areas, pendingAreaProvinceName]);
+
+  useEffect(() => {
+    if (!pendingAreaProvinceName || !pendingAreaId) return;
+    if (appliedAreaProvinceNameRef.current === pendingAreaProvinceName) return;
+
+    setValue("area_id", pendingAreaId, { shouldDirty: true });
+    appliedAreaProvinceNameRef.current = pendingAreaProvinceName;
+  }, [pendingAreaId, pendingAreaProvinceName, setValue]);
 
   return (
     <>
