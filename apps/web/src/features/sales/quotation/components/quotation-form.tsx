@@ -108,6 +108,29 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   <h3 className="text-sm font-medium">{t("common.quotation")}</h3>
                 </div>
             <div className="grid gap-4 grid-cols-2">
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
+                <Controller
+                  name="customer_id"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      value={field.value ?? undefined}
+                      onValueChange={handleCustomerChange}
+                      options={customers.map((customer) => ({
+                        value: customer.id,
+                        label: `${customer.code} - ${customer.name}`,
+                      }))}
+                      placeholder={t("common.selectCustomer") || "Select customer"}
+                      createPermission="customer.create"
+                      createLabel={`${t("common.create")} "{query}"`}
+                      onCreateClick={(q) => openQuickCreate("customer", q)}
+                    />
+                  )}
+                />
+                {errors.customer_id && <FieldError>{errors.customer_id.message}</FieldError>}
+              </Field>
+
               <Field orientation="vertical">
                 <FieldLabel>{t("quotationDate")} *</FieldLabel>
                 <Controller
@@ -280,28 +303,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                 {errors.business_type_id && (
                   <FieldError>{errors.business_type_id.message}</FieldError>
                 )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
-                <Controller
-                  name="customer_id"
-                  control={control}
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      value={field.value ?? undefined}
-                      onValueChange={handleCustomerChange}
-                      options={customers.map((customer) => ({
-                        value: customer.id,
-                        label: `${customer.code} - ${customer.name}`,
-                      }))}
-                      placeholder={t("common.selectCustomer") || "Select customer"}
-                      createPermission="customer.create"
-                      createLabel={`${t("common.create")} "{query}"`}
-                      onCreateClick={(q) => openQuickCreate("customer", q)}
-                    />
-                  )}
-                />
               </Field>
 
               <Field orientation="vertical" className="col-span-2">

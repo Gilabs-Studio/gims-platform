@@ -20,6 +20,7 @@ import { useEmployees } from "@/features/master-data/employee/hooks/use-employee
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import type { SalesQuotation } from "../types";
 import { sortOptions } from "@/lib/utils";
+import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 const STORAGE_KEY = "quotation_form_cache";
 
@@ -190,6 +191,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           reset({
             quotation_date: quotationData.quotation_date,
             valid_until: quotationData.valid_until ?? undefined,
+            customer_id: quotationData.customer_id ?? "",
             payment_terms_id: quotationData.payment_terms_id ?? "",
             sales_rep_id: quotationData.sales_rep_id ?? "",
             business_unit_id: quotationData.business_unit_id ?? "",
@@ -263,6 +265,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       const basicFields = [
         "quotation_date",
         "valid_until",
+        "customer_id",
         "payment_terms_id",
         "sales_rep_id",
         "business_unit_id",
@@ -304,6 +307,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       const basicFields = [
         "quotation_date",
         "valid_until",
+        "customer_id",
         "payment_terms_id",
         "sales_rep_id",
         "business_unit_id",
@@ -336,12 +340,37 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       if (isEdit && quotation) {
         await updateQuotation.mutateAsync({
           id: quotation.id,
-          data: { ...data, items: filteredItems },
+          data: {
+            ...data,
+            customer_id: toOptionalString(data.customer_id),
+            valid_until: toOptionalString(data.valid_until),
+            payment_terms_id: toOptionalString(data.payment_terms_id),
+            sales_rep_id: toOptionalString(data.sales_rep_id),
+            business_unit_id: toOptionalString(data.business_unit_id),
+            business_type_id: toOptionalString(data.business_type_id),
+            customer_name: toOptionalString(data.customer_name),
+            customer_contact: toOptionalString(data.customer_contact),
+            customer_phone: toOptionalString(data.customer_phone),
+            customer_email: toOptionalString(data.customer_email),
+            notes: toOptionalString(data.notes),
+            items: filteredItems,
+          },
         });
         toast.success(t("updated"));
       } else {
         await createQuotation.mutateAsync({
           ...data,
+          customer_id: toOptionalString(data.customer_id),
+          valid_until: toOptionalString(data.valid_until),
+          payment_terms_id: toOptionalString(data.payment_terms_id) || "",
+          sales_rep_id: toOptionalString(data.sales_rep_id) || "",
+          business_unit_id: toOptionalString(data.business_unit_id) || "",
+          business_type_id: toOptionalString(data.business_type_id),
+          customer_name: toOptionalString(data.customer_name),
+          customer_contact: toOptionalString(data.customer_contact),
+          customer_phone: toOptionalString(data.customer_phone),
+          customer_email: toOptionalString(data.customer_email),
+          notes: toOptionalString(data.notes),
           items: filteredItems,
         } as CreateQuotationFormData);
         toast.success(t("created"));
@@ -350,7 +379,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       onClose();
     } catch (error) {
       console.error("Failed to save quotation:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -473,6 +502,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     const basicFields = [
       "quotation_date",
       "valid_until",
+      "customer_id",
       "payment_terms_id",
       "sales_rep_id",
       "business_unit_id",
@@ -496,9 +526,20 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (basicError) {
       setActiveTab("basic");
       setTimeout(() => {
-        toast.error(t("common.validationError") || "Please fill all required fields in General tab");
+        toast.error(
+          getFirstFormErrorMessage(errors) ||
+          t("common.validationError") ||
+          "Please fill all required fields in General tab",
+        );
       }, 100);
+      return;
     }
+
+    toast.error(
+      getFirstFormErrorMessage(errors) ||
+      t("validation.itemsMin") ||
+      "Please complete all required item fields.",
+    );
   };
 
   return {

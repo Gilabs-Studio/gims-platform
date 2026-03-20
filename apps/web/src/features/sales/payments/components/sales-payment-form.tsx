@@ -27,6 +27,7 @@ import { salesPaymentSchema, type SalesPaymentFormData } from "../schemas/sales-
 import { useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -177,9 +178,15 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               });
               toast.success(t("toast.created"));
               onClose();
-            } catch {
-              toast.error(t("toast.failed"));
+            } catch (error) {
+              toast.error(getSalesErrorMessage(error, t("toast.failed") ?? "Failed to save payment"));
             }
+          }, (formErrors) => {
+            toast.error(
+              getFirstFormErrorMessage(formErrors) ||
+              t("common.validationError") ||
+              "Please complete all required fields.",
+            );
           })}
         >
           {/* Reference Section — Invoice or Down Payment */}

@@ -73,6 +73,17 @@ interface FallbackAuditEvent {
   permissionCode?: string;
 }
 
+interface MetadataEntry {
+  key: string;
+  value: string;
+}
+
+interface MetadataSummary {
+  heading?: string;
+  entries?: MetadataEntry[];
+  plain?: string;
+}
+
 function safeDateTime(value?: string | null): string {
   if (!value) return "-";
   const date = new Date(value);
@@ -96,16 +107,101 @@ function formatValue(value: unknown): string {
   }
 }
 
-function renderMetadataSummary(metadata?: Record<string, unknown> | null): string {
-  if (!metadata) return "-";
+function prettifyKey(key: string): string {
+  return key
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function isUuidString(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function shouldHideMetadataKey(key: string): boolean {
+  return /(^id$|_id$|request_id$|created_by$|updated_by$|deleted_by$)/i.test(key);
+}
+
+function formatMetadataValue(key: string, value: unknown): string {
+  if (typeof value === "number") {
+    if (/(amount|total|subtotal|price|cost|tax|discount|paid|remaining)/i.test(key)) {
+      return new Intl.NumberFormat("id-ID").format(value);
+    }
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    if (isUuidString(value)) {
+      return "-";
+    }
+
+    if (/status/i.test(key)) {
+      return value
+        .replace(/[_-]+/g, " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    if (/(date|_at)$/.test(key) || /(date| at)$/i.test(key)) {
+      const parsedDate = new Date(value);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleString();
+      }
+    }
+    return value;
+  }
+
+  return formatValue(value);
+}
+
+function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
+  const keys = Object.keys(snapshot).filter((key) => !shouldHideMetadataKey(key));
+  if (keys.length === 0) {
+    return [];
+  }
+
+  const prioritizedKeys = [
+    "code",
+    "status",
+    "customer_name",
+    "total_amount",
+    "amount",
+    "order_date",
+    "invoice_date",
+    "due_date",
+  ];
+
+  const sortedKeys = keys.sort((a, b) => {
+    const aIndex = prioritizedKeys.indexOf(a);
+    const bIndex = prioritizedKeys.indexOf(b);
+    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+
+  return sortedKeys
+    .slice(0, 7)
+    .map((key) => ({
+      key: prettifyKey(key),
+      value: formatMetadataValue(key, snapshot[key]),
+    }))
+    .filter((entry) => entry.value !== "-");
+}
+
+function renderMetadataSummary(metadata?: Record<string, unknown> | null): MetadataSummary {
+  if (!metadata) return { plain: "-" };
 
   const before = metadata.before;
   const after = metadata.after;
 
   if (isPlainObject(before) && isPlainObject(after)) {
-    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+    const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]))
+      .filter((key) => !shouldHideMetadataKey(key))
+      .sort();
+
     const changed = keys
-      .map((key) => {
+      .map((key): MetadataEntry | null => {
         const previous = before[key];
         const next = after[key];
 
@@ -119,12 +215,39 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): strin
           }
         }
 
-        return `${key}: ${formatValue(previous)} -> ${formatValue(next)}`;
+        return {
+          key: prettifyKey(key),
+          value: `${formatMetadataValue(key, previous)} -> ${formatMetadataValue(key, next)}`,
+        };
       })
-      .filter((item): item is string => !!item);
+      .filter((item): item is MetadataEntry => !!item)
+      .filter((entry) => !entry.value.includes("- -> -"));
 
     if (changed.length > 0) {
-      return changed.slice(0, 4).join("; ");
+      return {
+        heading: "Changes",
+        entries: changed.slice(0, 5),
+      };
+    }
+  }
+
+  if (isPlainObject(after)) {
+    const entries = toMetadataEntries(after);
+    if (entries.length > 0) {
+      return {
+        heading: "After",
+        entries,
+      };
+    }
+  }
+
+  if (isPlainObject(before)) {
+    const entries = toMetadataEntries(before);
+    if (entries.length > 0) {
+      return {
+        heading: "Before",
+        entries,
+      };
     }
   }
 
@@ -133,29 +256,51 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): strin
   const beforeStatus = typeof beforeStatusRaw === "string" ? beforeStatusRaw : "";
   const afterStatus = typeof afterStatusRaw === "string" ? afterStatusRaw : "";
   if (beforeStatus || afterStatus) {
-    const transition = beforeStatus && afterStatus
-      ? `status: ${beforeStatus} -> ${afterStatus}`
-      : `status: ${afterStatus || beforeStatus}`;
+    const entries: MetadataEntry[] = [];
+
+    if (beforeStatus && afterStatus) {
+      entries.push({
+        key: "Status",
+        value: `${formatMetadataValue("status", beforeStatus)} -> ${formatMetadataValue("status", afterStatus)}`,
+      });
+    } else {
+      entries.push({
+        key: "Status",
+        value: formatMetadataValue("status", afterStatus || beforeStatus),
+      });
+    }
 
     const reason = metadata.reason;
     if (typeof reason === "string" && reason.trim().length > 0) {
-      return `${transition}; reason: ${reason}`;
+      entries.push({
+        key: "Reason",
+        value: reason,
+      });
     }
 
-    return transition;
+    return {
+      heading: "Status Update",
+      entries,
+    };
   }
 
   const status = metadata.status;
   if (typeof status === "string" && status.length > 0) {
-    return `status: ${status}`;
+    return {
+      heading: "Status",
+      entries: [{
+        key: "Status",
+        value: formatMetadataValue("status", status),
+      }],
+    };
   }
 
   const details = metadata.details;
   if (typeof details === "string" && details.length > 0) {
-    return details;
+    return { plain: details };
   }
 
-  return formatValue(metadata);
+  return { plain: formatValue(metadata) };
 }
 
 function actionLabel(action: string): string {
@@ -238,7 +383,32 @@ export function SalesAuditTrailTable({
                   {safeDateTime(entry.created_at)}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-[420px] whitespace-normal wrap-break-word">
-                  {renderMetadataSummary(entry.metadata)}
+                  {(() => {
+                    const summary = renderMetadataSummary(entry.metadata);
+
+                    if (summary.plain) {
+                      return summary.plain;
+                    }
+
+                    const entries = summary.entries ?? [];
+                    if (entries.length === 0) {
+                      return "-";
+                    }
+
+                    return (
+                      <div className="space-y-1 leading-relaxed">
+                        {summary.heading ? (
+                          <p className="font-medium text-foreground">{summary.heading}</p>
+                        ) : null}
+                        {entries.map((item) => (
+                          <p key={`${item.key}-${item.value}`}>
+                            <span className="text-foreground/80">{item.key}:</span>{" "}
+                            <span>{item.value}</span>
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </TableCell>
               </TableRow>
             ))}

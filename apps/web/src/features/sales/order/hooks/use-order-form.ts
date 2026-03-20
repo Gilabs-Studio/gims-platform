@@ -26,6 +26,7 @@ import type { SalesOrder } from "../types";
 import type { Product } from "@/features/master-data/product/types";
 import type { Employee } from "@/features/master-data/employee/types";
 import { sortOptions } from "@/lib/utils";
+import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 const STORAGE_KEY = "order_form_cache";
 
@@ -174,8 +175,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   });
 
   const {
-    register,
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -221,6 +220,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       }
 
       // --- Customer information ---
+      setValue("customer_id", q.customer_id ?? "", { shouldValidate: true });
       setValue("customer_name", q.customer_name ?? "", { shouldValidate: true });
       setValue("customer_contact", q.customer_contact ?? "", { shouldValidate: true });
       setValue("customer_phone", q.customer_phone ?? "", { shouldValidate: true });
@@ -305,6 +305,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         setTimeout(() => {
           reset({
             order_date: orderData.order_date,
+            customer_id: orderData.customer_id ?? "",
             payment_terms_id: orderData.payment_terms_id ?? "",
             sales_rep_id: orderData.sales_rep_id ?? "",
             business_unit_id: orderData.business_unit_id ?? "",
@@ -389,6 +390,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const basicFieldsList = [
     "order_date",
     "sales_quotation_id",
+    "customer_id",
     "payment_terms_id",
     "sales_rep_id",
     "business_unit_id",
@@ -418,6 +420,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         const fieldMapping: Record<string, string> = {
           order_date: t("orderDate"),
           sales_quotation_id: t("salesQuotation"),
+          customer_id: t("common.customer") || "Customer",
           payment_terms_id: t("paymentTerms"),
           sales_rep_id: t("salesRep"),
           business_unit_id: t("businessUnit"),
@@ -463,9 +466,18 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       
       const payload = {
         ...data,
-        sales_quotation_id: data.sales_quotation_id || undefined,
-        business_type_id: data.business_type_id || undefined,
-        delivery_area_id: data.delivery_area_id || undefined,
+        sales_quotation_id: toOptionalString(data.sales_quotation_id),
+        customer_id: toOptionalString(data.customer_id),
+        payment_terms_id: toOptionalString(data.payment_terms_id),
+        sales_rep_id: toOptionalString(data.sales_rep_id),
+        business_unit_id: toOptionalString(data.business_unit_id),
+        business_type_id: toOptionalString(data.business_type_id),
+        delivery_area_id: toOptionalString(data.delivery_area_id),
+        customer_name: toOptionalString(data.customer_name),
+        customer_contact: toOptionalString(data.customer_contact),
+        customer_phone: toOptionalString(data.customer_phone),
+        customer_email: toOptionalString(data.customer_email),
+        notes: toOptionalString(data.notes),
         items: filteredItems,
       } as CreateOrderFormData;
 
@@ -483,7 +495,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       onClose();
     } catch (error) {
       console.error("Failed to save order:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -561,9 +573,20 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     if (basicError) {
       setActiveTab("basic");
       setTimeout(() => {
-        toast.error(t("validation.required") || "Please fill all required fields in General tab");
+        toast.error(
+          getFirstFormErrorMessage(errors) ||
+          t("validation.required") ||
+          "Please fill all required fields in General tab",
+        );
       }, 100);
+      return;
     }
+
+    toast.error(
+      getFirstFormErrorMessage(errors) ||
+      t("validation.itemsMin") ||
+      "Please complete all required item fields.",
+    );
   };
 
   return {

@@ -176,6 +176,8 @@ export const orderId = {
     // Validation
     validation: {
       required: "Kolom ini wajib diisi",
+      customerRequired: "Customer wajib dipilih",
+      invalidCustomer: "Pilih customer yang valid",
       invalidId: "ID tidak valid",
       quantityPositive: "Jumlah harus lebih besar dari 0",
       quantityMin: "Jumlah minimal 0.001",

@@ -147,6 +147,8 @@ export const quotationEn = {
     // Validation
     validation: {
       required: "This field is required",
+      customerRequired: "Customer is required",
+      invalidCustomer: "Select a valid customer",
       invalidId: "Invalid ID",
       quantityPositive: "Quantity must be greater than 0",
       quantityMin: "Quantity must be at least 0.001",

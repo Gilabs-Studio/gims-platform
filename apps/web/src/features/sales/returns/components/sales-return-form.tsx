@@ -13,10 +13,12 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 import { useDeliveryOrder, useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCreateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
 import { salesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
+import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 interface SalesReturnFormProps {
   readonly defaultInvoiceId?: string;
@@ -275,20 +277,24 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
       }
     }
 
-    await createMutation.mutateAsync({
-      ...values,
-      delivery_id: selectedDeliveryId,
-      warehouse_id: values.warehouse_id,
-      invoice_id: values.invoice_id || undefined,
-      customer_id: values.customer_id || undefined,
-      notes: values.notes || undefined,
-      items: values.items.map((item) => ({
-        ...item,
-        unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
-      })),
-    });
+    try {
+      await createMutation.mutateAsync({
+        ...values,
+        delivery_id: selectedDeliveryId,
+        warehouse_id: values.warehouse_id,
+        invoice_id: values.invoice_id || undefined,
+        customer_id: values.customer_id || undefined,
+        notes: values.notes || undefined,
+        items: values.items.map((item) => ({
+          ...item,
+          unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
+        })),
+      });
 
-    onSuccess?.();
+      onSuccess?.();
+    } catch (error) {
+      toast.error(getSalesErrorMessage(error, t("common.error") || "Failed to create sales return"));
+    }
   };
 
   if (!selectedDeliveryId) {
@@ -339,7 +345,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={form.handleSubmit(onSubmit, (formErrors) => {
+        toast.error(
+          getFirstFormErrorMessage(formErrors) ||
+          t("common.error") ||
+          "Please complete all required fields.",
+        );
+      })}
+      className="space-y-6"
+    >
       <div className="space-y-4">
         <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
           <FileText className="h-4 w-4 text-primary" />

@@ -148,6 +148,25 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 )}
               </Field>
 
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
+                <Controller
+                  name="customer_id"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      options={customers.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
+                      value={field.value || ""}
+                      onValueChange={handleCustomerChange}
+                      placeholder={t("common.selectCustomer") || "Select customer"}
+                      createPermission="customer.create"
+                      onCreateClick={() => openQuickCreate("customer")}
+                    />
+                  )}
+                />
+                {errors.customer_id && <FieldError>{errors.customer_id.message}</FieldError>}
+              </Field>
+
               {/* Quotation Summary Card */}
 
               
@@ -295,24 +314,6 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 {errors.delivery_area_id && (
                   <FieldError>{errors.delivery_area_id.message}</FieldError>
                 )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
-                <Controller
-                  name="customer_id"
-                  control={control}
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      options={customers.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
-                      value={field.value || ""}
-                      onValueChange={handleCustomerChange}
-                      placeholder={t("common.selectCustomer") || "Select customer"}
-                      createPermission="customer.create"
-                      onCreateClick={() => openQuickCreate("customer")}
-                    />
-                  )}
-                />
               </Field>
 
               <Field orientation="vertical" className="col-span-2">
