@@ -127,11 +127,31 @@ const VISIBLE_REFERENCE_KEYS = new Set([
   "sales_rep_id",
 ]);
 
+const REFERENCE_KEY_CANDIDATES: Record<string, string[]> = {
+  payment_terms_id: ["payment_terms_name", "payment_terms_name_snapshot"],
+  supplier_id: ["supplier_name", "supplier_name_snapshot"],
+  customer_id: ["customer_name", "customer_name_snapshot"],
+  business_unit_id: ["business_unit_name", "business_unit_name_snapshot"],
+  employee_id: ["employee_name", "employee_name_snapshot"],
+  sales_rep_id: ["sales_rep_name", "sales_rep_name_snapshot"],
+};
+
+const REFERENCE_NAME_KEYS = new Set(Object.values(REFERENCE_KEY_CANDIDATES).flat());
+
 function shouldHideMetadataKey(key: string): boolean {
   if (VISIBLE_REFERENCE_KEYS.has(key)) {
     return false;
   }
-  return /(^id$|_id$|request_id$|created_by$|updated_by$|deleted_by$)/i.test(key);
+
+  if (REFERENCE_NAME_KEYS.has(key)) {
+    return true;
+  }
+
+  if (/(^id$|_id$|request_id$|created_by$|updated_by$|deleted_by$)/i.test(key)) {
+    return true;
+  }
+
+  return /(_name_snapshot|_code_snapshot|_days_snapshot)$/i.test(key);
 }
 
 function formatMetadataValue(key: string, value: unknown): string {
@@ -144,7 +164,7 @@ function formatMetadataValue(key: string, value: unknown): string {
 
   if (typeof value === "string") {
     if (isUuidString(value)) {
-      return "-";
+      return value;
     }
 
     if (/status/i.test(key)) {
@@ -174,6 +194,25 @@ function valuesEqual(left: unknown, right: unknown): boolean {
   }
 }
 
+function parseMaybeJsonObject(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function toSnapshotObject(value: unknown): Record<string, unknown> | null {
+  const parsed = parseMaybeJsonObject(value);
+  return isPlainObject(parsed) ? parsed : null;
+}
+
 function toObjectArray(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is Record<string, unknown> => isPlainObject(entry));
@@ -199,16 +238,7 @@ function resolveReferenceLabel(
   key: string,
   rawValue: unknown,
 ): string {
-  const keyCandidates: Record<string, string[]> = {
-    payment_terms_id: ["payment_terms_name", "payment_terms_name_snapshot"],
-    supplier_id: ["supplier_name", "supplier_name_snapshot"],
-    customer_id: ["customer_name", "customer_name_snapshot"],
-    business_unit_id: ["business_unit_name", "business_unit_name_snapshot"],
-    employee_id: ["employee_name", "employee_name_snapshot"],
-    sales_rep_id: ["sales_rep_name", "sales_rep_name_snapshot"],
-  };
-
-  const candidateKeys = keyCandidates[key] ?? [];
+  const candidateKeys = REFERENCE_KEY_CANDIDATES[key] ?? [];
   for (const candidate of candidateKeys) {
     const value = firstNonEmptyString(snapshot[candidate]);
     if (value) return value;
@@ -241,6 +271,10 @@ function formatReferenceChange(
 ): string {
   const beforeLabel = resolveReferenceLabel(beforeSnapshot, key, previous);
   const afterLabel = resolveReferenceLabel(afterSnapshot, key, next);
+
+  if (beforeLabel && afterLabel && beforeLabel === afterLabel) {
+    return "";
+  }
 
   if (!beforeLabel && afterLabel) {
     return `+ ${afterLabel}`;
@@ -277,6 +311,9 @@ interface AuditLineItem {
   id: string;
   label: string;
   quantity: number | null;
+  price: number | null;
+  discount: number | null;
+  subtotal: number | null;
 }
 
 function toNullableNumber(value: unknown): number | null {
@@ -317,6 +354,9 @@ function mapLineItems(items: Record<string, unknown>[]): Map<string, AuditLineIt
       id,
       label,
       quantity: toNullableNumber(item.quantity ?? item.qty),
+      price: toNullableNumber(item.price ?? item.purchase_price),
+      discount: toNullableNumber(item.discount),
+      subtotal: toNullableNumber(item.subtotal ?? item.sub_total),
     });
   });
 
@@ -342,7 +382,7 @@ function summarizeLineItemChanges(beforeItemsRaw: unknown, afterItemsRaw: unknow
 
   const added: string[] = [];
   const removed: string[] = [];
-  const qtyUpdated: string[] = [];
+  const itemUpdated: string[] = [];
 
   for (const [id, afterItem] of afterItems.entries()) {
     const beforeItem = beforeItems.get(id);
@@ -355,7 +395,16 @@ function summarizeLineItemChanges(beforeItemsRaw: unknown, afterItemsRaw: unknow
       afterItem.quantity !== null &&
       beforeItem.quantity !== afterItem.quantity
     ) {
-      qtyUpdated.push(`${afterItem.label} (${beforeItem.quantity} -> ${afterItem.quantity})`);
+      itemUpdated.push(`${afterItem.label} (qty ${beforeItem.quantity} -> ${afterItem.quantity})`);
+      continue;
+    }
+
+    if (
+      beforeItem.price !== afterItem.price ||
+      beforeItem.discount !== afterItem.discount ||
+      beforeItem.subtotal !== afterItem.subtotal
+    ) {
+      itemUpdated.push(`${afterItem.label} (detail updated)`);
     }
   }
 
@@ -381,10 +430,10 @@ function summarizeLineItemChanges(beforeItemsRaw: unknown, afterItemsRaw: unknow
     });
   }
 
-  if (qtyUpdated.length > 0) {
+  if (itemUpdated.length > 0) {
     entries.push({
       key: "Product Items",
-      value: `~ Qty ${compactLabelList(qtyUpdated)}`,
+      value: `~ ${compactLabelList(itemUpdated)}`,
     });
   }
 
@@ -434,7 +483,21 @@ function renderChangedEntries(before: Record<string, unknown>, after: Record<str
 }
 
 function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
-  const keys = Object.keys(snapshot).filter((key) => !shouldHideMetadataKey(key));
+  const keys = Object.keys(snapshot).filter((key) => {
+    if (shouldHideMetadataKey(key)) {
+      return false;
+    }
+
+    if (!REFERENCE_NAME_KEYS.has(key)) {
+      return true;
+    }
+
+    const hasRelatedReferenceID = Object.entries(REFERENCE_KEY_CANDIDATES).some(
+      ([idKey, nameKeys]) => nameKeys.includes(key) && firstNonEmptyString(snapshot[idKey]) !== "",
+    );
+
+    return !hasRelatedReferenceID;
+  });
   if (keys.length === 0) {
     return [];
   }
@@ -463,6 +526,14 @@ function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
   return sortedKeys
     .slice(0, 7)
     .map((key) => {
+      if (VISIBLE_REFERENCE_KEYS.has(key)) {
+        const referenceLabel = resolveReferenceLabel(snapshot, key, snapshot[key]);
+        return {
+          key: metadataKeyLabel(key),
+          value: referenceLabel || formatMetadataValue(key, snapshot[key]),
+        };
+      }
+
       if (isLineItemsKey(key) && Array.isArray(snapshot[key])) {
         const totalItems = toObjectArray(snapshot[key]).length;
         return {
@@ -482,23 +553,29 @@ function toMetadataEntries(snapshot: Record<string, unknown>): MetadataEntry[] {
 function renderMetadataSummary(metadata?: Record<string, unknown> | null): MetadataSummary {
   if (!metadata) return { plain: "-" };
 
-  const before = metadata.before;
-  const after = metadata.after;
+  const normalizedMetadata: Record<string, unknown> = {
+    ...metadata,
+    before: parseMaybeJsonObject(metadata.before),
+    after: parseMaybeJsonObject(metadata.after),
+  };
 
-  if (isPlainObject(before) && isPlainObject(after)) {
+  const before = toSnapshotObject(normalizedMetadata.before);
+  const after = toSnapshotObject(normalizedMetadata.after);
+
+  if (before && after) {
     const changed = renderChangedEntries(before, after);
 
     if (changed.length > 0) {
       return {
         heading: "Changes",
-        entries: changed.slice(0, 7),
+        entries: changed,
       };
     }
 
     return { plain: "-" };
   }
 
-  if (isPlainObject(after)) {
+  if (after) {
     const entries = toMetadataEntries(after);
     if (entries.length > 0) {
       return {
@@ -508,7 +585,7 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
     }
   }
 
-  if (isPlainObject(before)) {
+  if (before) {
     const entries = toMetadataEntries(before);
     if (entries.length > 0) {
       return {
@@ -518,8 +595,8 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
     }
   }
 
-  const beforeStatusRaw = metadata.before_status ?? metadata.beforeStatus;
-  const afterStatusRaw = metadata.after_status ?? metadata.afterStatus;
+  const beforeStatusRaw = normalizedMetadata.before_status ?? normalizedMetadata.beforeStatus;
+  const afterStatusRaw = normalizedMetadata.after_status ?? normalizedMetadata.afterStatus;
   const beforeStatus = typeof beforeStatusRaw === "string" ? beforeStatusRaw : "";
   const afterStatus = typeof afterStatusRaw === "string" ? afterStatusRaw : "";
   if (beforeStatus || afterStatus) {
@@ -537,7 +614,7 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
       });
     }
 
-    const reason = metadata.reason;
+    const reason = normalizedMetadata.reason;
     if (typeof reason === "string" && reason.trim().length > 0) {
       entries.push({
         key: "Reason",
@@ -551,7 +628,7 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
     };
   }
 
-  const status = metadata.status;
+  const status = normalizedMetadata.status;
   if (typeof status === "string" && status.length > 0) {
     return {
       heading: "Status",
@@ -562,12 +639,12 @@ function renderMetadataSummary(metadata?: Record<string, unknown> | null): Metad
     };
   }
 
-  const details = metadata.details;
+  const details = normalizedMetadata.details;
   if (typeof details === "string" && details.length > 0) {
     return { plain: details };
   }
 
-  return { plain: formatValue(metadata) };
+  return { plain: formatValue(normalizedMetadata) };
 }
 
 function actionLabel(action: string): string {

@@ -340,14 +340,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 
-	beforeSnapshot := map[string]interface{}{
-		"status":          deliveryOrder.Status,
-		"delivery_date":   deliveryOrder.DeliveryDate,
-		"tracking_number": deliveryOrder.TrackingNumber,
-		"receiver_name":   deliveryOrder.ReceiverName,
-		"receiver_phone":  deliveryOrder.ReceiverPhone,
-		"warehouse_id":    deliveryOrder.WarehouseID,
-	}
+	beforeSnapshot := deliveryOrderAuditSnapshot(deliveryOrder)
 	if req.WarehouseID != nil {
 		trimmedWarehouseID := strings.TrimSpace(*req.WarehouseID)
 		if trimmedWarehouseID == "" {
@@ -429,14 +422,7 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	response := mapper.ToDeliveryOrderResponse(updated)
 	logSalesAudit(u.auditService, ctx, "delivery_order.update", id, map[string]interface{}{
 		"before": beforeSnapshot,
-		"after": map[string]interface{}{
-			"status":          updated.Status,
-			"delivery_date":   updated.DeliveryDate,
-			"tracking_number": updated.TrackingNumber,
-			"receiver_name":   updated.ReceiverName,
-			"receiver_phone":  updated.ReceiverPhone,
-			"warehouse_id":    updated.WarehouseID,
-		},
+		"after":  deliveryOrderAuditSnapshot(updated),
 	})
 	return &response, nil
 }
@@ -781,6 +767,57 @@ func (u *deliveryOrderUsecase) isValidStatusTransition(current, new models.Deliv
 	}
 
 	return false
+}
+
+func deliveryOrderAuditSnapshot(deliveryOrder *models.DeliveryOrder) map[string]interface{} {
+	if deliveryOrder == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":                deliveryOrder.Code,
+		"status":              deliveryOrder.Status,
+		"delivery_date":       deliveryOrder.DeliveryDate,
+		"sales_order_id":      deliveryOrder.SalesOrderID,
+		"warehouse_id":        deliveryOrder.WarehouseID,
+		"delivered_by_id":     deliveryOrder.DeliveredByID,
+		"courier_agency_id":   deliveryOrder.CourierAgencyID,
+		"tracking_number":     deliveryOrder.TrackingNumber,
+		"receiver_name":       deliveryOrder.ReceiverName,
+		"receiver_phone":      deliveryOrder.ReceiverPhone,
+		"delivery_address":    deliveryOrder.DeliveryAddress,
+		"receiver_signature":  deliveryOrder.ReceiverSignature,
+		"is_partial_delivery": deliveryOrder.IsPartialDelivery,
+		"notes":               deliveryOrder.Notes,
+		"items":               deliveryOrderAuditItems(deliveryOrder.Items),
+	}
+}
+
+func deliveryOrderAuditItems(items []models.DeliveryOrderItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"id":                    item.ID,
+			"sales_order_item_id":   item.SalesOrderItemID,
+			"product_id":            item.ProductID,
+			"inventory_batch_id":    item.InventoryBatchID,
+			"quantity":              item.Quantity,
+			"price":                 item.Price,
+			"subtotal":              item.Subtotal,
+			"is_equipment":          item.IsEquipment,
+			"installation_status":   item.InstallationStatus,
+			"function_test_status":  item.FunctionTestStatus,
+			"installation_date":     item.InstallationDate,
+			"function_test_date":    item.FunctionTestDate,
+			"installation_notes":    item.InstallationNotes,
+		})
+	}
+
+	return out
 }
 
 // isPartialDelivery checks if delivery order is a partial delivery

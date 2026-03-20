@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -625,14 +624,9 @@ func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context,
 	}
 
 	entries := make([]dto.SupplierInvoiceAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
-		if meta == nil {
-			meta = map[string]interface{}{}
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {

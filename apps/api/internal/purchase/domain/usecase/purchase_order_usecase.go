@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"strings"
@@ -793,14 +792,9 @@ func (uc *purchaseOrderUsecase) ListAuditTrail(ctx context.Context, id string, p
 	}
 
 	entries := make([]dto.PurchaseOrderAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
-		if meta == nil {
-			meta = map[string]interface{}{}
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {
 			email := ""
@@ -837,7 +831,9 @@ func poAuditSnapshot(po *models.PurchaseOrder) map[string]interface{} {
 		"status":                   po.Status,
 		"supplier_id":              po.SupplierID,
 		"payment_terms_id":         po.PaymentTermsID,
+		"payment_terms_name":       po.PaymentTermsNameSnapshot,
 		"business_unit_id":         po.BusinessUnitID,
+		"business_unit_name":       po.BusinessUnitNameSnapshot,
 		"created_by":               po.CreatedBy,
 		"purchase_requisitions_id": po.PurchaseRequisitionID,
 		"sales_order_id":           po.SalesOrderID,
@@ -850,7 +846,28 @@ func poAuditSnapshot(po *models.PurchaseOrder) map[string]interface{} {
 		"sub_total":                po.SubTotal,
 		"total_amount":             po.TotalAmount,
 		"revision_comment":         po.RevisionComment,
+		"items":                    poAuditItems(po.Items),
 	}
+}
+
+func poAuditItems(items []models.PurchaseOrderItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"product_id":   item.ProductID,
+			"product_code": item.ProductCodeSnapshot,
+			"product_name": item.ProductNameSnapshot,
+			"quantity":     item.Quantity,
+			"price":        item.Price,
+			"discount":     item.Discount,
+		})
+	}
+
+	return out
 }
 
 func clampPO(v, min, max float64) float64 {

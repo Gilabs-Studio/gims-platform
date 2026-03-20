@@ -63,8 +63,9 @@ func listAuditTrailEntries(
 	}
 
 	entries := make([]dto.CustomerInvoiceAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, row := range rows {
-		metadata := parseAuditMetadata(row.Metadata)
+		metadata := parseAuditMetadata(ctx, db, row.Metadata, refCache)
 		user := buildAuditTrailUser(row.ActorID, row.ActorEmail, row.ActorName)
 
 		entries = append(entries, dto.CustomerInvoiceAuditTrailEntry{
@@ -81,14 +82,129 @@ func listAuditTrailEntries(
 	return entries, total, nil
 }
 
-func parseAuditMetadata(raw string) map[string]interface{} {
+func parseAuditMetadata(ctx context.Context, db *gorm.DB, raw string, refCache map[string]string) map[string]interface{} {
 	metadata := map[string]interface{}{}
 	if strings.TrimSpace(raw) == "" {
 		return metadata
 	}
 
 	_ = json.Unmarshal([]byte(raw), &metadata)
+	enrichAuditMetadataReferences(ctx, db, metadata, refCache)
 	return metadata
+}
+
+func enrichAuditMetadataReferences(ctx context.Context, db *gorm.DB, metadata map[string]interface{}, refCache map[string]string) {
+	enrichSnapshotReferenceNames(ctx, db, metadata, refCache)
+
+	if before, ok := metadata["before"].(map[string]interface{}); ok {
+		enrichSnapshotReferenceNames(ctx, db, before, refCache)
+	}
+
+	if after, ok := metadata["after"].(map[string]interface{}); ok {
+		enrichSnapshotReferenceNames(ctx, db, after, refCache)
+	}
+}
+
+func enrichSnapshotReferenceNames(ctx context.Context, db *gorm.DB, snapshot map[string]interface{}, refCache map[string]string) {
+	type refMap struct {
+		idKey   string
+		nameKey string
+	}
+
+	references := []refMap{
+		{idKey: "payment_terms_id", nameKey: "payment_terms_name"},
+		{idKey: "supplier_id", nameKey: "supplier_name"},
+		{idKey: "customer_id", nameKey: "customer_name"},
+		{idKey: "business_unit_id", nameKey: "business_unit_name"},
+		{idKey: "business_type_id", nameKey: "business_type_name"},
+		{idKey: "delivery_area_id", nameKey: "delivery_area_name"},
+		{idKey: "employee_id", nameKey: "employee_name"},
+		{idKey: "sales_rep_id", nameKey: "sales_rep_name"},
+		{idKey: "sales_quotation_id", nameKey: "sales_quotation_code"},
+		{idKey: "purchase_requisitions_id", nameKey: "purchase_requisition_code"},
+		{idKey: "sales_order_id", nameKey: "sales_order_code"},
+	}
+
+	for _, ref := range references {
+		id := stringValue(snapshot[ref.idKey])
+		if id == "" {
+			continue
+		}
+
+		if stringValue(snapshot[ref.nameKey]) != "" {
+			continue
+		}
+
+		if resolved := lookupReferenceLabel(ctx, db, ref.idKey, id, refCache); resolved != "" {
+			snapshot[ref.nameKey] = resolved
+		}
+	}
+}
+
+func stringValue(value interface{}) string {
+	str, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(str)
+}
+
+func lookupReferenceLabel(ctx context.Context, db *gorm.DB, idKey, id string, refCache map[string]string) string {
+	cacheKey := idKey + "|" + id
+	if cached, ok := refCache[cacheKey]; ok {
+		return cached
+	}
+
+	table, column := lookupSourceByReferenceKey(idKey)
+	if table == "" || column == "" {
+		refCache[cacheKey] = ""
+		return ""
+	}
+
+	row := db.WithContext(ctx).Table(table).Select(column).Where("id = ?", id).Limit(1).Row()
+	var value string
+	if err := row.Scan(&value); err != nil {
+		refCache[cacheKey] = ""
+		return ""
+	}
+
+	trimmed := strings.TrimSpace(value)
+	refCache[cacheKey] = trimmed
+	return trimmed
+}
+
+func lookupSourceByReferenceKey(idKey string) (string, string) {
+	sources := map[string]struct {
+		table  string
+		column string
+	}{
+		"payment_terms_id":         {table: "payment_terms", column: "name"},
+		"supplier_id":              {table: "suppliers", column: "name"},
+		"customer_id":              {table: "customers", column: "name"},
+		"business_unit_id":         {table: "business_units", column: "name"},
+		"business_type_id":         {table: "business_types", column: "name"},
+		"delivery_area_id":         {table: "areas", column: "name"},
+		"employee_id":              {table: "employees", column: "name"},
+		"sales_rep_id":             {table: "employees", column: "name"},
+		"sales_quotation_id":       {table: "sales_quotations", column: "code"},
+		"purchase_requisitions_id": {table: "purchase_requisitions", column: "code"},
+		"sales_order_id":           {table: "sales_orders", column: "code"},
+	}
+
+	source, ok := sources[idKey]
+	if !ok {
+		return "", ""
+	}
+
+	if strings.TrimSpace(source.table) == "" || strings.TrimSpace(source.column) == "" {
+		return "", ""
+	}
+
+	if strings.Contains(source.table, " ") || strings.Contains(source.column, " ") {
+		return "", ""
+	}
+
+	return source.table, source.column
 }
 
 func buildAuditTrailUser(actorID string, actorEmail, actorName *string) *dto.AuditTrailUser {
@@ -112,4 +228,18 @@ func logSalesAudit(auditService audit.AuditService, ctx context.Context, action 
 		return
 	}
 	auditService.Log(ctx, action, targetID, metadata)
+}
+
+func shouldLogSnapshotChange(before, after map[string]interface{}) bool {
+	if before == nil && after == nil {
+		return false
+	}
+
+	beforeJSON, beforeErr := json.Marshal(before)
+	afterJSON, afterErr := json.Marshal(after)
+	if beforeErr != nil || afterErr != nil {
+		return true
+	}
+
+	return string(beforeJSON) != string(afterJSON)
 }

@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"strings"
@@ -508,14 +507,9 @@ func (uc *purchaseRequisitionUsecase) ListAuditTrail(ctx context.Context, id str
 	}
 
 	entries := make([]dto.PurchaseRequisitionAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
-		if meta == nil {
-			meta = map[string]interface{}{}
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {
 			email := ""
@@ -547,21 +541,50 @@ func prAuditSnapshot(pr *models.PurchaseRequisition) map[string]interface{} {
 		return nil
 	}
 	return map[string]interface{}{
-		"id":               pr.ID,
-		"code":             pr.Code,
-		"status":           pr.Status,
-		"supplier_id":      pr.SupplierID,
-		"payment_terms_id": pr.PaymentTermsID,
-		"business_unit_id": pr.BusinessUnitID,
-		"employee_id":      pr.EmployeeID,
-		"request_date":     pr.RequestDate,
-		"tax_rate":         pr.TaxRate,
-		"tax_amount":       pr.TaxAmount,
-		"delivery_cost":    pr.DeliveryCost,
-		"other_cost":       pr.OtherCost,
-		"subtotal":         pr.Subtotal,
-		"total_amount":     pr.TotalAmount,
+		"id":                 pr.ID,
+		"code":               pr.Code,
+		"status":             pr.Status,
+		"supplier_id":        pr.SupplierID,
+		"payment_terms_id":   pr.PaymentTermsID,
+		"payment_terms_name": pr.PaymentTermsNameSnapshot,
+		"business_unit_id":   pr.BusinessUnitID,
+		"business_unit_name": pr.BusinessUnitNameSnapshot,
+		"employee_id":        pr.EmployeeID,
+		"request_date":       pr.RequestDate,
+		"address":            pr.Address,
+		"tax_rate":           pr.TaxRate,
+		"tax_amount":         pr.TaxAmount,
+		"delivery_cost":      pr.DeliveryCost,
+		"other_cost":         pr.OtherCost,
+		"subtotal":           pr.Subtotal,
+		"notes":              pr.Notes,
+		"total_amount":       pr.TotalAmount,
+		"items":              prAuditItems(pr.Items),
 	}
+}
+
+func prAuditItems(items []models.PurchaseRequisitionItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"id":           item.ID,
+			"product_id":   item.ProductID,
+			"product_code": item.ProductCodeSnapshot,
+			"product_name": item.ProductNameSnapshot,
+			"quantity":     item.Quantity,
+			"purchase_price": item.PurchasePrice,
+			"price":          item.PurchasePrice,
+			"discount":     item.Discount,
+			"subtotal":     item.Subtotal,
+			"notes":        item.Notes,
+		})
+	}
+
+	return out
 }
 
 func calcItemSubtotal(qty, price, discount float64) float64 {

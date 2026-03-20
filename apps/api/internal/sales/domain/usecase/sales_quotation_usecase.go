@@ -226,14 +226,7 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 		return nil, ErrInvalidQuotationStatus
 	}
 
-	beforeSnapshot := map[string]interface{}{
-		"status":         quotation.Status,
-		"quotation_date": quotation.QuotationDate,
-		"valid_until":    quotation.ValidUntil,
-		"subtotal":       quotation.Subtotal,
-		"total_amount":   quotation.TotalAmount,
-		"notes":          quotation.Notes,
-	}
+	beforeSnapshot := salesQuotationAuditSnapshot(quotation)
 
 	// Validate products if items are being updated
 	if req.Items != nil && len(*req.Items) > 0 {
@@ -274,17 +267,13 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
-	logSalesAudit(u.auditService, ctx, "sales_quotation.update", id, map[string]interface{}{
-		"before": beforeSnapshot,
-		"after": map[string]interface{}{
-			"status":         updated.Status,
-			"quotation_date": updated.QuotationDate,
-			"valid_until":    updated.ValidUntil,
-			"subtotal":       updated.Subtotal,
-			"total_amount":   updated.TotalAmount,
-			"notes":          updated.Notes,
-		},
-	})
+	afterSnapshot := salesQuotationAuditSnapshot(updated)
+	if shouldLogSnapshotChange(beforeSnapshot, afterSnapshot) {
+		logSalesAudit(u.auditService, ctx, "sales_quotation.update", id, map[string]interface{}{
+			"before": beforeSnapshot,
+			"after":  afterSnapshot,
+		})
+	}
 	return &response, nil
 }
 
@@ -417,4 +406,96 @@ func (u *salesQuotationUsecase) isValidStatusTransition(current, new models.Sale
 	}
 
 	return false
+}
+
+func salesQuotationPaymentTermsName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.PaymentTerms == nil {
+		return ""
+	}
+	return quotation.PaymentTerms.Name
+}
+
+func salesQuotationBusinessUnitName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.BusinessUnit == nil {
+		return ""
+	}
+	return quotation.BusinessUnit.Name
+}
+
+func salesQuotationBusinessTypeName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.BusinessType == nil {
+		return ""
+	}
+	return quotation.BusinessType.Name
+}
+
+func salesQuotationSalesRepName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.SalesRep == nil {
+		return ""
+	}
+	return quotation.SalesRep.Name
+}
+
+func salesQuotationAuditSnapshot(quotation *models.SalesQuotation) map[string]interface{} {
+	if quotation == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":               quotation.Code,
+		"status":             quotation.Status,
+		"quotation_date":     quotation.QuotationDate,
+		"valid_until":        quotation.ValidUntil,
+		"customer_id":        quotation.CustomerID,
+		"customer_name":      quotation.CustomerName,
+		"customer_contact":   quotation.CustomerContact,
+		"customer_phone":     quotation.CustomerPhone,
+		"customer_email":     quotation.CustomerEmail,
+		"payment_terms_id":   quotation.PaymentTermsID,
+		"payment_terms_name": salesQuotationPaymentTermsName(quotation),
+		"sales_rep_id":       quotation.SalesRepID,
+		"sales_rep_name":     salesQuotationSalesRepName(quotation),
+		"business_unit_id":   quotation.BusinessUnitID,
+		"business_unit_name": salesQuotationBusinessUnitName(quotation),
+		"business_type_id":   quotation.BusinessTypeID,
+		"business_type_name": salesQuotationBusinessTypeName(quotation),
+		"subtotal":           quotation.Subtotal,
+		"discount_amount":    quotation.DiscountAmount,
+		"tax_rate":           quotation.TaxRate,
+		"tax_amount":         quotation.TaxAmount,
+		"delivery_cost":      quotation.DeliveryCost,
+		"other_cost":         quotation.OtherCost,
+		"total_amount":       quotation.TotalAmount,
+		"notes":              quotation.Notes,
+		"items":              salesQuotationAuditItems(quotation.Items),
+	}
+}
+
+func salesQuotationAuditItems(items []models.SalesQuotationItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := ""
+		code := ""
+		if item.Product != nil {
+			name = item.Product.Name
+			code = item.Product.Code
+		}
+
+		out = append(out, map[string]interface{}{
+			"id":           item.ID,
+			"product_id":   item.ProductID,
+			"product_code": code,
+			"product_name": name,
+			"quantity":     item.Quantity,
+			"price":        item.Price,
+			"discount":     item.Discount,
+			"subtotal":     item.Subtotal,
+		})
+	}
+
+	return out
 }

@@ -435,16 +435,7 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, ErrInvalidInvoiceStatus
 	}
 
-	beforeSnapshot := map[string]interface{}{
-		"status":       invoice.Status,
-		"invoice_date": invoice.InvoiceDate,
-		"due_date":     invoice.DueDate,
-		"subtotal":     invoice.Subtotal,
-		"tax_amount":   invoice.TaxAmount,
-		"amount":       invoice.Amount,
-		"remaining":    invoice.RemainingAmount,
-		"notes":        invoice.Notes,
-	}
+	beforeSnapshot := customerInvoiceAuditSnapshot(invoice)
 
 	// Update fields
 	if req.InvoiceDate != nil {
@@ -564,16 +555,7 @@ func (uc *customerInvoiceUsecase) Update(ctx context.Context, id string, req *dt
 
 	logSalesAudit(uc.auditService, ctx, "customer_invoice.update", id, map[string]interface{}{
 		"before": beforeSnapshot,
-		"after": map[string]interface{}{
-			"status":       updatedInvoice.Status,
-			"invoice_date": updatedInvoice.InvoiceDate,
-			"due_date":     updatedInvoice.DueDate,
-			"subtotal":     updatedInvoice.Subtotal,
-			"tax_amount":   updatedInvoice.TaxAmount,
-			"amount":       updatedInvoice.Amount,
-			"remaining":    updatedInvoice.RemainingAmount,
-			"notes":        updatedInvoice.Notes,
-		},
+		"after":  customerInvoiceAuditSnapshot(updatedInvoice),
 	})
 
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
@@ -585,14 +567,7 @@ func (uc *customerInvoiceUsecase) Delete(ctx context.Context, id string) error {
 		return ErrCustomerInvoiceNotFound
 	}
 
-	beforeSnapshot := map[string]interface{}{
-		"code":           invoice.Code,
-		"status":         invoice.Status,
-		"type":           invoice.Type,
-		"amount":         invoice.Amount,
-		"remaining":      invoice.RemainingAmount,
-		"sales_order_id": invoice.SalesOrderID,
-	}
+	beforeSnapshot := customerInvoiceAuditSnapshot(invoice)
 
 	// Allow deletion of draft or unpaid invoices only
 	if invoice.Status != models.CustomerInvoiceStatusDraft && invoice.Status != models.CustomerInvoiceStatusUnpaid {
@@ -698,6 +673,60 @@ func shouldTriggerSalesInvoiceJournal(previousStatus, currentStatus models.Custo
 	}
 
 	return previousStatus != models.CustomerInvoiceStatusUnpaid
+}
+
+func customerInvoiceAuditSnapshot(invoice *models.CustomerInvoice) map[string]interface{} {
+	if invoice == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":                    invoice.Code,
+		"invoice_number":          invoice.InvoiceNumber,
+		"status":                  invoice.Status,
+		"type":                    invoice.Type,
+		"invoice_date":            invoice.InvoiceDate,
+		"due_date":                invoice.DueDate,
+		"sales_order_id":          invoice.SalesOrderID,
+		"delivery_order_id":       invoice.DeliveryOrderID,
+		"payment_terms_id":        invoice.PaymentTermsID,
+		"tax_rate":                invoice.TaxRate,
+		"tax_amount":              invoice.TaxAmount,
+		"delivery_cost":           invoice.DeliveryCost,
+		"other_cost":              invoice.OtherCost,
+		"subtotal":                invoice.Subtotal,
+		"down_payment_amount":     invoice.DownPaymentAmount,
+		"down_payment_invoice_id": invoice.DownPaymentInvoiceID,
+		"amount":                  invoice.Amount,
+		"paid_amount":             invoice.PaidAmount,
+		"remaining_amount":        invoice.RemainingAmount,
+		"payment_at":              invoice.PaymentAt,
+		"notes":                   invoice.Notes,
+		"items":                   customerInvoiceAuditItems(invoice.Items),
+	}
+}
+
+func customerInvoiceAuditItems(items []models.CustomerInvoiceItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"id":                     item.ID,
+			"product_id":             item.ProductID,
+			"sales_order_item_id":    item.SalesOrderItemID,
+			"delivery_order_item_id": item.DeliveryOrderItemID,
+			"quantity":               item.Quantity,
+			"price":                  item.Price,
+			"discount":               item.Discount,
+			"subtotal":               item.Subtotal,
+			"hpp_amount":             item.HPPAmount,
+		})
+	}
+
+	return out
 }
 
 func shouldTriggerSalesInvoiceReversal(previousStatus, currentStatus models.CustomerInvoiceStatus, invoiceType models.CustomerInvoiceType) bool {

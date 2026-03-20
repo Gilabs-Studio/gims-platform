@@ -285,15 +285,7 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 		return nil, ErrInvalidOrderStatus
 	}
 
-	beforeSnapshot := map[string]interface{}{
-		"status":         order.Status,
-		"order_date":     order.OrderDate,
-		"subtotal":       order.Subtotal,
-		"tax_amount":     order.TaxAmount,
-		"total_amount":   order.TotalAmount,
-		"notes":          order.Notes,
-		"reserved_stock": order.ReservedStock,
-	}
+	beforeSnapshot := salesOrderAuditSnapshot(order)
 
 	// Validate products if items are being updated
 	productMap := make(map[string]*productModels.Product)
@@ -346,18 +338,13 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
-	logSalesAudit(u.auditService, ctx, "sales_order.update", id, map[string]interface{}{
-		"before": beforeSnapshot,
-		"after": map[string]interface{}{
-			"status":         updated.Status,
-			"order_date":     updated.OrderDate,
-			"subtotal":       updated.Subtotal,
-			"tax_amount":     updated.TaxAmount,
-			"total_amount":   updated.TotalAmount,
-			"notes":          updated.Notes,
-			"reserved_stock": updated.ReservedStock,
-		},
-	})
+	afterSnapshot := salesOrderAuditSnapshot(updated)
+	if shouldLogSnapshotChange(beforeSnapshot, afterSnapshot) {
+		logSalesAudit(u.auditService, ctx, "sales_order.update", id, map[string]interface{}{
+			"before": beforeSnapshot,
+			"after":  afterSnapshot,
+		})
+	}
 	return &response, nil
 }
 
@@ -678,4 +665,109 @@ func (u *salesOrderUsecase) isValidStatusTransition(current, new models.SalesOrd
 	}
 
 	return false
+}
+
+func salesOrderPaymentTermsName(order *models.SalesOrder) string {
+	if order == nil || order.PaymentTerms == nil {
+		return ""
+	}
+	return order.PaymentTerms.Name
+}
+
+func salesOrderBusinessUnitName(order *models.SalesOrder) string {
+	if order == nil || order.BusinessUnit == nil {
+		return ""
+	}
+	return order.BusinessUnit.Name
+}
+
+func salesOrderBusinessTypeName(order *models.SalesOrder) string {
+	if order == nil || order.BusinessType == nil {
+		return ""
+	}
+	return order.BusinessType.Name
+}
+
+func salesOrderDeliveryAreaName(order *models.SalesOrder) string {
+	if order == nil || order.DeliveryArea == nil {
+		return ""
+	}
+	return order.DeliveryArea.Name
+}
+
+func salesOrderSalesRepName(order *models.SalesOrder) string {
+	if order == nil || order.SalesRep == nil {
+		return ""
+	}
+	return order.SalesRep.Name
+}
+
+func salesOrderAuditSnapshot(order *models.SalesOrder) map[string]interface{} {
+	if order == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":               order.Code,
+		"status":             order.Status,
+		"order_date":         order.OrderDate,
+		"sales_quotation_id": order.SalesQuotationID,
+		"customer_id":        order.CustomerID,
+		"customer_name":      order.CustomerName,
+		"customer_contact":   order.CustomerContact,
+		"customer_phone":     order.CustomerPhone,
+		"customer_email":     order.CustomerEmail,
+		"payment_terms_id":   order.PaymentTermsID,
+		"payment_terms_name": salesOrderPaymentTermsName(order),
+		"sales_rep_id":       order.SalesRepID,
+		"sales_rep_name":     salesOrderSalesRepName(order),
+		"business_unit_id":   order.BusinessUnitID,
+		"business_unit_name": salesOrderBusinessUnitName(order),
+		"business_type_id":   order.BusinessTypeID,
+		"business_type_name": salesOrderBusinessTypeName(order),
+		"delivery_area_id":   order.DeliveryAreaID,
+		"delivery_area_name": salesOrderDeliveryAreaName(order),
+		"subtotal":           order.Subtotal,
+		"discount_amount":    order.DiscountAmount,
+		"tax_rate":           order.TaxRate,
+		"tax_amount":         order.TaxAmount,
+		"delivery_cost":      order.DeliveryCost,
+		"other_cost":         order.OtherCost,
+		"total_amount":       order.TotalAmount,
+		"notes":              order.Notes,
+		"reserved_stock":     order.ReservedStock,
+		"items":              salesOrderAuditItems(order.Items),
+	}
+}
+
+func salesOrderAuditItems(items []models.SalesOrderItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := item.ProductName
+		if name == "" && item.Product != nil {
+			name = item.Product.Name
+		}
+
+		code := item.ProductCode
+		if code == "" && item.Product != nil {
+			code = item.Product.Code
+		}
+
+		out = append(out, map[string]interface{}{
+			"id":           item.ID,
+			"product_id":   item.ProductID,
+			"product_code": code,
+			"product_name": name,
+			"quantity":     item.Quantity,
+			"price":        item.Price,
+			"discount":     item.Discount,
+			"subtotal":     item.Subtotal,
+		})
+	}
+
+	return out
 }
