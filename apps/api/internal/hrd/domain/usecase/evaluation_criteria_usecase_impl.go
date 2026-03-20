@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
@@ -14,16 +15,21 @@ import (
 type evaluationCriteriaUsecase struct {
 	criteriaRepo repositories.EvaluationCriteriaRepository
 	groupRepo    repositories.EvaluationGroupRepository
+	auditService audit.AuditService
 }
+
+const errEvaluationCriteriaNotFound = "evaluation criteria not found"
 
 // NewEvaluationCriteriaUsecase creates a new instance of EvaluationCriteriaUsecase
 func NewEvaluationCriteriaUsecase(
 	criteriaRepo repositories.EvaluationCriteriaRepository,
 	groupRepo repositories.EvaluationGroupRepository,
+	auditService audit.AuditService,
 ) EvaluationCriteriaUsecase {
 	return &evaluationCriteriaUsecase{
 		criteriaRepo: criteriaRepo,
 		groupRepo:    groupRepo,
+		auditService: auditService,
 	}
 }
 
@@ -51,7 +57,7 @@ func (u *evaluationCriteriaUsecase) GetByID(ctx context.Context, id string) (*dt
 		return nil, err
 	}
 	if criteria == nil {
-		return nil, errors.New("evaluation criteria not found")
+		return nil, errors.New(errEvaluationCriteriaNotFound)
 	}
 
 	return mapper.ToEvaluationCriteriaResponse(criteria), nil
@@ -83,6 +89,8 @@ func (u *evaluationCriteriaUsecase) Create(ctx context.Context, req *dto.CreateE
 		return nil, fmt.Errorf("failed to create evaluation criteria: %w", err)
 	}
 
+	u.auditService.Log(ctx, "evaluation_criteria.create", criteria.EvaluationGroupID, map[string]interface{}{"after": criteria})
+
 	return mapper.ToEvaluationCriteriaResponse(criteria), nil
 }
 
@@ -92,8 +100,9 @@ func (u *evaluationCriteriaUsecase) Update(ctx context.Context, id string, req *
 		return nil, err
 	}
 	if criteria == nil {
-		return nil, errors.New("evaluation criteria not found")
+		return nil, errors.New(errEvaluationCriteriaNotFound)
 	}
+	before := *criteria
 
 	// Validate weight if being updated
 	if req.Weight != nil {
@@ -113,6 +122,11 @@ func (u *evaluationCriteriaUsecase) Update(ctx context.Context, id string, req *
 		return nil, fmt.Errorf("failed to update evaluation criteria: %w", err)
 	}
 
+	u.auditService.Log(ctx, "evaluation_criteria.update", criteria.EvaluationGroupID, map[string]interface{}{
+		"before": before,
+		"after":  criteria,
+	})
+
 	return mapper.ToEvaluationCriteriaResponse(criteria), nil
 }
 
@@ -122,12 +136,14 @@ func (u *evaluationCriteriaUsecase) Delete(ctx context.Context, id string) error
 		return err
 	}
 	if criteria == nil {
-		return errors.New("evaluation criteria not found")
+		return errors.New(errEvaluationCriteriaNotFound)
 	}
 
 	if err := u.criteriaRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete evaluation criteria: %w", err)
 	}
+
+	u.auditService.Log(ctx, "evaluation_criteria.delete", criteria.EvaluationGroupID, map[string]interface{}{"before": criteria})
 
 	return nil
 }

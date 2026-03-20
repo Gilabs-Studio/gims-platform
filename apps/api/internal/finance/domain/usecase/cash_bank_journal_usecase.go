@@ -31,6 +31,8 @@ type CashBankJournalUsecase interface {
 	ListLines(ctx context.Context, cashBankJournalID string, page, perPage int) (*dto.ListJournalLinesResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.CashBankJournalResponse, error)
 	GetFormData(ctx context.Context) (*dto.CashBankFormDataResponse, error)
+	// Sub-ledger: read-only access for Journal module
+	ListPosted(ctx context.Context, req *dto.ListCashBankJournalsRequest) ([]dto.CashBankJournalResponse, int64, *dto.CashBankSubLedgerKPI, error)
 }
 
 type cashBankJournalUsecase struct {
@@ -356,15 +358,16 @@ func (uc *cashBankJournalUsecase) List(ctx context.Context, req *dto.ListCashBan
 	}
 
 	items, total, err := uc.repo.List(ctx, repositories.CashBankJournalListParams{
-		Search:    req.Search,
-		Type:      req.Type,
-		Status:    req.Status,
-		StartDate: startDate,
-		EndDate:   endDate,
-		SortBy:    req.SortBy,
-		SortDir:   req.SortDir,
-		Limit:     perPage,
-		Offset:    (page - 1) * perPage,
+		Search:        req.Search,
+		Type:          req.Type,
+		Status:        req.Status,
+		BankAccountID: req.BankAccountID,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		SortBy:        req.SortBy,
+		SortDir:       req.SortDir,
+		Limit:         perPage,
+		Offset:        (page - 1) * perPage,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -570,4 +573,41 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 	}
 	resp := uc.mapper.ToResponse(full)
 	return &resp, nil
+}
+
+// ListPosted returns only posted cash bank journals for the Journal module sub-ledger.
+// It also computes KPI: total inflow (cash_in), total outflow (cash_out + transfer), and net movement.
+func (uc *cashBankJournalUsecase) ListPosted(ctx context.Context, req *dto.ListCashBankJournalsRequest) ([]dto.CashBankJournalResponse, int64, *dto.CashBankSubLedgerKPI, error) {
+	if req == nil {
+		req = &dto.ListCashBankJournalsRequest{}
+	}
+
+	// Force status to posted only
+	postedStatus := financeModels.CashBankStatusPosted
+	req.Status = &postedStatus
+
+	items, total, err := uc.List(ctx, req)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	// Compute KPI from results
+	var inflow, outflow float64
+	for _, item := range items {
+		switch item.Type {
+		case financeModels.CashBankTypeCashIn:
+			inflow += item.TotalAmount
+		case financeModels.CashBankTypeCashOut, financeModels.CashBankTypeTransfer:
+			outflow += item.TotalAmount
+		}
+	}
+
+	kpi := &dto.CashBankSubLedgerKPI{
+		TotalInflow:  inflow,
+		TotalOutflow: outflow,
+		NetMovement:  inflow - outflow,
+		TotalRecords: total,
+	}
+
+	return items, total, kpi, nil
 }

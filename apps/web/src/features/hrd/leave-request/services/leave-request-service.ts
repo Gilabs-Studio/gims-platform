@@ -5,6 +5,7 @@ import type {
   LeaveFormDataResponse,
   LeaveBalancesResponse,
   MyLeaveBalanceResponse,
+  LeaveRequestAuditTrailResponse,
   CreateLeaveRequestPayload,
   UpdateLeaveRequestPayload,
   ApproveLeaveRequestPayload,
@@ -26,6 +27,16 @@ export const leaveRequestService = {
 
   async getLeaveRequestById(id: string): Promise<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }> {
     const response = await apiClient.get<{ success: boolean; data: LeaveRequestDetail; timestamp: string; request_id: string }>(`${BASE_PATH}/${id}`);
+    return response.data;
+  },
+
+  async getLeaveRequestAuditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number },
+  ): Promise<LeaveRequestAuditTrailResponse> {
+    const response = await apiClient.get<LeaveRequestAuditTrailResponse>(`${BASE_PATH}/${id}/audit-trail`, {
+      params,
+    });
     return response.data;
   },
 

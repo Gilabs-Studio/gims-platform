@@ -9,7 +9,7 @@ import { PageMotion } from "@/components/motion";
 
 const BalanceSheetView = dynamic(
   () =>
-    import("@/features/finance/reports/components/balance-sheet-view").then((mod) => ({
+    import("@/features/finance/reports/balance-sheet/components/balance-sheet-view").then((mod) => ({
       default: mod.BalanceSheetView,
     })),
   { loading: () => null },

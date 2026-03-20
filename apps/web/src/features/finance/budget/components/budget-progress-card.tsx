@@ -13,11 +13,11 @@ interface BudgetProgressCardProps {
   readonly onClick?: () => void;
 }
 
-function getProgressColor(percent: number): string {
-  if (percent >= 90) return "#ef4444"; // red-500
-  if (percent >= 70) return "#f97316"; // orange-500
-  if (percent >= 50) return "#eab308"; // yellow-500
-  return "#22c55e"; // green-500
+function getProgressColorClass(percent: number): string {
+  if (percent >= 90) return "text-destructive";
+  if (percent >= 70) return "text-warning";
+  if (percent >= 50) return "text-secondary";
+  return "text-success";
 }
 
 function HalfCircleProgress({ percent }: { readonly percent: number }) {
@@ -57,7 +57,7 @@ function HalfCircleProgress({ percent }: { readonly percent: number }) {
     `A ${RADIUS} ${RADIUS} 0 ${largeArc} 1 ${progEnd.x} ${progEnd.y}`,
   ].join(" ");
 
-  const color = getProgressColor(clampedPercent);
+  const progressColorClass = getProgressColorClass(clampedPercent);
 
   return (
     <svg viewBox="0 0 140 95" className="w-full max-w-[160px] mx-auto">
@@ -65,13 +65,35 @@ function HalfCircleProgress({ percent }: { readonly percent: number }) {
       <path d={bgPath} fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/30" strokeLinecap="round" />
       {/* Progress arc */}
       {clampedPercent > 0 && (
-        <path d={progPath} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" />
+        <path
+          d={progPath}
+          fill="none"
+          stroke="currentColor"
+          className={progressColorClass}
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
       )}
       {/* Center % text */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="20" fontWeight="700" fill={color} className="font-bold">
+      <text
+        x={cx}
+        y={cy - 4}
+        textAnchor="middle"
+        fontSize="20"
+        fontWeight="700"
+        fill="currentColor"
+        className={`font-bold ${progressColorClass}`}
+      >
         {Math.round(clampedPercent)}%
       </text>
-      <text x={cx} y={cy + 14} textAnchor="middle" fontSize="9" fill="currentColor" className="text-muted-foreground uppercase tracking-wider">
+      <text
+        x={cx}
+        y={cy + 14}
+        textAnchor="middle"
+        fontSize="9"
+        fill="currentColor"
+        className="text-muted-foreground uppercase tracking-wider"
+      >
         utilized
       </text>
     </svg>
@@ -91,7 +113,7 @@ export function BudgetProgressCard({
   const planned = plannedAmount ?? 0;
   const remaining = Math.max(0, planned - used);
   const percent = planned > 0 ? (used / planned) * 100 : 0;
-  const color = getProgressColor(percent);
+  const progressColorClass = getProgressColorClass(percent);
 
   return (
     <div
@@ -99,7 +121,9 @@ export function BudgetProgressCard({
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick?.(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick?.();
+      }}
     >
       {/* Header with Status badge */}
       <div className="flex justify-between items-start gap-2 mb-4">
@@ -114,7 +138,7 @@ export function BudgetProgressCard({
         <span
           className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
             status === "approved"
-              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+              ? "bg-success/10 text-success"
               : "bg-secondary text-muted-foreground"
           }`}
         >
@@ -132,7 +156,7 @@ export function BudgetProgressCard({
         <div className="grid grid-cols-2 gap-x-2 gap-y-1">
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("fields.usedAmount")}</span>
-            <span className="text-sm font-mono font-bold" style={{ color }}>{formatCurrency(used)}</span>
+            <span className={`text-sm font-mono font-bold ${progressColorClass}`}>{formatCurrency(used)}</span>
           </div>
           <div className="flex flex-col text-right">
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("fields.remainingAmount")}</span>

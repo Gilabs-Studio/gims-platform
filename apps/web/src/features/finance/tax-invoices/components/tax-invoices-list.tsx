@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -19,12 +19,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import type { TaxInvoice } from "../types";
 import { useDeleteFinanceTaxInvoice, useFinanceTaxInvoices } from "../hooks/use-finance-tax-invoices";
 import { TaxInvoiceForm } from "./tax-invoice-form";
-
-function formatDate(value: string) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toISOString().slice(0, 10);
-}
 
 export function TaxInvoicesList() {
   const t = useTranslations("financeTaxInvoices");
@@ -105,10 +99,10 @@ export function TaxInvoicesList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("fields.number")}</TableHead>
-              <TableHead>{t("fields.date")}</TableHead>
-              <TableHead>{t("fields.dpp")}</TableHead>
-              <TableHead>{t("fields.vat")}</TableHead>
-              <TableHead>{t("fields.total")}</TableHead>
+              <TableHead className="text-center">{t("fields.date")}</TableHead>
+              <TableHead className="text-right">{t("fields.dpp")}</TableHead>
+              <TableHead className="text-right">{t("fields.vat")}</TableHead>
+              <TableHead className="text-right">{t("fields.total")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -131,7 +125,7 @@ export function TaxInvoicesList() {
               rows.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.tax_invoice_number}</TableCell>
-                  <TableCell>{formatDate(item.tax_invoice_date)}</TableCell>
+                  <TableCell className="text-center">{formatDate(item.tax_invoice_date)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.dpp_amount)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.vat_amount)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatCurrency(item.total_amount)}</TableCell>

@@ -2,6 +2,7 @@ export interface ReceivablesRecapRow {
   customer_id: string;
   customer_name: string;
   total_receivable: number;
+  down_payment: number;
   paid_amount: number;
   outstanding_amount: number;
   last_transaction: string;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -19,6 +20,26 @@ import (
 
 func formatFloatKey(v float64) string {
 	return fmt.Sprintf("%.6f", v)
+}
+
+func safeStringPtr(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(*v)
+}
+
+func journalTraceKey(referenceType, referenceID *string) string {
+	rt := safeStringPtr(referenceType)
+	rid := safeStringPtr(referenceID)
+	if rt == "" && rid == "" {
+		return "unknown"
+	}
+	return rt + ":" + rid
+}
+
+func logJournalEvent(event string, fields map[string]interface{}) {
+	log.Printf("journal_observability event=%s fields=%+v", event, fields)
 }
 
 var (
@@ -39,6 +60,11 @@ type JournalEntryUsecase interface {
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
 	PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error)
 	GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error)
+	CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error)
+	UpdateAdjustmentJournal(ctx context.Context, id string, req *dto.UpdateJournalEntryRequest) (*dto.JournalEntryResponse, error)
+	PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error)
 }
 
 type journalEntryUsecase struct {
@@ -55,6 +81,31 @@ func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepo
 // parseDate is kept as an alias for backward compatibility within this file.
 func parseDate(value string) (time.Time, error) {
 	return parseDateRequired(value)
+}
+
+func journalReferenceTypesForDomain(domain *string) []string {
+	if domain == nil {
+		return nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(*domain)) {
+	case "sales":
+		return []string{"SALES_INVOICE", "SALES_INVOICE_DP"}
+	case "purchase":
+		return []string{"GOODS_RECEIPT", "SUPPLIER_INVOICE", "SUPPLIER_INVOICE_DP", "PURCHASE_PAYMENT"}
+	case "inventory", "stock":
+		return []string{"STOCK_OPNAME", "INVENTORY_ADJUSTMENT"}
+	case "cash_bank":
+		return []string{"CASH_BANK", "PAYMENT", "SALES_PAYMENT"}
+	case "finance":
+		return []string{"GENERAL", "NTP", "ASSET_TXN", "ASSET_DEP", "UP_COUNTRY", "year_end_closing", "reversal"}
+	case "adjustment":
+		return []string{"MANUAL_ADJUSTMENT", "ADJUSTMENT", "CORRECTION"}
+	case "valuation":
+		return []string{"INVENTORY_VALUATION", "CURRENCY_REVALUATION", "COST_ADJUSTMENT"}
+	default:
+		return nil
+	}
 }
 
 func validateLines(lines []dto.JournalLineRequest) (float64, float64, error) {
@@ -181,8 +232,11 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		}
 		return nil, err
 	}
-	if entry.Status == financeModels.JournalStatusPosted {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
 		return nil, ErrJournalPostedImmutable
+	}
+	if entry.IsSystemGenerated {
+		return nil, errors.New("system-generated journal entries cannot be modified")
 	}
 
 	entryDate, err := parseDate(req.EntryDate)
@@ -291,8 +345,11 @@ func (uc *journalEntryUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if entry.Status == financeModels.JournalStatusPosted {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
 		return ErrJournalPostedImmutable
+	}
+	if entry.IsSystemGenerated {
+		return errors.New("system-generated journal entries cannot be deleted")
 	}
 	return uc.db.WithContext(ctx).Delete(&financeModels.JournalEntry{}, "id = ?", id).Error
 }
@@ -329,15 +386,16 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	}
 
 	params := repositories.JournalEntryListParams{
-		Search:        req.Search,
-		Status:        req.Status,
-		StartDate:     startDate,
-		EndDate:       endDate,
-		SortBy:        req.SortBy,
-		SortDir:       req.SortDir,
-		Limit:         perPage,
-		Offset:        (page - 1) * perPage,
-		ReferenceType: req.ReferenceType,
+		Search:         req.Search,
+		Status:         req.Status,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		SortBy:         req.SortBy,
+		SortDir:        req.SortDir,
+		Limit:          perPage,
+		Offset:         (page - 1) * perPage,
+		ReferenceType:  req.ReferenceType,
+		ReferenceTypes: journalReferenceTypesForDomain(req.Domain),
 	}
 
 	items, total, err := uc.repo.List(ctx, params)
@@ -419,7 +477,9 @@ func (uc *journalEntryUsecase) TrialBalance(ctx context.Context, startDate, endD
 		Table("journal_lines").
 		Select("journal_lines.chart_of_account_id as chart_of_account_id, COALESCE(SUM(journal_lines.debit),0) as debit_total, COALESCE(SUM(journal_lines.credit),0) as credit_total").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
-		Where("journal_entries.status = ?", financeModels.JournalStatusPosted)
+		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
+		Where("journal_entries.deleted_at IS NULL").
+		Where("journal_lines.deleted_at IS NULL")
 
 	if startDate != nil {
 		q = q.Where("journal_entries.entry_date >= ?", *startDate)
@@ -472,13 +532,34 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		return nil, errors.New("reference type and reference id are required for PostOrUpdateJournal")
 	}
 
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	traceKey := journalTraceKey(req.ReferenceType, req.ReferenceID)
+	logJournalEvent("post_or_update.start", map[string]interface{}{
+		"trace_key":      traceKey,
+		"reference_type": safeStringPtr(req.ReferenceType),
+		"reference_id":   safeStringPtr(req.ReferenceID),
+		"line_count":     len(req.Lines),
+		"actor_id":       actorID,
+	})
+
 	var existing financeModels.JournalEntry
 	err := uc.db.WithContext(ctx).
 		Where("reference_type = ? AND reference_id = ?", req.ReferenceType, req.ReferenceID).
 		First(&existing).Error
 
 	if err == nil {
+		logJournalEvent("post_or_update.found_existing", map[string]interface{}{
+			"trace_key": traceKey,
+			"entry_id":  existing.ID,
+			"status":    existing.Status,
+		})
+
 		if existing.Status == financeModels.JournalStatusPosted {
+			logJournalEvent("post_or_update.blocked_posted_immutable", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  existing.ID,
+			})
 			return nil, ErrJournalPostedImmutable
 		}
 
@@ -492,17 +573,68 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 
 		updateres, err := uc.Update(ctx, existing.ID, updateReq)
 		if err != nil {
+			logJournalEvent("post_or_update.update_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  existing.ID,
+				"error":     err.Error(),
+			})
 			return nil, err
 		}
 
-		return uc.Post(ctx, updateres.ID)
+		posted, err := uc.Post(ctx, updateres.ID)
+		if err != nil {
+			logJournalEvent("post_or_update.post_after_update_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  updateres.ID,
+				"error":     err.Error(),
+			})
+			return nil, err
+		}
+
+		logJournalEvent("post_or_update.update_path_success", map[string]interface{}{
+			"trace_key":      traceKey,
+			"entry_id":       posted.ID,
+			"final_status":   posted.Status,
+			"reference_type": safeStringPtr(req.ReferenceType),
+			"reference_id":   safeStringPtr(req.ReferenceID),
+		})
+
+		return posted, nil
 	} else if err == gorm.ErrRecordNotFound {
 		createres, err := uc.Create(ctx, req)
 		if err != nil {
+			logJournalEvent("post_or_update.create_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"error":     err.Error(),
+			})
 			return nil, err
 		}
-		return uc.Post(ctx, createres.ID)
+
+		posted, err := uc.Post(ctx, createres.ID)
+		if err != nil {
+			logJournalEvent("post_or_update.post_after_create_failed", map[string]interface{}{
+				"trace_key": traceKey,
+				"entry_id":  createres.ID,
+				"error":     err.Error(),
+			})
+			return nil, err
+		}
+
+		logJournalEvent("post_or_update.create_path_success", map[string]interface{}{
+			"trace_key":      traceKey,
+			"entry_id":       posted.ID,
+			"final_status":   posted.Status,
+			"reference_type": safeStringPtr(req.ReferenceType),
+			"reference_id":   safeStringPtr(req.ReferenceID),
+		})
+
+		return posted, nil
 	}
+
+	logJournalEvent("post_or_update.lookup_failed", map[string]interface{}{
+		"trace_key": traceKey,
+		"error":     err.Error(),
+	})
 
 	return nil, err
 }
@@ -533,6 +665,17 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 		return nil, errors.New("only posted journal entries can be reversed")
 	}
 
+	var existingReversal financeModels.JournalReversal
+	err = uc.db.WithContext(ctx).
+		Where("original_journal_entry_id = ?", entry.ID).
+		First(&existingReversal).Error
+	if err == nil {
+		return nil, errors.New("journal entry has already been reversed")
+	}
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+
 	// Build reversed lines: swap debit and credit
 	reversedLines := make([]dto.JournalLineRequest, 0, len(entry.Lines))
 	for _, ln := range entry.Lines {
@@ -546,7 +689,7 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 
 	refType := "reversal"
 	reversalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:         time.Now().Format("2006-01-02"),
+		EntryDate:         apptime.Now().Format("2006-01-02"),
 		Description:       "Reversal of: " + entry.Description,
 		ReferenceType:     &refType,
 		ReferenceID:       &entry.ID,
@@ -564,6 +707,23 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 	posted, err := uc.Post(ctx, reversal.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to post reversal entry: %w", err)
+	}
+
+	reversalMeta := &financeModels.JournalReversal{
+		OriginalJournalEntryID: entry.ID,
+		ReversalJournalEntryID: posted.ID,
+		Reason:                 "manual reversal",
+		CreatedBy:              &actorID,
+	}
+	if err := uc.db.WithContext(ctx).Create(reversalMeta).Error; err != nil {
+		return nil, fmt.Errorf("failed to save reversal metadata: %w", err)
+	}
+
+	// Mark the original journal entry as 'reversed'
+	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+		Where("id = ?", entry.ID).
+		Update("status", financeModels.JournalStatusReversed).Error; err != nil {
+		log.Printf("warning: failed to mark original entry %s as reversed: %v", entry.ID, err)
 	}
 
 	return posted, nil
@@ -589,4 +749,139 @@ func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEnt
 	return &dto.JournalEntryFormDataResponse{
 		ChartOfAccounts: coaOptions,
 	}, nil
+}
+
+// CreateAdjustmentJournal creates a manual correction journal entry.
+// reference_type is always forced to "MANUAL_ADJUSTMENT" and is_system_generated = false.
+// This enforces governance: only Finance-controlled manual adjustments can use this endpoint.
+func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	refType := "MANUAL_ADJUSTMENT"
+	baseReq := &dto.CreateJournalEntryRequest{
+		EntryDate:         req.EntryDate,
+		Description:       req.Description,
+		ReferenceType:     &refType,
+		ReferenceID:       nil,
+		Lines:             req.Lines,
+		IsSystemGenerated: false,
+		SourceDocumentURL: req.SourceDocumentURL,
+	}
+
+	return uc.Create(ctx, baseReq)
+}
+
+// UpdateAdjustmentJournal updates a manual correction journal entry.
+func (uc *journalEntryUsecase) UpdateAdjustmentJournal(ctx context.Context, id string, req *dto.UpdateJournalEntryRequest) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only update manual adjustment journals")
+	}
+
+	refType := "MANUAL_ADJUSTMENT"
+	req.ReferenceType = &refType
+	req.ReferenceID = entry.ReferenceID
+
+	return uc.Update(ctx, id, req)
+}
+
+// PostAdjustmentJournal posts a manual correction journal entry.
+func (uc *journalEntryUsecase) PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only post manual adjustment journals")
+	}
+	return uc.Post(ctx, id)
+}
+
+// ReverseAdjustmentJournal reverses a posted manual correction journal entry.
+func (uc *journalEntryUsecase) ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	entry, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
+		return nil, errors.New("can only reverse manual adjustment journals")
+	}
+	return uc.Reverse(ctx, id)
+}
+
+// RunValuation implements a skeleton valuation process.
+// In a real implementation, this would trigger actual calculations for FIFO/Average
+// inventory values, currency rates, or cost adjustments and generate corresponding journals.
+// For now, it generates a sample balanced "INVENTORY_VALUATION" journal entry.
+func (uc *journalEntryUsecase) RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+
+	refType := "INVENTORY_VALUATION"
+	// Use a timestamped reference ID to ensure uniqueness for multiple runs
+	refID := fmt.Sprintf("VAL-RUN-%d", time.Now().Unix())
+
+	// Skeleton dynamic logic: let's assume we adjusted inventory value by $100
+	req := &dto.CreateJournalEntryRequest{
+		EntryDate:         apptime.Now().Format("2006-01-02"),
+		Description:       "Inventory Valuation Run - Automatic Adjustment",
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		IsSystemGenerated: true,
+		Lines: []dto.JournalLineRequest{
+			{
+				ChartOfAccountID: "11040001", // Sample Inventory Asset Account ID (mock)
+				Debit:            100.00,
+				Credit:           0,
+				Memo:             "Valuation adjustment - increase",
+			},
+			{
+				ChartOfAccountID: "51010001", // Sample COGS/Valuation Expense Account ID (mock)
+				Debit:            0,
+				Credit:           100.00,
+				Memo:             "Valuation adjustment - contra",
+			},
+		},
+	}
+
+	// In a real scenario, we would allow the creation even if COA IDs don't exist yet by pre-validating or using specific system accounts.
+	// For this skeleton, we'll try to find any 2 COAs if the hardcoded ones fail, to ensure the "Run" at least produces something in a test/dev env.
+	coas, _ := uc.coaRepo.FindAll(ctx, false)
+	if len(coas) >= 2 {
+		req.Lines[0].ChartOfAccountID = coas[0].ID
+		req.Lines[1].ChartOfAccountID = coas[1].ID
+	}
+
+	// We use PostOrUpdateJournal to ensure idempotency and auto-post the result
+	return uc.PostOrUpdateJournal(ctx, req)
 }

@@ -10,8 +10,11 @@ import (
 type AssetLocation struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
-	Name        string `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
+	Name        string   `gorm:"type:varchar(150);not null;uniqueIndex" json:"name"`
+	Description string   `gorm:"type:text" json:"description"`
+	Address     string   `gorm:"type:text" json:"address"`
+	Latitude    *float64 `gorm:"type:numeric(10,7)" json:"latitude"`
+	Longitude   *float64 `gorm:"type:numeric(10,7)" json:"longitude"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

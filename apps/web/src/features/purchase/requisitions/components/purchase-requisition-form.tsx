@@ -14,7 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDate } from "@/lib/utils";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -108,6 +115,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 	const [requestDateOpen, setRequestDateOpen] = useState(false);
+	const [shouldLoadSelectData, setShouldLoadSelectData] = useState(isEdit);
 	const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
 	const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
 	const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -133,6 +141,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		resolver,
 		defaultValues: {
 			supplier_id: null,
+			supplier_phone_number_id: null,
 			payment_terms_id: null,
 			business_unit_id: null,
 			employee_id: null,
@@ -148,12 +157,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const { fields, append, remove } = useFieldArray({ control, name: "items" });
 	const watchedItems = watch("items");
+	const selectedSupplierId = watch("supplier_id");
 
 	useEffect(() => {
 		if (!open) { setActiveTab("basic"); return; }
 		if (!isEdit) {
 			reset({
-				supplier_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
+				supplier_id: null, supplier_phone_number_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
 				request_date: todayISO(), address: null, notes: "", tax_rate: 0, delivery_cost: 0, other_cost: 0,
 				items: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 			});
@@ -161,7 +171,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!detail) return;
 		reset({
-			supplier_id: detail.supplier_id ?? null, payment_terms_id: detail.payment_terms_id ?? null,
+			supplier_id: detail.supplier_id ?? null, supplier_phone_number_id: null, payment_terms_id: detail.payment_terms_id ?? null,
 			business_unit_id: detail.business_unit_id ?? null, employee_id: detail.employee_id ?? null,
 			request_date: detail.request_date, address: detail.address ?? null, notes: detail.notes ?? "",
 			tax_rate: detail.tax_rate ?? 0, delivery_cost: detail.delivery_cost ?? 0, other_cost: detail.other_cost ?? 0,
@@ -171,13 +181,23 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		});
 	}, [detail, isEdit, open, reset]);
 
-	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open });
-	const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-	const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
-	const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
-	const { data: employeesData } = useEmployees({ per_page: 100 });
+	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open && shouldLoadSelectData });
+	const { data: productsData } = useProducts({ per_page: 20, is_approved: true }, { enabled: open && shouldLoadSelectData });
+	const { data: paymentTermsData } = usePaymentTerms({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
+	const { data: businessUnitsData } = useBusinessUnits({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
+	const { data: employeesData } = useEmployees({ per_page: 20 }, { enabled: open && shouldLoadSelectData });
 	const selectedEmployeeId = detail?.employee_id ?? null;
 	const { data: selectedEmployeeData } = useEmployee(open && isEdit && selectedEmployeeId ? selectedEmployeeId : undefined);
+
+	useEffect(() => {
+		if (!open) {
+			setShouldLoadSelectData(false);
+			return;
+		}
+		if (isEdit) {
+			setShouldLoadSelectData(true);
+		}
+	}, [open, isEdit]);
 
 	const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
 	const suppliers = useMemo(() => addDataQuery.data?.data.suppliers ?? [], [addDataQuery.data?.data.suppliers]);
@@ -191,6 +211,39 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		if (selected && !list.some(x => x.id === selected.id)) list.push(selected as any);
 		return list;
 	}, [suppliers, detail?.supplier]);
+
+	const selectedSupplier = useMemo(() => {
+		if (!selectedSupplierId) return null;
+		return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
+	}, [selectedSupplierId, mergedSuppliers]);
+
+	const supplierPhoneNumbers = useMemo(() => selectedSupplier?.phone_numbers ?? [], [selectedSupplier]);
+
+	useEffect(() => {
+		if (!selectedSupplierId) {
+			setValue("payment_terms_id", null, { shouldValidate: true });
+			setValue("business_unit_id", null, { shouldValidate: true });
+			setValue("supplier_phone_number_id", null, { shouldValidate: true });
+			return;
+		}
+
+		if (!selectedSupplier) return;
+
+		setValue("payment_terms_id", selectedSupplier.payment_terms_id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+		setValue("business_unit_id", selectedSupplier.business_unit_id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+
+		const defaultPhone = selectedSupplier.phone_numbers?.find((ph) => ph.is_primary) ?? selectedSupplier.phone_numbers?.[0];
+		setValue("supplier_phone_number_id", defaultPhone?.id ?? null, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+	}, [selectedSupplierId, selectedSupplier, setValue]);
 
 	const mergedPaymentTerms = useMemo(() => {
 		const list = [...paymentTerms];
@@ -218,8 +271,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	});
 
 	const formatMoney = useCallback((value: number | null | undefined): string => {
-		const safe = typeof value === "number" && Number.isFinite(value) ? value : 0;
-		return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(safe);
+		return formatCurrency(value ?? 0);
 	}, []);
 
 	const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
@@ -330,12 +382,44 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="supplier.create"
 													createLabel={t("actions.createNew") || "Create New Supplier"}
 													onCreateClick={() => openQuickCreate("supplier")}
+													isLoading={addDataQuery.isFetching}
 												/>
+											)}
+										/>
+									</Field>
+
+									<Field orientation="vertical">
+										<FieldLabel>{t("fields.supplierPhoneNumber") || "Supplier Phone Number"}</FieldLabel>
+										<Controller
+											control={control}
+											name="supplier_phone_number_id"
+											render={({ field }) => (
+												<Select
+													value={field.value ?? ""}
+													onValueChange={(v) => field.onChange(v || null)}
+													disabled={!selectedSupplierId || supplierPhoneNumbers.length === 0}
+												>
+													<SelectTrigger className="cursor-pointer">
+														<SelectValue placeholder={t("placeholders.select")} />
+													</SelectTrigger>
+													<SelectContent>
+														{supplierPhoneNumbers.map((phone) => (
+															<SelectItem key={phone.id} value={phone.id} className="cursor-pointer">
+																{phone.phone_number}{phone.label ? ` (${phone.label})` : ""}{phone.is_primary ? " - Primary" : ""}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
 											)}
 										/>
 									</Field>
@@ -348,11 +432,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="payment_term.create"
 													createLabel={t("actions.createNew") || "Create Payment Term"}
 													onCreateClick={() => openQuickCreate("paymentTerm")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -366,11 +456,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="business_unit.create"
 													createLabel={t("actions.createNew") || "Create Business Unit"}
 													onCreateClick={() => openQuickCreate("businessUnit")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -384,11 +480,17 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v ? normalizeEmployeeId(v, mergedEmployees) : null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+													}}
 													options={mergedEmployees.map((e) => ({ value: e.id, label: e.employee_code ? `${e.employee_code} - ${e.name}` : e.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="employee.create"
 													createLabel={t("actions.createNew") || "Create Employee"}
 													onCreateClick={() => openQuickCreate("employee")}
+													isLoading={addDataQuery.isFetching}
 												/>
 											)}
 										/>
@@ -487,12 +589,26 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																render={({ field }) => (
 																	<CreatableCombobox
 																		value={field.value || undefined}
-																		onValueChange={(v) => field.onChange(v || "")}
+																		onValueChange={(v) => {
+																			field.onChange(v || "");
+																			if (v) {
+																				const found = products.find((p) => p.id === v);
+																				if (found?.cost_price !== undefined) {
+																					setValue(`items.${idx}.purchase_price`, found.cost_price, { shouldValidate: true });
+																				}
+																			}
+																		}}
+																		onOpenChange={(isOpen) => {
+																			if (isOpen) {
+																				setShouldLoadSelectData(true);
+																			}
+																		}}
 																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
 																		createLabel={t("actions.createNew") || "Create Product"}
 																		onCreateClick={() => openQuickCreate("product")}
+																		isLoading={addDataQuery.isFetching}
 																	/>
 																)}
 															/>
@@ -517,6 +633,15 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<FieldLabel>{t("fields.discount")}</FieldLabel>
 															<Controller control={control} name={`items.${idx}.discount`}
 																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<Field orientation="vertical" className="col-span-2">
+															<FieldLabel>{t("fields.notes")}</FieldLabel>
+															<Controller control={control} name={`items.${idx}.notes`}
+																render={({ field }) => (
+																	<Input value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
+																)}
 															/>
 														</Field>
 
@@ -599,34 +724,44 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 				)}
 			</DialogContent>
 
-			<SupplierDialog
-				open={quickCreate.type === "supplier"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleSupplierCreated}
-			/>
-			<PaymentTermsDialog
-				open={quickCreate.type === "paymentTerm"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handlePaymentTermCreated}
-			/>
-			<BusinessUnitForm
-				open={quickCreate.type === "businessUnit"}
-				onClose={closeQuickCreate}
-				onCreated={handleBusinessUnitCreated}
-			/>
-			<EmployeeForm
-				open={quickCreate.type === "employee"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				onCreated={handleEmployeeCreated}
-			/>
-			<ProductDialog
-				open={quickCreate.type === "product"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleProductCreated}
-			/>
+			{quickCreate.type === "supplier" && (
+				<SupplierDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleSupplierCreated}
+				/>
+			)}
+			{quickCreate.type === "paymentTerm" && (
+				<PaymentTermsDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handlePaymentTermCreated}
+				/>
+			)}
+			{quickCreate.type === "businessUnit" && (
+				<BusinessUnitForm
+					open
+					onClose={closeQuickCreate}
+					onCreated={handleBusinessUnitCreated}
+				/>
+			)}
+			{quickCreate.type === "employee" && (
+				<EmployeeForm
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					onCreated={handleEmployeeCreated}
+				/>
+			)}
+			{quickCreate.type === "product" && (
+				<ProductDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleProductCreated}
+				/>
+			)}
 		</Dialog>
 	);
 }

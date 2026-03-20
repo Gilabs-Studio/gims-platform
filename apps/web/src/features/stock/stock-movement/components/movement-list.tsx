@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -98,6 +98,68 @@ export function MovementList() {
 
   const stockResponse = data?.data;
   const movements = stockResponse?.data ?? [];
+
+  const displayMovements = useMemo(() => {
+    const groupedTransfers = new Map<string, StockMovement>();
+    const transferWarehouses = new Map<string, { source?: string; target?: string }>();
+    const ordered: StockMovement[] = [];
+
+    const isTransferMovement = (movement: StockMovement) =>
+      movement.type === "TRANSFER" || movement.ref_type?.toUpperCase() === "TRANSFER";
+
+    for (const movement of movements) {
+      if (!isTransferMovement(movement)) {
+        ordered.push(movement);
+        continue;
+      }
+
+      const transferKey = `TRANSFER:${movement.ref_number}`;
+      const currentWarehouse = movement.warehouse?.name;
+      const transferMeta = transferWarehouses.get(transferKey) ?? {};
+
+      if (movement.qty_out > 0 && currentWarehouse) {
+        transferMeta.source = currentWarehouse;
+      }
+      if (movement.qty_in > 0 && currentWarehouse) {
+        transferMeta.target = currentWarehouse;
+      }
+      transferWarehouses.set(transferKey, transferMeta);
+
+      const existing = groupedTransfers.get(transferKey);
+      if (!existing) {
+        const firstTransferRow: StockMovement = {
+          ...movement,
+          type: "TRANSFER",
+          qty_in: movement.qty_in,
+          qty_out: movement.qty_out,
+        };
+
+        groupedTransfers.set(transferKey, firstTransferRow);
+        ordered.push(firstTransferRow);
+        continue;
+      }
+
+      existing.qty_in += movement.qty_in;
+      existing.qty_out += movement.qty_out;
+      if (new Date(movement.created_at).getTime() > new Date(existing.created_at).getTime()) {
+        existing.created_at = movement.created_at;
+        existing.date = movement.date;
+      }
+    }
+
+    for (const movement of ordered) {
+      const transferKey = `TRANSFER:${movement.ref_number}`;
+      const meta = transferWarehouses.get(transferKey);
+      const isTransfer = movement.type === "TRANSFER" || movement.ref_type?.toUpperCase() === "TRANSFER";
+      if (!isTransfer || !meta?.source || !meta?.target) {
+        continue;
+      }
+      movement.source = `${meta.source} -> ${meta.target}`;
+    }
+
+    return ordered;
+  }, [movements]);
+
   const pagination = stockResponse?.meta?.pagination;
 
   if (isError) {
@@ -214,14 +276,14 @@ export function MovementList() {
                         </TableCell>
                     </TableRow>
                 ))
-            ) : movements.length === 0 ? (
+            ) : displayMovements.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                    {tCommon("noData")}
                 </TableCell>
               </TableRow>
             ) : (
-              movements.map((item) => (
+              displayMovements.map((item) => (
                 <TableRow 
                   key={item.id} 
                   className="cursor-pointer hover:bg-muted/50"
@@ -231,7 +293,7 @@ export function MovementList() {
                     {formatDate(item.date)}
                   </TableCell>
                   <TableCell>
-                    <MovementBadge type={item.type} />
+                    <MovementBadge type={item.type} refType={item.ref_type} />
                   </TableCell>
                   <TableCell>
                     <span
@@ -248,10 +310,10 @@ export function MovementList() {
                   <TableCell className="max-w-[200px] truncate" title={item.source}>
                     {item.source}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-green-600">
+                  <TableCell className="text-right font-bold text-success">
                     {item.qty_in > 0 ? `+${item.qty_in}` : "-"}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-blue-600">
+                  <TableCell className="text-right font-bold text-primary">
                     {item.qty_out > 0 ? `-${item.qty_out}` : "-"}
                   </TableCell>
                   <TableCell className="text-right font-mono font-bold">
@@ -287,6 +349,7 @@ export function MovementList() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         item={selectedItem}
+        relatedMovements={movements}
       />
 
       {/* Ref-entity detail modals — only mounted when correct type is active */}

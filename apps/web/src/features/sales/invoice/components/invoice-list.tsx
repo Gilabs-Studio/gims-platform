@@ -67,7 +67,7 @@ function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) 
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-semibold text-amber-500">Due today</span>
+        <span className="text-xs font-semibold text-warning">Due today</span>
       </div>
     );
   }
@@ -75,7 +75,7 @@ function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) 
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+        <span className="text-xs font-medium text-warning">{diffDays}d left</span>
       </div>
     );
   }
@@ -391,7 +391,7 @@ export function InvoiceList() {
                   {canUpdate && status === "draft" && (
                     <DropdownMenuItem
                       onClick={() => handleStatusChange(invoice.id, "sent")}
-                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                      className="cursor-pointer text-primary focus:text-primary"
                     >
                       <Send className="h-4 w-4 mr-2" />
                       {t("actions.submit")}
@@ -402,7 +402,7 @@ export function InvoiceList() {
                       {canApprove && (
                         <DropdownMenuItem
                           onClick={() => approveInvoice.mutateAsync(invoice.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
-                          className="cursor-pointer text-green-600 focus:text-green-600"
+                          className="cursor-pointer text-success focus:text-success"
                         >
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           {t("actions.approve")}
@@ -422,7 +422,7 @@ export function InvoiceList() {
                   {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
                     <DropdownMenuItem
                       onClick={() => handleOpenCreatePayment(invoice)}
-                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                      className="cursor-pointer text-primary focus:text-primary"
                     >
                       <CreditCard className="h-4 w-4 mr-2" />
                       {t("actions.createPayment")}
@@ -440,7 +440,7 @@ export function InvoiceList() {
                   {canPrint && (
                     <DropdownMenuItem
                       onClick={() => setPrintingInvoiceId(invoice.id)}
-                      className="cursor-pointer text-violet-600 focus:text-violet-600"
+                      className="cursor-pointer text-purple focus:text-purple"
                     >
                       <Printer className="h-4 w-4 mr-2" />
                       {t("print")}
@@ -679,6 +679,7 @@ export function InvoiceList() {
           invoiceCode={selectedInvoiceForPayments.code}
         />
       )}
+
     </div>
   );
 }

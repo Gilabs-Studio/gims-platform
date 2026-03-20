@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useState, useEffect, useMemo } from "react";
+import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +95,7 @@ function createNumberedMarkerIcon(number: number) {
     className: "custom-numbered-marker",
     html: `
       <div style="
-        background-color: #3b82f6;
+        background-color: var(--color-primary);
         color: white;
         width: 32px;
         height: 32px;
@@ -214,7 +215,7 @@ export function SalesRepCheckInMap({
               <Polyline
                 positions={polylineCoordinates}
                 pathOptions={{
-                  color: "#3b82f6",
+                  color: "var(--color-primary)",
                   weight: 3,
                   opacity: 0.6,
                 }}
@@ -346,9 +347,7 @@ export function SalesRepCheckInMap({
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(
-                      location.check_in_time
-                    ).toLocaleDateString()}
+                    {formatDate(location.check_in_time)}
                   </span>
                 </div>
                 {location.customer?.name && (

@@ -18,10 +18,14 @@ export const purchaseOrderKeys = {
     [...purchaseOrderKeys.all, "audit-trail", id, params] as const,
 };
 
-export function usePurchaseOrders(params?: PurchaseOrderListParams) {
+export function usePurchaseOrders(
+  params?: PurchaseOrderListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: purchaseOrderKeys.list(params),
     queryFn: () => purchaseOrdersService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

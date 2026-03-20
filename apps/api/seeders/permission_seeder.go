@@ -233,25 +233,22 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.approve", "Approve Down Payments", "APPROVE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
-		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
-		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
-		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
+		{"/sales/returns", "sales_return.read", "View Sales Returns", "VIEW", "sales_return"},
+		{"/sales/returns", "sales_return.create", "Create Sales Returns", "CREATE", "sales_return"},
+		{"/sales/returns", "sales_return.update", "Edit Sales Returns", "EDIT", "sales_return"},
+		{"/sales/returns", "sales_return.delete", "Delete Sales Returns", "DELETE", "sales_return"},
 
-		{"/sales/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
-		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
-		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
-		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+		{"/crm/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
+		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
+		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
+		{"/crm/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
-		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
-		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
-		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
-		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
-		{"/sales/targets", "yearly_target.approve", "Approve Yearly Targets", "APPROVE", "yearly_target"},
-		{"/sales/targets", "yearly_target.reject", "Reject Yearly Targets", "REJECT", "yearly_target"},
+		{"/crm/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
+		{"/crm/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
+		{"/crm/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
+		{"/crm/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
 
 		// Sales Payments
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
@@ -260,7 +257,6 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
 		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
 		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
-		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -272,7 +268,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
-		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.print", "Print Purchase Requisitions", "PRINT", "purchase_requisition"},
 
 		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
@@ -286,7 +281,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-orders", "purchase_order.close", "Close Purchase Orders", "CLOSE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
-		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
 		{"/purchase/purchase-orders", "purchase_order.print", "Print Purchase Orders", "PRINT", "purchase_order"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
@@ -300,7 +294,6 @@ func SeedPermissions() error {
 		{"/purchase/goods-receipt", "goods_receipt.close", "Close Goods Receipts", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.convert", "Convert Goods Receipts to Supplier Invoice", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
-		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
 		{"/purchase/goods-receipt", "goods_receipt.print", "Print Goods Receipts", "PRINT", "goods_receipt"},
 
 		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
@@ -313,7 +306,6 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoices", "supplier_invoice.reject", "Reject Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.cancel", "Cancel Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
-		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
 		{"/purchase/supplier-invoices", "supplier_invoice.print", "Print Supplier Invoices", "PRINT", "supplier_invoice"},
 
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
@@ -325,16 +317,20 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.approve", "Approve Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.reject", "Reject Supplier Invoice Down Payments", "REJECT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.cancel", "Cancel Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
-		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
+
+		{"/purchase/returns", "purchase_return.read", "View Purchase Returns", "VIEW", "purchase_return"},
+		{"/purchase/returns", "purchase_return.create", "Create Purchase Returns", "CREATE", "purchase_return"},
+		{"/purchase/returns", "purchase_return.update", "Edit Purchase Returns", "EDIT", "purchase_return"},
+		{"/purchase/returns", "purchase_return.delete", "Delete Purchase Returns", "DELETE", "purchase_return"},
+
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
-		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
 		{"/purchase/payments", "purchase_payment.print", "Print Purchase Payments", "PRINT", "purchase_payment"},
 
 		// Stock
@@ -362,13 +358,33 @@ func SeedPermissions() error {
 		{"/finance/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
 
 		{"/finance/journals", "journal.read", "View Journal Entries", "VIEW", "journal"},
+		{"/finance/journals", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/journals", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
 		{"/finance/journals", "journal.create", "Create Journal Entries", "CREATE", "journal"},
 		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
 		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
 		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
 		{"/finance/journals", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
 
-		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
+		// Purchase Journal — read-only monitoring for purchase transactions
+		{"/finance/journals/purchase", "purchase_journal.read", "View Purchase Journal", "VIEW", "purchase_journal"},
+		{"/finance/journals/purchase", "purchase_journal.export", "Export Purchase Journal", "EXPORT", "purchase_journal"},
+
+		// Adjustment Journal — operational Finance correction journal
+		{"/finance/journals/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
+		{"/finance/journals/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
+
+		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
+		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.export", "Export Journal Valuation", "EXPORT", "journal_valuation"},
+
+		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
+		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
+		{"/finance/journals/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
 
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
@@ -389,6 +405,10 @@ func SeedPermissions() error {
 		{"/finance/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.submit", "Submit Non-Trade Payables", "SUBMIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.approve", "Approve Non-Trade Payables", "APPROVE", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.reject", "Reject Non-Trade Payables", "REJECT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
 
 		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
@@ -414,6 +434,13 @@ func SeedPermissions() error {
 		{"/finance/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
 		{"/finance/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
 
+		// Asset Maintenance
+		{"/finance/asset-maintenance", "asset_maintenance.read", "View Asset Maintenance", "VIEW", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.create", "Create Asset Maintenance", "CREATE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.update", "Edit Asset Maintenance", "EDIT", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
+
 		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
@@ -433,7 +460,6 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
-
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
 		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
@@ -445,6 +471,12 @@ func SeedPermissions() error {
 		{"/finance/asset-locations", "asset_location.create", "Create Asset Locations", "CREATE", "asset_location"},
 		{"/finance/asset-locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
 		{"/finance/asset-locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
+
+		// Asset Budgets
+		{"/finance/asset-budgets", "asset_budget.read", "View Asset Budgets", "VIEW", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.create", "Create Asset Budgets", "CREATE", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
+		{"/finance/asset-budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -504,11 +536,16 @@ func SeedPermissions() error {
 		{"/reports/geo-performance", "report_geo_performance.read", "View Geo Performance Report", "VIEW", "report_geo_performance"},
 		{"/reports/geo-performance", "report_geo_performance.export", "Export Geo Performance Report", "EXPORT", "report_geo_performance"},
 
+		// Reports - Customer Research
+		{"/reports/customer-research", "report_customer_research.read", "View Customer Research Report", "VIEW", "report_customer_research"},
+		{"/reports/customer-research", "report_customer_research.export", "Export Customer Research Report", "EXPORT", "report_customer_research"},
+
+		// Reports - Supplier Research
+		{"/reports/supplier-research", "report_supplier_research.read", "View Supplier Research Report", "VIEW", "report_supplier_research"},
+		{"/reports/supplier-research", "report_supplier_research.export", "Export Supplier Research Report", "EXPORT", "report_supplier_research"},
+
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
-		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
-		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
-
 		// CRM Settings - Pipeline Stages
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.read", "View Pipeline Stages", "VIEW", "crm_pipeline_stage"},
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.create", "Create Pipeline Stages", "CREATE", "crm_pipeline_stage"},
@@ -639,6 +676,19 @@ func SeedPermissions() error {
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
 
+	// Remove legacy permissions whose pages were removed from dashboard.
+	removeDeprecatedPermissions([]string{
+		"sales_estimation.read",
+		"sales_estimation.create",
+		"sales_estimation.update",
+		"sales_estimation.delete",
+		"journal_line.read",
+		"trial_balance_report.read",
+		"trial_balance_report.export",
+		"ai_settings.view",
+		"ai_settings.edit",
+	})
+
 	// Assign all permissions to admin role with ALL scope
 	var adminRole role.Role
 	if err := database.DB.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
@@ -688,20 +738,22 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
 	assignScopedPermissionsToRole("manager", map[string]string{
-		"sales":    "DIVISION",
-		"purchase": "DIVISION",
-		"hrd":      "DIVISION",
-		"finance":  "DIVISION",
-		"stock":    "ALL",
+		"sales":             "DIVISION",
+		"purchase":          "DIVISION",
+		"hrd":               "DIVISION",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"stock":             "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
 	assignScopedPermissionsToRole("staff", map[string]string{
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "OWN",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"finance":           "OWN",
+		"non_trade_payable": "OWN",
+		"stock":             "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
@@ -724,12 +776,34 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
 	assignScopedPermissionsToRole("finance_manager", map[string]string{
-		"finance":  "DIVISION",
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"stock":    "OWN",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
+		// Finance journal domain pages — explicit DIVISION scope
+		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
+		//  standard module prefix, so they must be mapped explicitly)
+		"adjustment_journal": "DIVISION",
+		"journal_valuation":  "DIVISION",
+		"cash_bank_journal":  "DIVISION",
 	}, "ALL")
+
+	assignScopedPermissionsToRole("accountant", map[string]string{
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
+		// Finance journal domain pages — Accountant operates at DIVISION level
+		"adjustment_journal": "DIVISION",
+		"journal_valuation":  "DIVISION",
+		"cash_bank_journal":  "DIVISION",
+	}, "OWN")
+
+	assignViewPermissionsToRole("auditor", "ALL")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()
@@ -804,6 +878,84 @@ func assignScopedPermissionsToRole(roleCode string, moduleScopes map[string]stri
 		return nil
 	})
 	log.Printf("Assigned %d permissions to %s role with module-aware scopes", count, roleCode)
+}
+
+func assignViewPermissionsToRole(roleCode, scope string) {
+	var r role.Role
+	if err := database.DB.Where("code = ?", roleCode).First(&r).Error; err != nil {
+		log.Printf("Warning: Role %s not found, skipping view-only assignment: %v", roleCode, err)
+		return
+	}
+
+	var viewPerms []permission.Permission
+	if err := database.DB.Where("action = ?", "VIEW").Find(&viewPerms).Error; err != nil {
+		log.Printf("Warning: Failed loading VIEW permissions for %s: %v", roleCode, err)
+		return
+	}
+
+	count := 0
+	database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, perm := range viewPerms {
+			if err := tx.Exec(
+				"INSERT INTO role_permissions (role_id, permission_id, scope) VALUES (?, ?, ?) ON CONFLICT (role_id, permission_id) DO UPDATE SET scope = EXCLUDED.scope",
+				r.ID, perm.ID, scope,
+			).Error; err != nil {
+				log.Printf("Warning: Failed to assign %s to %s: %v", perm.Code, roleCode, err)
+				continue
+			}
+			count++
+		}
+		return nil
+	})
+
+	log.Printf("Assigned %d VIEW permissions to %s role (scope=%s)", count, roleCode, scope)
+}
+
+func getPermissionIDsByCodes(tx *gorm.DB, codes []string) ([]string, error) {
+	var deprecatedPerms []permission.Permission
+	if err := tx.Unscoped().Where("code IN ?", codes).Find(&deprecatedPerms).Error; err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, 0, len(deprecatedPerms))
+	for _, perm := range deprecatedPerms {
+		ids = append(ids, perm.ID)
+	}
+
+	return ids, nil
+}
+
+func removePermissionsByIDs(tx *gorm.DB, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := tx.Exec("DELETE FROM role_permissions WHERE permission_id IN ?", ids).Error; err != nil {
+		return err
+	}
+
+	if err := tx.Unscoped().Where("id IN ?", ids).Delete(&permission.Permission{}).Error; err != nil {
+		return err
+	}
+
+	log.Printf("Removed %d deprecated permissions", len(ids))
+	return nil
+}
+
+func removeDeprecatedPermissions(codes []string) {
+	if len(codes) == 0 {
+		return
+	}
+
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		ids, err := getPermissionIDsByCodes(tx, codes)
+		if err != nil {
+			return err
+		}
+		return removePermissionsByIDs(tx, ids)
+	}); err != nil {
+		log.Printf("Warning: Failed to remove deprecated permissions: %v", err)
+	}
 }
 
 // matchesModule checks if a permission resource belongs to a given module.

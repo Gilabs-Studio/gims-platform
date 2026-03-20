@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -23,7 +24,7 @@ type LeadUsecase interface {
 	Create(ctx context.Context, req dto.CreateLeadRequest, createdBy string) (dto.LeadResponse, error)
 	GetByID(ctx context.Context, id string) (dto.LeadResponse, error)
 	List(ctx context.Context, params repositories.LeadListParams) ([]dto.LeadResponse, int64, error)
-	Update(ctx context.Context, id string, req dto.UpdateLeadRequest) (dto.LeadResponse, error)
+	Update(ctx context.Context, id string, req dto.UpdateLeadRequest, updatedBy string) (dto.LeadResponse, error)
 	Delete(ctx context.Context, id string) error
 	Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error)
 	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
@@ -195,10 +196,32 @@ func (u *leadUsecase) List(ctx context.Context, params repositories.LeadListPara
 	return mapper.ToLeadResponseList(leads), total, nil
 }
 
-func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadRequest) (dto.LeadResponse, error) {
+func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadRequest, updatedBy string) (dto.LeadResponse, error) {
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.LeadResponse{}, errors.New("lead not found")
+	}
+
+	// Track fields that changed so we can log an activity entry for auditing.
+	changedFields := make([]string, 0)
+	statusChanged := false
+	oldStatusName := ""
+	newStatusName := ""
+	if lead.LeadStatus != nil {
+		oldStatusName = lead.LeadStatus.Name
+	}
+	oldStatusID := lead.LeadStatusID
+
+	addStringChange := func(field, oldVal, newVal string) {
+		if oldVal != newVal {
+			changedFields = append(changedFields, field)
+		}
+	}
+
+	addBoolChange := func(field string, oldVal, newVal bool) {
+		if oldVal != newVal {
+			changedFields = append(changedFields, field)
+		}
 	}
 
 	// Prevent updates on converted leads; geographical coordinates are the only allowed exception
@@ -254,6 +277,13 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		if status.IsConverted {
 			return dto.LeadResponse{}, errors.New("cannot manually set converted status, use the convert endpoint")
 		}
+
+		// Track status changes for activity logging
+		if oldStatusID == nil || *oldStatusID != *req.LeadStatusID {
+			statusChanged = true
+			newStatusName = status.Name
+		}
+
 		lead.LeadStatusID = req.LeadStatusID
 		lead.LeadStatus = status
 	}
@@ -269,78 +299,142 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 
 	// Apply partial updates
 	if req.FirstName != nil {
+		addStringChange("first_name", lead.FirstName, *req.FirstName)
 		lead.FirstName = *req.FirstName
 	}
 	if req.LastName != nil {
+		addStringChange("last_name", lead.LastName, *req.LastName)
 		lead.LastName = *req.LastName
 	}
 	if req.CompanyName != nil {
+		addStringChange("company_name", lead.CompanyName, *req.CompanyName)
 		lead.CompanyName = *req.CompanyName
 	}
 	if req.Email != nil {
+		addStringChange("email", lead.Email, *req.Email)
 		lead.Email = *req.Email
 	}
 	if req.Phone != nil {
+		addStringChange("phone", lead.Phone, *req.Phone)
 		lead.Phone = *req.Phone
 	}
 	if req.JobTitle != nil {
+		addStringChange("job_title", lead.JobTitle, *req.JobTitle)
 		lead.JobTitle = *req.JobTitle
 	}
 	if req.Address != nil {
+		addStringChange("address", lead.Address, *req.Address)
 		lead.Address = *req.Address
 	}
 	if req.City != nil {
+		addStringChange("city", lead.City, *req.City)
 		lead.City = *req.City
 	}
 	if req.Province != nil {
+		addStringChange("province", lead.Province, *req.Province)
 		lead.Province = *req.Province
 	}
 	if req.ProvinceID != nil {
+		// Only record if changed (nil vs non-nil or different value)
+		old := ""
+		if lead.ProvinceID != nil {
+			old = *lead.ProvinceID
+		}
+		newVal := ""
+		if *req.ProvinceID != "" {
+			newVal = *req.ProvinceID
+		}
+		addStringChange("province_id", old, newVal)
 		lead.ProvinceID = req.ProvinceID
 	}
 	if req.CityID != nil {
+		old := ""
+		if lead.CityID != nil {
+			old = *lead.CityID
+		}
+		newVal := ""
+		if *req.CityID != "" {
+			newVal = *req.CityID
+		}
+		addStringChange("city_id", old, newVal)
 		lead.CityID = req.CityID
 	}
 	if req.DistrictID != nil {
+		old := ""
+		if lead.DistrictID != nil {
+			old = *lead.DistrictID
+		}
+		newVal := ""
+		if *req.DistrictID != "" {
+			newVal = *req.DistrictID
+		}
+		addStringChange("district_id", old, newVal)
 		lead.DistrictID = req.DistrictID
 	}
 	if req.VillageName != nil {
+		addStringChange("village_name", lead.VillageName, *req.VillageName)
 		lead.VillageName = *req.VillageName
 	}
 	if req.Website != nil {
+		addStringChange("website", lead.Website, *req.Website)
 		lead.Website = *req.Website
 	}
 	if req.BankAccountID != nil {
+		old := ""
+		if lead.BankAccountID != nil {
+			old = *lead.BankAccountID
+		}
+		newVal := ""
+		if *req.BankAccountID != "" {
+			newVal = *req.BankAccountID
+		}
+		addStringChange("bank_account_id", old, newVal)
 		lead.BankAccountID = req.BankAccountID
 	}
 	if req.BankAccountReference != nil {
+		addStringChange("bank_account_reference", lead.BankAccountReference, *req.BankAccountReference)
 		lead.BankAccountReference = *req.BankAccountReference
 	}
 	if req.EstimatedValue != nil {
+		if lead.EstimatedValue != *req.EstimatedValue {
+			changedFields = append(changedFields, "estimated_value")
+		}
 		lead.EstimatedValue = *req.EstimatedValue
 	}
 	if req.Probability != nil {
+		if lead.Probability != *req.Probability {
+			changedFields = append(changedFields, "probability")
+		}
 		lead.Probability = *req.Probability
 	}
 	if req.BudgetConfirmed != nil {
+		addBoolChange("budget_confirmed", lead.BudgetConfirmed, *req.BudgetConfirmed)
 		lead.BudgetConfirmed = *req.BudgetConfirmed
 	}
 	if req.BudgetAmount != nil {
+		if lead.BudgetAmount != *req.BudgetAmount {
+			changedFields = append(changedFields, "budget_amount")
+		}
 		lead.BudgetAmount = *req.BudgetAmount
 	}
 	if req.AuthConfirmed != nil {
+		addBoolChange("auth_confirmed", lead.AuthConfirmed, *req.AuthConfirmed)
 		lead.AuthConfirmed = *req.AuthConfirmed
 	}
 	if req.AuthPerson != nil {
+		addStringChange("auth_person", lead.AuthPerson, *req.AuthPerson)
 		lead.AuthPerson = *req.AuthPerson
 	}
 	if req.NeedConfirmed != nil {
+		addBoolChange("need_confirmed", lead.NeedConfirmed, *req.NeedConfirmed)
 		lead.NeedConfirmed = *req.NeedConfirmed
 	}
 	if req.NeedDescription != nil {
+		addStringChange("need_description", lead.NeedDescription, *req.NeedDescription)
 		lead.NeedDescription = *req.NeedDescription
 	}
 	if req.TimeConfirmed != nil {
+		addBoolChange("time_confirmed", lead.TimeConfirmed, *req.TimeConfirmed)
 		lead.TimeConfirmed = *req.TimeConfirmed
 	}
 	if req.TimeExpected != nil && *req.TimeExpected != "" {
@@ -348,27 +442,65 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		if err != nil {
 			return dto.LeadResponse{}, errors.New("invalid time_expected format, use YYYY-MM-DD")
 		}
+		if lead.TimeExpected == nil || !lead.TimeExpected.Equal(t) {
+			changedFields = append(changedFields, "time_expected")
+		}
 		lead.TimeExpected = &t
 	}
 	if req.Notes != nil {
+		addStringChange("notes", lead.Notes, *req.Notes)
 		lead.Notes = *req.Notes
 	}
 	if req.NPWP != nil {
+		addStringChange("npwp", lead.NPWP, *req.NPWP)
 		lead.NPWP = *req.NPWP
 	}
 	if req.Latitude != nil {
+		if lead.Latitude == nil || *lead.Latitude != *req.Latitude {
+			changedFields = append(changedFields, "latitude")
+		}
 		lead.Latitude = req.Latitude
 	}
 	if req.Longitude != nil {
+		if lead.Longitude == nil || *lead.Longitude != *req.Longitude {
+			changedFields = append(changedFields, "longitude")
+		}
 		lead.Longitude = req.Longitude
 	}
 	if req.BusinessTypeID != nil {
+		old := ""
+		if lead.BusinessTypeID != nil {
+			old = *lead.BusinessTypeID
+		}
+		newVal := ""
+		if *req.BusinessTypeID != "" {
+			newVal = *req.BusinessTypeID
+		}
+		addStringChange("business_type_id", old, newVal)
 		lead.BusinessTypeID = req.BusinessTypeID
 	}
 	if req.AreaID != nil {
+		old := ""
+		if lead.AreaID != nil {
+			old = *lead.AreaID
+		}
+		newVal := ""
+		if *req.AreaID != "" {
+			newVal = *req.AreaID
+		}
+		addStringChange("area_id", old, newVal)
 		lead.AreaID = req.AreaID
 	}
 	if req.PaymentTermsID != nil {
+		old := ""
+		if lead.PaymentTermsID != nil {
+			old = *lead.PaymentTermsID
+		}
+		newVal := ""
+		if *req.PaymentTermsID != "" {
+			newVal = *req.PaymentTermsID
+		}
+		addStringChange("payment_terms_id", old, newVal)
 		lead.PaymentTermsID = req.PaymentTermsID
 	}
 
@@ -389,6 +521,43 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 
 	if err := u.leadRepo.Update(ctx, lead); err != nil {
 		return dto.LeadResponse{}, fmt.Errorf("failed to update lead: %w", err)
+	}
+
+	// Log activity for lead edits and status transitions (best-effort)
+	// This keeps account of changes in the audit trail.
+	if updatedBy == "" {
+		updatedBy = "system"
+	}
+
+	// Determine description for activity
+	var activityDescription string
+	if len(changedFields) > 0 {
+		activityDescription = fmt.Sprintf("Updated lead fields: %s", strings.Join(changedFields, ", "))
+	}
+	if statusChanged {
+		statusDesc := fmt.Sprintf("Status changed from %s to %s", oldStatusName, newStatusName)
+		if activityDescription != "" {
+			activityDescription = fmt.Sprintf("%s; %s", activityDescription, statusDesc)
+		} else {
+			activityDescription = statusDesc
+		}
+	}
+
+	if activityDescription != "" {
+		activityType := "lead_update"
+		if statusChanged {
+			activityType = "lead_status_change"
+		}
+
+		activity := &models.Activity{
+			Type:           activityType,
+			ActivityTypeID: strPtr(activityTypeFollowUpID),
+			LeadID:         &lead.ID,
+			EmployeeID:     updatedBy,
+			Description:    activityDescription,
+			Timestamp:      apptime.Now(),
+		}
+		_ = u.activityRepo.Create(ctx, activity)
 	}
 
 	// Reload with preloaded relations

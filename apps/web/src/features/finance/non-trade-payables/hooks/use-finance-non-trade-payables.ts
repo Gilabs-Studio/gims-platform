@@ -48,10 +48,32 @@ export function useDeleteFinanceNonTradePayable() {
   });
 }
 
+export function useSubmitFinanceNonTradePayable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeNonTradePayablesService.submit(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });
+    },
+  });
+}
+
 export function useApproveFinanceNonTradePayable() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => financeNonTradePayablesService.approve(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });
+    },
+  });
+}
+
+export function useRejectFinanceNonTradePayable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeNonTradePayablesService.reject(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeNonTradePayableKeys.detail(id) });

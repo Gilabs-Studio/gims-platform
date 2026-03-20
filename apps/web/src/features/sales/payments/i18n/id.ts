@@ -47,6 +47,10 @@ export const salesPaymentId = {
     referenceNumber: "Nomor Referensi",
     notes: "Catatan",
   },
+  tabs: {
+    general: "Umum",
+    auditTrail: "Audit Trail",
+  },
   placeholders: {
     select: "Pilih...",
     pickDate: "Pilih tanggal",

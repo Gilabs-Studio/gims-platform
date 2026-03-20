@@ -9,7 +9,7 @@ import { ConvertToQuotationDialog } from "./convert-to-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import type { Deal } from "../types";
 
@@ -19,10 +19,10 @@ interface DealCardProps {
 }
 
 function getProbabilityColor(probability: number): string {
-  if (probability >= 80) return "text-green-600";
-  if (probability >= 50) return "text-blue-600";
-  if (probability >= 20) return "text-amber-600";
-  return "text-red-600";
+  if (probability >= 80) return "text-success";
+  if (probability >= 50) return "text-primary";
+  if (probability >= 20) return "text-warning";
+  return "text-destructive";
 }
 
 function getStatusVariant(
@@ -113,7 +113,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <Building2 className="h-3 w-3 shrink-0" />
             <span className="truncate">{deal.customer?.name ?? deal.lead!.company_name}</span>
               {!deal.customer_id && deal.lead?.company_name && (
-              <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40 py-0 shrink-0">
+              <Badge variant="outline" className="text-[10px] text-warning border-amber-600/40 py-0 shrink-0">
                 {t("potential")}
               </Badge>
             )}
@@ -127,7 +127,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
               {deal.contact?.name ?? `${deal.lead!.first_name} ${deal.lead!.last_name}`.trim()}
             </span>
               {!deal.contact_id && (deal.lead?.first_name || deal.lead?.last_name) && (
-                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-600/40 py-0 shrink-0">
+                <Badge variant="outline" className="text-[10px] text-warning border-amber-600/40 py-0 shrink-0">
                   {t("potential")}
                 </Badge>
               )}
@@ -150,10 +150,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               <span>
-                {new Date(deal.expected_close_date).toLocaleDateString("id-ID", {
-                  day: "2-digit",
-                  month: "short",
-                })}
+                {formatDate(deal.expected_close_date)}
               </span>
             </div>
           )}
@@ -163,7 +160,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
           <div className="flex items-center gap-1.5">
             <span
               className="inline-block h-2 w-2 rounded-full shrink-0"
-              style={{ backgroundColor: deal.pipeline_stage.color || "#6b7280" }}
+              style={{ backgroundColor: deal.pipeline_stage.color || "var(--color-muted-foreground)" }}
             />
             <span className="text-xs text-muted-foreground truncate">
               {deal.pipeline_stage.name}

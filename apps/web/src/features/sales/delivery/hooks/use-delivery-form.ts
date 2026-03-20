@@ -20,6 +20,7 @@ import { useCourierAgencies } from "@/features/master-data/payment-and-couriers/
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import type { SalesOrderItem } from "../../order/types";
 import { sortOptions } from "@/lib/utils";
+import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 export interface UseDeliveryFormProps {
   delivery?: DeliveryOrder | null;
@@ -36,11 +37,16 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit || !!defaultSalesOrderId);
 
   type QuickCreateType = "employee" | "courierAgency" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
 
   // Fetch full delivery data when editing
   const { data: fullDeliveryData, isLoading: isLoadingDelivery } = useDeliveryOrder(
@@ -49,10 +55,33 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   );
 
   // Fetch lookup data
-  const { data: salesOrdersData } = useOrders({ per_page: 100, status: "approved", unfulfilled_only: true }, { enabled: open });
-  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
-  const { data: courierAgenciesData } = useCourierAgencies({ per_page: 100 }, { enabled: open });
-  const { data: warehousesData } = useWarehouses({ per_page: 100 }, { enabled: open });
+  const { data: salesOrdersData } = useOrders(
+    { per_page: 20, status: "approved", unfulfilled_only: true },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: employeesData } = useEmployees(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: courierAgenciesData } = useCourierAgencies(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: warehousesData } = useWarehouses(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit || !!defaultSalesOrderId);
+      return;
+    }
+
+    if (isEdit || !!defaultSalesOrderId) {
+      setShouldLoadReferenceOptions(true);
+    }
+  }, [open, isEdit, defaultSalesOrderId]);
 
   const salesOrders = useMemo(() => {
     const data = salesOrdersData?.data ?? [];
@@ -316,13 +345,13 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
         const updatePayload: UpdateDeliveryOrderData = {
           delivery_date: (data as UpdateDeliveryOrderFormData).delivery_date,
           warehouse_id: warehouseId,
-          delivered_by_id: (data as UpdateDeliveryOrderFormData).delivered_by_id,
-          courier_agency_id: (data as UpdateDeliveryOrderFormData).courier_agency_id,
-          tracking_number: (data as UpdateDeliveryOrderFormData).tracking_number,
-          receiver_name: (data as UpdateDeliveryOrderFormData).receiver_name,
-          receiver_phone: (data as UpdateDeliveryOrderFormData).receiver_phone,
-          delivery_address: (data as UpdateDeliveryOrderFormData).delivery_address,
-          notes: (data as UpdateDeliveryOrderFormData).notes,
+          delivered_by_id: toOptionalString((data as UpdateDeliveryOrderFormData).delivered_by_id),
+          courier_agency_id: toOptionalString((data as UpdateDeliveryOrderFormData).courier_agency_id),
+          tracking_number: toOptionalString((data as UpdateDeliveryOrderFormData).tracking_number),
+          receiver_name: toOptionalString((data as UpdateDeliveryOrderFormData).receiver_name),
+          receiver_phone: toOptionalString((data as UpdateDeliveryOrderFormData).receiver_phone),
+          delivery_address: toOptionalString((data as UpdateDeliveryOrderFormData).delivery_address),
+          notes: toOptionalString((data as UpdateDeliveryOrderFormData).notes),
           items: itemsPayload,
         };
 
@@ -335,14 +364,14 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
         const createPayload: CreateDeliveryOrderData = {
           delivery_date: (data as CreateDeliveryOrderFormData).delivery_date!,
           warehouse_id: warehouseId,
-          sales_order_id: (data as CreateDeliveryOrderFormData).sales_order_id ?? "",
-          delivered_by_id: (data as CreateDeliveryOrderFormData).delivered_by_id,
-          courier_agency_id: (data as CreateDeliveryOrderFormData).courier_agency_id,
-          tracking_number: (data as CreateDeliveryOrderFormData).tracking_number,
-          receiver_name: (data as CreateDeliveryOrderFormData).receiver_name,
-          receiver_phone: (data as CreateDeliveryOrderFormData).receiver_phone,
-          delivery_address: (data as CreateDeliveryOrderFormData).delivery_address,
-          notes: (data as CreateDeliveryOrderFormData).notes,
+          sales_order_id: toOptionalString((data as CreateDeliveryOrderFormData).sales_order_id) ?? "",
+          delivered_by_id: toOptionalString((data as CreateDeliveryOrderFormData).delivered_by_id),
+          courier_agency_id: toOptionalString((data as CreateDeliveryOrderFormData).courier_agency_id),
+          tracking_number: toOptionalString((data as CreateDeliveryOrderFormData).tracking_number),
+          receiver_name: toOptionalString((data as CreateDeliveryOrderFormData).receiver_name),
+          receiver_phone: toOptionalString((data as CreateDeliveryOrderFormData).receiver_phone),
+          delivery_address: toOptionalString((data as CreateDeliveryOrderFormData).delivery_address),
+          notes: toOptionalString((data as CreateDeliveryOrderFormData).notes),
           items: itemsPayload,
         };
 
@@ -352,7 +381,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
       onClose();
     } catch (error) {
       console.error("Failed to save delivery order:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -395,9 +424,20 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     if (basicError) {
       setActiveTab("basic");
       setTimeout(() => {
-          toast.error(t("validation.required") || "Please fill all required fields in General tab");
+        toast.error(
+          getFirstFormErrorMessage(errors) ||
+          t("validation.required") ||
+          "Please fill all required fields in General tab",
+        );
       }, 100);
+      return;
     }
+
+    toast.error(
+      getFirstFormErrorMessage(errors) ||
+      t("validation.itemsMin") ||
+      "Please complete all required item fields.",
+    );
   };
 
   return {
@@ -424,6 +464,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
   };

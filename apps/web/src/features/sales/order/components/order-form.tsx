@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
-import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon, User } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -25,9 +24,7 @@ import type { SalesOrder } from "../types";
 import { formatCurrency } from "@/lib/utils";
 import { ButtonLoading } from "@/components/loading";
 import { StockWarningInline } from "@/features/sales/components/stock-warning";
-import { AsyncSelect } from "@/components/ui/async-select";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
-import type { Product } from "@/features/master-data/product/types";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { BusinessUnitForm } from "@/features/master-data/organization/components/business-unit/business-unit-form";
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
@@ -44,7 +41,7 @@ interface OrderFormProps {
 
 export function OrderForm({ open, onClose, order }: OrderFormProps) {
   const {
-    form: { register, handleSubmit, control, formState: { errors } },
+    form: { register, handleSubmit, control, watch, formState: { errors } },
     t,
     isEdit,
     activeTab,
@@ -60,17 +57,20 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     areas,
     quotations,
     customers,
+    contacts,
+    selectedContactId,
     employees,
-    fetchProducts,
+    products,
+    isProductsLoading,
     calculations,
     handleNext,
     handleFormSubmit,
     handleAddItem,
     handleProductChange,
     handleCustomerChange,
+    handleContactChange,
     handleDialogChange,
     onInvalid,
-    selectedProducts,
     watchedItems,
     taxRate,
     deliveryCost,
@@ -79,6 +79,8 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
@@ -128,6 +130,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                     <Select
                       value={field.value || undefined}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       disabled={isEdit} 
                     >
                       <SelectTrigger>
@@ -146,6 +153,30 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                 {errors.sales_quotation_id && (
                   <FieldError>{errors.sales_quotation_id.message}</FieldError>
                 )}
+              </Field>
+
+              <Field orientation="vertical" className="col-span-2">
+                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
+                <Controller
+                  name="customer_id"
+                  control={control}
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      options={customers.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
+                      value={field.value || ""}
+                      onValueChange={handleCustomerChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
+                      placeholder={t("common.selectCustomer") || "Select customer"}
+                      createPermission="customer.create"
+                      onCreateClick={() => openQuickCreate("customer")}
+                    />
+                  )}
+                />
+                {errors.customer_id && <FieldError>{errors.customer_id.message}</FieldError>}
               </Field>
 
               {/* Quotation Summary Card */}
@@ -198,6 +229,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       onCreateClick={() => openQuickCreate("paymentTerm")}
@@ -219,6 +255,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("salesRep")}
                       createPermission="employee.create"
                       onCreateClick={() => openQuickCreate("employee")}
@@ -240,6 +281,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       options={businessUnits.map(u => ({ value: u.id, label: u.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("businessUnit")}
                       createPermission="business_unit.create"
                       onCreateClick={() => openQuickCreate("businessUnit")}
@@ -261,6 +307,11 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       options={businessTypes.map(bt => ({ value: bt.id, label: bt.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("common.select")}
                       createPermission="business_type.create"
                       onCreateClick={() => openQuickCreate("businessType")}
@@ -278,7 +329,15 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   name="delivery_area_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value || undefined} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder={t("deliveryArea")} />
                       </SelectTrigger>
@@ -298,52 +357,27 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
               </Field>
 
               <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("common.customer") || "Customer"}</FieldLabel>
-                <Controller
-                  name="customer_id"
-                  control={control}
-                  render={({ field }) => (
-                    <CreatableCombobox
-                      options={customers.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
-                      value={field.value || ""}
-                      onValueChange={handleCustomerChange}
-                      placeholder={t("common.selectCustomer") || "Select customer"}
-                      createPermission="customer.create"
-                      onCreateClick={() => openQuickCreate("customer")}
-                    />
-                  )}
-                />
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerName")}</FieldLabel>
-                <Input {...register("customer_name")} placeholder={t("customerName")} />
-                {errors.customer_name && (
-                  <FieldError>{errors.customer_name.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
                 <FieldLabel>{t("customerContact")}</FieldLabel>
-                <Input {...register("customer_contact")} placeholder={t("customerContact")} />
+                <CreatableCombobox
+                  options={contacts.map((contact) => ({
+                    value: contact.id,
+                    label: [contact.name, contact.phone || undefined, contact.email || undefined]
+                      .filter(Boolean)
+                      .join(" - "),
+                  }))}
+                  value={selectedContactId || undefined}
+                  onValueChange={handleContactChange}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      enableReferenceOptionsFetch();
+                    }
+                  }}
+                  placeholder={t("customerContact")}
+                  emptyText={t("notFound")}
+                  disabled={!watch("customer_id")}
+                />
                 {errors.customer_contact && (
                   <FieldError>{errors.customer_contact.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical">
-                <FieldLabel>{t("customerPhone")}</FieldLabel>
-                <Input {...register("customer_phone")} placeholder={t("customerPhone")} />
-                {errors.customer_phone && (
-                  <FieldError>{errors.customer_phone.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("customerEmail")}</FieldLabel>
-                <Input {...register("customer_email")} placeholder={t("customerEmail")} type="email" />
-                {errors.customer_email && (
-                  <FieldError>{errors.customer_email.message}</FieldError>
                 )}
               </Field>
             </div>
@@ -504,25 +538,23 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                 name={`items.${index}.product_id`}
                                 control={control}
                                 render={({ field }) => (
-                                  <AsyncSelect<Product>
-                                    label={t("item.product")}
-                                    fetcher={fetchProducts}
-                                    renderOption={(prod) => (
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">{prod.code}</span>
-                                        <span className="text-xs text-muted-foreground">{prod.name}</span>
-                                      </div>
-                                    )}
-                                    getLabel={(prod) => `${prod.code} - ${prod.name}`}
-                                    getValue={(prod) => prod.id}
-                                    value={field.value}
-                                    onChange={(val, item) => {
-                                      field.onChange(val);
-                                      handleProductChange(index, val, item);
+                                  <CreatableCombobox
+                                    value={field.value || ""}
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      handleProductChange(index, value);
                                     }}
-                                    defaultOptions={field.value && selectedProducts[field.value] ? [selectedProducts[field.value]] : []}
-                                    preload
-                                    width="w-full"
+                                    onOpenChange={(isOpen) => {
+                                      if (isOpen) {
+                                        enableProductOptionsFetch();
+                                      }
+                                    }}
+                                    options={products.map((product) => ({
+                                      value: product.id,
+                                      label: `${product.code} - ${product.name}`,
+                                    }))}
+                                    isLoading={isProductsLoading}
+                                    placeholder={t("item.selectProduct")}
                                   />
                                 )}
                               />
@@ -702,33 +734,43 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
         )}
       </DialogContent>
 
-      <PaymentTermsDialog
-        open={quickCreate.type === "paymentTerm"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        editingItem={null}
-        onCreated={handlePaymentTermCreated}
-      />
-      <BusinessUnitForm
-        open={quickCreate.type === "businessUnit"}
-        onClose={closeQuickCreate}
-        onCreated={handleBusinessUnitCreated}
-      />
-      <BusinessTypeForm
-        open={quickCreate.type === "businessType"}
-        onClose={closeQuickCreate}
-        onCreated={handleBusinessTypeCreated}
-      />
-      <CustomerSidePanel
-        isOpen={quickCreate.type === "customer"}
-        onClose={closeQuickCreate}
-        mode="create"
-        onCreated={handleCustomerCreated}
-      />
-      <EmployeeForm
-        open={quickCreate.type === "employee"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleSalesRepCreated}
-      />
+      {quickCreate.type === "paymentTerm" && (
+        <PaymentTermsDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          editingItem={null}
+          onCreated={handlePaymentTermCreated}
+        />
+      )}
+      {quickCreate.type === "businessUnit" && (
+        <BusinessUnitForm
+          open
+          onClose={closeQuickCreate}
+          onCreated={handleBusinessUnitCreated}
+        />
+      )}
+      {quickCreate.type === "businessType" && (
+        <BusinessTypeForm
+          open
+          onClose={closeQuickCreate}
+          onCreated={handleBusinessTypeCreated}
+        />
+      )}
+      {quickCreate.type === "customer" && (
+        <CustomerSidePanel
+          isOpen
+          onClose={closeQuickCreate}
+          mode="create"
+          onCreated={handleCustomerCreated}
+        />
+      )}
+      {quickCreate.type === "employee" && (
+        <EmployeeForm
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleSalesRepCreated}
+        />
+      )}
     </Dialog>
   );
 }

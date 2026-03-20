@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -66,6 +67,7 @@ import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
+import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -93,11 +95,12 @@ export function GoodsReceiptsList() {
   const [siFormPOId, setSiFormPOId] = useState<string | null>(null);
   const [siFormGRId, setSiFormGRId] = useState<string | null>(null);
   const [siLinkedData, setSiLinkedData] = useState<{ id: string; code: string; purchase_order_id: string } | null>(null);
+  const [purchaseReturnGRId, setPurchaseReturnGRId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
-  const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
+  const canAuditTrail = useUserPermission("goods_receipt.read");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
@@ -107,6 +110,7 @@ export function GoodsReceiptsList() {
   const canClose = useUserPermission("goods_receipt.close");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewPO = useUserPermission("purchase_order.read");
+  const canCreatePurchaseReturn = useUserPermission("purchase_return.create");
 
   const { data, isLoading, isError } = useGoodsReceipts({
     page,
@@ -351,7 +355,7 @@ export function GoodsReceiptsList() {
 
                           {canSubmit && (it.status ?? "").toUpperCase() === "DRAFT" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={async () => {
                                 try {
                                   await submitMutation.mutateAsync(it.id);
@@ -368,7 +372,7 @@ export function GoodsReceiptsList() {
 
                           {canClose && ["APPROVED", "PARTIAL"].includes((it.status ?? "").toUpperCase()) && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => {
                                 setSiFormPOId(it.purchase_order?.id ?? null);
                                 setSiFormGRId(it.id);
@@ -380,9 +384,19 @@ export function GoodsReceiptsList() {
                             </DropdownMenuItem>
                           )}
 
+                          {canCreatePurchaseReturn && ["APPROVED", "PARTIAL", "CLOSED"].includes((it.status ?? "").toUpperCase()) && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setPurchaseReturnGRId(it.id)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              {t("actions.createReturn")}
+                            </DropdownMenuItem>
+                          )}
+
                           {canApprove && (it.status ?? "").toUpperCase() === "SUBMITTED" && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-green-600 focus:text-green-600"
+                              className="cursor-pointer text-success focus:text-success"
                               onClick={async () => {
                                 try {
                                   await approveMutation.mutateAsync(it.id);
@@ -416,7 +430,7 @@ export function GoodsReceiptsList() {
 
                           {canPrint && (
                             <DropdownMenuItem
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              className="cursor-pointer text-purple focus:text-purple"
                               onClick={() => setPrintingId(it.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -547,6 +561,16 @@ export function GoodsReceiptsList() {
           purchaseOrderId={siLinkedData.purchase_order_id}
         />
       )}
+
+      <CreatePurchaseReturnDialog
+        open={!!purchaseReturnGRId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPurchaseReturnGRId(null);
+          }
+        }}
+        goodsReceiptId={purchaseReturnGRId ?? undefined}
+      />
     </div>
   );
 }

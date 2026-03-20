@@ -34,7 +34,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 
@@ -90,7 +91,7 @@ export function PurchaseOrderDetail({
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
-  const canAuditTrail = useUserPermission("purchase_order.audit_trail");
+  const canAuditTrail = useUserPermission("purchase_order.read");
 
   const id = purchaseOrderId ?? "";
   const { data, isLoading } = usePurchaseOrder(id, {
@@ -115,8 +116,8 @@ export function PurchaseOrderDetail({
       toast.success(t("toast.deleted"));
       setIsDeleteOpen(false);
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -125,8 +126,8 @@ export function PurchaseOrderDetail({
     try {
       await submitMutation.mutateAsync(id);
       toast.success(t("toast.submitted"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -135,8 +136,8 @@ export function PurchaseOrderDetail({
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -145,8 +146,8 @@ export function PurchaseOrderDetail({
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -155,8 +156,8 @@ export function PurchaseOrderDetail({
     try {
       await closeMutation.mutateAsync(id);
       toast.success(t("toast.closed"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -177,7 +178,7 @@ export function PurchaseOrderDetail({
                 <div className="flex items-center gap-3">
                   {po && <PurchaseOrderStatusBadge status={po.status} />}
                   <span className="text-sm text-muted-foreground">
-                    {po?.order_date && new Date(po.order_date).toLocaleDateString()}
+                    {po?.order_date && formatDate(po.order_date)}
                   </span>
                 </div>
               </div>
@@ -189,7 +190,7 @@ export function PurchaseOrderDetail({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -223,7 +224,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -235,7 +236,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -247,7 +248,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -259,7 +260,7 @@ export function PurchaseOrderDetail({
                     size="icon"
                     onClick={handleClose}
                     disabled={closeMutation.isPending}
-                    className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-orange-50"
                     title={t("actions.close")}
                   >
                     <Lock className="h-4 w-4" />
@@ -270,7 +271,7 @@ export function PurchaseOrderDetail({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsSIFormOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createSI")}
                   >
                     <FileText className="h-4 w-4" />
@@ -306,7 +307,7 @@ export function PurchaseOrderDetail({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.code")}</TableCell>
                         <TableCell>{po.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.orderDate")}</TableCell>
-                        <TableCell>{po.order_date ? new Date(po.order_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{po.order_date ? formatDate(po.order_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
@@ -314,7 +315,7 @@ export function PurchaseOrderDetail({
                           <PurchaseOrderStatusBadge status={po.status} />
                         </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("fields.dueDate")}</TableCell>
-                        <TableCell>{po.due_date ? new Date(po.due_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{po.due_date ? formatDate(po.due_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("fields.paymentTerms")}</TableCell>

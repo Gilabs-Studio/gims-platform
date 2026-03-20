@@ -9,7 +9,7 @@ import { PageMotion } from "@/components/motion";
 
 const GeneralLedgerView = dynamic(
   () =>
-    import("@/features/finance/reports/components/general-ledger-view").then((mod) => ({
+    import("@/features/finance/reports/general-ledger/components/general-ledger-view").then((mod) => ({
       default: mod.GeneralLedgerView,
     })),
   { loading: () => null },

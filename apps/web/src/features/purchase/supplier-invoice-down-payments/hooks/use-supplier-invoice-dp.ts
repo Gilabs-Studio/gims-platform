@@ -64,10 +64,14 @@ function applyInvoiceDPToPurchaseOrderLists(
   });
 }
 
-export function useSupplierInvoiceDPs(params?: SupplierInvoiceDPListParams) {
+export function useSupplierInvoiceDPs(
+  params?: SupplierInvoiceDPListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: supplierInvoiceDPKeys.list(params),
     queryFn: () => supplierInvoiceDPService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -83,8 +87,9 @@ export function useSupplierInvoiceDPAddData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: supplierInvoiceDPKeys.addData(),
     queryFn: () => supplierInvoiceDPService.addData(),
-    enabled: options?.enabled !== undefined ? options.enabled : true,
+    enabled: options?.enabled ?? false,
     staleTime: 60_000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   MoreHorizontal,
   Plus,
@@ -34,6 +35,7 @@ import { EmployeeEvaluationForm } from "./employee-evaluation-form";
 import { EmployeeEvaluationDetailModal } from "./employee-evaluation-detail-modal";
 import type { EmployeeEvaluation, EmployeeEvaluationStatus } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { formatDate } from "@/lib/utils";
 
 export function EmployeeEvaluationList() {
   const t = useTranslations("evaluation");
@@ -227,26 +229,59 @@ export function EmployeeEvaluationList() {
             ) : (
               evaluations.map((evaluation) => (
                 <TableRow key={evaluation.id}>
-                  <TableCell
-                    className="font-medium text-primary hover:underline cursor-pointer"
-                    onClick={() => canView && handleView(evaluation)}
-                  >
-                    {evaluation.employee?.name ?? "-"}
+                  <TableCell>
+                    {canView ? (
+                      <button
+                        type="button"
+                        className="flex cursor-pointer items-center gap-3 text-left text-primary hover:underline"
+                        onClick={() => handleView(evaluation)}
+                      >
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback
+                            dataSeed={evaluation.employee?.employee_code ?? evaluation.employee?.name ?? "employee"}
+                          >
+                            {evaluation.employee?.name ?? "-"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{evaluation.employee?.name ?? "-"}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {evaluation.employee?.employee_code ?? "-"}
+                          </p>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback
+                            dataSeed={evaluation.employee?.employee_code ?? evaluation.employee?.name ?? "employee"}
+                          >
+                            {evaluation.employee?.name ?? "-"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{evaluation.employee?.name ?? "-"}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {evaluation.employee?.employee_code ?? "-"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>{evaluation.evaluation_group?.name ?? "-"}</TableCell>
                   <TableCell>{getTypeBadge(evaluation.evaluation_type)}</TableCell>
                   <TableCell className="text-sm">
                     {evaluation.period_start
-                      ? new Date(evaluation.period_start).toLocaleDateString()
+                      ? formatDate(evaluation.period_start)
                       : "-"}
                     {" - "}
                     {evaluation.period_end
-                      ? new Date(evaluation.period_end).toLocaleDateString()
+                      ? formatDate(evaluation.period_end)
                       : "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Star className="h-3 w-3 text-amber-500" />
+                      <Star className="h-3 w-3 text-warning" />
                       <span className="font-medium">{formatScore(evaluation.overall_score)}</span>
                     </div>
                   </TableCell>

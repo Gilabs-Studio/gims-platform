@@ -29,6 +29,8 @@ export const leaveRequestKeys = {
   selfDetails: () => [...leaveRequestKeys.all, "self-detail"] as const,
   selfDetail: (id: string) => [...leaveRequestKeys.selfDetails(), id] as const,
   myFormData: () => [...leaveRequestKeys.all, "my-form-data"] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...leaveRequestKeys.all, "audit-trail", id, params] as const,
 };
 
 // Query hooks
@@ -90,6 +92,18 @@ export function useMyLeaveFormData(options?: { enabled?: boolean }) {
     queryKey: leaveRequestKeys.myFormData(),
     queryFn: () => leaveRequestService.getMyFormData(),
     enabled: options?.enabled,
+  });
+}
+
+export function useLeaveRequestAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: leaveRequestKeys.auditTrail(id, params),
+    queryFn: () => leaveRequestService.getLeaveRequestAuditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
 
@@ -173,9 +187,10 @@ export function useApproveLeaveRequest() {
         });
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.auditTrail(variables.id) });
     },
   });
 }
@@ -219,9 +234,10 @@ export function useRejectLeaveRequest() {
         });
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.auditTrail(variables.id) });
     },
   });
 }
@@ -265,9 +281,10 @@ export function useCancelLeaveRequest() {
         });
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.auditTrail(variables.id) });
     },
   });
 }
@@ -307,9 +324,10 @@ export function useReapproveLeaveRequest() {
         });
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.lists() });
       queryClient.invalidateQueries({ queryKey: leaveRequestKeys.myBalance() });
+      queryClient.invalidateQueries({ queryKey: leaveRequestKeys.auditTrail(variables.id) });
     },
   });
 }

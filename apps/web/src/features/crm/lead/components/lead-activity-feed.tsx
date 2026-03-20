@@ -233,7 +233,7 @@ export function LeadActivityFeed({
                                     <td className="px-2 py-1 text-center">
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <span className="text-amber-500 cursor-help select-none">
+                                          <span className="text-warning cursor-help select-none">
                                             {"★".repeat(p.interest_level)}{"☆".repeat(Math.max(0, 5 - p.interest_level))}
                                           </span>
                                         </TooltipTrigger>
@@ -250,7 +250,7 @@ export function LeadActivityFeed({
                                                     <span className="text-muted-foreground">{sa.question_text}</span>
                                                     <span className="font-medium text-right whitespace-nowrap">
                                                       {sa.option_text}
-                                                      {sa.score !== 0 && <span className="ml-1 text-amber-500">({sa.score})</span>}
+                                                      {sa.score !== 0 && <span className="ml-1 text-warning">({sa.score})</span>}
                                                     </span>
                                                   </li>
                                                 ))}

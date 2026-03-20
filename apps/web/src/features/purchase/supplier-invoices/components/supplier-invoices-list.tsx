@@ -96,7 +96,7 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-semibold text-amber-500">Due today</span>
+        <span className="text-xs font-semibold text-warning">Due today</span>
       </div>
     );
   }
@@ -104,7 +104,7 @@ function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+        <span className="text-xs font-medium text-warning">{diffDays}d left</span>
       </div>
     );
   }
@@ -486,7 +486,7 @@ export function SupplierInvoicesList() {
 
                             {canSubmit && st === "draft" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={async () => {
                                   try {
                                     await submitMutation.mutateAsync(row.id);
@@ -503,7 +503,7 @@ export function SupplierInvoicesList() {
 
                             {canApprove && st === "submitted" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await approveMutation.mutateAsync(row.id);
@@ -537,7 +537,7 @@ export function SupplierInvoicesList() {
 
                             {canPending && st === "approved" && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                                 onClick={async () => {
                                   try {
                                     await pendingMutation.mutateAsync(row.id);
@@ -554,7 +554,7 @@ export function SupplierInvoicesList() {
 
                             {(st === "unpaid" || st === "partial") && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                                 onClick={() => setCreatePaymentForInvoiceId(row.id)}
                               >
                                 <CreditCard className="h-4 w-4 mr-2" />
@@ -584,7 +584,7 @@ export function SupplierInvoicesList() {
 
                             {canPrint && (
                               <DropdownMenuItem
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-accent focus:text-accent"
                                 onClick={() => setPrintingId(row.id)}
                               >
                                 <Printer className="h-4 w-4 mr-2" />

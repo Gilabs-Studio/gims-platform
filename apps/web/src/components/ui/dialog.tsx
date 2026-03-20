@@ -5,6 +5,14 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 import { cn } from "@/lib/utils";
 
+const sizeClasses = {
+  default: "sm:max-w-lg",
+  lg: "sm:max-w-2xl",
+  xl: "sm:max-w-4xl",
+  "2xl": "sm:max-w-7xl",
+  full: "sm:max-w-[95vw]",
+};
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -55,14 +63,6 @@ function DialogContent({
   showCloseButton?: boolean;
   size?: "default" | "lg" | "xl" | "2xl" | "full";
 }) {
-  const sizeClasses = {
-    default: "sm:max-w-lg",
-    lg: "sm:max-w-2xl",
-    xl: "sm:max-w-4xl",
-    "2xl": "sm:max-w-7xl",
-    full: "sm:max-w-[95vw]",
-  };
-
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -76,7 +76,6 @@ function DialogContent({
         {...props}
       >
         {children}
-
       </DialogPrimitive.Content>
     </DialogPortal>
   );
@@ -142,4 +141,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  sizeClasses,
 };

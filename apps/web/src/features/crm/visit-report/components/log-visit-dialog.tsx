@@ -528,7 +528,7 @@ export function LogVisitDialog({
                   {capturingGps ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : checkInGps ? (
-                    <Check className="h-3.5 w-3.5 text-green-600" />
+                    <Check className="h-3.5 w-3.5 text-success" />
                   ) : (
                     <MapPin className="h-3.5 w-3.5" />
                   )}

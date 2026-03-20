@@ -339,7 +339,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
               {deal.pipeline_stage && (
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: deal.pipeline_stage.color || "#6b7280" }}
+                  style={{ backgroundColor: deal.pipeline_stage.color || "var(--color-muted-foreground)" }}
                 />
               )}
               <span className="text-sm font-medium">{deal.pipeline_stage?.name ?? "-"}</span>
@@ -522,7 +522,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                                       )}
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <span className={`cursor-help select-none ${isEffectivelyDeleted ? "text-muted-foreground" : "text-amber-500"}`}>
+                                          <span className={`cursor-help select-none ${isEffectivelyDeleted ? "text-muted-foreground" : "text-warning"}`}>
                                             {"★".repeat(interestLevel)}{"☆".repeat(Math.max(0, 5 - interestLevel))}
                                           </span>
                                         </TooltipTrigger>
@@ -543,7 +543,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                                                       <span className="font-medium text-right whitespace-nowrap">
                                                         {sa.option_text}
                                                         {sa.score !== 0 && (
-                                                          <span className="ml-1 text-amber-500">({sa.score})</span>
+                                                          <span className="ml-1 text-warning">({sa.score})</span>
                                                         )}
                                                       </span>
                                                     </li>
@@ -634,7 +634,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                             <span className="text-xs font-medium text-muted-foreground uppercase">{t("budget")}</span>
                           </div>
                           {deal.budget_amount > 0 && (
@@ -643,7 +643,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         </div>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                             <span className="text-xs font-medium text-muted-foreground uppercase">{t("authority")}</span>
                           </div>
                           {deal.auth_person && (
@@ -652,7 +652,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         </div>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                             <span className="text-xs font-medium text-muted-foreground uppercase">{t("need")}</span>
                           </div>
                           {deal.need_description && (
@@ -661,7 +661,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                         </div>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5">
-                            <span className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                             <span className="text-xs font-medium text-muted-foreground uppercase">{t("timeline")}</span>
                           </div>
                           {deal.expected_close_date && (
@@ -700,7 +700,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                     {t("customer")}
                   </h4>
                   {!deal.customer && (
-                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-600/40">
+                    <Badge variant="outline" className="text-xs text-warning border-amber-600/40">
                       {t("potential")}
                     </Badge>
                   )}
@@ -912,7 +912,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.budget_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span className="font-medium text-muted-foreground uppercase">{t("budget")}</span>
                   </div>
@@ -923,7 +923,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.auth_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span className="font-medium text-muted-foreground uppercase">{t("authority")}</span>
                   </div>
@@ -934,7 +934,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.need_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span className="font-medium text-muted-foreground uppercase">{t("need")}</span>
                   </div>
@@ -945,7 +945,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-green-500" : "bg-gray-300"}`}
+                      className={`inline-block h-2 w-2 rounded-full ${deal.time_confirmed ? "bg-success" : "bg-mutedgray"}`}
                     />
                     <span className="font-medium text-muted-foreground uppercase">{t("timeline")}</span>
                   </div>

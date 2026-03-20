@@ -230,7 +230,7 @@ export function DealFormDialog({
 
         {/* Warn when editing a closed deal */}
         {isEdit && deal?.status !== "open" && (
-          <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-warning/10 px-4 py-3 text-sm text-warning dark:text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{t("dealAlreadyClosed")}</span>
           </div>
@@ -291,7 +291,7 @@ export function DealFormDialog({
                                   <div className="flex items-center gap-2">
                                     <span
                                       className="inline-block h-2 w-2 rounded-full shrink-0"
-                                      style={{ backgroundColor: stage.color || "#6b7280" }}
+                                      style={{ backgroundColor: stage.color || "var(--color-muted-foreground)" }}
                                     />
                                     {stage.name} ({stage.probability}%)
                                   </div>
@@ -841,7 +841,7 @@ export function DealFormDialog({
                             <div className="flex items-center gap-2 mb-1">
                               <span
                                 className="inline-block h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: selectedStage.color || "#6b7280" }}
+                                style={{ backgroundColor: selectedStage.color || "var(--color-muted-foreground)" }}
                               />
                               <span className="text-sm font-medium">{selectedStage.name}</span>
                             </div>

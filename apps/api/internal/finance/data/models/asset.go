@@ -11,14 +11,17 @@ type AssetStatus string
 
 const (
 	AssetStatusActive   AssetStatus = "active"
+	AssetStatusInactive AssetStatus = "inactive"
+	AssetStatusSold     AssetStatus = "sold"
 	AssetStatusDisposed AssetStatus = "disposed"
 )
 
 type Asset struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
-	Code string `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
-	Name string `gorm:"type:varchar(200);not null;index" json:"name"`
+	Code        string `gorm:"type:varchar(50);not null;uniqueIndex" json:"code"`
+	Name        string `gorm:"type:varchar(200);not null;index" json:"name"`
+	Description string `gorm:"type:text" json:"description"`
 
 	CategoryID string         `gorm:"type:uuid;not null;index" json:"category_id"`
 	Category   *AssetCategory `gorm:"foreignKey:CategoryID" json:"category,omitempty"`

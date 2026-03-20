@@ -14,6 +14,8 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		Code:           m.Code,
 		Name:           m.Name,
 		SupplierTypeID: m.SupplierTypeID,
+		PaymentTermsID: m.PaymentTermsID,
+		BusinessUnitID: m.BusinessUnitID,
 		Address:        m.Address,
 		ProvinceID:     m.ProvinceID,
 		CityID:         m.CityID,
@@ -52,6 +54,20 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 	if m.SupplierType != nil {
 		supplierType := ToSupplierTypeResponse(m.SupplierType)
 		resp.SupplierType = &supplierType
+	}
+	if m.PaymentTerms != nil {
+		resp.PaymentTerms = &dto.PaymentTermsResponse{
+			ID:   m.PaymentTerms.ID,
+			Code: m.PaymentTerms.Code,
+			Name: m.PaymentTerms.Name,
+			Days: m.PaymentTerms.Days,
+		}
+	}
+	if m.BusinessUnit != nil {
+		resp.BusinessUnit = &dto.BusinessUnitResponse{
+			ID:   m.BusinessUnit.ID,
+			Name: m.BusinessUnit.Name,
+		}
 	}
 
 	// Map Village with nested district/city/province if loaded

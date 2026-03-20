@@ -62,6 +62,8 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
@@ -109,7 +111,15 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                   name="sales_order_id"
                   control={control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder={t("salesOrder")} />
                       </SelectTrigger>
@@ -229,6 +239,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                       options={paymentTerms.map(term => ({ value: term.id, label: term.name }))}
                       value={field.value || ""}
                       onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          enableReferenceOptionsFetch();
+                        }
+                      }}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       onCreateClick={() => openQuickCreate("paymentTerm")}
@@ -323,7 +338,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                 {detectedDownPayments.map((dp) => (
                   <div key={dp.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-card border">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                       <span className="text-sm font-mono font-medium">{dp.code}</span>
                     </div>
                     <span className="text-sm font-semibold text-primary">
@@ -341,7 +356,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     <span className="text-muted-foreground">Order Total</span>
                     <span className="font-medium">{formatCurrency(dpSummary.orderTotal)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-green-600">
+                  <div className="flex justify-between text-sm text-success">
                     <span>Down Payment Applied</span>
                     <span className="font-medium">-{formatCurrency(dpSummary.totalDP)}</span>
                   </div>
@@ -426,6 +441,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 onValueChange={(value) => {
                                   field.onChange(value);
                                   handleProductChange(index, value);
+                                }}
+                                onOpenChange={(isOpen) => {
+                                  if (isOpen) {
+                                    enableProductOptionsFetch();
+                                  }
                                 }}
                               >
                                 <SelectTrigger>
@@ -592,7 +612,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground uppercase tracking-wider">{t("grossProfit")}</span>
-                      <span className={cn("font-bold", calculations.grossProfit >= 0 ? "text-green-600" : "text-destructive")}>
+                      <span className={cn("font-bold", calculations.grossProfit >= 0 ? "text-success" : "text-destructive")}>
                         {formatCurrency(calculations.grossProfit)}
                       </span>
                     </div>
@@ -603,7 +623,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     <div className="border-t pt-3 mt-2 space-y-2 bg-primary/5 p-3 rounded-lg">
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground uppercase tracking-wider">Down Payment</span>
-                        <span className="font-medium text-green-600">-{formatCurrency(dpSummary.totalDP)}</span>
+                        <span className="font-medium text-success">-{formatCurrency(dpSummary.totalDP)}</span>
                       </div>
                       <div className="flex justify-between text-sm font-bold">
                         <span>Amount Due</span>

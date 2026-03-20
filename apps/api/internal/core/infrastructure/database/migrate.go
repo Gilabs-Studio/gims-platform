@@ -54,6 +54,14 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not handle constraint issues (this may be expected): %v", err)
 	}
 
+	// PRE-MIGRATION FIX: Change reference_id to varchar to support non-UUID references
+	// We ignore the error if the table doesn't exist yet (fresh install)
+	_ = DB.Exec(`
+		ALTER TABLE journal_entries 
+		ALTER COLUMN reference_id TYPE VARCHAR(255) 
+		USING reference_id::varchar;
+	`)
+
 	// Use a custom migration approach that handles constraint errors gracefully
 	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
 	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
@@ -119,6 +127,8 @@ func AutoMigrate() error {
 		&finance.ChartOfAccount{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
+		&finance.JournalReversal{},
+		&finance.JournalAttachment{},
 		// Finance entities (Sprint 11)
 		&finance.Payment{},
 		&finance.PaymentAllocation{},
@@ -132,13 +142,22 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		&finance.AssetBudget{},
+		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
+		&finance.ValuationRun{},
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		// Asset Maintenance entities
+		&finance.AssetMaintenanceSchedule{},
+		&finance.AssetWorkOrder{},
+		&finance.AssetSparePart{},
+		&finance.AssetSparePartLink{},
+		&finance.WorkOrderSparePart{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},
@@ -151,6 +170,8 @@ func AutoMigrate() error {
 		// Customer Invoice entities (Sprint 7)
 		&sales.CustomerInvoice{},
 		&sales.CustomerInvoiceItem{},
+		&sales.SalesReturn{},
+		&sales.SalesReturnItem{},
 		// Sales Payment entities
 		&sales.SalesPayment{},
 		// Sales Visit entities (Sprint 7)
@@ -186,6 +207,12 @@ func AutoMigrate() error {
 		&hrd.EmployeeEvaluationCriteria{},
 		// HRD Recruitment entities (Sprint 15)
 		&hrd.RecruitmentRequest{},
+		// HRD Recruitment Applicant entities
+		&hrd.RecruitmentApplicant{},
+		&hrd.ApplicantStage{},
+		&hrd.ApplicantActivity{},
+		// Organization Employee Signature
+		&organization.EmployeeSignature{},
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
@@ -202,6 +229,8 @@ func AutoMigrate() error {
 		&purchase.SupplierInvoice{},
 		&purchase.SupplierInvoiceItem{},
 		&purchase.PurchasePayment{},
+		&purchase.PurchaseReturn{},
+		&purchase.PurchaseReturnItem{},
 		// AI Assistant entities
 		&ai.AIChatSession{},
 		&ai.AIChatMessage{},
@@ -263,13 +292,19 @@ func AutoMigrate() error {
 		log.Printf("Warning: Area supervisor migration skipped or failed: %v", err)
 	}
 
+	// Safety net for rollout compatibility: older databases may miss the
+	// newly introduced goods_receipts.warehouse_id column.
+	if err := ensureGoodsReceiptWarehouseColumn(); err != nil {
+		return fmt.Errorf("failed to ensure goods receipt warehouse column: %w", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
 	return nil
-}
+} 	
 
 // migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
 // employee_areas with is_supervisor=true. This is idempotent — if the source
@@ -323,6 +358,44 @@ func migrateAreaSupervisorsToEmployeeAreas() error {
 	return nil
 }
 
+func ensureGoodsReceiptWarehouseColumn() error {
+	if err := DB.Exec(`
+		ALTER TABLE goods_receipts
+		ADD COLUMN IF NOT EXISTS warehouse_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_goods_receipts_warehouse_id
+		ON goods_receipts (warehouse_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_goods_receipts_warehouse'
+			) THEN
+				ALTER TABLE goods_receipts
+				ADD CONSTRAINT fk_goods_receipts_warehouse
+				FOREIGN KEY (warehouse_id)
+				REFERENCES warehouses(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // createSearchIndexes creates GIN indexes for optimized text search
 func createSearchIndexes() error {
 	// Ensure pg_trgm extension exists (required for GIN trgm_ops)
@@ -355,6 +428,9 @@ func createSearchIndexes() error {
 		// HRD recruitment search indexes (Sprint 15)
 		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_code_gin ON recruitment_requests USING gin (request_code gin_trgm_ops)",
 		"CREATE INDEX IF NOT EXISTS idx_recruitment_requests_desc_gin ON recruitment_requests USING gin (job_description gin_trgm_ops)",
+		// HRD recruitment applicant search indexes
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_applicants_name_gin ON recruitment_applicants USING gin (full_name gin_trgm_ops)",
+		"CREATE INDEX IF NOT EXISTS idx_recruitment_applicants_email_gin ON recruitment_applicants USING gin (email gin_trgm_ops)",
 	}
 
 	for _, idx := range indexes {

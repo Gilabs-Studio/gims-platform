@@ -32,10 +32,10 @@ function getNodeStyle(entry: DealHistoryEntry): React.CSSProperties {
 
 function getNodeClassName(entry: DealHistoryEntry): string {
   if (entry.to_stage?.color) return "";
-  if (entry.to_stage?.is_won) return "bg-green-500 text-white";
+  if (entry.to_stage?.is_won) return "bg-success text-white";
   if (entry.to_stage?.is_lost) return "bg-destructive text-destructive-foreground";
   const name = entry.to_stage_name?.toLowerCase() ?? "";
-  if (name.includes("won")) return "bg-green-500 text-white";
+  if (name.includes("won")) return "bg-success text-white";
   if (name.includes("lost")) return "bg-destructive text-destructive-foreground";
   return "bg-primary text-primary-foreground";
 }

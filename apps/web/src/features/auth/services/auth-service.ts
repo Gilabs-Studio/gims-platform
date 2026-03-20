@@ -1,5 +1,20 @@
-import apiClient, { setCSRFTokenMemory } from "@/lib/api-client";
+import apiClient, {
+  clearCSRFTokenMemory,
+  emitAuthTelemetry,
+  setCSRFTokenMemory,
+} from "@/lib/api-client";
 import type { LoginRequest, LoginResponse } from "../types";
+
+function isCSRFInvalidError(error: unknown): boolean {
+  const axiosError = error as {
+    response?: { status?: number; data?: { error?: { code?: string } } };
+  };
+
+  return (
+    axiosError?.response?.status === 403 &&
+    axiosError?.response?.data?.error?.code === "CSRF_INVALID"
+  );
+}
 
 export const authService = {
   /**
@@ -79,8 +94,37 @@ export const authService = {
    * Returns user data for session verification.
    */
   async refreshToken(): Promise<LoginResponse> {
-    const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
-    return response.data;
+    try {
+      const response = await apiClient.post<LoginResponse>("/auth/refresh-token");
+      return response.data;
+    } catch (error: unknown) {
+      if (!isCSRFInvalidError(error)) {
+        throw error;
+      }
+
+      emitAuthTelemetry("csrf_invalid_retry", {
+        endpoint: "/auth/refresh-token",
+        source: "authService.refreshToken",
+      });
+
+      clearCSRFTokenMemory();
+      const csrfToken = await this.prefetchCSRFToken();
+
+      try {
+        const retryResponse = await apiClient.post<LoginResponse>(
+          "/auth/refresh-token",
+          {},
+          csrfToken ? { headers: { "X-CSRF-Token": csrfToken } } : undefined,
+        );
+        return retryResponse.data;
+      } catch (retryError: unknown) {
+        emitAuthTelemetry("csrf_retry_failed", {
+          endpoint: "/auth/refresh-token",
+          source: "authService.refreshToken",
+        });
+        throw retryError;
+      }
+    }
   },
 
   /**

@@ -45,6 +45,7 @@ export const goodsReceiptEn = {
     basic: "Basic Info",
     items: "Items",
     general: "General",
+    auditTrail: "Audit Trail",
     audit_trail: "Audit Trail",
   },
   sections: {
@@ -56,8 +57,10 @@ export const goodsReceiptEn = {
     code: "GR",
     purchaseOrder: "Purchase Order",
     receiptDate: "Receipt Date",
+    warehouse: "Warehouse",
     supplier: "Supplier",
     notes: "Notes",
+    proofPhoto: "Proof Photo",
     status: "Status",
     submittedAt: "Submitted At",
     approvedAt: "Approved At",
@@ -92,6 +95,7 @@ export const goodsReceiptEn = {
     partial: "Partial",
     closed: "Closed",
     rejected: "Rejected",
+    returned: "Returned",
   },
   actions: {
     create: "Create",
@@ -111,6 +115,7 @@ export const goodsReceiptEn = {
     next: "Next",
     back: "Back",
     print: "Print",
+    createReturn: "Create Return",
   },
   convertToSupplierInvoice: "Convert to Supplier Invoice",
   placeholders: {

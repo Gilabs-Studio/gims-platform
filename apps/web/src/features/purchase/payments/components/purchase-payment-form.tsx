@@ -52,26 +52,23 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
+  const [shouldLoadInvoiceOptions, setShouldLoadInvoiceOptions] = useState(false);
+  const [shouldLoadBankAccountOptions, setShouldLoadBankAccountOptions] = useState(false);
 
   const createMutation = useCreatePurchasePayment();
 
   // Fetch invoice add-data when not locked to DP (needed for invoice select or locked invoice details)
-  const { data: addDataResponse, isFetching: isFetchingAddData } = usePurchasePaymentAddData({ enabled: open && !isLockedToDP });
+  const { data: addDataResponse, isFetching: isFetchingAddData } = usePurchasePaymentAddData({
+    enabled: open && !isLockedToDP && (isLockedToInvoice || shouldLoadInvoiceOptions),
+  });
 
   // Fetch DP detail when locked to a specific down payment (supplier DP)
   const { data: dpDetailResponse, isLoading: isLoadingDP } = useSupplierInvoiceDP(defaultDPId ?? "", {
     enabled: open && isLockedToDP,
   });
 
-  // Always fetch bank accounts from the finance bank-accounts feature
-  const { data: bankAccountsResponse, isLoading: isLoadingBankAccounts } = useFinanceBankAccounts({
-    is_active: true,
-    per_page: 100,
-  });
-
   const addData = addDataResponse?.data;
   const invoices = useMemo(() => addData?.invoices ?? [], [addData]);
-  const bankAccounts = useMemo(() => bankAccountsResponse?.data ?? [], [bankAccountsResponse]);
   const dpDetail = dpDetailResponse?.data;
 
   const resolver = useMemo(() => zodResolver(purchasePaymentSchema) as Resolver<PurchasePaymentFormData>, []);
@@ -98,6 +95,8 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   useEffect(() => {
     if (!open) return;
+    setShouldLoadInvoiceOptions(isLockedToInvoice);
+    setShouldLoadBankAccountOptions(false);
     reset({
       invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
@@ -112,6 +111,18 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
   const bankAccountId = useWatch({ control, name: "bank_account_id" });
+
+  // Fetch bank accounts only when payment method needs them and selection is interacted with.
+  const { data: bankAccountsResponse, isLoading: isLoadingBankAccounts } = useFinanceBankAccounts(
+    {
+      is_active: true,
+      per_page: 20,
+    },
+    {
+      enabled: open && method === "BANK" && shouldLoadBankAccountOptions,
+    },
+  );
+  const bankAccounts = useMemo(() => bankAccountsResponse?.data ?? [], [bankAccountsResponse]);
 
   const selectedInvoice = useMemo(() => {
     if (!invoiceId || isLockedToDP) return null;
@@ -138,6 +149,10 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     (value: string) => {
       if (value === "CASH") {
         setValue("bank_account_id", null, { shouldValidate: false });
+        setShouldLoadBankAccountOptions(false);
+      }
+      if (value === "BANK") {
+        setShouldLoadBankAccountOptions(true);
       }
     },
     [setValue],
@@ -287,7 +302,16 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                       control={control}
                       name="invoice_id"
                       render={({ field }) => (
-                        <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)} disabled={isFetchingAddData || submitting}>
+                        <Select
+                          value={field.value ?? ""}
+                          onValueChange={(v) => field.onChange(v)}
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadInvoiceOptions(true);
+                            }
+                          }}
+                          disabled={isFetchingAddData || submitting}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
@@ -410,7 +434,16 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                         control={control}
                         name="bank_account_id"
                         render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v)} disabled={isLoadingBankAccounts || submitting}>
+                          <Select
+                            value={field.value ?? ""}
+                            onValueChange={(v) => field.onChange(v)}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                setShouldLoadBankAccountOptions(true);
+                              }
+                            }}
+                            disabled={isLoadingBankAccounts || submitting}
+                          >
                             <SelectTrigger className="cursor-pointer transition-all duration-200">
                               <SelectValue placeholder={t("placeholders.select")} />
                             </SelectTrigger>

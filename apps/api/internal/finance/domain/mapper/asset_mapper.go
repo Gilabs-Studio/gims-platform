@@ -20,10 +20,11 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 	}
 
 	resp := dto.AssetResponse{
-		ID: item.ID,
-		Code: item.Code,
-		Name: item.Name,
-		CategoryID: item.CategoryID,
+		ID:          item.ID,
+		Code:        item.Code,
+		Name:        item.Name,
+		Description: item.Description,
+		CategoryID:  item.CategoryID,
 		LocationID: item.LocationID,
 		AcquisitionDate: item.AcquisitionDate,
 		AcquisitionCost: item.AcquisitionCost,

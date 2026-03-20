@@ -208,14 +208,14 @@ export function InventoryList() {
           label="Total On Hand"
           value={metrics?.total_on_hand?.toLocaleString() ?? 0}
           icon={Layers}
-          colorClass="bg-blue-500"
+          colorClass="bg-primary"
           isLoading={metricsLoading}
         />
         <MetricCard
           label="Healthy Stock"
           value={metrics?.ok_count ?? 0}
           icon={CheckCircle2}
-          colorClass="bg-green-600"
+          colorClass="bg-success"
           isLoading={metricsLoading}
           filterKey="ok"
           activeFilter={activeMetricFilter}
@@ -225,7 +225,7 @@ export function InventoryList() {
           label="Low Stock"
           value={metrics?.low_stock_count ?? 0}
           icon={TrendingDown}
-          colorClass="bg-yellow-500"
+          colorClass="bg-warning"
           isLoading={metricsLoading}
           filterKey="low_stock"
           activeFilter={activeMetricFilter}
@@ -245,7 +245,7 @@ export function InventoryList() {
           label="Expiring (30d)"
           value={metrics?.expiring_batches_30_day ?? 0}
           icon={Clock}
-          colorClass="bg-orange-500"
+          colorClass="bg-warning"
           isLoading={metricsLoading}
           filterKey="has_expiring"
           activeFilter={activeMetricFilter}
@@ -255,7 +255,7 @@ export function InventoryList() {
           label="Expired Batches"
           value={metrics?.expired_batches ?? 0}
           icon={CalendarX}
-          colorClass="bg-rose-700"
+          colorClass="bg-rose"
           isLoading={metricsLoading}
           filterKey="has_expired"
           activeFilter={activeMetricFilter}

@@ -11,6 +11,8 @@ import (
 type CreateSupplierRequest struct {
 	Name           string                      `json:"name" binding:"required,min=2,max=200"`
 	SupplierTypeID string                      `json:"supplier_type_id" binding:"omitempty,uuid"`
+	PaymentTermsID string                      `json:"payment_terms_id" binding:"omitempty,uuid"`
+	BusinessUnitID string                      `json:"business_unit_id" binding:"omitempty,uuid"`
 	Address        string                      `json:"address" binding:"max=500"`
 	ProvinceID     string                      `json:"province_id" binding:"omitempty,uuid"`
 	CityID         string                      `json:"city_id" binding:"omitempty,uuid"`
@@ -38,6 +40,8 @@ type CreateSupplierRequest struct {
 type UpdateSupplierRequest struct {
 	Name           *string  `json:"name" binding:"omitempty,min=2,max=200"`
 	SupplierTypeID *string  `json:"supplier_type_id"`
+	PaymentTermsID *string  `json:"payment_terms_id"`
+	BusinessUnitID *string  `json:"business_unit_id"`
 	Address        *string  `json:"address" binding:"omitempty,max=500"`
 	ProvinceID     *string  `json:"province_id"`
 	CityID         *string  `json:"city_id"`
@@ -65,6 +69,10 @@ type SupplierResponse struct {
 	Name           string                 `json:"name"`
 	SupplierTypeID *string                `json:"supplier_type_id"`
 	SupplierType   *SupplierTypeResponse  `json:"supplier_type,omitempty"`
+	PaymentTermsID *string                `json:"payment_terms_id"`
+	PaymentTerms   *PaymentTermsResponse  `json:"payment_terms,omitempty"`
+	BusinessUnitID *string                `json:"business_unit_id"`
+	BusinessUnit   *BusinessUnitResponse  `json:"business_unit,omitempty"`
 	Address        string                 `json:"address"`
 	ProvinceID     *string                `json:"province_id"`
 	Province       *ProvinceResponse      `json:"province,omitempty"`
@@ -174,6 +182,18 @@ type CityResponse struct {
 }
 
 type ProvinceResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type PaymentTermsResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+	Days int    `json:"days"`
+}
+
+type BusinessUnitResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }

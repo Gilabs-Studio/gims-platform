@@ -31,8 +31,7 @@ type SortBy =
   | "orders"
   | "visits"
   | "name"
-  | "target"
-  | "achievement";
+  | "target";
 
 interface SalesPerformanceListProps {
   page: number;
@@ -160,17 +159,6 @@ export function SalesPerformanceList({
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2 ml-auto hover:bg-transparent hover:text-primary cursor-pointer"
-                  onClick={() => handleSort("achievement")}
-                >
-                  {t("table.achievement")}
-                  {getSortIcon("achievement")}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 ml-auto hover:bg-transparent hover:text-primary cursor-pointer"
                   onClick={() => handleSort("revenue")}
                 >
                   {t("table.revenue")}
@@ -221,9 +209,6 @@ export function SalesPerformanceList({
                     <Skeleton className="h-4 w-24 ml-auto" />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </TableCell>
-                  <TableCell className="text-right">
                     <Skeleton className="h-4 w-24 ml-auto" />
                   </TableCell>
                   <TableCell className="text-right">
@@ -239,7 +224,7 @@ export function SalesPerformanceList({
               ))
             ) : performanceList.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground py-12">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground py-12">
                   <div className="text-sm">{t("table.noData")}</div>
                 </TableCell>
               </TableRow>
@@ -309,24 +294,23 @@ export function SalesPerformanceList({
                       </button>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {item.target_amount_formatted ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {item.target_achievement_percentage !== undefined ? (
-                        <span
-                          className={cn(
-                            item.target_achievement_percentage >= 100
-                              ? "text-green-600"
-                              : item.target_achievement_percentage >= 75
-                                ? "text-warning"
-                                : "text-destructive"
-                          )}
-                        >
-                          {Math.round(item.target_achievement_percentage)}%
-                        </span>
-                      ) : (
-                        "-"
-                      )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span>{item.target_amount_formatted ?? "-"}</span>
+                        {item.target_achievement_percentage !== undefined && (
+                          <span
+                            className={cn(
+                              "text-xs",
+                              item.target_achievement_percentage >= 100
+                                ? "text-success"
+                                : item.target_achievement_percentage >= 75
+                                  ? "text-warning"
+                                  : "text-destructive"
+                            )}
+                          >
+                            {Math.round(item.target_achievement_percentage)}%
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {item.total_revenue_formatted}

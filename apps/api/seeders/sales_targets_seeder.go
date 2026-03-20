@@ -46,16 +46,6 @@ func SeedSalesTargets() error {
 			}
 			code := fmt.Sprintf("YT-%d-%s", year, areaPrefix)
 
-			status := models.YearlyTargetStatusApproved
-			var approvedAt *time.Time
-			if year == now.Year() && now.Month() < 6 {
-				// Current year before June: still in draft
-				status = models.YearlyTargetStatusDraft
-			} else {
-				approved := time.Date(year, 1, 15, 10, 0, 0, 0, time.UTC)
-				approvedAt = &approved
-			}
-
 			// Check if target already exists for this area and year
 			var count int64
 			db.Model(&models.YearlyTarget{}).Where("area_id = ? AND year = ?", area.ID, year).Count(&count)
@@ -71,8 +61,6 @@ func SeedSalesTargets() error {
 				Year:        year,
 				TotalTarget: totalTarget,
 				Notes:       fmt.Sprintf("Sales target for %s - year %d", area.Name, year),
-				Status:      status,
-				ApprovedAt:  approvedAt,
 				CreatedAt:   time.Now(),
 				UpdatedAt:   time.Now(),
 			}
@@ -85,23 +73,14 @@ func SeedSalesTargets() error {
 				// Add±10% variation per month
 				variance := (rand.Float64() - 0.5) * 0.2
 				targetAmount := baseMonthly * (1 + variance)
-
-				// Calculate actual amount with realistic variation
-				actualAmount := 0.0
-				// For previous year: all months have actuals
-				// For current year: only past months have actuals
-				if year < now.Year() || month <= int(now.Month()) {
-					// Actual is 70% - 120% of target
-					actualVariance := 0.7 + (rand.Float64() * 0.5)
-					actualAmount = targetAmount * actualVariance
-				}
 				
 				mt := models.MonthlyTarget{
 					ID:             uuid.NewString(),
 					YearlyTargetID: yearlyTarget.ID,
 					Month:          month,
 					TargetAmount:   targetAmount,
-					ActualAmount:   actualAmount,
+					// Real actuals are calculated from transactions, not seeded.
+					ActualAmount:   0,
 					CreatedAt:      time.Now(),
 					UpdatedAt:      time.Now(),
 				}

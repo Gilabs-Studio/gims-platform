@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
 import type { CostCategoryItem } from "../types";
 
 const CATEGORY_COLORS = [
@@ -38,7 +39,7 @@ export function CostsCategoryWidget({ data }: CostsCategoryWidgetProps) {
               <div key={item.category} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{item.category}</span>
-                  <span className="font-medium">{item.amount_formatted}</span>
+                  <span className="font-medium">{formatCurrency(item.amount)}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-secondary">
                   <div

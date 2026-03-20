@@ -27,7 +27,12 @@ export const getOrderItemSchema = (t?: TranslationFn) => z.object({
 export const getOrderSchema = (t?: TranslationFn) => z.object({
   order_date: z.string()
     .min(1, getMsg(t, "validation.required", "Order date is required")),
-  customer_id: z.string().uuid().optional().or(z.literal("")),
+  customer_id: z.string()
+    .trim()
+    .min(1, getMsg(t, "validation.customerRequired", "Customer is required"))
+    .refine((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value), {
+      message: getMsg(t, "validation.invalidCustomer", "Select a valid customer"),
+    }),
   sales_quotation_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   payment_terms_id: z.string()
     .min(1, getMsg(t, "validation.required", "Payment terms is required"))
@@ -57,7 +62,7 @@ export const getOrderSchema = (t?: TranslationFn) => z.object({
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),
-  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
+  customer_email: z.string().optional(),
   items: z.array(getOrderItemSchema(t))
     .min(1, getMsg(t, "validation.itemsMin", "At least one item is required")),
 });
@@ -82,7 +87,7 @@ export const getConvertQuotationToOrderSchema = (t?: TranslationFn) => z.object(
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),
-  customer_email: z.string().email(getMsg(t, "validation.invalidEmail", "Invalid email format")).optional().or(z.literal("")),
+  customer_email: z.string().optional(),
   notes: z.string().optional(),
 });
 

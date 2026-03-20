@@ -61,6 +61,7 @@ import {
   ReturnAssetDialog,
   DeleteAssetDialog,
 } from "./assets";
+import { EmployeeSignatureSection } from "./signature";
 
 interface EmployeePermission {
   permissions?: string[];
@@ -79,13 +80,18 @@ export function EmployeeDetailModal({
   employee,
 }: EmployeeDetailModalProps) {
   const t = useTranslations("employee");
+  const activeEmployeeId = open ? employee?.id : undefined;
 
   // Fetch fresh employee data when modal opens
-  const { data: detailData, isLoading } = useEmployee(employee?.id);
+  const { data: detailData, isLoading } = useEmployee(activeEmployeeId, {
+    enabled: !!activeEmployeeId,
+  });
 
-  // Load areas list to resolve area names when API doesn't include nested `area` object
-  // Call unconditionally to preserve hook order across renders
-  const { data: areasData } = useAreas({ per_page: 100 });
+  // Load areas only when dialog is open to avoid hidden eager requests.
+  const { data: areasData } = useAreas(
+    { per_page: 20 },
+    { enabled: open },
+  );
 
   // Contract dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -118,16 +124,16 @@ export function EmployeeDetailModal({
   const [deleteAsset, setDeleteAsset] = useState<EmployeeAsset | null>(null);
 
   // Fetch contracts for the timeline
-  const { data: contractsData } = useEmployeeContracts(employee?.id);
+  const { data: contractsData } = useEmployeeContracts(activeEmployeeId);
 
   // Fetch education histories
-  const { data: educationsData } = useEmployeeEducationHistories(employee?.id);
+  const { data: educationsData } = useEmployeeEducationHistories(activeEmployeeId);
 
   // Fetch certifications
-  const { data: certificationsData } = useEmployeeCertifications(employee?.id);
+  const { data: certificationsData } = useEmployeeCertifications(activeEmployeeId);
 
   // Fetch assets
-  const { data: assetsData } = useEmployeeAssets(employee?.id);
+  const { data: assetsData } = useEmployeeAssets(activeEmployeeId);
 
   if (!employee) return null;
 
@@ -171,15 +177,14 @@ export function EmployeeDetailModal({
                 <FileText className="h-4 w-4 mr-1" />
                 {t("tabs.contractHistory")}
               </TabsTrigger>
+              <TabsTrigger value="signature">{t("tabs.signature")}</TabsTrigger>
               <TabsTrigger value="education-history">
                 {t("tabs.educationHistory")}
               </TabsTrigger>
               <TabsTrigger value="certifications">
                 {t("tabs.certifications")}
               </TabsTrigger>
-              <TabsTrigger value="assets">
-                {t("tabs.assets")}
-              </TabsTrigger>
+              <TabsTrigger value="assets">{t("tabs.assets")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 py-4">
@@ -420,7 +425,7 @@ export function EmployeeDetailModal({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive"
                           onClick={() =>
                             displayEmployee.current_contract &&
                             setTerminateContract(
@@ -497,7 +502,7 @@ export function EmployeeDetailModal({
                               }
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                              className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer"
                             >
                               <Download className="h-3.5 w-3.5 shrink-0" />
                               <span className="truncate max-w-[200px]">
@@ -592,7 +597,7 @@ export function EmployeeDetailModal({
                           <TableRow key={ea.area_id}>
                             <TableCell className="w-12">
                               {ea.is_supervisor ? (
-                                <Shield className="h-4 w-4 text-amber-500" />
+                                <Shield className="h-4 w-4 text-warning" />
                               ) : (
                                 <User className="h-4 w-4 text-muted-foreground" />
                               )}
@@ -634,6 +639,10 @@ export function EmployeeDetailModal({
 
             <TabsContent value="contract-history" className="space-y-6 py-4">
               <ContractTimeline contracts={contractsData || []} />
+            </TabsContent>
+
+            <TabsContent value="signature" className="space-y-6 py-4">
+              <EmployeeSignatureSection employeeId={displayEmployee.id} />
             </TabsContent>
 
             <TabsContent value="education-history" className="space-y-6 py-4">

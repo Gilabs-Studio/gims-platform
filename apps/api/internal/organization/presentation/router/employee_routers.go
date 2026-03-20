@@ -51,4 +51,9 @@ func RegisterEmployeeRoutes(rg *gin.RouterGroup, h *handler.EmployeeHandler) {
 	g.PUT("/:id/assets/:asset_id", middleware.RequirePermission("employee.update"), h.UpdateEmployeeAsset)
 	g.POST("/:id/assets/:asset_id/return", middleware.RequirePermission("employee.update"), h.ReturnEmployeeAsset)
 	g.DELETE("/:id/assets/:asset_id", middleware.RequirePermission("employee.delete"), h.DeleteEmployeeAsset)
+
+	// Employee signature management routes
+	g.GET("/:id/signature", middleware.RequirePermission("employee.read"), h.GetEmployeeSignature)
+	g.POST("/:id/signature", middleware.RequirePermission("employee.update"), h.UploadEmployeeSignature)
+	g.DELETE("/:id/signature", middleware.RequirePermission("employee.update"), h.DeleteEmployeeSignature)
 }

@@ -196,7 +196,7 @@ export function EmployeeList() {
                         href={resolveImageUrl(employee.current_contract.document_path) ?? "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer"
                       >
                         <Download className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate max-w-[200px]">

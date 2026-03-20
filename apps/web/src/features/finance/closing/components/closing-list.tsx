@@ -169,7 +169,7 @@ export function ClosingList() {
                         </DropdownMenuItem>
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => setApproving(item)}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -178,7 +178,7 @@ export function ClosingList() {
                         )}
                         {canReopen && item.status === "approved" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            className="cursor-pointer text-warning focus:text-warning"
                             onClick={() => setReopening(item)}
                           >
                             <RotateCcw className="h-4 w-4 mr-2" />

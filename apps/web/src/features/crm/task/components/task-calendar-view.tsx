@@ -42,7 +42,7 @@ const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "
 const STATUS_DOT_COLOR: Record<string, string> = {
   pending: "bg-muted-foreground",
   confirmed: "bg-primary",
-  completed: "bg-green-500",
+  completed: "bg-success",
   cancelled: "bg-destructive",
 };
 
@@ -288,7 +288,7 @@ export function TaskCalendarView() {
                               <p className="text-xs font-medium truncate">{reminder.message}</p>
                               <p className="text-[10px] text-muted-foreground">
                                 {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
-                                {reminder.is_sent && <span className="ml-1 text-green-600">✔ {tTask("reminder.sent")}</span>}
+                                {reminder.is_sent && <span className="ml-1 text-success">✔ {tTask("reminder.sent")}</span>}
                               </p>
                             </div>
                           </div>
@@ -375,7 +375,7 @@ export function TaskCalendarView() {
                               <p className="text-xs font-medium truncate">{reminder.message}</p>
                               <p className="text-[10px] text-muted-foreground">
                                 {formatDate(reminder.remind_at)} &middot; {tTask(`reminder.types.${reminder.reminder_type}` as Parameters<typeof tTask>[0])}
-                                {reminder.is_sent && <span className="ml-1 text-green-600">✔ {tTask("reminder.sent")}</span>}
+                                {reminder.is_sent && <span className="ml-1 text-success">✔ {tTask("reminder.sent")}</span>}
                               </p>
                             </div>
                           </div>

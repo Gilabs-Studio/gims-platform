@@ -2,14 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Banknote, CheckCircle2, Clock, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, XCircle } from "lucide-react";
+import { Banknote, CheckCircle2, Clock, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, Send, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -21,16 +21,12 @@ import type { NonTradePayable } from "../types";
 import {
   useDeleteFinanceNonTradePayable,
   useFinanceNonTradePayables,
-  useApproveFinanceNonTradePayable
+  useSubmitFinanceNonTradePayable,
+  useApproveFinanceNonTradePayable,
+  useRejectFinanceNonTradePayable,
 } from "../hooks/use-finance-non-trade-payables";
 import { NonTradePayableForm } from "./non-trade-payable-form";
 import { PayNonTradePayableDialog } from "./pay-dialog";
-
-function formatDate(value: string) {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toISOString().slice(0, 10);
-}
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -54,6 +50,13 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       return (
         <Badge variant="secondary" className="text-xs font-medium">
           <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${normalized}`)}
+        </Badge>
+      );
+    case "submitted":
+      return (
+        <Badge variant="info" className="text-xs font-medium">
+          <Send className="h-3 w-3 mr-1" />
           {t(`status.${normalized}`)}
         </Badge>
       );
@@ -95,8 +98,11 @@ export function NonTradePayablesList() {
 
   const canCreate = useUserPermission("non_trade_payable.create");
   const canUpdate = useUserPermission("non_trade_payable.update");
+  const canSubmit = useUserPermission("non_trade_payable.submit");
   const canDelete = useUserPermission("non_trade_payable.delete");
-  const canApprove = useUserPermission("non_trade_payable.update");
+  const canApprove = useUserPermission("non_trade_payable.approve");
+  const canReject = useUserPermission("non_trade_payable.reject");
+  const canPay = useUserPermission("non_trade_payable.pay");
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -121,16 +127,36 @@ export function NonTradePayablesList() {
   const rows = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
   const deleteMutation = useDeleteFinanceNonTradePayable();
+  const submitMutation = useSubmitFinanceNonTradePayable();
   const approveMutation = useApproveFinanceNonTradePayable();
+  const rejectMutation = useRejectFinanceNonTradePayable();
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
   }
 
+  const handleSubmit = async (id: string) => {
+    try {
+      await submitMutation.mutateAsync(id);
+      toast.success(t("toast.submitted"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
   const handleApprove = async (id: string) => {
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      await rejectMutation.mutateAsync(id);
+      toast.success(t("toast.rejected"));
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -204,7 +230,13 @@ export function NonTradePayablesList() {
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((item) => (
+              rows.map((item) => {
+                const normalizedStatus = item.status?.toLowerCase() ?? "";
+                const isDraft = normalizedStatus === "draft";
+                const isSubmitted = normalizedStatus === "submitted";
+                const isApproved = normalizedStatus === "approved";
+
+                return (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.code}</TableCell>
                   <TableCell className="tabular-nums">{formatDate(item.transaction_date)}</TableCell>
@@ -222,7 +254,7 @@ export function NonTradePayablesList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {item.status === "DRAFT" && canUpdate && (
+                        {isDraft && canUpdate && (
                           <DropdownMenuItem
                             className="cursor-pointer"
                             onClick={() => {
@@ -235,25 +267,43 @@ export function NonTradePayablesList() {
                             {t("actions.edit")}
                           </DropdownMenuItem>
                         )}
-                        {item.status === "DRAFT" && canApprove && (
+                        {isDraft && canSubmit && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-primary focus:text-primary"
+                            onClick={() => handleSubmit(item.id)}
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            {t("actions.submit")}
+                          </DropdownMenuItem>
+                        )}
+                        {isSubmitted && canApprove && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => handleApprove(item.id)}
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
-                        {item.status === "APPROVED" && canApprove && (
+                        {isSubmitted && canReject && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-green-600 focus:text-green-600"
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => handleReject(item.id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            {t("actions.reject")}
+                          </DropdownMenuItem>
+                        )}
+                        {isApproved && canPay && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => setPaying(item)}
                           >
                             <Banknote className="h-4 w-4 mr-2" />
                             {t("actions.pay")}
                           </DropdownMenuItem>
                         )}
-                        {item.status === "DRAFT" && canDelete && (
+                        {isDraft && canDelete && (
                           <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setDeleting(item)}
@@ -266,7 +316,8 @@ export function NonTradePayablesList() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

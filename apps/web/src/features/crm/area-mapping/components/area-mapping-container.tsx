@@ -19,6 +19,7 @@ import { useAreaCoverage } from "../hooks/use-area-mapping";
 import type { Area } from "@/features/master-data/organization/types";
 import type { AreaCoverage } from "../types";
 import { AreaMapView } from "@/features/master-data/organization/components/area/area-map-view";
+import { formatDate } from "@/lib/utils";
 
 export function AreaMappingContainer() {
   const t = useTranslations("areaMapping");
@@ -115,9 +116,9 @@ export function AreaMappingContainer() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${selectedArea.color ?? "#3b82f6"}20` }}
+                    style={{ backgroundColor: `${selectedArea.color ?? "var(--color-primary)"}20` }}
                   >
-                    <MapPin className="w-6 h-6" style={{ color: selectedArea.color ?? "#3b82f6" }} />
+                    <MapPin className="w-6 h-6" style={{ color: selectedArea.color ?? "var(--color-primary)" }} />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground">{selectedArea.name}</h3>
@@ -165,7 +166,7 @@ export function AreaMappingContainer() {
                   <Clock className="w-3 h-3" />
                   <span>
                     {t("coverage.lastCapture")}:{" "}
-                    {new Date(selectedCoverage.last_capture_at).toLocaleDateString()}
+                    {formatDate(selectedCoverage.last_capture_at)}
                   </span>
                 </div>
               )}

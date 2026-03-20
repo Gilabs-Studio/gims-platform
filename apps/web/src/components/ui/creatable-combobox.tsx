@@ -30,6 +30,7 @@ export interface CreatableComboboxProps {
   isLoading?: boolean;
   className?: string;
   ariaInvalid?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -51,11 +52,13 @@ export function CreatableCombobox({
   isLoading = false,
   className,
   ariaInvalid = false,
+  onOpenChange,
 }: CreatableComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
 
   const hasCreatePermission = useUserPermission(createPermission ?? "");
   const canCreate = !!createPermission && hasCreatePermission && !!onCreateClick;
@@ -76,12 +79,13 @@ export function CreatableCombobox({
 
   const handleOpenChange = React.useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
     if (nextOpen) {
       setActiveIndex(-1);
       setSearch("");
       requestAnimationFrame(() => searchInputRef.current?.focus());
     }
-  }, []);
+  }, [onOpenChange]);
 
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue === value ? "" : selectedValue);
@@ -114,6 +118,23 @@ export function CreatableCombobox({
       setOpen(false);
     }
   };
+
+  const handleListWheel = React.useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const listElement = listRef.current;
+      if (!listElement) return;
+
+      const hasScrollableContent = listElement.scrollHeight > listElement.clientHeight;
+      if (!hasScrollableContent) return;
+
+      // In modal dialogs, wheel default behavior can be blocked by scroll lock.
+      // Apply wheel delta directly so touchpad/mouse-wheel scrolling remains usable.
+      e.preventDefault();
+      e.stopPropagation();
+      listElement.scrollTop += e.deltaY;
+    },
+    [],
+  );
 
   const createButtonLabel = createLabel.replace("{query}", search.trim());
 
@@ -194,6 +215,8 @@ export function CreatableCombobox({
         {/* Scrollable item list */}
         <div
           role="listbox"
+          ref={listRef}
+          onWheel={handleListWheel}
           className="max-h-[220px] overflow-y-auto overflow-x-hidden p-1 scroll-my-1"
         >
           {filteredOptions.length === 0 && !showCreateButton && (

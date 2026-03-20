@@ -59,6 +59,7 @@ export type WidgetType =
   | "stat_summary_orders"
   | "best_selling"
   | "track_orders"
+  | "track_purchase_orders"
   // Approval list widgets
   | "pending_approvals_sales"
   | "pending_approvals_purchase";
@@ -104,6 +105,19 @@ export interface DashboardDateFilter {
   to: string | null;
   year: number;
 }
+
+/** Scope selector for partial dashboard overview payloads */
+export type DashboardOverviewScope =
+  | "kpi"
+  | "charts"
+  | "balance"
+  | "costs"
+  | "invoices"
+  | "sales-performance"
+  | "products"
+  | "delivery"
+  | "geo"
+  | "warehouse";
 
 // ---- API Response Types ----
 

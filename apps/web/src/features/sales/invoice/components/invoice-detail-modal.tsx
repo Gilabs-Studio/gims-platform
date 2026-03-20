@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Clock, DollarSign, CreditCard, Send } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Edit, Trash2, CheckCircle2, XCircle, DollarSign, CreditCard, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
 import {
@@ -21,11 +21,12 @@ import {
   useDeleteInvoice,
   useUpdateInvoiceStatus,
   useInvoice,
+  useInvoiceAuditTrail,
 } from "../hooks/use-invoices";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency, formatWhatsAppLink } from "@/lib/utils";
+import { formatCurrency, formatDate, formatWhatsAppLink } from "@/lib/utils";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import type { CustomerInvoice } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -35,6 +36,7 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import type { Customer } from "@/features/master-data/customer/types";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface InvoiceDetailModalProps {
   readonly open: boolean;
@@ -53,11 +55,19 @@ export function InvoiceDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("invoice");
 
   const { data: detailData } = useInvoice(invoice?.id ?? "", {
     enabled: open && !!invoice?.id,
   });
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useInvoiceAuditTrail(
+    invoice?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!invoice?.id && activeTab === "audit-trail" },
+  );
 
   const canEdit = useUserPermission("customer_invoice.update");
   const canDelete = useUserPermission("customer_invoice.delete");
@@ -97,10 +107,57 @@ export function InvoiceDetailModal({
       } as Customer)
     : null;
 
-  if (!invoice) return null;
-
-  const status = (invoice.status ?? "").toLowerCase();
   const displayInvoice = detailData?.data ?? invoice;
+  const status = (displayInvoice?.status ?? "").toLowerCase();
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayInvoice) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayInvoice.id}-created`,
+          action: "customer_invoice.create",
+          at: displayInvoice.created_at,
+          user: displayInvoice.created_by,
+          metadata: {
+            details: `Created invoice with amount ${formatCurrency(displayInvoice.amount ?? 0)}`,
+          },
+        },
+        {
+          id: `${displayInvoice.id}-updated`,
+          action: "customer_invoice.update",
+          at: displayInvoice.updated_at,
+          metadata:
+            displayInvoice.updated_at && displayInvoice.updated_at !== displayInvoice.created_at
+              ? { details: "Invoice data updated" }
+              : null,
+        },
+        {
+          id: `${displayInvoice.id}-paid`,
+          action: "customer_invoice.pay",
+          at: displayInvoice.payment_at,
+          metadata: {
+            status: "paid",
+          },
+        },
+        {
+          id: `${displayInvoice.id}-status`,
+          action: "customer_invoice.status",
+          at: displayInvoice.updated_at,
+          metadata: {
+            status: displayInvoice.status,
+          },
+        },
+      ]);
+    },
+    [displayInvoice],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!invoice || !displayInvoice) return null;
+
   const allItems = displayInvoice.items ?? [];
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
@@ -150,7 +207,15 @@ export function InvoiceDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -177,7 +242,7 @@ export function InvoiceDetailModal({
                     );
                   })()}
                   <span className="text-sm text-muted-foreground">
-                    {displayInvoice?.invoice_date && new Date(displayInvoice.invoice_date).toLocaleDateString()}
+                    {displayInvoice?.invoice_date && formatDate(displayInvoice.invoice_date)}
                   </span>
                 </div>
               </div>
@@ -220,7 +285,7 @@ export function InvoiceDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreatePaymentOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createPayment")}
                   >
                     <CreditCard className="h-4 w-4" />
@@ -232,7 +297,7 @@ export function InvoiceDetailModal({
                     size="icon"
                     onClick={handleMarkAsPaid}
                     disabled={updateStatus.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.markAsPaid")}
                   >
                     <DollarSign className="h-4 w-4" />
@@ -242,10 +307,17 @@ export function InvoiceDetailModal({
             </div>
           </DialogHeader>
 
-          <Tabs defaultValue="general" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+            }
+            className="w-full"
+          >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -258,7 +330,7 @@ export function InvoiceDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayInvoice.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("invoiceDate")}</TableCell>
-                        <TableCell>{new Date(displayInvoice.invoice_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(displayInvoice.invoice_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
@@ -268,7 +340,7 @@ export function InvoiceDetailModal({
                         <TableCell className="font-medium bg-muted/50">{t("dueDate")}</TableCell>
                         <TableCell>
                           {displayInvoice.due_date 
-                            ? new Date(displayInvoice.due_date).toLocaleDateString() 
+                            ? formatDate(displayInvoice.due_date)
                             : "-"}
                         </TableCell>
                       </TableRow>
@@ -385,7 +457,7 @@ export function InvoiceDetailModal({
                         </TableRow>
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">{t("paidAmount")}</TableCell>
-                          <TableCell className="text-right text-green-600 font-medium">
+                          <TableCell className="text-right text-success font-medium">
                             {formatCurrency(displayInvoice.paid_amount ?? 0)}
                           </TableCell>
                         </TableRow>
@@ -492,6 +564,33 @@ export function InvoiceDetailModal({
                     />
                   )}
                 </>
+              </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <AuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
               </TabsContent>
             </Tabs>
         </DialogContent>

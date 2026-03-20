@@ -184,23 +184,23 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 // carrying forward the latest salary for each employee until a new salary record applies.
 	var series []SalaryStructureTotalSalaryOverTime
 	query := `
-	WITH months AS (
-	    SELECT generate_series(
-	        (SELECT COALESCE(MIN(date_trunc('month', effective_date)), date_trunc('month', CURRENT_DATE))
-	            FROM salary_structures
-	            WHERE status != 'draft'
-	        ),
-	        date_trunc('month', CURRENT_DATE),
-	        INTERVAL '1 month'
-	    ) AS period
-	),
-	history AS (
+	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary
+	FROM (
 	    SELECT
 	        m.period,
 	        s.employee_id,
 	        s.basic_salary,
 	        ROW_NUMBER() OVER (PARTITION BY m.period, s.employee_id ORDER BY s.effective_date DESC) AS rn
-	    FROM months m
+	    FROM (
+	        SELECT generate_series(
+	            (SELECT COALESCE(MIN(date_trunc('month', effective_date)), date_trunc('month', CURRENT_DATE))
+	                FROM salary_structures
+	                WHERE status != 'draft'
+	            ),
+	            date_trunc('month', CURRENT_DATE),
+	            INTERVAL '1 month'
+	        ) AS period
+	    ) m
 	    JOIN salary_structures s
 	        ON s.effective_date <= (m.period + INTERVAL '1 month' - INTERVAL '1 day')
 	        AND s.status != 'draft'
@@ -208,9 +208,7 @@ func (r *salaryStructureRepository) GetStats(ctx context.Context) (*SalaryStruct
 	            s.status = 'active'
 	            OR (s.status = 'inactive' AND date_trunc('month', s.updated_at) > m.period)
 	        )
-	)
-	SELECT period, COALESCE(SUM(basic_salary), 0) AS total_salary
-	FROM history
+	) history
 	WHERE rn = 1
 	GROUP BY period
 	ORDER BY period;

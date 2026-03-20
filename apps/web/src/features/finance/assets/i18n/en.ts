@@ -11,6 +11,11 @@ export const financeAssetsEn = {
       depreciation: "Depreciation schedule",
       transactions: "Transactions",
     },
+    tabs: {
+      overview: "Overview",
+      depreciations: "Depreciations",
+      transactions: "Transactions",
+    },
     fields: {
       createdAt: "Created at",
       updatedAt: "Updated at",
@@ -33,11 +38,14 @@ export const financeAssetsEn = {
   search: "Search assets...",
   status: {
     active: "Active",
+    inactive: "Inactive",
+    sold: "Sold",
     disposed: "Disposed",
   },
   fields: {
     code: "Code",
     name: "Name",
+    description: "Description",
     category: "Category",
     location: "Location",
     acquisitionDate: "Acquisition date",
@@ -57,6 +65,7 @@ export const financeAssetsEn = {
     depreciate: "Depreciate",
     transfer: "Transfer",
     dispose: "Dispose",
+    sell: "Sell",
     revalue: "Revalue",
     adjust: "Adjust",
   },
@@ -70,9 +79,11 @@ export const financeAssetsEn = {
     depreciateTitle: "Depreciate Asset",
     transferTitle: "Transfer Asset",
     disposeTitle: "Dispose Asset",
+    sellTitle: "Sell Asset",
     submit: "Submit",
     cancel: "Cancel",
     description: "Description",
+    saleAmount: "Sale amount",
   },
   toast: {
     created: "Asset created",
@@ -83,5 +94,6 @@ export const financeAssetsEn = {
   },
   placeholders: {
     select: "Select...",
+    selectDate: "Select date",
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -50,6 +50,7 @@ import {
   useCustomerInvoiceDPAuditTrail,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPStatus } from "../types";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 function normalizeStatus(status?: string | null): string {
   const normalized = (status ?? "").toLowerCase();
@@ -96,7 +97,7 @@ function StatusBadge({ status, t }: { status: CustomerInvoiceDPStatus; t: Return
       );
     case "waiting_payment":
       return (
-        <Badge variant="info" className="text-xs font-medium">
+        <Badge variant="warning" className="text-xs font-medium">
           <Clock className="h-3 w-3 mr-1.5" />
           {t("status.waiting_payment")}
         </Badge>
@@ -141,6 +142,9 @@ export function CustomerInvoiceDPDetailModal({
   const [selectedSOId, setSelectedSOId] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isCreatePaymentOpen, setIsCreatePaymentOpen] = useState(false);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+  const activeId = id ?? "";
 
   const canViewSalesOrder = useUserPermission("sales_order.read");
   const canViewCustomer = useUserPermission("customer.read");
@@ -150,16 +154,53 @@ export function CustomerInvoiceDPDetailModal({
   const canPrint = useUserPermission("customer_invoice_dp.print");
   const canApprove = useUserPermission("customer_invoice_dp.approve");
 
-  const { data, isLoading, isError } = useCustomerInvoiceDP(id as string, {
-    enabled: !!id && open,
+  const { data, isLoading, isError } = useCustomerInvoiceDP(activeId, {
+    enabled: !!activeId && open,
   });
 
   const { data: auditData, isLoading: auditLoading } = useCustomerInvoiceDPAuditTrail(
-    id as string,
-    { enabled: !!id && open },
+    activeId,
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: !!activeId && open },
   );
 
   const row = data?.data;
+  const fallbackAuditEntries = useMemo(
+    () =>
+      !row
+        ? []
+        : buildFallbackAuditTrailEntries([
+            {
+              id: `${row.id}-created`,
+              action: "customer_invoice_dp.create",
+              at: row.created_at,
+              metadata: {
+                details: `Created down payment invoice with amount ${formatCurrency(row.amount ?? 0)}`,
+              },
+            },
+            {
+              id: `${row.id}-updated`,
+              action: "customer_invoice_dp.update",
+              at: row.updated_at,
+              metadata:
+                row.updated_at && row.updated_at !== row.created_at
+                  ? { details: "Down payment invoice updated" }
+                  : null,
+            },
+            {
+              id: `${row.id}-status`,
+              action: "customer_invoice_dp.status",
+              at: row.updated_at,
+              metadata: {
+                status: row.status,
+              },
+            },
+          ]),
+    [row],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
 
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -199,7 +240,7 @@ export function CustomerInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsCreatePaymentOpen(true)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                   title={t("actions.createPayment")}
                 >
                   <CreditCard className="h-4 w-4" />
@@ -247,7 +288,7 @@ export function CustomerInvoiceDPDetailModal({
                     if (!row?.id) return;
                     customerInvoiceDPService.openPrintWindow(row.id).catch(() => toast.error(t("toast.failed")));
                   }}
-                  className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                  className="cursor-pointer text-accent hover:text-accent hover:bg-violet-50"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -267,7 +308,7 @@ export function CustomerInvoiceDPDetailModal({
                       toast.error(t("toast.failed"));
                     }
                   }}
-                  className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                   title={t("actions.approve")}
                 >
                   <CheckCircle2 className="h-4 w-4" />
@@ -398,43 +439,29 @@ export function CustomerInvoiceDPDetailModal({
             </TabsContent>
 
             <TabsContent value="audit-trail" className="py-4">
-              {auditLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
-                  ))}
-                </div>
-              ) : !auditData?.success || !auditData.data?.length ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <ShieldAlert className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">{t("auditTrail.empty")}</p>
-                </div>
-              ) : (
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("auditTrail.columns.action")}</TableHead>
-                        <TableHead>{t("auditTrail.columns.user")}</TableHead>
-                        <TableHead>{t("auditTrail.columns.time")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {auditData.data.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="font-mono text-xs">{entry.action}</TableCell>
-                          <TableCell className="text-sm">
-                            {entry.user?.name ?? entry.user?.email ?? "-"}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(entry.created_at).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+              <AuditTrailTable
+                entries={auditEntries}
+                isLoading={auditLoading && auditEntries.length === 0}
+                pagination={auditPagination}
+                onPageChange={useServerAudit ? setAuditPage : undefined}
+                onPageSizeChange={
+                  useServerAudit
+                    ? (newSize) => {
+                        setAuditPageSize(newSize);
+                        setAuditPage(1);
+                      }
+                    : undefined
+                }
+                labels={{
+                  empty: t("auditTrail.empty"),
+                  columns: {
+                    action: t("auditTrail.columns.action"),
+                    user: t("auditTrail.columns.user"),
+                    time: t("auditTrail.columns.time"),
+                    details: t("auditTrail.columns.details"),
+                  },
+                }}
+              />
             </TabsContent>
               </Tabs>
         )}

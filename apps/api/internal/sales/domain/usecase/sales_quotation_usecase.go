@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
+	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -31,21 +34,30 @@ type SalesQuotationUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateSalesQuotationRequest) (*dto.SalesQuotationResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateSalesQuotationStatusRequest, userID *string) (*dto.SalesQuotationResponse, error)
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
 type salesQuotationUsecase struct {
+	db            *gorm.DB
 	quotationRepo salesRepos.SalesQuotationRepository
+	customerRepo  customerRepos.CustomerRepository
 	productRepo   productRepos.ProductRepository
+	auditService  audit.AuditService
 }
 
 // NewSalesQuotationUsecase creates a new SalesQuotationUsecase
 func NewSalesQuotationUsecase(
+	db *gorm.DB,
 	quotationRepo salesRepos.SalesQuotationRepository,
 	productRepo productRepos.ProductRepository,
+	auditService audit.AuditService,
 ) SalesQuotationUsecase {
 	return &salesQuotationUsecase{
+		db:            db,
 		quotationRepo: quotationRepo,
+		customerRepo:  customerRepos.NewCustomerRepository(db),
 		productRepo:   productRepo,
+		auditService:  auditService,
 	}
 }
 
@@ -170,6 +182,10 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 		return nil, err
 	}
 
+	if err := u.applyCustomerSnapshot(ctx, quotation); err != nil {
+		return nil, err
+	}
+
 	// Calculate totals
 	u.calculateTotals(quotation)
 
@@ -193,6 +209,14 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 	}
 
 	response := mapper.ToSalesQuotationResponse(created)
+	logSalesAudit(u.auditService, ctx, "sales_quotation.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":           created.Code,
+			"status":         created.Status,
+			"quotation_date": created.QuotationDate,
+			"total_amount":   created.TotalAmount,
+		},
+	})
 	return &response, nil
 }
 
@@ -209,6 +233,8 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	if quotation.Status != models.SalesQuotationStatusDraft {
 		return nil, ErrInvalidQuotationStatus
 	}
+
+	beforeSnapshot := salesQuotationAuditSnapshot(quotation)
 
 	// Validate products if items are being updated
 	if req.Items != nil && len(*req.Items) > 0 {
@@ -234,6 +260,10 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 		return nil, err
 	}
 
+	if err := u.applyCustomerSnapshot(ctx, quotation); err != nil {
+		return nil, err
+	}
+
 	// Recalculate totals
 	u.calculateTotals(quotation)
 
@@ -249,6 +279,13 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	afterSnapshot := salesQuotationAuditSnapshot(updated)
+	if shouldLogSnapshotChange(beforeSnapshot, afterSnapshot) {
+		logSalesAudit(u.auditService, ctx, "sales_quotation.update", id, map[string]interface{}{
+			"before": beforeSnapshot,
+			"after":  afterSnapshot,
+		})
+	}
 	return &response, nil
 }
 
@@ -279,6 +316,7 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 	}
 
 	newStatus := models.SalesQuotationStatus(req.Status)
+	previousStatus := quotation.Status
 
 	// Validate status transition
 	if !u.isValidStatusTransition(quotation.Status, newStatus) {
@@ -302,7 +340,20 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	logSalesAudit(u.auditService, ctx, "sales_quotation.status_change", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  updated.Status,
+		"reason":        req.RejectionReason,
+	})
 	return &response, nil
+}
+
+func (u *salesQuotationUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, errors.New("db is nil")
+	}
+
+	return listAuditTrailEntries(ctx, u.db, id, "sales_quotation.", page, perPage)
 }
 
 // calculateTotals calculates all financial totals for the quotation
@@ -367,4 +418,138 @@ func (u *salesQuotationUsecase) isValidStatusTransition(current, new models.Sale
 	}
 
 	return false
+}
+
+func (u *salesQuotationUsecase) applyCustomerSnapshot(ctx context.Context, quotation *models.SalesQuotation) error {
+	if quotation == nil || quotation.CustomerID == nil || *quotation.CustomerID == "" || u.customerRepo == nil {
+		return nil
+	}
+
+	customer, err := u.customerRepo.FindByID(ctx, *quotation.CustomerID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	quotation.CustomerName = customer.Name
+	quotation.CustomerContact = salesQuotationFirstNonEmpty(quotation.CustomerContact, customer.ContactPerson)
+	quotation.CustomerEmail = salesQuotationFirstNonEmpty(quotation.CustomerEmail, customer.Email)
+	quotation.CustomerPhone = salesQuotationFirstNonEmpty(quotation.CustomerPhone, salesQuotationResolvePrimaryPhone(customer))
+
+	return nil
+}
+
+func salesQuotationFirstNonEmpty(current string, fallback string) string {
+	if current != "" {
+		return current
+	}
+	return fallback
+}
+
+func salesQuotationResolvePrimaryPhone(customer *customerModels.Customer) string {
+	if customer == nil || len(customer.PhoneNumbers) == 0 {
+		return ""
+	}
+
+	for _, phone := range customer.PhoneNumbers {
+		if phone.IsPrimary {
+			return phone.PhoneNumber
+		}
+	}
+
+	return customer.PhoneNumbers[0].PhoneNumber
+}
+
+func salesQuotationPaymentTermsName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.PaymentTerms == nil {
+		return ""
+	}
+	return quotation.PaymentTerms.Name
+}
+
+func salesQuotationBusinessUnitName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.BusinessUnit == nil {
+		return ""
+	}
+	return quotation.BusinessUnit.Name
+}
+
+func salesQuotationBusinessTypeName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.BusinessType == nil {
+		return ""
+	}
+	return quotation.BusinessType.Name
+}
+
+func salesQuotationSalesRepName(quotation *models.SalesQuotation) string {
+	if quotation == nil || quotation.SalesRep == nil {
+		return ""
+	}
+	return quotation.SalesRep.Name
+}
+
+func salesQuotationAuditSnapshot(quotation *models.SalesQuotation) map[string]interface{} {
+	if quotation == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":               quotation.Code,
+		"status":             quotation.Status,
+		"quotation_date":     quotation.QuotationDate,
+		"valid_until":        quotation.ValidUntil,
+		"customer_id":        quotation.CustomerID,
+		"customer_name":      quotation.CustomerName,
+		"customer_contact":   quotation.CustomerContact,
+		"customer_phone":     quotation.CustomerPhone,
+		"customer_email":     quotation.CustomerEmail,
+		"payment_terms_id":   quotation.PaymentTermsID,
+		"payment_terms_name": salesQuotationPaymentTermsName(quotation),
+		"sales_rep_id":       quotation.SalesRepID,
+		"sales_rep_name":     salesQuotationSalesRepName(quotation),
+		"business_unit_id":   quotation.BusinessUnitID,
+		"business_unit_name": salesQuotationBusinessUnitName(quotation),
+		"business_type_id":   quotation.BusinessTypeID,
+		"business_type_name": salesQuotationBusinessTypeName(quotation),
+		"subtotal":           quotation.Subtotal,
+		"discount_amount":    quotation.DiscountAmount,
+		"tax_rate":           quotation.TaxRate,
+		"tax_amount":         quotation.TaxAmount,
+		"delivery_cost":      quotation.DeliveryCost,
+		"other_cost":         quotation.OtherCost,
+		"total_amount":       quotation.TotalAmount,
+		"notes":              quotation.Notes,
+		"items":              salesQuotationAuditItems(quotation.Items),
+	}
+}
+
+func salesQuotationAuditItems(items []models.SalesQuotationItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		name := ""
+		code := ""
+		if item.Product != nil {
+			name = item.Product.Name
+			code = item.Product.Code
+		}
+
+		out = append(out, map[string]interface{}{
+			"id":           item.ID,
+			"product_id":   item.ProductID,
+			"product_code": code,
+			"product_name": name,
+			"quantity":     item.Quantity,
+			"price":        item.Price,
+			"discount":     item.Discount,
+			"subtotal":     item.Subtotal,
+		})
+	}
+
+	return out
 }

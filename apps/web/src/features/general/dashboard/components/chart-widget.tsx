@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Area,
@@ -73,7 +74,7 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
             <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="period" className="text-xs" tick={{ fontSize: 11 }} />
-              <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
+              <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatNumber(v)} />
               <Tooltip
                 contentStyle={{
                   borderRadius: 8,
@@ -98,7 +99,7 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
             <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="period" className="text-xs" tick={{ fontSize: 11 }} />
-              <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
+              <YAxis className="text-xs" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatNumber(v)} />
               <Tooltip
                 contentStyle={{
                   borderRadius: 8,
@@ -129,18 +130,9 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
   );
 }
 
-function formatCompact(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
-  return String(value);
-}
-
-function formatCurrency(value: number): string {
+function formatNumber(value: number): string {
   return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
 }
+

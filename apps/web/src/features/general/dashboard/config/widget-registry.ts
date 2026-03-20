@@ -308,7 +308,20 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     titleKey: "trackOrders.title",
     descriptionKey: "trackOrders.subtitle",
     icon: "Truck",
-    permission: "delivery_order.read",
+    permission: "sales_order.read",
+  },
+  track_purchase_orders: {
+    type: "track_purchase_orders",
+    category: "purchase",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "trackPurchaseOrders.title",
+    descriptionKey: "trackPurchaseOrders.subtitle",
+    icon: "PackageCheck",
+    permission: "purchase_order.read",
   },
   pending_approvals_sales: {
     type: "pending_approvals_sales",
@@ -345,6 +358,7 @@ export const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: "w-5", type: "stat_summary_orders",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
   { id: "w-6", type: "best_selling",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
   { id: "w-7", type: "track_orders",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+  { id: "w-8", type: "track_purchase_orders", title: "", size: "md", colSpan: 4, rowSpan: 2, order: 7, visible: true },
 ];
 
 /** Widget types grouped by category for the picker UI */

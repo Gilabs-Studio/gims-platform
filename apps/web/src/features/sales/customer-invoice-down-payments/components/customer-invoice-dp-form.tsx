@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
 import {
   Popover,
@@ -36,6 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 import {
   useCreateCustomerInvoiceDP,
@@ -67,8 +68,9 @@ export function CustomerInvoiceDPFormDialog({
   const t = useTranslations("customerInvoiceDP");
 
   const isEdit = !!invoiceId;
+  const [shouldLoadSalesOrders, setShouldLoadSalesOrders] = useState(!!defaultSalesOrderId || isEdit);
 
-  const addDataQuery = useCustomerInvoiceDPAddData({ enabled: open });
+  const addDataQuery = useCustomerInvoiceDPAddData({ enabled: open && shouldLoadSalesOrders });
   const detailQuery = useCustomerInvoiceDP(invoiceId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateCustomerInvoiceDP();
@@ -90,6 +92,7 @@ export function CustomerInvoiceDPFormDialog({
   useEffect(() => {
     if (!open) {
       setAttachments([]);
+      setShouldLoadSalesOrders(!!defaultSalesOrderId || isEdit);
       return;
     }
 
@@ -177,8 +180,8 @@ export function CustomerInvoiceDPFormDialog({
       }
 
       onOpenChange(false);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getSalesErrorMessage(error, t("toast.failed")));
     }
   }
 
@@ -191,7 +194,16 @@ export function CustomerInvoiceDPFormDialog({
 
         {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
-        <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+        <form
+          className="space-y-6"
+          onSubmit={form.handleSubmit(onSubmit, (formErrors) => {
+            toast.error(
+              getFirstFormErrorMessage(formErrors) ||
+              t("common.validationError") ||
+              "Please complete all required fields.",
+            );
+          })}
+        >
           {/* Invoice Info Section */}
           <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
             <FileText className="h-4 w-4 text-primary" />
@@ -203,6 +215,11 @@ export function CustomerInvoiceDPFormDialog({
             <Select
               value={form.watch("sales_order_id")}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadSalesOrders(true);
+                }
+              }}
               disabled={isBusy || isEdit}
             >
               <SelectTrigger className="cursor-pointer">
@@ -216,6 +233,9 @@ export function CustomerInvoiceDPFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            {form.formState.errors.sales_order_id?.message ? (
+              <FieldError>{String(form.formState.errors.sales_order_id.message)}</FieldError>
+            ) : null}
           </Field>
 
           {/* Sales Order Detail Card */}
@@ -314,6 +334,9 @@ export function CustomerInvoiceDPFormDialog({
                   />
                 </PopoverContent>
               </Popover>
+              {form.formState.errors.invoice_date?.message ? (
+                <FieldError>{String(form.formState.errors.invoice_date.message)}</FieldError>
+              ) : null}
             </Field>
 
             <Field orientation="vertical">
@@ -345,6 +368,9 @@ export function CustomerInvoiceDPFormDialog({
                   />
                 </PopoverContent>
               </Popover>
+              {form.formState.errors.due_date?.message ? (
+                <FieldError>{String(form.formState.errors.due_date.message)}</FieldError>
+              ) : null}
             </Field>
 
             <Field orientation="vertical" className="col-span-2">
@@ -354,6 +380,9 @@ export function CustomerInvoiceDPFormDialog({
                 onChange={(value) => form.setValue("amount", value ?? 0, { shouldValidate: true })}
                 disabled={isBusy}
               />
+              {form.formState.errors.amount?.message ? (
+                <FieldError>{String(form.formState.errors.amount.message)}</FieldError>
+              ) : null}
             </Field>
           </div>
 

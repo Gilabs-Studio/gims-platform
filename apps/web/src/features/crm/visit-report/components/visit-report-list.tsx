@@ -191,14 +191,14 @@ export function VisitReportList() {
               <Clock className="h-4 w-4" />
               <span className="text-xs">{t("metrics.pending")}</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{data.metrics.statusCounts.submitted}</p>
+            <p className="text-2xl font-bold text-warning">{data.metrics.statusCounts.submitted}</p>
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" />
               <span className="text-xs">{t("metrics.approved")}</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">{data.metrics.statusCounts.approved}</p>
+            <p className="text-2xl font-bold text-success">{data.metrics.statusCounts.approved}</p>
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">

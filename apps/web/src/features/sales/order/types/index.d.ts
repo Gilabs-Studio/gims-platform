@@ -153,6 +153,7 @@ export interface ListSalesOrdersParams {
   sales_rep_id?: string;
   business_unit_id?: string;
   sales_quotation_id?: string;
+  customer_id?: string;
   unfulfilled_only?: boolean;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
@@ -183,6 +184,30 @@ export interface SalesOrderSingleResponse {
   meta?: {
     created_by?: string;
     updated_by?: string;
+  };
+  timestamp: string;
+  request_id: string;
+}
+
+export interface ListSalesOrderItemsParams {
+  page?: number;
+  per_page?: number;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+export interface SalesOrderItemsListResponse {
+  success: boolean;
+  data: SalesOrderItem[];
+  meta?: {
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
   };
   timestamp: string;
   request_id: string;

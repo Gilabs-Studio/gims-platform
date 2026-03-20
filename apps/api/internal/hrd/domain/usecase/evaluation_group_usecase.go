@@ -23,4 +23,7 @@ type EvaluationGroupUsecase interface {
 
 	// Delete performs soft delete on an evaluation group
 	Delete(ctx context.Context, id string) error
+
+	// ListAuditTrail retrieves paginated audit trail rows for an evaluation group.
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.EvaluationAuditTrailEntry, int64, error)
 }

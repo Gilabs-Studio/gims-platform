@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -114,10 +114,17 @@ export function PurchaseOrderForm({
 
   const [orderDateOpen, setOrderDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(isEdit);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
 
-  const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({ enabled: open });
-  const { data: masterProductsData } = useProducts({ is_approved: true, per_page: 100 }, { enabled: open });
-  const masterProducts = masterProductsData?.data ?? [];
+  const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({
+    enabled: open && shouldLoadSelectData,
+  });
+  const masterProductsQuery = useProducts(
+    { is_approved: true, per_page: 20 },
+    { enabled: open && shouldLoadProductOptions },
+  );
+  const masterProducts = masterProductsQuery.data?.data ?? [];
 
   const suppliers = addData?.data?.suppliers ?? [];
   const paymentTerms = addData?.data?.payment_terms ?? [];
@@ -159,6 +166,7 @@ export function PurchaseOrderForm({
     defaultValues: {
       source: "manual",
       supplier_id: null,
+      supplier_phone_number_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -181,12 +189,25 @@ export function PurchaseOrderForm({
   const approvedSOsQuery = useApprovedSalesOrders({ enabled: open && !isEdit && source === "so" });
 
   useEffect(() => {
+    if (!open) {
+      setShouldLoadSelectData(false);
+      setShouldLoadProductOptions(false);
+      return;
+    }
+    if (isEdit) {
+      setShouldLoadSelectData(true);
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit]);
+
+  useEffect(() => {
     if (!open) return;
     if (isEdit) return;
     setActiveTab("basic");
     reset({
       source: "manual",
       supplier_id: null,
+      supplier_phone_number_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -208,6 +229,7 @@ export function PurchaseOrderForm({
       {
         source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
         supplier_id: po.supplier_id ?? null,
+        supplier_phone_number_id: null,
         payment_terms_id: po.payment_terms_id ?? null,
         business_unit_id: po.business_unit_id ?? null,
         purchase_requisitions_id: po.purchase_requisitions_id ?? null,
@@ -236,6 +258,39 @@ export function PurchaseOrderForm({
   const selectedSupplierId = watch("supplier_id");
   const watchedItems = watch("items");
 
+  const selectedSupplier = useMemo(() => {
+    if (!selectedSupplierId) return null;
+    return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
+  }, [selectedSupplierId, mergedSuppliers]);
+
+  const supplierPhoneNumbers = useMemo(() => selectedSupplier?.phone_numbers ?? [], [selectedSupplier]);
+
+  useEffect(() => {
+    if (!selectedSupplierId) {
+      setValue("payment_terms_id", null, { shouldValidate: true });
+      setValue("business_unit_id", null, { shouldValidate: true });
+      setValue("supplier_phone_number_id", null, { shouldValidate: true });
+      return;
+    }
+
+    if (!selectedSupplier) return;
+
+    setValue("payment_terms_id", selectedSupplier.payment_terms_id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue("business_unit_id", selectedSupplier.business_unit_id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+
+    const defaultPhone = selectedSupplier.phone_numbers?.find((ph) => ph.is_primary) ?? selectedSupplier.phone_numbers?.[0];
+    setValue("supplier_phone_number_id", defaultPhone?.id ?? null, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+  }, [selectedSupplierId, selectedSupplier, setValue]);
+
   const [sourceProducts, setSourceProducts] = useState<ProductOption[]>([]);
   const allProducts = useMemo(() => suppliers.flatMap((s) => s.products ?? []), [suppliers]);
   const supplierProducts = useMemo(() => {
@@ -263,6 +318,7 @@ export function PurchaseOrderForm({
 
   const isSubmitting = (isEdit ? updateMutation.isPending : createMutation.isPending) || (isEdit && poQuery.isFetching);
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
+  const isProductOptionsLoading = shouldLoadProductOptions && (masterProductsQuery.isPending || masterProductsQuery.isFetching);
 
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });
@@ -352,9 +408,7 @@ export function PurchaseOrderForm({
   const otherCost = watch("other_cost") ?? 0;
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
-  const formatMoney = useCallback((v: number) =>
-    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v),
-    []);
+  const formatMoney = useCallback((v: number) => formatCurrency(v), []);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -385,7 +439,15 @@ export function PurchaseOrderForm({
                       control={control}
                       name="source"
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            if (value === "pr" || value === "so") {
+                              setShouldLoadSelectData(true);
+                            }
+                          }}
+                        >
                           <SelectTrigger className="cursor-pointer">
                             <SelectValue placeholder={t("placeholders.select")} />
                           </SelectTrigger>
@@ -426,6 +488,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "pr",
                                 supplier_id: pr.supplier_id ?? null,
+                                supplier_phone_number_id: null,
                                 payment_terms_id: pr.payment_terms_id ?? null,
                                 business_unit_id: pr.business_unit_id ?? null,
                                 purchase_requisitions_id: pr.id,
@@ -486,6 +549,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "so",
                                 supplier_id: null,
+                                supplier_phone_number_id: null,
                                 payment_terms_id: so.payment_terms_id ?? null,
                                 business_unit_id: so.business_unit_id ?? null,
                                 purchase_requisitions_id: null,
@@ -595,12 +659,45 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
                         createPermission="supplier.create"
                         onCreateClick={() => openQuickCreate("supplier")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Supplier"}
+                        isLoading={isFetchingAddData}
                       />
+                    )}
+                  />
+                </Field>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("fields.supplierPhoneNumber") || "Supplier Phone Number"}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="supplier_phone_number_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? NONE_VALUE}
+                        onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
+                        disabled={!selectedSupplierId || supplierPhoneNumbers.length === 0}
+                      >
+                        <SelectTrigger className="cursor-pointer">
+                          <SelectValue placeholder={t("placeholders.select")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none")}</SelectItem>
+                          {supplierPhoneNumbers.map((phone) => (
+                            <SelectItem key={phone.id} value={phone.id} className="cursor-pointer">
+                              {phone.phone_number}{phone.label ? ` (${phone.label})` : ""}{phone.is_primary ? " - Primary" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   />
                 </Field>
@@ -614,11 +711,17 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
                         createPermission="payment_term.create"
                         onCreateClick={() => openQuickCreate("paymentTerm")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Payment Terms"}
+                        isLoading={isFetchingAddData}
                       />
                     )}
                   />
@@ -633,11 +736,17 @@ export function PurchaseOrderForm({
                       <CreatableCombobox
                         value={field.value ?? ""}
                         onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
                         options={mergedBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
                         createPermission="business_unit.create"
                         onCreateClick={() => openQuickCreate("businessUnit")}
                         placeholder={t("placeholders.select")}
                         createLabel={t("actions.createNew") || "Create New Business Unit"}
+                        isLoading={isFetchingAddData}
                       />
                     )}
                   />
@@ -739,6 +848,11 @@ export function PurchaseOrderForm({
                                         }
                                       }
                                     }}
+                                    onOpenChange={(isOpen) => {
+                                      if (isOpen) {
+                                        setShouldLoadProductOptions(true);
+                                      }
+                                    }}
                                     options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
                                     createPermission="product.create"
                                     onCreateClick={() => {
@@ -747,6 +861,7 @@ export function PurchaseOrderForm({
                                     }}
                                     placeholder={t("placeholders.select")}
                                     createLabel={t("actions.createNew") || "Create New Product"}
+                                    isLoading={isProductOptionsLoading}
                                   />
                                 )}
                               />

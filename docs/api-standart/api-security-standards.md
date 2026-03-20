@@ -59,3 +59,22 @@ This document outlines the security standards and best practices implemented in 
 
 ### 4.2 Transactional Integrity
 - Critical flows (Login, Token Refresh, Logout) MUST be wrapped in database transactions (`db.Transaction`) to ensure atomicity.
+
+## 5. Permissions-Policy (Feature Policy)
+
+The `Permissions-Policy` HTTP header controls which browser features the application is allowed to use, configured in `apps/web/next.config.ts`.
+
+### 5.1 Current Policy
+
+| Feature        | Policy   | Reason                                                   |
+| -------------- | -------- | -------------------------------------------------------- |
+| `geolocation`  | `(self)` | Required for GPS-based attendance clock-in/out           |
+| `camera`       | `(self)` | Required for WFH photo proof during clock-in             |
+| `microphone`   | `()`     | Not used — blocked entirely                              |
+| `fullscreen`   | `(self)` | Allowed for the app's own origin                         |
+| `payment`      | `()`     | Not used — blocked entirely                              |
+| `usb`          | `()`     | Not used — blocked entirely                              |
+
+> **⚠️ CRITICAL:** `geolocation` and `camera` MUST be set to `(self)`, NOT `()`.
+> Setting `()` completely blocks the API at the HTTP level — the browser will silently deny all `getCurrentPosition()` and `getUserMedia()` calls regardless of user permission settings.
+> This was the root cause of a bug where location always showed as "denied" even after the user granted permission in Chrome's padlock menu.

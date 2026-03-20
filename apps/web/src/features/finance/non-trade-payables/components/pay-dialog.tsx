@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import DatePicker from "@/features/finance/assets/components/date-picker";
 
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { usePayFinanceNonTradePayable } from "../hooks/use-finance-non-trade-payables";
@@ -80,7 +81,11 @@ export function PayNonTradePayableDialog({ open, onOpenChange, item }: Props) {
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
           <div className="space-y-2">
             <Label>{t("fields.paymentDate")}</Label>
-            <Input type="date" {...form.register("payment_date")} />
+            <DatePicker
+              value={form.watch("payment_date")}
+              onChange={(value) => form.setValue("payment_date", value, { shouldDirty: true })}
+              placeholder={t("fields.paymentDate")}
+            />
           </div>
 
           <div className="space-y-2">

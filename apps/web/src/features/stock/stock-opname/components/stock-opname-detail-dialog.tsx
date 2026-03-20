@@ -236,7 +236,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                     </Button>
                                     <Button 
                                         size="sm" 
-                                        className="cursor-pointer bg-green-600 hover:bg-green-700"
+                                        className="cursor-pointer bg-success hover:bg-success"
                                         onClick={() => handleStatusChange('approved')}
                                     >
                                         <CheckCircle className="h-4 w-4 mr-2" />
@@ -287,13 +287,13 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                         </div>
                         <div className="p-3 border rounded-lg text-center space-y-1">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.matched")}</p>
-                            <p className="text-2xl font-bold text-green-600">
+                            <p className="text-2xl font-bold text-success">
                                 {items.filter(i => i.variance_qty === 0).length}
                             </p>
                         </div>
                         <div className="p-3 border rounded-lg text-center space-y-1">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.unmatched")}</p>
-                            <p className="text-2xl font-bold text-orange-600">
+                            <p className="text-2xl font-bold text-warning">
                                 {items.filter(i => i.variance_qty !== 0).length}
                             </p>
                         </div>

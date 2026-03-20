@@ -139,6 +139,11 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		query = query.Where("sales_quotation_id = ?", req.SalesQuotationID)
 	}
 
+	// Apply customer filter
+	if req.CustomerID != "" {
+		query = query.Where("customer_id = ?", req.CustomerID)
+	}
+
 	// Apply unfulfilled_only filter
 	// Exclude SOs where ALL items have qty fully covered by delivered_quantity + pending DO allocations
 	if req.UnfulfilledOnly {
@@ -153,7 +158,8 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 				AND dord.deleted_at IS NULL
 				AND doi.deleted_at IS NULL
 			), 0)
-		)`)}
+		)`)
+	}
 
 	// Count total
 	if err := query.Count(&total).Error; err != nil {
@@ -324,10 +330,10 @@ func (r *salesOrderRepository) GetNextOrderNumber(ctx context.Context, prefix st
 	// Generate new code: PREFIX-YYYYMMDD-XXXX
 	now := database.GetDB(ctx, r.db).NowFunc()
 	dateStr := now.Format("20060102")
-	
+
 	// Format sequence with 4 digits
 	code := prefix + "-" + dateStr + "-" + formatSequence(sequence)
-	
+
 	return code, nil
 }
 
@@ -405,7 +411,7 @@ func (r *salesOrderRepository) ListItems(ctx context.Context, orderID string, re
 		Limit(perPage).
 		Offset(offset).
 		Find(&items).Error
-	
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -425,4 +431,3 @@ func (r *salesOrderRepository) UpdateItemInvoicedQty(ctx context.Context, itemID
 		Where("id = ?", itemID).
 		Update("invoiced_quantity", gorm.Expr("COALESCE(invoiced_quantity, 0) + ?", qty)).Error
 }
-

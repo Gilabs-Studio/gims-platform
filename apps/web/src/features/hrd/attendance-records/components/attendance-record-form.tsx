@@ -223,10 +223,10 @@ export function AttendanceRecordForm({
 
         {/* Holiday Warning */}
         {isHoliday && holidayInfo && (
-          <Alert variant="destructive" className="border-amber-600 bg-amber-100 text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/50 dark:text-amber-200 [&>svg]:text-amber-700 dark:[&>svg]:text-amber-400">
+          <Alert variant="destructive" className="border-amber-600 bg-warning text-warning dark:border-amber-500/50 dark:bg-warning/50 dark:text-warning [&>svg]:text-warning dark:[&>svg]:text-warning">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle className="font-semibold">{t("form.holidayWarningTitle")}</AlertTitle>
-            <AlertDescription className="text-amber-900 dark:text-amber-300">
+            <AlertDescription className="text-warning dark:text-warning">
               {holidayInfo.type_display
                 ? t("form.holidayWarningDescWithType", {
                     date: dateValue ? format(parseISO(dateValue), "dd MMMM yyyy") : "",

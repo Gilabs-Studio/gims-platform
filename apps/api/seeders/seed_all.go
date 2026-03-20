@@ -150,6 +150,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Sales/Purchase Returns seeder (depends on invoices and goods receipts)
+	if err := SeedReturns(); err != nil {
+		return err
+	}
+
 	// Sales Visit Interest Questions seeder (Sprint 7)
 	if err := SeedSalesVisitInterestQuestions(); err != nil {
 		return err
@@ -227,6 +232,16 @@ func SeedAll() error {
 
 	// HRD - Recruitment Requests seeder (Sprint 15)
 	if err := SeedRecruitmentRequests(); err != nil {
+		return err
+	}
+
+	// HRD - Applicant Stages seeder (Sprint 15)
+	if err := SeedApplicantStages(); err != nil {
+		return err
+	}
+
+	// HRD - Recruitment Applicants seeder (Sprint 15)
+	if err := SeedRecruitmentApplicants(); err != nil {
 		return err
 	}
 

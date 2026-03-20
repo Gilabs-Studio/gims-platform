@@ -31,9 +31,16 @@ export const financeCoaEn = {
   },
   types: {
     asset: "Asset",
+    cash_bank: "Cash & Bank",
+    current_asset: "Current Asset",
+    cost_of_goods_sold: "Cost of Goods Sold",
     liability: "Liability",
     equity: "Equity",
     revenue: "Revenue",
     expense: "Expense",
+    fixed_asset: "Fixed Asset",
+    operational: "Operational",
+    salary_wages: "Salary & Wages",
+    trade_payable: "Trade Payable",
   },
 };

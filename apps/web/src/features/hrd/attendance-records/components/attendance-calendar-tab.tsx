@@ -207,17 +207,17 @@ export function AttendanceCalendarTab() {
           }}
           modifiersClassNames={{
             present:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-emerald-500 [&>button]:after:content-['']",
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-success [&>button]:after:content-['']",
             absent:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-red-500 [&>button]:after:content-['']",
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-destructive [&>button]:after:content-['']",
             late:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-yellow-500 [&>button]:after:content-['']",
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-warning [&>button]:after:content-['']",
             halfDay:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-orange-500 [&>button]:after:content-['']",
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-warning [&>button]:after:content-['']",
             holiday:
-              "[&>button]:bg-rose-500/10 [&>button]:text-rose-600 dark:[&>button]:text-rose-400 [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-rose-500 [&>button]:after:content-['']",
+              "[&>button]:bg-rose [&>button]:text-accent dark:[&>button]:text-accent [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-rose [&>button]:after:content-['']",
             leave:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-sky-500 [&>button]:after:content-['']",
+              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-primary [&>button]:after:content-['']",
           }}
         />
       </div>
@@ -230,7 +230,7 @@ export function AttendanceCalendarTab() {
               {t(`status.${selectedRecord.status}`)}
             </Badge>
           ) : selectedHoliday ? (
-            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-400">
+            <Badge variant="outline" className="border-rose bg-rose-50 text-accent dark:border-rose dark:bg-rose dark:text-accent">
               {t("status.HOLIDAY")}
             </Badge>
           ) : null}
@@ -297,10 +297,10 @@ export function AttendanceCalendarTab() {
                 }).format(selectedDate)}
               </span>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-rose-100 bg-rose-50/50 p-3 dark:border-rose-500/20 dark:bg-rose-500/5">
-              <CalendarOff className="h-4 w-4 shrink-0 text-rose-500" />
+            <div className="flex items-center gap-3 rounded-lg border border-rose bg-rose-50/50 p-3 dark:border-rose dark:bg-rose">
+              <CalendarOff className="h-4 w-4 shrink-0 text-accent" />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                <p className="text-sm font-medium text-accent dark:text-accent">
                   {selectedHoliday.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -321,32 +321,32 @@ export function AttendanceCalendarTab() {
         <h4 className="mb-3 text-sm font-semibold">Legend</h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-success" />
             <span>{t("status.PRESENT")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.present}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-warning" />
             <span>{t("status.LATE")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.late}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
             <span>{t("status.ABSENT")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.absent}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-warning" />
             <span>{t("status.HALF_DAY")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.halfDay}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-rose" />
             <span>{t("status.HOLIDAY")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.holiday}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+            <span className="h-2.5 w-2.5 rounded-full bg-primary" />
             <span>{t("status.LEAVE")}</span>
             <span className="ml-auto text-muted-foreground">{currentMonthStats.leave}</span>
           </div>

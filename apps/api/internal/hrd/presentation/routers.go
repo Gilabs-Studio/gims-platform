@@ -1,7 +1,10 @@
 package presentation
 
 import (
+	"context"
+
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -9,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/presentation/handler"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/router"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgUsecase "github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -35,26 +39,42 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaRepo := repositories.NewEvaluationCriteriaRepository(db)
 	employeeEvaluationRepo := repositories.NewEmployeeEvaluationRepository(db)
 	recruitmentRepo := repositories.NewRecruitmentRequestRepository(db)
+	applicantRepo := repositories.NewRecruitmentApplicantRepository(db)
+	applicantStageRepo := repositories.NewApplicantStageRepository(db)
+	applicantActivityRepo := repositories.NewApplicantActivityRepository(db)
+
+	// Seed default applicant stages
+	_ = applicantStageRepo.SeedDefaultStages(context.Background())
 
 	// Core repositories
 	leaveTypeRepo := coreRepos.NewLeaveTypeRepository(db)
 
 	// Organization repositories
 	employeeRepo := orgRepos.NewEmployeeRepository(db)
+	employeeAreaRepo := orgRepos.NewEmployeeAreaRepository(db)
 	divisionRepo := orgRepos.NewDivisionRepository(db)
 	positionRepo := orgRepos.NewJobPositionRepository(db)
 	companyRepo := orgRepos.NewCompanyRepository(db)
+	areaRepo := orgRepos.NewAreaRepository(db)
+	employeeContractRepo := orgRepos.NewEmployeeContractRepository(db)
+	educationHistoryRepo := orgRepos.NewEmployeeEducationHistoryRepository(db)
+	certificationRepo := orgRepos.NewEmployeeCertificationRepository(db)
+	assetRepo := orgRepos.NewEmployeeAssetRepository(db)
+	auditService := audit.NewAuditService(db)
 
 	// Initialize usecases
 	workScheduleUC := usecase.NewWorkScheduleUsecase(workScheduleRepo, divisionRepo, companyRepo)
 	holidayUC := usecase.NewHolidayUsecase(holidayRepo)
 	attendanceUC := usecase.NewAttendanceRecordUsecase(attendanceRepo, workScheduleRepo, holidayRepo, leaveRequestRepo, employeeRepo, divisionRepo)
 	overtimeUC := usecase.NewOvertimeRequestUsecase(overtimeRepo, employeeRepo)
-	leaveRequestUC := usecase.NewLeaveRequestUsecase(leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo, attendanceRepo)
-	evaluationGroupUC := usecase.NewEvaluationGroupUsecase(evaluationGroupRepo, evaluationCriteriaRepo)
-	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo)
-	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo)
+	leaveRequestUC := usecase.NewLeaveRequestUsecase(db, leaveRequestRepo, employeeRepo, leaveTypeRepo, holidayRepo, attendanceRepo)
+	evaluationGroupUC := usecase.NewEvaluationGroupUsecase(db, evaluationGroupRepo, evaluationCriteriaRepo, auditService)
+	evaluationCriteriaUC := usecase.NewEvaluationCriteriaUsecase(evaluationCriteriaRepo, evaluationGroupRepo, auditService)
+	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(db, employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo, auditService)
 	recruitmentUC := usecase.NewRecruitmentRequestUsecase(recruitmentRepo, employeeRepo, divisionRepo, positionRepo)
+	signatureRepo := orgRepos.NewEmployeeSignatureRepository(db)
+	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, positionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo)
+	applicantUC := usecase.NewRecruitmentApplicantUsecase(applicantRepo, applicantStageRepo, applicantActivityRepo, recruitmentRepo, employeeUC)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
@@ -66,6 +86,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)
 	employeeEvaluationHandler := handler.NewEmployeeEvaluationHandler(employeeEvaluationUC)
 	recruitmentHandler := handler.NewRecruitmentRequestHandler(recruitmentUC)
+	applicantHandler := handler.NewRecruitmentApplicantHandler(applicantUC)
 
 	// Create HRD group under API with auth middleware
 	hrdGroup := api.Group("/hrd")
@@ -81,7 +102,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.SetupEvaluationGroupRoutes(hrdGroup, evaluationGroupHandler)
 	router.SetupEvaluationCriteriaRoutes(hrdGroup, evaluationCriteriaHandler)
 	router.SetupEmployeeEvaluationRoutes(hrdGroup, employeeEvaluationHandler)
-	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler)
+	router.SetupRecruitmentRequestRoutes(hrdGroup, recruitmentHandler, applicantHandler)
+	router.SetupRecruitmentApplicantRoutes(hrdGroup, applicantHandler)
 
 	return &HRDDeps{
 		HolidayUC:      holidayUC,

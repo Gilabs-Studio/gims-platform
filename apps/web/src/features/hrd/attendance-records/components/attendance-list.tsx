@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -57,8 +56,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { AttendanceRecord, AttendanceStatus } from "../types";
-import type { CalendarEvent } from "../types";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AttendanceCalendar } from "./attendance-calendar";
 import { AttendanceDayView } from "./attendance-day-view";
 import { AttendanceDetailModal } from "./attendance-detail-modal";
@@ -71,50 +69,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-/** Build a minimal AttendanceRecord from a calendar day-view event for detail modal and edit form. */
-function calendarEventToAttendanceRecord(event: CalendarEvent): AttendanceRecord {
-  const dateStr =
-    event.date instanceof Date
-      ? format(event.date, "yyyy-MM-dd")
-      : String(event.date);
-  return {
-    id: event.id,
-    employee_id: event.employeeId,
-    employee_name: event.employeeName,
-    employee_code: event.employeeCode,
-    division_name: event.divisionName,
-    date: dateStr,
-    check_in_time: event.checkInTime,
-    check_in_type: event.checkInType,
-    check_in_latitude: null,
-    check_in_longitude: null,
-    check_in_address: "",
-    check_in_note: "",
-    check_out_time: event.checkOutTime,
-    check_out_latitude: null,
-    check_out_longitude: null,
-    check_out_address: "",
-    check_out_note: "",
-    status: event.status,
-    working_minutes: 0,
-    working_hours: event.workingHours ?? "0",
-    overtime_minutes: 0,
-    overtime_hours: "0",
-    late_minutes: event.lateMinutes ?? 0,
-    early_leave_minutes: 0,
-    work_schedule_id: "",
-    leave_request_id: null,
-    notes: event.notes ?? "",
-    is_manual_entry: event.isManualEntry ?? false,
-    manual_entry_reason: "",
-    approved_by: null,
-    late_reason: "",
-    photo_url: "",
-    created_at: "",
-    updated_at: "",
-  };
-}
 
 export function AttendanceList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
@@ -134,6 +88,9 @@ export function AttendanceList() {
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(
     null
   );
+
+  const [dayPage, setDayPage] = useState(1);
+  const [dayPerPage, setDayPerPage] = useState(20);
 
   const t = useTranslations("hrd.attendance");
 
@@ -228,13 +185,13 @@ export function AttendanceList() {
       case "WFH":
         return (
           <Badge variant="info">
-            <Home className="h-3 w-3 mr-1" /> WFH
+            <Home className="h-3 w-3 mr-1" /> {t("status.WFH")}
           </Badge>
         );
       case "OFF_DAY":
         return (
           <Badge variant="secondary">
-            <Coffee className="h-3 w-3 mr-1" /> Off Day
+            <Coffee className="h-3 w-3 mr-1" /> {t("status.OFF_DAY")}
           </Badge>
         );
       default:
@@ -247,19 +204,19 @@ export function AttendanceList() {
       case "NORMAL":
         return (
           <Badge variant="outline">
-            <MapPin className="h-3 w-3 mr-1" /> Office
+            <MapPin className="h-3 w-3 mr-1" /> {t("checkInType.NORMAL")}
           </Badge>
         );
       case "WFH":
         return (
           <Badge variant="outline">
-            <Home className="h-3 w-3 mr-1" /> WFH
+            <Home className="h-3 w-3 mr-1" /> {t("checkInType.WFH")}
           </Badge>
         );
       case "FIELD_WORK":
         return (
           <Badge variant="outline">
-            <MapPin className="h-3 w-3 mr-1" /> Field
+            <MapPin className="h-3 w-3 mr-1" /> {t("checkInType.FIELD_WORK")}
           </Badge>
         );
       default:
@@ -267,9 +224,11 @@ export function AttendanceList() {
     }
   };
 
+  const locale = useLocale();
+
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString("id-ID", {
+      return new Date(dateStr).toLocaleDateString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -279,47 +238,134 @@ export function AttendanceList() {
     }
   };
 
+  const tCommon = useTranslations("common");
+
+  const monthOverview = useMemo(() => {
+    return calendar.events.reduce(
+      (acc, event) => {
+        switch (event.status) {
+          case "PRESENT":
+          case "WFH":
+            acc.present += 1;
+            break;
+          case "ABSENT":
+            acc.absent += 1;
+            break;
+          case "LATE":
+            acc.late += 1;
+            break;
+          case "LEAVE":
+            acc.leave += 1;
+            break;
+          default:
+            break;
+        }
+        return acc;
+      },
+      { present: 0, absent: 0, late: 0, leave: 0 }
+    );
+  }, [calendar.events]);
+
+  const selectedDaySummary = useMemo(() => {
+    if (!calendar.selectedDate) {
+      return null;
+    }
+
+    const key = calendar.selectedDate.toISOString().slice(0, 10);
+    const dayEvents = calendar.events.filter(
+      (event) => event.date.toISOString().slice(0, 10) === key
+    );
+
+    const summary = dayEvents.reduce(
+      (acc, event) => {
+        if (event.status === "PRESENT" || event.status === "WFH") {
+          acc.present += 1;
+        } else if (event.status === "ABSENT") {
+          acc.absent += 1;
+        } else if (event.status === "LATE") {
+          acc.late += 1;
+        }
+        return acc;
+      },
+      { total: dayEvents.length, present: 0, absent: 0, late: 0 }
+    );
+
+    return summary;
+  }, [calendar.events, calendar.selectedDate]);
+
   if (viewMode === "list" && isListError) {
     return (
       <Card>
         <CardContent className="text-center py-8">
           <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-          <p className="text-destructive">Failed to load attendance records</p>
+          <p className="text-destructive">{tCommon("somethingWentWrong")}</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header with View Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("description")}</p>
+    <div className="space-y-5">
+      <div className="rounded-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("description")}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="cursor-pointer"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {t("calendarView")}
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="cursor-pointer"
+            >
+              <ListIcon className="mr-2 h-4 w-4" />
+              {t("listView")}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="cursor-pointer"
-          >
-            <ListIcon className="h-4 w-4 mr-2" /> List
-          </Button>
-          <Button
-            variant={viewMode === "calendar" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("calendar")}
-            className="cursor-pointer"
-          >
-            <CalendarIcon className="h-4 w-4 mr-2" /> Calendar
-          </Button>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Present / WFH</p>
+            <p className="mt-1 text-xl font-semibold text-success">{monthOverview.present}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Late</p>
+            <p className="mt-1 text-xl font-semibold text-warning">{monthOverview.late}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Absent</p>
+            <p className="mt-1 text-xl font-semibold text-destructive">{monthOverview.absent}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-3">
+            <p className="text-xs text-muted-foreground">Leave</p>
+            <p className="mt-1 text-xl font-semibold text-primary">{monthOverview.leave}</p>
+          </div>
         </div>
+
+        {selectedDaySummary && (
+          <div className="mt-3 rounded-lg border border-border bg-background px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+              <span>Total: <span className="font-semibold text-foreground">{selectedDaySummary.total}</span></span>
+              <span>Present: <span className="font-semibold text-success">{selectedDaySummary.present}</span></span>
+              <span>Late: <span className="font-semibold text-warning">{selectedDaySummary.late}</span></span>
+              <span>Absent: <span className="font-semibold text-destructive">{selectedDaySummary.absent}</span></span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         {viewMode === "list" && (
           <>
             <div className="relative flex-1 min-w-[300px] max-w-sm">
@@ -345,7 +391,7 @@ export function AttendanceList() {
                 <SelectValue placeholder={t("fields.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t("actions.allStatuses")}</SelectItem>
                 <SelectItem value="PRESENT">{t("status.PRESENT")}</SelectItem>
                 <SelectItem value="LATE">{t("status.LATE")}</SelectItem>
                 <SelectItem value="ABSENT">{t("status.ABSENT")}</SelectItem>
@@ -424,7 +470,7 @@ export function AttendanceList() {
                       colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
-                      No attendance records found
+                      {t("noRecords")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -466,7 +512,7 @@ export function AttendanceList() {
                           <span>{record.working_hours || "-"}</span>
                           {record.late_minutes > 0 && (
                             <span className="text-destructive text-xs ml-2">
-                              +{record.late_minutes}m late
+                                +{record.late_minutes}m {t("status.LATE")}
                             </span>
                           )}
                         </div>
@@ -538,19 +584,21 @@ export function AttendanceList() {
           )}
         </>
       ) : (
-        <Card className="overflow-hidden">
+        <div>
           {calendar.selectedDate ? (
             <AttendanceDayView
               selectedDate={calendar.selectedDate}
-              events={calendar.selectedDateEvents}
               onBack={calendar.handleBackToMonth}
-              onEventClick={(event) =>
-                setDetailRecord(calendarEventToAttendanceRecord(event))
-              }
-              onEdit={(event) =>
-                handleEdit(calendarEventToAttendanceRecord(event))
-              }
+              onView={(record) => setDetailRecord(record)}
+              onEdit={(record) => handleEdit(record)}
               canEdit={canUpdate}
+              page={dayPage}
+              perPage={dayPerPage}
+              onPageChange={setDayPage}
+              onPerPageChange={(value) => {
+                setDayPerPage(value);
+                setDayPage(1);
+              }}
             />
           ) : (
             <AttendanceCalendar
@@ -560,10 +608,13 @@ export function AttendanceList() {
               onPreviousMonth={calendar.handlePreviousMonth}
               onNextMonth={calendar.handleNextMonth}
               onToday={calendar.handleToday}
-              onDateClick={calendar.handleDateClick}
+              onDateClick={(date) => {
+                setDayPage(1);
+                calendar.handleDateClick(date);
+              }}
             />
           )}
-        </Card>
+        </div>
       )}
 
       {/* Manual Entry Form Dialog */}

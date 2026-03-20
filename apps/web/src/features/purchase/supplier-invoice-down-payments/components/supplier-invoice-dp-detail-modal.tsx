@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   FileText,
   Printer,
-  Receipt,
   Send,
   Trash2,
   XCircle,
@@ -41,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { AuditTrailTable } from "@/components/ui/audit-trail-table";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 import type { SupplierInvoiceDPDetail } from "../types";
@@ -61,47 +61,39 @@ import { SupplierInvoiceDetail } from "../../supplier-invoices/components/suppli
 
 // ─── Audit Trail tab ──────────────────────────────────────────────────────────
 
-function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
+function AuditTrailTab({ invoiceId, enabled }: { invoiceId: string; enabled: boolean }) {
   const t = useTranslations("supplierInvoiceDP");
-  const { data, isLoading } = useSupplierInvoiceDPAuditTrail(invoiceId, {
-    page: 1,
-    per_page: 50,
-  });
+  const tCommon = useTranslations("common");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data, isLoading, isError } = useSupplierInvoiceDPAuditTrail(invoiceId, {
+    page,
+    per_page: pageSize,
+  }, { enabled });
   const entries = data?.data ?? [];
-
-  if (isLoading) return <Skeleton className="h-32 w-full mt-4" />;
-  if (entries.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        {t("auditTrail.empty")}
-      </p>
-    );
+  const pagination = data?.meta?.pagination;
 
   return (
-    <div className="rounded-md border mt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("auditTrail.columns.action")}</TableHead>
-            <TableHead>{t("auditTrail.columns.user")}</TableHead>
-            <TableHead>{t("auditTrail.columns.time")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.id}>
-              <TableCell className="font-medium">{entry.action}</TableCell>
-              <TableCell>
-                {entry.user?.name ?? entry.user?.email ?? "-"}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {entry.created_at ? formatDate(entry.created_at) : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <AuditTrailTable
+      entries={entries}
+      isLoading={isLoading && entries.length === 0}
+      errorText={isError && entries.length === 0 ? tCommon("error") : undefined}
+      pagination={pagination}
+      onPageChange={(nextPage) => setPage(nextPage)}
+      onPageSizeChange={(nextPageSize) => {
+        setPageSize(nextPageSize);
+        setPage(1);
+      }}
+      labels={{
+        empty: t("auditTrail.empty"),
+        columns: {
+          action: t("auditTrail.columns.action"),
+          user: t("auditTrail.columns.user"),
+          time: t("auditTrail.columns.time"),
+          details: t("auditTrail.columns.details"),
+        },
+      }}
+    />
   );
 }
 
@@ -148,6 +140,7 @@ function SupplierInvoiceDPDetailView({
 
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"invoice" | "audit">("invoice");
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
@@ -177,7 +170,7 @@ function SupplierInvoiceDPDetailView({
     now.setHours(0, 0, 0, 0);
     const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
     if (diff < 0) return "font-semibold text-destructive";
-    if (diff <= 7) return "font-semibold text-amber-500";
+    if (diff <= 7) return "font-semibold text-warning";
     return "font-medium text-foreground";
   })();
 
@@ -196,25 +189,19 @@ function SupplierInvoiceDPDetailView({
         </span>
       );
     if (diff === 0)
-      return <span className="ml-1.5 text-amber-500 text-xs font-semibold">· Due today</span>;
+      return <span className="ml-1.5 text-warning text-xs font-semibold">· Due today</span>;
     if (diff <= 7)
-      return <span className="ml-1.5 text-amber-500 text-xs font-medium">· {diff}d left</span>;
+      return <span className="ml-1.5 text-warning text-xs font-medium">· {diff}d left</span>;
     return null;
   })();
 
   return (
     <>
-      <Tabs defaultValue="invoice" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoice" | "audit")} className="w-full">
         <div className="flex items-center justify-between mb-4">
           <TabsList className="flex-1">
-            <TabsTrigger value="invoice">
-              <Receipt className="h-3.5 w-3.5 mr-1.5" />
-              Invoice
-            </TabsTrigger>
-            <TabsTrigger value="audit">
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              {t("auditTrail.title")}
-            </TabsTrigger>
+            <TabsTrigger value="invoice">{t("tabs.general") || "Invoice"}</TabsTrigger>
+            <TabsTrigger value="audit">{t("tabs.auditTrail") || t("auditTrail.title")}</TabsTrigger>
           </TabsList>
 
           
@@ -347,7 +334,7 @@ function SupplierInvoiceDPDetailView({
           )}
         </TabsContent>
         <TabsContent value="audit">
-          <AuditTrailTab invoiceId={data.id} />
+          <AuditTrailTab invoiceId={data.id} enabled={activeTab === "audit"} />
         </TabsContent>
       </Tabs>
 
@@ -511,7 +498,7 @@ export function SupplierInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setIsCreatePaymentOpen(true)}
-                  className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                   title={t("actions.createPayment")}
                 >
                   <CreditCard className="h-4 w-4" />
@@ -555,7 +542,7 @@ export function SupplierInvoiceDPDetailModal({
                   variant="ghost"
                   size="icon"
                   onClick={() => setPrintOpen(true)}
-                  className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                  className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                   title={t("actions.print")}
                 >
                   <Printer className="h-4 w-4" />
@@ -575,7 +562,7 @@ export function SupplierInvoiceDPDetailModal({
                       toast.error(t("toast.failed"));
                     }
                   }}
-                  className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                   title={t("actions.approve")}
                 >
                   <CheckCircle2 className="h-4 w-4" />

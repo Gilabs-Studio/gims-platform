@@ -38,12 +38,14 @@ const VALID_DASHBOARD_ROUTES = [
   "/sales/orders",
   "/sales/delivery-orders",
   "/sales/invoices",
+  "/sales/returns",
   "/sales/targets",
   // Purchase routes
   "/purchase/purchase-requisitions",
   "/purchase/purchase-orders",
   "/purchase/goods-receipt",
   "/purchase/supplier-invoices",
+  "/purchase/returns",
   "/purchase/payments",
   // Stock routes
   "/stock/inventory",
@@ -53,7 +55,11 @@ const VALID_DASHBOARD_ROUTES = [
   // Finance routes
   "/finance/coa",
   "/finance/journals",
-  "/finance/journal-lines",
+  "/finance/journals/sales",
+  "/finance/journals/purchase",
+  "/finance/journals/adjustment",
+  "/finance/journals/valuation",
+  "/finance/journals/cash-bank",
   "/finance/bank-accounts",
   "/finance/payments",
   "/finance/tax-invoices",
@@ -64,6 +70,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/assets",
   "/finance/asset-categories",
   "/finance/asset-locations",
+  "/finance/asset-budgets",
+  "/finance/asset-maintenance",
   "/finance/up-country-cost",
   "/finance/salary",
   "/finance/reports/general-ledger",
@@ -95,6 +103,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/reports/sales-overview",
   "/reports/product-analysis",
   "/reports/geo-performance",
+  "/reports/customer-research",
+  "/reports/supplier-research",
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",
@@ -102,7 +112,7 @@ const VALID_DASHBOARD_ROUTES = [
 
 /**
  * Checks if a given route path is valid and exists in the application
- * 
+ *
  * @param href - The route path to validate
  * @returns true if the route exists, false if it would result in 404
  */
@@ -113,7 +123,7 @@ export function isValidRoute(href: string | null | undefined): boolean {
 
   // Remove leading/trailing slashes and normalize path
   const normalizedPath = href.trim().replace(/^\/+|\/+$/g, "");
-  
+
   // Empty path after normalization
   if (normalizedPath === "") {
     return false;

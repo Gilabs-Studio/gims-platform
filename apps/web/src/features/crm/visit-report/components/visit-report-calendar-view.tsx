@@ -9,9 +9,9 @@ import type { VisitReport, VisitReportStatus } from "../types";
 
 const STATUS_COLORS: Record<VisitReportStatus, string> = {
   draft: "bg-muted text-muted-foreground",
-  submitted: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  approved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  submitted: "bg-warning text-warning dark:bg-warning/30 dark:text-warning",
+  approved: "bg-success text-success dark:bg-success/30 dark:text-success",
+  rejected: "bg-destructive text-destructive dark:bg-destructive/30 dark:text-destructive",
 };
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -158,15 +158,15 @@ export function VisitReportCalendarView({ items }: VisitReportCalendarViewProps)
           <span>{t("status.draft")}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-amber-200 dark:bg-amber-900/50" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-warning dark:bg-warning/50" />
           <span>{t("status.submitted")}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-green-200 dark:bg-green-900/50" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-success dark:bg-success/50" />
           <span>{t("status.approved")}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-red-200 dark:bg-red-900/50" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-destructive dark:bg-destructive/50" />
           <span>{t("status.rejected")}</span>
         </div>
       </div>

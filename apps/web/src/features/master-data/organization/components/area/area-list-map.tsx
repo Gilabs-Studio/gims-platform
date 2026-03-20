@@ -280,9 +280,9 @@ function AreaCard({ area, isSelected, onClick, t, onView, onEdit, onDelete, canU
       <div className="flex items-start gap-3">
         <div
           className="rounded-full p-2 shrink-0"
-          style={{ backgroundColor: `${area.color ?? "#3b82f6"}20` }}
+          style={{ backgroundColor: `${area.color ?? "var(--color-primary)"}20` }}
         >
-          <MapPin className="h-4 w-4" style={{ color: area.color ?? "#3b82f6" }} />
+          <MapPin className="h-4 w-4" style={{ color: area.color ?? "var(--color-primary)" }} />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
@@ -308,7 +308,7 @@ function AreaCard({ area, isSelected, onClick, t, onView, onEdit, onDelete, canU
               {area.is_active ? t("common.active") : t("common.inactive")}
             </Badge>
             {(area.supervisor_count ?? 0) === 0 && (
-              <span className="inline-flex items-center gap-0.5 text-xs text-amber-500">
+              <span className="inline-flex items-center gap-0.5 text-xs text-warning">
                 <AlertTriangle className="h-3 w-3" />
                 {t("area.detail.noSupervisor")}
               </span>
@@ -335,7 +335,7 @@ function AreaCard({ area, isSelected, onClick, t, onView, onEdit, onDelete, canU
         {canUpdate && onEdit && (
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="p-1.5 rounded-lg hover:bg-accent text-orange-500 hover:text-orange-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-accent text-warning hover:text-warning transition-colors cursor-pointer"
             title={t("common.edit")}
           >
             <Edit className="h-3.5 w-3.5" />
@@ -344,7 +344,7 @@ function AreaCard({ area, isSelected, onClick, t, onView, onEdit, onDelete, canU
         {canDelete && onDelete && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1.5 rounded-lg hover:bg-accent text-red-500 hover:text-red-600 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg hover:bg-accent text-destructive hover:text-destructive transition-colors cursor-pointer"
             title={t("common.delete")}
           >
             <Trash2 className="h-3.5 w-3.5" />

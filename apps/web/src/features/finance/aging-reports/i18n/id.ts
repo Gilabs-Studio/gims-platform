@@ -1,6 +1,6 @@
 export const financeAgingReportsId = {
   title: "Laporan Aging",
-  description: "Lihat aging piutang/hutang berdasarkan jatuh tempo.",
+  description: "Pantau umur piutang dan hutang berdasarkan tanggal jatuh tempo untuk mengelola arus kas dan strategi penagihan.",
   fields: {
     asOfDate: "Per Tanggal",
     search: "Cari",
@@ -10,17 +10,28 @@ export const financeAgingReportsId = {
     dueDate: "Jatuh Tempo",
     daysPastDue: "Hari Terlambat",
     remaining: "Sisa",
-    current: "Saat Ini",
+    current: "Belum Jatuh Tempo",
     days1To30: "1-30",
     days31To60: "31-60",
     days61To90: "61-90",
     over90: ">90",
-    supplier: "Supplier",
+    supplier: "Pemasok",
   },
   sections: {
-    ar: "Aging Piutang",
-    ap: "Aging Hutang",
+    ar: "Piutang (AR)",
+    ap: "Hutang (AP)",
   },
-  searchPlaceholder: "Cari invoice...",
+  summary: {
+    totalAR: "Total Piutang",
+    totalAP: "Total Hutang",
+    notYetDue: "Belum Jatuh Tempo (Aman)",
+    overdue: "Tunggakan",
+    overdue1_30: "Tunggakan 1-30 Hari",
+    overdue31_60: "Tunggakan 31-60 Hari",
+    overdue61_90: "Tunggakan 61-90 Hari",
+    overdue90Plus: "Tunggakan > 90 Hari",
+    actions: "Aksi",
+    viewDetails: "Lihat Detail",
+  },
+  searchPlaceholder: "Cari invoice atau kode...",
 };
-

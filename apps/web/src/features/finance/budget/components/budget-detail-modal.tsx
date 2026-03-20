@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, FileText, Building2, Calendar, CalendarRange } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Budget } from "../types";
 
 interface BudgetDetailModalProps {
@@ -18,15 +18,13 @@ interface BudgetDetailModalProps {
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function UtilizationBar({ planned, used }: { planned: number; used: number }) {
   const percent = planned > 0 ? Math.min(100, (used / planned) * 100) : 0;
-  const color =
-    percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-orange-500" : percent >= 50 ? "bg-yellow-500" : "bg-green-500";
+  const colorClass =
+    percent >= 90 ? "bg-destructive" : percent >= 70 ? "bg-warning" : percent >= 50 ? "bg-secondary" : "bg-success";
 
   return (
     <div className="space-y-1">
@@ -35,7 +33,7 @@ function UtilizationBar({ planned, used }: { planned: number; used: number }) {
         <span className="text-muted-foreground">{Math.round(percent)}%</span>
       </div>
       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${percent}%` }} />
+        <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
@@ -165,10 +163,12 @@ export function BudgetDetailModal({ open, onOpenChange, budget, isLoading }: Bud
                                     <div
                                       className={`h-full rounded-full ${
                                         itemUsed / itemPlanned >= 0.9
-                                          ? "bg-red-500"
+                                          ? "bg-destructive"
                                           : itemUsed / itemPlanned >= 0.7
-                                          ? "bg-orange-500"
-                                          : "bg-green-500"
+                                          ? "bg-warning"
+                                          : itemUsed / itemPlanned >= 0.5
+                                          ? "bg-secondary"
+                                          : "bg-success"
                                       }`}
                                       style={{ width: `${Math.min(100, (itemUsed / itemPlanned) * 100)}%` }}
                                     />

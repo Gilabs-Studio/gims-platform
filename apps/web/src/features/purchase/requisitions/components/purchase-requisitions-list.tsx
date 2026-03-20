@@ -437,7 +437,7 @@ export function PurchaseRequisitionsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                               >
                                 <Send className="h-4 w-4 mr-2" />
                                 {t("actions.submit")}
@@ -456,7 +456,7 @@ export function PurchaseRequisitionsList() {
                                         toast.error(t("toast.failed"));
                                       }
                                     }}
-                                    className="cursor-pointer text-green-600 focus:text-green-600"
+                                    className="cursor-pointer text-success focus:text-success"
                                   >
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     {t("actions.approve")}
@@ -502,7 +502,7 @@ export function PurchaseRequisitionsList() {
                                     }
                                   }
                                 }}
-                                className="cursor-pointer text-blue-600 focus:text-blue-600"
+                                className="cursor-pointer text-primary focus:text-primary"
                               >
                                 <FileText className="h-4 w-4 mr-2" />
                                 {t("convertToOrder")}
@@ -512,7 +512,7 @@ export function PurchaseRequisitionsList() {
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingId(item.id)}
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("print")}

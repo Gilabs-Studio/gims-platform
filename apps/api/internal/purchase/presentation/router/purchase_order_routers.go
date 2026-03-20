@@ -13,7 +13,6 @@ const (
 	purchaseOrderDelete     = "purchase_order.delete"
 	purchaseOrderConfirm    = "purchase_order.confirm"
 	purchaseOrderExport     = "purchase_order.export"
-	purchaseOrderAuditTrail = "purchase_order.audit_trail"
 	purchaseOrderPrint      = "purchase_order.print"
 	purchaseOrderSubmit     = "purchase_order.submit"
 	purchaseOrderApprove    = "purchase_order.approve"
@@ -28,7 +27,7 @@ func RegisterPurchaseOrderRoutes(r *gin.RouterGroup, h *handler.PurchaseOrderHan
 	g.GET("/export", middleware.RequirePermission(purchaseOrderExport), h.Export)
 	g.POST("", middleware.RequirePermission(purchaseOrderCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(purchaseOrderRead), h.GetByID)
-	g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseOrderAuditTrail), h.AuditTrail)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseOrderRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission(purchaseOrderPrint), printH.PrintPurchaseOrder)
 	g.PUT("/:id", middleware.RequirePermission(purchaseOrderUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(purchaseOrderDelete), h.Delete)

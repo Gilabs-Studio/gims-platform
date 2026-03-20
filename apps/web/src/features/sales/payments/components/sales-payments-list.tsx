@@ -7,7 +7,6 @@ import {
   Clock,
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Plus,
   Search,
@@ -26,7 +25,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { SalesPaymentPrintDialog } from "./sales-payment-print-dialog";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 import {
@@ -38,13 +37,10 @@ import type { SalesPaymentListItem } from "../types";
 import { salesPaymentsService } from "../services/sales-payments-service";
 import { SalesPaymentForm } from "./sales-payment-form";
 import { SalesPaymentDetail } from "./sales-payment-detail";
-import { SalesPaymentAuditTrail } from "./sales-payment-audit-trail";
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 export function SalesPaymentsList() {
@@ -60,15 +56,12 @@ export function SalesPaymentsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
   const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("sales_payment.create");
   const canDelete = useUserPermission("sales_payment.delete");
   const canConfirm = useUserPermission("sales_payment.confirm");
   const canExport = useUserPermission("sales_payment.export");
-  const canAuditTrail = useUserPermission("sales_payment.audit_trail");
   const canView = useUserPermission("sales_payment.read");
   const canPrint = useUserPermission("sales_payment.print");
 
@@ -257,30 +250,17 @@ export function SalesPaymentsList() {
                                     toast.error(t("toast.failed"));
                                   }
                                 }}
-                                className="cursor-pointer text-green-600 focus:text-green-600"
+                                className="cursor-pointer text-success focus:text-success"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.confirm")}
                               </DropdownMenuItem>
                             )}
 
-                            {canAuditTrail && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setAuditId(item.id);
-                                  setAuditOpen(true);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <History className="h-4 w-4 mr-2" />
-                                {t("actions.auditTrail")}
-                              </DropdownMenuItem>
-                            )}
-
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingPaymentId(item.id)}
-                                className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                className="cursor-pointer text-purple focus:text-purple"
                               >
                                 <Printer className="h-4 w-4 mr-2" />
                                 {t("actions.print")}
@@ -333,15 +313,6 @@ export function SalesPaymentsList() {
         onClose={() => {
           setDetailOpen(false);
           setDetailId(null);
-        }}
-      />
-
-      <SalesPaymentAuditTrail
-        open={auditOpen}
-        paymentId={auditId}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
         }}
       />
 

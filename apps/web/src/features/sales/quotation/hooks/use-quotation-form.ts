@@ -18,8 +18,10 @@ import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-
 import { useBusinessTypes } from "@/features/master-data/organization/hooks/use-business-types";
 import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
+import { useContacts } from "@/features/crm/contact/hooks/use-contact";
 import type { SalesQuotation } from "../types";
 import { sortOptions } from "@/lib/utils";
+import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 const STORAGE_KEY = "quotation_form_cache";
 
@@ -37,6 +39,17 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
+
+  const enableProductOptionsFetch = useCallback(() => {
+    setShouldLoadProductOptions(true);
+  }, []);
 
   // Fetch full quotation data with items when editing
   const { data: fullQuotationData, isLoading: isLoadingQuotation, isFetching: isFetchingQuotation } = useQuotation(
@@ -45,12 +58,43 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   );
 
   // Fetch lookup data — only when the form is actually open to avoid eager API calls
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: open });
-  const { data: businessTypesData } = useBusinessTypes({ per_page: 100 }, { enabled: open });
-  const { data: employeesData } = useEmployees({ per_page: 100 }, { enabled: open });
-  const { data: customersData } = useCustomers({ per_page: 100, is_approved: true });
+  const { data: productsData } = useProducts(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadProductOptions },
+  );
+  const { data: paymentTermsData } = usePaymentTerms(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessUnitsData } = useBusinessUnits(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: businessTypesData } = useBusinessTypes(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: employeesData } = useEmployees(
+    { per_page: 20 },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+  const { data: customersData } = useCustomers(
+    { per_page: 20, is_approved: true },
+    { enabled: open && shouldLoadReferenceOptions },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadReferenceOptions(isEdit);
+      setShouldLoadProductOptions(isEdit);
+      return;
+    }
+
+    if (isEdit) {
+      setShouldLoadReferenceOptions(true);
+      setShouldLoadProductOptions(true);
+    }
+  }, [open, isEdit]);
 
   const products = useMemo(() => {
     const data = productsData?.data ?? [];
@@ -140,6 +184,24 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     name: "items",
   });
 
+  const watchedCustomerId = (useWatch({ control, name: "customer_id" }) as string | undefined) ?? "";
+  const { data: contactsData } = useContacts(
+    watchedCustomerId
+      ? {
+          customer_id: watchedCustomerId,
+          per_page: 20,
+          sort_by: "name",
+          sort_dir: "asc",
+        }
+      : undefined,
+    { enabled: open && shouldLoadReferenceOptions && !!watchedCustomerId }
+  );
+
+  const contacts = useMemo(() => {
+    const data = contactsData?.data ?? [];
+    return sortOptions(data, (a) => a.name);
+  }, [contactsData?.data]);
+
   // Watch form values for calculations
   const watchedItems = useWatch({ control, name: "items" });
   const taxRate = useWatch({ control, name: "tax_rate" }) ?? 11;
@@ -177,6 +239,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (!open) {
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
+      setSelectedContactId("");
       return;
     }
 
@@ -184,12 +247,14 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (isEdit) {
       if (fullQuotationData?.data) {
         const quotationData = fullQuotationData.data;
+        setSelectedContactId("");
         
         // Small delay to ensure form is mounted
         setTimeout(() => {
           reset({
             quotation_date: quotationData.quotation_date,
             valid_until: quotationData.valid_until ?? undefined,
+            customer_id: quotationData.customer_id ?? "",
             payment_terms_id: quotationData.payment_terms_id ?? "",
             sales_rep_id: quotationData.sales_rep_id ?? "",
             business_unit_id: quotationData.business_unit_id ?? "",
@@ -222,6 +287,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       try {
         const parsedData = JSON.parse(cached);
         reset(parsedData);
+        setSelectedContactId("");
       } catch {
         // Invalid cache, use defaults
         reset({
@@ -236,6 +302,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           customer_email: "",
           items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
         });
+        setSelectedContactId("");
       }
     } else {
       reset({
@@ -250,6 +317,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
         customer_email: "",
         items: [{ product_id: "", quantity: 1, price: 0, discount: 0 }],
       });
+      setSelectedContactId("");
     }
   }, [open, isEdit, fullQuotationData, reset]);
 
@@ -263,14 +331,11 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       const basicFields = [
         "quotation_date",
         "valid_until",
+        "customer_id",
         "payment_terms_id",
         "sales_rep_id",
         "business_unit_id",
         "business_type_id",
-        "customer_name",
-        "customer_contact",
-        "customer_phone",
-        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -304,14 +369,11 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       const basicFields = [
         "quotation_date",
         "valid_until",
+        "customer_id",
         "payment_terms_id",
         "sales_rep_id",
         "business_unit_id",
         "business_type_id",
-        "customer_name",
-        "customer_contact",
-        "customer_phone",
-        "customer_email",
         "tax_rate",
         "delivery_cost",
         "other_cost",
@@ -336,12 +398,37 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       if (isEdit && quotation) {
         await updateQuotation.mutateAsync({
           id: quotation.id,
-          data: { ...data, items: filteredItems },
+          data: {
+            ...data,
+            customer_id: toOptionalString(data.customer_id),
+            valid_until: toOptionalString(data.valid_until),
+            payment_terms_id: toOptionalString(data.payment_terms_id),
+            sales_rep_id: toOptionalString(data.sales_rep_id),
+            business_unit_id: toOptionalString(data.business_unit_id),
+            business_type_id: toOptionalString(data.business_type_id),
+            customer_name: toOptionalString(data.customer_name),
+            customer_contact: toOptionalString(data.customer_contact),
+            customer_phone: toOptionalString(data.customer_phone),
+            customer_email: toOptionalString(data.customer_email),
+            notes: toOptionalString(data.notes),
+            items: filteredItems,
+          },
         });
         toast.success(t("updated"));
       } else {
         await createQuotation.mutateAsync({
           ...data,
+          customer_id: toOptionalString(data.customer_id),
+          valid_until: toOptionalString(data.valid_until),
+          payment_terms_id: toOptionalString(data.payment_terms_id) || "",
+          sales_rep_id: toOptionalString(data.sales_rep_id) || "",
+          business_unit_id: toOptionalString(data.business_unit_id) || "",
+          business_type_id: toOptionalString(data.business_type_id),
+          customer_name: toOptionalString(data.customer_name),
+          customer_contact: toOptionalString(data.customer_contact),
+          customer_phone: toOptionalString(data.customer_phone),
+          customer_email: toOptionalString(data.customer_email),
+          notes: toOptionalString(data.notes),
           items: filteredItems,
         } as CreateQuotationFormData);
         toast.success(t("created"));
@@ -350,7 +437,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       onClose();
     } catch (error) {
       console.error("Failed to save quotation:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -369,6 +456,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   // Auto-fill customer snapshot fields when selecting from master data dropdown
   const handleCustomerChange = (customerId: string) => {
     setValue("customer_id", customerId, { shouldValidate: true });
+    setSelectedContactId("");
     const customer = customers.find((c) => c.id === customerId);
     if (customer) {
       setValue("customer_name", customer.name, { shouldValidate: true });
@@ -380,7 +468,26 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       if (customer.default_payment_terms_id) setValue("payment_terms_id", customer.default_payment_terms_id);
       if (customer.default_sales_rep_id) setValue("sales_rep_id", customer.default_sales_rep_id);
       if (customer.default_tax_rate != null) setValue("tax_rate", customer.default_tax_rate);
+      return;
     }
+
+    setValue("customer_name", "", { shouldValidate: true });
+    setValue("customer_contact", "", { shouldValidate: true });
+    setValue("customer_email", "", { shouldValidate: true });
+    setValue("customer_phone", "", { shouldValidate: true });
+  };
+
+  const handleContactChange = (contactId: string) => {
+    setSelectedContactId(contactId);
+
+    const contact = contacts.find((item) => item.id === contactId);
+    if (!contact) {
+      return;
+    }
+
+    setValue("customer_contact", contact.name, { shouldValidate: true });
+    setValue("customer_phone", contact.phone ?? "", { shouldValidate: true });
+    setValue("customer_email", contact.email ?? "", { shouldValidate: true });
   };
 
   const isLoading = createQuotation.isPending || updateQuotation.isPending;
@@ -440,6 +547,10 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     (item: { id: string; name: string }) => {
       setValue("customer_id", item.id, { shouldValidate: true });
       setValue("customer_name", item.name, { shouldValidate: true });
+      setValue("customer_contact", "", { shouldValidate: true });
+      setValue("customer_phone", "", { shouldValidate: true });
+      setValue("customer_email", "", { shouldValidate: true });
+      setSelectedContactId("");
       closeQuickCreate();
     },
     [setValue, closeQuickCreate],
@@ -473,14 +584,11 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     const basicFields = [
       "quotation_date",
       "valid_until",
+      "customer_id",
       "payment_terms_id",
       "sales_rep_id",
       "business_unit_id",
       "business_type_id",
-      "customer_name",
-      "customer_contact",
-      "customer_phone",
-      "customer_email",
       "tax_rate",
       "delivery_cost",
       "other_cost",
@@ -496,9 +604,20 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (basicError) {
       setActiveTab("basic");
       setTimeout(() => {
-        toast.error(t("common.validationError") || "Please fill all required fields in General tab");
+        toast.error(
+          getFirstFormErrorMessage(errors) ||
+          t("common.validationError") ||
+          "Please fill all required fields in General tab",
+        );
       }, 100);
+      return;
     }
+
+    toast.error(
+      getFirstFormErrorMessage(errors) ||
+      t("validation.itemsMin") ||
+      "Please complete all required item fields.",
+    );
   };
 
   return {
@@ -518,6 +637,8 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     businessTypes,
     employees,
     customers,
+    contacts,
+    selectedContactId,
     calculations,
     watchedItems,
     taxRate,
@@ -529,12 +650,15 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     handleAddItem,
     handleProductChange,
     handleCustomerChange,
+    handleContactChange,
     handleDialogChange,
     onInvalid,
     // Quick-create state & handlers
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,

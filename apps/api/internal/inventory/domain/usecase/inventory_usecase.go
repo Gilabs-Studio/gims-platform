@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -211,7 +213,7 @@ func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.Sto
 }
 
 func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error {
-	for _, item := range req.Items {
+	for idx, item := range req.Items {
 		// 1. Calculate New Average Cost (Weighted Average)
 		currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
 		if err != nil {
@@ -233,7 +235,18 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 		}
 
 		// 3. Create Batch
-		batchNumber := "GR-" + apptime.Now().Format("20060102-150405")
+		batchToken := sanitizeBatchToken(req.SourceNumber)
+		if batchToken == "" {
+			batchToken = sanitizeBatchToken(req.SourceID)
+		}
+		if batchToken == "" {
+			batchToken = apptime.Now().Format("20060102150405")
+		}
+
+		batchNumber := fmt.Sprintf("GR-%s-%03d", batchToken, idx+1)
+		if len(batchNumber) > 100 {
+			batchNumber = batchNumber[:100]
+		}
 		if item.BatchNumber != nil && *item.BatchNumber != "" {
 			batchNumber = *item.BatchNumber
 		}
@@ -278,6 +291,29 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 		}
 	}
 	return nil
+}
+
+func sanitizeBatchToken(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		" ", "-",
+		":", "-",
+		".", "-",
+	)
+
+	normalized := strings.ToUpper(replacer.Replace(trimmed))
+	normalized = strings.Trim(normalized, "-")
+	for strings.Contains(normalized, "--") {
+		normalized = strings.ReplaceAll(normalized, "--", "-")
+	}
+
+	return normalized
 }
 
 func (u *inventoryUsecase) ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error {
@@ -399,6 +435,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				ReferenceNumber:  req.ReferenceNumber,
 				Description:      req.Description,
 				CreatedBy:        &req.CreatedBy,
+				MovementDirection: "OUT",
 			}
 			if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
 				return err
@@ -428,8 +465,8 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 			return err
 		}
 
-		batchNumber := "MB-" + time.Now().Format("060102150405")
-		now := time.Now()
+		now := apptime.Now()
+		batchNumber := "MB-" + now.Format("060102150405")
 		
 		batchParams := &dto.CreateBatchParams{
 			ProductID:       req.ProductID,
@@ -456,6 +493,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 			ReferenceNumber:  req.ReferenceNumber,
 			Description:      req.Description,
 			CreatedBy:        &req.CreatedBy,
+			MovementDirection: "IN",
 		}
 		if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
 			return err
@@ -479,10 +517,10 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 		if req.TargetWarehouseID == nil || *req.TargetWarehouseID == "" {
 			return ErrTargetWarehouseRequired
 		}
-		if err := deductStock(req.WarehouseID, req.Quantity, "OUT"); err != nil {
+		if err := deductStock(req.WarehouseID, req.Quantity, "TRANSFER"); err != nil {
 			return err
 		}
-		if err := addStock(*req.TargetWarehouseID, req.Quantity, "IN"); err != nil {
+		if err := addStock(*req.TargetWarehouseID, req.Quantity, "TRANSFER"); err != nil {
 			return err
 		}
 	}

@@ -6,12 +6,15 @@ type GoodsReceiptListResponse struct {
 	ID                 string                         `json:"id"`
 	Code               string                         `json:"code"`
 	PurchaseOrder      *GoodsReceiptPurchaseOrderMini `json:"purchase_order,omitempty"`
+	Warehouse          *GoodsReceiptWarehouseMini     `json:"warehouse,omitempty"`
+	WarehouseID        *string                        `json:"warehouse_id,omitempty"`
 	Supplier           *GoodsReceiptSupplierMini      `json:"supplier,omitempty"`
 	ReceiptDate        *string                        `json:"receipt_date,omitempty"`
 	Notes              *string                        `json:"notes,omitempty"`
+	ProofImageURL      *string                        `json:"proof_image_url,omitempty"`
 	Status             string                         `json:"status"`
 	CreatedBy          string                         `json:"created_by"`
-	TotalItemsReceived float64                       `json:"total_items_received"`
+	TotalItemsReceived float64                        `json:"total_items_received"`
 
 	SubmittedAt                  *time.Time `json:"submitted_at,omitempty"`
 	ApprovedAt                   *time.Time `json:"approved_at,omitempty"`
@@ -31,16 +34,24 @@ type GoodsReceiptSupplierMini struct {
 	Name string `json:"name"`
 }
 
+type GoodsReceiptWarehouseMini struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type GoodsReceiptDetailResponse struct {
-	ID            string                       `json:"id"`
-	Code          string                       `json:"code"`
+	ID            string                           `json:"id"`
+	Code          string                           `json:"code"`
 	PurchaseOrder *GoodsReceiptPurchaseOrderDetail `json:"purchase_order,omitempty"`
-	Supplier      *GoodsReceiptSupplierMini    `json:"supplier,omitempty"`
-	ReceiptDate   *string                      `json:"receipt_date,omitempty"`
-	Notes         *string                      `json:"notes,omitempty"`
-	Status        string                       `json:"status"`
-	CreatedBy     string                       `json:"created_by"`
-	Items         []GoodsReceiptItemResponse   `json:"items"`
+	Warehouse     *GoodsReceiptWarehouseMini       `json:"warehouse,omitempty"`
+	WarehouseID   *string                          `json:"warehouse_id,omitempty"`
+	Supplier      *GoodsReceiptSupplierMini        `json:"supplier,omitempty"`
+	ReceiptDate   *string                          `json:"receipt_date,omitempty"`
+	Notes         *string                          `json:"notes,omitempty"`
+	ProofImageURL *string                          `json:"proof_image_url,omitempty"`
+	Status        string                           `json:"status"`
+	CreatedBy     string                           `json:"created_by"`
+	Items         []GoodsReceiptItemResponse       `json:"items"`
 
 	SubmittedAt                  *time.Time `json:"submitted_at,omitempty"`
 	ApprovedAt                   *time.Time `json:"approved_at,omitempty"`
@@ -72,6 +83,6 @@ type ProductMini struct {
 
 // GoodsReceiptConvertResponse is returned when a GR is converted to a Supplier Invoice.
 type GoodsReceiptConvertResponse struct {
-	GoodsReceiptID     string `json:"goods_receipt_id"`
-	SupplierInvoiceID  string `json:"supplier_invoice_id"`
+	GoodsReceiptID    string `json:"goods_receipt_id"`
+	SupplierInvoiceID string `json:"supplier_invoice_id"`
 }

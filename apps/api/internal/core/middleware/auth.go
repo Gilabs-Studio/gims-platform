@@ -23,14 +23,14 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			c.Set("user_id", mockUserID)
 			c.Set("user_email", "webhook@system.local")
 			c.Set("user_role", "admin")
-			
+
 			permMap := map[string]bool{
 				"crm_lead.create": true,
 				"crm_lead.read":   true,
 				"crm_lead.update": true,
 			}
 			c.Set("user_permissions", permMap)
-			
+
 			permScopeMap := map[string]string{
 				"crm_lead.create": "ALL",
 				"crm_lead.read":   "ALL",
@@ -42,6 +42,8 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			reqCtx = context.WithValue(reqCtx, "user_id", mockUserID)
 			reqCtx = context.WithValue(reqCtx, "user_email", "webhook@system.local")
 			reqCtx = context.WithValue(reqCtx, "user_role", "admin")
+			reqCtx = context.WithValue(reqCtx, "user_permissions", permMap)
+			reqCtx = context.WithValue(reqCtx, "user_permissions_scope", permScopeMap)
 			reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
 			reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
 			c.Request = c.Request.WithContext(reqCtx)
@@ -106,7 +108,6 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		reqCtx = context.WithValue(reqCtx, "user_role", claims.Role)
 		reqCtx = context.WithValue(reqCtx, "client_ip", c.ClientIP())
 		reqCtx = context.WithValue(reqCtx, "user_agent", c.Request.UserAgent())
-		c.Request = c.Request.WithContext(reqCtx)
 
 		// Load Permissions with scope (with fallback to non-scoped permissions)
 		permScopeMap, err := permService.GetPermissionsWithScope(claims.Role)
@@ -136,6 +137,10 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 		c.Set("user_permissions", permMap)
 		// Also set scope-aware map for new scope-based checks
 		c.Set("user_permissions_scope", permScopeMap)
+
+		reqCtx = context.WithValue(reqCtx, "user_permissions", permMap)
+		reqCtx = context.WithValue(reqCtx, "user_permissions_scope", permScopeMap)
+		c.Request = c.Request.WithContext(reqCtx)
 
 		c.Next()
 	}

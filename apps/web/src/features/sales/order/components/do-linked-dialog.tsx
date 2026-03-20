@@ -1,17 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { deliveryService } from "../../delivery/services/delivery-service";
-import { deliveryKeys } from "../../delivery/hooks/use-deliveries";
 import { DOStatusBadge } from "./do-status-badge";
 import { DeliveryDetailModal } from "../../delivery/components/delivery-detail-modal";
 import type { DeliveryOrder } from "../../delivery/types";
-import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
+import { useDOLinkedDialog } from "../hooks/use-do-linked-dialog";
 
 interface DOLinkedDialogProps {
   salesOrderCode: string;
@@ -22,18 +19,15 @@ interface DOLinkedDialogProps {
 
 export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChange }: DOLinkedDialogProps) {
   const t = useTranslations("delivery");
-  const canViewDelivery = useUserPermission("delivery_order.read");
-  const [selectedDelivery, setSelectedDelivery] = useState<DeliveryOrder | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const { data, isLoading } = useQuery({
-    queryKey: deliveryKeys.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    queryFn: () => deliveryService.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    // Only fetch when the dialog is open and the user has permission
-    enabled: open && !!salesOrderId && canViewDelivery,
-  });
-
-  const deliveryOrders = data?.data ?? [];
+  const {
+    canViewDelivery,
+    deliveryOrders,
+    isLoading,
+    selectedDeliveryId,
+    detailOpen,
+    setDetailOpen,
+    openDeliveryDetail,
+  } = useDOLinkedDialog({ open, salesOrderId });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,10 +79,7 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
                       {canViewDelivery ? (
                         <button
                           className="font-medium text-primary hover:underline cursor-pointer"
-                          onClick={() => {
-                            setSelectedDelivery({ id: do_.id } as DeliveryOrder);
-                            setDetailOpen(true);
-                          }}
+                          onClick={() => openDeliveryDetail(do_.id)}
                         >
                           {do_.code}
                         </button>
@@ -98,7 +89,7 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
                     </TableCell>
                     <TableCell>
                       {do_.delivery_date
-                        ? new Date(do_.delivery_date).toLocaleDateString()
+                        ? formatDate(do_.delivery_date)
                         : "-"}
                     </TableCell>
                     <TableCell>
@@ -125,7 +116,7 @@ export function DOLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChang
       <DeliveryDetailModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        delivery={selectedDelivery}
+        delivery={selectedDeliveryId ? ({ id: selectedDeliveryId } as DeliveryOrder) : null}
       />
     </Dialog>
   );

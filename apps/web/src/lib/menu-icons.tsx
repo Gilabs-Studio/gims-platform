@@ -72,6 +72,8 @@ import {
   Coins,
   CalendarCheck,
   Building,
+  Scale,
+  Table,
   Percent,
   LayoutList,
   CheckSquare,
@@ -80,6 +82,7 @@ import {
   Zap,
   Kanban,
   Route,
+  RotateCcw,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -147,6 +150,12 @@ const iconMap: Record<string, React.ReactNode> = {
   "trending-up": <TrendingUp className="h-4 w-4" />,
   trendingup: <TrendingUp className="h-4 w-4" />,
   contact: <Contact className="h-4 w-4" />,
+  // Returns icon (rotate-ccw)
+  "rotate-ccw": <RotateCcw className="h-4 w-4" />,
+  "rotate_ccw": <RotateCcw className="h-4 w-4" />,
+  rotateccw: <RotateCcw className="h-4 w-4" />,
+  returns: <RotateCcw className="h-4 w-4" />,
+  return: <RotateCcw className="h-4 w-4" />,
 
   // Calendar & Time icons
   calendar: <Calendar className="h-4 w-4" />,
@@ -171,6 +180,8 @@ const iconMap: Record<string, React.ReactNode> = {
   // Chart & Analytics icons
   barchart3: <BarChart3 className="h-4 w-4" />,
   "bar-chart-3": <BarChart3 className="h-4 w-4" />,
+  table: <Table className="h-4 w-4" />,
+  "scale": <Scale className="h-4 w-4" />,
 
   // Activity & Health icons
   activity: <Activity className="h-4 w-4" />,

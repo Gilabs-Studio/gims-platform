@@ -77,9 +77,7 @@ function statusLabel(t: ReturnType<typeof useTranslations>, status: CustomerInvo
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString();
+  return formatDate(value) || value;
 }
 
 function normalizeStatus(status?: string | null): string {
@@ -143,7 +141,7 @@ function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) 
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-semibold text-amber-500">Due today</span>
+        <span className="text-xs font-semibold text-warning">Due today</span>
       </div>
     );
   }
@@ -151,7 +149,7 @@ function DueDateCell({ dueDate, status }: { dueDate?: string; status: string }) 
     return (
       <div className="flex flex-col gap-0.5">
         <span className="text-sm">{formatted}</span>
-        <span className="text-xs font-medium text-amber-500">{diffDays}d left</span>
+        <span className="text-xs font-medium text-warning">{diffDays}d left</span>
       </div>
     );
   }
@@ -533,7 +531,7 @@ export function CustomerInvoiceDPList() {
                           ) : null}
                           {canPrint ? (
                             <DropdownMenuItem
-                              className="cursor-pointer text-violet-600 focus:text-violet-600"
+                              className="cursor-pointer text-accent focus:text-accent"
                               onClick={() => setPrintingDPId(row.id)}
                             >
                               <Printer className="h-4 w-4 mr-2" />
@@ -544,7 +542,7 @@ export function CustomerInvoiceDPList() {
                           (normalizeStatus(row.status) === "unpaid" ||
                             normalizeStatus(row.status) === "partial") ? (
                             <DropdownMenuItem
-                              className="cursor-pointer text-blue-600 focus:text-blue-600"
+                              className="cursor-pointer text-primary focus:text-primary"
                               onClick={() => {
                                 try {
                                   queryClient.cancelQueries({ queryKey: customerInvoiceDPKeys.lists() });

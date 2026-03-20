@@ -22,6 +22,8 @@ export const quotationKeys = {
   detail: (id: string) => [...quotationKeys.details(), id] as const,
   items: (id: string, params?: ListSalesQuotationItemsParams) =>
     [...quotationKeys.detail(id), "items", params] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...quotationKeys.detail(id), "audit-trail", params] as const,
 };
 
 // List quotations hook with filters
@@ -53,6 +55,19 @@ export function useQuotationItems(
     queryFn: () => quotationService.getItems(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
     // Keep previous data when changing pages for smooth transitions
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useQuotationAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: quotationKeys.auditTrail(id, params),
+    queryFn: () => quotationService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
     placeholderData: (previousData) => previousData,
   });
 }

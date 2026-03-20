@@ -8,9 +8,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
-  FileText,
   Printer,
-  Receipt,
   Send,
   Trash2,
   XCircle,
@@ -36,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { AuditTrailTable } from "@/components/ui/audit-trail-table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
@@ -83,42 +82,39 @@ const PurchasePaymentForm = dynamic(
 
 // ─── Audit Trail tab ─────────────────────────────────────────────────────────
 
-function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
+function AuditTrailTab({ invoiceId, enabled }: { invoiceId: string; enabled: boolean }) {
   const t = useTranslations("supplierInvoice");
-  const { data, isLoading } = useSupplierInvoiceAuditTrail(invoiceId, { page: 1, per_page: 50 });
+  const tCommon = useTranslations("common");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data, isLoading, isError } = useSupplierInvoiceAuditTrail(invoiceId, {
+    page,
+    per_page: pageSize,
+  }, { enabled });
   const entries = data?.data ?? [];
-
-  if (isLoading) return <Skeleton className="h-32 w-full mt-4" />;
-  if (entries.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        {t("auditTrail.empty")}
-      </p>
-    );
+  const pagination = data?.meta?.pagination;
 
   return (
-    <div className="rounded-md border mt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("auditTrail.columns.action")}</TableHead>
-            <TableHead>{t("auditTrail.columns.user")}</TableHead>
-            <TableHead>{t("auditTrail.columns.time")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.id}>
-              <TableCell className="font-medium">{entry.action}</TableCell>
-              <TableCell>{entry.user?.name ?? entry.user?.email ?? "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {entry.created_at ? formatDate(entry.created_at) : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <AuditTrailTable
+      entries={entries}
+      isLoading={isLoading && entries.length === 0}
+      errorText={isError && entries.length === 0 ? tCommon("error") : undefined}
+      pagination={pagination}
+      onPageChange={(nextPage) => setPage(nextPage)}
+      onPageSizeChange={(nextPageSize) => {
+        setPageSize(nextPageSize);
+        setPage(1);
+      }}
+      labels={{
+        empty: t("auditTrail.empty"),
+        columns: {
+          action: t("auditTrail.columns.action"),
+          user: t("auditTrail.columns.user"),
+          time: t("auditTrail.columns.time"),
+          details: t("auditTrail.columns.details"),
+        },
+      }}
+    />
   );
 }
 
@@ -150,6 +146,7 @@ function SupplierInvoiceDetailView({
   const [isGROpen, setIsGROpen] = useState(false);
   const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
   const [isDPOpen, setIsDPOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit">("general");
 
   const deleteMutation = useDeleteSupplierInvoice();
 
@@ -158,20 +155,11 @@ function SupplierInvoiceDetailView({
 
   return (
     <>
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "general" | "items" | "audit")} className="w-full">
         <TabsList>
-          <TabsTrigger value="general">
-            <Receipt className="h-3.5 w-3.5 mr-1.5" />
-            {t("tabs.general") || "General"}
-          </TabsTrigger>
-          <TabsTrigger value="items">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            {t("tabs.items") || "Items"}
-          </TabsTrigger>
-          <TabsTrigger value="audit">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            {t("auditTrail.title")}
-          </TabsTrigger>
+          <TabsTrigger value="general">{t("tabs.general") || "General"}</TabsTrigger>
+          <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
+          <TabsTrigger value="audit">{t("tabs.auditTrail") || t("auditTrail.title")}</TabsTrigger>
         </TabsList>
 
         {/* ── General tab ───────────────────────────────────────────────── */}
@@ -204,7 +192,7 @@ function SupplierInvoiceDetailView({
                         now.setHours(0, 0, 0, 0);
                         const diff = Math.round((due.getTime() - now.getTime()) / 86400000);
                         if (diff < 0) return "font-semibold text-destructive";
-                        if (diff <= 7) return "font-semibold text-amber-500";
+                        if (diff <= 7) return "font-semibold text-warning";
                         return "font-medium";
                       })()}
                     >
@@ -227,13 +215,13 @@ function SupplierInvoiceDetailView({
                         );
                       if (diff === 0)
                         return (
-                          <span className="ml-1.5 text-amber-500 text-xs font-semibold">
+                          <span className="ml-1.5 text-warning text-xs font-semibold">
                             · Due today
                           </span>
                         );
                       if (diff <= 7)
                         return (
-                          <span className="ml-1.5 text-amber-500 text-xs font-medium">
+                          <span className="ml-1.5 text-warning text-xs font-medium">
                             · {diff}d left
                           </span>
                         );
@@ -454,10 +442,10 @@ function SupplierInvoiceDetailView({
                   )}
                   {dpDeduction > 0 && (
                     <TableRow>
-                      <TableCell className="font-medium bg-muted/50 text-emerald-600">
+                      <TableCell className="font-medium bg-muted/50 text-success">
                         DP Deduction
                       </TableCell>
-                      <TableCell className="text-right font-mono text-emerald-600">
+                      <TableCell className="text-right font-mono text-success">
                         − {formatCurrency(dpDeduction)}
                       </TableCell>
                     </TableRow>
@@ -472,7 +460,7 @@ function SupplierInvoiceDetailView({
                     <>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">Paid</TableCell>
-                        <TableCell className="text-right font-mono text-emerald-600 font-medium">
+                        <TableCell className="text-right font-mono text-success font-medium">
                           {formatCurrency(data.paid_amount)}
                         </TableCell>
                       </TableRow>
@@ -558,7 +546,7 @@ function SupplierInvoiceDetailView({
 
         {/* ── Audit Trail tab ─────────────────────────────────────────── */}
         <TabsContent value="audit">
-          <AuditTrailTab invoiceId={data.id} />
+          <AuditTrailTab invoiceId={data.id} enabled={activeTab === "audit"} />
         </TabsContent>
       </Tabs>
 
@@ -728,7 +716,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                     onClick={async () => {
                       try {
@@ -748,7 +736,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                     onClick={async () => {
                       try {
@@ -788,7 +776,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                     variant="ghost"
                     size="icon"
                     disabled={pendingMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.pending")}
                     onClick={async () => {
                       try {
@@ -807,7 +795,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.createPayment")}
                     onClick={() => setPaymentOpen(true)}
                   >
@@ -819,7 +807,7 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("actions.print")}
                     onClick={() => setPrintOpen(true)}
                   >

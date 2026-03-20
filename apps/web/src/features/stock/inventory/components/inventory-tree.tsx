@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventoryTree, useInventoryTreeProducts, useInventoryTreeBatches } from "../hooks/use-inventory-tree";
 import { InventoryTreeWarehouse, InventoryStockItem } from "../types";
-import { resolveImageUrl } from "@/lib/utils";
+import { formatDate, resolveImageUrl } from "@/lib/utils";
 
 // --- Sub-components for cleaner file ---
 
@@ -15,10 +15,10 @@ function StatusBadge({ count, type }: { count: number; type: "ok" | "low" | "out
   if (count === 0) return null;
   
   const config = {
-    ok: { color: "bg-green-600", icon: CheckCircle2, label: "OK" },
-    low: { color: "bg-yellow-500", icon: AlertTriangle, label: "Low" },
-    out: { color: "bg-red-600", icon: XCircle, label: "OOS" },
-    over: { color: "bg-blue-600", icon: Package, label: "Over" },
+    ok: { color: "bg-success", icon: CheckCircle2, label: "OK" },
+    low: { color: "bg-warning", icon: AlertTriangle, label: "Low" },
+    out: { color: "bg-destructive", icon: XCircle, label: "OOS" },
+    over: { color: "bg-primary", icon: Package, label: "Over" },
   };
 
   const { color, icon: Icon, label } = config[type];
@@ -64,7 +64,7 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
           <span className="text-muted-foreground/50">▶</span>
           <span className="font-mono truncate">{batch.batch_number}</span>
           <span className="tabular-nums">
-            {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "—"}
+            {batch.expiry_date ? formatDate(batch.expiry_date) : "—"}
           </span>
           <span className="font-medium tabular-nums text-right">{batch.current_quantity}</span>
           <span className="tabular-nums text-right">{batch.reserved_quantity}</span>
@@ -106,9 +106,9 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
 function ProductNode({ product, warehouseId, isOpen, onToggle }: { product: InventoryStockItem; warehouseId: string; isOpen: boolean; onToggle: () => void }) {
   const getStatusColor = (status: string) => {
     switch(status) {
-      case "low_stock": return "text-yellow-600 font-medium";
-      case "out_of_stock": return "text-red-600 font-medium";
-      case "overstock": return "text-blue-600 font-medium";
+      case "low_stock": return "text-warning font-medium";
+      case "out_of_stock": return "text-destructive font-medium";
+      case "overstock": return "text-primary font-medium";
       default: return "text-muted-foreground";
     }
   };

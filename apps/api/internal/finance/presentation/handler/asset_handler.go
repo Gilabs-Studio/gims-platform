@@ -191,3 +191,18 @@ func (h *AssetHandler) ApproveTransaction(c *gin.Context) {
 	}
 	response.SuccessResponse(c, res, nil)
 }
+
+func (h *AssetHandler) Sell(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.SellAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.Sell(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSET_SELL_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}

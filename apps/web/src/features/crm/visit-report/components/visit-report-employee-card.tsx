@@ -116,14 +116,14 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
           </div>
 
           <div className="py-1">
-            <Clock className="mx-auto h-4 w-4 text-amber-500" />
-            <div className="mt-1 text-lg font-bold text-amber-600 leading-none">{summary.status_counts.submitted}</div>
+            <Clock className="mx-auto h-4 w-4 text-warning" />
+            <div className="mt-1 text-lg font-bold text-warning leading-none">{summary.status_counts.submitted}</div>
             <div className="text-xs text-muted-foreground">{t("status.submitted")}</div>
           </div>
 
           <div className="py-1">
-            <CheckCircle2 className="mx-auto h-4 w-4 text-green-500" />
-            <div className="mt-1 text-lg font-bold text-green-600 leading-none">{summary.status_counts.approved}</div>
+            <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
+            <div className="mt-1 text-lg font-bold text-success leading-none">{summary.status_counts.approved}</div>
             <div className="text-xs text-muted-foreground">{t("status.approved")}</div>
           </div>
 
@@ -241,7 +241,7 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-green-600"
+                                    className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-success"
                                     title={t("actions.approve")}
                                     disabled={approveMutation.isPending || (!!user && visit.created_by === user.id)}
                                     onClick={() => approveMutation.mutate({ id: visit.id })}

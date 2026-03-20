@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { PageMotion } from "@/components/motion";
 
 const FinanceClosingContainer = dynamic(
   () =>
@@ -46,9 +47,11 @@ function PageSkeleton() {
 export default function FinanceClosingPage() {
   return (
     <PermissionGuard requiredPermission="financial_closing.read">
-      <Suspense fallback={<PageSkeleton />}>
-        <FinanceClosingContainer />
-      </Suspense>
+      <PageMotion>
+        <Suspense fallback={<PageSkeleton />}>
+          <FinanceClosingContainer />
+        </Suspense>
+      </PageMotion>
     </PermissionGuard>
   );
 }

@@ -27,13 +27,14 @@ type PurchaseOrderRepository interface {
 }
 
 type PurchaseOrderListParams struct {
-	Search  string
-	Status  string
-	SortBy  string
-	SortDir string
-	Limit   int
-	Offset  int
-	WithItems bool
+	Search     string
+	Status     string
+	SupplierID string
+	SortBy     string
+	SortDir    string
+	Limit      int
+	Offset     int
+	WithItems  bool
 }
 
 type purchaseOrderRepository struct {
@@ -65,6 +66,9 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	if strings.TrimSpace(params.Status) != "" {
 		base = base.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
 	}
+	if strings.TrimSpace(params.SupplierID) != "" {
+		base = base.Where("supplier_id = ?", strings.TrimSpace(params.SupplierID))
+	}
 
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -82,6 +86,9 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
+	}
+	if strings.TrimSpace(params.SupplierID) != "" {
+		query = query.Where("supplier_id = ?", strings.TrimSpace(params.SupplierID))
 	}
 
 	sortField := normalizePOSortField(params.SortBy)
@@ -240,21 +247,26 @@ func (r *purchaseOrderRepository) Update(ctx context.Context, po *models.Purchas
 		}
 
 		if err := tx.Model(&existing).Updates(map[string]interface{}{
-			"supplier_id":            po.SupplierID,
-			"payment_terms_id":       po.PaymentTermsID,
-			"business_unit_id":       po.BusinessUnitID,
-			"order_date":             po.OrderDate,
-			"due_date":               po.DueDate,
-			"revision_comment":       po.RevisionComment,
-			"notes":                  po.Notes,
-			"tax_rate":               po.TaxRate,
-			"tax_amount":             po.TaxAmount,
-			"delivery_cost":          po.DeliveryCost,
-			"other_cost":             po.OtherCost,
-			"sub_total":              po.SubTotal,
-			"total_amount":           po.TotalAmount,
-			"purchase_requisition_id": po.PurchaseRequisitionID,
-			"sales_order_id":         po.SalesOrderID,
+			"supplier_id":                 po.SupplierID,
+			"supplier_code_snapshot":      po.SupplierCodeSnapshot,
+			"supplier_name_snapshot":      po.SupplierNameSnapshot,
+			"payment_terms_id":            po.PaymentTermsID,
+			"payment_terms_name_snapshot": po.PaymentTermsNameSnapshot,
+			"payment_terms_days_snapshot": po.PaymentTermsDaysSnapshot,
+			"business_unit_id":            po.BusinessUnitID,
+			"business_unit_name_snapshot": po.BusinessUnitNameSnapshot,
+			"order_date":                  po.OrderDate,
+			"due_date":                    po.DueDate,
+			"revision_comment":            po.RevisionComment,
+			"notes":                       po.Notes,
+			"tax_rate":                    po.TaxRate,
+			"tax_amount":                  po.TaxAmount,
+			"delivery_cost":               po.DeliveryCost,
+			"other_cost":                  po.OtherCost,
+			"sub_total":                   po.SubTotal,
+			"total_amount":                po.TotalAmount,
+			"purchase_requisition_id":     po.PurchaseRequisitionID,
+			"sales_order_id":              po.SalesOrderID,
 		}).Error; err != nil {
 			return err
 		}
@@ -326,8 +338,6 @@ func (r *purchaseOrderRepository) UpdateStatusWithTimestamp(ctx context.Context,
 	return r.GetByID(ctx, id)
 }
 
-
-
 func (r *purchaseOrderRepository) getNextCodeLocked(ctx context.Context, tx *gorm.DB, prefix string) (string, error) {
 	now := database.GetDB(ctx, r.db).NowFunc()
 	dateStr := now.Format("20060102")
@@ -343,8 +353,7 @@ func (r *purchaseOrderRepository) getNextCodeLocked(ctx context.Context, tx *gor
 		Unscoped().
 		Model(&models.PurchaseOrder{}).
 		Select("code").
-		Where("code LIKE ?", codePrefix+"%",
-		).
+		Where("code LIKE ?", codePrefix+"%").
 		Order("code DESC").
 		First(&last).Error
 

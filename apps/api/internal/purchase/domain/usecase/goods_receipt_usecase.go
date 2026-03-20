@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -21,6 +21,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	"github.com/gilabs/gims/api/internal/purchase/domain/mapper"
+	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -28,6 +29,7 @@ import (
 var (
 	ErrGoodsReceiptNotFound = errors.New("goods receipt not found")
 	ErrGoodsReceiptConflict = errors.New("goods receipt conflict")
+	ErrGoodsReceiptInvalid  = errors.New("invalid goods receipt request")
 )
 
 type GoodsReceiptUsecase interface {
@@ -98,6 +100,10 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		return nil, ErrGoodsReceiptInvalid
+	}
 
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
@@ -127,6 +133,9 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 		if po.Status != models.PurchaseOrderStatusApproved {
 			return ErrInvalidStatus
 		}
+		if err := validateActiveWarehouseID(ctx, tx, warehouseID); err != nil {
+			return err
+		}
 
 		supplierID := ""
 		if po.SupplierID != nil {
@@ -155,9 +164,11 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 		gr := &models.GoodsReceipt{
 			Code:            code,
 			PurchaseOrderID: po.ID,
+			WarehouseID:     &warehouseID,
 			SupplierID:      supplierID,
 			ReceiptDate:     nil,
 			Notes:           req.Notes,
+			ProofImageURL:   req.ProofImageURL,
 			Status:          models.GoodsReceiptStatusDraft,
 			CreatedBy:       actorID,
 			Items:           make([]models.GoodsReceiptItem, 0, len(req.Items)),
@@ -234,6 +245,10 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}
+	warehouseID := strings.TrimSpace(req.WarehouseID)
+	if warehouseID == "" {
+		return nil, ErrGoodsReceiptInvalid
+	}
 
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
@@ -251,15 +266,20 @@ func (uc *goodsReceiptUsecase) Update(ctx context.Context, id string, req *dto.U
 	if existing.Status != models.GoodsReceiptStatusDraft {
 		return nil, ErrGoodsReceiptConflict
 	}
+	if err := validateActiveWarehouseID(ctx, uc.db, warehouseID); err != nil {
+		return nil, err
+	}
 	before := grAuditSnapshot(existing)
 
 	gr := &models.GoodsReceipt{
 		ID:              existing.ID,
 		Code:            existing.Code,
 		PurchaseOrderID: existing.PurchaseOrderID,
+		WarehouseID:     &warehouseID,
 		SupplierID:      existing.SupplierID,
 		ReceiptDate:     existing.ReceiptDate,
 		Notes:           req.Notes,
+		ProofImageURL:   req.ProofImageURL,
 		Status:          existing.Status,
 		CreatedBy:       existing.CreatedBy,
 		Items:           make([]models.GoodsReceiptItem, 0, len(req.Items)),
@@ -477,6 +497,10 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 }
 
 func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *models.GoodsReceipt) error {
+	if gr == nil || gr.WarehouseID == nil || strings.TrimSpace(*gr.WarehouseID) == "" {
+		return ErrGoodsReceiptInvalid
+	}
+
 	items := make([]invDto.ReceiveStockItem, 0, len(gr.Items))
 
 	// Need to fetch Cost Price from PO Items?
@@ -511,26 +535,7 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 		// Let's use Price for simplicity as requested "ReceiveStockFromGR" usually takes unit cost.
 	}
 
-	warehouseID := "" // Where do we get WarehouseID?
-	// GR doesn't typically have WarehouseID in header if Items can go to different warehouses.
-	// But in this system, maybe it does?
-	// Checking GR Model... No WarehouseID.
-	// Checking PO Model... BusinessUnitID?
-	// Usually Warehouse is selected at GR Item level or Header level.
-	// If missing, we assume a Default Warehouse or we must fetch from PO ShipTo?
-	// Let's look for "Warehouse" in PO/GR models in previous steps.
-	// Step 103 (PurchaseOrder) -> No WarehouseID field visible in summary.
-	// Assuming "Default Warehouse" or "Main Warehouse".
-	// Or maybe it's in the Item?
-	// If not present, we can't update stock correctly.
-	// CRITICAL GAP: Warehouse selection in GR.
-	// I will just use a specific ID if I can find one, or look up "Main" warehouse.
-	// Temporary fix: Use a hardcoded uuid or query one warehouse.
-
-	// Let's fetch the first warehouse found as fallback.
-	var whID string
-	uc.db.Table("warehouses").Select("id").Limit(1).Scan(&whID)
-	warehouseID = whID
+	warehouseID := strings.TrimSpace(*gr.WarehouseID)
 
 	for _, it := range gr.Items {
 		cost := priceMap[it.PurchaseOrderItemID]
@@ -602,6 +607,9 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 
 	refType := "GOODS_RECEIPT"
 	refID := gr.ID
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
 
 	lines := []finDto.JournalLineRequest{
 		{
@@ -626,7 +634,30 @@ func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *mode
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "purchase_goods_receipt",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "purchase_goods_receipt",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "purchase_goods_receipt",
+	})
+
 	return err
 }
 
@@ -725,6 +756,15 @@ func (uc *goodsReceiptUsecase) Submit(ctx context.Context, id string) (*dto.Good
 	}
 	if existing.Status != models.GoodsReceiptStatusDraft {
 		return nil, ErrGoodsReceiptConflict
+	}
+	if existing.WarehouseID == nil || strings.TrimSpace(*existing.WarehouseID) == "" {
+		return nil, ErrGoodsReceiptInvalid
+	}
+	if err := validateActiveWarehouseID(ctx, uc.db, *existing.WarehouseID); err != nil {
+		return nil, err
+	}
+	if err := uc.validateGoodsReceiptItemsAgainstPO(ctx, existing); err != nil {
+		return nil, err
 	}
 	before := grAuditSnapshot(existing)
 
@@ -1201,11 +1241,9 @@ func (uc *goodsReceiptUsecase) ListAuditTrail(ctx context.Context, id string, pa
 	}
 
 	entries := make([]dto.GoodsReceiptAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {
 			email := ""
@@ -1249,13 +1287,84 @@ func grAuditSnapshot(gr *models.GoodsReceipt) map[string]interface{} {
 		"id":                gr.ID,
 		"code":              gr.Code,
 		"purchase_order_id": gr.PurchaseOrderID,
+		"warehouse_id":      gr.WarehouseID,
 		"supplier_id":       gr.SupplierID,
 		"receipt_date":      gr.ReceiptDate,
 		"notes":             gr.Notes,
+		"proof_image_url":   gr.ProofImageURL,
 		"status":            gr.Status,
 		"created_by":        gr.CreatedBy,
 		"items":             items,
 	}
+}
+
+func validateActiveWarehouseID(ctx context.Context, db *gorm.DB, warehouseID string) error {
+	warehouseID = strings.TrimSpace(warehouseID)
+	if warehouseID == "" {
+		return ErrGoodsReceiptInvalid
+	}
+
+	var count int64
+	if err := database.GetDB(ctx, db).
+		Model(&warehouseModels.Warehouse{}).
+		Where("id = ?", warehouseID).
+		Where("is_active = ?", true).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrGoodsReceiptInvalid
+	}
+
+	return nil
+}
+
+func (uc *goodsReceiptUsecase) validateGoodsReceiptItemsAgainstPO(ctx context.Context, gr *models.GoodsReceipt) error {
+	if uc.db == nil {
+		return errors.New("db is nil")
+	}
+
+	var po models.PurchaseOrder
+	if err := uc.db.WithContext(ctx).
+		Preload("Items").
+		First(&po, "id = ?", gr.PurchaseOrderID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrPurchaseOrderNotFound
+		}
+		return err
+	}
+
+	orderedByPOItemID := make(map[string]float64, len(po.Items))
+	for _, poIt := range po.Items {
+		orderedByPOItemID[poIt.ID] = poIt.Quantity
+	}
+
+	for _, it := range gr.Items {
+		ordered, ok := orderedByPOItemID[it.PurchaseOrderItemID]
+		if !ok {
+			return ErrGoodsReceiptConflict
+		}
+
+		var alreadyReceived float64
+		if err := uc.db.WithContext(ctx).
+			Table("goods_receipt_items").
+			Select("COALESCE(SUM(goods_receipt_items.quantity_received),0)").
+			Joins("JOIN goods_receipts ON goods_receipts.id = goods_receipt_items.goods_receipt_id").
+			Where("goods_receipts.purchase_order_id = ?", po.ID).
+			Where("goods_receipts.status NOT IN ?", []string{string(models.GoodsReceiptStatusRejected)}).
+			Where("goods_receipt_items.purchase_order_item_id = ?", it.PurchaseOrderItemID).
+			Where("goods_receipts.id <> ?", gr.ID).
+			Scan(&alreadyReceived).Error; err != nil {
+			return err
+		}
+
+		receiving := math.Max(0, it.QuantityReceived)
+		if alreadyReceived+receiving > ordered+0.0001 {
+			return ErrGoodsReceiptConflict
+		}
+	}
+
+	return nil
 }
 
 func getNextGoodsReceiptCodeLocked(ctx context.Context, tx *gorm.DB, prefix string) (string, error) {

@@ -40,6 +40,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryRepo := repositories.NewSalaryStructureRepository(db)
 	upCountryRepo := repositories.NewUpCountryCostRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
+	valuationRunRepo := repositories.NewValuationRunRepository(db)
+	maintenanceRepo := repositories.NewMaintenanceRepository(db)
 
 	coaMapper := mapper.NewChartOfAccountMapper()
 	journalMapper := mapper.NewJournalEntryMapper(coaMapper)
@@ -72,9 +74,18 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
+	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
+
+	// Asset Maintenance
+	maintenanceUC := usecase.NewAssetMaintenanceUsecase(db, maintenanceRepo)
+
+	// Asset Budget (CAPEX Planning)
+	assetBudgetRepo := repositories.NewAssetBudgetRepository(db)
+	assetBudgetMapper := mapper.NewAssetBudgetMapper()
+	assetBudgetUC := usecase.NewAssetBudgetUsecase(db, assetBudgetRepo, assetCategoryRepo, assetBudgetMapper)
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)
-	journalH := handler.NewJournalEntryHandler(journalUC)
+	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
 	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)
@@ -89,6 +100,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryH := handler.NewSalaryStructureHandler(salaryUC)
 	upCountryH := handler.NewUpCountryCostHandler(upCountryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
+	assetBudgetH := handler.NewAssetBudgetHandler(assetBudgetUC)
+
+	// Asset Maintenance
+	maintenanceH := handler.NewAssetMaintenanceHandler(maintenanceUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -111,6 +126,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterSalaryStructureRoutes(group, salaryH)
 	router.RegisterUpCountryCostRoutes(group, upCountryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
+	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
+	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
 
 	return &FinanceDeps{
 		JournalUC: journalUC,

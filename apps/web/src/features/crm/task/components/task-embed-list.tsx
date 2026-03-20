@@ -35,9 +35,9 @@ const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> =
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "text-muted-foreground",
-  medium: "text-blue-600",
-  high: "text-orange-600",
-  urgent: "text-red-600",
+  medium: "text-primary",
+  high: "text-warning",
+  urgent: "text-destructive",
 };
 
 interface TaskEmbedListProps {
@@ -111,9 +111,9 @@ export function TaskEmbedList({
             <StatusIcon
               className={cn(
                 "h-4 w-4 shrink-0",
-                task.status === "completed" && "text-green-600",
+                task.status === "completed" && "text-success",
                 task.status === "cancelled" && "text-muted-foreground",
-                task.status === "in_progress" && "text-blue-600",
+                task.status === "in_progress" && "text-primary",
                 task.status === "pending" && "text-muted-foreground"
               )}
             />
@@ -138,7 +138,7 @@ export function TaskEmbedList({
                 {task.due_date && (
                   <span className={cn(
                     "flex items-center gap-1 text-xs",
-                    task.is_overdue && isActive ? "text-red-600 font-medium" : "text-muted-foreground"
+                    task.is_overdue && isActive ? "text-destructive font-medium" : "text-muted-foreground"
                   )}>
                     {task.is_overdue && isActive && <AlertTriangle className="h-3 w-3" />}
                     <Calendar className="h-3 w-3" />
@@ -241,7 +241,7 @@ export function TaskEmbedList({
                       {" · "}
                       {t(`reminder.types.${reminder.reminder_type}` as Parameters<typeof t>[0])}
                       {reminder.is_sent && (
-                        <span className="ml-1 text-green-600">✔ {t("reminder.sent")}</span>
+                        <span className="ml-1 text-success">✔ {t("reminder.sent")}</span>
                       )}
                     </p>
                   </div>

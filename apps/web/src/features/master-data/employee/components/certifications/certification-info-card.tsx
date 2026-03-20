@@ -21,27 +21,27 @@ function StatusBadge({
 }) {
   if (!certification.expiry_date) {
     return (
-      <Badge className="bg-gray-500/15 text-gray-700 border-gray-500/20">
+      <Badge className="bg-mutedgray text-muted-foreground border-gray-500/20">
         {t("certification.status.noExpiry")}
       </Badge>
     );
   }
   if (certification.is_expired) {
     return (
-      <Badge className="bg-red-500/15 text-red-700 border-red-500/20">
+      <Badge className="bg-destructive/15 text-destructive border-red-500/20">
         {t("certification.status.expired")}
       </Badge>
     );
   }
   if (certification.days_until_expiry <= 30) {
     return (
-      <Badge className="bg-yellow-500/15 text-yellow-700 border-yellow-500/20">
+      <Badge className="bg-warning/15 text-warning border-yellow-500/20">
         {t("certification.status.expiringSoon")}
       </Badge>
     );
   }
   return (
-    <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-500/20">
+    <Badge className="bg-success/15 text-success border-emerald-500/20">
       {t("certification.status.valid")}
     </Badge>
   );
@@ -89,7 +89,7 @@ export function CertificationInfoCard({
                 <StatusBadge certification={certification} t={t} />
               </span>
             ) : (
-              <Badge className="bg-gray-500/15 text-gray-700 border-gray-500/20">
+              <Badge className="bg-mutedgray text-muted-foreground border-gray-500/20">
                 {t("certification.status.noExpiry")}
               </Badge>
             )}
@@ -111,7 +111,7 @@ export function CertificationInfoCard({
                 href={resolveImageUrl(certification.certificate_file) ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate max-w-[300px]">

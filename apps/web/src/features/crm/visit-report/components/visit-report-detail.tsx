@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
@@ -463,7 +463,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                           <div>
                             <p className="text-xs text-muted-foreground">{t("form.price")}</p>
                             <p className="text-sm font-medium">
-                              {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(detail.price)}
+                              {formatCurrency(detail.price)}
                             </p>
                           </div>
                         )}
@@ -560,7 +560,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               <div className="space-y-4">
                 <div className="flex items-start gap-2">
                   {visit.check_in_at ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                   ) : (
                     <XCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   )}
@@ -587,7 +587,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 })()}
                 <div className="flex items-start gap-2">
                   {visit.check_out_at ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
                   ) : (
                     <XCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   )}
@@ -692,7 +692,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 {visit.status === "approved" && visit.approved_at && (
                   <>
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                       <span className="text-sm font-medium">{t("status.approved")}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">

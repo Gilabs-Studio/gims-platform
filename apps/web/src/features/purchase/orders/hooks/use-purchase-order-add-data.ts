@@ -12,7 +12,8 @@ export const usePurchaseOrderAddData = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: PURCHASE_ORDER_ADD_DATA_QUERY_KEY,
     queryFn: purchaseOrdersService.addData,
-    enabled: options?.enabled ?? true,
+    enabled: options?.enabled ?? false,
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };

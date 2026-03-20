@@ -72,6 +72,7 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
   } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
@@ -162,6 +163,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             onValueChange={(value) => {
                               field.onChange(value);
                             }}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             disabled={isEdit}
                           >
                             <SelectTrigger>
@@ -192,6 +198,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             placeholder={t("deliveredBy")}
                             createPermission="employee.create"
                             onCreateClick={() => openQuickCreate("employee")}
@@ -213,6 +224,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={courierAgencies.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                            }}
                             placeholder={t("courierAgency")}
                             createPermission="courier_agency.create"
                             onCreateClick={() => openQuickCreate("courierAgency")}
@@ -347,6 +363,11 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                                         // Reset batch when warehouse changes
                                         setValue(`items.${index}.inventory_batch_id`, "");
                                       }}
+                                      onOpenChange={(isOpen) => {
+                                        if (isOpen) {
+                                          enableReferenceOptionsFetch();
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder={t("warehouse")} />
@@ -450,16 +471,20 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
         )}
       </DialogContent>
 
-      <EmployeeForm
-        open={quickCreate.type === "employee"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleDeliveredByCreated}
-      />
-      <CourierAgencyDialog
-        open={quickCreate.type === "courierAgency"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleCourierAgencyCreated}
-      />
+      {quickCreate.type === "employee" && (
+        <EmployeeForm
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleDeliveredByCreated}
+        />
+      )}
+      {quickCreate.type === "courierAgency" && (
+        <CourierAgencyDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleCourierAgencyCreated}
+        />
+      )}
     </Dialog>
   );
 }
@@ -516,7 +541,7 @@ function BatchSelectionField({ control, index, error, t, open }: {
             <SelectContent>
               {batches.filter((b: InventoryBatchItem) => b.available > 0).map((batch: InventoryBatchItem) => (
                 <SelectItem key={batch.id} value={batch.id}>
-                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString() : "-"})
+                  {batch.batch_number} (Qty: {batch.available}, Exp: {batch.expiry_date ? formatDate(batch.expiry_date) : "-"})
                 </SelectItem>
               ))}
               {batches.length === 0 && !isLoading && (
@@ -547,7 +572,7 @@ function BatchSelectionField({ control, index, error, t, open }: {
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-green-700 text-xs dark:bg-green-950/20 dark:border-green-800 dark:text-green-400">
+            <div className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded bg-green-50 border border-green-200 text-success text-xs dark:bg-success/20 dark:border-green-800 dark:text-success">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">In Stock</span>
               <span className="opacity-75">— available: {fmt(totalAvailable)} in this warehouse</span>

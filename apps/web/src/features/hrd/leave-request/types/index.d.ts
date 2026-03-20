@@ -196,3 +196,36 @@ export interface LeaveRequestFilters {
   start_date?: string;
   end_date?: string;
 }
+
+export interface LeaveRequestAuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface LeaveRequestAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata: Record<string, unknown>;
+  user?: LeaveRequestAuditTrailUser | null;
+  created_at: string;
+}
+
+export interface LeaveRequestAuditTrailResponse {
+  success: boolean;
+  data: LeaveRequestAuditTrailEntry[];
+  meta: {
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+  timestamp: string;
+  request_id: string;
+}

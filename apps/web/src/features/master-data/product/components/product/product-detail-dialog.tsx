@@ -21,7 +21,7 @@ import {
   AlertTriangle,
   ImageOff,
 } from "lucide-react";
-import { cn, resolveImageUrl } from "@/lib/utils";
+import { cn, formatCurrency, resolveImageUrl } from "@/lib/utils";
 import { useInventory } from "@/features/stock/inventory/hooks/use-inventory";
 import type { Product } from "../../types";
 
@@ -51,10 +51,7 @@ function GroupBox({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-const formatIDR = (value?: number) =>
-  value
-    ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value)
-    : "-";
+const formatCurrencyValue = (value?: number) => (value ? formatCurrency(value) : "-");
 
 export function ProductDetailDialog({
   open,
@@ -104,19 +101,19 @@ export function ProductDetailDialog({
 
   const stockStatusIcon = (status: string) => {
     const map: Record<string, React.ReactNode> = {
-      ok: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
-      low_stock: <TrendingDown className="h-3.5 w-3.5 text-amber-500" />,
-      out_of_stock: <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />,
-      overstock: <TrendingUp className="h-3.5 w-3.5 text-blue-500" />,
+      ok: <CheckCircle2 className="h-3.5 w-3.5 text-success" />,
+      low_stock: <TrendingDown className="h-3.5 w-3.5 text-warning" />,
+      out_of_stock: <AlertTriangle className="h-3.5 w-3.5 text-accent" />,
+      overstock: <TrendingUp className="h-3.5 w-3.5 text-primary" />,
     };
     return map[status] ?? null;
   };
 
   const stockStatusColor = (status: string) => ({
-    ok: "text-emerald-600",
-    low_stock: "text-amber-600",
-    out_of_stock: "text-rose-600",
-    overstock: "text-blue-600",
+    ok: "text-success",
+    low_stock: "text-warning",
+    out_of_stock: "text-accent",
+    overstock: "text-primary",
   }[status] ?? "text-muted-foreground");
 
   return (
@@ -136,6 +133,8 @@ export function ProductDetailDialog({
                   alt={product.name}
                   width={56}
                   height={56}
+                  unoptimized
+                  loader={({ src }: { src: string }) => src}
                   className="object-cover w-full h-full"
                 />
               ) : (
@@ -168,10 +167,10 @@ export function ProductDetailDialog({
             {/* Price summary */}
             <div className="shrink-0 text-right">
               <p className="text-[10px] text-muted-foreground">{t("form.sellingPrice")}</p>
-              <p className="text-base font-bold text-primary">{formatIDR(product.selling_price)}</p>
+              <p className="text-base font-bold text-primary">{formatCurrencyValue(product.selling_price)}</p>
               {product.cost_price > 0 && (
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Cost: {formatIDR(product.cost_price)}
+                  Cost: {formatCurrencyValue(product.cost_price)}
                 </p>
               )}
             </div>
@@ -204,8 +203,8 @@ export function ProductDetailDialog({
               />
               <InfoRow label={t("conversion")} value={product.purchase_uom_conversion || undefined} />
               <InfoRow label={t("form.packaging")} value={product.packaging?.name} />
-              <InfoRow label={t("form.costPrice")} value={formatIDR(product.cost_price)} />
-              <InfoRow label={t("currentHpp")} value={formatIDR(product.current_hpp)} />
+              <InfoRow label={t("form.costPrice")} value={formatCurrencyValue(product.cost_price)} />
+              <InfoRow label={t("currentHpp")} value={formatCurrencyValue(product.current_hpp)} />
             </GroupBox>
 
             {/* Col 3: Supply Chain */}

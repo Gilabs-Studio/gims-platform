@@ -60,7 +60,7 @@ export function SalaryApproveDialog({
                     <span className="text-muted-foreground">
                       {t("fields.basicSalary")}:
                     </span>
-                    <span className="font-semibold text-emerald-600">
+                    <span className="font-semibold text-success">
                       {formatCurrency(salary.basic_salary)}
                     </span>
                   </div>

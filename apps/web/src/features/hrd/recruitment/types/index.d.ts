@@ -171,3 +171,217 @@ export interface UpdateRecruitmentStatusData {
 export interface UpdateFilledCountData {
   filled_count: number;
 }
+
+// ---- Recruitment Applicant Types ----
+
+export interface ApplicantStage {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  is_won: boolean;
+  is_lost: boolean;
+  is_active: boolean;
+}
+
+export type ApplicantSource =
+  | "linkedin"
+  | "jobstreet"
+  | "glints"
+  | "referral"
+  | "direct"
+  | "other";
+
+export interface RecruitmentApplicant {
+  id: string;
+  recruitment_request_id: string;
+  stage_id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  resume_url?: string;
+  source: ApplicantSource;
+  applied_at: string;
+  last_activity_at: string;
+  rating?: number;
+  notes?: string;
+  stage?: ApplicantStage;
+  employee_id?: string;
+  employee?: EmployeeSummary;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeSummary {
+  id: string;
+  employee_code: string;
+  name: string;
+  email: string;
+}
+
+export interface ApplicantActivity {
+  id: string;
+  applicant_id: string;
+  type: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+  created_by?: string;
+  created_by_name?: string;
+  created_at: string;
+}
+
+export type ActivityType =
+  | "stage_change"
+  | "note_added"
+  | "interview_scheduled"
+  | "interview_completed"
+  | "offer_sent"
+  | "offer_accepted"
+  | "offer_declined"
+  | "hired"
+  | "rejected"
+  | "created"
+  | "updated"
+  | "resume_uploaded"
+  | "rating_changed"
+  | "converted";
+
+// ---- Applicant List/Filter Params ----
+
+export interface ListApplicantsParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  recruitment_request_id?: string;
+  stage_id?: string;
+  source?: ApplicantSource;
+}
+
+export interface ListApplicantsByStageParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  recruitment_request_id?: string;
+  stage_id?: string;
+}
+
+// ---- Applicant API Response Types ----
+
+export interface RecruitmentApplicantListResponse {
+  success: boolean;
+  data: RecruitmentApplicant[];
+  meta?: {
+    pagination?: PaginationMeta;
+  };
+  timestamp: string;
+  request_id: string;
+}
+
+export interface RecruitmentApplicantSingleResponse {
+  success: boolean;
+  data: RecruitmentApplicant;
+  timestamp: string;
+  request_id: string;
+}
+
+export interface ApplicantsByStageResponse {
+  [stageId: string]: {
+    stage_id: string;
+    stage_name: string;
+    stage_color: string;
+    order: number;
+    applicants: RecruitmentApplicant[];
+    total: number;
+  };
+}
+
+export interface ApplicantStageListResponse {
+  success: boolean;
+  data: ApplicantStage[];
+  timestamp: string;
+  request_id: string;
+}
+
+export interface ApplicantActivityListResponse {
+  success: boolean;
+  data: ApplicantActivity[];
+  meta?: {
+    pagination?: PaginationMeta;
+  };
+  timestamp: string;
+  request_id: string;
+}
+
+export interface ApplicantActivitySingleResponse {
+  success: boolean;
+  data: ApplicantActivity;
+  timestamp: string;
+  request_id: string;
+}
+
+// ---- Applicant Create/Update Data Types ----
+
+export interface CreateApplicantData {
+  recruitment_request_id: string;
+  stage_id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  source: ApplicantSource;
+  notes?: string;
+  resume_url?: string;
+}
+
+export interface UpdateApplicantData {
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  source?: ApplicantSource;
+  notes?: string;
+  resume_url?: string;
+  rating?: number;
+}
+
+export interface MoveStageData {
+  to_stage_id: string;
+  reason?: string;
+  notes?: string;
+}
+
+export interface CreateActivityData {
+  type: ActivityType;
+  description: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Convert applicant to employee types
+// All fields are optional - if not provided, backend will use applicant data and defaults
+
+export interface ConvertApplicantToEmployeeData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  division_id?: string;
+  job_position_id?: string;
+  nik?: string;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: 'male' | 'female';
+  religion?: string;
+  address?: string;
+  village_id?: string;
+  contract_type?: 'PKWTT' | 'PKWT' | 'Intern';
+  contract_number?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface CanConvertResponse {
+  success: boolean;
+  data: {
+    can_convert: boolean;
+    reason: string;
+  };
+  timestamp: string;
+  request_id: string;
+}

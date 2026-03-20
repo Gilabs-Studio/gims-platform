@@ -57,6 +57,16 @@ func (h *NonTradePayableHandler) Delete(c *gin.Context) {
 	response.SuccessResponseDeleted(c, "non_trade_payable", id, nil)
 }
 
+func (h *NonTradePayableHandler) Submit(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Submit(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_SUBMIT_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *NonTradePayableHandler) GetByID(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.GetByID(c.Request.Context(), id)
@@ -102,6 +112,16 @@ func (h *NonTradePayableHandler) Approve(c *gin.Context) {
 	res, err := h.uc.Approve(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *NonTradePayableHandler) Reject(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Reject(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "NON_TRADE_PAYABLE_REJECT_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

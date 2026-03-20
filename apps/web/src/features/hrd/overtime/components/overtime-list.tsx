@@ -540,7 +540,7 @@ export function OvertimeList() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleApprove(item)}
-                              className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                               title={t("actions.approve")}
                             >
                               <Check className="h-4 w-4" />
@@ -580,7 +580,7 @@ export function OvertimeList() {
                                     <>
                                       <DropdownMenuItem
                                         onClick={() => handleApprove(item)}
-                                        className="cursor-pointer text-green-600"
+                                        className="cursor-pointer text-success"
                                       >
                                         <Check className="mr-2 h-4 w-4" />
                                         {t("actions.approve")}
@@ -597,7 +597,7 @@ export function OvertimeList() {
                                   {activeTab === "my-requests" && (
                                     <DropdownMenuItem
                                       onClick={() => handleCancel(item.id)}
-                                      className="cursor-pointer text-amber-600"
+                                      className="cursor-pointer text-warning"
                                     >
                                       <X className="mr-2 h-4 w-4" />
                                       {t("actions.cancel")}

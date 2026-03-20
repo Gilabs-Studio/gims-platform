@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -680,6 +680,7 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -688,6 +689,7 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		// Allow submitting from DRAFT state (DRAFT -> SUBMITTED)
 		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
@@ -716,7 +718,12 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice.submit", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice.submit", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -724,6 +731,7 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -732,6 +740,7 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -759,7 +768,12 @@ func (uc *supplierInvoiceUsecase) Approve(ctx context.Context, id string) (*dto.
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice.approve", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice.approve", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -767,6 +781,7 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -775,6 +790,7 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -802,7 +818,12 @@ func (uc *supplierInvoiceUsecase) Reject(ctx context.Context, id string) (*dto.S
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice.reject", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice.reject", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -810,6 +831,7 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -818,6 +840,7 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 		if si.Type != models.SupplierInvoiceTypeNormal {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
 			si.Status == models.SupplierInvoiceStatusSubmitted ||
 			si.Status == models.SupplierInvoiceStatusApproved
@@ -848,7 +871,12 @@ func (uc *supplierInvoiceUsecase) Cancel(ctx context.Context, id string) (*dto.S
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice.cancel", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice.cancel", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -1082,6 +1110,9 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 
 	refID := si.ID
 	refType := "SUPPLIER_INVOICE"
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
 
 	req := &finDto.CreateJournalEntryRequest{
 		EntryDate:     si.InvoiceDate,
@@ -1091,8 +1122,31 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
-	return err
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "purchase_supplier_invoice",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "purchase_supplier_invoice",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "purchase_supplier_invoice",
+	})
+
+	return nil
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {
@@ -1142,11 +1196,9 @@ func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 
 	entries := make([]dto.SupplierInvoiceAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {

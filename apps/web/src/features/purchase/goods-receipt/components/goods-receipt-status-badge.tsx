@@ -44,7 +44,7 @@ export function GoodsReceiptStatusBadge({ status, className, onClick }: GoodsRec
       );
     case "closed":
       return (
-        <Badge variant="secondary" className={`bg-slate-700 hover:bg-slate-800 text-white border-transparent ${className ?? ""} ${interactiveClass}`.trim()} onClick={onClick}>
+        <Badge variant="secondary" className={`bg-mutedslate hover:bg-mutedslate text-white border-transparent ${className ?? ""} ${interactiveClass}`.trim()} onClick={onClick}>
           <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("closed")}
         </Badge>

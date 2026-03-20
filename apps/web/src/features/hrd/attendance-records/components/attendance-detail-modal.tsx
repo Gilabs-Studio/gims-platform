@@ -7,15 +7,16 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  MapPin,
+  
   User,
   FileText,
   CalendarIcon,
   Home,
   Coffee,
   Briefcase,
-  Globe,
+  
   Shield,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatDate } from "@/lib/utils";
 import type { AttendanceRecord, AttendanceStatus } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -155,12 +157,7 @@ export function AttendanceDetailModal({
                   {getStatusBadge(displayRecord.status)}
                   <span className="text-sm text-muted-foreground flex items-center">
                     <CalendarIcon className="h-3 w-3 mr-1" />
-                    {new Date(displayRecord.date).toLocaleDateString("id-ID", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {formatDate(displayRecord.date)}
                   </span>
                 </div>
               </div>
@@ -188,6 +185,70 @@ export function AttendanceDetailModal({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("fields.workingHours")}
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      {displayRecord.working_hours || "-"}
+                    </p>
+                  </div>
+                  <Clock className="h-6 w-6 text-emerald-600" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("stats.totalWorkingHoursDescription")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("fields.overtimeHours")}
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      {displayRecord.overtime_hours || "-"}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="h-6 w-6 text-warning" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("stats.totalOvertimeDescription")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("fields.lateMinutes")}
+                    </p>
+                    <p className="text-2xl font-semibold text-destructive">
+                      {displayRecord.late_minutes > 0
+                        ? `${displayRecord.late_minutes}m`
+                        : "-"}
+                    </p>
+                  </div>
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("stats.totalLateDescription")}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("fields.status")}
+                    </p>
+                    <div className="mt-1">{getStatusBadge(displayRecord.status)}</div>
+                  </div>
+                  <Shield className="h-6 w-6 text-primary" />
+                </div>
               </div>
             </div>
           </DialogHeader>
@@ -362,7 +423,7 @@ export function AttendanceDetailModal({
                     </p>
                   </div>
                   <div className="text-center p-3 bg-background rounded-lg border">
-                    <p className="text-2xl font-bold text-amber-600">
+                    <p className="text-2xl font-bold text-warning">
                       {displayRecord.early_leave_minutes > 0
                         ? `${displayRecord.early_leave_minutes}m`
                         : "-"}

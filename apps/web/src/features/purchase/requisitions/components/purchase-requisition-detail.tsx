@@ -36,7 +36,8 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { QuotationProductDetailModal } from "@/features/sales/quotation/components/quotation-product-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
@@ -84,7 +85,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
   const canPrint = useUserPermission("purchase_requisition.print");
   const canViewSupplier = useUserPermission("supplier.read");
   const canViewProduct = useUserPermission("product.read");
-  const canAuditTrail = useUserPermission("purchase_requisition.audit_trail");
+  const canAuditTrail = useUserPermission("purchase_requisition.read");
   const hasPurchaseOrderRead = useUserPermission("purchase_order.read");
   const purchaseOrderScope = usePermissionScope("purchase_order.read");
   const { user } = useAuthStore();
@@ -123,8 +124,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
       toast.success(t("toast.deleted"));
       setIsDeleteOpen(false);
       onClose();
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -133,8 +134,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await submitMutation.mutateAsync(id);
       toast.success(t("toast.submitted"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -143,8 +144,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await approveMutation.mutateAsync(id);
       toast.success(t("toast.approved"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -153,8 +154,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
     try {
       await rejectMutation.mutateAsync(id);
       toast.success(t("toast.rejected"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -165,8 +166,8 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
       const poId = res?.data?.purchase_order_id;
       toast.success(t("toast.converted"));
       if (poId && canViewLinkedPurchaseOrder()) setSelectedPurchaseOrderId(poId);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -183,7 +184,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                 <div className="flex items-center gap-3">
                   {pr && <PurchaseRequisitionStatusBadge status={pr.status} />}
                   <span className="text-sm text-muted-foreground">
-                    {pr?.request_date && new Date(pr.request_date).toLocaleDateString()}
+                    {pr?.request_date && formatDate(pr.request_date)}
                   </span>
                 </div>
               </div>
@@ -195,7 +196,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsPrintOpen(true)}
-                    className="cursor-pointer text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                    className="cursor-pointer text-purple hover:text-purple hover:bg-purple/10"
                     title={t("print")}
                   >
                     <Printer className="h-4 w-4" />
@@ -229,7 +230,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     size="icon"
                     onClick={handleSubmit}
                     disabled={submitMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                   >
                     <Send className="h-4 w-4" />
@@ -241,7 +242,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     size="icon"
                     onClick={handleApprove}
                     disabled={approveMutation.isPending}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -253,7 +254,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     size="icon"
                     onClick={handleReject}
                     disabled={rejectMutation.isPending}
-                    className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-red-50"
                     title={t("actions.reject")}
                   >
                     <XCircle className="h-4 w-4" />
@@ -265,7 +266,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     size="icon"
                     onClick={handleConvert}
                     disabled={convertMutation.isPending}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("convertToOrder")}
                   >
                     <FileText className="h-4 w-4" />
@@ -287,7 +288,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
-                {canAuditTrail && <TabsTrigger value="audit_trail">{t("auditTrail.title")}</TabsTrigger>}
+                {canAuditTrail && <TabsTrigger value="audit_trail">{t("tabs.auditTrail")}</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -300,7 +301,7 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                         <TableCell className="font-medium bg-muted/50 w-48">{t("fields.code")}</TableCell>
                         <TableCell>{pr.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("columns.requestDate")}</TableCell>
-                        <TableCell>{pr.request_date ? new Date(pr.request_date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{pr.request_date ? formatDate(pr.request_date) : "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>

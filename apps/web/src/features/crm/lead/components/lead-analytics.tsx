@@ -76,20 +76,20 @@ export function LeadAnalytics() {
           icon={TrendingUp}
           label={t("analytics.conversionRate")}
           value={conversionRateFormatted}
-          color="bg-green-500/10 text-green-600"
+          color="bg-success/10 text-success"
         />
         <StatCard
           icon={Target}
           label={t("analytics.avgScore")}
           value={avgScoreFormatted}
-          color="bg-yellow-500/10 text-yellow-600"
+          color="bg-warning/10 text-warning"
         />
         <StatCard
           icon={BarChart3}
           label={t("analytics.byStatus")}
           value={analytics.by_status?.length ?? 0}
           sub={`${analytics.by_source?.length ?? 0} ${t("analytics.bySource").toLowerCase()}`}
-          color="bg-blue-500/10 text-blue-600"
+          color="bg-primary/10 text-primary"
         />
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +24,12 @@ import {
   useApproveDeliveryOrder,
   useShipDeliveryOrder,
   useDeliverDeliveryOrder,
+  useDeliveryOrderAuditTrail,
 } from "../hooks/use-deliveries";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import type { DeliveryOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -36,6 +38,9 @@ import { OrderDetailModal } from "../../order/components/order-detail-modal";
 import type { SalesOrder } from "../../order/types";
 import { QuotationProductDetailModal } from "../../quotation/components/quotation-product-detail-modal";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
+import { CreateSalesReturnDialog } from "../../returns/components/create-sales-return-dialog";
+import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -57,11 +62,19 @@ export function DeliveryDetailModal({
   const [isDeliverDialogOpen, setIsDeliverDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("delivery");
 
   const { data: detailData, isLoading } = useDeliveryOrder(delivery?.id ?? "", {
     enabled: open && !!delivery?.id,
   });
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useDeliveryOrderAuditTrail(
+    delivery?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!delivery?.id && activeTab === "audit-trail" },
+  );
 
   const canEdit = useUserPermission("delivery_order.update");
   const canDelete = useUserPermission("delivery_order.delete");
@@ -69,12 +82,22 @@ export function DeliveryDetailModal({
   const canDeliver = useUserPermission("delivery_order.deliver");
   const canApprove = useUserPermission("delivery_order.approve");
   const canCreateInvoice = useUserPermission("customer_invoice.create");
+  const canCreateSalesReturn = useUserPermission("sales_return.create");
   const canUpdate = useUserPermission("delivery_order.update");
 
   const updateStatus = useUpdateDeliveryOrderStatus();
   const approveMutation = useApproveDeliveryOrder();
 
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);
+  const [isCreateReturnOpen, setIsCreateReturnOpen] = useState(false);
+
+  const { data: salesReturnHistoryResponse } = useSalesReturns(
+    {
+      per_page: 20,
+      delivery_id: delivery?.id,
+    },
+    { enabled: open && !!delivery?.id },
+  );
 
   const {
     canViewProduct,
@@ -84,10 +107,71 @@ export function DeliveryDetailModal({
     openProduct, openSalesOrder,
   } = useDeliveryDetail();
 
-  if (!delivery) return null;
-
   const displayDelivery = detailData?.data ?? delivery;
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayDelivery) return [];
+
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayDelivery.id}-created`,
+          action: "delivery_order.create",
+          at: displayDelivery.created_at,
+          user: displayDelivery.created_by,
+          metadata: {
+            details: `Created delivery order ${displayDelivery.code}`,
+          },
+        },
+        {
+          id: `${displayDelivery.id}-updated`,
+          action: "delivery_order.update",
+          at: displayDelivery.updated_at,
+          metadata:
+            displayDelivery.updated_at && displayDelivery.updated_at !== displayDelivery.created_at
+              ? { details: "Delivery order data updated" }
+              : null,
+        },
+        {
+          id: `${displayDelivery.id}-shipped`,
+          action: "delivery_order.ship",
+          at: displayDelivery.shipped_at,
+          user: displayDelivery.shipped_by,
+          metadata: {
+            status: "shipped",
+          },
+        },
+        {
+          id: `${displayDelivery.id}-delivered`,
+          action: "delivery_order.deliver",
+          at: displayDelivery.delivered_at,
+          user: displayDelivery.delivered_by?.name,
+          metadata: {
+            status: "delivered",
+          },
+        },
+        {
+          id: `${displayDelivery.id}-cancelled`,
+          action: "delivery_order.cancel",
+          at: displayDelivery.cancelled_at,
+          user: displayDelivery.cancelled_by,
+          metadata: {
+            status: "cancelled",
+            details: displayDelivery.cancellation_reason ?? "Delivery order cancelled",
+          },
+        },
+      ]);
+    },
+    [displayDelivery],
+  );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!delivery || !displayDelivery) return null;
+
   const allItems = displayDelivery.items ?? [];
+  const salesReturnHistory = salesReturnHistoryResponse?.data ?? [];
+  const hasSalesReturn = salesReturnHistory.length > 0;
   const totalItems = allItems.length;
   const paginatedItems = allItems.slice(
     (itemsPage - 1) * pageSize,
@@ -157,7 +241,15 @@ export function DeliveryDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -165,8 +257,14 @@ export function DeliveryDetailModal({
                 <DialogTitle className="text-xl mb-2">{displayDelivery?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
                   {delivery && getStatusBadge(delivery.status)}
+                  {hasSalesReturn && (
+                    <Badge variant="warning" className="text-xs font-medium">
+                      <Receipt className="h-3 w-3 mr-1.5" />
+                      {t("status.returned")}
+                    </Badge>
+                  )}
                   <span className="text-sm text-muted-foreground">
-                    {displayDelivery?.delivery_date && new Date(displayDelivery.delivery_date).toLocaleDateString()}
+                    {displayDelivery?.delivery_date && formatDate(displayDelivery.delivery_date)}
                   </span>
                 </div>
               </div>
@@ -197,7 +295,7 @@ export function DeliveryDetailModal({
                         toast.error(t("common.error"));
                       }
                     }}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.submit")}
                     disabled={updateStatus.isPending}
                   >
@@ -221,7 +319,7 @@ export function DeliveryDetailModal({
                             toast.error(t("common.error"));
                           }
                         }}
-                        className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                         title={t("actions.approve")}
                         disabled={approveMutation.isPending}
                       >
@@ -267,7 +365,7 @@ export function DeliveryDetailModal({
                         toast.error(t("common.error"));
                       }
                     }}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.prepare")}
                     disabled={updateStatus.isPending}
                   >
@@ -290,7 +388,7 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsShipDialogOpen(true)}
-                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
                     title={t("actions.ship")}
                   >
                     <Truck className="h-4 w-4" />
@@ -301,7 +399,7 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsDeliverDialogOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.deliver")}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -312,8 +410,19 @@ export function DeliveryDetailModal({
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsCreateInvoiceOpen(true)}
-                    className="cursor-pointer text-green-600 hover:text-green-700 hover:bg-green-50"
+                    className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.createInvoice")}
+                  >
+                    <Receipt className="h-4 w-4" />
+                  </Button>
+                )}
+                {displayDelivery?.status === "delivered" && canCreateSalesReturn && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsCreateReturnOpen(true)}
+                    className="cursor-pointer text-warning hover:text-warning hover:bg-warning/10"
+                    title="Create Return"
                   >
                     <Receipt className="h-4 w-4" />
                   </Button>
@@ -328,10 +437,17 @@ export function DeliveryDetailModal({
               <Skeleton className="h-64 w-full" />
             </div>
           ) : (
-            <Tabs defaultValue="general" className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) =>
+                setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+              }
+              className="w-full"
+            >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -344,11 +460,20 @@ export function DeliveryDetailModal({
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
                         <TableCell>{displayDelivery.code}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("deliveryDate")}</TableCell>
-                        <TableCell>{new Date(displayDelivery.delivery_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(displayDelivery.delivery_date)}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("common.status")}</TableCell>
-                        <TableCell>{getStatusBadge(displayDelivery.status)}</TableCell>
+                        <TableCell>
+                          {hasSalesReturn ? (
+                            <Badge variant="warning" className="text-xs font-medium">
+                              <Receipt className="h-3 w-3 mr-1.5" />
+                              {t("status.returned")}
+                            </Badge>
+                          ) : (
+                            getStatusBadge(displayDelivery.status)
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("salesOrder")}</TableCell>
                         <TableCell>
                           {canViewSalesOrder && displayDelivery.sales_order_id ? (
@@ -420,7 +545,7 @@ export function DeliveryDetailModal({
                 )}
 
                 {/* Workflow History */}
-                {(displayDelivery.shipped_at || displayDelivery.delivered_at) && (
+                {(displayDelivery.shipped_at || displayDelivery.delivered_at || displayDelivery.receiver_signature) && (
                   <>
                     <Separator />
                     <div>
@@ -440,12 +565,67 @@ export function DeliveryDetailModal({
                                 <TableCell>{new Date(displayDelivery.delivered_at).toLocaleString()}</TableCell>
                               </TableRow>
                             )}
+                            {displayDelivery.receiver_signature && (
+                              <TableRow>
+                                <TableCell className="font-medium bg-muted/50">{t("receiverSignature")}</TableCell>
+                                <TableCell>
+                                  <a
+                                    href={resolveImageUrl(displayDelivery.receiver_signature) ?? displayDelivery.receiver_signature}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex cursor-pointer flex-col gap-2"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={resolveImageUrl(displayDelivery.receiver_signature) ?? displayDelivery.receiver_signature}
+                                      alt={t("receiverSignature")}
+                                      className="h-28 w-28 rounded-md border object-cover"
+                                    />
+                                  </a>
+                                </TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </div>
                     </div>
                   </>
                 )}
+
+                <Separator />
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold">Return History</h3>
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Return Number</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesReturnHistory.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                              No return history for this delivery order.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          salesReturnHistory.map((history) => (
+                            <TableRow key={history.id}>
+                              <TableCell className="font-medium">{history.return_number}</TableCell>
+                              <TableCell>{history.status}</TableCell>
+                              <TableCell>{formatDate(history.created_at)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(history.total_amount ?? 0)}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="items" className="space-y-4 py-4">
@@ -511,6 +691,33 @@ export function DeliveryDetailModal({
                     />
                   )}
                 </>
+              </TabsContent>
+
+              <TabsContent value="audit-trail" className="py-4">
+                <AuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
               </TabsContent>
             </Tabs>
           )}
@@ -593,6 +800,12 @@ export function DeliveryDetailModal({
           defaultDeliveryOrderId={displayDelivery?.id}
         />
       )}
+
+      <CreateSalesReturnDialog
+        open={isCreateReturnOpen}
+        onOpenChange={setIsCreateReturnOpen}
+        deliveryId={displayDelivery?.id}
+      />
     </>
   );
 }

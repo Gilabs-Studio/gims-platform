@@ -77,6 +77,10 @@ export const hrdEn = {
       calendarView: "Calendar View",
       noRecords: "No attendance records found",
       noRecordsDesc: "No attendance records match the current filters",
+      calendar: {
+        workDay: "Work Day",
+        nonWorkDay: "Non-Work Day",
+      },
 
       // Status
       status: {
@@ -120,6 +124,8 @@ export const hrdEn = {
         checkInType: "Check-In Type",
         status: "Status",
         lateMinutes: "Late (minutes)",
+        schedule: "Schedule",
+        paidTime: "Paid Time",
         workingMinutes: "Working Time",
         workingHours: "Working Hours",
         overtimeMinutes: "Overtime",
@@ -219,6 +225,8 @@ export const hrdEn = {
 
       // Stats
       stats: {
+        totalRecords: "Total Records",
+        totalRecordsDescription: "Total attendance entries for the current period",
         totalWorkingDays: "Working Days",
         presentDays: "Present",
         absentDays: "Absent",
@@ -226,8 +234,11 @@ export const hrdEn = {
         leaveDays: "Leave",
         halfDays: "Half Day",
         totalWorkingHours: "Working Hours",
+        totalWorkingHoursDescription: "Total hours worked across all attendance records",
         totalOvertimeHours: "Overtime Hours",
+        totalOvertimeDescription: "Total overtime hours across records",
         totalLateMinutes: "Late Minutes",
+        totalLateDescription: "Total late minutes across records",
         attendanceRate: "Attendance Rate",
       },
 

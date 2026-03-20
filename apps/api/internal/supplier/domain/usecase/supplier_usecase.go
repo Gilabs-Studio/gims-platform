@@ -75,6 +75,12 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	if req.SupplierTypeID != "" {
 		supplier.SupplierTypeID = &req.SupplierTypeID
 	}
+	if req.PaymentTermsID != "" {
+		supplier.PaymentTermsID = &req.PaymentTermsID
+	}
+	if req.BusinessUnitID != "" {
+		supplier.BusinessUnitID = &req.BusinessUnitID
+	}
 	if req.ProvinceID != "" {
 		supplier.ProvinceID = &req.ProvinceID
 	}
@@ -197,6 +203,20 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 			supplier.SupplierTypeID = req.SupplierTypeID
 		}
 	}
+	if req.PaymentTermsID != nil {
+		if *req.PaymentTermsID == "" {
+			supplier.PaymentTermsID = nil
+		} else {
+			supplier.PaymentTermsID = req.PaymentTermsID
+		}
+	}
+	if req.BusinessUnitID != nil {
+		if *req.BusinessUnitID == "" {
+			supplier.BusinessUnitID = nil
+		} else {
+			supplier.BusinessUnitID = req.BusinessUnitID
+		}
+	}
 	if req.ProvinceID != nil {
 		if *req.ProvinceID == "" {
 			supplier.ProvinceID = nil
@@ -243,6 +263,8 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 	// Without this, GORM syncs FK columns back to the loaded association's PK,
 	// reverting any FK changes made above.
 	supplier.SupplierType = nil
+	supplier.PaymentTerms = nil
+	supplier.BusinessUnit = nil
 	supplier.Province = nil
 	supplier.City = nil
 	supplier.District = nil

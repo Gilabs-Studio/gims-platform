@@ -88,7 +88,7 @@ function HighlightText({ text, searchTerm }: { text: string; searchTerm?: string
     <span>
       {parts.map((part, i) =>
         part.toLowerCase() === searchTerm.toLowerCase() ? (
-          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+          <mark key={i} className="bg-warning dark:bg-warning rounded px-0.5">
             {part}
           </mark>
         ) : (
@@ -170,9 +170,9 @@ function TreeNode({
 
         {/* Folder icon */}
         {isExpanded ? (
-          <FolderOpen className="h-4 w-4 text-amber-500 shrink-0" />
+          <FolderOpen className="h-4 w-4 text-warning shrink-0" />
         ) : (
-          <Folder className="h-4 w-4 text-amber-500/70 shrink-0" />
+          <Folder className="h-4 w-4 text-warning/70 shrink-0" />
         )}
 
         {/* Category name */}

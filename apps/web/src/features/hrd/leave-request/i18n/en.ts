@@ -24,6 +24,11 @@ export const leaveRequestEn = {
     tabs: {
       general: "General",
       timeline: "Timeline",
+      auditTrail: "Audit Trail",
+    },
+    calendarRange: {
+      title: "Leave Date Range",
+      description: "Leave scheduled from {from} to {to}",
     },
     employeeInfo: "Employee Information",
     employeeCode: "Employee Code",
@@ -45,6 +50,27 @@ export const leaveRequestEn = {
       updated: "Leave request updated",
       approved: "Leave request approved",
       rejected: "Leave request rejected",
+    },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit trail entries",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time",
+        details: "Details",
+      },
+      actions: {
+        create: "Create",
+        update: "Update",
+        delete: "Delete",
+        approve: "Approve",
+        reject: "Reject",
+        cancel: "Cancel",
+        reapprove: "Re-approve",
+        view: "View",
+        auditTrail: "Audit Trail",
+      },
     },
     status: {
       label: "Status",

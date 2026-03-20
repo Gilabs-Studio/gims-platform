@@ -39,7 +39,7 @@ export function GoodsReceiptPrintDialog({
   const [isPrinting, setIsPrinting] = useState(false);
 
   const { data: companiesData, isLoading: companiesLoading } = useCompanies(
-    { per_page: 100, status: "approved" },
+    { per_page: 20, status: "approved" },
     { enabled: open }
   );
 

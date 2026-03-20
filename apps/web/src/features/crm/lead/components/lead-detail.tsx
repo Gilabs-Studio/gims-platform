@@ -109,7 +109,7 @@ function ConversionReadiness({ fields }: { fields: CheckField[] }) {
           <div
             className={cn(
               "h-2 rounded-full transition-all",
-              percent >= 80 ? "bg-green-500" : percent >= 50 ? "bg-yellow-500" : "bg-destructive/70"
+              percent >= 80 ? "bg-success" : percent >= 50 ? "bg-warning" : "bg-destructive/70"
             )}
             style={{ width: `${percent}%` }}
           />
@@ -122,7 +122,7 @@ function ConversionReadiness({ fields }: { fields: CheckField[] }) {
         {fields.map((field) => (
           <div key={field.key} className="flex items-center gap-1.5">
             {field.filled ? (
-              <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
+              <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
             ) : (
               <XCircle
                 className={cn(
@@ -328,9 +328,9 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   ].filter(Boolean).length;
   const scoreColor =
     lead.lead_score >= 70
-      ? "text-green-600"
+      ? "text-success"
       : lead.lead_score >= 40
-      ? "text-yellow-600"
+      ? "text-warning"
       : "text-muted-foreground";
 
   // Sorted statuses for stepper and next-step detection
@@ -647,7 +647,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                               
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className={`cursor-help select-none ${item.is_deleted ? "text-muted-foreground" : "text-amber-500"}`}>
+                                  <span className={`cursor-help select-none ${item.is_deleted ? "text-muted-foreground" : "text-warning"}`}>
                                     {"★".repeat(item.interest_level)}{"☆".repeat(Math.max(0, 5 - item.interest_level))}
                                   </span>
                                 </TooltipTrigger>
@@ -668,7 +668,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                                               <span className="font-medium text-right whitespace-nowrap">
                                                 {sa.option_text}
                                                 {sa.score !== 0 && (
-                                                  <span className="ml-1 text-amber-500">({sa.score})</span>
+                                                  <span className="ml-1 text-warning">({sa.score})</span>
                                                 )}
                                               </span>
                                             </li>
@@ -831,7 +831,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     <p className="text-sm text-muted-foreground">-</p>
                   )}
                   {!lead.customer_id && (
-                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-600/40">
+                    <Badge variant="outline" className="text-xs text-warning border-amber-600/40">
                       {t("potentialCustomer")}
                     </Badge>
                   )}
@@ -908,10 +908,17 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                         </Button>
                       </div>
                       {lead.latitude != null && lead.longitude != null ? (
-                        <button
-                          type="button"
+                        <div
+                          role="button"
+                          tabIndex={0}
                           className="w-full h-48 rounded-md border overflow-hidden cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group relative"
                           onClick={() => setShowMapPicker(true)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setShowMapPicker(true);
+                            }
+                          }}
                           title={t("clickToUpdateLocation")}
                         >
                           <MapView
@@ -943,7 +950,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                               {t("clickToUpdateLocation")}
                             </Badge>
                           </div>
-                        </button>
+                        </div>
                       ) : (
                         <button
                           type="button"
@@ -1004,7 +1011,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                   <div className="space-y-2 text-xs">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-block h-2 w-2 rounded-full ${lead.budget_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.budget_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                         <span className="font-medium text-muted-foreground uppercase">Budget</span>
                       </div>
                       {lead.budget_amount > 0 && (
@@ -1013,7 +1020,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     </div>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-block h-2 w-2 rounded-full ${lead.auth_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.auth_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                         <span className="font-medium text-muted-foreground uppercase">Authority</span>
                       </div>
                       {lead.auth_person && (
@@ -1022,7 +1029,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     </div>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-block h-2 w-2 rounded-full ${lead.need_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.need_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                         <span className="font-medium text-muted-foreground uppercase">Need</span>
                       </div>
                       {lead.need_description && (
@@ -1031,7 +1038,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                     </div>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-block h-2 w-2 rounded-full ${lead.time_confirmed ? "bg-green-500" : "bg-gray-300"}`} />
+                        <span className={`inline-block h-2 w-2 rounded-full ${lead.time_confirmed ? "bg-success" : "bg-mutedgray"}`} />
                         <span className="font-medium text-muted-foreground uppercase">Timeline</span>
                       </div>
                       {lead.time_expected && (

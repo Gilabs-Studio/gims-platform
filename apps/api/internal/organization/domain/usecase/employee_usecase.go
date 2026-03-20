@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -15,29 +16,29 @@ import (
 )
 
 var (
-	ErrEmployeeNotFound    = errors.New("employee not found")
-	ErrEmployeeCodeExists  = errors.New("employee code already exists")
-	ErrReplacementNotFound = errors.New("replacement employee not found")
-	ErrContractNotFound              = errors.New("contract not found")
-	ErrEducationNotFound             = errors.New("education history not found")
-	ErrInvalidDegreeLevel            = errors.New("invalid degree level")
-	ErrInvalidEducationDates         = errors.New("end date must be after start date")
-	ErrInvalidContractType           = errors.New("invalid contract type")
-	ErrInvalidContractDates          = errors.New("invalid contract dates")
-	ErrPKWTTCannotHaveEndDate        = errors.New("PKWTT contract cannot have end date")
-	ErrPKWTMustHaveEndDate           = errors.New("PKWT/Intern contract must have end date")
-	ErrCannotModifyTerminated        = errors.New("cannot modify terminated contract")
-	ErrCannotTerminateInactive       = errors.New("can only terminate active contracts")
-	ErrActiveContractExists          = errors.New("employee already has an active contract")
-	ErrNoActiveContract              = errors.New("employee has no active contract")
-	ErrOngoingEducationExists        = errors.New("employee already has an ongoing education")
-	ErrInvalidGPA                    = errors.New("GPA must be between 1.00 and 4.00")
-	ErrCertificationNotFound         = errors.New("certification not found")
-	ErrInvalidCertificationDates     = errors.New("expiry date must be after issue date")
-	ErrAssetNotFound                 = errors.New("asset not found")
-	ErrAssetAlreadyReturned          = errors.New("asset already returned")
-	ErrInvalidReturnDate             = errors.New("return date must be after borrow date")
-	ErrDuplicateAssetCode            = errors.New("asset code already exists")
+	ErrEmployeeNotFound          = errors.New("employee not found")
+	ErrEmployeeCodeExists        = errors.New("employee code already exists")
+	ErrReplacementNotFound       = errors.New("replacement employee not found")
+	ErrContractNotFound          = errors.New("contract not found")
+	ErrEducationNotFound         = errors.New("education history not found")
+	ErrInvalidDegreeLevel        = errors.New("invalid degree level")
+	ErrInvalidEducationDates     = errors.New("end date must be after start date")
+	ErrInvalidContractType       = errors.New("invalid contract type")
+	ErrInvalidContractDates      = errors.New("invalid contract dates")
+	ErrPKWTTCannotHaveEndDate    = errors.New("PKWTT contract cannot have end date")
+	ErrPKWTMustHaveEndDate       = errors.New("PKWT/Intern contract must have end date")
+	ErrCannotModifyTerminated    = errors.New("cannot modify terminated contract")
+	ErrCannotTerminateInactive   = errors.New("can only terminate active contracts")
+	ErrActiveContractExists      = errors.New("employee already has an active contract")
+	ErrNoActiveContract          = errors.New("employee has no active contract")
+	ErrOngoingEducationExists    = errors.New("employee already has an ongoing education")
+	ErrInvalidGPA                = errors.New("GPA must be between 1.00 and 4.00")
+	ErrCertificationNotFound     = errors.New("certification not found")
+	ErrInvalidCertificationDates = errors.New("expiry date must be after issue date")
+	ErrAssetNotFound             = errors.New("asset not found")
+	ErrAssetAlreadyReturned      = errors.New("asset already returned")
+	ErrInvalidReturnDate         = errors.New("return date must be after borrow date")
+	ErrDuplicateAssetCode        = errors.New("asset code already exists")
 )
 
 // EmployeeUsecase defines the interface for employee business logic
@@ -83,6 +84,10 @@ type EmployeeUsecase interface {
 	UpdateEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.UpdateEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
 	ReturnEmployeeAsset(ctx context.Context, employeeID string, assetID string, req dto.ReturnEmployeeAssetRequest) (dto.EmployeeAssetResponse, error)
 	DeleteEmployeeAsset(ctx context.Context, employeeID string, assetID string) error
+	// Signature management methods
+	GetEmployeeSignature(ctx context.Context, employeeID string) (*dto.EmployeeSignatureResponse, error)
+	UploadEmployeeSignature(ctx context.Context, employeeID string, filePath string, fileName string, fileSize int64, fileHash string, mimeType string, width int, height int, uploadedBy string) (*dto.EmployeeSignatureResponse, error)
+	DeleteEmployeeSignature(ctx context.Context, employeeID string) error
 }
 
 type employeeUsecase struct {
@@ -96,6 +101,7 @@ type employeeUsecase struct {
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository
 	certificationRepo    repositories.EmployeeCertificationRepository
 	assetRepo            repositories.EmployeeAssetRepository
+	signatureRepo        repositories.EmployeeSignatureRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
@@ -110,6 +116,7 @@ func NewEmployeeUsecase(
 	educationHistoryRepo repositories.EmployeeEducationHistoryRepository,
 	certificationRepo repositories.EmployeeCertificationRepository,
 	assetRepo repositories.EmployeeAssetRepository,
+	signatureRepo repositories.EmployeeSignatureRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
 		employeeRepo:         employeeRepo,
@@ -122,6 +129,7 @@ func NewEmployeeUsecase(
 		educationHistoryRepo: educationHistoryRepo,
 		certificationRepo:    certificationRepo,
 		assetRepo:            assetRepo,
+		signatureRepo:        signatureRepo,
 	}
 }
 
@@ -1632,4 +1640,92 @@ func (u *employeeUsecase) DeleteEmployeeAsset(ctx context.Context, employeeID st
 	}
 
 	return u.assetRepo.Delete(ctx, assetID)
+}
+
+// GetEmployeeSignature retrieves the employee's signature
+func (u *employeeUsecase) GetEmployeeSignature(ctx context.Context, employeeID string) (*dto.EmployeeSignatureResponse, error) {
+	log.Printf("[DEBUG] GetEmployeeSignature called for employeeID: %s", employeeID)
+
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		log.Printf("[DEBUG] GetEmployeeSignature: employee not found for ID: %s", employeeID)
+		return nil, ErrEmployeeNotFound
+	}
+	log.Printf("[DEBUG] GetEmployeeSignature: employee found for ID: %s", employeeID)
+
+	signature, err := u.signatureRepo.GetByEmployeeID(ctx, employeeID)
+	if err != nil {
+		log.Printf("[DEBUG] GetEmployeeSignature: failed to get signature for employeeID: %s, error: %v", employeeID, err)
+		return nil, fmt.Errorf("failed to get signature: %w", err)
+	}
+
+	if signature == nil {
+		log.Printf("[DEBUG] GetEmployeeSignature: no signature found for employeeID: %s", employeeID)
+		return nil, nil
+	}
+
+	log.Printf("[DEBUG] GetEmployeeSignature: signature found for employeeID: %s, fileName: %s, filePath: %s, dimensions: %dx%d",
+		employeeID, signature.FileName, signature.FilePath, signature.Width, signature.Height)
+
+	return mapper.ToEmployeeSignatureResponse(signature), nil
+}
+
+// UploadEmployeeSignature uploads or replaces an employee's signature
+func (u *employeeUsecase) UploadEmployeeSignature(ctx context.Context, employeeID string, filePath string, fileName string, fileSize int64, fileHash string, mimeType string, width int, height int, uploadedBy string) (*dto.EmployeeSignatureResponse, error) {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return nil, ErrEmployeeNotFound
+	}
+
+	// Check if employee already has a signature (including soft deleted), if so hard delete it
+	// Using GetAnyByEmployeeID with Unscoped to find signatures including soft deleted ones
+	existingSignature, err := u.signatureRepo.GetAnyByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing signature: %w", err)
+	}
+
+	if existingSignature != nil {
+		// Hard delete the existing signature to avoid unique constraint violation
+		// Soft delete would keep the record in DB causing duplicate key error on new insert
+		if err := u.signatureRepo.HardDelete(ctx, existingSignature.ID.String()); err != nil {
+			return nil, fmt.Errorf("failed to delete existing signature: %w", err)
+		}
+	}
+
+	// Create new signature
+	signature := &models.EmployeeSignature{
+		ID:         uuid.New(),
+		EmployeeID: employeeID,
+		FilePath:   filePath,
+		FileName:   fileName,
+		FileSize:   fileSize,
+		FileHash:   fileHash,
+		MimeType:   mimeType,
+		Width:      width,
+		Height:     height,
+		UploadedBy: uploadedBy,
+		UploadedAt: apptime.Now(),
+	}
+
+	if err := u.signatureRepo.Create(ctx, signature); err != nil {
+		return nil, fmt.Errorf("failed to create signature: %w", err)
+	}
+
+	return mapper.ToEmployeeSignatureResponse(signature), nil
+}
+
+// DeleteEmployeeSignature soft deletes the employee's signature
+func (u *employeeUsecase) DeleteEmployeeSignature(ctx context.Context, employeeID string) error {
+	if _, err := u.employeeRepo.FindByID(ctx, employeeID); err != nil {
+		return ErrEmployeeNotFound
+	}
+
+	signature, err := u.signatureRepo.GetByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return fmt.Errorf("failed to get signature: %w", err)
+	}
+
+	if signature == nil {
+		return errors.New("employee does not have a signature")
+	}
+
+	return u.signatureRepo.SoftDelete(ctx, signature.ID.String())
 }

@@ -556,10 +556,10 @@ export function ProductCatalog() {
                           const s = getStockStatus(product);
                           const qty = product.current_stock ?? 0;
                           const colors = {
-                            ok:   "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-                            low:  "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-                            out:  "bg-rose-500/10 text-rose-700 dark:text-rose-400",
-                            over: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+                            ok:   "bg-success/10 text-success dark:text-success",
+                            low:  "bg-warning/10 text-warning dark:text-warning",
+                            out:  "bg-rose text-accent dark:text-accent",
+                            over: "bg-primary/10 text-primary dark:text-primary",
                           }[s];
                           return (
                             <span className={cn("inline-flex items-center gap-1 rounded text-[10px] font-medium px-1.5 py-0.5", colors)}>

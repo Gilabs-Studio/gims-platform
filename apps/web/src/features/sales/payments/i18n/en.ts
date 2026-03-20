@@ -47,6 +47,10 @@ export const salesPaymentEn = {
     referenceNumber: "Reference Number",
     notes: "Notes",
   },
+  tabs: {
+    general: "General",
+    auditTrail: "Audit Trail",
+  },
   placeholders: {
     select: "Select...",
     pickDate: "Pick a date",

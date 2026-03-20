@@ -3,21 +3,31 @@ package dto
 import "time"
 
 type PurchaseRequisitionAddProduct struct {
-	ID          string  `json:"id"`
-	Code        string  `json:"code"`
-	Name        string  `json:"name"`
-	Stock       float64 `json:"stock"`
-	CurrentHpp  float64 `json:"current_hpp"`
-	SupplierID  *string `json:"supplier_id"`
-	IsActive    bool    `json:"is_active"`
-	IsApproved  bool    `json:"is_approved"`
+	ID         string  `json:"id"`
+	Code       string  `json:"code"`
+	Name       string  `json:"name"`
+	Stock      float64 `json:"stock"`
+	CurrentHpp float64 `json:"current_hpp"`
+	SupplierID *string `json:"supplier_id"`
+	IsActive   bool    `json:"is_active"`
+	IsApproved bool    `json:"is_approved"`
+}
+
+type PurchaseRequisitionAddSupplierPhoneNumber struct {
+	ID          string `json:"id"`
+	PhoneNumber string `json:"phone_number"`
+	Label       string `json:"label"`
+	IsPrimary   bool   `json:"is_primary"`
 }
 
 type PurchaseRequisitionAddSupplier struct {
-	ID       string                        `json:"id"`
-	Code     string                        `json:"code"`
-	Name     string                        `json:"name"`
-	Products []PurchaseRequisitionAddProduct `json:"products"`
+	ID             string                                      `json:"id"`
+	Code           string                                      `json:"code"`
+	Name           string                                      `json:"name"`
+	PaymentTermsID *string                                     `json:"payment_terms_id"`
+	BusinessUnitID *string                                     `json:"business_unit_id"`
+	PhoneNumbers   []PurchaseRequisitionAddSupplierPhoneNumber `json:"phone_numbers"`
+	Products       []PurchaseRequisitionAddProduct             `json:"products"`
 }
 
 type PurchaseRequisitionAddPaymentTerms struct {

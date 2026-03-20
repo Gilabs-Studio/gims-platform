@@ -27,6 +27,7 @@ import { salesPaymentSchema, type SalesPaymentFormData } from "../schemas/sales-
 import { useCreateSalesPayment, useSalesPaymentAddData } from "../hooks/use-sales-payments";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -45,12 +46,14 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
+  const [shouldLoadInvoiceOptions, setShouldLoadInvoiceOptions] = useState(isLockedToInvoice);
+  const [shouldLoadBankAccountOptions, setShouldLoadBankAccountOptions] = useState(false);
 
   const createMutation = useCreateSalesPayment();
 
   // Fetch invoice add-data when not locked to DP (needed for invoice select or locked invoice details)
   const { data: addDataResponse, isFetching: isFetchingAddData } = useSalesPaymentAddData({
-    enabled: open && !isLockedToDP,
+    enabled: open && !isLockedToDP && (isLockedToInvoice || shouldLoadInvoiceOptions),
   });
 
   // Fetch DP detail when locked to a specific down payment
@@ -61,7 +64,9 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
   // Always fetch bank accounts from the finance bank-accounts feature
   const { data: bankAccountsResponse, isLoading: isLoadingBankAccounts } = useFinanceBankAccounts({
     is_active: true,
-    per_page: 100,
+    per_page: 20,
+  }, {
+    enabled: open && shouldLoadBankAccountOptions,
   });
 
   const addData = addDataResponse?.data;
@@ -103,6 +108,13 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
       notes: null,
     });
   }, [open, reset, defaultInvoiceId, defaultDPId]);
+
+  useEffect(() => {
+    if (!open) {
+      setShouldLoadInvoiceOptions(isLockedToInvoice);
+      setShouldLoadBankAccountOptions(false);
+    }
+  }, [open, isLockedToInvoice]);
 
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
@@ -177,9 +189,15 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               });
               toast.success(t("toast.created"));
               onClose();
-            } catch {
-              toast.error(t("toast.failed"));
+            } catch (error) {
+              toast.error(getSalesErrorMessage(error, t("toast.failed") ?? "Failed to save payment"));
             }
+          }, (formErrors) => {
+            toast.error(
+              getFirstFormErrorMessage(formErrors) ||
+              t("common.validationError") ||
+              "Please complete all required fields.",
+            );
           })}
         >
           {/* Reference Section — Invoice or Down Payment */}
@@ -279,6 +297,11 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                         <Select
                           value={field.value ?? ""}
                           onValueChange={(v) => field.onChange(v)}
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadInvoiceOptions(true);
+                            }
+                          }}
                           disabled={isFetchingAddData || submitting}
                         >
                           <SelectTrigger className="cursor-pointer">
@@ -431,6 +454,11 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                           <Select
                             value={field.value ?? ""}
                             onValueChange={(v) => field.onChange(v)}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                setShouldLoadBankAccountOptions(true);
+                              }
+                            }}
                             disabled={isLoadingBankAccounts || submitting}
                           >
                             <SelectTrigger className="cursor-pointer transition-all duration-200">

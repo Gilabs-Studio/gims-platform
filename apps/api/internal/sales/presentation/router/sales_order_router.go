@@ -11,6 +11,7 @@ func RegisterSalesOrderRoutes(rg *gin.RouterGroup, h *handler.SalesOrderHandler,
 	g := rg.Group("/sales-orders")
 	g.GET("", middleware.RequirePermission("sales_order.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("sales_order.read"), h.GetByID)
+	g.GET("/:id/audit-trail", middleware.RequirePermission("sales_order.read"), h.AuditTrail)
 	g.GET("/:id/items", middleware.RequirePermission("sales_order.read"), h.ListItems)
 	g.GET("/:id/print", middleware.RequirePermission("sales_order.print"), printH.PrintOrder)
 	g.POST("", middleware.RequirePermission("sales_order.create"), h.Create)

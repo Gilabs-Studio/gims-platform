@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
 import type { MenuWithActions, Action } from "@/features/master-data/user-management/types";
@@ -15,12 +16,12 @@ function isItemVisible(item: NavItem, permissionCodes: string[]): boolean {
   return true; 
 }
 
-function transformItem(item: NavItem, permissionCodes: string[]): MenuWithActions | null {
+function transformItem(item: NavItem, permissionCodes: string[], t: (key: string) => string): MenuWithActions | null {
   if (!isItemVisible(item, permissionCodes)) return null;
 
   const children = item.children
     ? item.children
-        .map((child) => transformItem(child, permissionCodes))
+        .map((child) => transformItem(child, permissionCodes, t))
         .filter((c): c is MenuWithActions => c !== null)
     : undefined;
 
@@ -40,7 +41,7 @@ function transformItem(item: NavItem, permissionCodes: string[]): MenuWithAction
 
   return {
     id: item.url, // Use URL as ID for consistency
-    name: item.name,
+    name: item.i18nKey ? t(item.i18nKey) || item.name : item.name,
     icon: item.icon,
     url: item.url,
     children,
@@ -50,14 +51,15 @@ function transformItem(item: NavItem, permissionCodes: string[]): MenuWithAction
 
 export function useNavigation() {
   const { user } = useAuthStore();
+  const t = useTranslations("navigation");
   
   const menus = useMemo(() => {
     // Extract permission codes from the permissions map (code -> scope)
     const permissionCodes = Object.keys(user?.permissions ?? {});
     return navigationConfig
-      .map((item) => transformItem(item, permissionCodes))
+      .map((item) => transformItem(item, permissionCodes, t))
       .filter((item): item is MenuWithActions => item !== null);
-  }, [user?.permissions]);
+  }, [user?.permissions, t]);
 
   return { menus };
 }

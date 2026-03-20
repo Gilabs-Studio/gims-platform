@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDate } from "@/lib/utils";
 
 import { useAreaDetail, useRemoveAreaEmployee } from "../../hooks/use-areas";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -119,7 +120,7 @@ export function AreaDetailModal({
                       <TableCell>{area.name}</TableCell>
                       <TableCell className="font-medium bg-muted/50 w-48">Created At</TableCell>
                       <TableCell>
-                        {area.created_at ? new Date(area.created_at).toLocaleDateString("id-ID") : "-"}
+                        {area.created_at ? formatDate(area.created_at) : "-"}
                       </TableCell>
                     </TableRow>
                     <TableRow>
@@ -148,7 +149,7 @@ export function AreaDetailModal({
                 </div>
                 {area.supervisors.length === 0 ? (
                   <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <AlertTriangle className="size-8 text-warning mb-2" />
                     <p className="text-sm text-muted-foreground">{t("detail.noSupervisorWarning")}</p>
                   </div>
                 ) : (
@@ -231,7 +232,7 @@ export function AreaDetailModal({
                 </div>
                 {area.members.length === 0 ? (
                   <div className="border rounded-lg py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="size-8 text-amber-500 mb-2" />
+                    <AlertTriangle className="size-8 text-warning mb-2" />
                     <p className="text-sm text-muted-foreground">{t("detail.noMembersWarning")}</p>
                   </div>
                 ) : (

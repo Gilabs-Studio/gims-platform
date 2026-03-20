@@ -104,7 +104,7 @@ export default function VisitReportGpsMapInner({
           <Marker position={[checkIn.lat, checkIn.lng]} icon={checkInIcon}>
             <Popup>
               <div className="text-xs">
-                <p className="font-semibold text-green-700">Check In</p>
+                <p className="font-semibold text-success">Check In</p>
                 {checkInAt && <p>{new Date(checkInAt).toLocaleString("id-ID")}</p>}
                 <p>{checkIn.lat.toFixed(6)}, {checkIn.lng.toFixed(6)}</p>
               </div>
@@ -116,7 +116,7 @@ export default function VisitReportGpsMapInner({
           <Marker position={[checkOut.lat, checkOut.lng]} icon={checkOutIcon}>
             <Popup>
               <div className="text-xs">
-                <p className="font-semibold text-red-700">Check Out</p>
+                <p className="font-semibold text-destructive">Check Out</p>
                 {checkOutAt && <p>{new Date(checkOutAt).toLocaleString("id-ID")}</p>}
                 <p>{checkOut.lat.toFixed(6)}, {checkOut.lng.toFixed(6)}</p>
               </div>

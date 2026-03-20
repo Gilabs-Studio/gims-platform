@@ -3,10 +3,10 @@
 import { Badge } from "@/components/ui/badge";
 
 const OUTCOME_CONFIG: Record<string, { className: string }> = {
-  very_positive: { className: "border-green-300 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400 dark:border-green-800" },
-  positive: { className: "border-green-200 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400 dark:border-green-800" },
+  very_positive: { className: "border-green-300 bg-green-50 text-success dark:bg-success dark:text-success dark:border-green-800" },
+  positive: { className: "border-green-200 bg-green-50 text-success dark:bg-success dark:text-success dark:border-green-800" },
   neutral: { className: "border-border bg-muted text-muted-foreground" },
-  negative: { className: "border-red-200 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400 dark:border-red-800" },
+  negative: { className: "border-red-200 bg-red-50 text-destructive dark:bg-destructive dark:text-destructive dark:border-red-800" },
 };
 
 interface OutcomeBadgeProps {
