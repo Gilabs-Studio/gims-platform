@@ -38,7 +38,7 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
     { enabled: open && isEdit && !!target?.id }
   );
 
-  const { data: areasData } = useAreas({ per_page: 100 }, { enabled: open });
+  const { data: areasData } = useAreas({ per_page: 20 }, { enabled: open });
 
   const areas = useMemo(() => {
     const data = areasData?.data ?? [];

@@ -35,13 +35,8 @@ import { TaskFormDialog } from "./task-form-dialog";
 import { TaskDetailDialog } from "./task-detail-dialog";
 import { TaskCalendarView } from "./task-calendar-view";
 import { useTaskList } from "../hooks/use-task-list";
-import { useTasks, useCompleteTask, useMarkTaskInProgress, useCancelTask } from "../hooks/use-tasks";
-import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatDate } from "@/lib/utils";
-import { toast } from "sonner";
 import type { Task } from "../types";
-
-import { useState } from "react";
 
 const STATUS_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   pending: "outline",
@@ -58,55 +53,13 @@ const PRIORITY_VARIANT_MAP: Record<string, "default" | "secondary" | "outline" |
 };
 
 export function TaskList() {
-  const { state, actions, permissions, translations } = useTaskList();
+  const { state, actions, permissions, data, translations } = useTaskList();
   const { t, tCommon } = translations;
-  const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
+  const { items, pagination, isLoading, isError, refetch, canViewLead, canViewDeal, canViewCustomer } = data;
 
-  const { data: tasksRes, isLoading, isError, refetch } = useTasks({
-    page: state.page,
-    per_page: state.pageSize,
-    search: state.debouncedSearch,
-    status: state.statusFilter || undefined,
-    priority: state.priorityFilter || undefined,
-  });
-
-  const completeMutation = useCompleteTask();
-  const inProgressMutation = useMarkTaskInProgress();
-  const cancelMutation = useCancelTask();
-
-  const canViewLead = useUserPermission("crm_lead.read");
-  const canViewDeal = useUserPermission("crm_deal.read");
-  const canViewCustomer = useUserPermission("customer.read");
-
-  const items = tasksRes?.data ?? [];
-  const pagination = tasksRes?.meta?.pagination;
-
-  const handleComplete = async (id: string) => {
-    try {
-      await completeMutation.mutateAsync(id);
-      toast.success(t("completed"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleInProgress = async (id: string) => {
-    try {
-      await inProgressMutation.mutateAsync(id);
-      toast.success(t("inProgress"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleCancel = async (id: string) => {
-    try {
-      await cancelMutation.mutateAsync(id);
-      toast.success(t("cancelled"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
+  const handleComplete = (id: string) => actions.handleComplete(id);
+  const handleInProgress = (id: string) => actions.handleInProgress(id);
+  const handleCancel = (id: string) => actions.handleCancel(id);
 
   if (isError) {
     return (
@@ -130,19 +83,19 @@ export function TaskList() {
           {/* View toggle */}
           <div className="flex items-center rounded-md border">
             <Button
-              variant={viewMode === "calendar" ? "secondary" : "ghost"}
+              variant={state.viewMode === "calendar" ? "secondary" : "ghost"}
               size="icon"
               className="h-8 w-8 cursor-pointer rounded-l-none"
-              onClick={() => setViewMode("calendar")}
+              onClick={() => actions.setViewMode("calendar")}
               title={t("calendarView")}
             >
               <CalendarDays className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === "table" ? "secondary" : "ghost"}
+              variant={state.viewMode === "table" ? "secondary" : "ghost"}
               size="icon"
               className="h-8 w-8 cursor-pointer rounded-r-none"
-              onClick={() => setViewMode("table")}
+              onClick={() => actions.setViewMode("table")}
               title={t("tableView")}
             >
               <List className="h-4 w-4" />
@@ -157,7 +110,7 @@ export function TaskList() {
         </div>
       </div>
 
-      {viewMode === "calendar" ? (
+      {state.viewMode === "calendar" ? (
         <TaskCalendarView />
       ) : (
       <>

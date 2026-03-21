@@ -25,7 +25,7 @@ export function AreaMappingContainer() {
   const t = useTranslations("areaMapping");
   const [selectedArea, setSelectedArea] = useState<Area | null>(null);
 
-  const { data: areasData, isLoading: areasLoading } = useAreas({ per_page: 100 });
+  const { data: areasData, isLoading: areasLoading } = useAreas({ per_page: 20 });
   const { data: coverageData } = useAreaCoverage();
 
   const areas = areasData?.data ?? [];
