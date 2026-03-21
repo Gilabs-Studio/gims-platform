@@ -41,13 +41,13 @@ export function useCustomerMapView() {
 
   // Queries & Mutations
   const { data, isLoading, refetch } = useCustomers({
-    per_page: 100,
+    per_page: 20,
     search: debouncedSearch || undefined,
     customer_type_id: typeFilter === "all" ? undefined : typeFilter,
   });
 
   // Fetch filter options from server (customer types)
-  const { data: typesData } = useCustomerTypes({ per_page: 100 });
+  const { data: typesData } = useCustomerTypes({ per_page: 20 });
   const customerTypes = typesData?.data ?? [];
 
   const deleteCustomer = useDeleteCustomer();

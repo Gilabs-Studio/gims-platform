@@ -148,8 +148,6 @@ export interface Customer {
   // Sales defaults
   default_business_type_id?: string | null;
   default_business_type?: SalesDefaultOptionBrief | null;
-  default_area_id?: string | null;
-  default_area?: SalesDefaultOptionBrief | null;
   default_sales_rep_id?: string | null;
   default_sales_rep?: SalesRepBrief | null;
   default_payment_terms_id?: string | null;
@@ -194,7 +192,6 @@ export interface CreateCustomerData {
   bank_accounts?: CreateCustomerBankData[];
   // Sales defaults
   default_business_type_id?: string | null;
-  default_area_id?: string | null;
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;
@@ -220,7 +217,6 @@ export interface UpdateCustomerData {
   is_active?: boolean;
   // Sales defaults
   default_business_type_id?: string | null;
-  default_area_id?: string | null;
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;

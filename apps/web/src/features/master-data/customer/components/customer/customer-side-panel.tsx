@@ -112,7 +112,6 @@ export function CustomerSidePanel({
       longitude: null,
       is_active: true,
       default_business_type_id: "",
-      default_area_id: "",
       default_sales_rep_id: "",
       default_payment_terms_id: "",
       default_tax_rate: null,
@@ -134,7 +133,6 @@ export function CustomerSidePanel({
   const { data: formDataRes } = useCustomerFormData({ enabled: isOpen });
   const customerTypes = formDataRes?.data?.customer_types ?? [];
   const businessTypes = formDataRes?.data?.business_types ?? [];
-  const areas = formDataRes?.data?.areas ?? [];
   const salesReps = formDataRes?.data?.sales_reps ?? [];
   const paymentTermsList = formDataRes?.data?.payment_terms ?? [];
 
@@ -173,7 +171,6 @@ export function CustomerSidePanel({
           longitude: entity.longitude ?? null,
           is_active: entity.is_active,
           default_business_type_id: entity.default_business_type_id ?? "",
-          default_area_id: entity.default_area_id ?? "",
           default_sales_rep_id: entity.default_sales_rep_id ?? "",
           default_payment_terms_id: entity.default_payment_terms_id ?? "",
           default_tax_rate: entity.default_tax_rate ?? null,
@@ -197,7 +194,6 @@ export function CustomerSidePanel({
         longitude: null,
         is_active: true,
         default_business_type_id: "",
-        default_area_id: "",
         default_sales_rep_id: "",
         default_payment_terms_id: "",
         default_tax_rate: null,
@@ -229,7 +225,6 @@ export function CustomerSidePanel({
             longitude: data.longitude,
             is_active: data.is_active,
             default_business_type_id: data.default_business_type_id || null,
-            default_area_id: data.default_area_id || null,
             default_sales_rep_id: data.default_sales_rep_id || null,
             default_payment_terms_id: data.default_payment_terms_id || null,
             default_tax_rate: data.default_tax_rate ?? null,
@@ -255,7 +250,6 @@ export function CustomerSidePanel({
           longitude: data.longitude,
           is_active: data.is_active,
           default_business_type_id: data.default_business_type_id || undefined,
-          default_area_id: data.default_area_id || undefined,
           default_sales_rep_id: data.default_sales_rep_id || undefined,
           default_payment_terms_id: data.default_payment_terms_id || undefined,
           default_tax_rate: data.default_tax_rate ?? undefined,
@@ -437,13 +431,6 @@ export function CustomerSidePanel({
               disabled={isViewing}
               enabled={isOpen}
               onProvinceChange={(_id, name) => {
-                if (!name || isViewing) return;
-                const matched = areas.find(
-                  (a) => a.province && a.province.toLowerCase() === name.toLowerCase()
-                );
-                if (matched) {
-                  setValue("default_area_id", matched.id, { shouldDirty: true });
-                }
               }}
             />
           </div>
@@ -473,28 +460,6 @@ export function CustomerSidePanel({
                     createLabel={`${t("common.create")} "{query}"`}
                     onCreateClick={(q) => openQuickCreate("businessType", q)}
                   />
-                )}
-              />
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("customer.form.defaultArea")}</FieldLabel>
-              <Controller
-                control={control}
-                name="default_area_id"
-                render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={isViewing}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue placeholder={t("customer.form.defaultAreaPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {areas.map((area) => (
-                        <SelectItem key={area.id} value={area.id} className="cursor-pointer">
-                          {area.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 )}
               />
             </Field>

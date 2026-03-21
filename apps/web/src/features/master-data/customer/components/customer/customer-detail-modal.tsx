@@ -71,7 +71,6 @@ export function CustomerDetailModal({
 
   const hasSalesDefaults =
     entity.default_business_type_id ||
-    entity.default_area_id ||
     entity.default_sales_rep_id ||
     entity.default_payment_terms_id ||
     entity.default_tax_rate != null;
@@ -372,12 +371,6 @@ export function CustomerDetailModal({
                                   <TableRow>
                                     <TableCell className="font-medium bg-muted/50 w-48">{t("form.defaultBusinessType")}</TableCell>
                                     <TableCell>{entity.default_business_type.name}</TableCell>
-                                  </TableRow>
-                                )}
-                                {entity.default_area && (
-                                  <TableRow>
-                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultArea")}</TableCell>
-                                    <TableCell>{entity.default_area.name}</TableCell>
                                   </TableRow>
                                 )}
                                 {entity.default_sales_rep && (

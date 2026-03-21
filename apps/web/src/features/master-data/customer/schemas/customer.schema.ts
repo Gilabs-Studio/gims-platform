@@ -62,7 +62,6 @@ export const getCustomerSchema = (t?: TranslationFn) =>
     is_active: z.boolean().optional(), // make optional if API drops it
     // Sales defaults
     default_business_type_id: z.string().optional().or(z.literal("")).nullable(),
-    default_area_id: z.string().optional().or(z.literal("")).nullable(),
     default_sales_rep_id: z.string().optional().or(z.literal("")).nullable(),
     default_payment_terms_id: z.string().optional().or(z.literal("")).nullable(),
     default_tax_rate: z.preprocess(
