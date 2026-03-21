@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -43,8 +43,10 @@ import { SupplierDialog } from "@/features/master-data/supplier/components/suppl
 import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { BusinessUnitForm } from "@/features/master-data/organization/components/business-unit/business-unit-form";
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { productService } from "@/features/master-data/product/services/product-service";
+import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
+import type { PurchaseOrderAddSupplierContact } from "../types";
 
 type ProductOption = { id: string; code?: string; name: string; cost_price?: number };
 
@@ -114,39 +116,50 @@ export function PurchaseOrderForm({
 
   const [orderDateOpen, setOrderDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
-  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(isEdit);
-  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(false);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(false);
 
   const { data: addData, isFetching: isFetchingAddData } = usePurchaseOrderAddData({
     enabled: open && shouldLoadSelectData,
   });
-  const masterProductsQuery = useProducts(
-    { is_approved: true, per_page: 20 },
-    { enabled: open && shouldLoadProductOptions },
-  );
-  const masterProducts = masterProductsQuery.data?.data ?? [];
+  const productCombobox = usePaginatedComboboxOptions({
+    queryKey: ["purchase", "purchase-order", "products"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      productService.list({
+        ...params,
+        is_approved: true,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code ? `${item.code} - ${item.name}` : item.name,
+    }),
+    enabled: open && shouldLoadProductOptions,
+  });
+  const masterProducts = productCombobox.items;
 
-  const suppliers = addData?.data?.suppliers ?? [];
-  const paymentTerms = addData?.data?.payment_terms ?? [];
-  const businessUnits = addData?.data?.business_units ?? [];
+  const suppliers = useMemo(() => addData?.data?.suppliers ?? [], [addData?.data?.suppliers]);
+  const paymentTerms = useMemo(() => addData?.data?.payment_terms ?? [], [addData?.data?.payment_terms]);
+  const businessUnits = useMemo(() => addData?.data?.business_units ?? [], [addData?.data?.business_units]);
 
   const mergedSuppliers = useMemo(() => {
     const list = [...suppliers];
-    const sel = po?.supplier as any;
+    const sel = po?.supplier;
     if (sel?.id && !list.some((x) => x.id === sel.id)) list.push(sel);
     return list;
   }, [suppliers, po?.supplier]);
 
   const mergedPaymentTerms = useMemo(() => {
     const list = [...paymentTerms];
-    const sel = po?.payment_terms as any;
+    const sel = po?.payment_terms;
     if (sel?.id && !list.some((x) => x.id === sel.id)) list.push(sel);
     return list;
   }, [paymentTerms, po?.payment_terms]);
 
   const mergedBusinessUnits = useMemo(() => {
     const list = [...businessUnits];
-    const sel = po?.business_unit as any;
+    const sel = po?.business_unit;
     if (sel?.id && !list.some((x) => x.id === sel.id)) list.push(sel);
     return list;
   }, [businessUnits, po?.business_unit]);
@@ -166,7 +179,7 @@ export function PurchaseOrderForm({
     defaultValues: {
       source: "manual",
       supplier_id: null,
-      supplier_phone_number_id: null,
+      supplier_contact_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -190,15 +203,11 @@ export function PurchaseOrderForm({
 
   useEffect(() => {
     if (!open) {
-      setShouldLoadSelectData(false);
-      setShouldLoadProductOptions(false);
       return;
     }
-    if (isEdit) {
-      setShouldLoadSelectData(true);
-      setShouldLoadProductOptions(true);
-    }
-  }, [open, isEdit]);
+    setShouldLoadSelectData(false);
+    setShouldLoadProductOptions(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -207,7 +216,7 @@ export function PurchaseOrderForm({
     reset({
       source: "manual",
       supplier_id: null,
-      supplier_phone_number_id: null,
+      supplier_contact_id: null,
       payment_terms_id: null,
       business_unit_id: null,
       purchase_requisitions_id: null,
@@ -229,7 +238,7 @@ export function PurchaseOrderForm({
       {
         source: po.purchase_requisitions_id ? "pr" : po.sales_order_id ? "so" : "manual",
         supplier_id: po.supplier_id ?? null,
-        supplier_phone_number_id: null,
+        supplier_contact_id: null,
         payment_terms_id: po.payment_terms_id ?? null,
         business_unit_id: po.business_unit_id ?? null,
         purchase_requisitions_id: po.purchase_requisitions_id ?? null,
@@ -255,41 +264,51 @@ export function PurchaseOrderForm({
     );
   }, [open, isEdit, po, reset]);
 
-  const selectedSupplierId = watch("supplier_id");
-  const watchedItems = watch("items");
+  const selectedSupplierId = useWatch<PurchaseOrderFormData, "supplier_id">({ control, name: "supplier_id" });
+  const watchedItems = useWatch<PurchaseOrderFormData, "items">({ control, name: "items" });
 
   const selectedSupplier = useMemo(() => {
     if (!selectedSupplierId) return null;
     return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
   }, [selectedSupplierId, mergedSuppliers]);
 
-  const supplierPhoneNumbers = useMemo(() => selectedSupplier?.phone_numbers ?? [], [selectedSupplier]);
+  const { data: selectedSupplierData } = useSupplier(selectedSupplierId ?? "", {
+    enabled: open && !!selectedSupplierId,
+  });
+
+  const selectedSupplierWithDetail = selectedSupplierData?.data ?? selectedSupplier;
+
+  const supplierContacts = useMemo(
+    () => selectedSupplierWithDetail?.contacts ?? [],
+    [selectedSupplierWithDetail],
+  );
 
   useEffect(() => {
     if (!selectedSupplierId) {
       setValue("payment_terms_id", null, { shouldValidate: true });
       setValue("business_unit_id", null, { shouldValidate: true });
-      setValue("supplier_phone_number_id", null, { shouldValidate: true });
+      setValue("supplier_contact_id", null, { shouldValidate: true });
       return;
     }
 
-    if (!selectedSupplier) return;
+    if (!selectedSupplierWithDetail) return;
 
-    setValue("payment_terms_id", selectedSupplier.payment_terms_id ?? null, {
+    setValue("payment_terms_id", selectedSupplierWithDetail.payment_terms_id ?? null, {
       shouldValidate: true,
       shouldDirty: true,
     });
-    setValue("business_unit_id", selectedSupplier.business_unit_id ?? null, {
+    setValue("business_unit_id", selectedSupplierWithDetail.business_unit_id ?? null, {
       shouldValidate: true,
       shouldDirty: true,
     });
 
-    const defaultPhone = selectedSupplier.phone_numbers?.find((ph) => ph.is_primary) ?? selectedSupplier.phone_numbers?.[0];
-    setValue("supplier_phone_number_id", defaultPhone?.id ?? null, {
+    const contacts = (selectedSupplierWithDetail.contacts ?? []) as PurchaseOrderAddSupplierContact[];
+    const defaultContact = contacts.find((ct) => ct.is_primary) ?? contacts[0];
+    setValue("supplier_contact_id", defaultContact?.id ?? null, {
       shouldValidate: true,
       shouldDirty: true,
     });
-  }, [selectedSupplierId, selectedSupplier, setValue]);
+  }, [selectedSupplierId, selectedSupplierWithDetail, setValue]);
 
   const [sourceProducts, setSourceProducts] = useState<ProductOption[]>([]);
   const allProducts = useMemo(() => suppliers.flatMap((s) => s.products ?? []), [suppliers]);
@@ -310,7 +329,7 @@ export function PurchaseOrderForm({
       const id = it?.product_id;
       if (!id || map.has(id)) continue;
       const poItem = po?.items?.find((x) => x.product_id === id);
-      const pInfo = (poItem?.product as any);
+      const pInfo = poItem?.product;
       map.set(id, { id, code: pInfo?.code, name: pInfo?.name || id, cost_price: 0 });
     }
     return Array.from(map.values());
@@ -318,7 +337,8 @@ export function PurchaseOrderForm({
 
   const isSubmitting = (isEdit ? updateMutation.isPending : createMutation.isPending) || (isEdit && poQuery.isFetching);
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
-  const isProductOptionsLoading = shouldLoadProductOptions && (masterProductsQuery.isPending || masterProductsQuery.isFetching);
+  const isProductOptionsLoading =
+    shouldLoadProductOptions && (productCombobox.isLoading || productCombobox.isFetching);
 
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });
@@ -353,6 +373,7 @@ export function PurchaseOrderForm({
   const onSubmit = async (formData: PurchaseOrderFormData) => {
     const basePayload = {
       supplier_id: formData.supplier_id ?? null,
+      supplier_contact_id: formData.supplier_contact_id ?? null,
       payment_terms_id: formData.payment_terms_id ?? null,
       business_unit_id: formData.business_unit_id ?? null,
       order_date: formData.order_date,
@@ -395,7 +416,7 @@ export function PurchaseOrderForm({
   };
 
   const subtotal = useMemo(() =>
-    (watchedItems ?? []).reduce((sum, it) => {
+    (watchedItems ?? []).reduce((sum: number, it) => {
       const qty = Number(it?.quantity ?? 0);
       const price = Number(it?.price ?? 0);
       const disc = Number(it?.discount ?? 0);
@@ -488,7 +509,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "pr",
                                 supplier_id: pr.supplier_id ?? null,
-                                supplier_phone_number_id: null,
+                                supplier_contact_id: null,
                                 payment_terms_id: pr.payment_terms_id ?? null,
                                 business_unit_id: pr.business_unit_id ?? null,
                                 purchase_requisitions_id: pr.id,
@@ -549,7 +570,7 @@ export function PurchaseOrderForm({
                               reset({
                                 source: "so",
                                 supplier_id: null,
-                                supplier_phone_number_id: null,
+                                supplier_contact_id: null,
                                 payment_terms_id: so.payment_terms_id ?? null,
                                 business_unit_id: so.business_unit_id ?? null,
                                 purchase_requisitions_id: null,
@@ -676,24 +697,24 @@ export function PurchaseOrderForm({
                 </Field>
 
                 <Field orientation="vertical">
-                  <FieldLabel>{t("fields.supplierPhoneNumber") || "Supplier Phone Number"}</FieldLabel>
+                  <FieldLabel>{t("fields.supplierContact") || "Supplier Contact"}</FieldLabel>
                   <Controller
                     control={control}
-                    name="supplier_phone_number_id"
+                    name="supplier_contact_id"
                     render={({ field }) => (
                       <Select
                         value={field.value ?? NONE_VALUE}
                         onValueChange={(v) => field.onChange(v === NONE_VALUE ? null : v)}
-                        disabled={!selectedSupplierId || supplierPhoneNumbers.length === 0}
+                        disabled={!selectedSupplierId || supplierContacts.length === 0}
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder={t("placeholders.select")} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none")}</SelectItem>
-                          {supplierPhoneNumbers.map((phone) => (
-                            <SelectItem key={phone.id} value={phone.id} className="cursor-pointer">
-                              {phone.phone_number}{phone.label ? ` (${phone.label})` : ""}{phone.is_primary ? " - Primary" : ""}
+                          {supplierContacts.map((contact: PurchaseOrderAddSupplierContact) => (
+                            <SelectItem key={contact.id} value={contact.id} className="cursor-pointer">
+                              {contact.phone}{contact.position ? ` (${contact.position})` : ""}{contact.is_primary ? " - Primary" : ""}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -852,7 +873,13 @@ export function PurchaseOrderForm({
                                       if (isOpen) {
                                         setShouldLoadProductOptions(true);
                                       }
+                                      productCombobox.onOpenChange(isOpen);
                                     }}
+                                    onSearchChange={productCombobox.onSearchChange}
+                                    onLoadMore={productCombobox.onLoadMore}
+                                    hasMore={productCombobox.hasMore}
+                                    isLoadingMore={productCombobox.isLoadingMore}
+                                    searchDebounceMs={300}
                                     options={productOptions.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
                                     createPermission="product.create"
                                     onCreateClick={() => {

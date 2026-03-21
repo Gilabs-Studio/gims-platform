@@ -67,6 +67,7 @@ export const purchaseOrderEn = {
     dueDate: "Due Date",
     supplier: "Supplier",
     supplierPhoneNumber: "Supplier Phone Number",
+    supplierContact: "Supplier Contact",
     supplierInfo: "Supplier Information",
     paymentTerms: "Payment Terms",
     businessUnit: "Business Unit",

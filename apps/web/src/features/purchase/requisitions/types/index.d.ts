@@ -133,9 +133,9 @@ export interface PurchaseRequisitionAddProduct {
   is_approved: boolean;
 }
 
-export interface PurchaseRequisitionAddSupplierPhoneNumber {
+export interface PurchaseRequisitionAddSupplierContact {
   id: string;
-  phone_number: string;
+  phone: string;
   label?: string;
   is_primary: boolean;
 }
@@ -146,7 +146,7 @@ export interface PurchaseRequisitionAddSupplier {
   name: string;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
-  phone_numbers?: PurchaseRequisitionAddSupplierPhoneNumber[];
+  contacts?: PurchaseRequisitionAddSupplierContact[];
   products: PurchaseRequisitionAddProduct[];
 }
 
@@ -239,7 +239,7 @@ export interface PurchaseRequisitionItemInput {
 
 export interface CreatePurchaseRequisitionInput {
   supplier_id?: string | null;
-  supplier_phone_number_id?: string | null;
+  supplier_contact_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   employee_id?: string | null;

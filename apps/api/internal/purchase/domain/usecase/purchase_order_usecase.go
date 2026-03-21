@@ -642,7 +642,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	var suppliers []supplierModels.Supplier
 	if err := uc.db.WithContext(ctx).
 		Model(&supplierModels.Supplier{}).
-		Preload("PhoneNumbers").
+		Preload("Contacts").
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&suppliers).Error; err != nil {
