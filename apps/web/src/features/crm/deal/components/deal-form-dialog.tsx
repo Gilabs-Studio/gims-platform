@@ -52,7 +52,10 @@ export function DealFormDialog({
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
   const { data: formData, isLoading: isFormLoading } = useDealFormData({ enabled: open });
-  const { data: bankAccountsRes } = useFinanceBankAccounts({ per_page: 100, sort_by: "name", sort_dir: "asc" });
+  const { data: bankAccountsRes } = useFinanceBankAccounts(
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
+    { enabled: open },
+  );
   const createMutation = useCreateDeal();
   const updateMutation = useUpdateDeal();
   const isEdit = !!deal;

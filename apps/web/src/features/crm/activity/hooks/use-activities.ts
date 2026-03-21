@@ -199,10 +199,11 @@ export function useActivityById(id: string) {
   });
 }
 
-export function useActivityTimeline(params?: ActivityListParams) {
+export function useActivityTimeline(params?: ActivityListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: activityKeys.timeline(params ?? {}),
     queryFn: () => activityService.timeline(params),
+    enabled: options?.enabled ?? true,
     staleTime: 2 * 60 * 1000,
   });
 }

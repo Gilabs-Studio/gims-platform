@@ -241,7 +241,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const isTasksTabActive = activeTab === "tasks";
   const isProductItemsTabActive = activeTab === "productItems";
   const { data: activityTypesData } = useActivityTypes(
-    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
     { enabled: showActivityDialog }
   );
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];

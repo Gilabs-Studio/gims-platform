@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { Camera, X, Upload, Loader2, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { resolveImageUrl } from "@/lib/utils";
-import { visitReportService } from "../services/visit-report-service";
-import { useUploadVisitPhotos } from "../hooks/use-visit-reports";
+import { useUploadVisitPhotos, useUploadVisitImage } from "../hooks/use-visit-reports";
 
 interface VisitReportPhotosProps {
   readonly visitId: string;
@@ -25,6 +24,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const uploadMutation = useUploadVisitPhotos();
+  const uploadImageMutation = useUploadVisitImage();
 
   const parsedPhotos: string[] = (() => {
     if (!photos) return [];
@@ -53,7 +53,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
       // Upload each file to the image upload endpoint first
       const uploadedUrls: string[] = [];
       for (const file of filesToUpload) {
-        const result = await visitReportService.uploadImage(file);
+        const result = await uploadImageMutation.mutateAsync(file);
         if (result?.data?.url) {
           uploadedUrls.push(result.data.url);
         }
@@ -72,7 +72,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
         fileInputRef.current.value = "";
       }
     }
-  }, [visitId, remainingSlots, uploadMutation, t, tCommon]);
+  }, [visitId, remainingSlots, uploadMutation, uploadImageMutation, t, tCommon]);
 
   return (
     <div className="rounded-lg border p-4 space-y-4">

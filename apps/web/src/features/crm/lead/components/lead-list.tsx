@@ -34,11 +34,11 @@ export function LeadList() {
   const [shouldLoadStatusActionOptions, setShouldLoadStatusActionOptions] = useState(false);
 
   const { data: leadSourcesResponse, isLoading: isLeadSourcesLoading } = useLeadSources(
-    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
     { enabled: shouldLoadFilterOptions },
   );
   const { data: leadStatusesResponse, isLoading: isLeadStatusesLoading } = useLeadStatuses(
-    { per_page: 100, sort_by: "order", sort_dir: "asc" },
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
     { enabled: shouldLoadFilterOptions || shouldLoadStatusActionOptions },
   );
 

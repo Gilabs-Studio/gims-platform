@@ -36,9 +36,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { cn } from "@/lib/utils";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useCreateActivity, activityKeys } from "@/features/crm/activity/hooks/use-activities";
-import { activityService } from "@/features/crm/activity/services/activity-service";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCreateActivity, useActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { getActivityTypeIcon } from "@/features/crm/activity/utils";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
@@ -115,12 +114,10 @@ export function LogActivityDialog({
   // Fetch recent activities sorted by timestamp desc to determine the authoritative product state.
   // The latest activity's product list is the source of truth — not the accumulated DB state,
   // which may be stale due to activities being saved out of timestamp order.
-  const { data: recentActivitiesRes } = useQuery({
-    queryKey: activityKeys.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    queryFn: () => activityService.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    enabled: open && !!leadId,
-    staleTime: 60 * 1000,
-  });
+  const { data: recentActivitiesRes } = useActivityTimeline(
+    { lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" },
+    { enabled: open && !!leadId },
+  );
 
   const calculateInterest = useCallback(
     (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
