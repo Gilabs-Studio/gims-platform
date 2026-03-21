@@ -641,17 +641,8 @@ func salesOrderFirstNonEmpty(current string, fallback string) string {
 }
 
 func salesOrderResolvePrimaryPhone(customer *customerModels.Customer) string {
-	if customer == nil || len(customer.PhoneNumbers) == 0 {
-		return ""
-	}
-
-	for _, phone := range customer.PhoneNumbers {
-		if phone.IsPrimary {
-			return phone.PhoneNumber
-		}
-	}
-
-	return customer.PhoneNumbers[0].PhoneNumber
+	_ = customer
+	return ""
 }
 
 // calculateTotals calculates all financial totals for the order

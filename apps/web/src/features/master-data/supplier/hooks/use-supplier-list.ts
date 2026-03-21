@@ -42,7 +42,7 @@ export function useSupplierList() {
     supplier_type_id: typeFilter === "all" ? undefined : typeFilter,
   });
 
-  const { data: typesData } = useSupplierTypes({ per_page: 100 });
+  const { data: typesData } = useSupplierTypes({ per_page: 20 });
   const supplierTypes = typesData?.data ?? [];
 
   const deleteMutation = useDeleteSupplier();

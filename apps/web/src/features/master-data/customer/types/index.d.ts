@@ -35,29 +35,6 @@ export interface Bank {
   updated_at: string;
 }
 
-// === Customer Phone Number ===
-export interface CustomerPhoneNumber {
-  id: string;
-  customer_id: string;
-  phone_number: string;
-  label?: string;
-  is_primary: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreatePhoneNumberData {
-  phone_number: string;
-  label?: string;
-  is_primary?: boolean;
-}
-
-export interface UpdatePhoneNumberData {
-  phone_number?: string;
-  label?: string;
-  is_primary?: boolean;
-}
-
 // === Customer Bank Account ===
 export interface CustomerBank {
   id: string;
@@ -143,11 +120,12 @@ export interface Customer {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  phone_numbers?: CustomerPhoneNumber[];
   bank_accounts?: CustomerBank[];
   // Sales defaults
   default_business_type_id?: string | null;
   default_business_type?: SalesDefaultOptionBrief | null;
+  default_area_id?: string | null;
+  default_area?: SalesDefaultOptionBrief | null;
   default_sales_rep_id?: string | null;
   default_sales_rep?: SalesRepBrief | null;
   default_payment_terms_id?: string | null;
@@ -188,10 +166,10 @@ export interface CreateCustomerData {
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
-  phone_numbers?: CreatePhoneNumberData[];
   bank_accounts?: CreateCustomerBankData[];
   // Sales defaults
   default_business_type_id?: string | null;
+  default_area_id?: string | null;
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;
@@ -217,6 +195,7 @@ export interface UpdateCustomerData {
   is_active?: boolean;
   // Sales defaults
   default_business_type_id?: string | null;
+  default_area_id?: string | null;
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;

@@ -14,6 +14,7 @@ export const crmContactId = {
     sections: {
       basicInfo: "Informasi Dasar",
       contactInfo: "Informasi Kontak",
+      settings: "Pengaturan",
       additional: "Informasi Tambahan",
     },
     form: {
@@ -31,6 +32,9 @@ export const crmContactId = {
       emailPlaceholder: "Masukkan alamat email",
       notes: "Catatan",
       notesPlaceholder: "Catatan tambahan tentang kontak ini",
+      isPrimary: "Kontak Utama",
+      primaryDescription: "Tetapkan sebagai kontak utama.",
+      activeDescription: "Nonaktifkan kontak ini dengan toggle.",
       isActive: "Aktif",
       activeStatus: "Aktif",
       inactiveStatus: "Tidak Aktif",

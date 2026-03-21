@@ -13,7 +13,7 @@ type PurchaseOrderAddProduct struct {
 	IsApproved bool    `json:"is_approved"`
 }
 
-type PurchaseOrderAddSupplierPhoneNumber struct {
+type PurchaseOrderAddSupplierContact struct {
 	ID          string `json:"id"`
 	PhoneNumber string `json:"phone_number"`
 	Label       string `json:"label"`
@@ -26,7 +26,7 @@ type PurchaseOrderAddSupplier struct {
 	Name           string                                `json:"name"`
 	PaymentTermsID *string                               `json:"payment_terms_id"`
 	BusinessUnitID *string                               `json:"business_unit_id"`
-	PhoneNumbers   []PurchaseOrderAddSupplierPhoneNumber `json:"phone_numbers"`
+	Contacts   []PurchaseOrderAddSupplierContact `json:"contacts"`
 	Products       []PurchaseOrderAddProduct             `json:"products"`
 }
 

@@ -819,25 +819,43 @@ func (u *dealUsecase) ConvertToQuotation(ctx context.Context, dealID string, req
 			DefaultPaymentTermsID: deal.Lead.PaymentTermsID,
 			CreatedBy:             &userID,
 		}
-		notesText := fmt.Sprintf("Auto-created from deal won (Lead: %s)", deal.Lead.Code)
-		if deal.Lead.Notes != "" {
-			notesText = notesText + " - " + deal.Lead.Notes
-		}
-		newCustomer.Notes = notesText
 		if err := u.customerRepo.Create(ctx, newCustomer); err != nil {
 			return dto.ConvertToQuotationResponse{}, fmt.Errorf("failed to create customer from lead: %w", err)
 		}
-		// Prefer contact phone; fall back to lead phone
+
 		phoneToUse := deal.Lead.Phone
-		if deal.Contact != nil && deal.Contact.Phone != "" {
-			phoneToUse = deal.Contact.Phone
+		nameToUse := strings.TrimSpace(deal.Lead.FirstName + " " + deal.Lead.LastName)
+		emailToUse := deal.Lead.Email
+		labelToUse := deal.Lead.JobTitle
+		if deal.Contact != nil {
+			if deal.Contact.Phone != "" {
+				phoneToUse = deal.Contact.Phone
+			}
+			if deal.Contact.Name != "" {
+				nameToUse = deal.Contact.Name
+			}
+			if deal.Contact.Email != "" {
+				emailToUse = deal.Contact.Email
+			}
+			if deal.Contact.Position != "" {
+				labelToUse = deal.Contact.Position
+			}
 		}
-		if phoneToUse != "" {
-			_ = u.customerRepo.CreatePhoneNumber(ctx, &customerModels.CustomerPhoneNumber{
-				CustomerID:  newCustomer.ID,
-				PhoneNumber: phoneToUse,
-				IsPrimary:   true,
-			})
+
+		if nameToUse != "" {
+			newContact := &models.Contact{
+				ID:         uuid.New().String(),
+				CustomerID: newCustomer.ID,
+				Name:       nameToUse,
+				Phone:      phoneToUse,
+				Email:      emailToUse,
+				Position:   labelToUse,
+				IsActive:   true,
+			}
+			if userID != "" {
+				newContact.CreatedBy = &userID
+			}
+			_ = u.contactRepo.Create(ctx, newContact)
 		}
 		deal.CustomerID = &newCustomer.ID
 		// Best-effort: link the lead to the new customer
@@ -1070,10 +1088,6 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 		newCustomer.Latitude = leadData.Latitude
 		newCustomer.Longitude = leadData.Longitude
 		newCustomer.Website = leadData.Website
-		newCustomer.Notes = fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code)
-		if leadData.Notes != "" {
-			newCustomer.Notes = newCustomer.Notes + " - " + leadData.Notes
-		}
 		newCustomer.DefaultBusinessTypeID = leadData.BusinessTypeID
 		newCustomer.DefaultAreaID = leadData.AreaID
 		newCustomer.DefaultPaymentTermsID = leadData.PaymentTermsID
@@ -1104,12 +1118,6 @@ func (u *dealUsecase) autoCreateCustomerFromDeal(ctx context.Context, deal *mode
 			Phone:      leadData.Phone,
 			Email:      leadData.Email,
 			Position:   leadData.JobTitle,
-			Notes: fmt.Sprintf("Auto-created from deal won (Lead: %s)", leadData.Code) + func() string {
-				if leadData.Notes != "" {
-					return " - " + leadData.Notes
-				}
-				return ""
-			}(),
 			IsActive: true,
 		}
 		if changedBy != "" {

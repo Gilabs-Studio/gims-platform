@@ -60,7 +60,7 @@ type Supplier struct {
 	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	// Nested relations
-	PhoneNumbers []SupplierPhoneNumber `gorm:"foreignKey:SupplierID" json:"phone_numbers,omitempty"`
+	Contacts []SupplierContact `gorm:"foreignKey:SupplierID" json:"contacts,omitempty"`
 	BankAccounts []SupplierBank        `gorm:"foreignKey:SupplierID" json:"bank_accounts,omitempty"`
 }
 

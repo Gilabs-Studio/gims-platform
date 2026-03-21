@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Landmark, MapPin, Eye, Edit, Trash2, Users, Phone, Mail, Loader2 } from "lucide-react";
+import { MapPin, Eye, Edit, Trash2, Users, Phone, Mail, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -129,7 +129,6 @@ export function CustomerCard({
   canDelete,
 }: CustomerCardProps) {
   const contactsCount = customer.contacts_count ?? 0;
-  const primaryBank = customer.bank_accounts?.find((b) => b.is_primary) ?? customer.bank_accounts?.[0];
 
   return (
     <div
@@ -179,13 +178,6 @@ export function CustomerCard({
               </Tooltip>
             )}
           </div>
-          {primaryBank && (
-            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-              <Landmark className="h-3 w-3 shrink-0" />
-              {primaryBank.bank?.name ?? "Bank"} - {primaryBank.account_number}
-              {primaryBank.currency?.code ? ` (${primaryBank.currency.code})` : ""}
-            </p>
-          )}
         </div>
       </div>
 

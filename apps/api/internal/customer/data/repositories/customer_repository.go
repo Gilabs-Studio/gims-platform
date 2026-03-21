@@ -15,10 +15,6 @@ type CustomerRepository interface {
 	List(ctx context.Context, params CustomerListParams) ([]models.Customer, int64, error)
 	Update(ctx context.Context, customer *models.Customer) error
 	Delete(ctx context.Context, id string) error
-	// Nested phone number operations
-	CreatePhoneNumber(ctx context.Context, phone *models.CustomerPhoneNumber) error
-	UpdatePhoneNumber(ctx context.Context, phone *models.CustomerPhoneNumber) error
-	DeletePhoneNumber(ctx context.Context, id string) error
 	// Nested bank account operations
 	CreateBankAccount(ctx context.Context, bank *models.CustomerBank) error
 	UpdateBankAccount(ctx context.Context, bank *models.CustomerBank) error
@@ -48,7 +44,6 @@ func (r *customerRepository) FindByID(ctx context.Context, id string) (*models.C
 		Preload("City").
 		Preload("District").
 		Preload("Village.District.City.Province").
-		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
 		Preload("BankAccounts.Currency").
 		Preload("DefaultBusinessType").
@@ -117,7 +112,6 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 		Preload("City").
 		Preload("District").
 		Preload("CustomerType").
-		Preload("PhoneNumbers").
 		Preload("BankAccounts.Bank").
 		Preload("BankAccounts.Currency")
 
@@ -134,18 +128,6 @@ func (r *customerRepository) Update(ctx context.Context, customer *models.Custom
 
 func (r *customerRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.Customer{}, "id = ?", id).Error
-}
-
-func (r *customerRepository) CreatePhoneNumber(ctx context.Context, phone *models.CustomerPhoneNumber) error {
-	return r.db.WithContext(ctx).Create(phone).Error
-}
-
-func (r *customerRepository) UpdatePhoneNumber(ctx context.Context, phone *models.CustomerPhoneNumber) error {
-	return r.db.WithContext(ctx).Save(phone).Error
-}
-
-func (r *customerRepository) DeletePhoneNumber(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.CustomerPhoneNumber{}, "id = ?", id).Error
 }
 
 func (r *customerRepository) CreateBankAccount(ctx context.Context, bank *models.CustomerBank) error {

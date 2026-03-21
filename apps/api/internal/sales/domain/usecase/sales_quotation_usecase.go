@@ -449,17 +449,8 @@ func salesQuotationFirstNonEmpty(current string, fallback string) string {
 }
 
 func salesQuotationResolvePrimaryPhone(customer *customerModels.Customer) string {
-	if customer == nil || len(customer.PhoneNumbers) == 0 {
-		return ""
-	}
-
-	for _, phone := range customer.PhoneNumbers {
-		if phone.IsPrimary {
-			return phone.PhoneNumber
-		}
-	}
-
-	return customer.PhoneNumbers[0].PhoneNumber
+	_ = customer
+	return ""
 }
 
 func salesQuotationPaymentTermsName(quotation *models.SalesQuotation) string {

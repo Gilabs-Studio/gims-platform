@@ -701,7 +701,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 	for _, s := range suppliers {
 		prods := productsBySupplier[s.ID]
 		respProducts := make([]dto.PurchaseOrderAddProduct, 0, len(prods))
-		respPhones := make([]dto.PurchaseOrderAddSupplierPhoneNumber, 0, len(s.PhoneNumbers))
+		respPhones := make([]dto.PurchaseOrderAddSupplierContact, 0, len(s.Contacts))
 		for _, p := range prods {
 			respProducts = append(respProducts, dto.PurchaseOrderAddProduct{
 				ID:         p.ID,
@@ -714,11 +714,11 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 				IsApproved: p.IsApproved,
 			})
 		}
-		for _, ph := range s.PhoneNumbers {
-			respPhones = append(respPhones, dto.PurchaseOrderAddSupplierPhoneNumber{
+		for _, ph := range s.Contacts {
+			respPhones = append(respPhones, dto.PurchaseOrderAddSupplierContact{
 				ID:          ph.ID,
-				PhoneNumber: ph.PhoneNumber,
-				Label:       ph.Label,
+				PhoneNumber: ph.Phone,
+				Label:       ph.Position,
 				IsPrimary:   ph.IsPrimary,
 			})
 		}
@@ -728,7 +728,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 			Name:           s.Name,
 			PaymentTermsID: s.PaymentTermsID,
 			BusinessUnitID: s.BusinessUnitID,
-			PhoneNumbers:   respPhones,
+			Contacts: respPhones,
 			Products:       respProducts,
 		})
 	}

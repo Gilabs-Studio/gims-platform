@@ -98,12 +98,11 @@ func AutoMigrate() error {
 		&supplier.SupplierType{},
 		&supplier.Bank{},
 		&supplier.Supplier{},
-		&supplier.SupplierPhoneNumber{},
+		&supplier.SupplierContact{},
 		&supplier.SupplierBank{},
 		// Customer entities (Master Data)
 		&customer.CustomerType{},
 		&customer.Customer{},
-		&customer.CustomerPhoneNumber{},
 		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},

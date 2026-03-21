@@ -18,11 +18,6 @@ func RegisterCustomerRoutes(rg *gin.RouterGroup, h *handler.CustomerHandler) {
 		g.PUT("/:id", h.Update)
 		g.DELETE("/:id", h.Delete)
 
-		// Nested phone numbers
-		g.POST("/:id/phone-numbers", h.AddPhoneNumber)
-		g.PUT("/:id/phone-numbers/:phoneId", h.UpdatePhoneNumber)
-		g.DELETE("/:id/phone-numbers/:phoneId", h.DeletePhoneNumber)
-
 		// Nested bank accounts
 		g.POST("/:id/bank-accounts", h.AddBankAccount)
 		g.PUT("/:id/bank-accounts/:bankId", h.UpdateBankAccount)

@@ -284,12 +284,12 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	addSuppliers := make([]dto.PurchaseRequisitionAddSupplier, 0, len(suppliers))
 	for _, s := range suppliers {
-		addPhones := make([]dto.PurchaseRequisitionAddSupplierPhoneNumber, 0, len(s.PhoneNumbers))
-		for _, ph := range s.PhoneNumbers {
-			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierPhoneNumber{
+		addPhones := make([]dto.PurchaseRequisitionAddSupplierContact, 0, len(s.Contacts))
+		for _, ph := range s.Contacts {
+			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierContact{
 				ID:          ph.ID,
-				PhoneNumber: ph.PhoneNumber,
-				Label:       ph.Label,
+				PhoneNumber: ph.Phone,
+				Label:       ph.Position,
 				IsPrimary:   ph.IsPrimary,
 			})
 		}
@@ -299,7 +299,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 			Name:           s.Name,
 			PaymentTermsID: s.PaymentTermsID,
 			BusinessUnitID: s.BusinessUnitID,
-			PhoneNumbers:   addPhones,
+			Contacts: addPhones,
 			Products:       productsBySupplier[s.ID],
 		})
 	}

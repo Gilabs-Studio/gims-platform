@@ -7,8 +7,8 @@ import type {
   CreateSupplierData,
   UpdateSupplierData,
   ApproveSupplierData,
-  CreatePhoneNumberData,
-  UpdatePhoneNumberData,
+  CreateContactData,
+  UpdateContactData,
   CreateSupplierBankData,
   UpdateSupplierBankData,
   SupplierListParams,
@@ -120,10 +120,10 @@ export function useApproveSupplier() {
 }
 
 // ============================================
-// Nested Phone Number Hooks
+// Nested Contact Hooks
 // ============================================
 
-export function useAddPhoneNumber() {
+export function useAddContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -132,8 +132,8 @@ export function useAddPhoneNumber() {
       data,
     }: {
       supplierId: string;
-      data: CreatePhoneNumberData;
-    }) => supplierService.addPhoneNumber(supplierId, data),
+      data: CreateContactData;
+    }) => supplierService.addContact(supplierId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
@@ -142,19 +142,19 @@ export function useAddPhoneNumber() {
   });
 }
 
-export function useUpdatePhoneNumber() {
+export function useUpdateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       supplierId,
-      phoneId,
+      contactId,
       data,
     }: {
       supplierId: string;
-      phoneId: string;
-      data: UpdatePhoneNumberData;
-    }) => supplierService.updatePhoneNumber(supplierId, phoneId, data),
+      contactId: string;
+      data: UpdateContactData;
+    }) => supplierService.updateContact(supplierId, contactId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
@@ -163,17 +163,17 @@ export function useUpdatePhoneNumber() {
   });
 }
 
-export function useDeletePhoneNumber() {
+export function useDeleteContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       supplierId,
-      phoneId,
+      contactId,
     }: {
       supplierId: string;
-      phoneId: string;
-    }) => supplierService.deletePhoneNumber(supplierId, phoneId),
+      contactId: string;
+    }) => supplierService.deleteContact(supplierId, contactId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),

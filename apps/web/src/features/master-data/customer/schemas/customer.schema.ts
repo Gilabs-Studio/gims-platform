@@ -38,7 +38,6 @@ export const getCustomerSchema = (t?: TranslationFn) =>
       .max(30, getMsg(t, "validation.npwpMaxLength"))
       .optional()
       .or(z.literal("")),
-    contact_person: z.string().max(100).optional().or(z.literal("")),
     notes: z.string().max(1000).optional().or(z.literal("")),
     village_name: z
       .string()
@@ -59,7 +58,7 @@ export const getCustomerSchema = (t?: TranslationFn) =>
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
       z.number().nullable().optional()
     ),
-    is_active: z.boolean().optional(), // make optional if API drops it
+    bank_accounts: z.array(z.unknown()).optional(),
     // Sales defaults
     default_business_type_id: z.string().optional().or(z.literal("")).nullable(),
     default_sales_rep_id: z.string().optional().or(z.literal("")).nullable(),

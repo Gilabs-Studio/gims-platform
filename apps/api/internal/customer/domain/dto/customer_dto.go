@@ -28,7 +28,6 @@ type CreateCustomerRequest struct {
 	Latitude       *float64                    `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	Longitude      *float64                    `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool                       `json:"is_active"`
-	PhoneNumbers   []CreatePhoneNumberRequest  `json:"phone_numbers"`
 	BankAccounts   []CreateCustomerBankRequest `json:"bank_accounts"`
 	// Sales defaults
 	DefaultBusinessTypeID *string  `json:"default_business_type_id" binding:"omitempty,uuid"`
@@ -93,7 +92,6 @@ type CustomerResponse struct {
 	IsActive       bool                   `json:"is_active"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
-	PhoneNumbers   []PhoneNumberResponse  `json:"phone_numbers,omitempty"`
 	BankAccounts   []CustomerBankResponse `json:"bank_accounts,omitempty"`
 	// Sales defaults
 	DefaultBusinessTypeID *string                  `json:"default_business_type_id"`
@@ -144,33 +142,6 @@ type PaymentTermsFormOption struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 	Days int    `json:"days"`
-}
-
-// === Phone Number DTOs ===
-
-// CreatePhoneNumberRequest for adding a phone number to a customer
-type CreatePhoneNumberRequest struct {
-	PhoneNumber string `json:"phone_number" binding:"required,max=30"`
-	Label       string `json:"label" binding:"max=50"`
-	IsPrimary   bool   `json:"is_primary"`
-}
-
-// UpdatePhoneNumberRequest for updating a phone number
-type UpdatePhoneNumberRequest struct {
-	PhoneNumber string `json:"phone_number" binding:"omitempty,max=30"`
-	Label       string `json:"label" binding:"max=50"`
-	IsPrimary   *bool  `json:"is_primary"`
-}
-
-// PhoneNumberResponse is the response DTO for a customer phone number
-type PhoneNumberResponse struct {
-	ID          string    `json:"id"`
-	CustomerID  string    `json:"customer_id"`
-	PhoneNumber string    `json:"phone_number"`
-	Label       string    `json:"label"`
-	IsPrimary   bool      `json:"is_primary"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // === Customer Bank DTOs ===

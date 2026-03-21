@@ -212,7 +212,7 @@ export function EmployeeList() {
                       <Switch
                         checked={employee.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(employee.id, employee.is_active, employee.name)
+                          handleStatusChange(employee.id, employee.is_active)
                         }
                         disabled={!permissions.canUpdate || data.isUpdating}
                         className="cursor-pointer"
