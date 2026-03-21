@@ -190,8 +190,8 @@ func SeedSupplier() error {
 		// Add sample phone numbers for first supplier
 		if i == 0 {
 			phones := []models.SupplierContact{
-				{SupplierID: suppliers[i].ID, Name: "Budi Hartono", Email: "budi.hartono@pharmadist.co.id", Phone: "021-12345678", Position: "Office", IsPrimary: true},
-				{SupplierID: suppliers[i].ID, Name: "Siti Rahayu", Email: "siti.rahayu@pharmadist.co.id", Phone: "0812-3456-7890", Position: "Mobile", IsPrimary: false},
+				{SupplierID: suppliers[i].ID, Name: "Budi Hartono", Email: "budi.hartono@pharmadist.co.id", Phone: "021-12345678", IsPrimary: true},
+				{SupplierID: suppliers[i].ID, Name: "Siti Rahayu", Email: "siti.rahayu@pharmadist.co.id", Phone: "0812-3456-7890", IsPrimary: false},
 			}
 			for j := range phones {
 				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&phones[j])

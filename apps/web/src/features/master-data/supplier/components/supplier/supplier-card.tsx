@@ -65,7 +65,6 @@ function ContactsTooltipContent({
               )}
 
             </div>
-            {contact.position && (<p className="text-[10px] text-muted-foreground truncate">{contact.position}</p>)}
             <div className="flex items-center gap-2 mt-0.5">
               {contact.phone && (
                 <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">

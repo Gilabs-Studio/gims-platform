@@ -39,7 +39,6 @@ import type { SupplierContact, CreateContactData } from "../../types";
 const contactSchema = z.object({
   name: z.string().min(2, "Name is required"),
   contact_role_id: z.string().optional(),
-  position: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().min(3, "Phone number is required"),
   notes: z.string().optional(),
@@ -98,7 +97,6 @@ export function SupplierContactList({
     defaultValues: {
       name: "",
       contact_role_id: "",
-      position: "",
       email: "",
       phone: "",
       notes: "",
@@ -113,7 +111,6 @@ export function SupplierContactList({
     reset({
       name: "",
       contact_role_id: "",
-      position: "",
       email: "",
       phone: "",
       notes: "",
@@ -129,7 +126,6 @@ export function SupplierContactList({
     reset({
       name: item.name,
       contact_role_id: item.contact_role_id || "",
-      position: item.position || "",
       email: item.email || "",
       phone: item.phone,
       notes: item.notes || "",
@@ -250,9 +246,6 @@ export function SupplierContactList({
                       </Badge>
                     )}
                   </div>
-                  {contact.position && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{contact.position}</p>
-                  )}
                   <div className="flex items-center gap-3 mt-1.5">
                     {contact.phone && (
                       <a
@@ -359,10 +352,6 @@ export function SupplierContactList({
                 />
               </Field>
 
-              <Field orientation="vertical">
-                <FieldLabel>{t("form.position") || "Position / Job Title"}</FieldLabel>
-                <Input placeholder={t("form.positionPlaceholder") || "e.g. Manager"} {...register("position")} />
-              </Field>
             </div>
 
             {/* Contact Information */}

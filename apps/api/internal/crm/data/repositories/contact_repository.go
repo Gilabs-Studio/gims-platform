@@ -60,7 +60,7 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 
 	if params.Search != "" {
 		search := params.Search + "%"
-		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR position ILIKE ?", search, search, search, search)
+		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", search, search, search)
 	}
 
 	if params.CustomerID != "" {

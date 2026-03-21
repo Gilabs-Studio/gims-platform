@@ -110,7 +110,6 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 			Name:          phone.Name,
 			Email:         phone.Email,
 			Phone:         phone.Phone,
-			Position:      phone.Position,
 			Notes:         phone.Notes,
 			IsPrimary:     phone.IsPrimary,
 		}
@@ -356,7 +355,6 @@ func (u *supplierUsecase) AddContact(ctx context.Context, supplierID string, req
 		Name:          req.Name,
 		Email:         req.Email,
 		Phone:         req.Phone,
-		Position:      req.Position,
 		Notes:         req.Notes,
 		IsPrimary:     req.IsPrimary,
 	}
@@ -378,7 +376,6 @@ func (u *supplierUsecase) AddContact(ctx context.Context, supplierID string, req
 		Name:          phone.Name,
 		Email:         phone.Email,
 		Phone:         phone.Phone,
-		Position:      phone.Position,
 		Notes:         phone.Notes,
 		IsPrimary:     phone.IsPrimary,
 		IsActive:      phone.IsActive,
@@ -402,9 +399,6 @@ func (u *supplierUsecase) UpdateContact(ctx context.Context, id string, req dto.
 	if req.Phone != "" {
 		phone.Phone = req.Phone
 	}
-	if req.Position != "" {
-		phone.Position = req.Position
-	}
 	if req.Notes != "" {
 		phone.Notes = req.Notes
 	}
@@ -425,7 +419,6 @@ func (u *supplierUsecase) UpdateContact(ctx context.Context, id string, req dto.
 		Name:          phone.Name,
 		Email:         phone.Email,
 		Phone:         phone.Phone,
-		Position:      phone.Position,
 		Notes:         phone.Notes,
 		IsPrimary:     phone.IsPrimary,
 		IsActive:      phone.IsActive,

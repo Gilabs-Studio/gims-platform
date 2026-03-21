@@ -75,7 +75,6 @@ export interface SupplierContact {
   name: string;
   email?: string;
   phone: string;
-  position?: string;
   notes?: string;
   is_primary: boolean;
   is_active: boolean;
@@ -89,7 +88,6 @@ export interface CreateContactData {
   name: string;
   email?: string;
   phone: string;
-  position?: string;
   notes?: string;
   is_primary?: boolean;
   is_active?: boolean;

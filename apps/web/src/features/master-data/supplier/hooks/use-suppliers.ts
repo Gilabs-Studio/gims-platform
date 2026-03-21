@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import { supplierService } from "../services/supplier-service";
 import type {
   Supplier,
+  SupplierContact,
   CreateSupplierData,
   UpdateSupplierData,
   ApproveSupplierData,
@@ -134,7 +135,22 @@ export function useAddContact() {
       supplierId: string;
       data: CreateContactData;
     }) => supplierService.addContact(supplierId, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
+      const createdContact = result.data;
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: [...contacts, createdContact as SupplierContact],
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });
@@ -155,7 +171,26 @@ export function useUpdateContact() {
       contactId: string;
       data: UpdateContactData;
     }) => supplierService.updateContact(supplierId, contactId, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
+      const updatedContact = result.data;
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: contacts.map((contact) =>
+                contact.id === variables.contactId
+                  ? { ...contact, ...(updatedContact as SupplierContact) }
+                  : contact
+              ),
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });
@@ -175,6 +210,20 @@ export function useDeleteContact() {
       contactId: string;
     }) => supplierService.deleteContact(supplierId, contactId),
     onSuccess: (_, variables) => {
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: contacts.filter((contact) => contact.id !== variables.contactId),
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });

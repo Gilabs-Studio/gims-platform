@@ -106,7 +106,6 @@ func toContactResponse(m *models.SupplierContact) dto.ContactResponse {
 		Name:          m.Name,
 		Email:         m.Email,
 		Phone:         m.Phone,
-		Position:      m.Position,
 		Notes:         m.Notes,
 		IsPrimary:     m.IsPrimary,
 		IsActive:      m.IsActive,

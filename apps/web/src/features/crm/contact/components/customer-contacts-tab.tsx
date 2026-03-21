@@ -148,11 +148,6 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
                     </Badge>
                   )}
                 </div>
-                {contact.position && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {contact.position}
-                  </p>
-                )}
                 <div className="flex items-center gap-3 mt-1.5">
                   {contact.phone && (
                     <a

@@ -213,7 +213,6 @@ export function SupplierDetailModal({
                               <div className="flex flex-wrap items-center gap-2">
                                 <span>{phone.phone}</span>
                                 {phone.email && <span className="text-muted-foreground">{phone.email}</span>}
-                                {phone.position && <Badge variant="outline" className="text-[10px]">{phone.position}</Badge>}
                                 {phone.is_primary && (
                                   <Badge variant="secondary" className="text-[10px]">Primary</Badge>
                                 )}

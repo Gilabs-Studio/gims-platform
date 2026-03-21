@@ -40,6 +40,7 @@ interface CustomerSidePanelProps {
   readonly customer?: Customer | null;
   readonly onSuccess?: () => void;
   readonly onCreated?: (item: { id: string; name: string }) => void;
+  readonly closeOnSuccess?: boolean; // false: keep drawer open after create/update
 }
 
 export function CustomerSidePanel({
@@ -49,6 +50,7 @@ export function CustomerSidePanel({
   customer,
   onSuccess,
   onCreated,
+  closeOnSuccess = false,
 }: CustomerSidePanelProps) {
   const t = useTranslations("customer");
   const isEditing = mode === "edit";
@@ -272,7 +274,9 @@ export function CustomerSidePanel({
         onCreated?.({ id: result.data.id, name: result.data.name });
       }
       onSuccess?.();
-      onClose();
+      if (closeOnSuccess) {
+        onClose();
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to save customer";
       toast.error(message);

@@ -125,14 +125,6 @@ export function ContactFormDialog({
                 )}
               />
             </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("form.position")}</FieldLabel>
-              <Input
-                placeholder={t("form.positionPlaceholder")}
-                {...register("position")}
-              />
-            </Field>
           </div>
 
           {/* Contact Information */}

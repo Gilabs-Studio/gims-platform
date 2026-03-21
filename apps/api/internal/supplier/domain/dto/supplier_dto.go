@@ -109,7 +109,6 @@ type CreateContactRequest struct {
 	Name          string  `json:"name" binding:"required,max=100"`
 	Email         string  `json:"email" binding:"omitempty,email,max=100"`
 	Phone         string  `json:"phone" binding:"required,max=30"`
-	Position      string  `json:"position" binding:"max=100"`
 	Notes         string  `json:"notes" binding:"max=1000"`
 	IsPrimary     bool    `json:"is_primary"`
 	IsActive      *bool   `json:"is_active"`
@@ -120,7 +119,6 @@ type UpdateContactRequest struct {
 	Name          string  `json:"name" binding:"omitempty,max=100"`
 	Email         string  `json:"email" binding:"omitempty,email,max=100"`
 	Phone         string  `json:"phone" binding:"omitempty,max=30"`
-	Position      string  `json:"position" binding:"max=100"`
 	Notes         string  `json:"notes" binding:"max=1000"`
 	IsPrimary     *bool   `json:"is_primary"`
 	IsActive      *bool   `json:"is_active"`
@@ -141,7 +139,6 @@ type ContactResponse struct {
 	Name          string           `json:"name"`
 	Email         string           `json:"email"`
 	Phone         string           `json:"phone"`
-	Position      string           `json:"position"`
 	Notes         string           `json:"notes"`
 	IsPrimary     bool             `json:"is_primary"`
 	IsActive      bool             `json:"is_active"`

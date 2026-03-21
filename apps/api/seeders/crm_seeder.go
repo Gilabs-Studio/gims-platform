@@ -101,7 +101,6 @@ func SeedCRMContacts() error {
 			Name:          "Ahmad Setiawan",
 			Phone:         "081234567890",
 			Email:         "ahmad.setiawan@apoteksehat.co.id",
-			Position:      "Direktur Utama",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -112,7 +111,6 @@ func SeedCRMContacts() error {
 			Name:          "Siti Rahmawati",
 			Phone:         "082345678901",
 			Email:         "siti.rahmawati@rsharapankita.co.id",
-			Position:      "Kepala Bagian Pengadaan",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -123,7 +121,6 @@ func SeedCRMContacts() error {
 			Name:          "Budi Santoso",
 			Phone:         "083456789012",
 			Email:         "budi.santoso@klinikmedia.co.id",
-			Position:      "PIC Farmasi",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -134,7 +131,6 @@ func SeedCRMContacts() error {
 			Name:          "Dewi Lestari",
 			Phone:         "084567890123",
 			Email:         "dewi.lestari@siloam.co.id",
-			Position:      "Manager Purchasing",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -145,7 +141,6 @@ func SeedCRMContacts() error {
 			Name:          "Eko Prasetyo",
 			Phone:         "085678901234",
 			Email:         "eko.prasetyo@kimiafarma.co.id",
-			Position:      "Staff Keuangan",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -156,7 +151,6 @@ func SeedCRMContacts() error {
 			Name:          "Fitri Handayani",
 			Phone:         "086789012345",
 			Email:         "fitri.handayani@puskesmas.go.id",
-			Position:      "PIC Obat",
 			IsActive:      true,
 			CreatedBy:     &adminID,
 		},
@@ -165,7 +159,7 @@ func SeedCRMContacts() error {
 	for _, contact := range contacts {
 		if err := database.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"name", "phone", "email", "position", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"name", "phone", "email", "updated_at"}),
 		}).Create(&contact).Error; err != nil {
 			log.Printf("Warning: Failed to seed contact %s: %v", contact.Name, err)
 		}

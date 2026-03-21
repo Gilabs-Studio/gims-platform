@@ -176,7 +176,6 @@ export function SupplierSidePanel({
             name: ph.name,
             email: ph.email ?? "",
             phone: ph.phone,
-            position: ph.position ?? "",
             is_primary: ph.is_primary,
           })) ?? [],
           bank_accounts: entity.bank_accounts?.map(b => ({
