@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { inventoryService } from "../services/inventory-service";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { InventoryBatchItem } from "../types";
 
 export function useInventoryTree() {
   const [expandedWarehouses, setExpandedWarehouses] = useState<Record<string, boolean>>({});
@@ -56,6 +57,7 @@ export function useInventoryTreeProducts(warehouseId: string, enabled: boolean) 
 // Hook for fetching paginated batches of a product in a warehouse (server-side pagination)
 export function useInventoryTreeBatches(warehouseId: string, productId: string, enabled: boolean, perPage = 10) {
   const [page, setPage] = useState(1);
+  const [allBatches, setAllBatches] = useState<InventoryBatchItem[]>([]);
 
   const query = useQuery({
     queryKey: ["inventory", "tree", "batches", warehouseId, productId, page, perPage],
@@ -64,12 +66,44 @@ export function useInventoryTreeBatches(warehouseId: string, productId: string, 
     staleTime: 60000,
   });
 
+  // Reset pagination when context changes.
+  useEffect(() => {
+    setPage(1);
+    setAllBatches([]);
+  }, [warehouseId, productId, perPage]);
+
+  // Append page results for load-more behavior.
+  useEffect(() => {
+    const pageData = query.data?.data?.data ?? [];
+    if (pageData.length === 0) {
+      return;
+    }
+
+    if (page === 1) {
+      setAllBatches(pageData);
+      return;
+    }
+
+    setAllBatches((prev) => [...prev, ...pageData]);
+  }, [page, query.data]);
+
+  const meta = query.data?.data?.meta;
+
+  const loadMore = () => {
+    if (!meta?.has_next || query.isFetching) {
+      return;
+    }
+
+    setPage((prev) => prev + 1);
+  };
+
   return {
-    batches: query.data?.data?.data ?? [],
-    meta: query.data?.data?.meta,
-    isLoading: query.isLoading,
+    batches: allBatches,
+    meta,
+    isLoading: query.isLoading && page === 1,
+    isLoadingMore: query.isFetching && page > 1,
     isError: query.isError,
     page,
-    setPage,
+    loadMore,
   };
 }

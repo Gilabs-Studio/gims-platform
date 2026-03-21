@@ -46,6 +46,17 @@ export interface InventoryTreeWarehouse {
   summary: StockSummary;
 }
 
+  export interface TreeProductsSummary {
+    total_items: number;
+    ok: number;
+    low: number;
+    out_of_stock: number;
+    overstock: number;
+  }
+
+  export interface InventoryTreeProductsResponse extends PaginatedResponse<InventoryStockItem> {
+    summary: TreeProductsSummary;
+  }
 export interface InventoryFilters {
   search?: string;
   warehouse_id?: string;

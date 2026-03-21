@@ -78,7 +78,7 @@ export function StockOpnameList() {
   const statusMutation = useUpdateStockOpnameStatus();
 
   // Warehouses for filter
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
+  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
     const opnames: StockOpname[] = data?.data ?? [];

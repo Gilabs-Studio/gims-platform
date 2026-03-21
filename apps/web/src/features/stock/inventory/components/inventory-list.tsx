@@ -139,7 +139,7 @@ export function InventoryList() {
   const { data: metricsData, isLoading: metricsLoading } = useInventoryMetrics();
   const metrics = metricsData?.data;
 
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
+  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
   const inventory = data?.data?.data ?? [];

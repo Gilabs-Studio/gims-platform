@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api-client";
-import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem, InventoryBatchesResponse, InventoryMetrics } from "../types";
+import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem, InventoryBatchesResponse, InventoryMetrics, InventoryTreeProductsResponse } from "../types";
 
 const BASE_URL = "/stock/inventory";
 
@@ -41,7 +41,7 @@ export const inventoryService = {
     searchParams.append("per_page", params.per_page.toString());
     if (params.search) searchParams.append("search", params.search);
 
-    const response = await apiClient.get<ApiResponse<PaginatedResponse<InventoryStockItem>>>(
+      const response = await apiClient.get<ApiResponse<InventoryTreeProductsResponse>>(
       `/stock/tree/products?${searchParams.toString()}`
     );
     return response.data;

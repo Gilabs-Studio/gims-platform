@@ -89,11 +89,11 @@ export function MovementList() {
   });
 
   // Lookup Data
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
+  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
   // For Product Select - usually we want Async Combobox, but for now simple Select with top 100
-  const { data: productData } = useProducts({ page: 1, per_page: 100 });
+  const { data: productData } = useProducts({ page: 1, per_page: 20 });
   const products = productData?.data ?? [];
 
   const stockResponse = data?.data;
