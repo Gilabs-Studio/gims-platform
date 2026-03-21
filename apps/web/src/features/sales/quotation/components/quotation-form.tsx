@@ -43,11 +43,6 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     fields,
     remove,
     products,
-    paymentTerms,
-    businessUnits,
-    businessTypes,
-    employees,
-    customers,
     contacts,
     selectedContactId,
     calculations,
@@ -75,6 +70,12 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     handleCustomerCreated,
     handleProductCreated,
     handleEmployeeCreated,
+    customerCombobox,
+    paymentTermsCombobox,
+    employeeCombobox,
+    businessUnitCombobox,
+    businessTypeCombobox,
+    productCombobox,
   } = useQuotationForm({ quotation, open, onClose });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
@@ -125,15 +126,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        customerCombobox.onOpenChange(isOpen);
                       }}
-                      options={customers.map((customer) => ({
-                        value: customer.id,
-                        label: `${customer.code} - ${customer.name}`,
-                      }))}
+                      onSearchChange={customerCombobox.onSearchChange}
+                      onLoadMore={customerCombobox.onLoadMore}
+                      hasMore={customerCombobox.hasMore}
+                      isLoadingMore={customerCombobox.isLoadingMore}
+                      searchDebounceMs={300}
+                      options={customerCombobox.options}
                       placeholder={t("common.selectCustomer") || "Select customer"}
                       createPermission="customer.create"
                       createLabel={`${t("common.create")} "{query}"`}
                       onCreateClick={(q) => openQuickCreate("customer", q)}
+                      isLoading={customerCombobox.isLoading || customerCombobox.isFetching}
                     />
                   )}
                 />
@@ -227,15 +232,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        paymentTermsCombobox.onOpenChange(isOpen);
                       }}
-                      options={paymentTerms.map((term) => ({
-                        value: term.id,
-                        label: term.code ? `${term.code} - ${term.name}` : term.name,
-                      }))}
+                      onSearchChange={paymentTermsCombobox.onSearchChange}
+                      onLoadMore={paymentTermsCombobox.onLoadMore}
+                      hasMore={paymentTermsCombobox.hasMore}
+                      isLoadingMore={paymentTermsCombobox.isLoadingMore}
+                      searchDebounceMs={300}
+                      options={paymentTermsCombobox.options}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       createLabel={`${t("common.create")} "{query}"`}
                       onCreateClick={(q) => openQuickCreate("paymentTerm", q)}
+                      isLoading={paymentTermsCombobox.isLoading || paymentTermsCombobox.isFetching}
                     />
                   )}
                 />
@@ -257,15 +266,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        employeeCombobox.onOpenChange(isOpen);
                       }}
-                      options={employees.map((emp) => ({
-                        value: emp.id,
-                        label: `${emp.employee_code} - ${emp.name}`,
-                      }))}
+                      onSearchChange={employeeCombobox.onSearchChange}
+                      onLoadMore={employeeCombobox.onLoadMore}
+                      hasMore={employeeCombobox.hasMore}
+                      isLoadingMore={employeeCombobox.isLoadingMore}
+                      searchDebounceMs={300}
+                      options={employeeCombobox.options}
                       placeholder={t("salesRep")}
                       createPermission="employee.create"
                       createLabel={`${t("common.create")} "{query}"`}
                       onCreateClick={(q) => openQuickCreate("employee", q)}
+                      isLoading={employeeCombobox.isLoading || employeeCombobox.isFetching}
                     />
                   )}
                 />
@@ -287,15 +300,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        businessUnitCombobox.onOpenChange(isOpen);
                       }}
-                      options={businessUnits.map((unit) => ({
-                        value: unit.id,
-                        label: unit.name,
-                      }))}
+                      onSearchChange={businessUnitCombobox.onSearchChange}
+                      onLoadMore={businessUnitCombobox.onLoadMore}
+                      hasMore={businessUnitCombobox.hasMore}
+                      isLoadingMore={businessUnitCombobox.isLoadingMore}
+                      searchDebounceMs={300}
+                      options={businessUnitCombobox.options}
                       placeholder={t("businessUnit")}
                       createPermission="business_unit.create"
                       createLabel={`${t("common.create")} "{query}"`}
                       onCreateClick={(q) => openQuickCreate("businessUnit", q)}
+                      isLoading={businessUnitCombobox.isLoading || businessUnitCombobox.isFetching}
                     />
                   )}
                 />
@@ -317,15 +334,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        businessTypeCombobox.onOpenChange(isOpen);
                       }}
-                      options={businessTypes.map((type) => ({
-                        value: type.id,
-                        label: type.name,
-                      }))}
+                      onSearchChange={businessTypeCombobox.onSearchChange}
+                      onLoadMore={businessTypeCombobox.onLoadMore}
+                      hasMore={businessTypeCombobox.hasMore}
+                      isLoadingMore={businessTypeCombobox.isLoadingMore}
+                      searchDebounceMs={300}
+                      options={businessTypeCombobox.options}
                       placeholder={t("common.select")}
                       createPermission="business_type.create"
                       createLabel={`${t("common.create")} "{query}"`}
                       onCreateClick={(q) => openQuickCreate("businessType", q)}
+                      isLoading={businessTypeCombobox.isLoading || businessTypeCombobox.isFetching}
                     />
                   )}
                 />
@@ -526,7 +547,13 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                   if (isOpen) {
                                     enableProductOptionsFetch();
                                   }
+                                  productCombobox.onOpenChange(isOpen);
                                 }}
+                                onSearchChange={productCombobox.onSearchChange}
+                                onLoadMore={productCombobox.onLoadMore}
+                                hasMore={productCombobox.hasMore}
+                                isLoadingMore={productCombobox.isLoadingMore}
+                                searchDebounceMs={300}
                                 options={products.map((product) => ({
                                   value: product.id,
                                   label: `${product.code} - ${product.name}`,
@@ -535,6 +562,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 createPermission="product.create"
                                 createLabel={`${t("common.create")} "{query}"`}
                                 onCreateClick={(q) => openQuickCreate("product", q, index)}
+                                isLoading={productCombobox.isLoading || productCombobox.isFetching}
                               />
                             )}
                           />

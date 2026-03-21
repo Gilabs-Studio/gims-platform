@@ -37,11 +37,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { useOrder } from "@/features/sales/order/hooks/use-orders";
+import { orderService } from "@/features/sales/order/services/order-service";
 
 import {
   useCreateCustomerInvoiceDP,
   useCustomerInvoiceDP,
-  useCustomerInvoiceDPAddData,
   useUpdateCustomerInvoiceDP,
 } from "../hooks/use-customer-invoice-dp";
 import {
@@ -68,9 +70,6 @@ export function CustomerInvoiceDPFormDialog({
   const t = useTranslations("customerInvoiceDP");
 
   const isEdit = !!invoiceId;
-  const [shouldLoadSalesOrders, setShouldLoadSalesOrders] = useState(!!defaultSalesOrderId || isEdit);
-
-  const addDataQuery = useCustomerInvoiceDPAddData({ enabled: open && shouldLoadSalesOrders });
   const detailQuery = useCustomerInvoiceDP(invoiceId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateCustomerInvoiceDP();
@@ -92,7 +91,6 @@ export function CustomerInvoiceDPFormDialog({
   useEffect(() => {
     if (!open) {
       setAttachments([]);
-      setShouldLoadSalesOrders(!!defaultSalesOrderId || isEdit);
       return;
     }
 
@@ -119,13 +117,23 @@ export function CustomerInvoiceDPFormDialog({
     });
   }, [open, isEdit, detailQuery.data, form, defaultSalesOrderId, defaultAmount]);
 
-  const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
-
   const selectedSOId = form.watch("sales_order_id");
-  const selectedSO = useMemo(() => {
-    if (!addData?.sales_orders?.length || !selectedSOId) return null;
-    return addData.sales_orders.find((so) => so.id === selectedSOId) ?? null;
-  }, [addData?.sales_orders, selectedSOId]);
+  const selectedSOQuery = useOrder(selectedSOId ?? "", {
+    enabled: open && !!selectedSOId,
+  });
+
+  const salesOrderOptions = usePaginatedComboboxOptions({
+    queryKey: ["customer-invoice-dp", "sales-order-options"],
+    enabled: open,
+    lazyLoad: true,
+    queryFn: (params) => orderService.list(params),
+    mapOption: (order) => ({
+      value: order.id,
+      label: `${order.code} - ${formatCurrency(order.total_amount ?? 0)}`,
+    }),
+  });
+
+  const selectedSO = selectedSOQuery.data?.success ? selectedSOQuery.data.data : null;
 
   const dpAmount = form.watch("amount");
 
@@ -162,7 +170,6 @@ export function CustomerInvoiceDPFormDialog({
   }, []);
 
   const isBusy =
-    addDataQuery.isLoading ||
     detailQuery.isLoading ||
     createMutation.isPending ||
     updateMutation.isPending;
@@ -192,7 +199,7 @@ export function CustomerInvoiceDPFormDialog({
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
 
-        {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
+        {salesOrderOptions.isLoading ? <Skeleton className="h-40 w-full" /> : null}
 
         <form
           className="space-y-6"
@@ -215,20 +222,22 @@ export function CustomerInvoiceDPFormDialog({
             <Select
               value={form.watch("sales_order_id")}
               onValueChange={(value) => form.setValue("sales_order_id", value, { shouldValidate: true })}
-              onOpenChange={(isOpen) => {
-                if (isOpen) {
-                  setShouldLoadSalesOrders(true);
-                }
-              }}
+              onOpenChange={salesOrderOptions.onOpenChange}
+              onSearchChange={salesOrderOptions.onSearchChange}
+              searchDebounceMs={300}
               disabled={isBusy || isEdit}
             >
               <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder={t("placeholders.select")} />
               </SelectTrigger>
-              <SelectContent>
-                {(addData?.sales_orders ?? []).map((so) => (
-                  <SelectItem key={so.id} value={so.id} className="cursor-pointer">
-                    {so.code} — {formatCurrency(so.total_amount ?? 0)}
+              <SelectContent
+                onLoadMore={salesOrderOptions.onLoadMore}
+                hasMore={salesOrderOptions.hasMore}
+                isLoadingMore={salesOrderOptions.isLoadingMore}
+              >
+                {salesOrderOptions.options.map((option) => (
+                  <SelectItem key={option.value} value={option.value} className="cursor-pointer">
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

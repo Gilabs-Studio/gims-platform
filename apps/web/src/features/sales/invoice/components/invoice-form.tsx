@@ -67,6 +67,9 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
+    productsCombobox,
+    paymentTermsCombobox,
+    ordersCombobox,
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
@@ -118,12 +121,19 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        ordersCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={ordersCombobox.onSearchChange}
+                      searchDebounceMs={300}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={t("salesOrder")} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent
+                        onLoadMore={ordersCombobox.onLoadMore}
+                        hasMore={ordersCombobox.hasMore}
+                        isLoadingMore={ordersCombobox.isLoadingMore}
+                      >
                         {orders.map((order) => (
                           <SelectItem key={order.id} value={order.id}>
                             {order.code}
@@ -243,10 +253,17 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        paymentTermsCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={paymentTermsCombobox.onSearchChange}
+                      onLoadMore={paymentTermsCombobox.onLoadMore}
+                      hasMore={paymentTermsCombobox.hasMore}
+                      isLoadingMore={paymentTermsCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       onCreateClick={() => openQuickCreate("paymentTerm")}
+                      isLoading={paymentTermsCombobox.isLoading || paymentTermsCombobox.isFetching}
                     />
                   )}
                 />
@@ -446,12 +463,19 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                   if (isOpen) {
                                     enableProductOptionsFetch();
                                   }
+                                  productsCombobox.onOpenChange(isOpen);
                                 }}
+                                onSearchChange={productsCombobox.onSearchChange}
+                                searchDebounceMs={300}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder={t("item.selectProduct")} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent
+                                  onLoadMore={productsCombobox.onLoadMore}
+                                  hasMore={productsCombobox.hasMore}
+                                  isLoadingMore={productsCombobox.isLoadingMore}
+                                >
                                   {products.map((product) => (
                                     <SelectItem key={product.id} value={product.id}>
                                       {product.code} - {product.name}

@@ -12,10 +12,12 @@ import {
   type UpdateInvoiceFormData,
 } from "../schemas/invoice.schema";
 import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-invoices";
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
-import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
+import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCustomerInvoiceDPs } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { productService } from "@/features/master-data/product/services/product-service";
+import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
+import { orderService } from "@/features/sales/order/services/order-service";
 import type { CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
@@ -38,8 +40,8 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
-  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit || !!defaultSalesOrderId);
-  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(isEdit);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
 
   type QuickCreateType = "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
@@ -60,50 +62,106 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     { enabled: open && isEdit && !!invoice?.id }
   );
 
-  // Fetch lookup data
-  const { data: productsData } = useProducts(
-    { per_page: 20, is_approved: true },
-    { enabled: open && shouldLoadProductOptions },
-  );
-  const { data: paymentTermsData } = usePaymentTerms(
-    { per_page: 20 },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
-  const { data: ordersData } = useOrders(
-    { per_page: 20, status: "approved" },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
+  const selectedInvoice = fullInvoiceData?.data ?? invoice ?? null;
+  const referenceOptionsEnabled = open && shouldLoadReferenceOptions;
+  const productOptionsEnabled = open && shouldLoadProductOptions;
+
+  const productsCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "products"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      productService.list({
+        ...params,
+        is_approved: true,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: `${item.code} - ${item.name}`,
+    }),
+    enabled: productOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.items?.length
+        ? selectedInvoice.items
+            .filter((item) => item.product?.id)
+            .map((item) => ({
+              value: item.product_id,
+              label: item.product?.code
+                ? `${item.product.code} - ${item.product.name}`
+                : item.product?.name ?? item.product_id,
+            }))
+        : undefined,
+  });
+
+  const paymentTermsCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "payment-terms"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      paymentTermsService.list({
+        ...params,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code ? `${item.code} - ${item.name}` : item.name,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.payment_terms?.id
+        ? [
+            {
+              value: selectedInvoice.payment_terms.id,
+              label: selectedInvoice.payment_terms.code
+                ? `${selectedInvoice.payment_terms.code} - ${selectedInvoice.payment_terms.name}`
+                : selectedInvoice.payment_terms.name,
+            },
+          ]
+        : undefined,
+  });
+
+  const ordersCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "orders"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      orderService.list({
+        ...params,
+        status: "approved",
+        sort_by: "order_date",
+        sort_dir: "desc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.sales_order?.id
+        ? [{ value: selectedInvoice.sales_order.id, label: selectedInvoice.sales_order.code }]
+        : undefined,
+  });
 
   useEffect(() => {
     if (!open) {
-      setShouldLoadReferenceOptions(isEdit || !!defaultSalesOrderId);
-      setShouldLoadProductOptions(isEdit);
       return;
     }
 
-    if (isEdit || !!defaultSalesOrderId) {
-      setShouldLoadReferenceOptions(true);
-    }
+    setShouldLoadReferenceOptions(true);
+    setShouldLoadProductOptions(true);
+  }, [open]);
 
-    if (isEdit) {
-      setShouldLoadProductOptions(true);
-    }
-  }, [open, isEdit, defaultSalesOrderId]);
+  const products = useMemo(
+    () => sortOptions(productsCombobox.items, (a) => `${a.code} - ${a.name}`),
+    [productsCombobox.items],
+  );
 
-  const products = useMemo(() => {
-    const data = productsData?.data ?? [];
-    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
-  }, [productsData?.data]);
+  const paymentTerms = useMemo(
+    () => sortOptions(paymentTermsCombobox.items, (a) => a.name),
+    [paymentTermsCombobox.items],
+  );
 
-  const paymentTerms = useMemo(() => {
-    const data = paymentTermsData?.data ?? [];
-    return sortOptions(data, (a) => a.name);
-  }, [paymentTermsData?.data]);
-
-  const orders = useMemo(() => {
-    const data = ordersData?.data ?? [];
-    return sortOptions(data, (a) => a.code);
-  }, [ordersData?.data]);
+  const orders = useMemo(
+    () => sortOptions(ordersCombobox.items, (a) => a.code),
+    [ordersCombobox.items],
+  );
 
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
@@ -522,5 +580,8 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
+    productsCombobox,
+    paymentTermsCombobox,
+    ordersCombobox,
   };
 }

@@ -44,7 +44,6 @@ export const getOrderSchema = (t?: TranslationFn) => z.object({
     .min(1, getMsg(t, "validation.required", "Business unit is required"))
     .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid business unit ID")),
   business_type_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
-  delivery_area_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   tax_rate: z.number()
     .min(0, getMsg(t, "validation.taxRateMin", "Tax rate cannot be negative"))
     .max(100, getMsg(t, "validation.taxRateMax", "Tax rate cannot exceed 100%"))

@@ -112,8 +112,6 @@ export interface SalesOrder {
     id: string;
     name: string;
   };
-  delivery_area_id?: string;
-  delivery_area?: Area;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;
@@ -222,7 +220,6 @@ export interface CreateSalesOrderData {
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
-  delivery_area_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;
@@ -249,7 +246,6 @@ export interface UpdateSalesOrderData {
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
-  delivery_area_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;
