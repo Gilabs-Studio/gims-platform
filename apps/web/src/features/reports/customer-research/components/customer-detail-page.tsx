@@ -98,7 +98,7 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
   // Load all orders for this customer (no date filter — show everything)
   const { data: ordersData, isLoading: isOrdersLoading } = useOrders({
     customer_id: customerId,
-    per_page: 100,
+    per_page: 20,
     sort_by: "order_date",
     sort_dir: "desc",
   });

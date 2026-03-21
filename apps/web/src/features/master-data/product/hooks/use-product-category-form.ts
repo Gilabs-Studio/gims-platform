@@ -40,7 +40,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
   
   // Fetch categories for parent selection, only when modal is open
   const { data: categoriesData } = useProductCategories(
-    { per_page: 100 },
+    { per_page: 20 },
     { enabled: open }
   );
   

@@ -42,7 +42,7 @@ export function useCompanyMapView() {
 
   // Queries & Mutations
   const { data, isLoading, refetch } = useCompanies({
-    per_page: 100, // Get max allowed for map
+    per_page: 20, // Get max allowed for map
     search: debouncedSearch || undefined,
     is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
   });

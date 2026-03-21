@@ -50,9 +50,9 @@ export function useEmployeeList() {
 
   // Queries & Mutations
   const { data: openEmployeeData } = useEmployee(openIdFromUrl ?? undefined);
-  const { data: divisionsData } = useDivisions({ per_page: 100 });
-  const { data: positionsData } = useJobPositions({ per_page: 100 });
-  const { data: companiesData } = useCompanies({ per_page: 100 });
+  const { data: divisionsData } = useDivisions({ per_page: 20 });
+  const { data: positionsData } = useJobPositions({ per_page: 20 });
+  const { data: companiesData } = useCompanies({ per_page: 20 });
 
   const { data, isLoading, isError, refetch } = useEmployees({
     page,
@@ -75,9 +75,15 @@ export function useEmployeeList() {
   // Effects
   useEffect(() => {
     if (!openIdFromUrl || !openEmployeeData?.data) return;
-    setDetailEmployee(openEmployeeData.data);
-    setIsDetailOpen(true);
-    router.replace(pathname, { scroll: false });
+
+    // Keep the state update asynchronous to avoid sync cascading render warnings
+    const timeoutId = window.setTimeout(() => {
+      setDetailEmployee(openEmployeeData.data);
+      setIsDetailOpen(true);
+      router.replace(pathname, { scroll: false });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [openIdFromUrl, openEmployeeData?.data, pathname, router]);
 
   // Handlers
@@ -107,7 +113,7 @@ export function useEmployeeList() {
     }
   };
 
-  const handleStatusChange = async (id: string, currentStatus: boolean, name: string) => {
+  const handleStatusChange = async (id: string, currentStatus: boolean) => {
     try {
       await updateMutation.mutateAsync({ id, data: { is_active: !currentStatus } });
       toast.success(t("updateSuccess"));
