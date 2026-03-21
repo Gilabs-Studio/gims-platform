@@ -12,9 +12,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     <div className="flex min-h-screen">
       {/* Left Side - Full Image (2/3) */}
       <div className="hidden lg:block lg:w-2/3 p-6">
-        <div className="relative h-full w-full overflow-hidden rounded-3xl shadow-2xl">
+        <div className="relative h-full w-full overflow-hidden rounded-lg shadow-lg">
           <Image
-            src="/login.webp"
+            src="/login.png"
             alt="GIMS Platform"
             fill
             className="object-cover"
