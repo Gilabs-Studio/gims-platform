@@ -14,6 +14,7 @@ type LeadSourceRepository interface {
 	List(ctx context.Context, params ListParams) ([]models.LeadSource, int64, error)
 	Update(ctx context.Context, source *models.LeadSource) error
 	Delete(ctx context.Context, id string) error
+	GetMaxOrder(ctx context.Context) (int, error)
 }
 
 type leadSourceRepository struct {
@@ -85,4 +86,16 @@ func (r *leadSourceRepository) Update(ctx context.Context, source *models.LeadSo
 
 func (r *leadSourceRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.LeadSource{}, "id = ?", id).Error
+}
+
+func (r *leadSourceRepository) GetMaxOrder(ctx context.Context) (int, error) {
+	var maxOrder int
+	err := r.db.WithContext(ctx).
+		Model(&models.LeadSource{}).
+		Select(`COALESCE(MAX("order"), 0)`).
+		Scan(&maxOrder).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder, nil
 }
