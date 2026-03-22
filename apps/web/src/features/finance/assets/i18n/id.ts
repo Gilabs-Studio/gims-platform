@@ -160,6 +160,13 @@ export const financeAssetsId = {
     inactive: "Tidak Aktif",
     sold: "Terjual",
     disposed: "Dilepas",
+    in_use: "Sedang Digunakan",
+    draft: "Draft",
+    pending_capitalization: "Menunggu Kapitalisasi",
+    under_maintenance: "Dalam Perawatan",
+    idle: "Menganggur",
+    written_off: "Dihapuskan",
+    transferred: "Ditransfer",
   },
   fields: {
     code: "Kode",

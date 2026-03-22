@@ -27,6 +27,7 @@ import type {
   UpdateEmployeeAssetData,
   ReturnEmployeeAssetData,
   EmployeeSignature,
+  AvailableAsset,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -288,6 +289,14 @@ export const employeeService = {
     await apiClient.delete(
       `${BASE_PATH}/employees/${employeeId}/certifications/${certId}`,
     );
+  },
+
+  // Available Assets from Finance Assets module
+  async getAvailableAssets(): Promise<AvailableAsset[]> {
+    const response = await apiClient.get<{
+      data: AvailableAsset[];
+    }>("/finance/assets/available");
+    return response.data.data;
   },
 
   // Asset management

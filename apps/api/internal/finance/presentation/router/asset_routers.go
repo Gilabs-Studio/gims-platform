@@ -18,6 +18,8 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g := r.Group("/assets")
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
+	// Available assets for employee borrowing
+	g.GET("/available", middleware.RequirePermission(assetRead), h.GetAvailableAssets)
 	g.POST("", middleware.RequirePermission(assetCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(assetCreate), h.Create)
 	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity

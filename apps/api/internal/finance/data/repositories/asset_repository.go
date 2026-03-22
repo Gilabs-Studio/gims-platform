@@ -29,6 +29,7 @@ type AssetRepository interface {
 	List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error)
 	FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error)
 	GenerateCode(ctx context.Context) (string, error)
+	UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error
 }
 
 type assetRepository struct {
@@ -153,4 +154,11 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("%s%04d", prefix, nextNum), nil
+}
+
+func (r *assetRepository) UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&financeModels.Asset{}).
+		Where("id = ?", assetID).
+		Update("status", status).Error
 }

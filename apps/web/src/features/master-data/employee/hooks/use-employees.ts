@@ -525,7 +525,16 @@ export const assetKeys = {
   all: ["employee-asset"] as const,
   lists: (employeeId: string) =>
     [...assetKeys.all, "list", employeeId] as const,
+  available: () => [...assetKeys.all, "available"] as const,
 };
+
+export function useAvailableAssets(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: assetKeys.available(),
+    queryFn: () => employeeService.getAvailableAssets(),
+    enabled: options?.enabled ?? true,
+  });
+}
 
 export function useEmployeeAssets(employeeId: string | undefined) {
   return useQuery({

@@ -40,6 +40,9 @@ type AssetUsecase interface {
 	CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error
 	GetFormData(ctx context.Context) (*dto.AssetFormDataResponse, error)
 
+	// Available assets for employee borrowing
+	GetAvailableAssets(ctx context.Context) ([]dto.AvailableAssetResponse, error)
+
 	// Phase 2: Attachments, Assignments, Audit Logs
 	ListAttachments(ctx context.Context, assetID string) ([]dto.AssetAttachmentResponse, error)
 	CreateAttachment(ctx context.Context, assetID string, att *financeModels.AssetAttachment) (*dto.AssetAttachmentResponse, error)
@@ -1291,6 +1294,57 @@ func (uc *assetUsecase) ListAssignmentHistory(ctx context.Context, assetID strin
 	return res, nil
 }
 
+// ========== Available Assets for Employee Borrowing ==========
+
+func (uc *assetUsecase) GetAvailableAssets(ctx context.Context) ([]dto.AvailableAssetResponse, error) {
+	// Get assets with status "active" that are not currently assigned to any employee
+	// and not currently borrowed in employee_assets table
+	params := repositories.AssetListParams{
+		Limit:  1000,
+		Offset: 0,
+	}
+
+	assets, _, err := uc.repo.List(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch available assets: %w", err)
+	}
+
+	var availableAssets []dto.AvailableAssetResponse
+	for i := range assets {
+		asset := &assets[i]
+		// Only include active assets
+		if asset.Status != financeModels.AssetStatusActive {
+			continue
+		}
+
+		resp := dto.AvailableAssetResponse{
+			ID:        asset.ID,
+			Code:      asset.Code,
+			Name:      asset.Name,
+			Status:    string(asset.Status),
+			BookValue: asset.BookValue,
+		}
+
+		if asset.Category != nil {
+			resp.Category = &dto.AvailableAssetCategoryLite{
+				ID:   asset.Category.ID,
+				Name: asset.Category.Name,
+			}
+		}
+
+		if asset.Location != nil {
+			resp.Location = &dto.AvailableAssetLocationLite{
+				ID:   asset.Location.ID,
+				Name: asset.Location.Name,
+			}
+		}
+
+		availableAssets = append(availableAssets, resp)
+	}
+
+	return availableAssets, nil
+}
+
 // --- UUID helpers ---
 
 func parseUUID(s string) uuid.UUID {
@@ -1308,4 +1362,3 @@ func parseUUIDPtr(s *string) *uuid.UUID {
 	}
 	return &u
 }
-

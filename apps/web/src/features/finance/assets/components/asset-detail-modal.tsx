@@ -400,7 +400,6 @@ export function AssetDetailModal({
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="attachments" className="flex-shrink-0">
-                  <Paperclip className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.attachments")}
                   {attachments.length > 0 && (
                     <Badge variant="secondary" className="ml-1.5 text-xs">
@@ -412,7 +411,6 @@ export function AssetDetailModal({
                   value="assignment-history"
                   className="flex-shrink-0"
                 >
-                  <History className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.assignmentHistory")}
                   {assignmentHistory.length > 0 && (
                     <Badge variant="secondary" className="ml-1.5 text-xs">
@@ -421,22 +419,18 @@ export function AssetDetailModal({
                   )}
                 </TabsTrigger>
                 <TabsTrigger value="audit-log" className="flex-shrink-0">
-                  <ClipboardList className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.auditLog")}
                 </TabsTrigger>
                 <TabsTrigger value="acquisition" className="flex-shrink-0">
-                  <ShoppingCart className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.acquisition")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="depreciation-config"
                   className="flex-shrink-0"
                 >
-                  <Settings className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.depreciationConfig")}
                 </TabsTrigger>
                 <TabsTrigger value="components" className="flex-shrink-0">
-                  <Package className="h-3.5 w-3.5 mr-1" />
                   {t("detail.tabs.components")}
                   {asset.child_assets && asset.child_assets.length > 0 && (
                     <Badge variant="secondary" className="ml-1.5 text-xs">

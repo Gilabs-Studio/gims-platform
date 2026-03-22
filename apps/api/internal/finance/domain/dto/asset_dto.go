@@ -188,18 +188,18 @@ type AssetTransactionResponse struct {
 }
 
 type AssetAttachmentResponse struct {
-	ID          string     `json:"id"`
-	AssetID     string     `json:"asset_id"`
-	FileName    string     `json:"file_name"`
-	FilePath    string     `json:"file_path"`
-	FileURL     string     `json:"file_url"`
-	FileType    string     `json:"file_type"`
-	FileSize    *int       `json:"file_size,omitempty"`
-	MimeType    *string    `json:"mime_type,omitempty"`
-	Description *string    `json:"description,omitempty"`
-	UploadedBy  *string    `json:"uploaded_by,omitempty"`
-	UploadedAt  time.Time  `json:"uploaded_at"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID          string    `json:"id"`
+	AssetID     string    `json:"asset_id"`
+	FileName    string    `json:"file_name"`
+	FilePath    string    `json:"file_path"`
+	FileURL     string    `json:"file_url"`
+	FileType    string    `json:"file_type"`
+	FileSize    *int      `json:"file_size,omitempty"`
+	MimeType    *string   `json:"mime_type,omitempty"`
+	Description *string   `json:"description,omitempty"`
+	UploadedBy  *string   `json:"uploaded_by,omitempty"`
+	UploadedAt  time.Time `json:"uploaded_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type AuditChangeResponse struct {
@@ -209,15 +209,15 @@ type AuditChangeResponse struct {
 }
 
 type AssetAuditLogResponse struct {
-	ID          string                `json:"id"`
-	AssetID     string                `json:"asset_id"`
-	Action      string                `json:"action"`
-	Changes     []AuditChangeResponse `json:"changes,omitempty"`
-	PerformedBy *string               `json:"performed_by,omitempty"`
-	PerformedAt time.Time             `json:"performed_at"`
-	IPAddress   *string               `json:"ip_address,omitempty"`
+	ID          string                 `json:"id"`
+	AssetID     string                 `json:"asset_id"`
+	Action      string                 `json:"action"`
+	Changes     []AuditChangeResponse  `json:"changes,omitempty"`
+	PerformedBy *string                `json:"performed_by,omitempty"`
+	PerformedAt time.Time              `json:"performed_at"`
+	IPAddress   *string                `json:"ip_address,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt   time.Time             `json:"created_at"`
+	CreatedAt   time.Time              `json:"created_at"`
 }
 
 type AssetAssignmentHistoryResponse struct {
@@ -236,10 +236,10 @@ type AssetAssignmentHistoryResponse struct {
 }
 
 type AssetResponse struct {
-	ID          string                 `json:"id"`
-	Code        string                 `json:"code"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 
 	// Identity
 	SerialNumber *string `json:"serial_number,omitempty"`
@@ -284,14 +284,14 @@ type AssetResponse struct {
 	DepreciationStartDate *time.Time `json:"depreciation_start_date,omitempty"`
 
 	// Status / Lifecycle
-	Status                financeModels.AssetStatus         `json:"status"`
-	LifecycleStage        financeModels.AssetLifecycleStage `json:"lifecycle_stage"`
-	IsCapitalized         bool                              `json:"is_capitalized"`
-	IsDepreciable         bool                              `json:"is_depreciable"`
-	IsFullyDepreciated    bool                              `json:"is_fully_deprecated"`
-	DisposedAt            *time.Time                        `json:"disposed_at,omitempty"`
-	DepreciationProgress  float64                           `json:"depreciation_progress"`
-	AgeInMonths           int                               `json:"age_in_months"`
+	Status               financeModels.AssetStatus         `json:"status"`
+	LifecycleStage       financeModels.AssetLifecycleStage `json:"lifecycle_stage"`
+	IsCapitalized        bool                              `json:"is_capitalized"`
+	IsDepreciable        bool                              `json:"is_depreciable"`
+	IsFullyDepreciated   bool                              `json:"is_fully_deprecated"`
+	DisposedAt           *time.Time                        `json:"disposed_at,omitempty"`
+	DepreciationProgress float64                           `json:"depreciation_progress"`
+	AgeInMonths          int                               `json:"age_in_months"`
 
 	// Parent/Child
 	ParentAssetID *string `json:"parent_asset_id,omitempty"`
@@ -346,6 +346,30 @@ type AssetMiniResponse struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
 	Name string `json:"name"`
+}
+
+// AvailableAssetCategoryLite for available assets list
+type AvailableAssetCategoryLite struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AvailableAssetLocationLite for available assets list
+type AvailableAssetLocationLite struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AvailableAssetResponse for employee asset borrowing
+type AvailableAssetResponse struct {
+	ID         string                      `json:"id"`
+	Code       string                      `json:"code"`
+	Name       string                      `json:"name"`
+	Category   *AvailableAssetCategoryLite `json:"category,omitempty"`
+	Location   *AvailableAssetLocationLite `json:"location,omitempty"`
+	AssetImage string                      `json:"asset_image,omitempty"`
+	Status     string                      `json:"status"`
+	BookValue  float64                     `json:"book_value"`
 }
 
 // UuidPtrToStringPtr converts a uuid.UUID pointer to a string pointer

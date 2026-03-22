@@ -160,6 +160,13 @@ export const financeAssetsEn = {
     inactive: "Inactive",
     sold: "Sold",
     disposed: "Disposed",
+    in_use: "In Use",
+    draft: "Draft",
+    pending_capitalization: "Pending Capitalization",
+    under_maintenance: "Under Maintenance",
+    idle: "Idle",
+    written_off: "Written Off",
+    transferred: "Transferred",
   },
   fields: {
     code: "Code",

@@ -2,9 +2,9 @@
 
 > **Module:** Organization (Master Data > Employees)  
 > **Sprint:** —  
-> **Version:** 1.0.0  
-> **Status:** ✅ Complete (API + Frontend)  
-> **Last Updated:** February 2026
+> **Version:** 2.0.0  
+> **Status:** ✅ Complete (API + Frontend + Finance Assets Integration)  
+> **Last Updated:** March 2026
 
 ---
 
@@ -34,17 +34,20 @@ Employee Asset Management is a sub-feature of the Employee Management module tha
 
 ### Key Features
 
-| Feature            | Description                                                                  |
-| ------------------ | ---------------------------------------------------------------------------- |
-| Asset Tracking     | Track company assets borrowed by employees (laptops, phones, monitors, etc.) |
-| Status Management  | Status tracking: BORROWED (active) vs RETURNED (completed)                   |
-| Condition Tracking | Track condition at borrow and return time (NEW, GOOD, FAIR, POOR, DAMAGED)   |
-| Image Upload       | Optional asset image upload via `/upload/image` endpoint (converted to WebP) |
-| Image Preview      | Clickable image thumbnail opens full-size lightbox preview                   |
-| Return Workflow    | Return Asset action with date/condition validation                           |
-| Timeline View      | Assets tab with timeline design showing chronological history                |
-| Days Counter       | Computed days borrowed calculation                                           |
-| Soft Delete        | Soft delete for audit trail preservation                                     |
+| Feature                    | Description                                                                  |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| Asset Tracking             | Track company assets borrowed by employees (laptops, phones, monitors, etc.) |
+| Finance Assets Integration | Link employee assets to Finance Assets module for centralized inventory      |
+| Status Sync                | Auto-update Finance Assets status: active ↔ in_use on borrow/return         |
+| Audit Logging              | Automatic audit log entries in Finance Assets for borrow/return events       |
+| Status Management          | Status tracking: BORROWED (active) vs RETURNED (completed)                   |
+| Condition Tracking         | Track condition at borrow and return time (NEW, GOOD, FAIR, POOR, DAMAGED)   |
+| Image Upload               | Optional asset image upload via `/upload/image` endpoint (converted to WebP) |
+| Image Preview              | Clickable image thumbnail opens full-size lightbox preview                   |
+| Return Workflow            | Return Asset action with date/condition validation                           |
+| Timeline View              | Assets tab with timeline design showing chronological history                |
+| Days Counter               | Computed days borrowed calculation                                           |
+| Soft Delete                | Soft delete for audit trail preservation                                     |
 
 ---
 
@@ -95,21 +98,37 @@ Track assets from borrowing through return:
 apps/api/internal/organization/
 ├── data/
 │   ├── models/
-│   │   └── employee_asset.go          # EmployeeAsset model + enums
+│   │   └── employee_asset.go              # EmployeeAsset model with asset_id FK
 │   └── repositories/
-│       └── employee_asset_repository.go
+│       └── employee_asset_repository.go   # CRUD + FindByAssetID
 ├── domain/
 │   ├── dto/
-│   │   └── employee_asset_dto.go      # Create/Update/Return/Response DTOs
+│   │   └── employee_asset_dto.go          # DTOs with AvailableAssetResponse
 │   ├── mapper/
 │   │   └── employee_asset_mapper.go
 │   └── usecase/
-│       └── employee_usecase.go        # Asset methods embedded in EmployeeUsecase
+│       └── employee_usecase.go            # Asset methods with Finance Assets integration
 ├── presentation/
 │   ├── handler/
-│   │   └── employee_handler.go        # Asset handler methods
+│   │   └── employee_handler.go
 │   └── router/
-│       └── employee_routers.go        # Asset routes under /:id/assets
+│       └── employee_routers.go
+
+# Finance Assets Integration
+apps/api/internal/finance/
+├── data/
+│   ├── models/
+│   │   ├── asset.go                       # Finance Asset model
+│   │   └── asset_audit_log.go             # Audit log for status changes
+│   └── repositories/
+│       ├── asset_repository.go            # UpdateStatus method
+│       └── asset_audit_log_repository.go  # Create audit logs
+├── domain/
+│   └── usecase/
+│       └── asset_usecase.go               # GetAvailableAssets method
+└── presentation/
+    └── handler/
+        └── asset_handler.go               # GetAvailableAssets endpoint
 ```
 
 ### Frontend Structure
@@ -149,6 +168,7 @@ apps/web/src/features/master-data/employee/
 | ---------------- | ----------- | -------------------------------------------------------- |
 | id               | UUID        | Primary key                                              |
 | employee_id      | UUID        | Employee reference (FK)                                  |
+| asset_id         | UUID        | Finance Asset reference (FK, nullable)                   |
 | asset_name       | STRING(200) | Asset name/description                                   |
 | asset_code       | STRING(100) | Unique asset identifier                                  |
 | asset_category   | STRING(100) | Category (Laptop, Phone, etc.)                           |
@@ -171,11 +191,17 @@ apps/web/src/features/master-data/employee/
 
 ```
 1. Validate employee exists
-2. Validate asset_code is unique globally
-3. Set status = BORROWED
-4. Set borrow_date (defaults to today)
-5. Store optional image if provided
-6. Create record
+2. If asset_id provided (Finance Assets integration):
+   a. Validate asset exists in Finance Assets
+   b. Validate asset status = ACTIVE (available)
+   c. Check asset not already borrowed
+   d. Update Finance Assets status to IN_USE
+   e. Create audit log entry (action: "borrowed")
+3. Validate asset_code is unique globally
+4. Set status = BORROWED
+5. Set borrow_date (defaults to today)
+6. Store optional image if provided
+7. Create employee asset record
 ```
 
 ### Asset Update
@@ -195,7 +221,10 @@ apps/web/src/features/master-data/employee/
 3. Validate return_date >= borrow_date
 4. Set status = RETURNED
 5. Record return_condition (mandatory)
-6. Optional return notes
+6. If linked to Finance Assets (asset_id exists):
+   a. Update Finance Assets status to ACTIVE
+   b. Create audit log entry (action: "returned")
+7. Optional return notes
 ```
 
 ### Days Borrowed Calculation
@@ -217,6 +246,7 @@ All endpoints are sub-resources under `/api/v1/organization/employees/:employee_
 
 | Method | Endpoint                                 | Permission      | Description                        |
 | ------ | ---------------------------------------- | --------------- | ---------------------------------- |
+| GET    | `/finance/assets/available`              | asset.read      | Get available assets for borrowing |
 | GET    | `/employees/:id/assets`                  | employee.read   | Get all assets for an employee     |
 | POST   | `/employees/:id/assets`                  | employee.update | Create new asset record            |
 | PUT    | `/employees/:id/assets/:asset_id`        | employee.update | Update existing (unreturned) asset |
@@ -229,6 +259,7 @@ All endpoints are sub-resources under `/api/v1/organization/employees/:employee_
 
 ```json
 {
+  "asset_id": "uuid-of-finance-asset", // Optional: Links to Finance Assets
   "asset_name": "MacBook Pro 16\" M3 Max",
   "asset_code": "LAP-001",
   "asset_category": "Laptop",
@@ -268,6 +299,21 @@ All endpoints are sub-resources under `/api/v1/organization/employees/:employee_
 {
   "id": "uuid",
   "employee_id": "uuid",
+  "asset_id": "uuid-of-finance-asset", // Present if linked to Finance Assets
+  "asset": {
+    // Populated Finance Asset data
+    "id": "uuid",
+    "code": "AST-202601-0001",
+    "name": "MacBook Pro 16\" M3 Max",
+    "category": {
+      "id": "uuid",
+      "name": "Laptop"
+    },
+    "location": {
+      "id": "uuid",
+      "name": "Main Office"
+    }
+  },
   "asset_name": "MacBook Pro 16\" M3 Max",
   "asset_code": "LAP-001",
   "asset_category": "Laptop",
@@ -310,9 +356,16 @@ All endpoints are sub-resources under `/api/v1/organization/employees/:employee_
 
 ### Create/Edit Asset Dialog
 
-- Fields: Asset Name*, Code*, Category*, Borrow Date*, Borrow Condition\*, Asset Image (optional), Notes
+- **Asset Selection Dropdown**: Select from available Finance Assets (status = ACTIVE)
+- Auto-populated fields when selecting from dropdown:
+  - Asset Name (editable)
+  - Asset Code (editable)
+  - Asset Category (editable)
+  - Default image from Finance Assets (can be overridden)
+- Manual entry option: Fill all fields manually if asset not in Finance Assets
 - Borrow Date auto-fills with today's date
 - Image upload uses `uploadEndpoint="/upload/image"`
+- Shows "Linked" badge in timeline for Finance Assets-linked items
 
 ### Return Asset Dialog
 
@@ -325,13 +378,14 @@ All endpoints are sub-resources under `/api/v1/organization/employees/:employee_
 
 ## User Flows
 
-### Asset Borrow Flow
+### Asset Borrow Flow (with Finance Assets Integration)
 
 ```mermaid
 sequenceDiagram
     participant HR as HR Admin
     participant UI as Employee Modal
     participant API as Backend API
+    participant Finance as Finance Assets API
     participant DB as Database
 
     HR->>UI: Open employee detail modal
@@ -342,23 +396,32 @@ sequenceDiagram
     API-->>UI: EmployeeAssetResponse[]
 
     HR->>UI: Click "Add Asset"
-    HR->>UI: Fill form (name, code, category, condition)
-    HR->>UI: Optionally upload image
-    UI->>API: POST /employees/:id/assets
-    API->>API: Validate asset_code uniqueness
-    API->>DB: Create asset record
+    UI->>API: GET /finance/assets/available
+    API->>Finance: Query active assets
+    Finance-->>API: AvailableAsset[]
+    API-->>UI: Dropdown list
+
+    HR->>UI: Select asset from dropdown
+    UI->>UI: Auto-fill asset data (name, code, category)
+    HR->>UI: Adjust borrow condition, optionally upload image
+    UI->>API: POST /employees/:id/assets (with asset_id)
+    API->>Finance: Verify asset status = ACTIVE
+    API->>Finance: Update status to IN_USE
+    API->>Finance: Create audit log (borrowed)
+    API->>DB: Create employee asset record
     DB-->>API: Created record
     API-->>UI: EmployeeAssetResponse
     UI-->>HR: Show success toast, refresh list
 ```
 
-### Asset Return Flow
+### Asset Return Flow (with Finance Assets Integration)
 
 ```mermaid
 sequenceDiagram
     participant HR as HR Admin
     participant UI as Asset Timeline
     participant API as Backend API
+    participant Finance as Finance Assets API
     participant DB as Database
 
     HR->>UI: View Assets tab
@@ -368,6 +431,11 @@ sequenceDiagram
     UI->>API: POST /employees/:id/assets/:asset_id/return
     API->>DB: Update status to RETURNED
     API->>DB: Set return_date and return_condition
+    API->>Finance: Check if linked to Finance Asset
+    alt Asset is linked
+        API->>Finance: Update status to ACTIVE
+        API->>Finance: Create audit log (returned)
+    end
     DB-->>API: Updated record
     API-->>UI: EmployeeAssetResponse
     UI-->>HR: Show success toast, update timeline
@@ -414,11 +482,37 @@ All translations nested under `employee.asset`:
 - Permissions inherit from employee permissions
 - Asset history is part of employee profile
 
+### With Finance Assets Module
+
+**Available Assets Endpoint:**
+
+- `GET /api/v1/finance/assets/available` - Returns assets with status = ACTIVE
+
+**Status Synchronization:**
+| Employee Action | Finance Assets Status | Audit Log Action |
+| --------------- | --------------------- | ---------------- |
+| Borrow Asset | ACTIVE → IN_USE | "borrowed" |
+| Return Asset | IN_USE → ACTIVE | "returned" |
+
+**Audit Log Entries:**
+
+- **Borrow**: Records status change, employee assignment, borrow date
+- **Return**: Records status change, employee removal, return date, return condition
+
+**Data Flow:**
+
+1. HR selects asset from available Finance Assets dropdown
+2. Asset data (name, code, category) auto-populated from Finance Assets
+3. Optional: Default image from Finance Assets used if no custom image uploaded
+4. On borrow: Finance Assets status updated to IN_USE
+5. On return: Finance Assets status updated back to ACTIVE
+
 ### With Upload Module
 
 - Asset images uploaded via `/upload/image` endpoint
 - Returns path stored in `asset_image` field
 - Auto-converted to WebP format
+- Can use Finance Assets default image if available
 
 ---
 
@@ -461,6 +555,10 @@ All translations nested under `employee.asset`:
 | **Returned assets immutable**                              | Audit trail requirement; once returned, asset record should not be modified to maintain historical accuracy                                                |
 | **Soft delete instead of hard delete**                     | Preserves complete audit trail for compliance and reporting                                                                                                |
 | **Global unique asset_code**                               | Enables cross-employee asset tracking and prevents duplicate codes across organization                                                                     |
+| **Finance Assets integration with asset_id**               | Links employee assets to centralized inventory for real-time availability and status synchronization                                                       |
+| **Auto-update Finance Assets status**                      | Ensures asset availability is always accurate across modules; IN_USE prevents double-booking                                                               |
+| **Audit log on borrow/return**                             | Complete traceability in Finance Assets module for compliance and asset lifecycle tracking                                                                 |
+| **Asset status validation on borrow**                      | Only ACTIVE assets can be borrowed; prevents borrowing already-in-use or disposed assets                                                                   |
 
 ---
 
@@ -474,30 +572,57 @@ All translations nested under `employee.asset`:
 - ✅ Return workflow with validation
 - ✅ Days borrowed auto-calculation
 - ✅ Soft delete for audit trail
+- ✅ **Finance Assets Integration**
+  - Available assets endpoint for dropdown selection
+  - Auto-populate asset data from Finance Assets
+  - Support for Finance Assets default images
+- ✅ **Status Synchronization**
+  - Auto-update Finance Assets status: ACTIVE ↔ IN_USE
+  - Real-time availability tracking
+- ✅ **Audit Logging**
+  - Automatic audit entries on borrow/return
+  - Records status changes and employee assignments
+  - Stored in Finance Assets audit trail
 
 ### Future Improvements
 
-- Asset barcode/QR code integration
-- Asset inventory report
-- Bulk asset import
+- Asset barcode/QR code scanning
+- Asset inventory report with Finance Assets data
+- Bulk asset import from Finance Assets
 - Asset depreciation tracking
-- Asset maintenance history
-- Integration with procurement module
+- Asset maintenance history integration
+- Procurement module integration for asset acquisition
 
 ---
 
 ## Appendix
 
+### Database Migration
+
+**Migration File:** `20260322_add_asset_id_to_employee_assets.sql`
+
+```sql
+-- Add asset_id column to employee_assets table
+ALTER TABLE employee_assets
+ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES fixed_assets(id) ON DELETE SET NULL;
+
+-- Add index for asset_id
+CREATE INDEX IF NOT EXISTS idx_employee_assets_asset_id ON employee_assets(asset_id);
+```
+
 ### Error Codes
 
-| Code                     | HTTP Status | Description                         |
-| ------------------------ | ----------- | ----------------------------------- |
-| `VALIDATION_ERROR`       | 400         | Invalid request body                |
-| `ASSET_NOT_FOUND`        | 404         | Asset does not exist                |
-| `ASSET_ALREADY_RETURNED` | 400         | Cannot update/return returned asset |
-| `INVALID_RETURN_DATE`    | 400         | Return date before borrow date      |
-| `DUPLICATE_ASSET_CODE`   | 400         | Asset code already exists           |
-| `EMPLOYEE_NOT_FOUND`     | 404         | Employee does not exist             |
+| Code                      | HTTP Status | Description                         |
+| ------------------------- | ----------- | ----------------------------------- |
+| `VALIDATION_ERROR`        | 400         | Invalid request body                |
+| `ASSET_NOT_FOUND`         | 404         | Asset does not exist                |
+| `ASSET_ALREADY_RETURNED`  | 400         | Cannot update/return returned asset |
+| `INVALID_RETURN_DATE`     | 400         | Return date before borrow date      |
+| `DUPLICATE_ASSET_CODE`    | 400         | Asset code already exists           |
+| `EMPLOYEE_NOT_FOUND`      | 404         | Employee does not exist             |
+| `FINANCE_ASSET_NOT_FOUND` | 404         | Finance Assets record not found     |
+| `ASSET_NOT_AVAILABLE`     | 400         | Finance Asset status is not ACTIVE  |
+| `ASSET_ALREADY_BORROWED`  | 400         | Asset is already borrowed           |
 
 ---
 

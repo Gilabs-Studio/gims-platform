@@ -339,3 +339,12 @@ func (h *AssetHandler) ListAssignmentHistory(c *gin.Context) {
 	response.SuccessResponse(c, items, nil)
 }
 
+// GetAvailableAssets returns list of assets available for employee borrowing
+func (h *AssetHandler) GetAvailableAssets(c *gin.Context) {
+	items, err := h.uc.GetAvailableAssets(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "AVAILABLE_ASSETS_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
+}
