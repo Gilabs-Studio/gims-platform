@@ -16,6 +16,7 @@ type LeadStatusRepository interface {
 	Delete(ctx context.Context, id string) error
 	FindDefault(ctx context.Context) (*models.LeadStatus, error)
 	FindConverted(ctx context.Context) (*models.LeadStatus, error)
+	GetMaxOrder(ctx context.Context) (int, error)
 }
 
 type leadStatusRepository struct {
@@ -105,4 +106,16 @@ func (r *leadStatusRepository) FindConverted(ctx context.Context) (*models.LeadS
 		return nil, err
 	}
 	return &status, nil
+}
+
+func (r *leadStatusRepository) GetMaxOrder(ctx context.Context) (int, error) {
+	var maxOrder int
+	err := r.db.WithContext(ctx).
+		Model(&models.LeadStatus{}).
+		Select(`COALESCE(MAX("order"), 0)`).
+		Scan(&maxOrder).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder, nil
 }

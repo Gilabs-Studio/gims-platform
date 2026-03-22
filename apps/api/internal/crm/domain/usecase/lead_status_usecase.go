@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -46,9 +48,9 @@ func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatus
 		}
 	}
 
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
+	nextOrder, err := u.nextLeadStatusOrder(ctx)
+	if err != nil {
+		return dto.LeadStatusResponse{}, err
 	}
 
 	isDefault := false
@@ -61,15 +63,16 @@ func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatus
 		isConverted = *req.IsConverted
 	}
 
+	statusID := uuid.New().String()
 	status := &models.LeadStatus{
-		ID:          uuid.New().String(),
+		ID:          statusID,
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:        generateLeadStatusCode(req.Name, statusID),
 		Description: req.Description,
 		Score:       req.Score,
 		Color:       req.Color,
-		Order:       req.Order,
-		IsActive:    isActive,
+		Order:       nextOrder,
+		IsActive:    true,
 		IsDefault:   isDefault,
 		IsConverted: isConverted,
 	}
@@ -103,27 +106,40 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 		return dto.LeadStatusResponse{}, errors.New("lead status not found")
 	}
 
-	// Validate: only one default status allowed (excluding current)
+	if err := u.validateLeadStatusUpdateFlags(ctx, id, req); err != nil {
+		return dto.LeadStatusResponse{}, err
+	}
+
+	applyLeadStatusUpdate(status, req)
+
+	if err := u.repo.Update(ctx, status); err != nil {
+		return dto.LeadStatusResponse{}, err
+	}
+
+	return mapper.ToLeadStatusResponse(status), nil
+}
+
+func (u *leadStatusUsecase) validateLeadStatusUpdateFlags(ctx context.Context, id string, req dto.UpdateLeadStatusRequest) error {
 	if req.IsDefault != nil && *req.IsDefault {
 		existing, err := u.repo.FindDefault(ctx)
 		if err == nil && existing != nil && existing.ID != id {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as default")
+			return errors.New("only one lead status can be marked as default")
 		}
 	}
 
-	// Validate: only one converted status allowed (excluding current)
 	if req.IsConverted != nil && *req.IsConverted {
 		existing, err := u.repo.FindConverted(ctx)
 		if err == nil && existing != nil && existing.ID != id {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as converted")
+			return errors.New("only one lead status can be marked as converted")
 		}
 	}
 
+	return nil
+}
+
+func applyLeadStatusUpdate(status *models.LeadStatus, req dto.UpdateLeadStatusRequest) {
 	if req.Name != "" {
 		status.Name = req.Name
-	}
-	if req.Code != "" {
-		status.Code = req.Code
 	}
 	if req.Description != "" {
 		status.Description = req.Description
@@ -134,24 +150,15 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 	if req.Color != "" {
 		status.Color = req.Color
 	}
-	if req.Order != nil {
-		status.Order = *req.Order
-	}
-	if req.IsActive != nil {
-		status.IsActive = *req.IsActive
-	}
 	if req.IsDefault != nil {
 		status.IsDefault = *req.IsDefault
 	}
 	if req.IsConverted != nil {
 		status.IsConverted = *req.IsConverted
 	}
-
-	if err := u.repo.Update(ctx, status); err != nil {
-		return dto.LeadStatusResponse{}, err
+	if req.IsActive != nil {
+		status.IsActive = *req.IsActive
 	}
-
-	return mapper.ToLeadStatusResponse(status), nil
 }
 
 func (u *leadStatusUsecase) Delete(ctx context.Context, id string) error {
@@ -160,4 +167,17 @@ func (u *leadStatusUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("lead status not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func (u *leadStatusUsecase) nextLeadStatusOrder(ctx context.Context) (int, error) {
+	maxOrder, err := u.repo.GetMaxOrder(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder + 1, nil
+}
+
+func generateLeadStatusCode(name, statusID string) string {
+	base := normalizeCodeBase(name, "STATUS")
+	return fmt.Sprintf("%s-%s", base, strings.Split(statusID, "-")[0])
 }

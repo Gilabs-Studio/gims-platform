@@ -9,12 +9,9 @@ import type { LeadStatus } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
   description: z.string().max(500).optional(),
   score: z.number().min(0).max(100),
   color: z.string().max(20).optional(),
-  order: z.number().min(0),
-  is_active: z.boolean(),
   is_default: z.boolean(),
   is_converted: z.boolean(),
 });
@@ -26,7 +23,7 @@ export interface UseLeadStatusFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: LeadStatus | null;
   onCreated?: (item: { id: string; name: string }) => void;
-  initialData?: { name?: string; order?: number };
+  initialData?: { name?: string };
 }
 
 export function useLeadStatusForm({
@@ -44,7 +41,7 @@ export function useLeadStatusForm({
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", description: "", score: 0, color: "#3B82F6", order: 0, is_active: true, is_default: false, is_converted: false },
+    defaultValues: { name: "", description: "", score: 0, color: "#3B82F6", is_default: false, is_converted: false },
   });
 
   useEffect(() => {
@@ -52,30 +49,24 @@ export function useLeadStatusForm({
       if (editingItem) {
         form.reset({
           name: editingItem.name,
-          code: editingItem.code,
           description: editingItem.description ?? "",
           score: editingItem.score,
           color: editingItem.color ?? "#3B82F6",
-          order: editingItem.order,
-          is_active: editingItem.is_active,
           is_default: editingItem.is_default,
           is_converted: editingItem.is_converted,
         });
       } else {
         form.reset({
           name: initialData?.name ?? "",
-          code: initialData?.name?.toUpperCase() ?? "",
           description: "",
           score: 0,
           color: "#3B82F6",
-          order: initialData?.order ?? 0,
-          is_active: true,
           is_default: false,
           is_converted: false,
         });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialData?.name, open]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {

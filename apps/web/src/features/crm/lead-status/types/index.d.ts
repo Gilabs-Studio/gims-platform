@@ -16,26 +16,21 @@ export interface LeadStatus {
 
 export interface CreateLeadStatusData {
   name: string;
-  code: string;
   description?: string;
   score?: number;
   color?: string;
-  order?: number;
-  is_active?: boolean;
   is_default?: boolean;
   is_converted?: boolean;
 }
 
 export interface UpdateLeadStatusData {
   name?: string;
-  code?: string;
   description?: string;
   score?: number;
   color?: string;
-  order?: number;
-  is_active?: boolean;
   is_default?: boolean;
   is_converted?: boolean;
+  is_active?: boolean;
 }
 
 export interface LeadStatusListParams {

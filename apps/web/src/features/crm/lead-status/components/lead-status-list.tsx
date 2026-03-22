@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { LeadStatusDialog } from "./lead-status-dialog";
 import { useLeadStatusList } from "../hooks/use-lead-status-list";
 
@@ -50,7 +50,6 @@ export function LeadStatusList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("form.name")}</TableHead>
-              <TableHead>{t("form.code")}</TableHead>
               <TableHead>{t("form.score")}</TableHead>
               <TableHead>{t("form.color")}</TableHead>
               <TableHead>{t("form.flags")}</TableHead>
@@ -63,23 +62,20 @@ export function LeadStatusList() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
             ) : data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 7 : 6} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
               </TableRow>
             ) : (
               data.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell>{item.score}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
