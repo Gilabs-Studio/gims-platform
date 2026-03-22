@@ -82,7 +82,7 @@ func SeedMenus() error {
 		Name:   "Master Data",
 		Icon:   "database",
 		URL:    "/master-data",
-		Order:  2,
+		Order:  9,
 		Status: "active",
 	}
 	if err := createMenu(masterDataMenu); err != nil {
@@ -166,7 +166,7 @@ func SeedMenus() error {
 		Name:   "AI Assistant",
 		Icon:   "sparkles",
 		URL:    "/ai-assistant",
-		Order:  9,
+		Order:  10,
 		Status: "active",
 	}
 	if err := createMenu(aiMenu); err != nil {
@@ -178,7 +178,7 @@ func SeedMenus() error {
 		Name:   "CRM",
 		Icon:   "handshake",
 		URL:    "/crm",
-		Order:  10,
+		Order:  2,
 		Status: "active",
 	}
 	if err := createMenu(crmMenu); err != nil {
@@ -350,7 +350,6 @@ func SeedMenus() error {
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
 		{"Returns", "rotate-ccw", "/sales/returns", 6},
 		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -428,7 +427,8 @@ func SeedMenus() error {
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 14},
+		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
 		{"Salary", "dollar-sign", "/finance/salary", 15},
 	}
 	for _, child := range financeChildren {
@@ -451,7 +451,7 @@ func SeedMenus() error {
 		{"Journal Entries", "file-text", "/finance/journals", 1},
 		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
 		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
-		{"Adjustment Journal", "pencil", "/finance/journals/adjustment", 4},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
 		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
 		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
 	}
@@ -585,6 +585,11 @@ func SeedMenus() error {
 
 	// CRM Area Mapping menu (Sprint 24)
 	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
+	// Sales Target (moved from Sales to CRM)
+	if _, err := createChildMenu("Sales Target", "check-square", "/crm/targets", &crmMenu.ID, 8); err != nil {
 		return err
 	}
 

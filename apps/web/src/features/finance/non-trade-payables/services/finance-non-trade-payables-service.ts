@@ -20,8 +20,16 @@ export const financeNonTradePayablesService = {
     const response = await apiClient.put<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}`, data);
     return response.data;
   },
+  submit: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/submit`);
+    return response.data;
+  },
   approve: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
     const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+  reject: async (id: string): Promise<ApiResponse<NonTradePayable>> => {
+    const response = await apiClient.post<ApiResponse<NonTradePayable>>(`${BASE_URL}/${id}/reject`);
     return response.data;
   },
   pay: async (id: string, data: any): Promise<ApiResponse<NonTradePayable>> => {

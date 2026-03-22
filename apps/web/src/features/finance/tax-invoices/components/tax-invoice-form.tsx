@@ -12,8 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { NumericInput } from "@/components/ui/numeric-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { useSupplierInvoices, useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 import { taxInvoiceFormSchema, type TaxInvoiceFormValues } from "../schemas/tax-invoice.schema";
 import type { TaxInvoice } from "../types";
@@ -122,7 +126,36 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
             </div>
             <div className="space-y-2">
               <Label>{t("fields.date")}</Label>
-              <Input type="date" {...form.register("tax_invoice_date")} />
+              <Controller
+                control={form.control}
+                name="tax_invoice_date"
+                render={({ field }) => (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !field.value && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? formatDate(field.value) : tCommon("selectDate")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date: Date | undefined) => {
+                          field.onChange(date ? date.toISOString().split("T")[0] : "");
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
             </div>
           </div>
 
@@ -170,21 +203,50 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>{t("fields.dpp")}</Label>
-              <Input type="number" step="0.01" {...form.register("dpp_amount", { valueAsNumber: true })} />
+              <Controller
+                control={form.control}
+                name="dpp_amount"
+                render={({ field }) => (
+                  <NumericInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency
+                    className="w-full"
+                  />
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("fields.vat")}</Label>
-              <Input type="number" step="0.01" {...form.register("vat_amount", { valueAsNumber: true })} />
+              <Controller
+                control={form.control}
+                name="vat_amount"
+                render={({ field }) => (
+                  <NumericInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency
+                    className="w-full"
+                  />
+                )}
+              />
               {selectedSI && Math.abs((selectedSI?.tax_amount ?? 0) - (form.watch("vat_amount") ?? 0)) > 1 && (
                 <p className="text-[10px] text-destructive font-medium">{t("fields.discrepancy")}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label>{t("fields.total")}</Label>
-              <Input
-                type="number"
-                step="0.01"
-                {...form.register("total_amount", { valueAsNumber: true })}
+              <Controller
+                control={form.control}
+                name="total_amount"
+                render={({ field }) => (
+                  <NumericInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency
+                    className="w-full"
+                  />
+                )}
               />
             </div>
           </div>

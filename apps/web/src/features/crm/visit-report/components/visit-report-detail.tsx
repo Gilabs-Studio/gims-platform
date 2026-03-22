@@ -41,7 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport } from "../hooks/use-visit-reports";
 import { visitReportService } from "../services/visit-report-service";
@@ -463,7 +463,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                           <div>
                             <p className="text-xs text-muted-foreground">{t("form.price")}</p>
                             <p className="text-sm font-medium">
-                              {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(detail.price)}
+                              {formatCurrency(detail.price)}
                             </p>
                           </div>
                         )}

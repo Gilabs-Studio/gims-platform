@@ -110,10 +110,9 @@ export function BalanceSheetView() {
   };
 
   const metrics = [
-    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp },
-    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2 },
-    { label: t("total_equity"), value: formatCurrency(report?.equity_total_final ?? report?.equity_total ?? 0), Icon: Scale },
-    { label: t("net_profit_loss"), value: formatCurrency(report?.current_year_profit ?? 0), Icon: TrendingUp },
+    { label: t("total_assets"), value: formatCurrency(report?.asset_total ?? 0), Icon: TrendingUp, desc: "Kekayaan dan harta perusahaan" },
+    { label: t("total_liabilities"), value: formatCurrency(report?.liability_total ?? 0), Icon: Building2, desc: "Kewajiban tagihan dan hutang" },
+    { label: t("total_equity"), value: formatCurrency(report?.equity_total ?? 0), Icon: Scale, desc: "Modal pemilik / Laba ditahan" },
   ];
 
   return (
@@ -159,16 +158,19 @@ export function BalanceSheetView() {
       ) : null}
 
       {/* Summary metrics */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(({ label, value, Icon }) => (
-          <Card key={label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{label}</CardTitle>
-              <Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-medium font-mono tabular-nums">{value}</div>
-            </CardContent>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {metrics.map(({ label, value, Icon, desc }, i) => (
+          <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-full text-primary">
+                <Icon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                <p className="text-2xl font-bold tracking-tight">{value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+              </div>
+            </div>
           </Card>
         ))}
       </div>

@@ -47,6 +47,7 @@ const (
 	ActivityTypeUpdated            = "updated"
 	ActivityTypeResumeUploaded     = "resume_uploaded"
 	ActivityTypeRatingChanged      = "rating_changed"
+	ActivityTypeConverted          = "converted"
 )
 
 // ValidActivityTypes returns all valid activity types
@@ -65,5 +66,6 @@ func ValidActivityTypes() []string {
 		ActivityTypeUpdated,
 		ActivityTypeResumeUploaded,
 		ActivityTypeRatingChanged,
+		ActivityTypeConverted,
 	}
 }

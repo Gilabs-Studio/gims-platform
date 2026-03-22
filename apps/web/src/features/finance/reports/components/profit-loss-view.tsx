@@ -99,10 +99,15 @@ export function ProfitLossView() {
   };
 
   const metrics = [
-    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp },
-    { label: t("total_cogs"), value: formatCurrency(report?.cogs_total ?? 0), Icon: TrendingDown },
-    { label: t("gross_profit"), value: formatCurrency(report?.gross_profit ?? 0), Icon: Wallet },
-    { label: t("net_profit_loss"), value: formatCurrency(netProfit), Icon: Wallet, valueClass: netProfit >= 0 ? "text-success" : "text-destructive" },
+    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp, desc: "Pendapatan kotor usaha", valueClass: "" },
+    { label: t("total_expenses"), value: formatCurrency(report?.expense_total ?? 0), Icon: TrendingDown, desc: "Total beban dan pengeluaran", valueClass: "" },
+    {
+      label: t("net_profit_loss"),
+      value: formatCurrency(netProfit),
+      Icon: Wallet,
+      desc: "Keuntungan bersih atau kerugian",
+      valueClass: netProfit >= 0 ? "text-success" : "text-destructive",
+    },
   ];
 
   return (
@@ -119,42 +124,23 @@ export function ProfitLossView() {
         {canExport ? <ExportButton label={t("export")} onClick={handleExport} /> : null}
       </FilterToolbar>
 
-      {report && (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-          {metrics.map(({ label, value, Icon, valueClass }) => (
-            <Card key={label}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{label}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-medium font-mono tabular-nums ${valueClass ?? ""}`}>{value}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {report && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("comparison")}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-1 md:grid-cols-2">
-            <div className="rounded-md border p-3">
-              <p className="text-xs text-muted-foreground">{t("previous_period")}</p>
-              <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.previous_period?.net_profit ?? 0)}</p>
-              <p className="text-xs text-muted-foreground">
-                {t("percent_change")}: {netProfitDelta !== undefined ? `${netProfitDelta >= 0 ? "+" : ""}${netProfitDelta.toFixed(2)}` : "-"} ({netProfitDeltaPct !== undefined ? `${netProfitDeltaPct.toFixed(2)}%` : "-"})
-              </p>
+      {/* Summary metrics */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {metrics.map(({ label, value, Icon, desc, valueClass }, i) => (
+          <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary/10 rounded-full text-primary">
+                <Icon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                <p className={`text-2xl font-bold tracking-tight ${valueClass ?? ""}`}>{value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+              </div>
             </div>
-            <div className="rounded-md border p-3">
-              <p className="text-xs text-muted-foreground">{t("year_to_date")}</p>
-              <p className="font-mono font-semibold tabular-nums">{formatCurrency(report.year_to_date?.net_profit ?? 0)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </Card>
+        ))}
+      </div>
 
       {isLoading && (
         <div className="space-y-4">

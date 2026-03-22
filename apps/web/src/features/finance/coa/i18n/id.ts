@@ -31,9 +31,16 @@ export const financeCoaId = {
   },
   types: {
     asset: "Aset",
+    cash_bank: "Kas & Bank",
+    current_asset: "Aset Lancar",
+    cost_of_goods_sold: "Harga Pokok Penjualan",
     liability: "Liabilitas",
     equity: "Ekuitas",
     revenue: "Pendapatan",
     expense: "Beban",
+    fixed_asset: "Aset Tetap",
+    operational: "Operasional",
+    salary_wages: "Gaji & Upah",
+    trade_payable: "Utang Usaha",
   },
 };

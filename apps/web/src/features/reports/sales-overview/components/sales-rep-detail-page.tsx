@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { formatCurrency } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -272,13 +273,9 @@ export function SalesRepDetailPage({
                 </span>
                 <span className="text-sm font-medium">
                   {(statistics?.total_orders ?? 0) > 0
-                    ? new Intl.NumberFormat("id-ID", {
-                        style: "currency",
-                        currency: "IDR",
-                        minimumFractionDigits: 0,
-                      }).format(
+                    ? formatCurrency(
                         (statistics?.total_revenue ?? 0) /
-                          (statistics?.total_orders ?? 1)
+                          (statistics?.total_orders ?? 1),
                       )
                     : "-"}
                 </span>

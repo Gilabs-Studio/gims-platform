@@ -19,6 +19,7 @@ import { resolveSourceRoute } from "@/features/finance/shared/reference-source-m
 import { ReferenceBadge } from "./reference-badge";
 import { ReferenceCodeLink } from "./reference-code-link";
 import type {
+  JournalReferenceTypeBadgeMeta,
   JournalTableColumn,
   JournalTableColumnKey,
   UnifiedJournalRow,
@@ -76,6 +77,121 @@ function buildReferenceCode(referenceType?: string | null, referenceID?: string 
   return `${prefix}-${short}`;
 }
 
+function getReferenceSourceMeta(type: string | null): JournalReferenceTypeBadgeMeta {
+  if (!type) {
+    return {
+      label: "Unknown",
+      title: "Unknown Source",
+      variant: "inactive" as const,
+    };
+  }
+
+  const value = type.toUpperCase();
+  const compact = value.replace(/[^A-Z0-9]/g, "");
+
+  if (compact === "SALESPAYMENT") {
+    return {
+      label: "Payment SO",
+      title: "Sales Order Payment",
+      variant: "success" as const,
+    };
+  }
+  if (compact === "PURCHASEPAYMENT") {
+    return {
+      label: "Payment PO",
+      title: "Purchase Order Payment",
+      variant: "secondary" as const,
+    };
+  }
+  if (compact === "SALESINVOICE") {
+    return {
+      label: "Invoice SO",
+      title: "Sales Invoice",
+      variant: "info" as const,
+    };
+  }
+  if (compact === "SALESINVOICEDP") {
+    return {
+      label: "Invoice DP SO",
+      title: "Sales Down Payment Invoice",
+      variant: "soft" as const,
+    };
+  }
+  if (compact === "SUPPLIERINVOICE") {
+    return {
+      label: "Invoice PO",
+      title: "Supplier Invoice",
+      variant: "info" as const,
+    };
+  }
+  if (compact === "SUPPLIERINVOICEDP") {
+    return {
+      label: "Invoice DP PO",
+      title: "Supplier Down Payment Invoice",
+      variant: "soft" as const,
+    };
+  }
+  if (compact === "PAYMENT") {
+    return {
+      label: "Payment Finance",
+      title: "Finance Payment",
+      variant: "success" as const,
+    };
+  }
+  if (compact === "DO" || compact.includes("DELIVERY")) {
+    return {
+      label: "Delivery SO",
+      title: "Delivery Order",
+      variant: "outline" as const,
+    };
+  }
+  if (compact.includes("GOODSRECEIPT")) {
+    return {
+      label: "Receipt PO",
+      title: "Goods Receipt",
+      variant: "outline" as const,
+    };
+  }
+  if (
+    compact === "CASHIN" ||
+    compact === "CASHOUT" ||
+    compact === "TRANSFER" ||
+    compact === "CASHBANK" ||
+    compact === "CB" ||
+    compact === "TRF"
+  ) {
+    return {
+      label: compact === "TRF" || compact === "TRANSFER" ? "Transfer Bank" : "Cash/Bank",
+      title: "Cash & Bank Transaction",
+      variant: "secondary" as const,
+    };
+  }
+  if (compact.includes("ADJUST") || compact === "CORRECTION") {
+    return {
+      label: "Adjustment",
+      title: "Adjustment Journal",
+      variant: "warning" as const,
+    };
+  }
+  if (compact.includes("VALUATION") || compact.includes("REVALUATION") || compact.includes("COST")) {
+    return {
+      label: "Valuation",
+      title: "Valuation Journal",
+      variant: "outline" as const,
+    };
+  }
+
+  return {
+    label: value,
+    title: value,
+    variant: "outline" as const,
+  };
+}
+
+function getReferenceBadge(type: string | null) {
+  return getReferenceSourceMeta(type);
+}
+
 export function getSourceHref(
   referenceType?: string | null,
   referenceID?: string | null,
@@ -116,6 +232,7 @@ export function mapJournalToUnifiedRow<
     description: item.description ?? null,
     journalType: item.source ?? item.reference_type ?? null,
     referenceType: item.reference_type ?? null,
+    referenceTypeBadge: getReferenceBadge(item.reference_type ?? null),
     referenceId: item.reference_id ?? null,
     referenceCode: item.reference_code ?? buildReferenceCode(item.reference_type, item.reference_id),
     status: item.status ?? "draft",
@@ -167,6 +284,7 @@ export function mapCashBankToUnifiedRow<
     description: item.description ?? null,
     journalType: "cash_bank",
     referenceType: item.reference_type ?? item.type.toUpperCase(),
+    referenceTypeBadge: getReferenceBadge(item.reference_type ?? item.type.toUpperCase()),
     referenceId: item.reference_id ?? item.id,
     referenceCode: item.reference_code ?? `CB-${item.id.slice(0, 8).toUpperCase()}`,
     transactionType,
@@ -236,9 +354,12 @@ function renderCell<T>(
   }
 
   if (key === "referenceType") {
+    const badge = row.referenceTypeBadge ?? getReferenceBadge(row.referenceType);
     return (
       <TableCell>
-        <ReferenceBadge referenceType={row.referenceType} />
+        <Badge variant={badge.variant} className="font-mono text-xs uppercase" title={badge.title}>
+          {badge.label}
+        </Badge>
       </TableCell>
     );
   }

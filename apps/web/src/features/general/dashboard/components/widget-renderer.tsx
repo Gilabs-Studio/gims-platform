@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { WidgetConfig, DashboardOverviewData, KpiCardData } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { formatCurrency } from "@/lib/utils";
 import { ChartWidget } from "./chart-widget";
 import { BalanceWidget } from "./balance-widget";
 import { CostsCategoryWidget } from "./costs-category-widget";
@@ -21,15 +22,6 @@ import { TrackPurchaseOrderCard } from "./track-purchase-order-card";
 import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
 import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
-
-function formatIDR(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -57,12 +49,7 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
   const totalExpense = useMemo<KpiCardData>(() => {
     const items = data?.costs_by_category ?? [];
     const total = items.reduce((sum, item) => sum + item.amount, 0);
-    const formatted = new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(total);
+    const formatted = formatCurrency(total);
     return { value: total, formatted };
   }, [data?.costs_by_category]);
 
@@ -71,7 +58,7 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
     if (!data?.kpi?.total_revenue) return undefined;
     return {
       ...data.kpi.total_revenue,
-      formatted: formatIDR(data.kpi.total_revenue.value),
+      formatted: formatCurrency(data.kpi.total_revenue.value),
     };
   }, [data?.kpi?.total_revenue]);
 
@@ -87,7 +74,7 @@ export function WidgetRenderer({ widget, data, isLoading }: WidgetRendererProps)
     if (!data?.balance_overview) return undefined;
     return {
       ...data.balance_overview,
-      formatted: formatIDR(data.balance_overview.value),
+      formatted: formatCurrency(data.balance_overview.value),
     };
   }, [data?.balance_overview]);
 

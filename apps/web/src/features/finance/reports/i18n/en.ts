@@ -57,6 +57,8 @@ export const financeReportsEn = {
   memo: "Memo",
   running_balance: "Running Balance",
   action: "Action",
+  journal: "Journal",
+  source: "Source",
   open_journal: "Open Journal",
   open_source: "Open Source",
   open_gl: "Open GL",

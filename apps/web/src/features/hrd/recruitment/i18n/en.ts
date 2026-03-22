@@ -66,6 +66,11 @@ export const recruitmentEn = {
       partTime: "Part Time",
       contract: "Contract",
       intern: "Intern",
+      // Uppercase variants (from backend enum)
+      FULL_TIME: "Full Time",
+      PART_TIME: "Part Time",
+      CONTRACT: "Contract",
+      INTERN: "Intern",
     },
 
     // Fields
@@ -169,12 +174,14 @@ export const recruitmentEn = {
       singular: "Applicant",
       dragHelp: "Drag applicants to move between stages",
       noResume: "No CV",
+      hasResume: "CV",
       contactInfo: "Contact Information",
       applicationDetails: "Application Details",
       activityHistory: "Activity History",
       noActivities: "No activities recorded yet",
       viewResume: "View Resume",
       appliedAt: "Applied",
+      notes: "Notes",
       addDescription: "Add a new applicant to this recruitment request",
       editDescription: "Update applicant information",
       deleteDesc: "Are you sure you want to delete this applicant? This action cannot be undone.",
@@ -192,13 +199,28 @@ export const recruitmentEn = {
         appliedAt: "Applied Date",
         stage: "Stage",
         notes: "Notes",
+        name: "Name",
+        nik: "NIK (National ID)",
+        dateOfBirth: "Date of Birth",
+        placeOfBirth: "Place of Birth",
+        gender: "Gender",
+        religion: "Religion",
+        address: "Address",
+        contractType: "Contract Type",
+        contractNumber: "Contract Number",
+        startDate: "Start Date",
+        endDate: "End Date",
+        selectGender: "Select gender",
+        selectContractType: "Select contract type",
+        genderMale: "Male",
+        genderFemale: "Female",
       },
 
       placeholders: {
         fullName: "Enter full name",
         email: "Enter email address",
         phone: "Enter phone number",
-        resume: "https://example.com/cv.pdf",
+        resume: "Upload CV/Resume (PDF, DOC, DOCX)",
         notes: "Add notes about the applicant...",
       },
 
@@ -210,6 +232,7 @@ export const recruitmentEn = {
         direct: "Direct Application",
         other: "Other",
       },
+      selectSource: "Select source",
 
       actions: {
         moveStage: "Move Stage",
@@ -229,6 +252,32 @@ export const recruitmentEn = {
         notes: "Additional Notes",
         notesPlaceholder: "Add any additional notes...",
         confirm: "Move Applicant",
+      },
+
+      // Convert to Employee
+      convertToEmployee: "Convert to Employee",
+      converting: "Converting...",
+      convertTitle: "Convert Applicant to Employee",
+      convertDescription: "Confirm to convert this applicant to an employee.",
+      convertInfo: "Employee data will be created using the applicant's information. You can complete additional details in Master Data > Employees after conversion.",
+      employeeInfo: "Employee Information",
+      employeeCode: "Employee Code",
+      viewEmployee: "View Employee Profile",
+      alreadyConverted: "Already converted to employee",
+      canConvertOnlyWhenHired: "Can only convert when applicant is hired",
+      converted: "Converted",
+
+      sections: {
+        basicInfo: "Basic Information",
+        identity: "Identity Documents",
+        address: "Address",
+        contract: "Employment Contract",
+      },
+
+      contractTypes: {
+        PKWTT: "Permanent (PKWTT)",
+        PKWT: "Contract (PKWT)",
+        Intern: "Internship",
       },
     },
   },

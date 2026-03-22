@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
@@ -31,6 +31,10 @@ import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
 
+function toApiDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export function JournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
@@ -48,11 +52,13 @@ export function JournalsList() {
   const [pageSize, setPageSize] = useState(20);
 
   const now = new Date();
-  const firstDayOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-  const today = now.toISOString().slice(0, 10);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(now.getFullYear(), 0, 1),
+    to: now,
+  });
 
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const startDate = useMemo(() => (dateRange?.from ? toApiDate(dateRange.from) : undefined), [dateRange?.from]);
+  const endDate = useMemo(() => (dateRange?.to ? toApiDate(dateRange.to) : undefined), [dateRange?.to]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -137,23 +143,11 @@ export function JournalsList() {
           />
         </div>
         <div className="w-full sm:w-auto space-y-2">
-          <Label>{t("fields.startDate")}</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-auto space-y-2">
-          <Label>{t("fields.endDate")}</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
+          <Label>{t("fields.dateRange")}</Label>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateChange={(range) => {
+              setDateRange(range);
               setPage(1);
             }}
           />

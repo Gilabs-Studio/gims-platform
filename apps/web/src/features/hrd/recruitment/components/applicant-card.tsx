@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Star, Mail, Phone, FileText, Calendar } from "lucide-react";
+import { Star, Mail, Phone, FileText, Calendar, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { RecruitmentApplicant, ApplicantSource } from "../types";
@@ -12,14 +12,14 @@ interface ApplicantCardProps {
   className?: string;
 }
 
-function getSourceLabel(source: ApplicantSource): string {
+function getTranslatedSourceLabel(t: (key: string) => string, source: ApplicantSource): string {
   const labels: Record<ApplicantSource, string> = {
-    linkedin: "LinkedIn",
-    jobstreet: "JobStreet",
-    glints: "Glints",
-    referral: "Referral",
-    direct: "Direct",
-    other: "Other",
+    linkedin: t("applicants.sources.linkedin"),
+    jobstreet: t("applicants.sources.jobstreet"),
+    glints: t("applicants.sources.glints"),
+    referral: t("applicants.sources.referral"),
+    direct: t("applicants.sources.direct"),
+    other: t("applicants.sources.other"),
   };
   return labels[source] || source;
 }
@@ -58,6 +58,7 @@ function RatingStars({ rating }: { rating?: number }) {
 
 export function ApplicantCard({ applicant, onClick, className }: ApplicantCardProps) {
   const t = useTranslations("recruitment");
+  const sourceLabel = getTranslatedSourceLabel(t, applicant.source);
 
   const appliedDate = applicant.applied_at
     ? new Date(applicant.applied_at).toLocaleDateString(undefined, {
@@ -85,12 +86,23 @@ export function ApplicantCard({ applicant, onClick, className }: ApplicantCardPr
       {/* Header: Rating and Source */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <RatingStars rating={applicant.rating} />
-        <Badge
-          variant="secondary"
-          className={cn("text-[10px] px-1.5 py-0", getSourceColor(applicant.source))}
-        >
-          {getSourceLabel(applicant.source)}
-        </Badge>
+        <div className="flex items-center gap-1">
+          {applicant.employee_id && (
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1.5 py-0 bg-green-100 text-green-800"
+            >
+              <UserCheck className="h-3 w-3 mr-1" />
+              {applicant.employee?.employee_code || t("applicants.converted")}
+            </Badge>
+          )}
+          <Badge
+            variant="secondary"
+            className={cn("text-[10px] px-1.5 py-0", getSourceColor(applicant.source))}
+          >
+            {sourceLabel}
+          </Badge>
+        </div>
       </div>
 
       {/* Name */}
@@ -118,7 +130,7 @@ export function ApplicantCard({ applicant, onClick, className }: ApplicantCardPr
           {applicant.resume_url ? (
             <div className="flex items-center gap-1 text-xs text-primary">
               <FileText className="h-3 w-3" />
-              <span>CV</span>
+              <span>{t("applicants.hasResume")}</span>
             </div>
           ) : (
             <span className="text-[10px] text-muted-foreground/60">

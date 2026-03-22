@@ -247,7 +247,7 @@ export function RecruitmentDetailPage({ id }: RecruitmentDetailPageProps) {
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">{t("employmentType.label")}</p>
-          <p className="text-lg font-semibold">{t(`employmentType.${request.employment_type.toLowerCase()}`)}</p>
+          <p className="text-lg font-semibold">{t(`employmentType.${request.employment_type}`)}</p>
         </div>
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">{t("expectedStartDate")}</p>

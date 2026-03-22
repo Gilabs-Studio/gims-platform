@@ -137,3 +137,10 @@ type CreateAssetFromPurchaseRequest struct {
 	CategoryID      *string `json:"category_id"`
 	LocationID      *string `json:"location_id"`
 }
+
+// AssetMiniResponse is a minimal response for asset references
+type AssetMiniResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}

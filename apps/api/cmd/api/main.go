@@ -297,8 +297,35 @@ func main() {
 		})
 	})
 
-	// Serve static files from uploads directory
-	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
+	// Serve static files from uploads directory with CORS support
+	uploadsGroup := r.Group("/uploads")
+	{
+		uploadsGroup.Use(func(c *gin.Context) {
+			origin := c.Request.Header.Get("Origin")
+			// Allow common development origins
+			allowedOrigins := []string{
+				"http://localhost:3000",
+				"http://127.0.0.1:3000",
+				"http://localhost:3001",
+				"http://127.0.0.1:3001",
+			}
+			for _, allowed := range allowedOrigins {
+				if origin == allowed {
+					c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(http.StatusNoContent)
+				return
+			}
+			c.Next()
+		})
+		uploadsGroup.Static("", config.AppConfig.Storage.UploadDir)
+	}
 
 	// API v1 routes
 	var autoAbsentWorker *hrdWorker.AutoAbsentWorker

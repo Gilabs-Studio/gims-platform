@@ -3,12 +3,13 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -106,7 +107,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
   }, [mode, journalQuery.data?.data]);
 
   const form = useForm<JournalFormValues>({
-    resolver: zodResolver(journalFormSchema as any),
+    resolver: zodResolver(journalFormSchema),
     defaultValues,
   });
 
@@ -153,7 +154,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent size="2xl" className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
@@ -214,19 +215,31 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
                     <div className="md:col-span-2 space-y-1">
                       <Label>{t("fields.debit")}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...form.register(`lines.${idx}.debit`, { valueAsNumber: true })}
+                      <Controller
+                        control={form.control}
+                        name={`lines.${idx}.debit`}
+                        render={({ field }) => (
+                          <NumericInput
+                            value={field.value ?? ""}
+                            onChange={(value) => field.onChange(value)}
+                            placeholder="0"
+                          />
+                        )}
                       />
                     </div>
 
                     <div className="md:col-span-2 space-y-1">
                       <Label>{t("fields.credit")}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...form.register(`lines.${idx}.credit`, { valueAsNumber: true })}
+                      <Controller
+                        control={form.control}
+                        name={`lines.${idx}.credit`}
+                        render={({ field }) => (
+                          <NumericInput
+                            value={field.value ?? ""}
+                            onChange={(value) => field.onChange(value)}
+                            placeholder="0"
+                          />
+                        )}
                       />
                     </div>
 

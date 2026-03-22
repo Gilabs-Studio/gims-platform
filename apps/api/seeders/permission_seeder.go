@@ -245,17 +245,17 @@ func SeedPermissions() error {
 		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
 		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
 
-		{"/sales/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
-		{"/sales/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
-		{"/sales/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
-		{"/sales/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
-		{"/sales/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
+		{"/crm/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
+		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
+		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
+		{"/crm/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
+		{"/crm/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
-		{"/sales/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
-		{"/sales/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
-		{"/sales/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
-		{"/sales/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
+		{"/crm/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
+		{"/crm/targets", "yearly_target.create", "Create Yearly Targets", "CREATE", "yearly_target"},
+		{"/crm/targets", "yearly_target.update", "Edit Yearly Targets", "EDIT", "yearly_target"},
+		{"/crm/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
 
 		// Sales Payments
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
@@ -422,6 +422,10 @@ func SeedPermissions() error {
 		{"/finance/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.submit", "Submit Non-Trade Payables", "SUBMIT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.approve", "Approve Non-Trade Payables", "APPROVE", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.reject", "Reject Non-Trade Payables", "REJECT", "non_trade_payable"},
+		{"/finance/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
 		{"/finance/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
 
 		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
@@ -446,6 +450,13 @@ func SeedPermissions() error {
 		{"/finance/assets", "asset.update", "Edit Assets", "EDIT", "asset"},
 		{"/finance/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
 		{"/finance/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
+
+		// Asset Maintenance
+		{"/finance/asset-maintenance", "asset_maintenance.read", "View Asset Maintenance", "VIEW", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.create", "Create Asset Maintenance", "CREATE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.update", "Edit Asset Maintenance", "EDIT", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
+		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
 		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
@@ -738,20 +749,22 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to manager role (DIVISION for operational, ALL for master data)
 	assignScopedPermissionsToRole("manager", map[string]string{
-		"sales":    "DIVISION",
-		"purchase": "DIVISION",
-		"hrd":      "DIVISION",
-		"finance":  "DIVISION",
-		"stock":    "ALL",
+		"sales":             "DIVISION",
+		"purchase":          "DIVISION",
+		"hrd":               "DIVISION",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"stock":             "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to staff role (OWN for operational, ALL for master data read)
 	assignScopedPermissionsToRole("staff", map[string]string{
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "OWN",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"finance":           "OWN",
+		"non_trade_payable": "OWN",
+		"stock":             "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
@@ -774,11 +787,12 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
 	assignScopedPermissionsToRole("finance_manager", map[string]string{
-		"finance":  "DIVISION",
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"stock":    "OWN",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
 		// Finance journal domain pages — explicit DIVISION scope
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
 		//  standard module prefix, so they must be mapped explicitly)
@@ -788,11 +802,12 @@ func SeedPermissions() error {
 	}, "ALL")
 
 	assignScopedPermissionsToRole("accountant", map[string]string{
-		"finance":  "DIVISION",
-		"sales":    "OWN",
-		"purchase": "OWN",
-		"hrd":      "OWN",
-		"stock":    "OWN",
+		"finance":           "DIVISION",
+		"non_trade_payable": "DIVISION",
+		"sales":             "OWN",
+		"purchase":          "OWN",
+		"hrd":               "OWN",
+		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",
 		"journal_valuation":  "DIVISION",

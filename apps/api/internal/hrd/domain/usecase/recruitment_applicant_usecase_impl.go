@@ -6,22 +6,24 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
-	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgDTO "github.com/gilabs/gims/api/internal/organization/domain/dto"
+	orgUsecase "github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"gorm.io/datatypes"
 )
 
 type recruitmentApplicantUsecase struct {
-	applicantRepo  repositories.RecruitmentApplicantRepository
-	stageRepo      repositories.ApplicantStageRepository
-	activityRepo   repositories.ApplicantActivityRepository
+	applicantRepo   repositories.RecruitmentApplicantRepository
+	stageRepo       repositories.ApplicantStageRepository
+	activityRepo    repositories.ApplicantActivityRepository
 	recruitmentRepo repositories.RecruitmentRequestRepository
-	employeeRepo   orgRepos.EmployeeRepository
+	employeeUsecase orgUsecase.EmployeeUsecase
 }
 
 // NewRecruitmentApplicantUsecase creates a new instance of RecruitmentApplicantUsecase
@@ -30,14 +32,14 @@ func NewRecruitmentApplicantUsecase(
 	stageRepo repositories.ApplicantStageRepository,
 	activityRepo repositories.ApplicantActivityRepository,
 	recruitmentRepo repositories.RecruitmentRequestRepository,
-	employeeRepo orgRepos.EmployeeRepository,
+	employeeUsecase orgUsecase.EmployeeUsecase,
 ) RecruitmentApplicantUsecase {
 	return &recruitmentApplicantUsecase{
 		applicantRepo:   applicantRepo,
 		stageRepo:       stageRepo,
 		activityRepo:    activityRepo,
 		recruitmentRepo: recruitmentRepo,
-		employeeRepo:    employeeRepo,
+		employeeUsecase: employeeUsecase,
 	}
 }
 
@@ -495,6 +497,10 @@ func (u *recruitmentApplicantUsecase) GetByRecruitmentRequest(ctx context.Contex
 // Helper functions
 
 func toApplicantResponse(a *models.RecruitmentApplicant) *dto.RecruitmentApplicantResponse {
+	if a == nil {
+		return nil
+	}
+
 	resp := &dto.RecruitmentApplicantResponse{
 		ID:                   a.ID,
 		RecruitmentRequestID: a.RecruitmentRequestID,
@@ -508,10 +514,12 @@ func toApplicantResponse(a *models.RecruitmentApplicant) *dto.RecruitmentApplica
 		LastActivityAt:       a.LastActivityAt,
 		Rating:               a.Rating,
 		Notes:                a.Notes,
+		EmployeeID:           a.EmployeeID,
 		CreatedAt:            a.CreatedAt,
 		UpdatedAt:            a.UpdatedAt,
 	}
 
+	// Stage info - check if Stage is loaded
 	if a.Stage.ID != "" {
 		resp.Stage = &dto.ApplicantStageResponse{
 			ID:       a.Stage.ID,
@@ -524,10 +532,178 @@ func toApplicantResponse(a *models.RecruitmentApplicant) *dto.RecruitmentApplica
 		}
 	}
 
+	// Employee info - check if EmployeeID is set
+	if a.EmployeeID != nil && *a.EmployeeID != "" {
+		resp.Employee = &dto.EmployeeSummaryResponse{
+			ID: *a.EmployeeID,
+		}
+		// If employee data is loaded, populate the details
+		if a.Employee != nil {
+			resp.Employee.Name = a.Employee.Name
+			resp.Employee.Email = a.Employee.Email
+			resp.Employee.EmployeeCode = a.Employee.EmployeeCode
+		}
+	}
+
 	return resp
 }
 
 func toJSONMetadata(data map[string]interface{}) *datatypes.JSON {
 	b, _ := json.Marshal(data)
 	return (*datatypes.JSON)(&b)
+}
+
+func (u *recruitmentApplicantUsecase) ConvertToEmployee(
+	ctx context.Context,
+	applicantID string,
+	req *dto.ConvertApplicantToEmployeeDTO,
+	userID string,
+) (*dto.RecruitmentApplicantResponse, error) {
+	// 1. Get applicant with recruitment request for division/position info
+	applicant, err := u.applicantRepo.FindByID(ctx, applicantID)
+	if err != nil {
+		return nil, errors.New("applicant not found")
+	}
+
+	// 2. Check if already converted
+	if applicant.EmployeeID != nil {
+		return nil, errors.New("applicant already converted to employee")
+	}
+
+	// 3. Get current stage to verify it's a "won" stage (Hired)
+	stage, err := u.stageRepo.FindByID(ctx, applicant.StageID)
+	if err != nil {
+		return nil, errors.New("stage not found")
+	}
+	if !stage.IsWon {
+		return nil, errors.New("applicant must be in hired stage to convert")
+	}
+
+	// 4. Get recruitment request for division and position info
+	recruitment, _ := u.recruitmentRepo.FindByID(ctx, applicant.RecruitmentRequestID)
+
+	// 5. Use applicant data as defaults for empty fields
+	name := req.Name
+	if name == "" {
+		name = applicant.FullName
+	}
+
+	email := req.Email
+	if email == "" {
+		email = applicant.Email
+	}
+
+	var phone *string
+	if req.Phone != "" {
+		phone = &req.Phone
+	} else if applicant.Phone != nil && *applicant.Phone != "" {
+		phone = applicant.Phone
+	}
+
+	// Use recruitment request's division and position if available
+	var divisionID, jobPositionID *string
+	if req.DivisionID != nil && *req.DivisionID != "" {
+		divisionID = req.DivisionID
+	} else if recruitment != nil {
+		divisionID = &recruitment.DivisionID
+	}
+	if req.JobPositionID != nil && *req.JobPositionID != "" {
+		jobPositionID = req.JobPositionID
+	} else if recruitment != nil {
+		jobPositionID = &recruitment.PositionID
+	}
+
+	// 6. Parse date of birth
+	var dob *time.Time
+	if req.DateOfBirth != nil && *req.DateOfBirth != "" {
+		parsed, err := time.Parse("2006-01-02", *req.DateOfBirth)
+		if err != nil {
+			return nil, errors.New("invalid date_of_birth format, expected YYYY-MM-DD")
+		}
+		dob = &parsed
+	}
+
+	// 7. Create employee using organization module
+	isActive := true
+
+	// Convert phone pointer to string value
+	var phoneStr string
+	if phone != nil {
+		phoneStr = *phone
+	}
+
+	employeeReq := orgDTO.CreateEmployeeRequest{
+		Name:          name,
+		Email:         email,
+		Phone:         phoneStr,
+		DivisionID:    divisionID,
+		JobPositionID: jobPositionID,
+		NIK:           req.NIK,
+		DateOfBirth:   dob,
+		PlaceOfBirth:  req.PlaceOfBirth,
+		Gender:        req.Gender,
+		Religion:      req.Religion,
+		Address:       req.Address,
+		VillageID:     req.VillageID,
+		IsActive:      &isActive,
+	}
+
+	// Only add initial contract if contract type is provided
+	if req.ContractType != "" {
+		employeeReq.InitialContract = &orgDTO.EmployeeContractInput{
+			ContractNumber: req.ContractNumber,
+			ContractType:   req.ContractType,
+			StartDate:      req.StartDate,
+			EndDate:        req.EndDate,
+		}
+	}
+
+	employeeResp, err := u.employeeUsecase.Create(ctx, employeeReq, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create employee: %w", err)
+	}
+
+	// 8. Update applicant with employee reference
+	applicant.EmployeeID = &employeeResp.ID
+	if err := u.applicantRepo.Update(ctx, applicant); err != nil {
+		// Note: Employee was created but linking failed - log error for manual cleanup
+		return nil, fmt.Errorf("failed to link applicant to employee: %w", err)
+	}
+
+	// 9. Create activity log
+	activity := &models.ApplicantActivity{
+		ApplicantID: applicantID,
+		Type:        models.ActivityTypeConverted,
+		Description: fmt.Sprintf("Converted to employee %s (%s)", employeeResp.EmployeeCode, employeeResp.Name),
+		CreatedBy:   &userID,
+	}
+	_ = u.activityRepo.Create(ctx, activity)
+
+	// 10. Return updated applicant
+	return u.GetByID(ctx, applicantID)
+}
+
+func (u *recruitmentApplicantUsecase) CanConvertToEmployee(
+	ctx context.Context,
+	applicantID string,
+) (bool, string, error) {
+	applicant, err := u.applicantRepo.FindByID(ctx, applicantID)
+	if err != nil {
+		return false, "", err
+	}
+
+	if applicant.EmployeeID != nil {
+		return false, "Applicant already converted to employee", nil
+	}
+
+	stage, err := u.stageRepo.FindByID(ctx, applicant.StageID)
+	if err != nil {
+		return false, "", err
+	}
+
+	if !stage.IsWon {
+		return false, "Applicant must be in hired stage", nil
+	}
+
+	return true, "", nil
 }

@@ -45,6 +45,7 @@ export const financeJournalsEn = {
     credit: "Credit",
     memo: "Memo",
     account: "Account",
+    dateRange: "Date Range",
     startDate: "Start Date",
     endDate: "End Date",
     code: "Code",

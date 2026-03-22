@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import DatePicker from "@/features/finance/assets/components/date-picker";
+import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
@@ -110,15 +112,20 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="transaction_date">{t("fields.transactionDate")}</Label>
-              <Input id="transaction_date" type="date" {...form.register("transaction_date")} />
+              <DatePicker
+                id="transaction_date"
+                value={form.watch("transaction_date") ?? ""}
+                onChange={(value) => form.setValue("transaction_date", value, { shouldDirty: true })}
+                placeholder={t("fields.transactionDate")}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="due_date">{t("fields.dueDate")}</Label>
-              <Input
+              <DatePicker
                 id="due_date"
-                type="date"
                 value={form.watch("due_date") ?? ""}
-                onChange={(e) => form.setValue("due_date", e.target.value || null, { shouldDirty: true })}
+                onChange={(value) => form.setValue("due_date", value || null, { shouldDirty: true })}
+                placeholder={t("fields.dueDate")}
               />
             </div>
           </div>
@@ -144,7 +151,12 @@ export function NonTradePayableForm({ open, onOpenChange, mode, initialData }: P
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount">{t("fields.amount")}</Label>
-              <Input id="amount" type="number" step="0.01" {...form.register("amount", { valueAsNumber: true })} />
+              <NumericInput
+                id="amount"
+                value={form.watch("amount")}
+                onChange={(value) => form.setValue("amount", value ?? 0, { shouldDirty: true })}
+                currency
+              />
             </div>
           </div>
 

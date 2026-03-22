@@ -1,22 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import {
+  LayoutDashboard,
+  Database,
   Package,
   CreditCard,
   Users,
   BarChart3,
-  FileText,
-  ShieldCheck,
   ArrowUpRight,
   Truck,
-  AlertCircle,
   PhoneCall,
   ChevronDown,
+  LineChart,
+  Sparkles,
 } from "lucide-react";
 
 // WebGL background — single instance, fixed behind entire page
@@ -35,7 +37,7 @@ const MarketingMapDemo = dynamic(
   { ssr: false }
 );
 
-const PRIMARY_HEX = "#FFFFF";
+const PRIMARY_HEX = "#FFFFFF";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
@@ -49,13 +51,139 @@ const fadeUp: Variants = {
 // Common content width constraint
 const W = "relative z-10 mx-auto w-full max-w-6xl px-6 lg:px-12";
 
-const MODULES = [
-  { icon: Users,      title: "CRM",            description: "Pipeline, leads, kunjungan lapangan, dan riwayat pelanggan." },
-  { icon: Package,    title: "Inventori",      description: "Stok multi-gudang, transfer, FIFO/FEFO, dan pergerakan barang." },
-  { icon: CreditCard, title: "Keuangan",       description: "CoA, jurnal otomatis, hutang, piutang, dan laporan laba rugi." },
-  { icon: FileText,   title: "Pembelian",      description: "Purchase order, manajemen supplier, dan penerimaan barang." },
-  { icon: BarChart3,  title: "Penjualan",      description: "Penawaran, faktur, surat jalan, dan analitik omzet." },
-  { icon: ShieldCheck,title: "SDM & Payroll",  description: "Absensi, cuti, kontrak karyawan, dan proses penggajian." },
+const PRODUCT_MODULES = [
+  {
+    icon: LayoutDashboard,
+    title: "Dashboard",
+    description: "Ringkasan operasional, widget cepat, dan akses ke indikator utama bisnis.",
+  },
+  {
+    icon: Database,
+    title: "Master Data",
+    description: "Geographic, organization, employee, supplier, customer, product, warehouse, dan user master.",
+  },
+  {
+    icon: BarChart3,
+    title: "Sales",
+    description: "Quotation, sales order, delivery, invoice, pembayaran, dan recap piutang.",
+  },
+  {
+    icon: Truck,
+    title: "Purchase",
+    description: "Requisition, purchase order, goods receipt, supplier invoice, pembayaran, dan recap hutang.",
+  },
+  {
+    icon: Package,
+    title: "Stock",
+    description: "Inventory, stock movement, dan stock opname untuk kontrol persediaan.",
+  },
+  {
+    icon: CreditCard,
+    title: "Finance",
+    description: "Accounting, banking, payables, budgeting, asset management, dan financial statements.",
+  },
+  {
+    icon: Users,
+    title: "HRD",
+    description: "Attendance, leave request, evaluation, recruitment, work schedule, dan holidays.",
+  },
+  {
+    icon: PhoneCall,
+    title: "CRM",
+    description: "Leads, pipeline, tasks, visit reports, area mapping, sales targets, dan settings.",
+  },
+  {
+    icon: LineChart,
+    title: "Reports",
+    description: "Sales overview, top product, geo performance, customer research, dan supplier research.",
+  },
+  {
+    icon: Sparkles,
+    title: "AI Assistant",
+    description: "Chatbot dan settings untuk pertanyaan operasional dan bantuan kerja cepat.",
+  },
+];
+
+const FEATURE_BENEFITS = [
+  {
+    icon: LayoutDashboard,
+    title: "Satu sumber data",
+    description:
+      "Dashboard, master data, sales, purchase, stock, finance, HRD, CRM, dan reports terhubung dalam satu alur.",
+  },
+  {
+    icon: Package,
+    title: "Kontrol operasional lebih rapi",
+    description:
+      "Stok, delivery, purchase order, goods receipt, dan stock opname tercatat dengan jejak yang jelas.",
+  },
+  {
+    icon: CreditCard,
+    title: "Keuangan lebih siap audit",
+    description:
+      "Chart of accounts, jurnal, bank, piutang, hutang, budget, dan laporan keuangan tersedia dalam format yang konsisten.",
+  },
+  {
+    icon: Users,
+    title: "Proses HRD lebih disiplin",
+    description:
+      "Attendance, leave request, evaluation, recruitment, work schedule, dan holidays berjalan dalam satu struktur.",
+  },
+  {
+    icon: LineChart,
+    title: "Insight lebih cepat terbaca",
+    description:
+      "Sales overview, geo performance, customer research, dan supplier research membantu tim mengambil keputusan.",
+  },
+  {
+    icon: Sparkles,
+    title: "Bisa dipakai untuk automation",
+    description:
+      "AI assistant, workflow, dan notifikasi membantu mempercepat pekerjaan sehari-hari.",
+  },
+];
+
+const FEATURE_SCREENSHOTS = [
+  {
+    title: "CRM Pipeline",
+    caption: "Alur sales dengan visual kanban yang mudah dipahami (drag & drop deal).",
+    image: "/screenshot/pipeline.webp",
+  },
+  {
+    title: "Dashboard",
+    caption: "Overview revenue, tren, dan metrik penting untuk keputusan strategis.",
+    image: "/screenshot/dashboard.webp",
+  },
+  {
+    title: "Sales Order",
+    caption: "Pantau pesanan masuk secara real-time dari pemesanan hingga pengiriman.",
+    image: "/screenshot/sales-order.webp",
+  },
+  {
+    title: "Stock Inventory",
+    caption: "Monitor dan bandingkan kesediaan barang secara langsung multi-gudang.",
+    image: "/screenshot/stock-inventory.webp",
+  },
+  {
+    title: "Profit & Loss",
+    caption: "Laporan keuangan komprehensif mengukur performa pengeluaran dan pemasukan.",
+    image: "/screenshot/profit-loss.webp",
+  },
+  {
+    title: "Customer",
+    caption: "Master data informasi riwayat pelanggan dan relasinya (Single Source of Truth).",
+    image: "/screenshot/master-customer.webp",
+  },
+  {
+    title: "Geo Performance",
+    caption: "Lihat kinerja area penjualan hingga cakupan provinsi dan kota lewat peta interaktif.",
+    image: "/screenshot/geo-peformance.webp",
+  },
+  {
+    title: "Salary",
+    caption: "Proses penggajian terotomatisasi yang terhubung dengan absensi dan data HRD.",
+    image: "/screenshot/salary.webp",
+  },
 ];
 
 const FAQ_ITEMS = [
@@ -139,6 +267,8 @@ function FaqItem({
 }
 
 export default function LandingPage() {
+  const [activeScreenshot, setActiveScreenshot] = useState(0);
+
   return (
     <>
       {/* ── Single global WebGL background (fixed, below everything) ── */}
@@ -169,29 +299,29 @@ export default function LandingPage() {
             </p>
 
             <h1 className="mx-auto max-w-4xl text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]">
-              Ribuan pengiriman sehari
+              ERP yang tumbuh bersama bisnis
               <br />
-              <span className="text-primary">Satu layar untuk semuanya</span>
+              <span className="text-primary">dari UMKM sampai enterprise</span>
             </h1>
 
             <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Dari purchase order hingga faktur pelanggan — GIMS menghubungkan
-              seluruh operasional distribusi Anda dalam satu sistem yang konsisten.
+              Dari master data sampai finance, dari cloud sampai on-premise license — GIMS menghubungkan
+              seluruh operasional dalam satu sistem yang konsisten dan mudah dijual ke klien.
             </p>
 
             <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/login" prefetch={false}>
+              <Link href="#features">
                 <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
-                  Mulai sekarang
+                  Lihat fitur
                 </Button>
               </Link>
-              <Link href="#problem">
+              <Link href="#modules">
                 <Button
                   variant="ghost"
                   size="lg"
                   className="cursor-pointer px-6 text-base text-muted-foreground"
                 >
-                  Lihat cara kerjanya
+                  Lihat modul
                   <ArrowUpRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </Link>
@@ -200,64 +330,115 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-            2. PROBLEM
+            2. BENEFITS GRID
         ════════════════════════════════════════════════════════ */}
-        <section id="problem" className="flex min-h-screen flex-col items-center justify-center py-24">
+        <section id="features" className="flex min-h-screen flex-col items-center justify-center py-24">
           <div className={W}>
             <motion.div
-              variants={fadeUp} initial="hidden"
-              whileInView="visible" viewport={{ once: true, margin: "-120px" }}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
               className="mx-auto max-w-3xl text-center"
             >
               <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Masalah yang sering kami dengar
+                Kelebihan utama GIMS
               </p>
               <h2 className="text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl">
-                Bisnis Anda tumbuh
-                <br />
-                Sistem Anda belum ikut
+                Fitur yang terasa di operasional harian
               </h2>
               <p className="mt-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Perusahaan distribusi skala menengah biasanya beroperasi dengan
-                kombinasi Excel, WhatsApp, dan ingatan tim — dan itu mulai bermasalah
-                justru di saat volume paling tinggi.
+                GIMS dirancang agar data sekali input bisa dipakai lintas modul. Tim sales,
+                gudang, finance, HRD, dan manajemen melihat informasi yang sama tanpa rekap manual.
               </p>
             </motion.div>
 
-            <div className="mt-16 grid gap-5 sm:grid-cols-3">
-              {[
-                {
-                  icon: AlertCircle,
-                  title: "Stok tidak sinkron",
-                  description:
-                    "Gudang di tiga kota, tiga file berbeda. Salesman menjanjikan barang yang sudah habis.",
-                },
-                {
-                  icon: PhoneCall,
-                  title: "Laporan minta manual",
-                  description:
-                    "Setiap akhir bulan, manajer harus menelepon satu per satu untuk mengumpulkan angka.",
-                },
-                {
-                  icon: Truck,
-                  title: "Pengiriman tanpa visibilitas",
-                  description:
-                    "Tidak ada yang tahu berapa barang keluar dari gudang atau berapa yang masih di jalan.",
-                },
-              ].map(({ icon: Icon, title, description }, i) => (
+            <div className="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURE_BENEFITS.map(({ icon: Icon, title, description }, index) => (
                 <motion.div
                   key={title}
-                  variants={fadeUp} initial="hidden"
-                  whileInView="visible" viewport={{ once: true, margin: "-40px" }}
-                  custom={i * 0.1}
-                  className="rounded-2xl border border-border bg-card/60 p-8 backdrop-blur-sm"
+                  variants={fadeUp}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-40px" }}
+                  custom={index * 0.1}
+                  className="overflow-hidden rounded-3xl border border-border bg-card/40 p-8 shadow-sm backdrop-blur-sm"
                 >
-                  <Icon className="mb-5 h-6 w-6 text-destructive/60" />
-                  <h3 className="mb-3 text-base font-medium text-foreground">{title}</h3>
+                  <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="mb-3 text-lg font-medium text-foreground">{title}</h3>
                   <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
                 </motion.div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            2.5. SCREENSHOT SHOWCASE TABS
+        ════════════════════════════════════════════════════════ */}
+        <section className="flex flex-col items-center justify-center py-24 relative">
+          <div className="absolute inset-0 bg-muted/10 -z-10" />
+          <div className={`${W} max-w-7xl`}>
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              className="mb-12 text-center"
+            >
+              <h2 className="text-3xl font-light tracking-tight text-foreground sm:text-4xl">
+                Antarmuka Bersih & Fungsional
+              </h2>
+            </motion.div>
+
+            {/* TAB BUTTONS */}
+            <div className="mb-8 flex overflow-x-auto pb-4 scrollbar-hide justify-start lg:justify-center">
+              <div className="flex gap-2 px-4 lg:px-0">
+                {FEATURE_SCREENSHOTS.map((shot, index) => (
+                  <button
+                    key={shot.title}
+                    onClick={() => setActiveScreenshot(index)}
+                    className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm cursor-pointer ${
+                      activeScreenshot === index
+                        ? "bg-primary text-primary-foreground font-medium"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {shot.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* TAB CONTENT */}
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm mx-auto"
+            >
+              <div className="p-4 sm:p-6 border-b border-border/50 bg-card/80 backdrop-blur-sm">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {FEATURE_SCREENSHOTS[activeScreenshot].title}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {FEATURE_SCREENSHOTS[activeScreenshot].caption}
+                </p>
+              </div>
+              <div className="relative aspect-video w-full overflow-hidden bg-muted/20">
+                <Image
+                  src={FEATURE_SCREENSHOTS[activeScreenshot].image}
+                  alt={FEATURE_SCREENSHOTS[activeScreenshot].title}
+                  fill
+                  className="object-contain p-2 sm:p-4"
+                  sizes="(max-width: 1200px) 100vw, 1200px"
+                  priority
+                />
+              </div>
+            </motion.div>
           </div>
         </section>
 
@@ -430,21 +611,21 @@ export default function LandingPage() {
               className="mx-auto mb-14 max-w-2xl text-center"
             >
               <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Yang termasuk dalam GIMS
+                Menu utama GIMS
               </p>
               <h2 className="text-4xl font-light tracking-tight text-foreground sm:text-5xl">
-                Semua modul
+                Semua modul inti
                 <br />
-                Data yang sama
+                dalam satu platform
               </h2>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-                Tidak ada biaya modul tambahan, tidak ada integrasi pihak ketiga.
-                Semuanya terhubung sejak awal.
+                Menu ini mengikuti struktur dokumentasi produk. Starter berisi menu inti,
+                sedangkan Full Standard mencakup seluruh modul standar tanpa custom tambahan.
               </p>
             </motion.div>
 
             <div className="grid gap-px bg-border/50 rounded-2xl overflow-hidden sm:grid-cols-2 lg:grid-cols-3">
-              {MODULES.map(({ icon: Icon, title, description }, i) => (
+              {PRODUCT_MODULES.map(({ icon: Icon, title, description }, i) => (
                 <motion.div
                   key={title}
                   variants={fadeUp} initial="hidden"
@@ -466,7 +647,7 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-            7. FAQ
+            6. FAQ
         ════════════════════════════════════════════════════════ */}
         <section id="faq" className="flex min-h-screen flex-col items-center justify-center py-24">
           <div className={W}>
@@ -508,7 +689,7 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-            8. CTA
+          7. CTA
         ════════════════════════════════════════════════════════ */}
         <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
           <div className={W}>
@@ -518,17 +699,17 @@ export default function LandingPage() {
               className="mx-auto max-w-2xl"
             >
               <h2 className="mb-5 text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Bisnis distribusi Anda
+                Siap dibawa ke
                 <br />
-                layak punya sistem yang baik
+                implementasi yang jelas
               </h2>
               <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-                Onboarding bisa selesai hari ini. Tim Anda bisa langsung mulai besok.
+                Mulai dari fitur inti yang paling relevan, lalu scale ke modul lain saat bisnis tumbuh.
               </p>
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <Link href="/login">
+                <Link href="#features">
                   <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
-                    Mulai gratis
+                    Lihat fitur
                   </Button>
                 </Link>
                 <Link href="/login">
@@ -537,7 +718,7 @@ export default function LandingPage() {
                     size="lg"
                     className="cursor-pointer px-8 text-base bg-card/60 backdrop-blur-sm"
                   >
-                    Jadwalkan demo
+                    Masuk
                     <ArrowUpRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </Link>

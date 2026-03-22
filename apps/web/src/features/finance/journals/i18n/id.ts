@@ -45,6 +45,7 @@ export const financeJournalsId = {
     credit: "Kredit",
     memo: "Memo",
     account: "Akun",
+    dateRange: "Rentang Tanggal",
     startDate: "Tanggal Mulai",
     endDate: "Tanggal Selesai",
     code: "Kode",

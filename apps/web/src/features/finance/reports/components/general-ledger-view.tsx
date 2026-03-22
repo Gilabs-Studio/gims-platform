@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, BookOpenText, Minus, TrendingDown, TrendingUp } from "lucide-react";
@@ -13,11 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { useGeneralLedger } from "../hooks/use-finance-reports";
-import { financeReportsService } from "../services/finance-reports-service";
-import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
+import { useGeneralLedger } from "../general-ledger/hooks/use-general-ledger";
+import { generalLedgerService } from "../general-ledger/services/general-ledger-service";
+import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-import type { GeneralLedgerAccount, GLTransactionRow } from "../types";
+import type { GeneralLedgerAccount, GLTransactionRow } from "../general-ledger/types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "@/features/finance/journals/components/journal-source-detail-modal";
@@ -48,13 +48,7 @@ export function GeneralLedgerView() {
   const canExport = useUserPermission("general_ledger_report.export");
   const searchParams = useSearchParams();
 
-  const now = new Date();
-  const fallbackStart = new Date(now.getFullYear(), 0, 1);
-  const initialStart = parseApiDate(searchParams.get("start_date"), fallbackStart);
-  const initialEnd = parseApiDate(searchParams.get("end_date"), now);
-  const initialCompany = searchParams.get("company_id") ?? "";
-  const initialAccountID = searchParams.get("account_id");
-
+  const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: initialStart,
     to: initialEnd,
@@ -102,22 +96,17 @@ export function GeneralLedgerView() {
     });
   }, [accounts, accountTypeFilter, accountSearch]);
 
-  useEffect(() => {
-    if (filteredAccounts.length === 0) {
-      setSelectedAccountID(null);
-      return;
-    }
+  const effectiveSelectedAccountID = useMemo(() => {
+    if (filteredAccounts.length === 0) return null;
 
     const stillExists = filteredAccounts.some((account) => account.account_id === selectedAccountID);
-    if (!stillExists) {
-      setSelectedAccountID(filteredAccounts[0].account_id);
-    }
+    return stillExists ? selectedAccountID : filteredAccounts[0].account_id;
   }, [filteredAccounts, selectedAccountID]);
 
   const selectedAccount = useMemo(() => {
-    if (!selectedAccountID) return null;
-    return filteredAccounts.find((account) => account.account_id === selectedAccountID) ?? null;
-  }, [filteredAccounts, selectedAccountID]);
+    if (!effectiveSelectedAccountID) return null;
+    return filteredAccounts.find((account) => account.account_id === effectiveSelectedAccountID) ?? null;
+  }, [filteredAccounts, effectiveSelectedAccountID]);
 
   const summary = useMemo(() => {
     let totalDebit = 0;
@@ -148,7 +137,7 @@ export function GeneralLedgerView() {
 
   const handleExport = async () => {
     try {
-      const blob = await financeReportsService.exportGeneralLedger(dateRange);
+      const blob = await generalLedgerService.exportGeneralLedger(dateRange);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
@@ -163,15 +152,16 @@ export function GeneralLedgerView() {
   };
 
   const metrics = [
-    { label: t("total_debit"), value: formatCurrency(summary.totalDebit), Icon: TrendingUp },
-    { label: t("total_credit"), value: formatCurrency(summary.totalCredit), Icon: TrendingDown },
+    { label: t("total_debit"), value: formatCurrency(summary.totalDebit), Icon: TrendingUp, desc: "Total transaksi masuk pencatatan debit", valueClass: "" },
+    { label: t("total_credit"), value: formatCurrency(summary.totalCredit), Icon: TrendingDown, desc: "Total transaksi keluar pencatatan kredit", valueClass: "" },
     {
       label: t("net_balance"),
       value: formatCurrency(summary.netBalance),
       Icon: Minus,
+      desc: "Selisih debit & kredit",
       valueClass: summary.netBalance >= 0 ? "text-success" : "text-destructive",
     },
-    { label: t("total_accounts"), value: summary.totalAccounts.toLocaleString(), Icon: BookOpenText },
+    { label: t("total_accounts"), value: summary.totalAccounts.toLocaleString(), Icon: BookOpenText, desc: "Jumlah akun yang terlibat", valueClass: "" },
   ];
 
   return (
@@ -227,15 +217,18 @@ export function GeneralLedgerView() {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-            {metrics.map(({ label, value, Icon, valueClass }) => (
-              <Card key={label}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{label}</CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-medium font-mono tabular-nums ${valueClass ?? ""}`}>{value}</div>
-                </CardContent>
+            {metrics.map(({ label, value, Icon, desc, valueClass }) => (
+              <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 rounded-full text-primary">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                    <p className={`text-2xl font-bold tracking-tight ${valueClass ?? ""}`}>{value}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
@@ -266,7 +259,7 @@ export function GeneralLedgerView() {
                     </TableHeader>
                     <TableBody>
                       {filteredAccounts.map((account) => {
-                        const isActive = account.account_id === selectedAccountID;
+                        const isActive = account.account_id === effectiveSelectedAccountID;
                         return (
                           <TableRow
                             key={account.account_id}
@@ -306,7 +299,7 @@ export function GeneralLedgerView() {
                         <TableHead>{t("memo")}</TableHead>
                         <TableHead className="text-right w-[140px]">{t("debit")}</TableHead>
                         <TableHead className="text-right w-[140px]">{t("credit")}</TableHead>
-                        <TableHead className="text-right w-[160px]">{t("running_balance")}</TableHead>
+                        <TableHead className="text-right w-40">{t("running_balance")}</TableHead>
                         <TableHead className="text-right w-[220px]">{t("action")}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -324,7 +317,7 @@ export function GeneralLedgerView() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        selectedAccount.transactions.map((transaction, idx) => {
+                        selectedAccount.transactions.map((transaction: GLTransactionRow, idx: number) => {
                           const sourceRow = toSourceRow(transaction);
                           const canOpenSource = canResolveJournalSourceDetail(sourceRow.referenceType);
                           return (

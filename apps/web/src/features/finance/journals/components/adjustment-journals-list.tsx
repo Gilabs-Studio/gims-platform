@@ -1,26 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { DateRange } from "react-day-picker";
 import {
   CheckCircle2,
   Eye,
-  FileText,
   MoreHorizontal,
   Pencil,
   Plus,
   RotateCcw,
-  Search,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +25,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FilterToolbar } from "./filter-toolbar";
 
 import type { JournalEntry } from "../types";
 import {
@@ -61,8 +56,14 @@ export function AdjustmentJournalsList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const now = useMemo(() => new Date(), []);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: new Date(now.getFullYear(), 0, 1),
+    to: now,
+  });
+
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -126,44 +127,20 @@ export function AdjustmentJournalsList() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row items-end gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Label className="mb-2 block">{t("search")}</Label>
-          <Search className="absolute left-3 top-[34px] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("search")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9"
-          />
-        </div>
-        <div className="w-full sm:w-auto space-y-2">
-          <Label>{t("fields.startDate")}</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        <div className="w-full sm:w-auto space-y-2">
-          <Label>{t("fields.endDate")}</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        <div className="flex-1" />
-      </div>
+      <FilterToolbar
+        search={search}
+        dateRange={dateRange}
+        searchPlaceholder={t("search")}
+        dateRangeLabel={t("fields.dateRange")}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        onDateRangeChange={(value) => {
+          setDateRange(value);
+          setPage(1);
+        }}
+      />
 
       <JournalTable
         isLoading={isLoading}
