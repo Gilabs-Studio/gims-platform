@@ -634,7 +634,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	// Resolve pipeline stage: use provided stage or default to first stage (order=1)
+	// Resolve pipeline stage: use provided stage or default to lowest-probability active pipeline stage
 	var pipelineStageID string
 	if req.PipelineStageID != nil && *req.PipelineStageID != "" {
 		stage, err := u.pipelineStageRepo.FindByID(ctx, *req.PipelineStageID)
@@ -643,11 +643,32 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		}
 		pipelineStageID = stage.ID
 	} else {
-		firstStage, err := u.pipelineStageRepo.FindByOrder(ctx, 1)
+		stages, _, err := u.pipelineStageRepo.List(ctx, repositories.ListParams{Limit: 100})
 		if err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to find default pipeline stage: %w", err)
+			return dto.LeadResponse{}, fmt.Errorf("failed to load pipeline stages: %w", err)
 		}
-		pipelineStageID = firstStage.ID
+		if len(stages) == 0 {
+			return dto.LeadResponse{}, errors.New("no pipeline stages available")
+		}
+
+		// Choose lowest probability stage (avoid won/lost stages if possible)
+		var defaultStage *models.PipelineStage
+		for i := range stages {
+			stage := &stages[i]
+			if stage.IsWon || stage.IsLost || !stage.IsActive {
+				continue
+			}
+			if defaultStage == nil || stage.Probability < defaultStage.Probability {
+				defaultStage = stage
+			}
+		}
+
+		if defaultStage == nil {
+			// Fallback: take first stage if no non-won/non-lost stage exists
+			defaultStage = &stages[0]
+		}
+
+		pipelineStageID = defaultStage.ID
 	}
 
 	// Build deal title from request or lead data
