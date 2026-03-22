@@ -800,7 +800,6 @@ export function LeadFormDialog({
       onCreated={handleSourceCreated}
       initialData={{
         name: quickCreate.query,
-        order: Math.max(0, ...leadSources.map((s) => s.order ?? 0)) + 1,
       }}
     />
 
@@ -811,7 +810,6 @@ export function LeadFormDialog({
       onCreated={handleStatusCreated}
       initialData={{
         name: quickCreate.query,
-        order: Math.max(0, ...leadStatuses.map((s) => s.order ?? 0)) + 1,
       }}
     />
 
