@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Badge } from "@/components/ui/badge";
 import { LeadStatusDialog } from "./lead-status-dialog";
 import { useLeadStatusList } from "../hooks/use-lead-status-list";
 
@@ -52,7 +51,6 @@ export function LeadStatusList() {
               <TableHead>{t("form.name")}</TableHead>
               <TableHead>{t("form.score")}</TableHead>
               <TableHead>{t("form.color")}</TableHead>
-              <TableHead>{t("form.flags")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
               {(permissions.canUpdate || permissions.canDelete) && <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>}
             </TableRow>
@@ -64,13 +62,12 @@ export function LeadStatusList() {
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
             ) : data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
               </TableRow>
             ) : (
               data.items.map((item) => (
@@ -81,12 +78,6 @@ export function LeadStatusList() {
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: item.color }} />
                       <span className="text-sm text-muted-foreground">{item.color}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {item.is_default && <Badge variant="default">Default</Badge>}
-                      {item.is_converted && <Badge variant="secondary">Converted</Badge>}
                     </div>
                   </TableCell>
                   <TableCell>

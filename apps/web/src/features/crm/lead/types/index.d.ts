@@ -83,7 +83,6 @@ export interface LeadStatusInfo {
   code: string;
   color: string;
   score: number;
-  is_converted: boolean;
 }
 
 export interface LeadContactRoleInfo {
@@ -361,8 +360,6 @@ export interface LeadStatusOption {
   code: string;
   color: string;
   order?: number;
-  is_default: boolean;
-  is_converted: boolean;
 }
 
 export interface LeadPipelineStageOption {

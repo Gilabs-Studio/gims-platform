@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { leadService } from "../services/lead-service";
 import { activityKeys } from "../../activity/hooks/use-activities";
 import type { LeadListParams, CreateLeadData, UpdateLeadData, ConvertLeadData, BulkUpsertLeadRequest } from "../types";
@@ -72,6 +73,23 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateLeadData }) =>
       leadService.update(id, data),
+    onError: (error, variables) => {
+      if (process.env.NODE_ENV !== "production") {
+        if (isAxiosError(error)) {
+          console.debug("[crm:lead-mutation] update failed", {
+            id: variables.id,
+            status: error.response?.status ?? null,
+            data: error.response?.data ?? null,
+            message: error.message,
+          });
+        } else {
+          console.debug("[crm:lead-mutation] update failed", {
+            id: variables.id,
+            error,
+          });
+        }
+      }
+    },
     onSuccess: (_data, { id }) => {
       // Keep lead list/detail in sync.
       qc.invalidateQueries({ queryKey: leadKeys.all });

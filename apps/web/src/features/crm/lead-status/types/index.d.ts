@@ -8,8 +8,6 @@ export interface LeadStatus {
   color: string;
   order: number;
   is_active: boolean;
-  is_default: boolean;
-  is_converted: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -19,8 +17,6 @@ export interface CreateLeadStatusData {
   description?: string;
   score?: number;
   color?: string;
-  is_default?: boolean;
-  is_converted?: boolean;
 }
 
 export interface UpdateLeadStatusData {
@@ -28,8 +24,6 @@ export interface UpdateLeadStatusData {
   description?: string;
   score?: number;
   color?: string;
-  is_default?: boolean;
-  is_converted?: boolean;
   is_active?: boolean;
 }
 

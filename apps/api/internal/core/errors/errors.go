@@ -184,6 +184,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Lead cannot convert. Lead status must be 'qualified'",
 	},
+	"CRM_LEAD_INVALID_STATUS": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid lead status",
+	},
 	"INVALID_LEAD_STATUS": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid lead status",

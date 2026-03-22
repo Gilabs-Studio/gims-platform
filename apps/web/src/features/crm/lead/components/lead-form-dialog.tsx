@@ -179,6 +179,22 @@ export function LeadFormDialog({
     formState: { errors },
   } = form;
 
+  const selectedLeadStatusId = watch("lead_status_id");
+  const selectedLeadStatus = useMemo(
+    () => leadStatuses.find((status) => status.id === selectedLeadStatusId) ?? null,
+    [leadStatuses, selectedLeadStatusId]
+  );
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[crm:lead-form-dialog] lead status selection", {
+        leadId: lead?.id ?? null,
+        selectedLeadStatusId: selectedLeadStatusId ?? null,
+        selectedLeadStatus,
+      });
+    }
+  }, [lead?.id, selectedLeadStatus, selectedLeadStatusId]);
+
   const pendingAreaId = useMemo(() => {
     if (!pendingAreaProvinceName || areas.length === 0) return null;
 
@@ -478,7 +494,7 @@ export function LeadFormDialog({
                             ariaInvalid={!!errors.lead_status_id}
                             isLoading={isLeadStatusesLoading}
                             options={leadStatuses
-                              .filter((s) => !s.is_converted)
+                              .filter((s) => s.code?.toUpperCase() !== "CONVERTED")
                               .map((s) => ({
                                 value: s.id,
                                 label: s.name,

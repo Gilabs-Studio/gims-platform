@@ -8,8 +8,6 @@ type CreateLeadStatusRequest struct {
 	Description string `json:"description" binding:"max=500"`
 	Score       int    `json:"score" binding:"min=0"`
 	Color       string `json:"color" binding:"max=20"`
-	IsDefault   *bool  `json:"is_default"`
-	IsConverted *bool  `json:"is_converted"`
 }
 
 // UpdateLeadStatusRequest represents the request to update a lead status
@@ -18,8 +16,6 @@ type UpdateLeadStatusRequest struct {
 	Description string `json:"description" binding:"max=500"`
 	Score       *int   `json:"score" binding:"omitempty,min=0"`
 	Color       string `json:"color" binding:"max=20"`
-	IsDefault   *bool  `json:"is_default"`
-	IsConverted *bool  `json:"is_converted"`
 	IsActive    *bool  `json:"is_active"`
 }
 

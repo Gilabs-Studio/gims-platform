@@ -348,6 +348,7 @@ export function LeadList() {
                                   )}
                                   {!isLeadStatusesLoading && leadStatuses
                                     .slice()
+                                    .filter((status) => status.code?.toUpperCase() !== "CONVERTED")
                                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                                     .map((status) => {
                                       const isCurrent = item.lead_status_id === status.id;

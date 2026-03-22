@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { useLeadStatusForm } from "../hooks/use-lead-status-form";
@@ -30,7 +29,7 @@ export function LeadStatusDialog({
     onCreated,
     initialData,
   });
-  const { register, setValue, watch, formState: { errors } } = form;
+  const { register, formState: { errors } } = form;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,17 +63,6 @@ export function LeadStatusDialog({
             <Textarea placeholder={t("form.descriptionPlaceholder")} {...register("description")} />
             {errors.description && <FieldError>{errors.description.message}</FieldError>}
           </Field>
-          <div className="flex flex-col gap-4">
-
-            <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5"><FieldLabel>{t("form.isDefault")}</FieldLabel><p className="text-sm text-muted-foreground">{t("form.isDefaultDescription")}</p></div>
-              <Switch checked={watch("is_default")} onCheckedChange={(val) => setValue("is_default", val)} className="cursor-pointer" />
-            </Field>
-            <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5"><FieldLabel>{t("form.isConverted")}</FieldLabel><p className="text-sm text-muted-foreground">{t("form.isConvertedDescription")}</p></div>
-              <Switch checked={watch("is_converted")} onCheckedChange={(val) => setValue("is_converted", val)} className="cursor-pointer" />
-            </Field>
-          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">{tCommon("cancel")}</Button>
             <Button type="submit" disabled={isLoading} className="cursor-pointer">

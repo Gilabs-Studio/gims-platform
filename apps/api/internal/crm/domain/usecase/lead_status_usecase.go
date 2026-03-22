@@ -32,35 +32,9 @@ func NewLeadStatusUsecase(repo repositories.LeadStatusRepository) LeadStatusUsec
 }
 
 func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatusRequest) (dto.LeadStatusResponse, error) {
-	// Validate: only one default status allowed
-	if req.IsDefault != nil && *req.IsDefault {
-		existing, err := u.repo.FindDefault(ctx)
-		if err == nil && existing != nil {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as default")
-		}
-	}
-
-	// Validate: only one converted status allowed
-	if req.IsConverted != nil && *req.IsConverted {
-		existing, err := u.repo.FindConverted(ctx)
-		if err == nil && existing != nil {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as converted")
-		}
-	}
-
 	nextOrder, err := u.nextLeadStatusOrder(ctx)
 	if err != nil {
 		return dto.LeadStatusResponse{}, err
-	}
-
-	isDefault := false
-	if req.IsDefault != nil {
-		isDefault = *req.IsDefault
-	}
-
-	isConverted := false
-	if req.IsConverted != nil {
-		isConverted = *req.IsConverted
 	}
 
 	statusID := uuid.New().String()
@@ -73,8 +47,6 @@ func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatus
 		Color:       req.Color,
 		Order:       nextOrder,
 		IsActive:    true,
-		IsDefault:   isDefault,
-		IsConverted: isConverted,
 	}
 
 	if err := u.repo.Create(ctx, status); err != nil {
@@ -106,10 +78,6 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 		return dto.LeadStatusResponse{}, errors.New("lead status not found")
 	}
 
-	if err := u.validateLeadStatusUpdateFlags(ctx, id, req); err != nil {
-		return dto.LeadStatusResponse{}, err
-	}
-
 	applyLeadStatusUpdate(status, req)
 
 	if err := u.repo.Update(ctx, status); err != nil {
@@ -118,25 +86,6 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 
 	return mapper.ToLeadStatusResponse(status), nil
 }
-
-func (u *leadStatusUsecase) validateLeadStatusUpdateFlags(ctx context.Context, id string, req dto.UpdateLeadStatusRequest) error {
-	if req.IsDefault != nil && *req.IsDefault {
-		existing, err := u.repo.FindDefault(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return errors.New("only one lead status can be marked as default")
-		}
-	}
-
-	if req.IsConverted != nil && *req.IsConverted {
-		existing, err := u.repo.FindConverted(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return errors.New("only one lead status can be marked as converted")
-		}
-	}
-
-	return nil
-}
-
 func applyLeadStatusUpdate(status *models.LeadStatus, req dto.UpdateLeadStatusRequest) {
 	if req.Name != "" {
 		status.Name = req.Name
@@ -149,12 +98,6 @@ func applyLeadStatusUpdate(status *models.LeadStatus, req dto.UpdateLeadStatusRe
 	}
 	if req.Color != "" {
 		status.Color = req.Color
-	}
-	if req.IsDefault != nil {
-		status.IsDefault = *req.IsDefault
-	}
-	if req.IsConverted != nil {
-		status.IsConverted = *req.IsConverted
 	}
 	if req.IsActive != nil {
 		status.IsActive = *req.IsActive

@@ -357,7 +357,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   );
   // "Converted" status must not be reachable via the quick-action button
   // (it is exclusively set through the dedicated Convert workflow)
-  const convertedStatus = sortedStatuses.find((s) => s.is_converted);
+  const convertedStatus = sortedStatuses.find((s) => s.code?.toUpperCase() === "CONVERTED");
 
   const hasCoordinates = lead.latitude != null && lead.longitude != null;
 

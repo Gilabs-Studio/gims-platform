@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { useCreateLead, useUpdateLead } from "./use-leads";
 import type { Lead } from "../types";
 import { provinceService, cityService } from "@/features/master-data/geographic/services/geographic-service";
@@ -21,6 +22,7 @@ export interface UseLeadFormProps {
 export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseLeadFormProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
+  const isConvertedLead = !!editingItem?.converted_at;
 
   const schema = useMemo(
     () =>
@@ -95,7 +97,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         latitude: editingItem.latitude ?? null,
         longitude: editingItem.longitude ?? null,
         lead_source_id: editingItem.lead_source_id ?? "",
-        lead_status_id: editingItem.lead_status_id ?? "",
+        lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
         estimated_value: editingItem.estimated_value ?? 0,
         probability: editingItem.probability ?? 0,
         budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -176,7 +178,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           latitude: editingItem.latitude ?? null,
           longitude: editingItem.longitude ?? null,
           lead_source_id: editingItem.lead_source_id ?? "",
-          lead_status_id: editingItem.lead_status_id ?? "",
+          lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
           estimated_value: editingItem.estimated_value ?? 0,
           probability: editingItem.probability ?? 0,
           budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -277,7 +279,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       const payload = {
         ...data,
         lead_source_id: data.lead_source_id || null,
-        lead_status_id: data.lead_status_id || null,
+        lead_status_id: isConvertedLead ? null : data.lead_status_id || null,
         assigned_to: data.assigned_to || null,
         time_expected: data.time_expected || null,
         last_name: data.last_name || undefined,
@@ -303,6 +305,15 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         payment_terms_id: data.payment_terms_id || null,
       };
 
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[crm:lead-form] submit", {
+          mode: editingItem ? "update" : "create",
+          leadId: editingItem?.id ?? null,
+          isConvertedLead,
+          payload,
+        });
+      }
+
       if (editingItem) {
         await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
         toast.success(t("updated"));
@@ -313,7 +324,18 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       onOpenChange(false);
       form.reset();
       onSuccess?.();
-    } catch {
+    } catch (error: unknown) {
+      if (process.env.NODE_ENV !== "production") {
+        if (isAxiosError(error)) {
+          console.debug("[crm:lead-form] submit failed", {
+            status: error.response?.status ?? null,
+            data: error.response?.data ?? null,
+            message: error.message,
+          });
+        } else {
+          console.debug("[crm:lead-form] submit failed", error);
+        }
+      }
       toast.error(tCommon("error"));
     }
   };

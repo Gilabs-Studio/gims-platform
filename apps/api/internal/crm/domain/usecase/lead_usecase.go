@@ -33,6 +33,8 @@ type LeadUsecase interface {
 	GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error)
 }
 
+var ErrCannotManuallySetConvertedStatus = errors.New("cannot manually set converted status, use the convert endpoint")
+
 type leadUsecase struct {
 	leadRepo          repositories.LeadRepository
 	leadStatusRepo    repositories.LeadStatusRepository
@@ -289,7 +291,7 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		}
 		// Prevent manual assignment of converted status
 		if status.IsConverted {
-			return dto.LeadResponse{}, errors.New("cannot manually set converted status, use the convert endpoint")
+			return dto.LeadResponse{}, ErrCannotManuallySetConvertedStatus
 		}
 
 		// Track status changes for activity logging

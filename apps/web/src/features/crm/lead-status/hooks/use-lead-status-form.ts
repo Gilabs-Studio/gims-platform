@@ -12,8 +12,6 @@ const schema = z.object({
   description: z.string().max(500).optional(),
   score: z.number().min(0).max(100),
   color: z.string().max(20).optional(),
-  is_default: z.boolean(),
-  is_converted: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -41,7 +39,7 @@ export function useLeadStatusForm({
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", description: "", score: 0, color: "#3B82F6", is_default: false, is_converted: false },
+    defaultValues: { name: "", description: "", score: 0, color: "#3B82F6" },
   });
 
   useEffect(() => {
@@ -52,8 +50,6 @@ export function useLeadStatusForm({
           description: editingItem.description ?? "",
           score: editingItem.score,
           color: editingItem.color ?? "#3B82F6",
-          is_default: editingItem.is_default,
-          is_converted: editingItem.is_converted,
         });
       } else {
         form.reset({
@@ -61,8 +57,6 @@ export function useLeadStatusForm({
           description: "",
           score: 0,
           color: "#3B82F6",
-          is_default: false,
-          is_converted: false,
         });
       }
     }
