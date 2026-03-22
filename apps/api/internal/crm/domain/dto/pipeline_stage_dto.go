@@ -19,6 +19,7 @@ type UpdatePipelineStageRequest struct {
 	Probability *int   `json:"probability" binding:"omitempty,min=0,max=100"`
 	IsWon       *bool  `json:"is_won"`
 	IsLost      *bool  `json:"is_lost"`
+	IsActive    *bool  `json:"is_active"`
 	Description string `json:"description" binding:"max=500"`
 }
 

@@ -159,6 +159,9 @@ func applyPipelineStageUpdate(stage *models.PipelineStage, req dto.UpdatePipelin
 	if req.IsLost != nil {
 		stage.IsLost = *req.IsLost
 	}
+	if req.IsActive != nil {
+		stage.IsActive = *req.IsActive
+	}
 	if req.Description != "" {
 		stage.Description = req.Description
 	}
