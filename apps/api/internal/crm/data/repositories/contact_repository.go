@@ -76,13 +76,14 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	}
 
 	if params.SortBy != "" {
-		sortOrder := params.SortBy
+		// Quote column name to handle reserved keywords
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			sortOrder += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			sortOrder += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(sortOrder)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("name ASC")
 	}
@@ -117,13 +118,14 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 	}
 
 	if params.SortBy != "" {
-		sortOrder := params.SortBy
+		// Quote column name to handle reserved keywords
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			sortOrder += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			sortOrder += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(sortOrder)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("name ASC")
 	}

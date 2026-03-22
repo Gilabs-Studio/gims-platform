@@ -55,13 +55,14 @@ func (r *leadSourceRepository) List(ctx context.Context, params ListParams) ([]m
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
+		// Quote column name to handle reserved keywords like 'order'
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			order += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			order += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(order)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("\"order\" ASC, name ASC")
 	}
