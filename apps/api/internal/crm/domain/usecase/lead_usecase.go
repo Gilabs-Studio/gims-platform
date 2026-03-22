@@ -37,6 +37,7 @@ type leadUsecase struct {
 	leadRepo          repositories.LeadRepository
 	leadStatusRepo    repositories.LeadStatusRepository
 	leadSourceRepo    repositories.LeadSourceRepository
+	contactRoleRepo   repositories.ContactRoleRepository
 	dealRepo          repositories.DealRepository
 	pipelineStageRepo repositories.PipelineStageRepository
 	activityRepo      repositories.ActivityRepository
@@ -52,6 +53,7 @@ func NewLeadUsecase(
 	leadRepo repositories.LeadRepository,
 	leadStatusRepo repositories.LeadStatusRepository,
 	leadSourceRepo repositories.LeadSourceRepository,
+	contactRoleRepo repositories.ContactRoleRepository,
 	dealRepo repositories.DealRepository,
 	pipelineStageRepo repositories.PipelineStageRepository,
 	activityRepo repositories.ActivityRepository,
@@ -65,6 +67,7 @@ func NewLeadUsecase(
 		leadRepo:          leadRepo,
 		leadStatusRepo:    leadStatusRepo,
 		leadSourceRepo:    leadSourceRepo,
+		contactRoleRepo:   contactRoleRepo,
 		dealRepo:          dealRepo,
 		pipelineStageRepo: pipelineStageRepo,
 		activityRepo:      activityRepo,
@@ -109,6 +112,14 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		}
 	}
 
+	// Validate contact role if provided
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
+	}
+
 	// Parse time expected
 	var timeExpected *time.Time
 	if req.TimeExpected != nil && *req.TimeExpected != "" {
@@ -126,6 +137,7 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		CompanyName:          req.CompanyName,
 		Email:                req.Email,
 		Phone:                req.Phone,
+		ContactRoleID:        req.ContactRoleID,
 		JobTitle:             req.JobTitle,
 		Address:              req.Address,
 		City:                 req.City,
@@ -141,6 +153,8 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		Website:              req.Website,
 		BankAccountID:        req.BankAccountID,
 		BankAccountReference: req.BankAccountReference,
+		Latitude:             req.Latitude,
+		Longitude:            req.Longitude,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
 		AuthConfirmed:        req.AuthConfirmed,
@@ -297,6 +311,14 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		lead.AssignedTo = req.AssignedTo
 	}
 
+	// Validate contact role if changing
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
+	}
+
 	// Apply partial updates
 	if req.FirstName != nil {
 		addStringChange("first_name", lead.FirstName, *req.FirstName)
@@ -317,6 +339,18 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Phone != nil {
 		addStringChange("phone", lead.Phone, *req.Phone)
 		lead.Phone = *req.Phone
+	}
+	if req.ContactRoleID != nil {
+		old := ""
+		if lead.ContactRoleID != nil {
+			old = *lead.ContactRoleID
+		}
+		newVal := ""
+		if *req.ContactRoleID != "" {
+			newVal = *req.ContactRoleID
+		}
+		addStringChange("contact_role_id", old, newVal)
+		lead.ContactRoleID = req.ContactRoleID
 	}
 	if req.JobTitle != nil {
 		addStringChange("job_title", lead.JobTitle, *req.JobTitle)

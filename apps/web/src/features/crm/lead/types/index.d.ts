@@ -8,7 +8,8 @@ export interface Lead {
   company_name: string;
   email: string;
   phone: string;
-  job_title: string;
+  contact_role_id?: string | null;
+  contact_role?: LeadContactRoleInfo | null;
   address: string;
   city: string;
   province: string;
@@ -57,8 +58,6 @@ export interface Lead {
   cid?: string;
   place_id?: string;
   website?: string;
-  bank_account_id?: string | null;
-  bank_account_reference?: string;
   // Sales defaults for customer conversion
   business_type_id?: string | null;
   business_type?: LeadBusinessTypeInfo | null;
@@ -85,6 +84,13 @@ export interface LeadStatusInfo {
   color: string;
   score: number;
   is_converted: boolean;
+}
+
+export interface LeadContactRoleInfo {
+  id: string;
+  name: string;
+  code: string;
+  badge_color: string;
 }
 
 export interface LeadEmployeeInfo {
@@ -155,6 +161,7 @@ export interface CreateLeadData {
   company_name?: string;
   email?: string;
   phone?: string;
+  contact_role_id?: string | null;
   job_title?: string;
   address?: string;
   city?: string;
@@ -178,6 +185,8 @@ export interface CreateLeadData {
   assigned_to?: string | null;
   notes?: string;
   website?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   business_type_id?: string | null;
   area_id?: string | null;
   payment_terms_id?: string | null;
@@ -191,6 +200,7 @@ export interface UpdateLeadData {
   company_name?: string;
   email?: string;
   phone?: string;
+  contact_role_id?: string | null;
   job_title?: string;
   address?: string;
   city?: string;

@@ -833,10 +833,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{lead.company_name}</span>
                       </div>
-                      {lead.job_title && (
+                      {lead.contact_role && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Briefcase className="h-3 w-3" />
-                          {lead.job_title}
+                          {lead.contact_role.name}
                         </div>
                       )}
                     </>

@@ -15,6 +15,7 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 		CompanyName:          lead.CompanyName,
 		Email:                lead.Email,
 		Phone:                lead.Phone,
+		ContactRoleID:        lead.ContactRoleID,
 		JobTitle:             lead.JobTitle,
 		Address:              lead.Address,
 		City:                 lead.City,
@@ -96,6 +97,15 @@ func ToLeadResponse(lead *models.Lead) dto.LeadResponse {
 			ID:           lead.AssignedEmployee.ID,
 			EmployeeCode: lead.AssignedEmployee.EmployeeCode,
 			Name:         lead.AssignedEmployee.Name,
+		}
+	}
+
+	if lead.ContactRole != nil {
+		resp.ContactRole = &dto.LeadContactRoleInfo{
+			ID:         lead.ContactRole.ID,
+			Name:       lead.ContactRole.Name,
+			Code:       lead.ContactRole.Code,
+			BadgeColor: lead.ContactRole.BadgeColor,
 		}
 	}
 
