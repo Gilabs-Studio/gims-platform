@@ -13,15 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/utils";
 import { resolveSourceRoute } from "@/features/finance/shared/reference-source-matrix";
 
+import { ReferenceBadge } from "./reference-badge";
+import { ReferenceCodeLink } from "./reference-code-link";
 import type {
   JournalTableColumn,
   JournalTableColumnKey,
@@ -44,8 +40,8 @@ const DEFAULT_COLUMNS: JournalTableColumn[] = [
   { key: "number", label: "No" },
   { key: "journalType", label: "Journal Type" },
   { key: "description", label: "Description" },
-  { key: "referenceType", label: "Reference Type" },
-  { key: "reference", label: "Reference Code" },
+  { key: "referenceType", label: "Ref Type" },
+  { key: "reference", label: "Ref Code" },
   { key: "entryDate", label: "Entry Date" },
   { key: "debit", label: "Debit" },
   { key: "credit", label: "Credit" },
@@ -78,121 +74,6 @@ function buildReferenceCode(referenceType?: string | null, referenceID?: string 
   const source = (referenceID ?? "").trim();
   const short = source ? source.split("-")[0].toUpperCase().slice(0, 10) : "N/A";
   return `${prefix}-${short}`;
-}
-
-function getReferenceSourceMeta(type: string | null) {
-  if (!type) {
-    return {
-      label: "Unknown",
-      title: "Unknown Source",
-      color: "bg-muted text-muted-foreground border-border",
-    };
-  }
-
-  const value = type.toUpperCase();
-  const compact = value.replace(/[^A-Z0-9]/g, "");
-
-  if (compact === "SALESPAYMENT") {
-    return {
-      label: "Payment SO",
-      title: "Sales Order Payment",
-      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    };
-  }
-  if (compact === "PURCHASEPAYMENT") {
-    return {
-      label: "Payment PO",
-      title: "Purchase Order Payment",
-      color: "bg-lime-500/10 text-lime-600 border-lime-500/20",
-    };
-  }
-  if (compact === "SALESINVOICE") {
-    return {
-      label: "Invoice SO",
-      title: "Sales Invoice",
-      color: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    };
-  }
-  if (compact === "SALESINVOICEDP") {
-    return {
-      label: "Invoice DP SO",
-      title: "Sales Down Payment Invoice",
-      color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
-    };
-  }
-  if (compact === "SUPPLIERINVOICE") {
-    return {
-      label: "Invoice PO",
-      title: "Supplier Invoice",
-      color: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    };
-  }
-  if (compact === "SUPPLIERINVOICEDP") {
-    return {
-      label: "Invoice DP PO",
-      title: "Supplier Down Payment Invoice",
-      color: "bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20",
-    };
-  }
-  if (compact === "PAYMENT") {
-    return {
-      label: "Payment Finance",
-      title: "Finance Payment",
-      color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    };
-  }
-  if (compact === "DO" || compact.includes("DELIVERY")) {
-    return {
-      label: "Delivery SO",
-      title: "Delivery Order",
-      color: "bg-sky-500/10 text-sky-500 border-sky-500/20",
-    };
-  }
-  if (compact.includes("GOODSRECEIPT")) {
-    return {
-      label: "Receipt PO",
-      title: "Goods Receipt",
-      color: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-    };
-  }
-  if (
-    compact === "CASHIN" ||
-    compact === "CASHOUT" ||
-    compact === "TRANSFER" ||
-    compact === "CASHBANK" ||
-    compact === "CB" ||
-    compact === "TRF"
-  ) {
-    return {
-      label: compact === "TRF" || compact === "TRANSFER" ? "Transfer Bank" : "Cash/Bank",
-      title: "Cash & Bank Transaction",
-      color: "bg-teal-500/10 text-teal-500 border-teal-500/20",
-    };
-  }
-  if (compact.includes("ADJUST") || compact === "CORRECTION") {
-    return {
-      label: "Adjustment",
-      title: "Adjustment Journal",
-      color: "bg-slate-500/10 text-slate-500 border-slate-500/20",
-    };
-  }
-  if (compact.includes("VALUATION") || compact.includes("REVALUATION") || compact.includes("COST")) {
-    return {
-      label: "Valuation",
-      title: "Valuation Journal",
-      color: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    };
-  }
-
-  return {
-    label: value,
-    title: value,
-    color: "bg-secondary text-secondary-foreground border-border",
-  };
-}
-
-function getReferenceBadge(type: string | null) {
-  return getReferenceSourceMeta(type);
 }
 
 export function getSourceHref(
@@ -355,43 +236,22 @@ function renderCell<T>(
   }
 
   if (key === "referenceType") {
-    const badge = getReferenceBadge(row.referenceType);
     return (
       <TableCell>
-        <Badge variant="outline" className={`font-mono text-xs ${badge.color}`} title={badge.title}>
-          {badge.label}
-        </Badge>
+        <ReferenceBadge referenceType={row.referenceType} />
       </TableCell>
     );
   }
 
   if (key === "reference") {
-    const isReferenceClickable = canReferenceClick ? canReferenceClick(row) : true;
-
     return (
       <TableCell>
-        {onReferenceClick && row.referenceCode && isReferenceClickable ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="font-mono text-xs text-primary hover:underline cursor-pointer"
-                  onClick={() => onReferenceClick(row)}
-                >
-                  {row.referenceCode}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{referenceTooltipText}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : row.sourceHref && row.referenceCode ? (
-          <Link href={row.sourceHref} className="font-mono text-xs text-primary hover:underline cursor-pointer">
-            {row.referenceCode}
-          </Link>
-        ) : (
-          <span className="font-mono text-xs">{row.referenceCode ?? "-"}</span>
-        )}
+        <ReferenceCodeLink
+          row={row}
+          referenceTooltipText={referenceTooltipText}
+          onReferenceClick={onReferenceClick}
+          canReferenceClick={canReferenceClick}
+        />
       </TableCell>
     );
   }

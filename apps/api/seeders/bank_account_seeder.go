@@ -24,6 +24,32 @@ type bankAccountSeed struct {
 // SeedBankAccounts seeds sample company bank accounts and links each to a dedicated
 // Chart of Account entry (type CASH_BANK) for proper double-entry accounting.
 func SeedBankAccounts() error {
+	if isMinimalSeedMode() {
+		db := database.DB
+		// Minimal bank account + corresponding COA.
+		coa := financeModels.ChartOfAccount{Code: "11100", Name: "Cash - Minimal Account", Type: financeModels.AccountTypeCashBank, IsActive: true}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
+			return err
+		}
+
+		var existingID string
+	if err := db.Model(&financeModels.ChartOfAccount{}).Where("code = ?", coa.Code).Pluck("id", &existingID).Error; err != nil {
+		}
+
+		account := coreModels.BankAccount{
+			Name:          "Minimal Bank Account",
+			AccountNumber: "0000000001",
+			AccountHolder: "PT. Minimal",
+			Currency:      "IDR",
+			IsActive:      true,
+			ChartOfAccountID: &existingID,
+		}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "account_number"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "account_holder", "currency", "is_active", "chart_of_account_id", "updated_at"})}).Create(&account).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 
 	// 1) Resolve currency ID mapping.

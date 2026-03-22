@@ -367,6 +367,12 @@ func (uc *journalEntryUsecase) GetByID(ctx context.Context, id string) (*dto.Jou
 		return nil, err
 	}
 	resp := uc.mapper.ToResponse(item)
+	if codes := batchResolveJournalReferenceCodes(ctx, uc.db, []financeModels.JournalEntry{*item}); len(codes) > 0 {
+		if c, ok := codes[item.ID]; ok && strings.TrimSpace(c) != "" {
+			cc := strings.TrimSpace(c)
+			resp.ReferenceCode = &cc
+		}
+	}
 	return &resp, nil
 }
 
@@ -403,9 +409,15 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 		return nil, 0, err
 	}
 
+	codes := batchResolveJournalReferenceCodes(ctx, uc.db, items)
+
 	resp := make([]dto.JournalEntryResponse, 0, len(items))
 	for i := range items {
 		v := uc.mapper.ToSummaryResponse(&items[i])
+		if c, ok := codes[items[i].ID]; ok && strings.TrimSpace(c) != "" {
+			cc := strings.TrimSpace(c)
+			v.ReferenceCode = &cc
+		}
 		resp = append(resp, v)
 	}
 	return resp, total, nil

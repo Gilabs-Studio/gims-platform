@@ -44,6 +44,7 @@ type SupplierInvoiceUsecase interface {
 	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
+	TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error
 }
 
 type supplierInvoiceUsecase struct {
@@ -1120,6 +1121,10 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 	})
 
 	return nil
+}
+
+func (uc *supplierInvoiceUsecase) TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error {
+	return uc.triggerJournalEntry(ctx, si)
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

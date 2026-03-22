@@ -12,6 +12,33 @@ import (
 // SeedWarehouse seeds sample warehouse master data with relational data
 // This is idempotent - safe to run multiple times without creating duplicates
 func SeedWarehouse() error {
+	if isMinimalSeedMode() {
+		db := database.DB
+		log.Println("Seeding minimal warehouse for SEED_MINIMAL_DATA")
+		cap := 1000
+		wh := models.Warehouse{
+			Code:        "WH-MIN-001",
+			Name:        "Minimal Warehouse",
+			Description: "Warehouse used for minimal seed mode",
+			Capacity:    &cap,
+			Address:     "Jl. Minimal No. 1, Jakarta",
+			IsActive:    true,
+		}
+		var existing models.Warehouse
+		err := db.Where("code = ?", wh.Code).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			if err := db.Create(&wh).Error; err != nil {
+				return err
+			}
+			log.Printf("Created warehouse: %s", wh.Code)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 
 	log.Println("Seeding warehouses...")

@@ -73,6 +73,7 @@ type JournalEntryResponse struct {
 	Status            financeModels.JournalStatus `json:"status"`
 	PostedAt          *time.Time                  `json:"posted_at"`
 	PostedBy          *string                     `json:"posted_by"`
+	CreatedBy         *string                     `json:"created_by,omitempty"`
 	IsSystemGenerated bool                        `json:"is_system_generated"`
 	SourceDocumentURL *string                     `json:"source_document_url,omitempty"`
 	Lines             []JournalLineResponse       `json:"lines"`

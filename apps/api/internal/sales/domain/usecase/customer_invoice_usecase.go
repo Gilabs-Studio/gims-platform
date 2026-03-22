@@ -43,6 +43,7 @@ type CustomerInvoiceUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceRequest) (*dto.CustomerInvoiceResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error)
+	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
 }
 
 type customerInvoiceUsecase struct {
@@ -599,6 +600,10 @@ func withActorContext(ctx context.Context, preferredUserID, fallbackUserID *stri
 	}
 
 	return ctx
+}
+
+func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error {
+	return uc.triggerSalesInvoiceJournal(ctx, invoice)
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {

@@ -164,6 +164,7 @@ export function JournalsList() {
       <JournalTable
         isLoading={isLoading}
         data={items.map(mapJournalToUnifiedRow)}
+        rowStartNumber={((pagination?.page ?? page) - 1) * (pagination?.per_page ?? pageSize) + 1}
         canReferenceClick={(row) => canResolveJournalSourceDetail(row.referenceType)}
         onReferenceClick={(row) => {
           setSelectedReferenceRow(row);

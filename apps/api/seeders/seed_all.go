@@ -11,6 +11,11 @@ func SeedAll() error {
 		}
 	}
 
+	// Minimal seed mode: small, traceable dataset for debugging and validation.
+	if os.Getenv("SEED_MINIMAL_DATA") == "true" {
+		return seedMinimalData()
+	}
+
 	if os.Getenv("SEED_ONLY_MASTER_DATA") == "true" {
 		return seedMasterData()
 	}
@@ -147,6 +152,11 @@ func SeedAll() error {
 
 	// Integration Flow seeder (Purchase → Stock → Sales → Finance)
 	if err := SeedIntegrationFlow(); err != nil {
+		return err
+	}
+
+	// Reconciliate journal entries after transactional seeders
+	if err := SeedJournalReconciliation(); err != nil {
 		return err
 	}
 
