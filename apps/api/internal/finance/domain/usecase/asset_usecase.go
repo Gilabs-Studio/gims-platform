@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -38,19 +39,45 @@ type AssetUsecase interface {
 	ApproveTransaction(ctx context.Context, txID string) (*dto.AssetResponse, error)
 	CreateFromPurchase(ctx context.Context, req *dto.CreateAssetFromPurchaseRequest) error
 	GetFormData(ctx context.Context) (*dto.AssetFormDataResponse, error)
+
+	// Phase 2: Attachments, Assignments, Audit Logs
+	ListAttachments(ctx context.Context, assetID string) ([]dto.AssetAttachmentResponse, error)
+	CreateAttachment(ctx context.Context, assetID string, att *financeModels.AssetAttachment) (*dto.AssetAttachmentResponse, error)
+	DeleteAttachment(ctx context.Context, assetID string, attachmentID string) error
+	Assign(ctx context.Context, id string, req *dto.AssignAssetRequest) (*dto.AssetResponse, error)
+	Return(ctx context.Context, id string, req *dto.ReturnAssetRequest) (*dto.AssetResponse, error)
+	ListAuditLogs(ctx context.Context, assetID string) ([]dto.AssetAuditLogResponse, error)
+	ListAssignmentHistory(ctx context.Context, assetID string) ([]dto.AssetAssignmentHistoryResponse, error)
 }
 
 type assetUsecase struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
-	catRepo repositories.AssetCategoryRepository
-	locRepo repositories.AssetLocationRepository
-	repo    repositories.AssetRepository
-	mapper  *mapper.AssetMapper
+	db             *gorm.DB
+	coaRepo        repositories.ChartOfAccountRepository
+	catRepo        repositories.AssetCategoryRepository
+	locRepo        repositories.AssetLocationRepository
+	repo           repositories.AssetRepository
+	attachmentRepo repositories.AssetAttachmentRepository
+	auditLogRepo   repositories.AssetAuditLogRepository
+	assignmentRepo repositories.AssetAssignmentRepository
+	mapper         *mapper.AssetMapper
 }
 
-func NewAssetUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, catRepo repositories.AssetCategoryRepository, locRepo repositories.AssetLocationRepository, repo repositories.AssetRepository, mapper *mapper.AssetMapper) AssetUsecase {
-	return &assetUsecase{db: db, coaRepo: coaRepo, catRepo: catRepo, locRepo: locRepo, repo: repo, mapper: mapper}
+func NewAssetUsecase(
+	db *gorm.DB,
+	coaRepo repositories.ChartOfAccountRepository,
+	catRepo repositories.AssetCategoryRepository,
+	locRepo repositories.AssetLocationRepository,
+	repo repositories.AssetRepository,
+	mapper *mapper.AssetMapper,
+	attachmentRepo repositories.AssetAttachmentRepository,
+	auditLogRepo repositories.AssetAuditLogRepository,
+	assignmentRepo repositories.AssetAssignmentRepository,
+) AssetUsecase {
+	return &assetUsecase{
+		db: db, coaRepo: coaRepo, catRepo: catRepo, locRepo: locRepo,
+		repo: repo, mapper: mapper,
+		attachmentRepo: attachmentRepo, auditLogRepo: auditLogRepo, assignmentRepo: assignmentRepo,
+	}
 }
 
 func parseAssetDateStrict(value string) (time.Time, error) {
@@ -1027,3 +1054,258 @@ func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Ass
 		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Credit: math.Abs(amount), Memo: desc})
 	}
 }
+
+// ========== Phase 2: Attachments ==========
+
+func (uc *assetUsecase) ListAttachments(ctx context.Context, assetID string) ([]dto.AssetAttachmentResponse, error) {
+	assetID = strings.TrimSpace(assetID)
+	if assetID == "" {
+		return nil, errors.New("asset_id is required")
+	}
+
+	items, err := uc.attachmentRepo.GetByAssetID(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]dto.AssetAttachmentResponse, 0, len(items))
+	for i := range items {
+		res = append(res, uc.mapper.ToAttachmentResponse(&items[i]))
+	}
+	return res, nil
+}
+
+func (uc *assetUsecase) CreateAttachment(ctx context.Context, assetID string, att *financeModels.AssetAttachment) (*dto.AssetAttachmentResponse, error) {
+	assetID = strings.TrimSpace(assetID)
+	if assetID == "" {
+		return nil, errors.New("asset_id is required")
+	}
+
+	// Verify asset exists
+	if _, err := uc.repo.FindByID(ctx, assetID, false); err != nil {
+		return nil, ErrAssetNotFound
+	}
+
+	if err := uc.attachmentRepo.Create(ctx, att); err != nil {
+		return nil, fmt.Errorf("failed to create attachment: %w", err)
+	}
+
+	resp := uc.mapper.ToAttachmentResponse(att)
+	return &resp, nil
+}
+
+func (uc *assetUsecase) DeleteAttachment(ctx context.Context, assetID string, attachmentID string) error {
+	assetID = strings.TrimSpace(assetID)
+	attachmentID = strings.TrimSpace(attachmentID)
+	if assetID == "" || attachmentID == "" {
+		return errors.New("asset_id and attachment_id are required")
+	}
+
+	att, err := uc.attachmentRepo.GetByID(ctx, attachmentID)
+	if err != nil || att == nil {
+		return errors.New("attachment not found")
+	}
+	if att.AssetID.String() != assetID {
+		return errors.New("attachment does not belong to this asset")
+	}
+
+	return uc.attachmentRepo.Delete(ctx, attachmentID)
+}
+
+// ========== Phase 2: Assignments ==========
+
+func (uc *assetUsecase) Assign(ctx context.Context, id string, req *dto.AssignAssetRequest) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrAssetNotFound
+		}
+		return nil, err
+	}
+	if asset.Status == financeModels.AssetStatusDisposed || asset.Status == financeModels.AssetStatusSold {
+		return nil, errors.New("disposed or sold asset cannot be assigned")
+	}
+
+	employeeID := strings.TrimSpace(req.EmployeeID)
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Close current assignment if exists
+		currentAssignment, _ := uc.assignmentRepo.GetCurrentAssignment(ctx, id)
+		if currentAssignment != nil {
+			now := apptime.Now()
+			reason := "Reassigned to another employee"
+			if err := uc.assignmentRepo.MarkAsReturned(ctx, currentAssignment.ID.String(), now, reason); err != nil {
+				return err
+			}
+		}
+
+		// Create new assignment history
+		assignment := &financeModels.AssetAssignmentHistory{
+			AssetID:    parseUUID(id),
+			EmployeeID: parseUUIDPtr(&employeeID),
+			AssignedBy: parseUUIDPtr(&actorID),
+			Notes:      req.Notes,
+		}
+		if req.DepartmentID != nil {
+			assignment.DepartmentID = parseUUIDPtr(req.DepartmentID)
+		}
+		if req.LocationID != nil {
+			assignment.LocationID = parseUUIDPtr(req.LocationID)
+		}
+		if err := uc.assignmentRepo.Create(ctx, assignment); err != nil {
+			return err
+		}
+
+		// Update asset
+		now := apptime.Now()
+		updates := map[string]interface{}{
+			"assigned_to_employee_id": employeeID,
+			"assignment_date":         now,
+		}
+		if req.LocationID != nil {
+			updates["location_id"] = *req.LocationID
+		}
+		return tx.Model(&financeModels.Asset{}).Where("id = ?", id).Updates(updates).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(full, true)
+	return &res, nil
+}
+
+func (uc *assetUsecase) Return(ctx context.Context, id string, req *dto.ReturnAssetRequest) (*dto.AssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	returnDate, err := parseAssetDateStrict(req.ReturnDate)
+	if err != nil {
+		return nil, err
+	}
+
+	asset, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrAssetNotFound
+		}
+		return nil, err
+	}
+
+	if !asset.IsAssigned() {
+		return nil, errors.New("asset is not currently assigned")
+	}
+
+	currentAssignment, err := uc.assignmentRepo.GetCurrentAssignment(ctx, id)
+	if err != nil || currentAssignment == nil {
+		return nil, errors.New("no active assignment found")
+	}
+
+	reason := ""
+	if req.ReturnReason != nil {
+		reason = *req.ReturnReason
+	}
+
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := uc.assignmentRepo.MarkAsReturned(ctx, currentAssignment.ID.String(), returnDate, reason); err != nil {
+			return err
+		}
+
+		return tx.Model(&financeModels.Asset{}).Where("id = ?", id).Updates(map[string]interface{}{
+			"assigned_to_employee_id": nil,
+			"assignment_date":         nil,
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	res := uc.mapper.ToResponse(full, true)
+	return &res, nil
+}
+
+// ========== Phase 2: Audit Logs ==========
+
+func (uc *assetUsecase) ListAuditLogs(ctx context.Context, assetID string) ([]dto.AssetAuditLogResponse, error) {
+	assetID = strings.TrimSpace(assetID)
+	if assetID == "" {
+		return nil, errors.New("asset_id is required")
+	}
+
+	items, err := uc.auditLogRepo.GetByAssetID(ctx, assetID, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]dto.AssetAuditLogResponse, 0, len(items))
+	for i := range items {
+		res = append(res, uc.mapper.ToAuditLogResponse(&items[i]))
+	}
+	return res, nil
+}
+
+// ========== Phase 2: Assignment History ==========
+
+func (uc *assetUsecase) ListAssignmentHistory(ctx context.Context, assetID string) ([]dto.AssetAssignmentHistoryResponse, error) {
+	assetID = strings.TrimSpace(assetID)
+	if assetID == "" {
+		return nil, errors.New("asset_id is required")
+	}
+
+	items, err := uc.assignmentRepo.GetByAssetID(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+
+	res := make([]dto.AssetAssignmentHistoryResponse, 0, len(items))
+	for i := range items {
+		res = append(res, uc.mapper.ToAssignmentHistoryResponse(&items[i]))
+	}
+	return res, nil
+}
+
+// --- UUID helpers ---
+
+func parseUUID(s string) uuid.UUID {
+	u, _ := uuid.Parse(s)
+	return u
+}
+
+func parseUUIDPtr(s *string) *uuid.UUID {
+	if s == nil || *s == "" {
+		return nil
+	}
+	u, err := uuid.Parse(*s)
+	if err != nil {
+		return nil
+	}
+	return &u
+}
+

@@ -132,6 +132,10 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		// NEW: Extended Asset entities
+		&finance.AssetAttachment{},
+		&finance.AssetAuditLog{},
+		&finance.AssetAssignmentHistory{},
 		&finance.AssetBudget{},
 		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
@@ -293,7 +297,7 @@ func AutoMigrate() error {
 	}
 
 	return nil
-} 	
+}
 
 // migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
 // employee_areas with is_supervisor=true. This is idempotent — if the source

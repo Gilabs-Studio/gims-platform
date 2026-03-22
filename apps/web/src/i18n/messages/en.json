@@ -38,6 +38,10 @@
     "savedSuccessfully": "Saved successfully",
     "passwordChangedSuccessfully": "Password changed successfully!",
     "avatarUpdatedSuccessfully": "Avatar updated successfully!",
+    "systemInfo": "System Information",
+    "description": "Description",
+    "amount": "Amount",
+    "match": "Match",
     "somethingWentWrong": "Something went wrong",
     "export": "Export",
     "exportFailed": "Failed to export data",
@@ -57,8 +61,15 @@
     "validationError": "Please check the form for errors",
     "myActivities": "My Activities",
     "add": "Add",
+    "adding": "Adding...",
     "remove": "Remove",
-    "detail": "Detail"
+    "removing": "Removing...",
+    "detail": "Detail",
+    "months": "months",
+    "years": "years",
+    "complete": "Complete",
+    "reset": "Reset",
+    "clearAll": "Clear All"
   },
   "notFound": {
     "label": "404",
