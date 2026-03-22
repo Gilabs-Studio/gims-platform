@@ -683,6 +683,13 @@ export const navigationConfig: NavItem[] = [
         permission: "employee.read",
       },
       {
+        name: "Banks",
+        i18nKey: "banks",
+        url: "/master-data/banks",
+        icon: "landmark",
+        permission: "bank.read",
+      },
+      {
         name: "Supplier",
         i18nKey: "supplier",
         url: "/master-data/supplier",
@@ -701,13 +708,6 @@ export const navigationConfig: NavItem[] = [
             url: "/master-data/supplier-types",
             icon: "tag",
             permission: "supplier_type.read",
-          },
-          {
-            name: "Banks",
-            i18nKey: "banks",
-            url: "/master-data/banks",
-            icon: "landmark",
-            permission: "bank.read",
           },
         ],
       },

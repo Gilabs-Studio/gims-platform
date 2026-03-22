@@ -12,15 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { formatWhatsAppLink } from "@/lib/utils";
 import { toast } from "sonner";
 import { useForm, type SubmitHandler, type Resolver, Controller } from "react-hook-form";
@@ -32,6 +26,7 @@ import {
   useUpdateContact,
   useDeleteContact,
 } from "../../hooks/use-suppliers";
+import { useCreateContactRole } from "@/features/crm/contact-role/hooks/use-contact-role";
 import { useContactFormData } from "@/features/crm/contact/hooks/use-contact";
 import type { ContactRoleOptionForForm } from "@/features/crm/contact/types";
 import type { SupplierContact, CreateContactData } from "../../types";
@@ -70,7 +65,7 @@ export function SupplierContactList({
   onDelete,
   isReadOnly = false,
 }: SupplierContactListProps) {
-  const t = useTranslations("crmContact"); // Match text with customer contact form 
+  const t = useTranslations("crmContact");
   const tCommon = useTranslations("common");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,6 +75,7 @@ export function SupplierContactList({
   const addMutation = useAddContact();
   const updateMutation = useUpdateContact();
   const deleteMutation = useDeleteContact();
+  const createContactRoleMutation = useCreateContactRole();
 
   const formDataQuery = useContactFormData();
   const contactRoles: ContactRoleOptionForForm[] = formDataQuery.data?.data?.contact_roles ?? [];
@@ -91,6 +87,7 @@ export function SupplierContactList({
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema) as Resolver<ContactFormData>,
@@ -104,6 +101,29 @@ export function SupplierContactList({
       is_active: true,
     },
   });
+
+  const handleCreateContactRole = async (query: string) => {
+    const trimmedName = query.trim();
+    if (!trimmedName) return;
+
+    try {
+      const response = await createContactRoleMutation.mutateAsync({
+        name: trimmedName,
+      });
+
+      if (response.data?.id) {
+        setValue("contact_role_id", response.data.id, {
+          shouldDirty: true,
+          shouldTouch: true,
+        });
+      }
+
+      await formDataQuery.refetch();
+      toast.success(tCommon("success") || "Success");
+    } catch {
+      toast.error(tCommon("error") || "Something went wrong");
+    }
+  };
 
   const handleOpenCreate = () => {
     setEditingIndex(null);
@@ -212,7 +232,6 @@ export function SupplierContactList({
         ) : (
           contacts.map((contact, index) => {
             const role = contactRoles.find((r) => r.id === contact.contact_role_id);
-            // Check if contact is persisted or not to properly access relations
             const displayRole = "id" in contact && contact.contact_role ? contact.contact_role : role;
 
             return (
@@ -318,7 +337,6 @@ export function SupplierContactList({
             }}
             className="space-y-5"
           >
-            {/* Basic Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium border-b pb-2">
                 {t("sections.basicInfo") || "Basic Information"}
@@ -336,25 +354,27 @@ export function SupplierContactList({
                   control={control}
                   name="contact_role_id"
                   render={({ field }) => (
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("form.contactRolePlaceholder") || "Select a role"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contactRoles.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            {role.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      options={contactRoles.map((role) => ({
+                        value: role.id,
+                        label: role.name,
+                      }))}
+                      placeholder={t("form.contactRolePlaceholder") || "Select a role"}
+                      searchPlaceholder={t("searchPlaceholder") || "Search..."}
+                      createPermission="crm_contact_role.create"
+                      createLabel={`${tCommon("create") || "Create"} "{query}"`}
+                      onCreateClick={(query) => {
+                        void handleCreateContactRole(query);
+                      }}
+                      isLoading={formDataQuery.isLoading || createContactRoleMutation.isPending}
+                    />
                   )}
                 />
               </Field>
-
             </div>
 
-            {/* Contact Information */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium border-b pb-2">
                 {t("sections.contactInfo") || "Contact Information"}
@@ -373,7 +393,6 @@ export function SupplierContactList({
               </Field>
             </div>
 
-            {/* Settings & Notes */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium border-b pb-2">
                 {t("sections.settings") || "Settings"}
