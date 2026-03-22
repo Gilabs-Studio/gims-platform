@@ -383,6 +383,7 @@ func main() {
 			AttendanceUC:     hrdDeps.AttendanceUC,
 			SalesQuotationUC: salesDeps.QuotationUC,
 			SalesOrderUC:     salesDeps.OrderUC,
+			YearlyTargetUC:   salesDeps.YearlyTargetUC,
 			InventoryUC:      invUC,
 		})
 	}

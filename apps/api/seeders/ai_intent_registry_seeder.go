@@ -55,6 +55,7 @@ const (
 	IntentListSalesVisitsID        = "a1000003-0000-0000-0000-000000000009"
 	IntentListSalesEstimationsID   = "a1000003-0000-0000-0000-00000000000a"
 	IntentListSalesTargetsID       = "a1000003-0000-0000-0000-00000000000b"
+	IntentCreateSalesTargetID      = "a1000003-0000-0000-0000-00000000000c"
 
 	// --- Purchase Module ---
 	IntentListPurchaseRequisitionsID = "a1000004-0000-0000-0000-000000000001"
@@ -413,11 +414,19 @@ func SeedAIIntentRegistry() error {
 			IsActive: true,
 		},
 		{
+			ID: IntentCreateSalesTargetID, IntentCode: "CREATE_SALES_TARGET", DisplayName: "Create Sales Target",
+			Description: "Create a yearly sales target with monthly breakdown",
+			Module: "sales", ActionType: "CREATE", RequiredPermission: "sales_target.create", RequiresConfirmation: true,
+			EndpointPath: "/api/v1/sales/yearly-targets",
+			ParameterSchema: strPtr(`{"area_name":"string","year":"integer","total_target":"number","notes":"string","target_profile":"string"}`),
+			IsActive: true,
+		},
+		{
 			ID: IntentListSalesTargetsID, IntentCode: "LIST_SALES_TARGETS", DisplayName: "List Sales Targets",
 			Description: "Query sales targets",
 			Module: "sales", ActionType: "QUERY", RequiredPermission: "sales_target.read", RequiresConfirmation: false,
-			EndpointPath: "/api/v1/sales/targets",
-			ParameterSchema: strPtr(`{"search":"string","period":"string"}`),
+			EndpointPath: "/api/v1/sales/yearly-targets",
+			ParameterSchema: strPtr(`{"search":"string","year":"integer","area_name":"string","area_id":"uuid"}`),
 			IsActive: true,
 		},
 

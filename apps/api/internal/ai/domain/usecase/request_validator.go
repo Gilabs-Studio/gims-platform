@@ -73,6 +73,10 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 		v.validateRequired(result, params, "customer_name")
 		v.validateSalesQuotationFields(result, params)
 
+	// Sales target creation — area is required while year/total can be defaulted
+	case intent.IntentCode == "CREATE_SALES_TARGET":
+		v.validateSalesTargetFields(result, params)
+
 	// Purchase order
 	case intent.IntentCode == "CREATE_PURCHASE_ORDER":
 		v.validateRequired(result, params, "supplier_name")
@@ -216,6 +220,21 @@ func (v *RequestValidator) validateSalesQuotationFields(result *ValidationResult
 	}
 }
 
+// validateSalesTargetFields validates required fields for CREATE_SALES_TARGET.
+// We require area for operational clarity, while year/total_target can be defaulted in executor.
+func (v *RequestValidator) validateSalesTargetFields(result *ValidationResult, params map[string]interface{}) {
+	areaName := strings.TrimSpace(getStringParam(params, "area_name"))
+	areaID := strings.TrimSpace(getStringParam(params, "area_id"))
+	if areaName == "" && areaID == "" {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "area_name",
+			Code:    "REQUIRED",
+			Message: "Field 'area_name' atau 'area_id' diperlukan untuk membuat sales target",
+		})
+	}
+}
+
 // resolveEntities resolves natural language entity names to DB IDs
 func (v *RequestValidator) resolveEntities(ctx context.Context, result *ValidationResult, params map[string]interface{}) {
 	// Resolve employee
@@ -286,6 +305,21 @@ func (v *RequestValidator) resolveEntities(ctx context.Context, result *Validati
 			})
 		} else {
 			result.ResolvedEntities["supplier"] = entity
+		}
+	}
+
+	// Resolve area
+	if areaName, ok := params["area_name"].(string); ok && strings.TrimSpace(areaName) != "" {
+		entity, err := v.entityResolver.ResolveArea(ctx, areaName)
+		if err != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "area_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Area '%s' tidak ditemukan", areaName),
+			})
+		} else {
+			result.ResolvedEntities["area"] = entity
 		}
 	}
 }

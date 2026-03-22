@@ -20,6 +20,7 @@ import (
 type SalesDeps struct {
 	QuotationUC usecase.SalesQuotationUsecase
 	OrderUC     usecase.SalesOrderUsecase
+	YearlyTargetUC usecase.YearlyTargetUsecase
 }
 
 type PermissionService interface {
@@ -109,5 +110,6 @@ func RegisterRoutes(
 	return &SalesDeps{
 		QuotationUC: quotationUC,
 		OrderUC:     orderUC,
+		YearlyTargetUC: yearlyTargetUC,
 	}
 }
