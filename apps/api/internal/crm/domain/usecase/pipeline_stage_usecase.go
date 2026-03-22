@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -51,11 +53,6 @@ func (u *pipelineStageUsecase) Create(ctx context.Context, req dto.CreatePipelin
 		return dto.PipelineStageResponse{}, errors.New("a pipeline stage cannot be both won and lost")
 	}
 
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
-	}
-
 	isWon := false
 	if req.IsWon != nil {
 		isWon = *req.IsWon
@@ -66,16 +63,17 @@ func (u *pipelineStageUsecase) Create(ctx context.Context, req dto.CreatePipelin
 		isLost = *req.IsLost
 	}
 
+	stageID := uuid.New().String()
 	stage := &models.PipelineStage{
-		ID:          uuid.New().String(),
+		ID:          stageID,
 		Name:        req.Name,
-		Code:        req.Code,
-		Order:       req.Order,
+		Code:        generatePipelineStageCode(req.Name, stageID),
+		Order:       req.Probability,
 		Color:       req.Color,
 		Probability: req.Probability,
 		IsWon:       isWon,
 		IsLost:      isLost,
-		IsActive:    isActive,
+		IsActive:    true,
 		Description: req.Description,
 	}
 
@@ -108,49 +106,11 @@ func (u *pipelineStageUsecase) Update(ctx context.Context, id string, req dto.Up
 		return dto.PipelineStageResponse{}, errors.New("pipeline stage not found")
 	}
 
-	// Validate: only one won stage allowed (excluding current)
-	if req.IsWon != nil && *req.IsWon {
-		existing, err := u.repo.FindWonStage(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return dto.PipelineStageResponse{}, errors.New("only one pipeline stage can be marked as won")
-		}
+	if err := u.validateWonLostStageUpdate(ctx, id, req); err != nil {
+		return dto.PipelineStageResponse{}, err
 	}
 
-	// Validate: only one lost stage allowed (excluding current)
-	if req.IsLost != nil && *req.IsLost {
-		existing, err := u.repo.FindLostStage(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return dto.PipelineStageResponse{}, errors.New("only one pipeline stage can be marked as lost")
-		}
-	}
-
-	if req.Name != "" {
-		stage.Name = req.Name
-	}
-	if req.Code != "" {
-		stage.Code = req.Code
-	}
-	if req.Order != nil {
-		stage.Order = *req.Order
-	}
-	if req.Color != "" {
-		stage.Color = req.Color
-	}
-	if req.Probability != nil {
-		stage.Probability = *req.Probability
-	}
-	if req.IsWon != nil {
-		stage.IsWon = *req.IsWon
-	}
-	if req.IsLost != nil {
-		stage.IsLost = *req.IsLost
-	}
-	if req.IsActive != nil {
-		stage.IsActive = *req.IsActive
-	}
-	if req.Description != "" {
-		stage.Description = req.Description
-	}
+	applyPipelineStageUpdate(stage, req)
 
 	// Post-update validation: cannot be both won and lost
 	if stage.IsWon && stage.IsLost {
@@ -164,10 +124,85 @@ func (u *pipelineStageUsecase) Update(ctx context.Context, id string, req dto.Up
 	return mapper.ToPipelineStageResponse(stage), nil
 }
 
+func (u *pipelineStageUsecase) validateWonLostStageUpdate(ctx context.Context, id string, req dto.UpdatePipelineStageRequest) error {
+	if req.IsWon != nil && *req.IsWon {
+		existing, err := u.repo.FindWonStage(ctx)
+		if err == nil && existing != nil && existing.ID != id {
+			return errors.New("only one pipeline stage can be marked as won")
+		}
+	}
+
+	if req.IsLost != nil && *req.IsLost {
+		existing, err := u.repo.FindLostStage(ctx)
+		if err == nil && existing != nil && existing.ID != id {
+			return errors.New("only one pipeline stage can be marked as lost")
+		}
+	}
+
+	return nil
+}
+
+func applyPipelineStageUpdate(stage *models.PipelineStage, req dto.UpdatePipelineStageRequest) {
+	if req.Name != "" {
+		stage.Name = req.Name
+	}
+	if req.Color != "" {
+		stage.Color = req.Color
+	}
+	if req.Probability != nil {
+		stage.Probability = *req.Probability
+		stage.Order = *req.Probability
+	}
+	if req.IsWon != nil {
+		stage.IsWon = *req.IsWon
+	}
+	if req.IsLost != nil {
+		stage.IsLost = *req.IsLost
+	}
+	if req.Description != "" {
+		stage.Description = req.Description
+	}
+}
+
 func (u *pipelineStageUsecase) Delete(ctx context.Context, id string) error {
 	_, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return errors.New("pipeline stage not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func generatePipelineStageCode(name, stageID string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(name))
+
+	b := strings.Builder{}
+	prevUnderscore := false
+	for _, ch := range normalized {
+		if (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+			b.WriteRune(ch)
+			prevUnderscore = false
+			continue
+		}
+
+		if b.Len() > 0 && !prevUnderscore {
+			b.WriteByte('_')
+			prevUnderscore = true
+		}
+	}
+
+	base := strings.Trim(b.String(), "_")
+	if base == "" {
+		base = "STAGE"
+	}
+
+	suffix := strings.Split(stageID, "-")[0]
+	maxBaseLen := 50 - 1 - len(suffix)
+	if maxBaseLen < 1 {
+		maxBaseLen = 1
+	}
+	if len(base) > maxBaseLen {
+		base = base[:maxBaseLen]
+	}
+
+	return fmt.Sprintf("%s-%s", base, suffix)
 }

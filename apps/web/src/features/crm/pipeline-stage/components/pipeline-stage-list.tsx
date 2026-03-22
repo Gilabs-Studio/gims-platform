@@ -9,7 +9,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { PipelineStageDialog } from "./pipeline-stage-dialog";
 import { usePipelineStageList } from "../hooks/use-pipeline-stage-list";
 
@@ -52,8 +51,6 @@ export function PipelineStageList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("form.name")}</TableHead>
-              <TableHead>{t("form.code")}</TableHead>
-              <TableHead>{t("form.order")}</TableHead>
               <TableHead>{t("form.probability")}</TableHead>
               <TableHead>{t("form.color")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
@@ -69,7 +66,7 @@ export function PipelineStageList() {
                   <TableCell><Skeleton className="h-4 w-12" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
@@ -87,8 +84,6 @@ export function PipelineStageList() {
                       {item.is_lost && <Badge variant="destructive">Lost</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{item.code}</TableCell>
-                  <TableCell>{item.order}</TableCell>
                   <TableCell>{item.probability}%</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -97,10 +92,7 @@ export function PipelineStageList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={item.is_active} onCheckedChange={() => actions.handleStatusChange(item.id, item.is_active, item.name)} disabled={data.isUpdating || !permissions.canUpdate} className="cursor-pointer" />
-                      <span className="text-sm text-muted-foreground">{item.is_active ? tCommon("active") : tCommon("inactive")}</span>
-                    </div>
+                    <Badge variant={item.is_active ? "default" : "secondary"}>{item.is_active ? tCommon("active") : tCommon("inactive")}</Badge>
                   </TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell>

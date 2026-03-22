@@ -5,26 +5,20 @@ import "time"
 // CreatePipelineStageRequest represents the request to create a pipeline stage
 type CreatePipelineStageRequest struct {
 	Name        string `json:"name" binding:"required,min=2,max=100"`
-	Code        string `json:"code" binding:"required,min=2,max=50"`
-	Order       int    `json:"order" binding:"required,min=1"`
 	Color       string `json:"color" binding:"max=20"`
 	Probability int    `json:"probability" binding:"min=0,max=100"`
 	IsWon       *bool  `json:"is_won"`
 	IsLost      *bool  `json:"is_lost"`
-	IsActive    *bool  `json:"is_active"`
 	Description string `json:"description" binding:"max=500"`
 }
 
 // UpdatePipelineStageRequest represents the request to update a pipeline stage
 type UpdatePipelineStageRequest struct {
 	Name        string `json:"name" binding:"omitempty,min=2,max=100"`
-	Code        string `json:"code" binding:"omitempty,min=2,max=50"`
-	Order       *int   `json:"order" binding:"omitempty,min=1"`
 	Color       string `json:"color" binding:"max=20"`
 	Probability *int   `json:"probability" binding:"omitempty,min=0,max=100"`
 	IsWon       *bool  `json:"is_won"`
 	IsLost      *bool  `json:"is_lost"`
-	IsActive    *bool  `json:"is_active"`
 	Description string `json:"description" binding:"max=500"`
 }
 

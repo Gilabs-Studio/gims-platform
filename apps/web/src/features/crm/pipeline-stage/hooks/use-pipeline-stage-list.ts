@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { usePipelineStages, useDeletePipelineStage, useUpdatePipelineStage } from "./use-pipeline-stage";
+import { usePipelineStages, useDeletePipelineStage } from "./use-pipeline-stage";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { PipelineStage } from "../types";
 
@@ -30,7 +30,6 @@ export function usePipelineStageList() {
     search: debouncedSearch || undefined,
   });
   const deleteMutation = useDeletePipelineStage();
-  const updateMutation = useUpdatePipelineStage();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -56,15 +55,6 @@ export function usePipelineStageList() {
     }
   };
 
-  const handleStatusChange = async (id: string, currentStatus: boolean, name: string) => {
-    try {
-      await updateMutation.mutateAsync({ id, data: { is_active: !currentStatus } });
-      toast.success(name + " status updated");
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingItem(null);
@@ -72,8 +62,8 @@ export function usePipelineStageList() {
 
   return {
     state: { search, page, pageSize, dialogOpen, editingItem, deleteId },
-    actions: { setSearch, setPage, setPageSize, setDeleteId, handleCreate, handleEdit, handleDelete, handleStatusChange, handleDialogClose },
-    data: { items, pagination, isLoading, isError, refetch, isDeleting: deleteMutation.isPending, isUpdating: updateMutation.isPending },
+    actions: { setSearch, setPage, setPageSize, setDeleteId, handleCreate, handleEdit, handleDelete, handleDialogClose },
+    data: { items, pagination, isLoading, isError, refetch, isDeleting: deleteMutation.isPending },
     permissions: { canCreate, canUpdate, canDelete },
     translations: { t, tCommon },
   };
