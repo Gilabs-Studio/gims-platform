@@ -1,121 +1,119 @@
 # HRD - Recruitment Management
 
-> **Module:** HRD (Human Resource Development)
-> **Sprint:** 15-16
-> **Version:** 2.1.0
-> **Status:** ✅ Complete (API + Frontend — including Kanban Board Applicant Management)
+> **Module:** HRD (Human Resource Development)  
+> **Sprint:** 15-16  
+> **Version:** 2.1.0  
+> **Status:** ✅ Complete (API + Frontend — including Kanban Board Applicant Management)  
 > **Last Updated:** March 2026
->
-> **Recent Changes (v2.1.0):**
->
-> - 🎯 **NEW**: Applicant Management with Kanban Board (Pipeline stages: New → Screening → Interview → Offer → Hired/Rejected)
-> - 🎯 **NEW**: Drag-and-drop applicant movement between stages
-> - 🎯 **NEW**: Auto-updating filled count when applicants are hired
-> - 🎯 **NEW**: Activity logging for all applicant actions
-> - 🔧 Fixed bidirectional filled count updates (increment on hire, decrement when moving from hired)
-> - 🔧 Removed terminal stage restriction — Hired/Rejected applicants can still be moved
-> - 💰 Added Rupiah currency formatting for salary inputs
-> - 📝 Enabled editing for REJECTED status (resubmit workflow)
-> - 📎 **NEW**: File upload support for applicant resume/CV (PDF, DOC, DOCX)
-> - 🔧 Fixed i18n translation keys for employment types (camelCase + UPPERCASE variants)
-> - 🔧 Fixed resume URL handling to support both full URLs and file paths
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Fitur Utama](#fitur-utama)
-3. [Business Rules](#business-rules)
-4. [Struktur Folder](#struktur-folder)
-5. [Data Model](#data-model)
-6. [API Endpoints](#api-endpoints)
-7. [Status Workflow](#status-workflow)
-8. [Applicant Pipeline Workflow](#applicant-pipeline-workflow)
-9. [Keputusan Teknis](#keputusan-teknis)
-10. [Manual Testing](#manual-testing)
-11. [Automated Testing](#automated-testing)
-12. [Dependencies](#dependencies)
-13. [Related Links](#related-links)
+2. [Features](#features)
+3. [System Architecture](#system-architecture)
+4. [Data Models](#data-models)
+5. [Business Logic](#business-logic)
+6. [API Reference](#api-reference)
+7. [Frontend Components](#frontend-components)
+8. [User Flows](#user-flows)
+9. [Permissions](#permissions)
+10. [Configuration](#configuration)
+11. [Integration Points](#integration-points)
+12. [Testing Strategy](#testing-strategy)
+13. [Keputusan Teknis](#keputusan-teknis)
 14. [Notes & Improvements](#notes--improvements)
+15. [Appendix](#appendix)
 
 ---
 
 ## Overview
 
-Fitur Recruitment Request Management memungkinkan perusahaan mengelola pengajuan permintaan rekrutmen karyawan baru. Setiap divisi dapat mengajukan kebutuhan posisi baru melalui request yang melewati approval workflow sebelum dibuka untuk proses rekrutmen.
+Recruitment Management enables companies to manage job requisitions and candidate tracking through a comprehensive approval workflow and visual Kanban board. The system standardizes the recruitment request process while providing an intuitive interface for tracking applicants through the hiring pipeline.
 
-**Business Value**: Standarisasi proses permintaan rekrutmen, tracking status posisi terbuka, kontrol approval oleh management, dan manajemen pelamar dengan Kanban board visual.
+### Key Features
 
-### Modules
-
-| Module | Description |
-|--------|-------------|
-| **Recruitment Request** | Job requisitions with approval workflow (DRAFT → PENDING → APPROVED → OPEN → CLOSED) |
-| **Applicant Management** | Kanban board for tracking candidates through hiring pipeline |
-| **Activity Tracking** | Audit trail for all applicant actions and stage changes |
-
----
-
-## Fitur Utama
-
-### Recruitment Request
-
-- **Pengajuan Rekrutmen** dengan detail posisi, divisi, jumlah kebutuhan, dan salary range
-- **Approval Workflow**: DRAFT → PENDING → APPROVED → OPEN → CLOSED (juga REJECTED, CANCELLED)
-- **Priority Levels**: LOW, MEDIUM, HIGH, URGENT
-- **Employment Types**: FULL_TIME, PART_TIME, CONTRACT, INTERN
-- **Auto-generated Request Code**: Format `RR-YYYYMM-XXXX`
-- **Position Tracking**: RequiredCount - FilledCount = OpenPositions (auto-update via applicant hires)
-- **Form Data Endpoint** untuk dropdown divisi, posisi, karyawan, dan enum options
-- **Rupiah Currency Input** dengan auto-formatting untuk salary range (otomatis memformat angka seperti `20000` → `20.000`)
-
-### Applicant Management (Kanban Board)
-
-- **Visual Kanban Board**: Pipeline stages (New → Screening → Interview → Offer → Hired/Rejected)
-- **Drag & Drop**: Move applicants between stages with optimistic updates
-- **Progressive Loading**: Infinite scroll per stage for performance
-- **Applicant Tracking**: Full name, email, phone, resume, source, rating, notes
-- **Activity Logging**: Automatic audit trail for all actions
-- **Bidirectional Filled Count**: Auto-increment when hiring, auto-decrement when moving from hired
-- **File Upload**: Resume/CV upload with support for PDF, DOC, DOCX formats
+| Feature                | Description                                                           |
+| ---------------------- | --------------------------------------------------------------------- |
+| Recruitment Requests   | Job requisitions with detailed requirements and approval workflow     |
+| Approval Workflow      | DRAFT → PENDING → APPROVED → OPEN → CLOSED (also REJECTED, CANCELLED) |
+| Kanban Board           | Visual applicant pipeline with drag-and-drop functionality            |
+| Applicant Tracking     | Full candidate information with resume upload                         |
+| Activity Logging       | Complete audit trail for all applicant actions                        |
+| Auto Progress Tracking | Filled count auto-updates when applicants are hired                   |
+| Priority Levels        | LOW, MEDIUM, HIGH, URGENT priorities                                  |
+| Currency Formatting    | Rupiah auto-formatting for salary ranges                              |
 
 ---
 
-## Business Rules
+## Features
 
-### Recruitment Request
+### 1. Recruitment Request
 
-| Rule                    | Description                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Editability**         | Request berstatus DRAFT atau REJECTED bisa di-edit; REJECTED bisa diperbaiki dan di-resubmit (kembali ke PENDING) |
-| **Salary Range**        | Jika diisi, `salary_range_min` ≤ `salary_range_max`                                                               |
-| **Required Count**      | Minimal 1, wajib diisi                                                                                            |
-| **Expected Start Date** | Harus ≥ request_date                                                                                              |
-| **Status Transition**   | Hanya transisi valid yang diperbolehkan (lihat Status Workflow)                                                   |
-| **Filled Count**        | Otomatis terupdate saat applicant pindah ke/dari stage Hired; manual update via endpoint juga tersedia (OPEN only) |
-| **Requester**           | Otomatis diisi dari user yang login (via JWT user_id → employee)                                                  |
-| **Approval**            | Saat di-approve, `approved_by_id` dan `approved_at` otomatis terisi                                               |
-| **Rejection**           | Saat di-reject, `rejected_by_id`, `rejected_at`, dan `rejection_notes` terisi                                     |
-| **Close**               | Saat di-close, `closed_at` otomatis terisi                                                                        |
-| **Division & Position** | FK validation — divisi dan posisi harus exist dan aktif                                                           |
-| **Soft Delete**         | Request dihapus secara soft delete (preserve audit trail)                                                         |
+Job requisition management:
 
-### Applicant Management
+| Feature           | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| Request Details   | Position, division, requirements, salary range |
+| Priority          | LOW, MEDIUM, HIGH, URGENT                      |
+| Employment Type   | FULL_TIME, PART_TIME, CONTRACT, INTERN         |
+| Auto Code         | Format: `RR-YYYYMM-XXXX`                       |
+| Progress Tracking | RequiredCount - FilledCount = OpenPositions    |
+| Form Data         | Single endpoint for all dropdowns              |
 
-| Rule                    | Description                                                                                                       |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Stage Movement**      | Applicant bisa dipindah antar stage apa pun (tidak ada terminal stage lock)                                       |
-| **Filled Count Update** | Saat pindah **ke** Hired: `filled_count`++ ; Saat pindah **dari** Hired: `filled_count`--                        |
-| **Activity Logging**    | Setiap perpindahan stage tercatat di activity history                                                             |
-| **Stage Requirements**  | Setiap recruitment request bisa memiliki multiple applicants di berbagai stage                                    |
-| **Source Validation**   | Source applicant harus valid (linkedin, jobstreet, glints, referral, direct, other)                               |
+### 2. Request Status Workflow
+
+| Status      | Description                  |
+| ----------- | ---------------------------- |
+| `DRAFT`     | Can be edited or deleted     |
+| `PENDING`   | Awaiting approval            |
+| `APPROVED`  | Approved, ready to open      |
+| `REJECTED`  | Rejected, can be resubmitted |
+| `OPEN`      | Active for hiring            |
+| `CLOSED`    | Hiring completed             |
+| `CANCELLED` | Cancelled by requester       |
+
+### 3. Applicant Management
+
+Candidate tracking through pipeline:
+
+| Feature             | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| Kanban Board        | Visual pipeline with drag-and-drop              |
+| Applicant Info      | Full name, email, phone, resume, source, rating |
+| Stage Movement      | Move between any stages (no terminal lock)      |
+| Activity Log        | Audit trail for all actions                     |
+| File Upload         | Resume/CV upload (PDF, DOC, DOCX)               |
+| Bidirectional Count | Filled count updates on hire/un-hire            |
+
+### 4. Applicant Pipeline Stages
+
+| Stage       | Color  | Description                     |
+| ----------- | ------ | ------------------------------- |
+| `New`       | Gray   | Initial application             |
+| `Screening` | Blue   | Under initial review            |
+| `Interview` | Orange | Interview phase                 |
+| `Offer`     | Purple | Offer extended                  |
+| `Hired`     | Green  | Successfully hired (IsWon=true) |
+| `Rejected`  | Red    | Not selected (IsLost=true)      |
+
+### 5. Applicant Sources
+
+| Source      | Description         |
+| ----------- | ------------------- |
+| `linkedin`  | LinkedIn platform   |
+| `jobstreet` | JobStreet Indonesia |
+| `glints`    | Glints platform     |
+| `referral`  | Employee referral   |
+| `direct`    | Direct application  |
+| `other`     | Other sources       |
 
 ---
 
-## Struktur Folder
+## System Architecture
 
-### Backend
+### Backend Structure
 
 ```
 apps/api/internal/hrd/
@@ -143,14 +141,14 @@ apps/api/internal/hrd/
 └── presentation/
     ├── handler/
     │   ├── recruitment_request_handler.go  # HTTP handlers
-│   │   └── recruitment_applicant_handler.go # Applicant HTTP handlers
+    │   └── recruitment_applicant_handler.go # Applicant HTTP handlers
     ├── router/
     │   ├── recruitment_request_router.go   # Route definitions
     │   └── recruitment_applicant_router.go # Applicant routes
-    └── routers.go                          # Domain aggregator (registration)
+    └── routers.go                          # Domain aggregator
 ```
 
-### Seeder
+### Seeder Structure
 
 ```
 apps/api/seeders/
@@ -160,42 +158,39 @@ apps/api/seeders/
 ```
 
 **Seeded Applicants:**
+
 - RR-202602-0002 (Junior Developer): 1 applicant in Screening stage
 - RR-202602-0003 (Sales Representative): 2 applicants (1 in Interview, 1 in New)
 
-### Frontend
+### Frontend Structure
 
 ```
 apps/web/src/features/hrd/recruitment/
 ├── types/
-│   └── index.d.ts                     # TypeScript interfaces (entity, params, API responses, form data)
+│   └── index.d.ts                     # TypeScript interfaces
 ├── schemas/
-│   └── recruitment.schema.ts          # Zod schemas with i18n validation messages
+│   └── recruitment.schema.ts          # Zod schemas with i18n
 ├── services/
-│   ├── recruitment-service.ts         # API client calls (CRUD + status actions + filled count + form data)
+│   ├── recruitment-service.ts         # API client calls
 │   └── applicant-service.ts           # Applicant API client calls
 ├── hooks/
 │   ├── use-recruitment.ts             # TanStack Query hooks for requests
-│   └── use-applicants.ts              # TanStack Query hooks for applicants (Kanban, optimistic updates)
+│   └── use-applicants.ts              # TanStack Query hooks for applicants
 ├── components/
-│   ├── recruitment-list.tsx           # Smart list component (search, filter, table/card view, pagination)
-│   ├── recruitment-card.tsx           # Card view for grid layout with progress indicator
+│   ├── recruitment-list.tsx           # Smart list with search/filter
+│   ├── recruitment-card.tsx           # Card view with progress
 │   ├── recruitment-overview.tsx       # Statistics cards
-│   ├── recruitment-form.tsx           # Dialog form (2 tabs: basic info + requirements)
-│   ├── recruitment-detail-page.tsx    # Detail page with Kanban board
+│   ├── recruitment-form.tsx           # Dialog form (2 tabs)
+│   ├── recruitment-detail-page.tsx    # Detail page with Kanban
 │   ├── applicant-kanban-board.tsx     # Main Kanban board with DnD
 │   ├── applicant-card.tsx             # Individual applicant card
 │   ├── applicant-form.tsx             # Add/edit applicant dialog
-│   ├── applicant-detail-sheet.tsx     # Applicant detail slide-out panel
-│   └── rupiah-input.tsx               # Rupiah currency input with auto-formatting
+│   ├── applicant-detail-sheet.tsx     # Applicant detail slide-out
+│   └── rupiah-input.tsx               # Rupiah currency input
 └── i18n/
     ├── en.ts                          # English translations
     └── id.ts                          # Indonesian translations
-```
 
-### App Route
-
-```
 apps/web/app/[locale]/(dashboard)/hrd/
 └── recruitment/
     ├── page.tsx                       # Recruitment list
@@ -206,107 +201,107 @@ apps/web/app/[locale]/(dashboard)/hrd/
 
 ---
 
-## Data Model
+## Data Models
 
-### RecruitmentRequest Table
+### RecruitmentRequest
 
-| Column              | Type          | Constraints                   | Description                                           |
-| ------------------- | ------------- | ----------------------------- | ----------------------------------------------------- |
-| id                  | uuid          | PK                            | Auto-generated UUID                                   |
-| request_code        | varchar(50)   | UNIQUE, NOT NULL              | Auto-generated: RR-YYYYMM-XXXX                        |
-| requested_by_id     | uuid          | FK → employees, NOT NULL      | Requester employee                                    |
-| request_date        | date          | NOT NULL                      | Date of request                                       |
-| division_id         | uuid          | FK → divisions, NOT NULL      | Target division                                       |
-| position_id         | uuid          | FK → job_positions, NOT NULL  | Target position                                       |
-| required_count      | int           | NOT NULL, default 1           | Number of positions needed                            |
-| filled_count        | int           | NOT NULL, default 0           | Number of positions filled (auto-updated via hires)   |
-| employment_type     | varchar(20)   | NOT NULL, default 'FULL_TIME' | FULL_TIME/PART_TIME/CONTRACT/INTERN                   |
-| expected_start_date | date          | NOT NULL                      | Expected start date                                   |
-| salary_range_min    | decimal(15,2) | nullable                      | Minimum salary                                        |
-| salary_range_max    | decimal(15,2) | nullable                      | Maximum salary                                        |
-| job_description     | text          | NOT NULL                      | Position description                                  |
-| qualifications      | text          | NOT NULL                      | Required qualifications                               |
-| notes               | text          | nullable                      | Additional notes                                      |
-| priority            | varchar(20)   | NOT NULL, default 'MEDIUM'    | LOW/MEDIUM/HIGH/URGENT                                |
-| status              | varchar(20)   | NOT NULL, default 'DRAFT'     | DRAFT/PENDING/APPROVED/REJECTED/OPEN/CLOSED/CANCELLED |
-| approved_by_id      | uuid          | FK → employees, nullable      | Approver employee                                     |
-| approved_at         | timestamp     | nullable                      | Approval timestamp                                    |
-| rejected_by_id      | uuid          | FK → employees, nullable      | Rejector employee                                     |
-| rejected_at         | timestamp     | nullable                      | Rejection timestamp                                   |
-| rejection_notes     | text          | nullable                      | Rejection reason                                      |
-| closed_at           | timestamp     | nullable                      | Closing timestamp                                     |
-| created_at          | timestamp     | auto                          | Record creation                                       |
-| updated_at          | timestamp     | auto                          | Record update                                         |
-| deleted_at          | timestamp     | nullable, indexed             | Soft delete                                           |
-| created_by          | uuid          | nullable                      | Audit: creator                                        |
-| updated_by          | uuid          | nullable                      | Audit: updater                                        |
+| Field               | Type          | Description                                                 |
+| ------------------- | ------------- | ----------------------------------------------------------- |
+| id                  | UUID          | Primary key                                                 |
+| request_code        | STRING(50)    | Unique auto-generated code (RR-YYYYMM-XXXX)                 |
+| requested_by_id     | UUID          | Requester employee (FK)                                     |
+| request_date        | DATE          | Date of request                                             |
+| division_id         | UUID          | Target division (FK)                                        |
+| position_id         | UUID          | Target position (FK)                                        |
+| required_count      | INT           | Number of positions needed (min: 1)                         |
+| filled_count        | INT           | Number of positions filled (default: 0)                     |
+| employment_type     | ENUM          | FULL_TIME, PART_TIME, CONTRACT, INTERN                      |
+| expected_start_date | DATE          | Expected start date                                         |
+| salary_range_min    | DECIMAL(15,2) | Minimum salary                                              |
+| salary_range_max    | DECIMAL(15,2) | Maximum salary                                              |
+| job_description     | TEXT          | Position description                                        |
+| qualifications      | TEXT          | Required qualifications                                     |
+| notes               | TEXT          | Additional notes                                            |
+| priority            | ENUM          | LOW, MEDIUM, HIGH, URGENT                                   |
+| status              | ENUM          | DRAFT, PENDING, APPROVED, REJECTED, OPEN, CLOSED, CANCELLED |
+| approved_by_id      | UUID          | Approver employee (FK)                                      |
+| approved_at         | TIMESTAMP     | Approval timestamp                                          |
+| rejected_by_id      | UUID          | Rejector employee (FK)                                      |
+| rejected_at         | TIMESTAMP     | Rejection timestamp                                         |
+| rejection_notes     | TEXT          | Rejection reason                                            |
+| closed_at           | TIMESTAMP     | Closing timestamp                                           |
+| created_at          | TIMESTAMP     | Record creation                                             |
+| updated_at          | TIMESTAMP     | Last update                                                 |
+| deleted_at          | TIMESTAMP     | Soft delete timestamp                                       |
+| created_by          | UUID          | Audit: creator                                              |
+| updated_by          | UUID          | Audit: updater                                              |
 
-### RecruitmentApplicant Table
+### RecruitmentApplicant
 
-| Column                 | Type          | Constraints                   | Description                                           |
-| ---------------------- | ------------- | ----------------------------- | ----------------------------------------------------- |
-| id                     | uuid          | PK                            | Auto-generated UUID                                   |
-| recruitment_request_id | uuid          | FK → recruitment_requests     | Linked recruitment request                            |
-| stage_id               | uuid          | FK → applicant_stages         | Current pipeline stage                                |
-| full_name              | varchar(255)  | NOT NULL                      | Candidate full name                                   |
-| email                  | varchar(255)  | NOT NULL                      | Email address                                         |
-| phone                  | varchar(20)   | nullable                      | Phone number                                          |
-| resume_url             | varchar(500)  | nullable                      | CV/Resume file URL or file path (e.g., `/uploads/filename.pdf`) |
-| source                 | varchar(50)   | NOT NULL                      | linkedin, jobstreet, glints, referral, direct, other  |
-| applied_at             | timestamp     | NOT NULL                      | Application date                                      |
-| last_activity_at       | timestamp     | NOT NULL                      | Last update timestamp                                 |
-| rating                 | tinyint       | nullable                      | 1-5 star rating                                       |
-| notes                  | text          | nullable                      | Internal notes                                        |
-| created_at             | timestamp     | auto                          | Record creation                                       |
-| updated_at             | timestamp     | auto                          | Record update                                         |
-| deleted_at             | timestamp     | nullable, indexed             | Soft delete                                           |
-| created_by             | uuid          | nullable                      | Who added the applicant                               |
-| updated_by             | uuid          | nullable                      | Who last updated                                      |
+| Field                  | Type        | Description                                          |
+| ---------------------- | ----------- | ---------------------------------------------------- |
+| id                     | UUID        | Primary key                                          |
+| recruitment_request_id | UUID        | Linked recruitment request (FK)                      |
+| stage_id               | UUID        | Current pipeline stage (FK)                          |
+| full_name              | STRING(255) | Candidate full name                                  |
+| email                  | STRING(255) | Email address                                        |
+| phone                  | STRING(20)  | Phone number                                         |
+| resume_url             | STRING(500) | CV/Resume file URL or path                           |
+| source                 | ENUM        | linkedin, jobstreet, glints, referral, direct, other |
+| applied_at             | TIMESTAMP   | Application date                                     |
+| last_activity_at       | TIMESTAMP   | Last update timestamp                                |
+| rating                 | TINYINT     | 1-5 star rating                                      |
+| notes                  | TEXT        | Internal notes                                       |
+| created_at             | TIMESTAMP   | Record creation                                      |
+| updated_at             | TIMESTAMP   | Last update                                          |
+| deleted_at             | TIMESTAMP   | Soft delete timestamp                                |
+| created_by             | UUID        | Who added the applicant                              |
+| updated_by             | UUID        | Who last updated                                     |
 
-### ApplicantStage Table
+### ApplicantStage
 
-| Column     | Type          | Constraints           | Description                            |
-| ---------- | ------------- | --------------------- | -------------------------------------- |
-| id         | uuid          | PK                    | Auto-generated UUID                    |
-| name       | varchar(100)  | NOT NULL              | Stage name (New, Screening, etc.)      |
-| color      | varchar(7)    | NOT NULL              | Hex color for UI (#3b82f6, etc.)       |
-| order      | int           | NOT NULL, default 0   | Display order                          |
-| is_won     | bool          | NOT NULL, default false | Terminal success stage (Hired)       |
-| is_lost    | bool          | NOT NULL, default false | Terminal failure stage (Rejected)    |
-| is_active  | bool          | NOT NULL, default true | Whether stage is enabled               |
-| created_at | timestamp     | auto                  | Record creation                        |
-| updated_at | timestamp     | auto                  | Record update                          |
+| Field      | Type        | Description                       |
+| ---------- | ----------- | --------------------------------- |
+| id         | UUID        | Primary key                       |
+| name       | STRING(100) | Stage name (New, Screening, etc.) |
+| color      | STRING(7)   | Hex color for UI (#3b82f6, etc.)  |
+| order      | INT         | Display order                     |
+| is_won     | BOOL        | Terminal success stage (Hired)    |
+| is_lost    | BOOL        | Terminal failure stage (Rejected) |
+| is_active  | BOOL        | Whether stage is enabled          |
+| created_at | TIMESTAMP   | Record creation                   |
+| updated_at | TIMESTAMP   | Last update                       |
 
-### ApplicantActivity Table
+### ApplicantActivity
 
-| Column      | Type          | Constraints               | Description                                       |
-| ----------- | ------------- | ------------------------- | ------------------------------------------------- |
-| id          | uuid          | PK                        | Auto-generated UUID                               |
-| applicant_id| uuid          | FK → recruitment_applicants | Linked applicant                                |
-| type        | varchar(50)   | NOT NULL                  | Activity type (created, stage_change, hired, etc.)|
-| description | text          | NOT NULL                  | Human-readable description                        |
-| metadata    | jsonb         | nullable                  | Additional data (from_stage, to_stage, etc.)      |
-| created_at  | timestamp     | auto                      | When action occurred                              |
-| created_by  | uuid          | nullable                  | Who performed the action                          |
+| Field        | Type       | Description                                        |
+| ------------ | ---------- | -------------------------------------------------- |
+| id           | UUID       | Primary key                                        |
+| applicant_id | UUID       | Linked applicant (FK)                              |
+| type         | STRING(50) | Activity type (created, stage_change, hired, etc.) |
+| description  | TEXT       | Human-readable description                         |
+| metadata     | JSONB      | Additional data (from_stage, to_stage, etc.)       |
+| created_at   | TIMESTAMP  | When action occurred                               |
+| created_by   | UUID       | Who performed the action                           |
 
-### Indexes
+### Database Indexes
 
-| Index                               | Type          | Columns                  |
-| ----------------------------------- | ------------- | ------------------------ |
-| idx_recruitment_requester           | B-tree        | requested_by_id          |
-| idx_recruitment_date                | B-tree        | request_date             |
-| idx_recruitment_division            | B-tree        | division_id              |
-| idx_recruitment_position            | B-tree        | position_id              |
-| idx_recruitment_priority            | B-tree        | priority                 |
-| idx_recruitment_status              | B-tree        | status                   |
-| idx_recruitment_requests_code_gin   | GIN (pg_trgm) | request_code             |
-| idx_recruitment_requests_desc_gin   | GIN (pg_trgm) | job_description          |
-| idx_recruitment_applicants_request  | B-tree        | recruitment_request_id   |
-| idx_recruitment_applicants_stage    | B-tree        | stage_id                 |
-| idx_recruitment_applicants_name_gin | GIN (pg_trgm) | full_name                |
-| idx_applicant_activities_applicant  | B-tree        | applicant_id             |
+| Index                               | Type   | Columns                |
+| ----------------------------------- | ------ | ---------------------- |
+| idx_recruitment_requester           | B-tree | requested_by_id        |
+| idx_recruitment_date                | B-tree | request_date           |
+| idx_recruitment_division            | B-tree | division_id            |
+| idx_recruitment_position            | B-tree | position_id            |
+| idx_recruitment_priority            | B-tree | priority               |
+| idx_recruitment_status              | B-tree | status                 |
+| idx_recruitment_requests_code_gin   | GIN    | request_code           |
+| idx_recruitment_requests_desc_gin   | GIN    | job_description        |
+| idx_recruitment_applicants_request  | B-tree | recruitment_request_id |
+| idx_recruitment_applicants_stage    | B-tree | stage_id               |
+| idx_recruitment_applicants_name_gin | GIN    | full_name              |
+| idx_applicant_activities_applicant  | B-tree | applicant_id           |
 
-### Default Applicant Stages (Seeded)
+### Default Applicant Stages
 
 ```go
 [
@@ -321,58 +316,118 @@ apps/web/app/[locale]/(dashboard)/hrd/
 
 ---
 
-## API Endpoints
+## Business Logic
+
+### Request Code Generation
+
+```
+Format: RR-YYYYMM-XXXX
+- RR: Recruitment Request prefix
+- YYYYMM: Current year and month
+- XXXX: Sequential counter (0001, 0002, ...)
+
+Example: RR-202602-0001, RR-202602-0002
+```
+
+### Request Validation Rules
+
+| Rule              | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| Editability       | DRAFT or REJECTED can be edited                   |
+| Salary Range      | If both filled, min ≤ max                         |
+| Required Count    | Minimum 1, required field                         |
+| Expected Start    | Must be ≥ request_date                            |
+| Status Transition | Only valid transitions allowed                    |
+| Filled Count      | Auto-updates via applicant hires                  |
+| Requester         | Auto-filled from JWT user_id → employee           |
+| Approval          | Sets approved_by_id and approved_at               |
+| Rejection         | Sets rejected_by_id, rejected_at, rejection_notes |
+| Close             | Sets closed_at timestamp                          |
+| Soft Delete       | Preserves audit trail                             |
+
+### Status Transition Rules
+
+```
+Valid Transitions:
+DRAFT → PENDING, CANCELLED
+PENDING → APPROVED, REJECTED, CANCELLED
+APPROVED → OPEN
+OPEN → CLOSED
+REJECTED → PENDING (resubmit)
+```
+
+### Applicant Stage Movement
+
+```
+Rules:
+- Applicant can move between any stages (no terminal lock)
+- Moving TO Hired: filled_count++
+- Moving FROM Hired: filled_count--
+- Activity logged for all movements
+```
+
+### Open Positions Calculation
+
+```
+open_positions = required_count - filled_count
+
+Progress percentage = (filled_count / required_count) × 100
+```
+
+---
+
+## API Reference
 
 ### Recruitment Request Endpoints
 
-| Method | Endpoint                                     | Permission          | Description                                                     |
-| ------ | -------------------------------------------- | ------------------- | --------------------------------------------------------------- |
-| GET    | `/hrd/recruitment-requests`                  | recruitment.read    | List all recruitment requests (paginated, filterable)           |
-| GET    | `/hrd/recruitment-requests/:id`              | recruitment.read    | Get recruitment request by ID                                   |
-| GET    | `/hrd/recruitment-requests/form-data`        | recruitment.read    | Get form dropdown data (employees, divisions, positions, enums) |
-| POST   | `/hrd/recruitment-requests`                  | recruitment.create  | Create new recruitment request                                  |
-| PUT    | `/hrd/recruitment-requests/:id`              | recruitment.update  | Update recruitment request (DRAFT or REJECTED only)             |
-| DELETE | `/hrd/recruitment-requests/:id`              | recruitment.delete  | Soft delete recruitment request (DRAFT only)                    |
-| POST   | `/hrd/recruitment-requests/:id/status`       | recruitment.update  | Update status (approval workflow)                               |
-| POST   | `/hrd/recruitment-requests/:id/submit`       | recruitment.update  | Submit for approval (DRAFT/REJECTED → PENDING)                  |
-| POST   | `/hrd/recruitment-requests/:id/approve`      | recruitment.approve | Approve request (PENDING → APPROVED)                            |
-| POST   | `/hrd/recruitment-requests/:id/reject`       | recruitment.approve | Reject request (PENDING → REJECTED), body: `{ notes?: string }` |
-| POST   | `/hrd/recruitment-requests/:id/open`         | recruitment.update  | Open for hiring (APPROVED → OPEN)                               |
-| POST   | `/hrd/recruitment-requests/:id/close`        | recruitment.update  | Close request (OPEN → CLOSED)                                   |
-| POST   | `/hrd/recruitment-requests/:id/cancel`       | recruitment.update  | Cancel request (DRAFT/PENDING → CANCELLED)                      |
-| PUT    | `/hrd/recruitment-requests/:id/filled-count` | recruitment.update  | Manual update filled count (OPEN only)                          |
-| GET    | `/hrd/recruitment-requests/:id/applicants`   | recruitment.read    | Get applicants for this recruitment request                     |
+| Method | Endpoint                                     | Permission          | Description                               |
+| ------ | -------------------------------------------- | ------------------- | ----------------------------------------- |
+| GET    | `/hrd/recruitment-requests`                  | recruitment.read    | List all requests (paginated, filterable) |
+| GET    | `/hrd/recruitment-requests/:id`              | recruitment.read    | Get request by ID                         |
+| GET    | `/hrd/recruitment-requests/form-data`        | recruitment.read    | Get form dropdown data                    |
+| POST   | `/hrd/recruitment-requests`                  | recruitment.create  | Create new request                        |
+| PUT    | `/hrd/recruitment-requests/:id`              | recruitment.update  | Update request (DRAFT or REJECTED only)   |
+| DELETE | `/hrd/recruitment-requests/:id`              | recruitment.delete  | Soft delete (DRAFT only)                  |
+| POST   | `/hrd/recruitment-requests/:id/status`       | recruitment.update  | Update status                             |
+| POST   | `/hrd/recruitment-requests/:id/submit`       | recruitment.update  | Submit for approval                       |
+| POST   | `/hrd/recruitment-requests/:id/approve`      | recruitment.approve | Approve request                           |
+| POST   | `/hrd/recruitment-requests/:id/reject`       | recruitment.approve | Reject request                            |
+| POST   | `/hrd/recruitment-requests/:id/open`         | recruitment.update  | Open for hiring                           |
+| POST   | `/hrd/recruitment-requests/:id/close`        | recruitment.update  | Close request                             |
+| POST   | `/hrd/recruitment-requests/:id/cancel`       | recruitment.update  | Cancel request                            |
+| PUT    | `/hrd/recruitment-requests/:id/filled-count` | recruitment.update  | Manual update filled count                |
+| GET    | `/hrd/recruitment-requests/:id/applicants`   | recruitment.read    | Get applicants for this request           |
 
 ### Recruitment Applicant Endpoints
 
-| Method | Endpoint                                     | Permission          | Description                                                     |
-| ------ | -------------------------------------------- | ------------------- | --------------------------------------------------------------- |
-| GET    | `/hrd/applicants`                            | recruitment.read    | List applicants (paginated, searchable)                         |
-| GET    | `/hrd/applicants/by-stage`                   | recruitment.read    | Get applicants grouped by stage (for Kanban board)              |
-| GET    | `/hrd/applicants/:id`                        | recruitment.read    | Get applicant by ID                                             |
-| POST   | `/hrd/applicants`                            | recruitment.create  | Create new applicant                                            |
-| PUT    | `/hrd/applicants/:id`                        | recruitment.update  | Update applicant information                                    |
-| DELETE | `/hrd/applicants/:id`                        | recruitment.delete  | Delete applicant                                                |
-| POST   | `/hrd/applicants/:id/move-stage`             | recruitment.update  | Move applicant to different stage (auto-updates filled_count)   |
-| GET    | `/hrd/applicants/:id/activities`             | recruitment.read    | Get applicant activity history                                  |
-| POST   | `/hrd/applicants/:id/activities`             | recruitment.update  | Add manual activity entry                                       |
-| GET    | `/hrd/applicant-stages`                      | recruitment.read    | Get all pipeline stages                                         |
+| Method | Endpoint                         | Permission         | Description                              |
+| ------ | -------------------------------- | ------------------ | ---------------------------------------- |
+| GET    | `/hrd/applicants`                | recruitment.read   | List applicants (paginated, searchable)  |
+| GET    | `/hrd/applicants/by-stage`       | recruitment.read   | Get applicants grouped by stage (Kanban) |
+| GET    | `/hrd/applicants/:id`            | recruitment.read   | Get applicant by ID                      |
+| POST   | `/hrd/applicants`                | recruitment.create | Create new applicant                     |
+| PUT    | `/hrd/applicants/:id`            | recruitment.update | Update applicant                         |
+| DELETE | `/hrd/applicants/:id`            | recruitment.delete | Delete applicant                         |
+| POST   | `/hrd/applicants/:id/move-stage` | recruitment.update | Move applicant to different stage        |
+| GET    | `/hrd/applicants/:id/activities` | recruitment.read   | Get activity history                     |
+| POST   | `/hrd/applicants/:id/activities` | recruitment.update | Add manual activity                      |
+| GET    | `/hrd/applicant-stages`          | recruitment.read   | Get all pipeline stages                  |
 
-### Query Parameters (GET list)
+### Query Parameters (GET List)
 
-| Parameter   | Type   | Description                                                |
-| ----------- | ------ | ---------------------------------------------------------- |
-| page        | int    | Page number (default: 1)                                   |
-| per_page    | int    | Items per page (default: 20, max: 100)                     |
-| search      | string | Search by request_code, job_description, or requester name |
-| status      | string | Filter by status (DRAFT, PENDING, etc.)                    |
-| division_id | string | Filter by division UUID                                    |
-| position_id | string | Filter by position UUID                                    |
-| priority    | string | Filter by priority (LOW, MEDIUM, HIGH, URGENT)             |
+| Parameter   | Type   | Description                                             |
+| ----------- | ------ | ------------------------------------------------------- |
+| page        | int    | Page number (default: 1)                                |
+| per_page    | int    | Items per page (default: 20, max: 100)                  |
+| search      | string | Search by request_code, job_description, requester name |
+| status      | string | Filter by status                                        |
+| division_id | string | Filter by division UUID                                 |
+| position_id | string | Filter by position UUID                                 |
+| priority    | string | Filter by priority                                      |
 
 ### Request Body Examples
 
-**Create:**
+**Create Recruitment Request:**
 
 ```json
 {
@@ -422,32 +477,319 @@ apps/web/app/[locale]/(dashboard)/hrd/
 }
 ```
 
-**Notes:**
-- `resume_url` can be a full URL (`https://...`) or a file path (`/uploads/...`)
-- File upload is handled via `FileUpload` component which returns the file path
-- Supported formats: PDF, DOC, DOCX
-- Max file size: 10MB (configurable in upload handler)
+---
 
-### Error Codes
+## Frontend Components
 
-| Error Code                    | HTTP Status | Description                                      |
-| ----------------------------- | ----------- | ------------------------------------------------ |
-| RECRUITMENT_REQUEST_NOT_FOUND | 404         | Request with given ID not found                  |
-| APPLICANT_NOT_FOUND           | 404         | Applicant with given ID not found                |
-| STAGE_NOT_FOUND               | 404         | Stage with given ID not found                    |
-| RECRUITMENT_NOT_EDITABLE      | 400         | Request is not in DRAFT status                   |
-| RECRUITMENT_NOT_OPEN          | 400         | Request is not in OPEN status (for filled count) |
-| INVALID_SALARY_RANGE          | 400         | Salary min > max                                 |
-| FILLED_EXCEEDS_REQUIRED       | 400         | Filled count > required count                    |
-| DIVISION_NOT_FOUND            | 404         | Division ID does not exist                       |
-| POSITION_NOT_FOUND            | 404         | Position ID does not exist                       |
-| INVALID_STATUS_TRANSITION     | 400         | Invalid status transition                        |
-| INVALID_APPLICANT_SOURCE      | 400         | Source not in allowed list                       |
-| VALIDATION_ERROR              | 400         | Request body validation failed                   |
+### Recruitment List Page (`/hrd/recruitment`)
+
+| Component             | File                     | Description                                     |
+| --------------------- | ------------------------ | ----------------------------------------------- |
+| `RecruitmentList`     | recruitment-list.tsx     | Smart list with search, filter, table/card view |
+| `RecruitmentCard`     | recruitment-card.tsx     | Card view with progress indicator               |
+| `RecruitmentOverview` | recruitment-overview.tsx | Statistics cards                                |
+| `RecruitmentForm`     | recruitment-form.tsx     | Dialog form (2 tabs: basic info + requirements) |
+| `RupiahInput`         | rupiah-input.tsx         | Rupiah currency input with auto-formatting      |
+
+### Recruitment Detail Page (`/hrd/recruitment/[id]`)
+
+| Component               | File                        | Description                      |
+| ----------------------- | --------------------------- | -------------------------------- |
+| `RecruitmentDetailPage` | recruitment-detail-page.tsx | Detail page with Kanban board    |
+| `ApplicantKanbanBoard`  | applicant-kanban-board.tsx  | Main Kanban with drag-and-drop   |
+| `ApplicantCard`         | applicant-card.tsx          | Individual applicant card        |
+| `ApplicantForm`         | applicant-form.tsx          | Add/edit applicant dialog        |
+| `ApplicantDetailSheet`  | applicant-detail-sheet.tsx  | Applicant detail slide-out panel |
+
+### Kanban Board Features
+
+- 6 columns: New, Screening, Interview, Offer, Hired, Rejected
+- Drag-and-drop between stages
+- Optimistic updates for smooth UX
+- Infinite scroll per stage
+- Applicant count per column
+- Color-coded cards by stage
+
+### i18n Keys
+
+| Key Path                        | Description             |
+| ------------------------------- | ----------------------- |
+| `recruitment.requests.*`        | Request labels          |
+| `recruitment.applicants.*`      | Applicant labels        |
+| `recruitment.statuses.*`        | Status labels           |
+| `recruitment.priorities.*`      | Priority labels         |
+| `recruitment.employmentTypes.*` | Employment type labels  |
+| `recruitment.sources.*`         | Applicant source labels |
 
 ---
 
-## Status Workflow
+## User Flows
+
+### Recruitment Request Approval Flow
+
+```mermaid
+sequenceDiagram
+    participant R as Requester
+    participant API as Backend API
+    participant DB as Database
+    participant A as Approver
+
+    R->>API: POST /recruitment-requests
+    API->>API: Generate request_code (RR-YYYYMM-XXXX)
+    API->>DB: Create request with status=DRAFT
+    DB-->>API: Created request
+    API-->>R: RecruitmentRequestResponse
+
+    R->>API: POST /recruitment-requests/:id/submit
+    API->>DB: Update status=PENDING
+    DB-->>API: Updated request
+    API-->>R: Status updated
+
+    A->>API: GET /recruitment-requests (filtered by PENDING)
+    API-->>A: Pending requests list
+
+    A->>API: POST /recruitment-requests/:id/approve
+    API->>DB: Update status=APPROVED, set approved_by/at
+    DB-->>API: Updated request
+    API-->>A: Approved successfully
+
+    R->>API: POST /recruitment-requests/:id/open
+    API->>DB: Update status=OPEN
+    DB-->>API: Updated request
+    API-->>R: Now accepting applicants
+```
+
+### Applicant Kanban Flow
+
+```mermaid
+sequenceDiagram
+    participant HR as HR User
+    participant UI as Kanban Board
+    participant API as Backend API
+    participant DB as Database
+
+    HR->>UI: Open recruitment detail (OPEN status)
+    UI->>API: GET /applicants/by-stage?request_id=xxx
+    API->>DB: Query applicants grouped by stage
+    DB-->>API: Applicants by stage
+    API-->>UI: Grouped applicant data
+    UI-->>HR: Render Kanban board
+
+    HR->>UI: Drag applicant from New to Screening
+    UI->>UI: Optimistic update (instant move)
+    UI->>API: POST /applicants/:id/move-stage
+    API->>DB: Update stage_id
+    API->>DB: Create activity log
+    DB-->>API: Success
+    API-->>UI: Confirm update
+    UI-->>HR: Movement persisted
+
+    HR->>UI: Drag applicant to Hired
+    UI->>API: POST /applicants/:id/move-stage
+    API->>DB: Update stage to Hired
+    API->>DB: Increment filled_count on request
+    API->>DB: Create hired activity
+    DB-->>API: Success
+    API-->>UI: Updated data
+    UI-->>HR: Progress bar updated
+```
+
+---
+
+## Permissions
+
+| Permission            | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| `recruitment.read`    | View recruitment requests and applicants           |
+| `recruitment.create`  | Create recruitment requests and applicants         |
+| `recruitment.update`  | Update requests, applicants, and transition status |
+| `recruitment.delete`  | Delete requests and applicants                     |
+| `recruitment.approve` | Approve or reject pending requests                 |
+
+---
+
+## Configuration
+
+### Default Stages Configuration
+
+Stages are seeded in database and can be customized:
+
+```go
+var DefaultApplicantStages = []ApplicantStage{
+    {Name: "New", Color: "#6b7280", Order: 0},
+    {Name: "Screening", Color: "#3b82f6", Order: 1},
+    {Name: "Interview", Color: "#f59e0b", Order: 2},
+    {Name: "Offer", Color: "#8b5cf6", Order: 3},
+    {Name: "Hired", Color: "#22c55e", Order: 4, IsWon: true},
+    {Name: "Rejected", Color: "#ef4444", Order: 5, IsLost: true},
+}
+```
+
+### i18n Employment Type Keys
+
+```typescript
+employmentType: {
+  label: "Employment Type",
+  fullTime: "Full Time",
+  partTime: "Part Time",
+  contract: "Contract",
+  intern: "Intern",
+  FULL_TIME: "Full Time",
+  PART_TIME: "Part Time",
+  CONTRACT: "Contract",
+  INTERN: "Intern",
+}
+```
+
+---
+
+## Integration Points
+
+### With Employee Module
+
+- Requester and approver linked to Employee records
+- Hired applicants can be converted to employees (future)
+- Employee data used for form dropdowns
+
+### With Organization Module
+
+- Division and Position data for requests
+- Division and position validation
+- Organization structure integration
+
+### With File Upload Module
+
+- Resume upload via upload endpoints
+- Supports PDF, DOC, DOCX formats
+- Returns path stored in `resume_url`
+
+---
+
+## Testing Strategy
+
+### Backend Tests
+
+- Unit tests: `recruitment_request_usecase_test.go` (planned)
+- Integration tests: `recruitment_integration_test.go` (planned)
+
+Run tests:
+
+```bash
+cd apps/api && go test ./internal/hrd/...
+```
+
+### Manual Testing
+
+**Backend (API):**
+
+1. Login as admin
+2. Create request: POST `/hrd/recruitment-requests`
+3. Verify auto-generated `request_code` format
+4. Submit, approve, open, close workflow
+5. Create applicant: POST `/hrd/applicants`
+6. Move applicant between stages
+7. Verify filled_count updates
+
+**Frontend (UI):**
+
+1. Navigate to `/hrd/recruitment`
+2. Create request with salary range
+3. Submit for approval
+4. Approve and open request
+5. Go to detail page
+6. Add applicants to Kanban
+7. Drag applicants through pipeline
+8. Verify progress bar updates
+
+---
+
+## Keputusan Teknis
+
+| Decision                                      | Rationale                                                                                                                         |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Status enum as string**                     | Readability in database and API responses. Trade-off: slightly more storage, but helps debugging and logging.                     |
+| **Request code auto-generated in repository** | Ensures consistent format (RR-YYYYMM-XXXX) and atomic counter per month. Trade-off: extra query for code generation.              |
+| **Approval info in same model**               | Single approval step doesn't need separate table. Trade-off: if multi-level approval needed later, requires refactor.             |
+| **Enrichment via map-building pattern**       | Batch-fetch related entities for O(1) lookup. Avoids N+1 queries. Trade-off: extra memory for maps.                               |
+| **Soft delete**                               | Preserves audit trail and compliance. Trade-off: more complex queries.                                                            |
+| **Bidirectional filled_count update**         | Hiring increments, un-hiring decrements. Ensures accurate position tracking. Trade-off: more complex stage change logic.          |
+| **No terminal stage lock**                    | Hired/Rejected can still be moved. Allows corrections for input errors or changed decisions. Trade-off: less strict workflow.     |
+| **Optimistic updates for Kanban**             | UI updates immediately, API called in background. Rollback on failure. Trade-off: potential temporary inconsistency.              |
+| **Progressive loading per stage**             | Each Kanban column loads independently with pagination. Prevents slow load times with many applicants. Trade-off: more API calls. |
+| **Activity logging in separate table**        | Complete audit trail without bloating applicant table. Trade-off: separate query for history.                                     |
+| **Rupiah currency formatting**                | Auto-formats numbers like `20000` → `20.000`. Trade-off: additional formatting logic.                                             |
+
+---
+
+## Notes & Improvements
+
+### Version 2.1.0 Changes
+
+- ✅ Applicant Management with Kanban Board
+- ✅ Drag-and-drop applicant movement
+- ✅ Auto-updating filled count
+- ✅ Activity logging
+- ✅ Bidirectional filled count updates
+- ✅ Removed terminal stage restriction
+- ✅ Rupiah currency formatting
+- ✅ Editing enabled for REJECTED status
+- ✅ File upload for resume/CV
+- ✅ Fixed i18n translation keys
+- ✅ Fixed resume URL handling
+
+### Completed Features
+
+- ✅ Job requisitions with approval workflow
+- ✅ Auto-generated request codes
+- ✅ Priority levels
+- ✅ Employment types
+- ✅ Kanban board for applicants
+- ✅ Applicant pipeline stages
+- ✅ Stage movement with activity logging
+- ✅ Search and filter
+- ✅ File upload for resumes
+- ✅ Progress tracking
+
+### Known Limitations
+
+- Single-level approval (one approver). No multi-level approval chain yet.
+- No email notifications for status changes.
+- File upload has no preview, only download link.
+
+### Future Improvements
+
+- Multi-level approval workflow (Department Head → HR → Director)
+- Auto-close when filled_count == required_count
+- Email notifications for status changes
+- Dashboard with recruitment metrics
+- Auto-convert hired applicant to employee
+- Integration with calendar for interview scheduling
+- Candidate scoring/rating system enhancements
+- Referral tracking and rewards
+- Job posting integration with external platforms
+
+---
+
+## Appendix
+
+### Error Codes
+
+| Code                            | HTTP Status | Description                       |
+| ------------------------------- | ----------- | --------------------------------- |
+| `RECRUITMENT_REQUEST_NOT_FOUND` | 404         | Request with given ID not found   |
+| `APPLICANT_NOT_FOUND`           | 404         | Applicant with given ID not found |
+| `STAGE_NOT_FOUND`               | 404         | Stage with given ID not found     |
+| `RECRUITMENT_NOT_EDITABLE`      | 400         | Request not in DRAFT status       |
+| `RECRUITMENT_NOT_OPEN`          | 400         | Request not in OPEN status        |
+| `INVALID_SALARY_RANGE`          | 400         | Salary min > max                  |
+| `FILLED_EXCEEDS_REQUIRED`       | 400         | Filled count > required count     |
+| `DIVISION_NOT_FOUND`            | 404         | Division ID does not exist        |
+| `POSITION_NOT_FOUND`            | 404         | Position ID does not exist        |
+| `INVALID_STATUS_TRANSITION`     | 400         | Invalid status transition         |
+| `INVALID_APPLICANT_SOURCE`      | 400         | Source not in allowed list        |
+| `VALIDATION_ERROR`              | 400         | Request body validation failed    |
+
+### Status Workflow Diagram
 
 ```
 ┌─────────┐    submit    ┌─────────┐    approve   ┌──────────┐    open    ┌──────┐    close   ┌────────┐
@@ -462,263 +804,9 @@ apps/web/app/[locale]/(dashboard)/hrd/
      ▲
      │    cancel
      │
-┌─────────┐
-│ PENDING │ (also can be cancelled)
-└─────────┘
-```
-
-**Valid Transitions:**
-| From | To |
-|------|-----|
-| DRAFT | PENDING, CANCELLED |
-| PENDING | APPROVED, REJECTED, CANCELLED |
-| APPROVED | OPEN |
-| OPEN | CLOSED |
-| REJECTED | PENDING (resubmit) |
-
----
-
-## Applicant Pipeline Workflow
-
-The Kanban board tracks applicants through customizable pipeline stages.
-
-### Default Pipeline Stages
-
-```
-┌─────────┐    ┌───────────┐    ┌───────────┐    ┌───────┐    ┌───────┐    ┌──────────┐
-│   New   │───→│ Screening │───→│ Interview │───→│ Offer │───→│ Hired │    │ Rejected │
-│  (gray) │    │  (blue)   │    │ (orange)  │    │(purple│    │(green)│    │   (red)  │
-└─────────┘    └───────────┘    └───────────┘    └───────┘    └───┬───┘    └──────────┘
-                                                                   │
-                                                              IsWon=true
-
-From any stage → Can move to any other stage (no terminal lock)
-To Hired       → filled_count++
-From Hired     → filled_count--
-```
-
-### Applicant Sources
-
-| Source | Description |
-|--------|-------------|
-| `linkedin` | LinkedIn platform |
-| `jobstreet` | JobStreet Indonesia |
-| `glints` | Glints platform |
-| `referral` | Employee referral |
-| `direct` | Direct application |
-| `other` | Other sources |
-
-### Activity Types
-
-| Type | Trigger |
-|------|---------|
-| `created` | Applicant added to system |
-| `updated` | Information updated |
-| `stage_change` | Moved to different stage |
-| `rating_changed` | Rating modified |
-| `hired` | Candidate hired |
-| `rejected` | Candidate rejected |
-
----
-
-## Keputusan Teknis
-
-### Recruitment Request
-
-- **Mengapa status enum sebagai string, bukan integer**: Readability di database dan API response. Trade-off: slightly more storage, tapi sangat membantu debugging dan logging.
-
-- **Mengapa request_code auto-generated di repository layer**: Memastikan format konsisten (RR-YYYYMM-XXXX) dan atomic counter per bulan. Trade-off: extra query untuk generate code.
-
-- **Mengapa approval info (approved_by, rejected_by) di model yang sama**: RecruitmentRequest hanya punya satu approval step, jadi tidak perlu separate approval table. Trade-off: jika diibutuhkan multi-level approval di masa depan, perlu refactor.
-
-- **Mengapa enrichment via map-building pattern**: Batch-fetch related entities (employees, divisions, positions) dan build maps untuk O(1) lookup. Menghindari N+1 queries. Trade-off: extra memory untuk maps, tapi insignificant untuk jumlah data normal.
-
-- **Mengapa soft delete**: Untuk audit trail dan compliance (siapa yang mengajukan, kapan, kenapa di-reject). Trade-off: slightly more complex queries.
-
-### Applicant Management
-
-- **Mengapa bidirectional filled_count update**: Saat applicant pindah ke Hired, filled_count bertambah. Saat pindah dari Hired ke stage lain, filled_count berkurang. Ini memastikan tracking posisi terisi selalu akurat meskipun ada perubahan keputusan hiring.
-
-- **Mengapa tidak ada terminal stage lock**: Stage Hired/Rejected tidak lagi mengunci applicant. Ini memungkinkan koreksi jika ada kesalahan input atau perubahan keputusan hiring.
-
-- **Mengapa optimistic updates untuk Kanban**: UI langsung update saat drag-and-drop, sementara API dipanggil di background. Jika gagal, UI rollback. Memberikan UX yang smooth tanpa loading spinner.
-
-- **Mengapa progressive loading per stage**: Setiap kolom Kanban load data secara independen dengan pagination. Ini mencegah load time lambat saat ada banyak applicant di semua stage.
-
-- **Mengapa activity logging terpisah**: Semua actions (create, update, stage_change) tercatat di tabel terpisah untuk audit trail lengkap tanpa membesarkan tabel applicant.
-
----
-
-## Manual Testing
-
-### Backend (API)
-
-1. **Login** sebagai admin (admin@example.com / admin123)
-2. **Create**: POST `/api/v1/hrd/recruitment-requests` dengan body lengkap
-   - Verify response berisi auto-generated `request_code` (format RR-YYYYMM-XXXX)
-   - Verify `status` = "DRAFT"
-3. **List**: GET `/api/v1/hrd/recruitment-requests`
-   - Verify pagination, search by request code, filter by status
-4. **Get Detail**: GET `/api/v1/hrd/recruitment-requests/:id`
-   - Verify embedded requester info, division name, position name
-5. **Update**: PUT `/api/v1/hrd/recruitment-requests/:id` (hanya DRAFT)
-   - Try update non-DRAFT → should get RECRUITMENT_NOT_EDITABLE error
-6. **Submit for Approval**: POST `/api/v1/hrd/recruitment-requests/:id/status` with `{"status": "PENDING"}`
-7. **Approve**: POST `/api/v1/hrd/recruitment-requests/:id/status` with `{"status": "APPROVED"}`
-   - Verify `approved_by_id` and `approved_at` terisi
-8. **Open**: POST `/api/v1/hrd/recruitment-requests/:id/status` with `{"status": "OPEN"}`
-9. **Update Filled Count**: PUT `/api/v1/hrd/recruitment-requests/:id/filled-count` with `{"filled_count": 1}`
-   - Try filled_count > required_count → should get FILLED_EXCEEDS_REQUIRED error
-10. **Close**: POST `/api/v1/hrd/recruitment-requests/:id/status` with `{"status": "CLOSED"}`
-    - Verify `closed_at` terisi
-11. **Delete**: DELETE `/api/v1/hrd/recruitment-requests/:id` (hanya DRAFT)
-12. **Form Data**: GET `/api/v1/hrd/recruitment-requests/form-data`
-    - Verify employees, divisions, positions, employment types, priorities, statuses
-
-### Frontend (UI) — Recruitment Request
-
-1. **Login** sebagai admin di `localhost:3000`
-2. **Navigate** ke `/hrd/recruitment`
-3. **Verify** list tampil dengan data dari seeder (5 records)
-4. **Search** by request code → verify filter berfungsi
-5. **Filter** by status dropdown → verify hanya record dengan status terpilih yang tampil
-6. **Click card** → verify navigasi ke detail page `/hrd/recruitment/[id]`
-7. **Click "Add Request"** → verify form dialog terbuka dengan 2 tabs (Basic Info, Requirements)
-8. **Fill form** → select division, position, isi required count, pilih employment type, pilih tanggal, isi job description dan qualifications
-9. **Submit** → verify toast success, list ter-refresh dengan record baru
-10. **Edit** DRAFT request → verify form pre-filled dengan data existing
-11. **Submit for Approval** dari dropdown menu → verify status berubah ke PENDING
-12. **Approve** PENDING request → verify status berubah ke APPROVED
-13. **Open** APPROVED request → verify status berubah ke OPEN
-14. **Close** OPEN request → verify status berubah ke CLOSED
-15. **Delete** DRAFT request → verify dialog konfirmasi, lalu record terhapus
-
-### Frontend (UI) — Applicant Management
-
-1. **Open** detail page recruitment request dengan status OPEN
-2. **Verify** Kanban board tampil dengan 6 columns (New, Screening, Interview, Offer, Hired, Rejected)
-3. **Click "Add Applicant"** button → verify form dialog terbuka
-4. **Fill applicant form** (full_name, email, phone, source) → Submit
-5. **Verify** applicant muncul di column "New" dengan animasi
-6. **Drag applicant** dari New ke Screening → verify optimistic update (instant move)
-7. **Refresh page** → verify applicant tetap di Screening (persisted)
-8. **Click applicant card** → verify detail sheet terbuka dengan info lengkap
-9. **Add note/rating** di detail sheet → verify tersimpan
-10. **Drag applicant** ke Hired → verify:
-    - Applicant pindah ke column Hired
-    - Progress bar di header recruitment bertambah (filled_count++)
-    - Open positions berkurang
-11. **Drag applicant** dari Hired kembali ke Offer → verify:
-    - Applicant pindah ke column Offer
-    - Progress bar berkurang (filled_count--)
-12. **Drag applicant** ke Rejected → verify activity log tercatat
-13. **Verify** activity history di applicant detail sheet menampilkan semua perpindahan stage
-
----
-
-## Automated Testing
-
-- **Unit Tests**: `apps/api/internal/hrd/domain/usecase/recruitment_request_usecase_test.go` (planned)
-- **Integration Tests**: `apps/api/test/hrd/recruitment_integration_test.go` (planned)
-
-**Run Tests:**
-
-```bash
-# Backend unit tests
-cd apps/api && go test ./internal/hrd/...
+     └────────────── can also cancel from PENDING
 ```
 
 ---
 
-## Dependencies
-
-- **Backend**:
-  - GORM (models, repository)
-  - Gin (HTTP routing, binding validation)
-  - PostgreSQL (storage, GIN indexes for text search)
-  - Organization module (Division, JobPosition repositories)
-  - Employee module (Employee repository for requester/approver lookup)
-  - Core errors (centralized error code mapping)
-  - File upload handler (for resume/CV uploads)
-
-- **Frontend**:
-  - TanStack Query (data fetching, caching, optimistic updates)
-  - Zod (form validation with i18n messages)
-  - react-hook-form (form state management with zodResolver)
-  - next-intl (internationalization — EN + ID)
-  - shadcn/ui (UI components: Dialog, Table, Badge, Tabs, Select, Calendar, etc.)
-  - FileUpload component (custom component for file upload with drag-and-drop)
-  - date-fns (date formatting and parsing)
-  - Sonner (toast notifications)
-  - Lucide React (icons)
-- **Integration**:
-  - Employee module (untuk requester dan approver data)
-  - Organization module (untuk Division dan JobPosition data)
-  - Permission module (RBAC: recruitment.read/create/update/delete/approve)
-
----
-
-## Related Links
-
-- Sprint Planning: `docs/erp-sprint-planning.md` — Sprint 15
-- Database Relations: `docs/erp-database-relations.mmd`
-- API Standards: `docs/api-standart/README.md`
-
----
-
-## Notes & Improvements
-
-- **Known Limitations**:
-  - Single-level approval (satu approver). Belum support multi-level approval chain.
-  - Belum ada email notifications untuk status changes
-  - File upload tidak ada preview, hanya download link
-
-- **Completed (v2.1.0)**:
-  - ✅ Candidate tracking dengan Kanban board
-  - ✅ Auto-update filled_count saat applicant hired/rejected
-  - ✅ Bidirectional filled_count updates (increment on hire, decrement on un-hire)
-  - ✅ Activity logging untuk semua applicant actions
-  - ✅ Detail page dengan Kanban board integration
-  - ✅ File upload untuk applicant resume/CV (PDF, DOC, DOCX)
-  - ✅ Fixed i18n translation keys untuk employment types
-
-- **Future Improvement**:
-  - Multi-level approval workflow (Department Head → HR → Director)
-  - Auto-close recruitment request when filled_count == required_count
-  - Email notifications untuk status changes
-  - Dashboard view dengan recruitment metrics
-  - Integration dengan Employee module (auto-convert hired applicant to employee)
-
-- **Performance**:
-  - GIN indexes untuk text search pada request_code, job_description, applicant name/email
-  - LEFT JOIN untuk search by requester name
-  - Progressive loading (pagination per stage) untuk Kanban board
-  - Optimistic updates untuk smooth drag-and-drop UX
-
-### Internationalization (i18n)
-
-**Employment Type Keys** (supports both formats):
-```typescript
-employmentType: {
-  label: "Employment Type",
-  // camelCase variants (for display)
-  fullTime: "Full Time",
-  partTime: "Part Time",
-  contract: "Contract",
-  intern: "Intern",
-  // UPPERCASE variants (from backend enum: FULL_TIME, PART_TIME, CONTRACT, INTERN)
-  FULL_TIME: "Full Time",
-  PART_TIME: "Part Time",
-  CONTRACT: "Contract",
-  INTERN: "Intern",
-}
-```
-
-**Applicant Keys**:
-```typescript
-applicants: {
-  title: "Applicants",
-  notes: "Notes",  // Section header for applicant notes
-  // ... other keys
-}
-```
+_Document generated for GIMS Platform - Recruitment Management v2.1.0_

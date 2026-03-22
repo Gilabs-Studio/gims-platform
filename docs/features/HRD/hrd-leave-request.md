@@ -1,909 +1,754 @@
-# Leave Request Management
+# HRD - Leave Request Management
 
-Fitur untuk mengelola pengajuan cuti karyawan dengan approval workflow yang komprehensif. Memungkinkan karyawan mengajukan cuti, HRD/manager melakukan approval/rejection, dan sistem mengelola kuota cuti secara otomatis.
+> **Module:** HRD (Human Resource Development)  
+> **Sprint:** 13+  
+> **Version:** 1.5.0  
+> **Status:** ✅ Complete (API + Frontend)  
+> **Last Updated:** March 2026
 
-## Fitur Utama
+---
 
-- Pengajuan cuti dengan pilihan jenis cuti (annual leave, sick leave, maternity, dll)
-- Approval workflow dengan multiple states (pending → approved/rejected/cancelled)
-- Kalkulasi sisa kuota cuti otomatis berdasarkan jenis cuti
-- Validasi overlap untuk mencegah double booking
-- Kalkulasi working days (exclude weekends dan holidays) untuk MULTI_DAY
-- Support duration types: HALF_DAY (0.5 hari), FULL_DAY (1 hari), MULTI_DAY (multi hari)
-- Row-level locking untuk prevent race conditions saat approval
-- Carry-over cuti maksimal 5 hari sampai 31 Maret tahun berikutnya
-- IDOR protection: karyawan hanya bisa akses data cuti sendiri
-- Form data endpoint untuk dropdown selection (employees dan leave types)
-- Self-service leave request (employees can create/view/cancel their own requests)
-- Self-service leave quota display with color-coded balance card (Total/Used/Remaining)
-- Auto-fill end date when start date exceeds current end date
-- Separate cancellation information display (orange theme) vs rejection information (red theme)
+## Table of Contents
 
-## Business Rules
+1. [Overview](#overview)
+2. [Features](#features)
+3. [System Architecture](#system-architecture)
+4. [Data Models](#data-models)
+5. [Business Logic](#business-logic)
+6. [API Reference](#api-reference)
+7. [Frontend Components](#frontend-components)
+8. [User Flows](#user-flows)
+9. [Permissions](#permissions)
+10. [Integration Points](#integration-points)
+11. [Testing Strategy](#testing-strategy)
 
-### 1. Leave Balance Calculation
-- **Leave balance = TotalLeaveQuota - UsedLeave**
-- Hanya leave types dengan `IsCutAnnualLeave = true` yang memotong kuota annual
-- Sick leave tidak memotong kuota annual (`IsCutAnnualLeave = false`)
-- Cuti tidak bisa diajukan jika sisa kuota < jumlah hari yang diminta
+---
 
-### 2. Permission Rules (IMPLEMENTED - Major Change)
-- **CRITICAL**: Only HR/Approvers can perform ALL CRUD operations on leave requests
-- **Employees CANNOT** create, view, update, or delete their own leave requests
-- **Rationale**: Leave requests are created by HR/Approvers on behalf of employees who request time off
-- **Permission check**: `leave.create`, `leave.read`, `leave.update`, `leave.delete`, `leave.approve`
-- **Implementation**: Permissions enforced via `middleware.RequirePermission()` at router level
-- **Router middleware**: Each endpoint protected with appropriate permission check
-  - Example: `leaveRequests.POST("", middleware.RequirePermission("leave.create"), handler.Create)`
+## Overview
 
-### 3. Validation Rules
-- Start date tidak boleh > end date
-- Tidak boleh ada overlapping leave requests untuk employee yang sama
-- Status PENDING atau REJECTED bisa di-edit/delete, status lainnya tidak
-- Only PENDING requests can be approved or rejected
-- Only PENDING or APPROVED requests can be cancelled
-- **Auto-fill end date**: When changing start date, end date automatically updates to match start date if start_date > end_date
+The Leave Request Management module provides comprehensive leave management for employees with approval workflow, quota tracking, and integration with attendance system.
 
-### 4. Duration Calculation
-- **HALF_DAY**: 0.5 hari
-- **FULL_DAY**: 1 hari
-- **MULTI_DAY**: Dihitung working days (exclude weekends & holidays)
-  - Weekend: Saturday & Sunday
-  - Holidays: Fetched from `holidays` table dalam date range
+### Key Features
 
-### 4. Carry-Over Rules
-- **Max carry-over**: 5 hari dari tahun sebelumnya
-- **Expiry**: 31 Maret tahun berikutnya
-- Cuti carry-over yang sudah expire tidak lagi ditambahkan ke balance
-- TODO: Implement automatic carry-over calculation
+| Feature                      | Description                                                  |
+| ---------------------------- | ------------------------------------------------------------ |
+| **Multi-Type Leave**         | Support for annual, sick, maternity, and custom leave types  |
+| **Approval Workflow**        | Multi-state workflow (Pending → Approved/Rejected/Cancelled) |
+| **Quota Management**         | Automatic balance calculation with carry-over support        |
+| **Working Days Calculation** | Excludes weekends and holidays for multi-day leaves          |
+| **Row-Level Locking**        | Prevents race conditions during concurrent approvals         |
+| **Self-Service Portal**      | Employees can view balance and request history               |
+| **Attendance Integration**   | Auto-creates attendance records for approved leaves          |
+| **Search & Filter**          | Search by employee, leave type, or reason                    |
 
-### 5. Status State Machine
+---
+
+## Features
+
+### 1. Leave Types
+
+| Type            | Code | Description         | Cuts Annual Leave |
+| --------------- | ---- | ------------------- | ----------------- |
+| Annual Leave    | `AL` | Regular paid leave  | ✅ Yes            |
+| Sick Leave      | `SL` | Medical leave       | ❌ No             |
+| Maternity Leave | `ML` | Maternity/paternity | ❌ No             |
+| Emergency Leave | `EL` | Urgent matters      | ✅ Yes            |
+| Unpaid Leave    | `UL` | Without pay         | ❌ No             |
+
+### 2. Duration Types
+
+| Duration    | Days     | Use Case                  |
+| ----------- | -------- | ------------------------- |
+| `HALF_DAY`  | 0.5      | Partial day absence       |
+| `FULL_DAY`  | 1.0      | Single full day           |
+| `MULTI_DAY` | Variable | Multiple consecutive days |
+
+### 3. Status State Machine
+
 ```
-PENDING → APPROVED (by approver)
-        → REJECTED (by approver)
-        → CANCELLED (by approver)
+PENDING ──▶ APPROVED (by approver)
+     │
+     ├──▶ REJECTED (by approver)
+     │
+     └──▶ CANCELLED (by approver/employee)
 
-REJECTED → PENDING (by re-submission after edit via approver)
+APPROVED ──▶ CANCELLED
 
-APPROVED → CANCELLED (by approver or self-cancel)
-
-CANCELLED → Cannot be changed (final state)
-```
-
-### 7. Self-Service Leave Request
-- Employees can create, view, update, and cancel their own leave requests via self-service endpoints
-- Self-service uses separate `/self` prefix endpoints (no permission middleware, uses JWT identity)
-- Employees can only cancel their own PENDING or APPROVED requests
-- **Leave Quota Display**: Self-service tab shows a 3-column quota card:
-  - Total Quota (blue) / Used Days (amber) / Remaining Balance (green/red based on balance)
-  - Pending request days shown below the card
-  - Data fetched from `GET /my-balance` endpoint
-- **Admin Form Balance**: Employee selector in admin form shows remaining balance below with color coding
-- **Auto-fill End Date**: When start date changes and exceeds current end date, end date auto-fills to match start date
-
-### 8. Cancellation vs Rejection Display
-- Detail modal separates **cancellation** and **rejection** information into distinct sections:
-  - **Rejection Information** (red theme): Shown only for REJECTED status, displays rejection note
-  - **Cancellation Information** (orange theme): Shown only for CANCELLED status, displays cancellation note
-- Backend reuses `rejection_note` field for cancellation notes; frontend handles display logic
+REJECTED ──▶ PENDING (after edit/resubmit)
 ```
 
-### 6. IDOR Protection (REMOVED - Business Rule Change)
-- **Previously**: Employee could only create/view/update/delete own requests
-- **NOW**: Only HR/Approvers can perform ANY operations on leave requests
-- **Rationale**: Centralized leave request management by HR department
-- Employees request leave verbally/via other channels → HR creates the record in system
+**Status Rules:**
 
-## API Endpoints
+- Only `PENDING` can be approved or rejected
+- Only `PENDING` or `APPROVED` can be cancelled
+- `CANCELLED` is final state (cannot be changed)
+- Editing only allowed for `PENDING` or `REJECTED`
 
-| Method | Endpoint | Permission | Description |
-|--------|----------|------------|-------------|
-| GET | `/api/v1/hrd/leave-requests/self` | Auth | List own leave requests |
-| POST | `/api/v1/hrd/leave-requests/self` | Auth | Submit own leave request |
-| GET | `/api/v1/hrd/leave-requests/self/:id` | Auth | Get own leave request detail |
-| PUT | `/api/v1/hrd/leave-requests/self/:id` | Auth | Update own leave request (PENDING/REJECTED only) |
-| POST | `/api/v1/hrd/leave-requests/self/:id/cancel` | Auth | Cancel own leave request (PENDING or APPROVED) |
-| GET | `/api/v1/hrd/leave-requests/my-balance` | Auth | Get own leave balance (single object) |
-| GET | `/api/v1/hrd/leave-requests/my-form-data` | Auth | Get form data for self-service (leave types only) |
-| GET | `/api/v1/hrd/leave-requests/form-data` | leave_request.read | Get dropdown data (employees with codes, leave types, current user balance) |
-| POST | `/api/v1/hrd/leave-requests` | leave_request.create | Submit new leave request (HR/Approvers only) |
-| GET | `/api/v1/hrd/leave-requests` | leave.read | List leave requests with filters & search (HR/Approvers only) |
-| GET | `/api/v1/hrd/leave-requests/:id` | leave.read | Get detailed leave request by ID (HR/Approvers only) |
-| PUT | `/api/v1/hrd/leave-requests/:id` | leave.update | Update leave request (HR/Approvers only - PENDING/REJECTED only) |
-| DELETE | `/api/v1/hrd/leave-requests/:id` | leave.delete | Delete leave request (HR/Approvers only - soft delete) |
-| GET | `/api/v1/hrd/leave-requests/balance/:employee_id` | Auth | Get employee leave balance |
-| POST | `/api/v1/hrd/leave-requests/:id/approve` | leave.approve | Approve leave request (Approvers only) |
-| POST | `/api/v1/hrd/leave-requests/:id/reject` | leave.approve | Reject leave request (Approvers only) |
-| POST | `/api/v1/hrd/leave-requests/:id/cancel` | leave.approve | Cancel leave request (PENDING or APPROVED) |
+### 4. Leave Balance Calculation
 
-## Request/Response Schemas
+**Formula:**
 
-### 1. GET /form-data
+```
+remaining_balance = total_quota - used_leave - pending_leave
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "employees": [
-      {
-        "id": "uuid",
-        "name": "John Doe",
-        "employee_code": "EMP-001",
-        "remaining_balance": 7.0
-      },
-      {
-        "id": "uuid",
-        "name": "Jane Smith",
-        "employee_code": "EMP-002",
-        "remaining_balance": 12.0
-      }
-    ],
-    "leave_types": [
-      {
-        "id": "uuid",
-        "name": "Annual Leave",
-        "code": "AL",
-        "max_days": 12
-      }
-    ]
-  }
-}
+Where:
+- used_leave = Sum of APPROVED requests (only types with is_cut_annual_leave = true)
+- pending_leave = Sum of PENDING requests
 ```
 
-**NOTE**: Each employee object includes their `remaining_balance` (total_quota - used_leave) for easy reference when creating leave requests.
+**Carry-Over Rules:**
 
-### 2. POST / (Create)
+- Maximum 5 days carry-over from previous year
+- Expires on March 31 of current year
+- Automatically added to total quota until expiry
 
-**Request Body:**
-```json
-{
-  "employee_id": "uuid",
-  "leave_type_id": "uuid",
-  "start_date": "2024-01-15",
-  "end_date": "2024-01-17",
-  "duration": "MULTI_DAY",
-  "note": "Family vacation"
-}
+### 5. Working Days Calculation
+
+For `MULTI_DAY` duration:
+
+```
+working_days = total_days - weekends - holidays
+
+Where:
+- Weekends = Saturday and Sunday
+- Holidays = Records from holidays table in date range
 ```
 
-**Response:** Returns detailed leave request (same as GET /:id)
+---
 
-### 3. GET / (List)
+## System Architecture
 
-**Query Parameters:**
-- `page` (int, default: 1)
-- `per_page` (int, default: 20, max: 100)
-- `employee_id` (string, optional) - Filter by employee UUID
-- `status` (string, optional) - PENDING, APPROVED, REJECTED, CANCELLED (case-insensitive)
-- `start_date` (string, optional) - Format: YYYY-MM-DD (filter: leave start_date >= this date)
-- `end_date` (string, optional) - Format: YYYY-MM-DD (filter: leave end_date <= this date)
-- `search` (string, optional) - **NEW**: Search by employee name, leave type name, or reason (case-insensitive, uses ILIKE)
+### Backend Structure
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid",
-      "employee_name": "John Doe",
-      "leave_type": "Annual Leave",
-      "start_date": "2024-01-15",
-      "end_date": "2024-01-17",
-      "duration": "MULTI_DAY",
-      "total_days": 3.0,
-      "status": "PENDING",
-      "note": "Family vacation",
-      "created_at": "2024-01-10T10:00:00+07:00",
-      "updated_at": "2024-01-10T10:00:00+07:00"
-    }
-  ],
-  "meta": {
-    "pagination": {
-      "page": 1,
-      "per_page": 20,
-      "total": 45,
-      "total_pages": 3
-    }
-  }
-}
 ```
-
-### 4. GET /:id (Detail)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "employee": {
-      "id": "uuid",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "phone": "08123456789",
-      "employee_code": "EMP-001"
-    },
-    "leave_type": {
-      "id": "uuid",
-      "name": "Annual Leave",
-      "code": "AL",
-      "description": "Annual paid leave",
-      "max_days": 12,
-      "is_paid": true,
-      "is_cut_annual_leave": true
-    },
-    "start_date": "2024-01-15",
-    "end_date": "2024-01-17",
-    "duration": "MULTI_DAY",
-    "total_days": 3.0,
-    "status": "APPROVED",
-    "note": "Family vacation",
-    "rejection_note": null,
-    "approved_by": "uuid-approver",
-    "approved_at": "2024-01-12T14:30:00+07:00",
-    "is_carry_over": false,
-    "remaining_carry_over": 0.0,
-    "carry_over_expiry_date": null,
-    "created_at": "2024-01-10T10:00:00+07:00",
-    "updated_at": "2024-01-12T14:30:00+07:00",
-    "created_by": "uuid-employee",
-    "updated_by": "uuid-approver"
-  }
-}
-```
-
-### 5. PUT /:id (Update)
-
-**Request Body:**
-```json
-{
-  "leave_type_id": "uuid",
-  "start_date": "2024-01-16",
-  "end_date": "2024-01-18",
-  "duration": "MULTI_DAY",
-  "note": "Updated vacation dates"
-}
-```
-
-**Response:** Returns detailed leave request (same as GET /:id)
-
-**Validation:**
-- Only PENDING or REJECTED status can be updated (by approvers)
-- Only approvers/HR can update leave requests
-- Recalculates total_days if dates or duration changed
-- Revalidates balance if leave type changed
-
-### 6. DELETE /:id (Soft Delete)
-
-**Permission**: Approvers/HR only
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": null
-}
-```
-
-### 7. GET /balance/:employee_id
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "employee_id": "uuid",
-    "total_leave_quota": 12,
-    "used_leave": 5,
-    "pending_leave": 2,
-    "remaining_balance": 5,
-    "carry_over_balance": 3.0,
-    "carry_over_expiry_date": "2024-03-31"
-  }
-}
-```
-
-**Balance Calculation:**
-- `remaining_balance = total_leave_quota - used_leave`
-- `used_leave` = sum of APPROVED leave requests with `IsCutAnnualLeave = true`
-- `pending_leave` = sum of PENDING leave requests
-- `carry_over_balance` = carry-over dari tahun sebelumnya (max 5 days)
-
-### 8. POST /:id/approve
-
-**Request Body:**
-```json
-{
-  "approved_by": "uuid-approver"  // optional, defaults to current user
-}
-```
-
-**Response:** Returns detailed leave request (same as GET /:id)
-
-**Business Logic:**
-- Only PENDING status can be approved
-- Uses row-level locking (FOR UPDATE) to prevent race conditions
-- Revalidates balance before approval (balance might have changed)
-- Sets `approved_at` timestamp
-- TODO: Trigger email notification to employee
-
-### 9. POST /:id/reject
-
-**Request Body:**
-```json
-{
-  "rejection_note": "Reason for rejection",
-  "rejected_by": "uuid-rejecter"  // optional, defaults to current user
-}
-```
-
-**Response:** Returns detailed leave request (same as GET /:id)
-
-**Validation:**
-- Only PENDING status can be rejected
-- `rejection_note` is required
-- TODO: Trigger email notification to employee
-
-### 10. POST /:id/cancel (NEW)
-
-**Permission**: `leave.approve` (Approvers/HR only)
-
-**Request Body:**
-```json
-{
-  "cancellation_note": "Reason for cancellation",  // optional
-  "cancelled_by": "uuid-canceller"  // optional, defaults to current user
-}
-```
-
-**Response:** Returns detailed leave request (same as GET /:id)
-
-**Business Logic:**
-- Only PENDING or APPROVED status can be cancelled
-- Uses row-level locking (FOR UPDATE) to prevent race conditions
-- Cancellation note is optional (unlike rejection which requires note)
-- Cancelled leave requests free up the leave balance immediately
-- Status changes to CANCELLED (final state - cannot be changed)
-- **For APPROVED cancellations**: Linked attendance records (LEAVE status) are deleted
-- **For PENDING cancellations**: No attendance records exist, so deletion is skipped
-
-**Use Cases:**
-- Employee calls in sick after leave was approved → HR cancels the approved leave
-- Employee changes mind about taking leave → HR cancels pending request
-- Administrative corrections
-
-## Struktur Folder
-
-### Backend
-```
-internal/hrd/
+apps/api/internal/hrd/
 ├── data/
 │   ├── models/
-│   │   ├── leave_request.go           # GORM entity
-│   │   └── holiday.go                 # Holiday calendar
+│   │   ├── leave_request.go
+│   │   └── holiday.go
 │   └── repositories/
 │       ├── leave_request_repository.go
 │       └── holiday_repository.go
 ├── domain/
 │   ├── dto/
-│   │   └── leave_request_dto.go       # Request/Response DTOs
+│   │   └── leave_request_dto.go
 │   ├── mapper/
-│   │   └── leave_request_mapper.go    # Model ↔ DTO conversion
+│   │   └── leave_request_mapper.go
 │   └── usecase/
-│       └── leave_request_usecase.go   # Business logic
+│       └── leave_request_usecase.go
 └── presentation/
     ├── handler/
-    │   └── leave_request_handler.go   # HTTP handlers
+    │   └── leave_request_handler.go
     └── router/
-        └── leave_request_router.go    # Route registration
+        └── leave_request_router.go
 ```
 
-### Frontend
+### Frontend Structure
+
 ```
 apps/web/src/features/hrd/leave-request/
 ├── types/
-│   └── index.d.ts                     # TypeScript interfaces
+│   └── index.d.ts
 ├── schemas/
-│   └── leave-request.schema.ts        # Zod validation schemas
+│   └── leave-request.schema.ts
 ├── services/
-│   └── leave-request-service.ts       # API client calls
+│   └── leave-request-service.ts
 ├── hooks/
-│   └── use-leave-requests.ts          # TanStack Query hooks
+│   └── use-leave-requests.ts
 ├── components/
-│   ├── leave-request-list.tsx         # All-in-one list with table
-│   ├── leave-request-form.tsx         # Form with caching + employee balance display
-│   ├── leave-request-detail-modal.tsx # Detail modal with tabs + separate cancel/reject info
-│   └── self-leave-request-tab.tsx     # Self-service leave request tab (in drawer)
-├── i18n/
-│   ├── en.ts                          # English translations
-│   └── id.ts                          # Indonesian translations
-└── app/[locale]/(dashboard)/hrd/leave-requests/
-    ├── page.tsx                       # Thin wrapper with PermissionGuard
-    └── loading.tsx                    # Skeleton loader
+│   ├── leave-request-list.tsx
+│   ├── leave-request-form.tsx
+│   ├── leave-request-detail-modal.tsx
+│   └── self-leave-request-tab.tsx
+└── i18n/
+    ├── en.ts
+    └── id.ts
 ```
+
+---
+
+## Data Models
+
+### LeaveRequest
+
+| Field          | Type         | Description                            |
+| -------------- | ------------ | -------------------------------------- |
+| id             | UUID         | Primary key                            |
+| employee_id    | UUID         | Employee reference                     |
+| leave_type_id  | UUID         | Leave type reference                   |
+| start_date     | DATE         | Leave start date                       |
+| end_date       | DATE         | Leave end date                         |
+| duration       | ENUM         | HALF_DAY, FULL_DAY, MULTI_DAY          |
+| total_days     | DECIMAL(4,1) | Calculated working days                |
+| status         | ENUM         | PENDING, APPROVED, REJECTED, CANCELLED |
+| reason         | TEXT         | Leave reason/description               |
+| rejection_note | TEXT         | Rejection/cancellation reason          |
+| approved_by    | UUID         | Approver user ID                       |
+| approved_at    | TIMESTAMP    | Approval timestamp                     |
+| rejected_by    | UUID         | Rejecter user ID                       |
+| rejected_at    | TIMESTAMP    | Rejection timestamp                    |
+| is_carry_over  | BOOLEAN      | Whether from previous year             |
+| created_at     | TIMESTAMP    | Creation timestamp                     |
+| updated_at     | TIMESTAMP    | Last update timestamp                  |
+| deleted_at     | TIMESTAMP    | Soft delete timestamp                  |
+
+### LeaveType
+
+| Field               | Type         | Description               |
+| ------------------- | ------------ | ------------------------- |
+| id                  | UUID         | Primary key               |
+| name                | VARCHAR(100) | Leave type name           |
+| code                | VARCHAR(10)  | Short code (e.g., "AL")   |
+| description         | TEXT         | Description               |
+| max_days            | INTEGER      | Maximum days allowed      |
+| is_paid             | BOOLEAN      | Whether paid leave        |
+| is_cut_annual_leave | BOOLEAN      | Deducts from annual quota |
+| is_active           | BOOLEAN      | Active status             |
+
+---
+
+## Business Logic
+
+### 1. Leave Balance Validation
+
+Before approval:
+
+```go
+if leave_type.is_cut_annual_leave {
+    if requested_days > remaining_balance {
+        return Error: "Insufficient leave balance"
+    }
+}
+```
+
+### 2. Overlap Validation
+
+Prevent double-booking:
+
+```go
+existing = FindApprovedOrPendingRequests(employee_id, start_date, end_date)
+if existing.count > 0 {
+    return Error: "Overlapping leave request exists"
+}
+```
+
+### 3. Row-Level Locking
+
+Prevent race conditions:
+
+```sql
+SELECT * FROM leave_requests
+WHERE id = ?
+FOR UPDATE
+```
+
+### 4. Attendance Integration
+
+When leave is approved:
+
+```
+1. Create attendance record for each working day
+2. Status = LEAVE
+3. Link to leave_request_id
+```
+
+When leave is cancelled (if was APPROVED):
+
+```
+1. Delete linked attendance records
+2. Free up leave balance immediately
+```
+
+---
+
+## API Reference
+
+### Self-Service Endpoints
+
+| Method | Endpoint                                     | Auth | Description             |
+| ------ | -------------------------------------------- | ---- | ----------------------- |
+| GET    | `/api/v1/hrd/leave-requests/self`            | JWT  | List own leave requests |
+| POST   | `/api/v1/hrd/leave-requests/self`            | JWT  | Submit own request      |
+| GET    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Get own request detail  |
+| PUT    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Update own request      |
+| POST   | `/api/v1/hrd/leave-requests/self/:id/cancel` | JWT  | Cancel own request      |
+| GET    | `/api/v1/hrd/leave-requests/my-balance`      | JWT  | Get own leave balance   |
+| GET    | `/api/v1/hrd/leave-requests/my-form-data`    | JWT  | Get form dropdown data  |
+
+### Admin Endpoints
+
+| Method | Endpoint                                          | Permission    | Description                                |
+| ------ | ------------------------------------------------- | ------------- | ------------------------------------------ |
+| GET    | `/api/v1/hrd/leave-requests/form-data`            | leave.read    | Get dropdown data (employees, leave types) |
+| POST   | `/api/v1/hrd/leave-requests`                      | leave.create  | Create leave request                       |
+| GET    | `/api/v1/hrd/leave-requests`                      | leave.read    | List all requests with filters             |
+| GET    | `/api/v1/hrd/leave-requests/:id`                  | leave.read    | Get request detail                         |
+| PUT    | `/api/v1/hrd/leave-requests/:id`                  | leave.update  | Update request                             |
+| DELETE | `/api/v1/hrd/leave-requests/:id`                  | leave.delete  | Soft delete request                        |
+| GET    | `/api/v1/hrd/leave-requests/balance/:employee_id` | Auth          | Get employee balance                       |
+| POST   | `/api/v1/hrd/leave-requests/:id/approve`          | leave.approve | Approve request                            |
+| POST   | `/api/v1/hrd/leave-requests/:id/reject`           | leave.approve | Reject request                             |
+| POST   | `/api/v1/hrd/leave-requests/:id/cancel`           | leave.approve | Cancel request                             |
+
+### Query Parameters (List Endpoint)
+
+| Parameter     | Type   | Description                                    |
+| ------------- | ------ | ---------------------------------------------- |
+| `page`        | int    | Page number (default: 1)                       |
+| `per_page`    | int    | Items per page (default: 20, max: 100)         |
+| `employee_id` | UUID   | Filter by employee                             |
+| `status`      | string | PENDING, APPROVED, REJECTED, CANCELLED         |
+| `start_date`  | date   | Filter: start_date >=                          |
+| `end_date`    | date   | Filter: end_date <=                            |
+| `search`      | string | Search by employee name, leave type, or reason |
+
+---
+
+## Frontend Components
+
+### Leave Request List (`/hrd/leave-requests`)
+
+| Component                 | File                           | Description                               |
+| ------------------------- | ------------------------------ | ----------------------------------------- |
+| `LeaveRequestList`        | leave-request-list.tsx         | Main list with table, filters, pagination |
+| `LeaveRequestForm`        | leave-request-form.tsx         | Create/edit form with validation          |
+| `LeaveRequestDetailModal` | leave-request-detail-modal.tsx | Detail view with tabs                     |
+| `SelfLeaveRequestTab`     | self-leave-request-tab.tsx     | Self-service drawer tab                   |
+
+### Key Features
+
+**List View:**
+
+- Paginated table with sortable columns
+- Status badges with color coding
+- Search by employee name or reason
+- Filter by status, date range, employee
+- Action buttons (view, edit, approve, reject, cancel, delete)
+
+**Form:**
+
+- Employee selector with balance display
+- Leave type selector
+- Duration type selection
+- Date range picker
+- Working days calculation preview
+- Reason text area (min 10 chars)
+- Form caching to localStorage
+
+**Detail Modal:**
+
+- Employee details card
+- Leave details card
+- Approval/Rejection info (conditional)
+- Cancellation info (conditional)
+- Timeline/history
+- Action buttons based on status
+
+### Hooks (TanStack Query)
+
+| Hook               | File                  | Description        |
+| ------------------ | --------------------- | ------------------ |
+| `useLeaveRequests` | use-leave-requests.ts | CRUD operations    |
+| `useLeaveRequest`  | use-leave-requests.ts | Get single request |
+| `useLeaveBalance`  | use-leave-requests.ts | Balance queries    |
+| `useLeaveFormData` | use-leave-requests.ts | Dropdown data      |
+
+---
+
+## User Flows
+
+### Submit Leave Request Flow
+
+```mermaid
+sequenceDiagram
+    participant E as Employee
+    participant F as Frontend
+    participant API as Backend API
+    participant DB as Database
+
+    E->>F: Open leave request form
+    F->>API: GET /form-data
+    API-->>F: Employees + Leave Types
+
+    E->>F: Select employee, leave type, dates
+    F->>F: Calculate working days
+    E->>F: Fill reason, submit
+
+    F->>API: POST /leave-requests
+    API->>DB: Validate balance (if applicable)
+    API->>DB: Check for overlaps
+    API->>DB: Create record
+    DB-->>API: Success
+    API-->>F: Created response
+    F-->>E: Show success, refresh list
+```
+
+### Approval Flow
+
+```mermaid
+sequenceDiagram
+    participant M as Manager
+    participant F as Frontend
+    participant API as Backend API
+    participant DB as Database
+    participant Att as Attendance
+
+    M->>F: View pending requests
+    F->>API: GET /leave-requests?status=PENDING
+    API-->>F: List of pending requests
+
+    M->>F: Click Approve on request
+    F->>API: POST /:id/approve
+
+    API->>DB: Row lock (FOR UPDATE)
+    API->>DB: Revalidate balance
+    API->>DB: Update status to APPROVED
+    API->>Att: Create attendance records
+    DB-->>API: Success
+
+    API-->>F: Approved response
+    F-->>M: Show success, update list
+```
+
+### Cancellation Flow (Approved → Cancelled)
+
+```mermaid
+sequenceDiagram
+    participant HR as HR User
+    participant F as Frontend
+    participant API as Backend API
+    participant DB as Database
+    participant Att as Attendance
+
+    HR->>F: Find approved request
+    F->>F: Click Cancel
+
+    HR->>F: Enter cancellation note (optional)
+    F->>API: POST /:id/cancel
+
+    API->>DB: Row lock (FOR UPDATE)
+    API->>DB: Update status to CANCELLED
+    API->>Att: Delete linked attendance records
+    DB-->>API: Success
+
+    API-->>F: Cancelled response
+    F-->>HR: Show success, balance restored
+```
+
+---
+
+## Permissions
+
+| Permission      | Description                         |
+| --------------- | ----------------------------------- |
+| `leave.read`    | View leave requests and details     |
+| `leave.create`  | Create new leave requests           |
+| `leave.update`  | Edit pending/rejected requests      |
+| `leave.delete`  | Soft delete requests                |
+| `leave.approve` | Approve, reject, or cancel requests |
+
+### Access Control Rules
+
+- **Employees**: Can only view own requests via self-service endpoints
+- **HR/Approvers**: Full CRUD access via admin endpoints
+- **Managers**: Typically have `leave.approve` permission
+- **Admins**: Bypass all permission checks
+
+---
+
+## Integration Points
+
+### Integration with Attendance Module
+
+| Action            | Attendance Effect                                 |
+| ----------------- | ------------------------------------------------- |
+| Approve           | Creates LEAVE attendance records for working days |
+| Cancel (Approved) | Deletes linked attendance records                 |
+| Cancel (Pending)  | No attendance records exist (skip)                |
+| Re-approve        | Recreates attendance records                      |
+
+**API Integration:**
+
+```
+POST /hrd/leave-requests/:id/approve
+  → Creates attendance records
+
+POST /hrd/leave-requests/:id/cancel
+  → Deletes attendance records (if approved)
+```
+
+### Integration with Holidays
+
+- Working days calculation excludes holidays
+- Holidays fetched from `holidays` table
+- Holiday types: NATIONAL, COLLECTIVE, COMPANY
+
+### Integration with Employee Master Data
+
+- Employee details fetched from employees table
+- Employee code displayed in selectors
+- Department info for filtering
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+**Location:** `apps/api/internal/hrd/domain/usecase/leave_request_usecase_test.go`
+
+**Coverage:**
+
+- Balance calculation logic
+- Working days calculation
+- Overlap validation
+- State transition validation
+
+**Run:** `cd apps/api && go test ./internal/hrd/domain/usecase/...`
+
+### Integration Tests
+
+**Location:** `apps/api/test/hrd/leave_request_integration_test.go`
+
+**Coverage:**
+
+- Full CRUD flow with database
+- Approval workflow
+- Concurrent approval (row-locking test)
+
+**Run:** `cd apps/api && go test ./test/hrd/...`
+
+### E2E Tests
+
+**Location:** `apps/web/tests/e2e/hrd/leave-request.spec.ts`
+
+**Coverage:**
+
+- Submit leave request from frontend
+- Approval workflow
+- Balance display
+
+**Run:** `cd apps/web && pnpm test:e2e hrd`
+
+### Manual Testing Checklist
+
+**Backend:**
+
+- [ ] Create leave request with valid data
+- [ ] Attempt create with insufficient balance (should fail)
+- [ ] Attempt create with overlapping dates (should fail)
+- [ ] Approve request and verify balance deducted
+- [ ] Cancel approved request and verify balance restored
+- [ ] Search by employee name, leave type, reason
+- [ ] Test row-level locking (concurrent approvals)
+
+**Frontend:**
+
+- [ ] Form loads with fresh dropdown data
+- [ ] Working days calculate correctly
+- [ ] Edit form auto-populates correctly
+- [ ] Status badges display correctly
+- [ ] Detail modal shows all info
+- [ ] Cancellation vs rejection display correct
+- [ ] Self-service tab shows balance card
+- [ ] i18n translations work (EN/ID)
+
+---
 
 ## Keputusan Teknis
 
-### 1. Mengapa menggunakan soft delete?
-**Reason**: Untuk audit trail dan compliance. Leave requests adalah data HR yang sensitive dan harus bisa di-trace untuk audit purposes.
-**Trade-off**: Slightly more complex queries (harus selalu filter `deleted_at IS NULL`), tapi GORM handles this automatically.
+### 1. Soft Delete vs Hard Delete
 
-### 2. Mengapa tidak pakai state machine library?
-**Reason**: Status flow relatif sederhana (4 states) dan business rules straightforward. State machine library akan overkill dan menambah complexity.
-**Trade-off**: Manual validation di usecase layer, tapi lebih mudah dipahami dan di-maintain.
+**Keputusan:** Menggunakan soft delete (deleted_at timestamp)
 
-### 3. Mengapa row-level locking pada approval?
-**Reason**: Prevent race condition saat concurrent approvals. Tanpa locking, bisa terjadi double-deduction of leave balance jika 2 approver approve request yang sama simultaneously.
-**Trade-off**: Slightly slower performance (acquire lock), tapi critical untuk data integrity.
+**Alasan:**
 
-### 4. Mengapa batch fetching employees dan leave types di List endpoint?
-**Reason**: Prevent N+1 query problem. Tanpa batch fetching, akan ada 1 query per leave request untuk fetch employee dan leave type (sangat slow untuk list dengan banyak data).
-**Trade-off**: Sedikit lebih complex code (extract IDs, batch fetch, create maps), tapi performance gain signifikan.
+- Audit trail untuk compliance HR
+- Data cuti bersifat sensitive dan harus bisa di-trace
+- Historical reporting membutuhkan data lama
 
-### 5. Mengapa split response DTO (list vs detail)?
-**Reason**: 
-- **List view**: Simplified response dengan employee_name dan leave_type strings (cukup untuk display di table)
-- **Detail view**: Full nested objects untuk detail page (employee details, leave type details, all timestamps)
-**Trade-off**: Lebih banyak DTOs dan mapper methods, tapi API response lebih optimized (list endpoint tidak transfer data yang tidak diperlukan).
+**Trade-off:** Query lebih kompleks (filter deleted_at IS NULL), tapi GORM handles automatically
 
-### 6. Mengapa form-data endpoint terpisah?
-**Reason**: Frontend needs dropdown data (active employees dan active leave types) untuk form selection. Lebih efficient daripada fetch full list dengan pagination.
-**Trade-off**: Extra endpoint, tapi UX better (fast dropdown population) dan prevent unnecessary pagination handling.
+### 2. Manual State Machine vs Library
 
-### 7. Mengapa hanya HR/Approvers yang bisa CRUD leave requests? (IMPLEMENTED - Major Business Rule Change)
-**Reason**: 
-- **Business Process**: Employees request leave verbally/via chat → HR creates record in system
-- **Centralized Control**: HR maintains single source of truth for attendance tracking
-- **Prevent Manipulation**: Employees cannot self-serve create/edit leave records
-- **Audit Compliance**: All changes traceable to HR users, not employee self-service
-**Implementation**:
-- Router-level permission middleware: `middleware.RequirePermission("leave.create")`, `"leave.read"`, etc.
-- Admin role bypasses all permission checks automatically
-- Permission service uses 2-tier caching (L1: in-memory 1min, L2: Redis 1hr)
-**Trade-off**: 
-- Requires HR to manually input leave requests (more work for HR) (IMPLEMENTED)
-**Reason**: Search harus mencari across multiple tables (employee name, leave type name, reason text). ILIKE case-insensitive untuk better UX.
-**Implementation**: 
-- Search parameter ditambahkan ke List repository method
-- ILIKE dengan pattern matching: `%search%` (case-insensitive)
-- JOIN ke `employees` dan `leave_types` tables untuk search by name
-- GIN indexes ditambahkan untuk performance optimization
-**Trade-off**: JOIN pada setiap search query slightly slower, tapi acceptable dengan GIN indexes. Performance excellent bahkan untuk dataset besar (>100k records).
- (IMPLEMENTED)
-**Reason**: 
-- **Semantics**: Cancel vs Reject memiliki makna berbeda (cancel = batalkan yang sudah disetujui, reject = tolak pengajuan)
-- **Cancel Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
-- **PENDING Cancel**: Skip attendance record deletion (none were created yet)
-- **APPROVED Cancel**: Delete linked attendance records
-- **Optional Note**: Cancel note optional, Reject note required
-- **Balance Impact**: Cancel immediately frees up leave balance if leave type cuts annual leave
-**Implementation**: Separate endpoint `POST /:id/cancel` with row-level locking (FOR UPDATE)pes USING gin (name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_leave_requests_reason_gin ON leave_requests USING gin (reason gin_trgm_ops);
-```
-**Note**: Requires PostgreSQL `pg_trgm` extension (automatically created by migrate function
+**Keputusan:** State validation manual di usecase layer
 
-### 8. Mengapa search menggunakan ILIKE dengan JOIN ke employees dan leave_types?
-**Reason**: Search harus mencari across multiple tables (employee name, leave type name, reason text). ILIKE case-insensitive untuk better UX.
-**Trade-off**: JOIN pada setiap search query slightly slower, tapi masih acceptable karena ada indexes di foreign keys. Consider adding GIN index untuk full-text search jika dataset sangat besar (>100k records).
+**Alasan:**
 
-### 9. Mengapa Cancel endpoint terpisah dari Reject?
-**Reason**: 
-- **Semantics**: Cancel vs Reject memiliki makna berbeda (cancel = batalkan yang sudah disetujui, reject = tolak pengajuan)
-- **Cancel Flow**: Cancel bisa dari PENDING atau APPROVED, Reject hanya dari PENDING
-- **PENDING Cancel**: Skip attendance record deletion (none were created yet)
-- **APPROVED Cancel**: Delete linked attendance records
-- **Optional Note**: Cancel note optional, Reject note required
-**Trade-off**: Extra endpoint, tapi clearer business logic dan easier to understand status transitions.
+- Flow status relatif sederhana (4 states)
+- State machine library akan overkill
+- Lebih mudah dipahami dan maintain
 
-### 10. Mengapa form data selalu di-fetch ulang saat form dibuka? (IMPLEMENTED)
-**Reason**: 
-- **Fresh Data**: Memastikan dropdown employees dan leave types selalu up-to-date (ada employee baru, leave type baru)
-- **Correct Balance**: Employee remaining balance bisa berubah jika ada approval lain
-- **Edit Mode**: Form membutuhkan employee dan leave type data untuk auto-populate select fields saat edit
-**Implementation**: 
-- `useLeaveFormData()` hook dengan option `enabled: open` - hanya fetch saat form dibuka
-- `useLeaveRequest()` hook dengan option `enabled: open && isEdit` - fetch full detail untuk edit mode
-- Form menggunakan **state tracking (`isFormReady`)** untuk memastikan data siap sebelum render
-- Form menggunakan **key prop** (`key={leaveRequest?.id || "new"}`) untuk force re-render saat edit request berbeda
-- useEffect menunggu **semua data** (fullLeaveRequestData, employees, leaveTypes) dan **tidak loading** sebelum populate form
-- Loading state dengan pesan deskriptif ("Loading form data..." / "Loading leave request data...")
-**Trade-off**: Extra API call setiap kali form dibuka (slight delay), tapi ensures data accuracy dan auto-populate works correctly
-**User Experience**:
-- Loading spinner dengan pesan informatif ditampilkan saat fetching data
-- Form **tidak render** sampai semua data siap (prevent flash of unpopulated form)
-- Form auto-populate dengan data yang benar saat edit mode (employee dan leave type select ter-isi otomatis)
-- No stale data issues (misalnya employee yang sudah non-aktif masih muncul di dropdown)
-- Key prop memastikan form completely re-renders saat edit request berbeda (no leftover state)
+**Trade-off:** Manual validation, tapi code lebih explicit
 
-## Cara Test Manual
+### 3. Row-Level Locking
 
-### Backend API Testing
+**Keputusan:** Gunakan `SELECT FOR UPDATE` saat approval/rejection/cancellation
 
-#### 1. Test Create Leave Request (HR/Approver Only)
-1. Login sebagai HR/Approver user
-2. GET `/hrd/leave-requests/form-data` → verify:
-   - `employees` array contains `employee_code` field (NOT `email` field)
-   - `leave_balance` object present dengan current user's balance
-3. POST `/hrd/leave-requests` dengan body:
-   ```json
-   {
-     "employee_id": "<target_employee_id>",
-     "leave_type_id": "<annual_leave_id>",
-     "start_date": "2024-02-01",
-     "end_date": "2024-02-03",
-     "duration": "MULTI_DAY",
-     "reason": "Test leave request"
-   }
-   ```
-4. Should return 201 Created dengan detail leave request
-5. Verify `total_days` = 3 (working days calculation)
-6. Try with non-approver user → should get FORBIDDEN error (once permission middleware is implemented)
+**Alasan:**
 
-#### 2. Test List dengan Filter dan Search (NEW)
-1. GET `/hrd/leave-requests?status=PENDING&page=1&per_page=10` → list pending requests
-2. GET `/hrd/leave-requests?search=John` → search by employee name (case-insensitive)
-3. GET `/hrd/leave-requests?search=Annual` → search by leave type name
-4. GET `/hrd/leave-requests?search=vacation` → search by reason text
-5. GET `/hrd/leave-requests?employee_id=<uuid>&status=APPROVED` → combined filters
-2. Should return list dengan employee_name dan leave_type (no IDs)
-3. Verify pagination meta correct
+- Prevent race condition concurrent approvals
+- Critical untuk data integrity (balance deduction)
 
-#### 3. Test Get Detail
-1. GET `/hrd/leave-requests/:id` (dari create step)
-2. Should return full details dengan nested employee dan leave_type objects
-3. Verify employee details complete (name, email, phone, employee_code)
+**Trade-off:** Slightly slower (lock acquisition), tapi necessary untuk consistency
 
-#### 4. Test Update
-1. PUT `/hrd/leave-requests/:id` dengan body:
-   ```json
-   {
-     "start_date": "2024-02-02",
-     "end_date": "2024-02-04",
-     "note": "Updated dates"
-   }
-   ```
-2. Should return updated detail
-3. Verify `total_days` recalculated
+### 4. Split DTOs (List vs Detail)
 
-#### 5. Test Balance Calculation
-1. GET `/hrd/leave-requests/balance/:employee_id`
-2. Should return balance summary
-3. Verify `remaining_balance = total_quota - used_leave`
+**Keputusan:** DTO terpisah untuk list dan detail
 
-#### 6. Test Approval Workflow
-1. Logout, login sebagai manager/approver
-2. GET `/hrd/leave-requests?status=PENDING` → list pending requests
-3. POST `/hrd/leave-requests/:id/approve` dengan body `{}`
-4. Should return approved detail
-5. Verify `approved_at` timestamp populated
-6. GET balance again → verify `used_leave` increased
+**Alasan:**
 
-#### 7. Test Rejection Workflow
-1. Login sebagai approver
-2. GET `/hrd/leave-requests?status=PENDING` → list pending requests
-3. POST `/hrd/leave-requests/:id/reject` dengan body:
-   ```json
-   {
-     "rejection_note": "Insufficient justification for leave"
-   }
-   ```
-4. Should return rejected detail
-5. Verify `rejection_note` populated and status = REJECTED
+- List view: Simplified response (strings only)
+- Detail view: Full nested objects
+- API response optimized
 
-#### 8. Test Cancel Workflow (NEW)
-1. Login sebagai approver
-2. First approve a pending request: POST `/hrd/leave-requests/:pending_id/approve`
-3. Then cancel the approved request: POST `/hrd/leave-requests/:approved_id/cancel` dengan body:
-   ```json
-   {
-     "cancellation_note": "Employee called in sick"  // optional
-   }
-   ```
-4. Should return cancelled detail with status = CANCELLED
-5. Verify leave balance freed up (if leave type cuts annual leave)
-6. Try cancelling a REJECTED request → should return error `INVALID_STATUS`
+**Trade-off:** Lebih banyak DTOs, tapi performance gain signifikan
 
-#### 9. Test Permission Enforcement (once middleware implemented)
-1. Login sebagai regular employee (without leave.create permission)
-2. Try POST `/hrd/leave-requests` → should return FORBIDDEN
-3. Try GET `/hrd/leave-requests` → should return FORBIDDEN
-4. Try PUT `/hrd/leave-requests/:id` → should return FORBIDDEN
-5. Try DELETE `/hrd/leave-requests/:id` → should return FORBIDDEN
-6. Verify only users with appropriate permissions can access endpoints
+### 5. Form Data Endpoint
 
-### Frontend UI Testing
+**Keputusan:** Dedicated endpoint `/form-data` untuk dropdown
 
-**Note**: Frontend UI tests assume permission-based access control is implemented. Users without permissions should not see leave request management pages.
+**Alasan:**
 
-#### 1. Test List Page Load (HR/Approver Only)
-1. Navigate to `/hrd/leave-requests`
-2. Should show loading skeleton briefly
-3. Should display table with columns: Employee, Leave Type, Start Date, End Date, Days, Status, Actions
-4. Verify clickable employee name (text-primary with hover underline)
-5. Verify status badges:
-   - Pending: Yellow (warning variant)
-   - Approved: Green (success variant)
-   - Rejected: Red (destructive variant)
-   - Cancelled: Gray (secondary variant)
+- Frontend butuh employee list + leave types untuk form
+- Lebih efficient daripada fetch full list dengan pagination
+- UX better (fast dropdown population)
 
-#### 2. Test Search & Filters
-1. Type in search box (debounced 500ms) → should filter by employee name or reason
-2. Select status filter dropdown → should update results
-3. Clear search → should show all results
-4. Pagination should update based on filters
+**Trade-off:** Extra endpoint, tapi prevents pagination handling complexity
 
-#### 3. Test Create Leave Request
-1. Click "Add Leave Request" button
-2. Form dialog should open with fields:
-   - **Employee** (select dropdown with name & email) - only visible in create mode
-   - **Leave Type** (select dropdown)
-   - **Duration** (select: Full Day, Half Day, Multiple Days) - default: Full Day
-   - **Start Date** (date picker)
-   - **End Date** (date picker)
-   - **Reason** (textarea, min 10 chars, max 500 chars)
-3. Test duration auto-adjustment:
-   - Select different dates → duration should auto-switch to "Multiple Days"
-   - Select same date → duration should stay "Full Day" or "Half Day"
-4. Test days calculation:
-   - **Half Day**: Should show "0.5 days"
-   - **Full Day** (same date): Should show "1 day"
-   - **Multiple Days**: Should show actual range (e.g., "3 days")
-5. Test validation:
-   - Try "Full Day" with different dates → should show error "Date range does not match selected duration"
-   - Try "Multiple Days" with same date → should show error
-   - Try reason < 10 chars → should show "Reason must be at least 10 characters"
-6. Fill valid data → click Submit → should show success toast → dialog closes → list refreshes
-7. Verify form caching: Close dialog mid-filling → reopen → previous values should be restored from localStorage
+### 6. Cancel vs Reject Endpoint Terpisah
 
-#### 4. Test Edit Leave Request
-1. Click "Edit" action button (only available for PENDING/REJECTED status)
-2. **Loading State**: Form should show loading spinner with message:
-   - **"Loading leave request data..."** while fetching full leave request details
-   - Form should **NOT render** until all data is loaded
-3. **Auto-Population Verification**:
-   - Employee select should automatically show the correct employee (with code, name, and balance)
-   - Leave type select should automatically show the correct leave type
-   - Dates should be pre-filled and correctly formatted
-   - Duration should match the leave request (FULL_DAY, HALF_DAY, or MULTI_DAY)
-   - Reason textarea should be pre-filled with existing text
-4. **Form Validation**:
-   - All fields should be editable (except employee in edit mode)
-   - Changing dates should trigger duration auto-adjustment
-   - Form validation should work (min/max lengths, required fields)
-5. **Submit and Verify**:
-   - Update some fields (e.g., change dates or reason)
-   - Click Submit → should show success toast
-   - List refreshes with updated data
-   - Updated values should persist
-6. **Try Editing Different Request**:
-   - Close form, then edit a different leave request
-   - Form should completely reset and load new request data
-   - No leftover data from previous request
-7. Try edit APPROVED leave request → Edit button should be disabled/hidden
+**Keputusan:** Endpoint terpisah untuk cancel dan reject
 
-#### 5. Test View Detail Modal
-1. Click employee name or "View" action button
-2. Modal should open showing:
-   - Employee details (name, email, phone, employee code)
-   - Leave type details (name, code, description)
-   - Date range and duration
-   - Total days calculated
-   - Reason
-   - Status badge
-   - Approval info (if approved): Approver name, approval date
-   - Rejection info (if rejected): Rejection reason, rejection date
-   - Timestamps: Created At, Updated At
-3. Close modal → should return to list
+**Alasan:**
 
-#### 6. Test Approve/Reject Workflow
-1. Login as manager/approver
-2. Navigate to leave requests list
-3. Click "Approve" button on PENDING request
-4. Confirmation dialog should open
-5. Optional notes field available
-6. Click Confirm → should show success toast → status badge changes to green "Approved"
-7. Click "Reject" button on another PENDING request
-8. Rejection dialog should open
-9. Rejection reason field (required, min 10 chars)
-10. Submit → should show success toast → status badge changes to red "Rejected"
-11. Verify optimistic update: Status changes immediately, then reverts if API fails
+- Semantics berbeda (cancel = batalkan yang disetujui, reject = tolak pengajuan)
+- Cancel bisa dari PENDING atau APPROVED, reject hanya dari PENDING
+- Cancel note optional, reject note required
+- Cancel delete attendance records (if approved)
 
-#### 7. Test Delete Confirmation
-1. Click "Delete" action button (only for PENDING/REJECTED)
-2. Confirmation dialog should open with warning text
-3. Click Cancel → nothing happens
-4. Click Delete → should show success toast → item removed from list
-5. Try delete APPROVED request → Delete button should be disabled/hidden
+**Trade-off:** Extra endpoint, tapi clearer business logic
 
-#### 8. Test Pagination
-1. Verify pagination controls at bottom of table
-2. Click "Next" → should load page 2
-3. Click "Previous" → should go back to page 1
-4. Select per_page dropdown → change to 50 → should show more items
-5. Max per_page should be 100 (enforced by backend)
+### 7. ILIKE Search dengan JOIN
 
-#### 9. Test Loading & Error States
-1. Open DevTools Network tab → throttle to "Slow 3G"
-2. Navigate to leave requests → should show skeleton loaders
-3. Mock 500 error in API → should show error message with retry button
-4. Mock empty data → should show "No data available" message
+**Keputusan:** Search menggunakan ILIKE dengan JOIN ke employees dan leave_types
 
-#### 10. Test Form Caching (Create Mode)
-1. Click "Add Leave Request"
-2. Fill employee, leave type, dates, partial reason
-3. Close dialog WITHOUT submitting
-4. Reopen dialog → all fields should be restored from localStorage
-5. Submit successfully → cache should be cleared
-6. Reopen → should show empty form
+**Alasan:**
 
-#### 11. Test Internationalization (i18n)
-1. Switch language to Indonesian (ID) via language switcher
-2. All labels, placeholders, messages should display in Indonesian
-3. Switch back to English (EN) → should display in English
-4. Verify translations for:
-   - Form labels (Employee, Duration, etc.)
-   - Duration options (Full Day → Hari Penuh, Half Day → Setengah Hari)
-   - Error messages
-   - Success toasts
-   - Status badges
+- Search across multiple fields (employee name, leave type, reason)
+- Case-insensitive untuk better UX
+- GIN indexes ditambahkan untuk performance
 
-#### 12. Test Responsive Design
-1. Resize browser to mobile width (375px)
-2. Table should be horizontally scrollable
-3. Dialogs should fit mobile screen
-4. Form fields should stack vertically
-5. Buttons should be touch-friendly (44px min height)
+**Trade-off:** JOIN setiap search query, tapi acceptable dengan indexes
 
-#### 13. Test Edge Cases
-1. **Concurrent Edit**: Open same leave request in 2 tabs → edit in both → last one wins (no conflict resolution yet)
-2. **Stale Data**: List page open → someone approves a request in another session → refresh to see updates
-3. **Network Timeout**: Slow network → should show loading state, not freeze
-4. **Invalid Dates**: Try set end_date before start_date → should prevent via Calendar disabled prop
+### 8. Permission-Based Access Control
 
-## Automated Testing
+**Keputusan:** Hanya HR/Approvers yang bisa CRUD leave requests
 
-### Unit Tests
-- **Location**: `apps/api/internal/hrd/domain/usecase/leave_request_usecase_test.go`
-- **Coverage**: 
-  - Balance calculation logic
-  - Working days calculation (exclude weekends & holidays)
-  - Overlap validation
-  - State transition validation
-- **Run**: `cd apps/api && go test ./internal/hrd/domain/usecase/...`
+**Alasan:**
 
-### Integration Tests
-- **Location**: `apps/api/test/hrd/leave_request_integration_test.go`
-- **Coverage**:
-  - Full CRUD flow dengan database
-  - Approval workflow
-  - Concurrent approval (row-level locking test)
-- **Run**: `cd apps/api && go test ./test/hrd/...`
+- Business process: Employee request verbally → HR input ke system
+- Centralized control untuk attendance tracking
+- Prevent manipulation oleh employee
+- Audit compliance: all changes traceable ke HR users
 
-### E2E Tests
-- **Location**: `apps/web/tests/e2e/hrd/leave-request.spec.ts`
-- **Coverage**:
-  - Submit leave request dari frontend
-  - Approval workflow dari frontend
-  - Balance display
-- **Run**: `cd apps/web && pnpm test:e2e hrd`
+**Implementation:**
 
-## Dependencies
+- Router-level permission middleware
+- Admin role bypasses all checks
+- 2-tier caching (L1: in-memory 1min, L2: Redis 1hr)
 
-### Backend
-- **GORM**: Models dan query builder
-- **Gin**: HTTP routing dan middleware
-- **PostgreSQL**: Database (port 5434 in Docker)
-- **Redis** (planned): Cache leave balance untuk performance
+**Trade-off:** HR harus manual input (more work), tapi compliance lebih baik
 
-### Frontend
-- **Next.js 16**: App Router dengan server components
-- **TanStack Query v5**: Data fetching, caching, optimistic updates
-- **React Hook Form**: Form state management
-- **Zod**: Schema validation (client-side)
-- **shadcn/ui**: UI components (Dialog, Select, Calendar, Badge, etc.)
-- **next-intl**: Internationalization (EN/ID)
-- **date-fns**: Date manipulation dan formatting
-- **Sonner**: Toast notifications
-- **Framer Motion**: Page transitions (PageMotion component)
+---
+
+## Notes & Improvements
 
 ### Completed Features ✅
 
-#### Backend (All Implemented)
-- ✅ **Search functionality** - Search by employee name, leave type, or reason with ILIKE + GIN indexes
-- ✅ **Cancel endpoint** - Approvers can cancel PENDING or APPROVED requests with optional note
-- ✅ **Form data with employee code** - Email removed, employee_code added to FormEmployeeDTO
-- ✅ **Leave balance for each employee** - Each employee in FormEmployeeDTO includes their remaining_balance (total_quota - used_leave)
-- ✅ **Permission middleware integration** - Router-level middleware with `RequirePermission()` for all endpoints
-- ✅ **GIN indexes for search** - Created pg_trgm indexes on employees.name, leave_types.name, leave_requests.reason
+**Backend:**
 
-#### Frontend (All Implemented)
-- ✅ **Fresh form data on open** - Form always fetches fresh employee and leave type data when opened (with loading state)
-- ✅ **Auto-populate edit form** - Edit mode automatically populates select fields with correct values from leave request data
-- ✅ **Employee balance in select** - Employee dropdown shows format: `{code} - {name} ({balance} days remaining)`
-- ✅ **Cancel action in list** - Cancel button in dropdown menu for PENDING/APPROVED requests (with optional note dialog)
-- ✅ **Cancel action in detail modal** - Cancel button in header for PENDING/APPROVED requests (separate from Reject)
-- ✅ **Separate cancel/reject info display** - Detail modal shows Rejection Information (red) for REJECTED and Cancellation Information (orange) for CANCELLED status
-- ✅ **Self-service leave request tab** - Employees can create/view/cancel their own leave requests via drawer tab
-- ✅ **Leave quota display** - Self-service tab shows 3-column quota card (Total/Used/Remaining) with color coding
-- ✅ **Employee balance in admin form** - Shows remaining balance below employee selector with color coding
-- ✅ **Auto-fill end date** - End date auto-fills to match start date when start date exceeds current end date
-- ✅ **Zod validation messages** - Custom error messages for min/max length on reason field (10-500 chars)
-- ✅ **Comprehensive detail modal** - Tabs with General + Timeline, sectioned info cards, action buttons, full nested data
-- ✅ **i18n translations complete** - All keys added for EN/ID locales including cancel dialog translations
+- ✅ Search functionality dengan ILIKE + GIN indexes
+- ✅ Cancel endpoint dengan row-level locking
+- ✅ Form data dengan employee_code dan remaining_balance
+- ✅ Permission middleware integration
+- ✅ Soft delete untuk audit trail
+- ✅ Working days calculation (exclude weekends & holidays)
+- ✅ Overlap validation
+- ✅ Balance validation
 
-#### Postman Collection ✅
-- ✅ **Search parameter added** - List endpoint includes search query parameter documentation
-- ✅ **Form data response updated** - Shows employee_code and remaining_balance for each employee in response example
-- ✅ **Cancel endpoint documented** - Complete request/response examples with business logic
+**Frontend:**
 
-### Known Limitations & Future Improvements
+- ✅ Fresh form data fetching
+- ✅ Auto-populate edit form
+- ✅ Employee balance in selector
+- ✅ Cancel/Reject action dengan note dialog
+- ✅ Separate cancel/reject info display
+- ✅ Self-service leave request tab
+- ✅ Leave quota display dengan color coding
+- ✅ Auto-fill end date
+- ✅ Form caching ke localStorage
+- ✅ Comprehensive detail modal
+- ✅ i18n translations (EN/ID)
 
-#### Backend
-- **Email notification** - TODO: Trigger notification on approval/rejection/cancellation
-- **Carry-over calculation** - TODO: Automatic carry-over calculation di awal tahun
-- Saat ini belum support fractional days (contoh: 1.5 days untuk half-day start/end)
+### Planned Improvements ⏳
 
-#### Frontend
-- **Permission-based UI** - TODO: Hide/show features based on user permissions (leave.create, leave.read, etc.)
-- Concurrent edit conflict resolution belum implemented (last write wins)
-- Real-time updates tidak ada (harus manual refresh untuk lihat perubahan dari user lain)
-- Attachment upload belum implemented (backend sudah support attachment_url)
+**Backend:**
 
-### Future Improvements
+- [ ] Email notification on approval/rejection/cancellation
+- [ ] Automatic carry-over calculation di awal tahun
+- [ ] Redis caching untuk leave balance
+- [ ] GIN full-text search untuk dataset besar
 
-#### Feature Enhancements
-- **Permission Service Integration**: Integrate with actual RBAC permission service (currently TODOs in usecase)
-- **Employee Self-Service Portal** (if business rules change): Allow employees to view their own leave requests (read-only)
-- **Delegation feature**: Assign substitute/backup person during leave
-- **Bulk approval**: Approve multiple leave requests sekaligus untuk manager
-- **Bulk cancel**: Cancel multiple approved leaves (e.g., during emergency situations)
-- **Calendar view**: Visual calendar untuk leave schedule team
-- **Report export**: Export leave history to Excel/PDF
-- **Leave allocation**: Auto-allocate leave quota berdasarkan join date
-- **Attachment upload**: Support attachment untuk sick leave (medical certificate)
-- **Advanced search**: Filter by multiple criteria simultaneously (date range + status + employee + search)
-- **Search history**: Save common search queries for quick access
+**Frontend:**
 
-#### Technical Improvements
-- **Permission Middleware**: Implement middleware to check permissions before allowing access to endpoints
-- **Redis caching**: Cache leave balance dengan event-driven invalidation (saat ada approval)
-- **Search Optimization**: Add GIN index untuk full-text search jika dataset >100k records
-- **WebSocket/SSE**: Real-time updates untuk concurrent editing detection
-- **Notification system**: Email/push notification untuk approval/rejection/cancellation
-- **Mobile app**: Submit leave request dari mobile app
-- **Conflict resolution**: Optimistic locking dengan version field
-- **Offline support**: PWA dengan offline form submission queue
-- **Audit Log**: Comprehensive audit trail for all actions (who did what when)
+- [ ] Permission-based UI (hide/show features)
+- [ ] Calendar view untuk leave schedule
+- [ ] Bulk approval/cancellation
+- [ ] Attachment upload untuk medical certificates
+- [ ] Real-time updates dengan WebSocket/SSE
 
 ### Performance Considerations
 
-#### Backend
-- **Search Performance**: ILIKE with JOIN on employees and leave_types tables - acceptable for datasets <100k records
-- **Search Optimization TODO**: Add GIN index with pg_trgm for full-text search if dataset grows beyond 100k
-- Leave balance calculation bisa di-cache di Redis dengan TTL 1 hour
-- Consider denormalization: Store employee_name dan leave_type_name di leave_requests table untuk avoid joins (trade-off: data sync complexity)
-- Pagination default 20 items, max 100 untuk prevent memory issues
-- Indexes: `employee_id`, `status`, `start_date`, `end_date` untuk optimize queries
-- Batch fetching di List endpoint prevent N+1 queries (employees and leave_types fetched once, not per row)
+**Backend:**
 
-#### Frontend
-- TanStack Query caching: 5 minutes stale time untuk list, 10 minutes untuk detail
-- Optimistic updates untuk approve/reject/cancel (immediate UI feedback)
-- Form caching di localStorage untuk prevent data loss (auto-save setiap field change)
-- Query invalidation setelah mutations (create/update/delete/approve/reject/cancel)
-- Debounced search (500ms) untuk reduce API calls (TODO: implement in frontend)
-- Lazy loading dengan React.lazy() untuk code splitting
+- Pagination default 20 items, max 100
+- Batch fetching prevent N+1 queries
+- GIN indexes untuk search
+- Row-level locking untuk concurrent operations
 
-### Security Considerations
-- ✅ **Permission-Based Access Control** (NEW): Only HR/Approvers can perform CRUD operations
-- **Permission Middleware TODO**: Implement middleware to enforce `leave.create`, `leave.read`, `leave.update`, `leave.delete`, `leave.approve` permissions
-- **Row-level locking**: Prevent race conditions on concurrent approvals/rejections/cancellations (FOR UPDATE clause)
-- **Soft delete**: Preserve audit trail for compliance
-- **Input validation**: All DTOs have binding tags for automatic validation (backend) + Zod validation (frontend)
-- **CSRF protection**: Applied at middleware level (not endpoint-specific)
-- **XSS protection**: React auto-escapes all text content, shadcn/ui components sanitized
-- **SQL Injection Prevention**: GORM parameterized queries for all database operations
-- **Search Input Sanitization**: ILIKE pattern constructed safely with GORM (no raw SQL)
+**Frontend:**
 
+- TanStack Query caching (5 min stale time)
+- Optimistic updates untuk approve/reject/cancel
+- Form caching di localStorage
+- Debounced search (500ms)
+
+---
+
+## Appendix
+
+### Error Codes
+
+| Code                   | Description                        |
+| ---------------------- | ---------------------------------- |
+| `INSUFFICIENT_BALANCE` | Requested days > remaining balance |
+| `OVERLAPPING_REQUEST`  | Overlapping leave exists           |
+| `INVALID_STATUS`       | Invalid status transition          |
+| `INVALID_DATE_RANGE`   | Start date > end date              |
+| `NOT_FOUND`            | Leave request not found            |
+| `ALREADY_APPROVED`     | Cannot modify approved request     |
+| `ALREADY_CANCELLED`    | Cannot modify cancelled request    |
+
+### Database Indexes
+
+```sql
+CREATE INDEX idx_leave_requests_employee ON leave_requests(employee_id);
+CREATE INDEX idx_leave_requests_status ON leave_requests(status);
+CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
+CREATE INDEX idx_leave_requests_search ON leave_requests USING gin (reason gin_trgm_ops);
+```
+
+---
+
+_Document generated for GIMS Platform - HRD Leave Request Management (v1.5.0)_

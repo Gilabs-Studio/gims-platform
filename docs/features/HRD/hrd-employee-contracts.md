@@ -1,344 +1,94 @@
-# Employee Contract Management (Master Data > Employees)
+# HRD - Employee Contract Management
 
-> **Modul**: Master Data > Employees
-> **Backend**: `apps/api/internal/organization/`
-> **Frontend**: `apps/web/src/features/master-data/employee/`
-
----
-
-## Ringkasan Fitur
-
-Employee Contract Management mengelola siklus hidup kontrak kerja karyawan. Contract merupakan bagian dari data master karyawan, bukan transaksi HRD, sehingga dikelola langsung di modul Employee.
-
-### Fitur Utama
-
-- Create employee dengan optional initial contract (atomic)
-- Create contract terpisah untuk existing employee
-- Update/Edit contract (nomor kontrak, tipe, tanggal, dokumen — form auto-prefill)
-- Terminate contract (resign, PHK, dll)
-- Renew contract (buat kontrak baru, expire yang lama)
-- Correct active contract (koreksi data tanpa mengubah histori)
-- Contract history timeline dengan download dokumen
-- Document upload untuk kontrak (nama file asli ditampilkan & bisa di-download)
-- End date validation (tidak bisa sebelum/sama dengan start date)
-- i18n support penuh (EN & ID), termasuk tipe kontrak: PKWTT, PKWT, Magang
+> **Module:** Organization (Master Data > Employees)  
+> **Sprint:** —  
+> **Version:** 3.1.0  
+> **Status:** ✅ Complete (API + Frontend)  
+> **Last Updated:** February 2026
 
 ---
 
-## Business Rules
+## Table of Contents
 
-### Contract Types
-
-| Type   | Nama Lengkap                             | End Date | Keterangan          |
-| ------ | ---------------------------------------- | -------- | ------------------- |
-| PKWTT  | Perjanjian Kerja Waktu Tidak Tertentu    | Dilarang | Kontrak permanent   |
-| PKWT   | Perjanjian Kerja Waktu Tertentu          | Wajib    | Kontrak waktu fixed |
-| Intern | Magang                                   | Wajib    | Kontrak magang      |
-
-### Contract Status
-
-| Status     | Keterangan                        |
-| ---------- | --------------------------------- |
-| ACTIVE     | Kontrak berlaku                   |
-| EXPIRED    | Kontrak telah diganti/dikoreksi   |
-| TERMINATED | Kontrak diakhiri secara manual    |
-
-### Validasi Penting
-
-1. **`contract_number` wajib diisi** — tidak ada auto-generate berdasarkan employee code
-2. **PKWTT** tidak boleh punya `end_date`
-3. **PKWT/Intern** wajib punya `end_date`
-4. **`end_date`** tidak boleh pada atau sebelum `start_date`
-5. Satu employee hanya boleh punya **satu kontrak ACTIVE** pada satu waktu
-6. Contract yang sudah **TERMINATED** tidak bisa dimodifikasi
-7. `contract_number` harus unik secara global
+1. [Overview](#overview)
+2. [Features](#features)
+3. [System Architecture](#system-architecture)
+4. [Data Models](#data-models)
+5. [Business Logic](#business-logic)
+6. [API Reference](#api-reference)
+7. [Frontend Components](#frontend-components)
+8. [User Flows](#user-flows)
+9. [Permissions](#permissions)
+10. [Configuration](#configuration)
+11. [Integration Points](#integration-points)
+12. [Testing Strategy](#testing-strategy)
+13. [Keputusan Teknis](#keputusan-teknis)
+14. [Notes & Improvements](#notes--improvements)
+15. [Appendix](#appendix)
 
 ---
 
-## Keputusan Teknis
+## Overview
 
-1. **Atomic Employee + Contract Creation**: Frontend mengirim `initial_contract` nested di dalam request create employee. Backend membuat keduanya dalam satu operasi.
-2. **No Salary/JobTitle/Department**: Field ini dihapus dari contract karena sudah ada di data employee (`job_position_id`, `division_id`). Privacy concern untuk salary.
-3. **Contract Type Simplification**: Dari 4 tipe (PERMANENT, CONTRACT, INTERNSHIP, PROBATION) menjadi 3 (PKWTT, PKWT, Intern). Probation dianggap status dalam PKWT.
-4. **Contract Number Wajib Diisi**: `contract_number` harus diisi manual oleh user, baik saat create employee (initial contract) maupun saat create/renew contract. Tidak ada auto-generate berdasarkan employee code.
-5. **Correct = Create New + Expire Old**: Action correct membuat kontrak baru (dengan suffix `-C` pada nomor) dan meng-expire kontrak lama. Field `corrected_from_contract_id` menyimpan relasi.
-6. **Renew = Create New + Expire Old**: Action renew membuat kontrak baru dan meng-expire kontrak lama.
-7. **End Date Validation**: Datepicker `end_date` tidak mengizinkan pemilihan tanggal pada atau sebelum `start_date` yang dipilih (berlaku di form create employee, create contract, dan edit contract).
-8. **Edit Contract Pre-fill**: Dialog edit contract otomatis terisi data kontrak yang sedang diedit saat dibuka.
-9. **Filename UX**: Backend menyimpan `{uuid}_{sanitized_original_name}.{ext}` agar frontend bisa menampilkan nama file asli yang bisa di-download.
+Employee Contract Management handles the lifecycle of employee work contracts. A contract is part of the employee master data, managed within the Employee module. This feature supports various contract types commonly used in Indonesia including PKWTT, PKWT, and internship contracts.
 
----
+### Key Features
 
-## API Endpoints
-
-Base URL: `/api/v1/organization/employees`
-
-### Employee CRUD (with contract support)
-
-| Method | Endpoint                                           | Description                          | Permission        |
-| ------ | -------------------------------------------------- | ------------------------------------ | ----------------- |
-| POST   | `/employees`                                       | Create employee (+ optional contract)| employee.create   |
-| GET    | `/employees`                                       | List employees                       | employee.read     |
-| GET    | `/employees/:id`                                   | Get employee detail                  | employee.read     |
-| PUT    | `/employees/:id`                                   | Update employee                      | employee.update   |
-| DELETE | `/employees/:id`                                   | Delete employee (soft)               | employee.delete   |
-| GET    | `/employees/form-data`                             | Get form dropdown options            | employee.read     |
-
-### Contract Management
-
-| Method | Endpoint                                           | Description            | Permission        |
-| ------ | -------------------------------------------------- | ---------------------- | ----------------- |
-| GET    | `/employees/:id/contracts`                         | List all contracts     | employee.read     |
-| POST   | `/employees/:id/contracts`                         | Create new contract    | employee.update   |
-| GET    | `/employees/:id/contracts/active`                  | Get active contract    | employee.read     |
-| PUT    | `/employees/:id/contracts/:contract_id`            | Update contract        | employee.update   |
-| DELETE | `/employees/:id/contracts/:contract_id`            | Delete contract (soft) | employee.delete   |
-| POST   | `/employees/:id/contracts/:contract_id/terminate`  | Terminate contract     | employee.update   |
-| POST   | `/employees/:id/contracts/:contract_id/renew`      | Renew contract         | employee.update   |
-| PATCH  | `/employees/:id/contracts/active`                  | Correct active contract| employee.update   |
+| Feature                    | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| Contract Creation          | Create employee with optional initial contract (atomic)  |
+| Separate Contract Creation | Add contracts to existing employees                      |
+| Contract Update            | Edit contract details (number, type, dates, document)    |
+| Contract Termination       | End contract (resignation, termination, etc.)            |
+| Contract Renewal           | Create new contract while expiring the old one           |
+| Contract Correction        | Fix active contract data without changing history        |
+| Contract History           | Timeline view of all contracts with download capability  |
+| Document Upload            | Upload and download contract documents                   |
+| Validation                 | End date validation and contract number uniqueness       |
+| i18n Support               | Full EN & ID support including Indonesian contract types |
 
 ---
 
-## Request/Response Bodies
+## Features
 
-### POST /employees — Create Employee
+### 1. Contract Types
 
-```json
-{
-  "employee_code": "EMP001",
-  "name": "John Doe",
-  "email": "john.doe@example.com",
-  "phone": "+6281234567890",
-  "division_id": "uuid",
-  "job_position_id": "uuid",
-  "company_id": "uuid",
-  "date_of_birth": "1990-01-15T00:00:00Z",
-  "place_of_birth": "Jakarta",
-  "gender": "male",
-  "religion": "Islam",
-  "address": "Jl. Sudirman No. 123, Jakarta",
-  "village_id": "uuid",
-  "nik": "3171234567890001",
-  "npwp": "12.345.678.9-012.000",
-  "bpjs": "0001234567890",
-  "total_leave_quota": 12,
-  "ptkp_status": "TK/0",
-  "is_disability": false,
-  "replacement_for_id": null,
-  "area_ids": ["uuid1", "uuid2"],
-  "supervised_area_ids": [],
-  "is_active": true,
-  "initial_contract": {
-    "contract_number": "CTR-EMP001-001",
-    "contract_type": "PKWTT",
-    "start_date": "2026-02-01",
-    "end_date": "",
-    "document_path": "/uploads/uuid_contract.pdf"
-  }
-}
-```
+| Type     | Full Name                             | End Date    | Description                   |
+| -------- | ------------------------------------- | ----------- | ----------------------------- |
+| `PKWTT`  | Perjanjian Kerja Waktu Tidak Tertentu | Not allowed | Permanent employment contract |
+| `PKWT`   | Perjanjian Kerja Waktu Tertentu       | Required    | Fixed-term contract           |
+| `Intern` | Magang                                | Required    | Internship contract           |
 
-> `initial_contract` bersifat opsional. Jika tidak disertakan, employee dibuat tanpa kontrak.
-> `contract_number` wajib diisi (tidak ada auto-generate).
+### 2. Contract Status
 
-### POST /employees/:id/contracts — Create Contract
+| Status       | Description                                        |
+| ------------ | -------------------------------------------------- |
+| `ACTIVE`     | Contract is currently in effect                    |
+| `EXPIRED`    | Contract has been replaced or corrected            |
+| `TERMINATED` | Contract ended manually (resignation, termination) |
 
-```json
-{
-  "contract_number": "CTR-EMP001-002",
-  "contract_type": "PKWT",
-  "start_date": "2026-03-01",
-  "end_date": "2027-03-01",
-  "document_path": "/uploads/uuid_contract.pdf"
-}
-```
+### 3. Contract Actions
 
-### PUT /employees/:id/contracts/:contract_id — Update Contract
+| Action      | Description                                 |
+| ----------- | ------------------------------------------- |
+| `Create`    | Add new contract to employee                |
+| `Update`    | Modify contract details                     |
+| `Terminate` | End contract with reason                    |
+| `Renew`     | Create new contract, expire old one         |
+| `Correct`   | Create corrected version of active contract |
 
-```json
-{
-  "contract_number": "CTR-EMP001-002-REV",
-  "contract_type": "PKWT",
-  "start_date": "2026-03-01",
-  "end_date": "2027-06-01",
-  "document_path": "/uploads/uuid_new_doc.pdf"
-}
-```
+### 4. Document Management
 
-> Semua field opsional. Hanya field yang dikirim yang akan diupdate.
-
-### POST /employees/:id/contracts/:contract_id/terminate — Terminate
-
-```json
-{
-  "reason": "RESIGN",
-  "notes": "Employee resigned voluntarily"
-}
-```
-
-> `reason` wajib (max 100 char). `notes` opsional (max 1000 char).
-
-### POST /employees/:id/contracts/:contract_id/renew — Renew
-
-```json
-{
-  "contract_number": "CTR-EMP001-003",
-  "contract_type": "PKWT",
-  "start_date": "2027-03-01",
-  "end_date": "2028-03-01",
-  "document_path": "/uploads/uuid_renewal.pdf"
-}
-```
-
-> Membuat kontrak baru dan meng-expire kontrak lama.
-
-### PATCH /employees/:id/contracts/active — Correct Active Contract
-
-```json
-{
-  "end_date": "2027-06-01",
-  "document_path": "/uploads/uuid_corrected.pdf"
-}
-```
-
-> Membuat kontrak baru (nomor = `{old_number}-C`) dan meng-expire kontrak lama. Field `corrected_from_contract_id` otomatis diisi.
-
-### Response: EmployeeContractResponse
-
-```json
-{
-  "id": "uuid",
-  "employee_id": "uuid",
-  "contract_number": "CTR-EMP001-001",
-  "contract_type": "PKWTT",
-  "start_date": "2026-02-01",
-  "end_date": null,
-  "document_path": "/uploads/uuid_contract.pdf",
-  "status": "ACTIVE",
-  "is_expiring_soon": false,
-  "days_until_expiry": null,
-  "terminated_at": null,
-  "termination_reason": "",
-  "termination_notes": "",
-  "expired_at": null,
-  "corrected_from_contract_id": null,
-  "created_at": "2026-02-22T10:00:00Z",
-  "updated_at": "2026-02-22T10:00:00Z"
-}
-```
+- Upload contract documents (PDF, DOC, DOCX)
+- Download documents from timeline
+- Display original filename in UI
+- Stored as `{uuid}_{sanitized_original_name}.{ext}`
 
 ---
 
-## Cara Test Manual
+## System Architecture
 
-### 1. Create Employee dengan Contract
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organization/employees \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "employee_code": "EMP001",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "gender": "male",
-    "initial_contract": {
-      "contract_number": "CTR-EMP001-001",
-      "contract_type": "PKWTT",
-      "start_date": "2026-02-01"
-    }
-  }'
-```
-
-### 2. Create Employee tanpa Contract
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organization/employees \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "employee_code": "EMP002",
-    "name": "Jane Smith",
-    "email": "jane@example.com",
-    "gender": "female"
-  }'
-```
-
-### 3. Create Contract untuk Existing Employee
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "contract_number": "CTR-EMP002-001",
-    "contract_type": "PKWT",
-    "start_date": "2026-03-01",
-    "end_date": "2027-03-01"
-  }'
-```
-
-### 4. View Contract History
-
-```bash
-curl http://localhost:8080/api/v1/organization/employees/:id/contracts \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### 5. View Active Contract
-
-```bash
-curl http://localhost:8080/api/v1/organization/employees/:id/contracts/active \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### 6. Terminate Contract
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts/:contractId/terminate \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "reason": "RESIGN",
-    "notes": "Employee resigned voluntarily"
-  }'
-```
-
-### 7. Renew Contract
-
-```bash
-curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts/:contractId/renew \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "contract_number": "CTR-EMP001-002",
-    "contract_type": "PKWT",
-    "start_date": "2027-03-01",
-    "end_date": "2028-03-01"
-  }'
-```
-
-### 8. Correct Active Contract
-
-```bash
-curl -X PATCH http://localhost:8080/api/v1/organization/employees/:id/contracts/active \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: $CSRF" \
-  -d '{
-    "end_date": "2027-06-01",
-    "document_path": "/uploads/uuid_corrected.pdf"
-  }'
-```
-
----
-
-## Backend Folder Structure
+### Backend Structure
 
 ```
 apps/api/internal/organization/
@@ -365,20 +115,20 @@ apps/api/internal/organization/
     └── routers.go
 ```
 
-## Frontend Folder Structure
+### Frontend Structure
 
 ```
 apps/web/src/features/master-data/employee/
 ├── components/
 │   ├── contracts/
-│   │   ├── contract-info-card.tsx      # Card info kontrak aktif
-│   │   ├── contract-timeline.tsx       # Timeline riwayat kontrak
-│   │   ├── create-contract-dialog.tsx  # Dialog buat kontrak baru
-│   │   ├── correct-contract-dialog.tsx # Dialog koreksi kontrak aktif
-│   │   ├── edit-contract-dialog.tsx    # Dialog edit kontrak (auto-prefill)
-│   │   ├── renew-contract-dialog.tsx   # Dialog perpanjang kontrak
-│   │   ├── terminate-contract-dialog.tsx # Dialog terminasi kontrak
-│   │   └── index.ts                   # Barrel exports
+│   │   ├── index.ts                        # Barrel exports
+│   │   ├── contract-info-card.tsx          # Active contract info card
+│   │   ├── contract-timeline.tsx           # Contract history timeline
+│   │   ├── create-contract-dialog.tsx      # Create new contract
+│   │   ├── correct-contract-dialog.tsx     # Correct active contract
+│   │   ├── edit-contract-dialog.tsx        # Edit contract (auto-prefill)
+│   │   ├── renew-contract-dialog.tsx       # Renew contract
+│   │   └── terminate-contract-dialog.tsx   # Terminate contract
 │   ├── employee-detail-modal.tsx
 │   ├── employee-form.tsx
 │   └── employee-list.tsx
@@ -397,32 +147,34 @@ apps/web/src/features/master-data/employee/
 
 ---
 
-## Database Schema
+## Data Models
 
-### employee_contracts
+### EmployeeContract
 
-| Column                       | Type         | Nullable | Description                              |
-| ---------------------------- | ------------ | -------- | ---------------------------------------- |
-| id                           | uuid (PK)    | No       | Auto-generated                           |
-| employee_id                  | uuid (FK)    | No       | References employees.id                  |
-| contract_number              | varchar(50)  | No       | Unique                                   |
-| contract_type                | varchar(20)  | No       | PKWTT, PKWT, Intern                      |
-| start_date                   | date         | No       |                                          |
-| end_date                     | date         | Yes      | NULL for PKWTT                           |
-| document_path                | varchar(255) | Yes      | URL ke uploaded file                     |
-| status                       | varchar(20)  | No       | ACTIVE, EXPIRED, TERMINATED              |
-| terminated_at                | timestamp    | Yes      | Waktu terminasi                          |
-| termination_reason           | varchar(100) | Yes      | Alasan terminasi                         |
-| termination_notes            | text         | Yes      | Catatan terminasi                        |
-| expired_at                   | timestamp    | Yes      | Waktu expire                             |
-| corrected_from_contract_id   | uuid (FK)    | Yes      | References employee_contracts.id         |
-| created_by                   | uuid         | No       | User yang membuat                        |
-| updated_by                   | uuid         | Yes      | User yang terakhir update                |
-| created_at                   | timestamp    | No       |                                          |
-| updated_at                   | timestamp    | No       |                                          |
-| deleted_at                   | timestamp    | Yes      | Soft delete                              |
+| Field                      | Type        | Description                            |
+| -------------------------- | ----------- | -------------------------------------- |
+| id                         | UUID        | Primary key                            |
+| employee_id                | UUID        | Employee reference (FK)                |
+| contract_number            | STRING(50)  | Unique contract identifier             |
+| contract_type              | ENUM        | PKWTT, PKWT, Intern                    |
+| start_date                 | DATE        | Contract start date                    |
+| end_date                   | DATE        | Contract end date (nullable for PKWTT) |
+| document_path              | STRING(255) | Path to uploaded document              |
+| status                     | ENUM        | ACTIVE, EXPIRED, TERMINATED            |
+| is_expiring_soon           | BOOL        | Computed flag                          |
+| days_until_expiry          | INT         | Computed days to expiry                |
+| terminated_at              | TIMESTAMP   | Termination timestamp                  |
+| termination_reason         | STRING(100) | Termination reason                     |
+| termination_notes          | TEXT        | Termination details                    |
+| expired_at                 | TIMESTAMP   | Expiration timestamp                   |
+| corrected_from_contract_id | UUID        | Reference to corrected contract        |
+| created_by                 | UUID        | Creator user ID                        |
+| updated_by                 | UUID        | Last updater user ID                   |
+| created_at                 | TIMESTAMP   | Record creation                        |
+| updated_at                 | TIMESTAMP   | Last update                            |
+| deleted_at                 | TIMESTAMP   | Soft delete timestamp                  |
 
-### Indexes
+### Database Indexes
 
 ```sql
 CREATE INDEX idx_employee_contracts_employee ON employee_contracts(employee_id);
@@ -435,28 +187,541 @@ CREATE INDEX idx_employee_contracts_deleted ON employee_contracts(deleted_at);
 
 ---
 
+## Business Logic
+
+### Contract Validation Rules
+
+| Rule                     | Description                                         |
+| ------------------------ | --------------------------------------------------- |
+| Contract Number Required | Must be manually entered (no auto-generation)       |
+| PKWTT Restriction        | Cannot have end_date                                |
+| PKWT/Intern Requirement  | Must have end_date                                  |
+| End Date Validation      | end_date cannot be on or before start_date          |
+| Single Active Contract   | Only one ACTIVE contract per employee at a time     |
+| Terminated Immutable     | TERMINATED contracts cannot be modified             |
+| Global Uniqueness        | contract_number must be unique across all contracts |
+
+### Contract Creation Flow
+
+```
+1. Validate employee exists
+2. Validate contract_number is unique
+3. Validate contract_type rules (PKWTT vs PKWT/Intern)
+4. Validate start_date and end_date relationship
+5. Check no other ACTIVE contract exists
+6. Create contract with status = ACTIVE
+```
+
+### Contract Termination Flow
+
+```
+1. Verify contract exists and is ACTIVE
+2. Set status = TERMINATED
+3. Set terminated_at = now()
+4. Record termination_reason and termination_notes
+```
+
+### Contract Renewal Flow
+
+```
+1. Verify contract exists and is ACTIVE
+2. Create new contract with:
+   - New contract_number
+   - Same or different type
+   - New start_date and end_date
+   - status = ACTIVE
+3. Set old contract:
+   - status = EXPIRED
+   - expired_at = now()
+```
+
+### Contract Correction Flow
+
+```
+1. Verify active contract exists
+2. Create new contract with:
+   - contract_number = "{old_number}-C"
+   - Same type, updated dates
+   - status = ACTIVE
+   - corrected_from_contract_id = old_contract.id
+3. Set old contract:
+   - status = EXPIRED
+   - expired_at = now()
+```
+
+### Expiry Calculation
+
+```
+if end_date exists:
+    days_until_expiry = end_date - today
+    is_expiring_soon = days_until_expiry <= 30
+else:
+    days_until_expiry = null
+    is_expiring_soon = false
+```
+
+---
+
+## API Reference
+
+Base URL: `/api/v1/organization/employees`
+
+### Employee CRUD (with contract support)
+
+| Method | Endpoint               | Permission      | Description                                   |
+| ------ | ---------------------- | --------------- | --------------------------------------------- |
+| POST   | `/employees`           | employee.create | Create employee (+ optional initial contract) |
+| GET    | `/employees`           | employee.read   | List employees                                |
+| GET    | `/employees/:id`       | employee.read   | Get employee detail                           |
+| PUT    | `/employees/:id`       | employee.update | Update employee                               |
+| DELETE | `/employees/:id`       | employee.delete | Delete employee (soft)                        |
+| GET    | `/employees/form-data` | employee.read   | Get form dropdown options                     |
+
+### Contract Management
+
+| Method | Endpoint                                          | Permission      | Description             |
+| ------ | ------------------------------------------------- | --------------- | ----------------------- |
+| GET    | `/employees/:id/contracts`                        | employee.read   | List all contracts      |
+| POST   | `/employees/:id/contracts`                        | employee.update | Create new contract     |
+| GET    | `/employees/:id/contracts/active`                 | employee.read   | Get active contract     |
+| PUT    | `/employees/:id/contracts/:contract_id`           | employee.update | Update contract         |
+| DELETE | `/employees/:id/contracts/:contract_id`           | employee.delete | Delete contract (soft)  |
+| POST   | `/employees/:id/contracts/:contract_id/terminate` | employee.update | Terminate contract      |
+| POST   | `/employees/:id/contracts/:contract_id/renew`     | employee.update | Renew contract          |
+| PATCH  | `/employees/:id/contracts/active`                 | employee.update | Correct active contract |
+
+### Request Body Examples
+
+**Create Employee with Contract:**
+
+```json
+{
+  "employee_code": "EMP001",
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "division_id": "uuid",
+  "job_position_id": "uuid",
+  "initial_contract": {
+    "contract_number": "CTR-EMP001-001",
+    "contract_type": "PKWTT",
+    "start_date": "2026-02-01",
+    "document_path": "/uploads/uuid_contract.pdf"
+  }
+}
+```
+
+**Create Contract:**
+
+```json
+{
+  "contract_number": "CTR-EMP001-002",
+  "contract_type": "PKWT",
+  "start_date": "2026-03-01",
+  "end_date": "2027-03-01",
+  "document_path": "/uploads/uuid_contract.pdf"
+}
+```
+
+**Update Contract:**
+
+```json
+{
+  "contract_number": "CTR-EMP001-002-REV",
+  "contract_type": "PKWT",
+  "start_date": "2026-03-01",
+  "end_date": "2027-06-01",
+  "document_path": "/uploads/uuid_new_doc.pdf"
+}
+```
+
+**Terminate Contract:**
+
+```json
+{
+  "reason": "RESIGN",
+  "notes": "Employee resigned voluntarily"
+}
+```
+
+**Renew Contract:**
+
+```json
+{
+  "contract_number": "CTR-EMP001-003",
+  "contract_type": "PKWT",
+  "start_date": "2027-03-01",
+  "end_date": "2028-03-01",
+  "document_path": "/uploads/uuid_renewal.pdf"
+}
+```
+
+**Correct Active Contract:**
+
+```json
+{
+  "end_date": "2027-06-01",
+  "document_path": "/uploads/uuid_corrected.pdf"
+}
+```
+
+### Response Schema
+
+**EmployeeContractResponse:**
+
+```json
+{
+  "id": "uuid",
+  "employee_id": "uuid",
+  "contract_number": "CTR-EMP001-001",
+  "contract_type": "PKWTT",
+  "start_date": "2026-02-01",
+  "end_date": null,
+  "document_path": "/uploads/uuid_contract.pdf",
+  "status": "ACTIVE",
+  "is_expiring_soon": false,
+  "days_until_expiry": null,
+  "terminated_at": null,
+  "termination_reason": "",
+  "termination_notes": "",
+  "expired_at": null,
+  "corrected_from_contract_id": null,
+  "created_at": "2026-02-22T10:00:00Z",
+  "updated_at": "2026-02-22T10:00:00Z"
+}
+```
+
+---
+
+## Frontend Components
+
+### Contract Tab (Employee Detail Modal)
+
+| Component                 | File                          | Description                            |
+| ------------------------- | ----------------------------- | -------------------------------------- |
+| `ContractInfoCard`        | contract-info-card.tsx        | Active contract summary card           |
+| `ContractTimeline`        | contract-timeline.tsx         | Historical contract list with timeline |
+| `CreateContractDialog`    | create-contract-dialog.tsx    | Form for creating new contract         |
+| `EditContractDialog`      | edit-contract-dialog.tsx      | Edit contract form (auto-prefill)      |
+| `CorrectContractDialog`   | correct-contract-dialog.tsx   | Correct active contract data           |
+| `RenewContractDialog`     | renew-contract-dialog.tsx     | Renew existing contract                |
+| `TerminateContractDialog` | terminate-contract-dialog.tsx | Terminate active contract              |
+
+### Contract Timeline Features
+
+- Chronological list of all contracts
+- Status badges (ACTIVE, EXPIRED, TERMINATED)
+- Contract type badges (PKWTT, PKWT, Intern)
+- Expiry warnings for active contracts
+- Document download links
+- Action buttons based on status
+
+### Create/Edit Contract Form
+
+- Fields: Contract Number*, Type*, Start Date\*, End Date (conditional), Document
+- Real-time validation
+- End date picker constraints (cannot be before start date)
+- Document upload with progress
+
+### i18n Keys
+
+All translations under `employee.contract`:
+
+| Key Path                       | Description                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `employee.contract.types.*`    | Contract type labels (PKWTT, PKWT, Intern)               |
+| `employee.contract.statuses.*` | Status labels (ACTIVE, EXPIRED, TERMINATED)              |
+| `employee.contract.fields.*`   | Form field labels                                        |
+| `employee.contract.actions.*`  | Action buttons (create, edit, terminate, renew, correct) |
+
+---
+
+## User Flows
+
+### Create Employee with Contract Flow
+
+```mermaid
+sequenceDiagram
+    participant HR as HR Admin
+    participant UI as Employee Form
+    participant API as Backend API
+    participant DB as Database
+
+    HR->>UI: Navigate to Master Data > Employees
+    HR->>UI: Click "Add Employee"
+    UI->>API: GET /employees/form-data
+    API-->>UI: Dropdown options
+
+    HR->>UI: Fill employee details
+    HR->>UI: Check "Add Initial Contract"
+    HR->>UI: Fill contract details (number, type, dates)
+    UI->>API: POST /employees
+    API->>API: Validate employee data
+    API->>DB: Create employee
+    API->>API: Validate contract data
+    API->>DB: Create contract (linked to employee)
+    DB-->>API: Created records
+    API-->>UI: EmployeeResponse with contract
+    UI-->>HR: Show success, redirect to list
+```
+
+### Contract Termination Flow
+
+```mermaid
+sequenceDiagram
+    participant HR as HR Admin
+    participant UI as Contract Timeline
+    participant API as Backend API
+    participant DB as Database
+
+    HR->>UI: Open employee detail modal
+    HR->>UI: Click Contracts tab
+    UI->>UI: Show active contract with actions
+    HR->>UI: Click "Terminate" on active contract
+    UI->>UI: Open terminate dialog
+    HR->>UI: Select reason, add notes
+    UI->>API: POST /employees/:id/contracts/:id/terminate
+    API->>DB: Update status to TERMINATED
+    API->>DB: Set terminated_at, reason, notes
+    DB-->>API: Updated record
+    API-->>UI: EmployeeContractResponse
+    UI-->>HR: Show success, update timeline
+```
+
+### Contract Renewal Flow
+
+```mermaid
+sequenceDiagram
+    participant HR as HR Admin
+    participant UI as Contract Timeline
+    participant API as Backend API
+    participant DB as Database
+
+    HR->>UI: View Contracts tab
+    HR->>UI: Click "Renew" on expiring contract
+    UI->>UI: Open renew dialog with pre-filled data
+    HR->>UI: Update dates, optionally change type
+    HR->>UI: Submit
+    UI->>API: POST /employees/:id/contracts/:id/renew
+    API->>DB: Create new ACTIVE contract
+    API->>DB: Expire old contract (status=EXPIRED)
+    DB-->>API: Both records
+    API-->>UI: New contract response
+    UI-->>HR: Show success, refresh timeline
+```
+
+---
+
 ## Permissions
 
+| Permission         | Description                                                      |
+| ------------------ | ---------------------------------------------------------------- |
+| `employee.read`    | View employee and contract info                                  |
+| `employee.create`  | Create employee (with optional contract)                         |
+| `employee.update`  | Update employee, create/update/terminate/renew/correct contracts |
+| `employee.delete`  | Delete employee or contract (soft delete)                        |
+| `employee.approve` | Approve/reject employee                                          |
+
+---
+
+## Configuration
+
+### Contract Type Configuration
+
+Contract types are hardcoded enums:
+
+- PKWTT (Permanent)
+- PKWT (Fixed-term)
+- Intern (Internship)
+
+### Document Storage
+
+- Path format: `/uploads/{uuid}_{sanitized_name}.{ext}`
+- Supported formats: PDF, DOC, DOCX
+- Original filename preserved for display
+
+---
+
+## Integration Points
+
+### With Employee Module
+
+- Contracts are sub-resources of employees
+- Accessed through employee detail modal
+- Contract history is part of employee profile
+- Initial contract can be created with employee
+
+### With Upload Module
+
+- Contract documents uploaded via upload endpoints
+- Returns path stored in `document_path` field
+
+---
+
+## Testing Strategy
+
+### Backend Tests
+
+Run unit tests:
+
+```bash
+cd apps/api && go test ./internal/organization/...
 ```
-employee.read      - View employee & contract info
-employee.create    - Create employee (with optional contract)
-employee.update    - Update employee, create/update/terminate/renew/correct contracts
-employee.delete    - Delete employee or contract (soft delete)
-employee.approve   - Approve/reject employee
+
+### Manual Testing
+
+1. **Create Employee with Contract:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organization/employees \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_code": "EMP001",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "gender": "male",
+    "initial_contract": {
+      "contract_number": "CTR-EMP001-001",
+      "contract_type": "PKWTT",
+      "start_date": "2026-02-01"
+    }
+  }'
+```
+
+2. **Create Employee without Contract:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organization/employees \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_code": "EMP002",
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "gender": "female"
+  }'
+```
+
+3. **Create Contract for Existing Employee:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contract_number": "CTR-EMP002-001",
+    "contract_type": "PKWT",
+    "start_date": "2026-03-01",
+    "end_date": "2027-03-01"
+  }'
+```
+
+4. **Terminate Contract:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts/:contractId/terminate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "RESIGN",
+    "notes": "Employee resigned voluntarily"
+  }'
+```
+
+5. **Renew Contract:**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/organization/employees/:id/contracts/:contractId/renew \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contract_number": "CTR-EMP001-002",
+    "contract_type": "PKWT",
+    "start_date": "2027-03-01",
+    "end_date": "2028-03-01"
+  }'
+```
+
+6. **Correct Active Contract:**
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/organization/employees/:id/contracts/active \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "end_date": "2027-06-01",
+    "document_path": "/uploads/uuid_corrected.pdf"
+  }'
 ```
 
 ---
 
-## Related Links
+## Keputusan Teknis
 
-- **Frontend**: `apps/web/src/features/master-data/employee/`
-- **Backend**: `apps/api/internal/organization/`
-- **Postman Collection**: `docs/postman/postman.json`
+| Decision                                      | Rationale                                                                                                                                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Atomic Employee + Contract Creation**       | Frontend sends `initial_contract` nested in create employee request. Backend creates both in one operation for better UX. Trade-off: larger request body, but simpler flow.                                   |
+| **No Salary/JobTitle/Department in Contract** | These fields exist in employee data (`job_position_id`, `division_id`). Salary excluded for privacy. Trade-off: contract is simpler, data normalized.                                                         |
+| **Contract Type Simplification**              | Reduced from 4 types (PERMANENT, CONTRACT, INTERNSHIP, PROBATION) to 3 (PKWTT, PKWT, Intern). Probation considered a status within PKWT. Trade-off: aligned with Indonesian labor law terms.                  |
+| **Contract Number Manual Entry**              | No auto-generation based on employee code. HR has full control over numbering scheme. Trade-off: requires manual input, but flexible for different company policies.                                          |
+| **Correct = Create New + Expire Old**         | Correction creates new contract (with `-C` suffix) and expires old one. Field `corrected_from_contract_id` maintains audit trail. Trade-off: more records, but complete history preserved.                    |
+| **Renew = Create New + Expire Old**           | Similar to correct, but for intentional renewal. Trade-off: maintains full contract history.                                                                                                                  |
+| **End Date Validation**                       | Datepicker prevents selecting dates on or before start_date. Applied in create employee, create contract, and edit contract forms. Trade-off: client-side validation for UX, backend validation for security. |
+| **Edit Contract Pre-fill**                    | Dialog auto-fills with existing data when opened. Trade-off: requires data fetch, but better UX.                                                                                                              |
+| **Filename UX**                               | Backend stores `{uuid}_{sanitized_original_name}.{ext}` so frontend can display and download with original name. Trade-off: longer paths, but user-friendly.                                                  |
+| **Single Active Contract Rule**               | Only one ACTIVE contract per employee prevents conflicts. Trade-off: requires expiring old contract before creating new one.                                                                                  |
 
 ---
 
-## Document Version
+## Notes & Improvements
 
-- **Version**: 3.1.0
-- **Last Updated**: 2026-02-22
-- **Changelog v3.1.0**: Contract number wajib diisi (hapus auto-generate), end date validation, edit contract auto-prefill, document download di timeline, i18n lengkap
+### Version History
+
+| Version | Changes                                                                                                                                         |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1.0   | Contract number required (removed auto-generate), end date validation, edit contract auto-prefill, document download in timeline, complete i18n |
+
+### Completed Features
+
+- ✅ Create employee with optional initial contract
+- ✅ Create separate contract for existing employee
+- ✅ Update/edit contract with form auto-prefill
+- ✅ Terminate contract with reason
+- ✅ Renew contract (new + expire old)
+- ✅ Correct active contract (audit trail preserved)
+- ✅ Contract history timeline
+- ✅ Document upload and download
+- ✅ End date validation
+- ✅ i18n support (EN & ID)
+- ✅ PKWTT, PKWT, Intern contract types
+
+### Future Improvements
+
+- Contract template system
+- Automatic expiry notifications
+- Contract reporting and analytics
+- Bulk contract renewal
+- Integration with payroll for contract-based salary rules
+- Electronic signature integration
+- Contract approval workflow
+
+---
+
+## Appendix
+
+### Error Codes
+
+| Code                       | HTTP Status | Description                             |
+| -------------------------- | ----------- | --------------------------------------- |
+| `CONTRACT_NOT_FOUND`       | 404         | Contract does not exist                 |
+| `CONTRACT_NUMBER_EXISTS`   | 400         | Contract number already in use          |
+| `INVALID_CONTRACT_TYPE`    | 400         | Invalid contract type                   |
+| `INVALID_DATE_RANGE`       | 400         | End date before or equal to start date  |
+| `ACTIVE_CONTRACT_EXISTS`   | 400         | Employee already has an active contract |
+| `CANNOT_MODIFY_TERMINATED` | 400         | Cannot modify terminated contract       |
+| `CONTRACT_NOT_ACTIVE`      | 400         | Action requires active contract         |
+| `EMPLOYEE_NOT_FOUND`       | 404         | Employee does not exist                 |
+
+---
+
+_Document generated for GIMS Platform - Employee Contract Management v3.1.0_
