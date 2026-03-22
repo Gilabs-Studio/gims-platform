@@ -29,7 +29,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
-import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useDealFormData, useCreateDeal, useUpdateDeal } from "../hooks/use-deals";
 import { createDealSchema, type CreateDealFormData } from "../schemas/deal.schema";
 import type { Deal, DealPipelineStageOption, DealProductOption } from "../types";
@@ -52,10 +51,6 @@ export function DealFormDialog({
 }: DealFormDialogProps) {
   const t = useTranslations("crmDeal");
   const { data: formData, isLoading: isFormLoading } = useDealFormData({ enabled: open });
-  const { data: bankAccountsRes } = useFinanceBankAccounts(
-    { per_page: 20, sort_by: "name", sort_dir: "asc" },
-    { enabled: open },
-  );
   const createMutation = useCreateDeal();
   const updateMutation = useUpdateDeal();
   const isEdit = !!deal;
@@ -72,8 +67,6 @@ export function DealFormDialog({
       contact_id: deal?.contact_id ?? "",
       assigned_to: deal?.assigned_to ?? "",
       lead_id: deal?.lead_id ?? "",
-      bank_account_id: deal?.bank_account_id ?? "",
-      bank_account_reference: deal?.bank_account_reference ?? "",
       budget_confirmed: deal?.budget_confirmed ?? false,
       budget_amount: deal?.budget_amount ?? 0,
       auth_confirmed: deal?.auth_confirmed ?? false,
@@ -172,6 +165,72 @@ export function DealFormDialog({
   };
 
   const selectedCustomerId = watch("customer_id");
+  const selectedLeadId = watch("lead_id");
+  const isProspectFromLead = isEdit && !!deal?.lead_id && !deal?.customer_id;
+  const selectedLead = useMemo(
+    () => formData?.leads?.find((leadOption) => leadOption.id === selectedLeadId),
+    [formData?.leads, selectedLeadId]
+  );
+  const prospectCustomerName = useMemo(() => {
+    if (!isProspectFromLead) return "";
+
+    const fromDealCustomer = deal?.customer?.name;
+    if (fromDealCustomer) return fromDealCustomer;
+
+    const fromDealLead = deal?.lead?.company_name || `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    if (fromDealLead) return fromDealLead;
+
+    const fromSelectedLead = selectedLead?.company_name || `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
+    return fromSelectedLead;
+  }, [isProspectFromLead, deal?.customer?.name, deal?.lead?.company_name, deal?.lead?.first_name, deal?.lead?.last_name, selectedLead?.company_name, selectedLead?.first_name, selectedLead?.last_name]);
+
+  const prospectAssigneeName = useMemo(() => {
+    if (!isProspectFromLead) return "";
+    return deal?.assigned_employee?.name ?? "";
+  }, [isProspectFromLead, deal?.assigned_employee?.name]);
+
+  const prospectContactName = useMemo(() => {
+    if (!isProspectFromLead) return "";
+
+    const fullName = `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    if (fullName) return fullName;
+
+    const selectedName = `${selectedLead?.first_name ?? ""} ${selectedLead?.last_name ?? ""}`.trim();
+    if (selectedName) return selectedName;
+
+    return deal?.lead?.company_name ?? selectedLead?.company_name ?? "";
+  }, [
+    isProspectFromLead,
+    deal?.lead?.first_name,
+    deal?.lead?.last_name,
+    deal?.lead?.company_name,
+    selectedLead?.first_name,
+    selectedLead?.last_name,
+    selectedLead?.company_name,
+  ]);
+
+  const prospectContactInfo = useMemo(() => {
+    if (!isProspectFromLead) return "";
+
+    const phone = deal?.lead?.phone ?? "";
+    const email = deal?.lead?.email ?? "";
+
+    if (phone && email) return `${phone} | ${email}`;
+    if (phone) return phone;
+    if (email) return email;
+    return "";
+  }, [isProspectFromLead, deal?.lead?.phone, deal?.lead?.email]);
+
+  const prospectLeadLabel = useMemo(() => {
+    if (!isProspectFromLead) return "";
+
+    const leadName = deal?.lead?.company_name || `${deal?.lead?.first_name ?? ""} ${deal?.lead?.last_name ?? ""}`.trim();
+    if (!leadName) return deal?.lead?.code ?? "";
+    if (!deal?.lead?.code) return leadName;
+
+    return `${leadName} (${deal.lead.code})`;
+  }, [isProspectFromLead, deal?.lead?.company_name, deal?.lead?.first_name, deal?.lead?.last_name, deal?.lead?.code]);
+
   const filteredContacts = useMemo(
     () =>
       formData?.contacts?.filter(
@@ -181,7 +240,6 @@ export function DealFormDialog({
   );
 
   const dealValue = watch("value");
-  const bankAccounts = bankAccountsRes?.data ?? [];
 
   const handleFormSubmit = (data: CreateDealFormData) => {
     const cleaned = {
@@ -190,8 +248,6 @@ export function DealFormDialog({
       contact_id: data.contact_id || undefined,
       assigned_to: data.assigned_to || undefined,
       lead_id: data.lead_id || undefined,
-      bank_account_id: data.bank_account_id || undefined,
-      bank_account_reference: data.bank_account_reference || undefined,
       expected_close_date: data.expected_close_date || undefined,
       items: data.items?.map((item) => ({
         ...item,
@@ -264,6 +320,50 @@ export function DealFormDialog({
             >
               {/* ─── TAB 1: BASIC INFO ─────────────────────────── */}
               <TabsContent value="basic" className="space-y-6 mt-0">
+
+                {/* Lead Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                    <Briefcase className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium">{t("lead")}</h3>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    <Field orientation="vertical" className="w-full">
+                      <FieldLabel>{t("lead")}</FieldLabel>
+                      {isProspectFromLead ? (
+                        <>
+                          <Input
+                            value={prospectLeadLabel}
+                            readOnly
+                            placeholder={t("prospectLeadPlaceholder")}
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectLeadHint")}</p>
+                        </>
+                      ) : (
+                        <Controller
+                          name="lead_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                              <SelectTrigger className="cursor-pointer">
+                                <SelectValue placeholder={t("selectLead")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {formData?.leads
+                                  ?.filter((leadOption) => leadOption.is_qualified_for_conversion && !leadOption.is_converted)
+                                  .map((leadOption) => (
+                                    <SelectItem key={leadOption.id} value={leadOption.id} className="cursor-pointer">
+                                      {leadOption.company_name || `${leadOption.first_name} ${leadOption.last_name}`.trim()} ({leadOption.code})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                </div>
 
                 {/* Deal Information */}
                 <div className="space-y-4">
@@ -368,124 +468,105 @@ export function DealFormDialog({
                   <div className="grid gap-4 grid-cols-2">
                     <Field orientation="vertical">
                       <FieldLabel>{t("customer")}</FieldLabel>
-                      <Controller
-                        name="customer_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder={t("selectCustomer")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {formData?.customers?.map((c) => (
-                                <SelectItem key={c.id} value={c.id} className="cursor-pointer">
-                                  {c.name} ({c.code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
+                      {isProspectFromLead ? (
+                        <>
+                          <Input
+                            value={prospectCustomerName}
+                            readOnly
+                            placeholder={t("prospectCustomerPlaceholder")}
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectCustomerHint")}</p>
+                        </>
+                      ) : (
+                        <Controller
+                          name="customer_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                              <SelectTrigger className="cursor-pointer">
+                                <SelectValue placeholder={t("selectCustomer")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {formData?.customers?.map((c) => (
+                                  <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                                    {c.name} ({c.code})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      )}
                     </Field>
 
                     <Field orientation="vertical">
                       <FieldLabel>{t("contact")}</FieldLabel>
-                      <Controller
-                        name="contact_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder={t("selectContact")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {filteredContacts.map((c) => (
-                                <SelectItem key={c.id} value={c.id} className="cursor-pointer">
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
+                      {isProspectFromLead ? (
+                        <>
+                          <Input
+                            value={prospectContactName}
+                            readOnly
+                            placeholder={t("prospectContactPlaceholder")}
+                          />
+                          {prospectContactInfo ? (
+                            <p className="mt-1 text-xs text-muted-foreground">{prospectContactInfo}</p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">{t("prospectContactHint")}</p>
+                          )}
+                        </>
+                      ) : (
+                        <Controller
+                          name="contact_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                              <SelectTrigger className="cursor-pointer">
+                                <SelectValue placeholder={t("selectContact")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {filteredContacts.map((c) => (
+                                  <SelectItem key={c.id} value={c.id} className="cursor-pointer">
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      )}
                     </Field>
 
                     <Field orientation="vertical">
                       <FieldLabel>{t("assignedTo")}</FieldLabel>
-                      <Controller
-                        name="assigned_to"
-                        control={control}
-                        render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder={t("selectEmployee")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {formData?.employees?.map((e) => (
-                                <SelectItem key={e.id} value={e.id} className="cursor-pointer">
-                                  {e.name} ({e.employee_code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </Field>
-
-                    <Field orientation="vertical">
-                      <FieldLabel>{t("lead")}</FieldLabel>
-                      <Controller
-                        name="lead_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder={t("selectLead")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {formData?.leads
-                                ?.filter((l) => !l.is_converted)
-                                .map((l) => (
-                                  <SelectItem key={l.id} value={l.id} className="cursor-pointer">
-                                    {l.first_name} {l.last_name} ({l.code})
+                      {isProspectFromLead ? (
+                        <>
+                          <Input
+                            value={prospectAssigneeName}
+                            readOnly
+                            placeholder={t("prospectAssignmentPlaceholder")}
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">{t("prospectAssignmentHint")}</p>
+                        </>
+                      ) : (
+                        <Controller
+                          name="assigned_to"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                              <SelectTrigger className="cursor-pointer">
+                                <SelectValue placeholder={t("selectEmployee")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {formData?.employees?.map((e) => (
+                                  <SelectItem key={e.id} value={e.id} className="cursor-pointer">
+                                    {e.name} ({e.employee_code})
                                   </SelectItem>
                                 ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </Field>
-
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("bankAccount")}</FieldLabel>
-                      <Controller
-                        name="bank_account_id"
-                        control={control}
-                        render={({ field }) => (
-                          <Select value={field.value || "__none__"} onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}>
-                            <SelectTrigger className="cursor-pointer">
-                              <SelectValue placeholder={t("bankAccountPlaceholder")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__" className="cursor-pointer">-</SelectItem>
-                              {bankAccounts.map((account) => (
-                                <SelectItem key={account.id} value={account.id} className="cursor-pointer">
-                                  {account.name} - {account.account_number} ({account.currency}) [{t(`bankAccountOwnerType.${account.owner_type}`)}: {account.owner_name}]
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </Field>
-
-                    <Field orientation="vertical" className="col-span-2">
-                      <FieldLabel>{t("bankAccountReference")}</FieldLabel>
-                      <Input
-                        {...register("bank_account_reference")}
-                        placeholder={t("bankAccountReferencePlaceholder")}
-                      />
-                      {errors.bank_account_reference && <FieldError>{errors.bank_account_reference.message}</FieldError>}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      )}
                     </Field>
 
                     <Field orientation="vertical" className="col-span-2">

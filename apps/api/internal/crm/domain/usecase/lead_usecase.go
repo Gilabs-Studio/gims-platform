@@ -702,8 +702,6 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		Probability:          lead.Probability,
 		LeadID:               &lead.ID,
 		AssignedTo:           lead.AssignedTo,
-		BankAccountID:        lead.BankAccountID,
-		BankAccountReference: lead.BankAccountReference,
 		BudgetConfirmed:      lead.BudgetConfirmed,
 		BudgetAmount:         lead.BudgetAmount,
 		AuthConfirmed:        lead.AuthConfirmed,

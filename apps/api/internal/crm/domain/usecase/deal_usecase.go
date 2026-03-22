@@ -190,8 +190,6 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 		ContactID:            req.ContactID,
 		AssignedTo:           req.AssignedTo,
 		LeadID:               req.LeadID,
-		BankAccountID:        req.BankAccountID,
-		BankAccountReference: req.BankAccountReference,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
 		AuthConfirmed:        req.AuthConfirmed,
@@ -306,12 +304,6 @@ func (u *dealUsecase) Update(ctx context.Context, id string, req dto.UpdateDealR
 			}
 		}
 		deal.LeadID = req.LeadID
-	}
-	if req.BankAccountID != nil {
-		deal.BankAccountID = req.BankAccountID
-	}
-	if req.BankAccountReference != nil {
-		deal.BankAccountReference = *req.BankAccountReference
 	}
 
 	// Apply partial updates
@@ -721,13 +713,19 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 		})
 	}
 
-	// Leads (qualified, not yet converted, for deal creation from lead)
+	// Leads (qualified and not yet converted, for deal creation from lead)
 	leads, _, err := u.leadRepo.List(ctx, repositories.LeadListParams{Limit: 500})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch leads: %w", err)
 	}
 	leadOptions := make([]dto.DealLeadOption, 0, len(leads))
 	for _, l := range leads {
+		if l.IsConverted() {
+			continue
+		}
+		if l.LeadStatus == nil || !strings.EqualFold(l.LeadStatus.Code, "QUALIFIED") {
+			continue
+		}
 		leadOptions = append(leadOptions, dto.DealLeadOption{
 			ID:          l.ID,
 			Code:        l.Code,
@@ -735,6 +733,7 @@ func (u *dealUsecase) GetFormData(ctx context.Context) (*dto.DealFormDataRespons
 			LastName:    l.LastName,
 			CompanyName: l.CompanyName,
 			IsConverted: l.IsConverted(),
+			IsQualifiedForConversion: true,
 		})
 	}
 
