@@ -35,22 +35,7 @@ export const leadService = {
   },
 
   update: async (id: string, data: UpdateLeadData): Promise<ApiResponse<Lead>> => {
-    if (process.env.NODE_ENV !== "production") {
-      console.debug("[crm:lead-service] PUT /crm/leads/:id", {
-        id,
-        data,
-      });
-    }
-
     const response = await apiClient.put<ApiResponse<Lead>>(`${BASE_URL}/${id}`, data);
-
-    if (process.env.NODE_ENV !== "production") {
-      console.debug("[crm:lead-service] PUT /crm/leads/:id response", {
-        id,
-        data: response.data,
-      });
-    }
-
     return response.data;
   },
 

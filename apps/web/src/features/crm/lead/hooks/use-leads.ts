@@ -73,23 +73,7 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateLeadData }) =>
       leadService.update(id, data),
-    onError: (error, variables) => {
-      if (process.env.NODE_ENV !== "production") {
-        if (isAxiosError(error)) {
-          console.debug("[crm:lead-mutation] update failed", {
-            id: variables.id,
-            status: error.response?.status ?? null,
-            data: error.response?.data ?? null,
-            message: error.message,
-          });
-        } else {
-          console.debug("[crm:lead-mutation] update failed", {
-            id: variables.id,
-            error,
-          });
-        }
-      }
-    },
+    onError: () => {},
     onSuccess: (_data, { id }) => {
       // Keep lead list/detail in sync.
       qc.invalidateQueries({ queryKey: leadKeys.all });

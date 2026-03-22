@@ -305,15 +305,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         payment_terms_id: data.payment_terms_id || null,
       };
 
-      if (process.env.NODE_ENV !== "production") {
-        console.debug("[crm:lead-form] submit", {
-          mode: editingItem ? "update" : "create",
-          leadId: editingItem?.id ?? null,
-          isConvertedLead,
-          payload,
-        });
-      }
-
       if (editingItem) {
         await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
         toast.success(t("updated"));
@@ -325,17 +316,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       form.reset();
       onSuccess?.();
     } catch (error: unknown) {
-      if (process.env.NODE_ENV !== "production") {
-        if (isAxiosError(error)) {
-          console.debug("[crm:lead-form] submit failed", {
-            status: error.response?.status ?? null,
-            data: error.response?.data ?? null,
-            message: error.message,
-          });
-        } else {
-          console.debug("[crm:lead-form] submit failed", error);
-        }
-      }
       toast.error(tCommon("error"));
     }
   };

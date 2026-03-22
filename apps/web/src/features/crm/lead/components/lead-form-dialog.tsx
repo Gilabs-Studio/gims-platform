@@ -185,16 +185,6 @@ export function LeadFormDialog({
     [leadStatuses, selectedLeadStatusId]
   );
 
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "production") {
-      console.debug("[crm:lead-form-dialog] lead status selection", {
-        leadId: lead?.id ?? null,
-        selectedLeadStatusId: selectedLeadStatusId ?? null,
-        selectedLeadStatus,
-      });
-    }
-  }, [lead?.id, selectedLeadStatus, selectedLeadStatusId]);
-
   const pendingAreaId = useMemo(() => {
     if (!pendingAreaProvinceName || areas.length === 0) return null;
 
