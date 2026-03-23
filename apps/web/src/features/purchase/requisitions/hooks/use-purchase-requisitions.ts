@@ -17,10 +17,14 @@ export const purchaseRequisitionKeys = {
   detail: (id: string) => [...purchaseRequisitionKeys.details(), id] as const,
 };
 
-export function usePurchaseRequisitions(params?: PurchaseRequisitionListParams) {
+export function usePurchaseRequisitions(
+  params?: PurchaseRequisitionListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: purchaseRequisitionKeys.list(params),
     queryFn: () => purchaseRequisitionsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -78,7 +82,9 @@ export function usePurchaseRequisitionAddData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...purchaseRequisitionKeys.all, "add-data"] as const,
     queryFn: () => purchaseRequisitionsService.addData(),
-    enabled: options?.enabled ?? true,
+    enabled: options?.enabled ?? false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 

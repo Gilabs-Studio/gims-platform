@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { formatIDR } from "../utils/format";
+import { formatCurrency } from "@/lib/utils";
 import type { WarehouseOverviewData } from "../types";
 
 interface WarehouseWidgetProps {
@@ -59,7 +59,7 @@ export function WarehouseWidget({ data }: WarehouseWidgetProps) {
           </CardTitle>
           {data?.total_stock_value !== undefined && (
             <span className="text-sm font-semibold text-primary">
-              {formatIDR(data.total_stock_value)}
+              {formatCurrency(data.total_stock_value)}
             </span>
           )}
         </div>
@@ -147,7 +147,7 @@ export function WarehouseWidget({ data }: WarehouseWidgetProps) {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        {formatIDR(wh.stock_value)}
+                        {formatCurrency(wh.stock_value)}
                       </p>
                     )}
                   </div>

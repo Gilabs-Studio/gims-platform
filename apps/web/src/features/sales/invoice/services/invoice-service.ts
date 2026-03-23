@@ -9,6 +9,7 @@ import type {
   UpdateCustomerInvoiceData,
   UpdateCustomerInvoiceStatusData,
 } from "../types";
+import type { AuditTrailApiResponse } from "@/components/ui/audit-trail-table";
 
 const BASE_PATH = "/sales/customer-invoices";
 
@@ -84,6 +85,17 @@ export const invoiceService = {
   async approve(id: string): Promise<CustomerInvoiceSingleResponse> {
     const response = await apiClient.post<CustomerInvoiceSingleResponse>(
       `${BASE_PATH}/${id}/approve`
+    );
+    return response.data;
+  },
+
+  async auditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number }
+  ): Promise<AuditTrailApiResponse> {
+    const response = await apiClient.get<AuditTrailApiResponse>(
+      `${BASE_PATH}/${id}/audit-trail`,
+      { params }
     );
     return response.data;
   },

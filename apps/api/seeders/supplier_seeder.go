@@ -83,6 +83,26 @@ func SeedSupplier() error {
 		typeID = &distributorType.ID
 	}
 
+	var defaultPaymentTerm struct {
+		ID string
+	}
+	database.DB.Table("payment_terms").Select("id").Where("is_active = ?", true).Order("name ASC").First(&defaultPaymentTerm)
+
+	var paymentTermsID *string
+	if defaultPaymentTerm.ID != "" {
+		paymentTermsID = &defaultPaymentTerm.ID
+	}
+
+	var defaultBusinessUnit struct {
+		ID string
+	}
+	database.DB.Table("business_units").Select("id").Where("is_active = ?", true).Order("name ASC").First(&defaultBusinessUnit)
+
+	var businessUnitID *string
+	if defaultBusinessUnit.ID != "" {
+		businessUnitID = &defaultBusinessUnit.ID
+	}
+
 	// Get a village for location reference
 	var village struct {
 		ID string
@@ -103,6 +123,8 @@ func SeedSupplier() error {
 			Code:           "SUP001",
 			Name:           "PT. Pharma Distributor Indonesia",
 			SupplierTypeID: typeID,
+			PaymentTermsID: paymentTermsID,
+			BusinessUnitID: businessUnitID,
 			Address:        "Jl. Industri Raya No. 123, Kawasan Industri Jababeka",
 			Email:          "contact@pharmadist.co.id",
 			Website:        "https://pharmadist.co.id",
@@ -120,6 +142,8 @@ func SeedSupplier() error {
 			Code:           "SUP002",
 			Name:           "PT. Medical Supply Co",
 			SupplierTypeID: typeID,
+			PaymentTermsID: paymentTermsID,
+			BusinessUnitID: businessUnitID,
 			Address:        "Jl. Gatot Subroto Kav. 45, Jakarta Selatan",
 			Email:          "sales@medicalsupply.co.id",
 			NPWP:           "02.345.678.9-023.000",
@@ -136,6 +160,8 @@ func SeedSupplier() error {
 			Code:           "SUP003",
 			Name:           "PT. Health Essentials",
 			SupplierTypeID: typeID,
+			PaymentTermsID: paymentTermsID,
+			BusinessUnitID: businessUnitID,
 			Address:        "Jl. Raya Bogor KM 29, Depok",
 			Email:          "info@healthessentials.id",
 			ContactPerson:  "Ahmad Fauzi",
@@ -163,9 +189,9 @@ func SeedSupplier() error {
 
 		// Add sample phone numbers for first supplier
 		if i == 0 {
-			phones := []models.SupplierPhoneNumber{
-				{SupplierID: suppliers[i].ID, PhoneNumber: "021-12345678", Label: "Office", IsPrimary: true},
-				{SupplierID: suppliers[i].ID, PhoneNumber: "0812-3456-7890", Label: "Mobile", IsPrimary: false},
+			phones := []models.SupplierContact{
+				{SupplierID: suppliers[i].ID, Name: "Budi Hartono", Email: "budi.hartono@pharmadist.co.id", Phone: "021-12345678", IsPrimary: true},
+				{SupplierID: suppliers[i].ID, Name: "Siti Rahayu", Email: "siti.rahayu@pharmadist.co.id", Phone: "0812-3456-7890", IsPrimary: false},
 			}
 			for j := range phones {
 				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&phones[j])

@@ -40,7 +40,6 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
           .max(100, t("validation.emailMax"))
           .optional()
           .or(z.literal("")),
-        position: z.string().max(100).optional().or(z.literal("")),
         notes: z.string().max(1000).optional().or(z.literal("")),
         is_active: z.boolean(),
       }),
@@ -59,7 +58,6 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
       name: "",
       phone: "",
       email: "",
-      position: "",
       notes: "",
       is_active: true,
     },
@@ -74,7 +72,6 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
           name: editingItem.name,
           phone: editingItem.phone ?? "",
           email: editingItem.email ?? "",
-          position: editingItem.position ?? "",
           notes: editingItem.notes ?? "",
           is_active: editingItem.is_active,
         });
@@ -85,7 +82,6 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
           name: "",
           phone: "",
           email: "",
-          position: "",
           notes: "",
           is_active: true,
         });
@@ -100,7 +96,6 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
         contact_role_id: data.contact_role_id || null,
         phone: data.phone || undefined,
         email: data.email || undefined,
-        position: data.position || undefined,
         notes: data.notes || undefined,
       };
 

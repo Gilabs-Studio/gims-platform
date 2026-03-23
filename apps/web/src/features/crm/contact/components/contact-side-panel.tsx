@@ -150,15 +150,6 @@ export function ContactSidePanel({
               )}
             />
           </Field>
-
-          <Field orientation="vertical">
-            <FieldLabel>{t("form.position")}</FieldLabel>
-            <Input
-              placeholder={t("form.positionPlaceholder")}
-              {...register("position")}
-              disabled={isViewing}
-            />
-          </Field>
         </div>
 
         {/* Contact Information */}

@@ -48,6 +48,18 @@ export const deliveryId = {
       items: "Item",
       tracking: "Pelacakan",
       history: "Riwayat",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada data audit trail",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
     },
 
     // Status

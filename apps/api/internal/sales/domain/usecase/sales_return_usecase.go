@@ -42,6 +42,7 @@ type SalesReturnUsecase interface {
 	Create(ctx context.Context, req *dto.CreateSalesReturnRequest) (*dto.SalesReturnResponse, error)
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error)
 	Delete(ctx context.Context, id string) error
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
 type salesReturnUsecase struct {
@@ -206,6 +207,16 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 		return nil, err
 	}
 
+	logSalesAudit(u.auditService, ctx, "sales_return.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":         created.Code,
+			"status":       created.Status,
+			"action":       created.Action,
+			"total_amount": created.TotalAmount,
+			"delivery_id":  created.DeliveryID,
+		},
+	})
+
 	return mapSalesReturnRow(created), nil
 }
 
@@ -222,6 +233,7 @@ func (u *salesReturnUsecase) UpdateStatus(ctx context.Context, id string, status
 	if err != nil {
 		return nil, ErrSalesReturnInvalid
 	}
+	previousStatus := row.Status
 
 	if !canTransitionSalesReturnStatus(row.Status, nextStatus) {
 		return nil, ErrSalesReturnInvalid
@@ -244,6 +256,11 @@ func (u *salesReturnUsecase) UpdateStatus(ctx context.Context, id string, status
 		return nil, err
 	}
 
+	logSalesAudit(u.auditService, ctx, "sales_return.status_change", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  updated.Status,
+	})
+
 	return mapSalesReturnRow(updated), nil
 }
 
@@ -260,16 +277,35 @@ func (u *salesReturnUsecase) Delete(ctx context.Context, id string) error {
 		return ErrSalesReturnInvalid
 	}
 
-	return u.repo.Delete(ctx, id)
+	err = u.repo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	logSalesAudit(u.auditService, ctx, "sales_return.delete", id, map[string]interface{}{
+		"before": map[string]interface{}{
+			"code":         row.Code,
+			"status":       row.Status,
+			"action":       row.Action,
+			"total_amount": row.TotalAmount,
+		},
+	})
+
+	return nil
+}
+
+func (u *salesReturnUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, errors.New(errDBNil)
+	}
+
+	return listAuditTrailEntries(ctx, u.db, id, "sales_return.", page, perPage)
 }
 
 func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.CreateSalesReturnRequest) (*salesReturnCreateContext, error) {
-	deliveryID := ""
-	if req.DeliveryID != nil {
-		deliveryID = strings.TrimSpace(*req.DeliveryID)
-	}
-	if deliveryID == "" {
-		return nil, errors.New("delivery_id is required")
+	deliveryID, err := resolveSalesReturnDeliveryID(req)
+	if err != nil {
+		return nil, err
 	}
 
 	action, err := normalizeSalesReturnAction(req.Action)
@@ -287,30 +323,14 @@ func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.
 		return nil, err
 	}
 
-	warehouseID := strings.TrimSpace(req.WarehouseID)
-	if warehouseID == "" {
-		if delivery.WarehouseID == nil || strings.TrimSpace(*delivery.WarehouseID) == "" {
-			return nil, errors.New("warehouse_id is required")
-		}
-		warehouseID = strings.TrimSpace(*delivery.WarehouseID)
-	}
-	if delivery.WarehouseID != nil {
-		sourceWarehouseID := strings.TrimSpace(*delivery.WarehouseID)
-		if sourceWarehouseID != "" && warehouseID != sourceWarehouseID {
-			if !hasWarehouseOverridePermission(ctx, salesReturnWarehouseOverridePermission) {
-				u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "denied")
-				return nil, errors.New("warehouse_id must match delivery warehouse")
-			}
-			u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "allowed")
-		}
+	warehouseID, err := u.resolveWarehouseForCreate(ctx, delivery, req.WarehouseID, deliveryID)
+	if err != nil {
+		return nil, err
 	}
 
-	customerID := strings.TrimSpace(req.CustomerID)
-	if customerID == "" {
-		if delivery.SalesOrder == nil || delivery.SalesOrder.CustomerID == nil || strings.TrimSpace(*delivery.SalesOrder.CustomerID) == "" {
-			return nil, errors.New("customer_id is required")
-		}
-		customerID = strings.TrimSpace(*delivery.SalesOrder.CustomerID)
+	customerID, err := resolveSalesReturnCustomerID(delivery, req.CustomerID)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := u.validateRequestedQty(ctx, deliveryID, req.Items); err != nil {
@@ -324,6 +344,69 @@ func (u *salesReturnUsecase) prepareCreateContext(ctx context.Context, req *dto.
 		InvoiceID:   invoiceID,
 		Action:      action,
 	}, nil
+}
+
+func resolveSalesReturnDeliveryID(req *dto.CreateSalesReturnRequest) (string, error) {
+	if req == nil || req.DeliveryID == nil {
+		return "", errors.New("delivery_id is required")
+	}
+
+	deliveryID := strings.TrimSpace(*req.DeliveryID)
+	if deliveryID == "" {
+		return "", errors.New("delivery_id is required")
+	}
+
+	return deliveryID, nil
+}
+
+func (u *salesReturnUsecase) resolveWarehouseForCreate(
+	ctx context.Context,
+	delivery *models.DeliveryOrder,
+	requestedWarehouseID string,
+	deliveryID string,
+) (string, error) {
+	warehouseID := strings.TrimSpace(requestedWarehouseID)
+	if warehouseID == "" {
+		if delivery.WarehouseID == nil || strings.TrimSpace(*delivery.WarehouseID) == "" {
+			return "", errors.New("warehouse_id is required")
+		}
+		warehouseID = strings.TrimSpace(*delivery.WarehouseID)
+	}
+
+	if delivery.WarehouseID == nil {
+		return warehouseID, nil
+	}
+
+	sourceWarehouseID := strings.TrimSpace(*delivery.WarehouseID)
+	if sourceWarehouseID == "" || warehouseID == sourceWarehouseID {
+		return warehouseID, nil
+	}
+
+	if !hasWarehouseOverridePermission(ctx, salesReturnWarehouseOverridePermission) {
+		u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "denied")
+		return "", errors.New("warehouse_id must match delivery warehouse")
+	}
+
+	u.logWarehouseMismatchAttempt(ctx, deliveryID, sourceWarehouseID, warehouseID, "allowed")
+	return warehouseID, nil
+}
+
+func resolveSalesReturnCustomerID(delivery *models.DeliveryOrder, requestedCustomerID string) (string, error) {
+	customerID := strings.TrimSpace(requestedCustomerID)
+	if customerID != "" {
+		return customerID, nil
+	}
+
+	if delivery == nil || delivery.SalesOrder == nil || delivery.SalesOrder.CustomerID == nil {
+		return "", errors.New("customer_id is required")
+	}
+
+	customerID = strings.TrimSpace(*delivery.SalesOrder.CustomerID)
+	if customerID == "" {
+		return "", errors.New("customer_id is required")
+	}
+
+	return customerID, nil
 }
 
 func (u *salesReturnUsecase) logWarehouseMismatchAttempt(

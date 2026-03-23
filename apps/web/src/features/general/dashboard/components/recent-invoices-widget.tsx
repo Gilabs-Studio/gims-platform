@@ -7,9 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { InvoiceDetailModal } from "@/features/sales/invoice/components/invoice-detail-modal";
 import type { CustomerInvoice } from "@/features/sales/invoice/types";
-import { formatIDR } from "../utils/format";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import type { InvoiceRow } from "../types";
-import { formatDate } from "@/lib/utils";
 
 interface RecentInvoicesWidgetProps {
   readonly data?: InvoiceRow[];
@@ -66,7 +65,7 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">
-                    {formatIDR(inv.value)}
+                    {formatCurrency(inv.value)}
                   </span>
                   <Badge variant={STATUS_VARIANT[inv.status] ?? "warning"}>
                     {inv.status}

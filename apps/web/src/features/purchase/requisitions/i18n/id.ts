@@ -53,8 +53,10 @@ export const purchaseRequisitionId = {
     general: "Umum",
     basic: "Informasi Dasar",
     items: "Item",
+    auditTrail: "Audit Trail",
   },
   sections: {
+    orderInfo: "Informasi Pesanan",
     procurement: "Pengadaan",
     financial: "Ringkasan Keuangan",
   },
@@ -75,6 +77,8 @@ export const purchaseRequisitionId = {
   fields: {
     requestDate: "Tanggal Permintaan",
     supplier: "Supplier",
+    supplierPhoneNumber: "Nomor Telepon Supplier",
+    supplierContact: "Kontak Supplier",
     paymentTerms: "Termin Pembayaran",
     businessUnit: "Unit Bisnis",
     employee: "Karyawan",

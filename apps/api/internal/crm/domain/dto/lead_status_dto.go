@@ -5,27 +5,18 @@ import "time"
 // CreateLeadStatusRequest represents the request to create a lead status
 type CreateLeadStatusRequest struct {
 	Name        string `json:"name" binding:"required,min=2,max=100"`
-	Code        string `json:"code" binding:"required,min=2,max=50"`
 	Description string `json:"description" binding:"max=500"`
 	Score       int    `json:"score" binding:"min=0"`
 	Color       string `json:"color" binding:"max=20"`
-	Order       int    `json:"order"`
-	IsActive    *bool  `json:"is_active"`
-	IsDefault   *bool  `json:"is_default"`
-	IsConverted *bool  `json:"is_converted"`
 }
 
 // UpdateLeadStatusRequest represents the request to update a lead status
 type UpdateLeadStatusRequest struct {
 	Name        string `json:"name" binding:"omitempty,min=2,max=100"`
-	Code        string `json:"code" binding:"omitempty,min=2,max=50"`
 	Description string `json:"description" binding:"max=500"`
 	Score       *int   `json:"score" binding:"omitempty,min=0"`
 	Color       string `json:"color" binding:"max=20"`
-	Order       *int   `json:"order"`
 	IsActive    *bool  `json:"is_active"`
-	IsDefault   *bool  `json:"is_default"`
-	IsConverted *bool  `json:"is_converted"`
 }
 
 // LeadStatusResponse represents the response for a lead status

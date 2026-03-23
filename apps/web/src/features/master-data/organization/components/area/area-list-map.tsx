@@ -43,7 +43,7 @@ export function AreaList() {
   const canUpdate = useHasPermission("area.update");
   const canDelete = useHasPermission("area.delete");
 
-  const { data: areasData, isLoading } = useAreas({ per_page: 100 });
+  const { data: areasData, isLoading } = useAreas({ per_page: 20 });
   const deleteArea = useDeleteArea();
   const areas = areasData?.data ?? [];
 

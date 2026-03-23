@@ -12,15 +12,12 @@ export interface ContactRole {
 
 export interface CreateContactRoleData {
   name: string;
-  code: string;
   description?: string;
   badge_color?: string;
-  is_active?: boolean;
 }
 
 export interface UpdateContactRoleData {
   name?: string;
-  code?: string;
   description?: string;
   badge_color?: string;
   is_active?: boolean;

@@ -98,13 +98,13 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 
 	switch effectiveStatus {
 	case "out_of_stock":
-		query = query.Having(available+" <= 0")
+		query = query.Having(available + " <= 0")
 	case "low_stock":
-		query = query.Having(available+" > 0 AND "+available+" <= p.min_stock")
+		query = query.Having(available + " > 0 AND " + available + " <= p.min_stock")
 	case "overstock":
-		query = query.Having("p.max_stock > 0 AND "+available+" > p.max_stock")
+		query = query.Having("p.max_stock > 0 AND " + available + " > p.max_stock")
 	case "ok":
-		query = query.Having(available+" > p.min_stock AND (p.max_stock = 0 OR "+available+" <= p.max_stock)")
+		query = query.Having(available + " > p.min_stock AND (p.max_stock = 0 OR " + available + " <= p.max_stock)")
 	}
 
 	if req.HasExpiring {
@@ -239,9 +239,10 @@ func (r *inventoryRepository) GetTreeWarehouses(ctx context.Context) ([]dto.GetI
 }
 
 // GetTreeProducts returns products for a specific warehouse
-func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) ([]dto.InventoryStockItem, int64, error) {
+func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) ([]dto.InventoryStockItem, int64, dto.TreeProductsSummary, error) {
 	var items []dto.InventoryStockItem
 	var total int64
+	var summary dto.TreeProductsSummary
 
 	// Filter by WarehouseID IS REQUIRED and enforced by logic calling this
 	query := r.DB(ctx).Table("products p").
@@ -279,7 +280,35 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 
 	// Count Total
 	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, summary, err
+	}
+
+	// Calculate summary from full filtered dataset (not paginated page only)
+	type treeSummaryRow struct {
+		Ok         int `gorm:"column:ok"`
+		Low        int `gorm:"column:low"`
+		OutOfStock int `gorm:"column:out_of_stock"`
+		Overstock  int `gorm:"column:overstock"`
+	}
+
+	var summaryRow treeSummaryRow
+	if err := r.DB(ctx).Table("(?) as sub", query).
+		Select(`
+			COALESCE(SUM(CASE WHEN sub.available <= 0 THEN 1 ELSE 0 END), 0) AS out_of_stock,
+			COALESCE(SUM(CASE WHEN sub.available > 0 AND sub.available <= sub.min_stock THEN 1 ELSE 0 END), 0) AS low,
+			COALESCE(SUM(CASE WHEN sub.max_stock > 0 AND sub.available > sub.max_stock THEN 1 ELSE 0 END), 0) AS overstock,
+			COALESCE(SUM(CASE WHEN sub.available > sub.min_stock AND (sub.max_stock <= 0 OR sub.available <= sub.max_stock) THEN 1 ELSE 0 END), 0) AS ok
+		`).
+		Scan(&summaryRow).Error; err != nil {
+		return nil, 0, summary, err
+	}
+
+	summary = dto.TreeProductsSummary{
+		TotalItems: int(total),
+		Ok:         summaryRow.Ok,
+		Low:        summaryRow.Low,
+		OutOfStock: summaryRow.OutOfStock,
+		Overstock:  summaryRow.Overstock,
 	}
 
 	// Pagination
@@ -290,7 +319,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 	query = query.Order("p.name ASC")
 
 	if err := query.Find(&items).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, summary, err
 	}
 
 	// Calculate Status
@@ -306,7 +335,7 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 		}
 	}
 
-	return items, total, nil
+	return items, total, summary, nil
 }
 
 // GetTreeBatches returns batches for a specific product and warehouse with pagination
@@ -344,7 +373,7 @@ func (r *inventoryRepository) GetTreeBatches(ctx context.Context, req *dto.GetIn
 		Where("ib.deleted_at IS NULL").
 		Where("ib.warehouse_id = ?", req.WarehouseID).
 		Where("ib.product_id = ?", req.ProductID).
-		Order("ib.expiry_date ASC NULLS LAST, ib.created_at ASC").
+		Order("ib.created_at DESC, ib.id DESC").
 		Limit(req.PerPage).
 		Offset(offset)
 
@@ -499,6 +528,10 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 	case req.Type == "ADJUST" && req.Quantity < 0:
 		// Shortage: physical count < system → stock decreases
 		movement.QtyOut = -req.Quantity // Store as positive value
+	case req.Type == "TRANSFER" && req.MovementDirection == "IN":
+		movement.QtyIn = req.Quantity
+	case req.Type == "TRANSFER" && req.MovementDirection == "OUT":
+		movement.QtyOut = req.Quantity
 	default:
 		// OUT or TRANSFER
 		movement.QtyOut = req.Quantity

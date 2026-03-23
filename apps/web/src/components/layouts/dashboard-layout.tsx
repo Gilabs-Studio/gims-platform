@@ -903,7 +903,7 @@ export const DashboardLayout = memo(function DashboardLayout({
         <CommandPalette />
 
         {/* AI Chat Widget */}
-        <AIChatWidget />
+        {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
   );

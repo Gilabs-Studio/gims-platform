@@ -6,11 +6,8 @@ import type {
   Customer,
   CreateCustomerData,
   UpdateCustomerData,
-  CreatePhoneNumberData,
-  UpdatePhoneNumberData,
   CreateCustomerBankData,
   UpdateCustomerBankData,
-  CustomerPhoneNumber,
   CustomerBank,
   CustomerListParams,
   CustomerListResponse,
@@ -113,38 +110,11 @@ export const customerService = {
     >(`${BASE_PATH}/customers/form-data`);
     return response.data;
   },
-
-  // Phone number operations
-  addPhoneNumber: async (customerId: string, data: CreatePhoneNumberData) => {
-    const response = await apiClient.post<
-      CustomerSingleResponse<CustomerPhoneNumber>
-    >(`${BASE_PATH}/customers/${customerId}/phones`, data);
-    return response.data;
-  },
-
-  updatePhoneNumber: async (
-    customerId: string,
-    phoneId: string,
-    data: UpdatePhoneNumberData,
-  ) => {
-    const response = await apiClient.put<
-      CustomerSingleResponse<CustomerPhoneNumber>
-    >(`${BASE_PATH}/customers/${customerId}/phones/${phoneId}`, data);
-    return response.data;
-  },
-
-  deletePhoneNumber: async (customerId: string, phoneId: string) => {
-    const response = await apiClient.delete<CustomerSingleResponse<null>>(
-      `${BASE_PATH}/customers/${customerId}/phones/${phoneId}`,
-    );
-    return response.data;
-  },
-
   // Bank account operations
   addBankAccount: async (customerId: string, data: CreateCustomerBankData) => {
     const response = await apiClient.post<
       CustomerSingleResponse<CustomerBank>
-    >(`${BASE_PATH}/customers/${customerId}/banks`, data);
+    >(`${BASE_PATH}/customers/${customerId}/bank-accounts`, data);
     return response.data;
   },
 
@@ -155,13 +125,13 @@ export const customerService = {
   ) => {
     const response = await apiClient.put<
       CustomerSingleResponse<CustomerBank>
-    >(`${BASE_PATH}/customers/${customerId}/banks/${bankId}`, data);
+    >(`${BASE_PATH}/customers/${customerId}/bank-accounts/${bankId}`, data);
     return response.data;
   },
 
   deleteBankAccount: async (customerId: string, bankId: string) => {
     const response = await apiClient.delete<CustomerSingleResponse<null>>(
-      `${BASE_PATH}/customers/${customerId}/banks/${bankId}`,
+      `${BASE_PATH}/customers/${customerId}/bank-accounts/${bankId}`,
     );
     return response.data;
   },

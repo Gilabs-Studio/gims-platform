@@ -9,10 +9,8 @@ import type { ContactRole } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
   description: z.string().max(500).optional(),
   badge_color: z.string().max(20).optional(),
-  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -32,15 +30,15 @@ export function useContactRoleForm({ open, onOpenChange, editingItem }: UseConta
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", description: "", badge_color: "#3B82F6", is_active: true },
+    defaultValues: { name: "", description: "", badge_color: "#3B82F6" },
   });
 
   useEffect(() => {
     if (open) {
       if (editingItem) {
-        form.reset({ name: editingItem.name, code: editingItem.code, description: editingItem.description ?? "", badge_color: editingItem.badge_color ?? "#3B82F6", is_active: editingItem.is_active });
+        form.reset({ name: editingItem.name, description: editingItem.description ?? "", badge_color: editingItem.badge_color ?? "#3B82F6" });
       } else {
-        form.reset({ name: "", code: "", description: "", badge_color: "#3B82F6", is_active: true });
+        form.reset({ name: "", description: "", badge_color: "#3B82F6" });
       }
     }
   }, [editingItem, form, open]);

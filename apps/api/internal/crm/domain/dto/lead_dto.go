@@ -9,6 +9,7 @@ type CreateLeadRequest struct {
 	CompanyName          string  `json:"company_name" binding:"max=200"`
 	Email                string  `json:"email" binding:"omitempty,email,max=100"`
 	Phone                string  `json:"phone" binding:"max=30"`
+	ContactRoleID        *string `json:"contact_role_id" binding:"omitempty,uuid"`
 	JobTitle             string  `json:"job_title" binding:"max=100"`
 	Address              string  `json:"address"`
 	City                 string  `json:"city" binding:"max=100"`
@@ -24,6 +25,8 @@ type CreateLeadRequest struct {
 	Website              string  `json:"website" binding:"omitempty,max=255"`
 	BankAccountID        *string `json:"bank_account_id" binding:"omitempty,uuid"`
 	BankAccountReference string  `json:"bank_account_reference" binding:"omitempty,max=255"`
+	Latitude             *float64 `json:"latitude"`
+	Longitude            *float64 `json:"longitude"`
 	// BANT
 	BudgetConfirmed bool    `json:"budget_confirmed"`
 	BudgetAmount    float64 `json:"budget_amount"`
@@ -49,6 +52,7 @@ type UpdateLeadRequest struct {
 	CompanyName          *string  `json:"company_name" binding:"omitempty,max=200"`
 	Email                *string  `json:"email" binding:"omitempty,email,max=100"`
 	Phone                *string  `json:"phone" binding:"omitempty,max=30"`
+	ContactRoleID        *string  `json:"contact_role_id" binding:"omitempty,uuid"`
 	JobTitle             *string  `json:"job_title" binding:"omitempty,max=100"`
 	Address              *string  `json:"address"`
 	City                 *string  `json:"city" binding:"omitempty,max=100"`
@@ -148,6 +152,8 @@ type LeadResponse struct {
 	CompanyName    string          `json:"company_name"`
 	Email          string          `json:"email"`
 	Phone          string          `json:"phone"`
+	ContactRoleID  *string         `json:"contact_role_id"`
+	ContactRole    *LeadContactRoleInfo `json:"contact_role,omitempty"`
 	JobTitle       string          `json:"job_title"`
 	Address        string          `json:"address"`
 	City           string          `json:"city"`
@@ -256,6 +262,14 @@ type LeadEmployeeInfo struct {
 	ID           string `json:"id"`
 	EmployeeCode string `json:"employee_code"`
 	Name         string `json:"name"`
+}
+
+// LeadContactRoleInfo is a compact representation of contact role
+type LeadContactRoleInfo struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Code       string `json:"code"`
+	BadgeColor string `json:"badge_color"`
 }
 
 // LeadCustomerInfo is a compact representation of a customer

@@ -82,7 +82,7 @@ func SeedMenus() error {
 		Name:   "Master Data",
 		Icon:   "database",
 		URL:    "/master-data",
-		Order:  2,
+		Order:  9,
 		Status: "active",
 	}
 	if err := createMenu(masterDataMenu); err != nil {
@@ -166,7 +166,7 @@ func SeedMenus() error {
 		Name:   "AI Assistant",
 		Icon:   "sparkles",
 		URL:    "/ai-assistant",
-		Order:  9,
+		Order:  10,
 		Status: "active",
 	}
 	if err := createMenu(aiMenu); err != nil {
@@ -178,7 +178,7 @@ func SeedMenus() error {
 		Name:   "CRM",
 		Icon:   "handshake",
 		URL:    "/crm",
-		Order:  10,
+		Order:  2,
 		Status: "active",
 	}
 	if err := createMenu(crmMenu); err != nil {
@@ -212,7 +212,6 @@ func SeedMenus() error {
 		{"Business Units", "grid", "/master-data/business-units", 4},
 		{"Business Types", "tag", "/master-data/business-types", 5},
 		{"Areas", "map", "/master-data/areas", 6},
-		{"Area Supervisors", "user-check", "/master-data/area-supervisors", 7},
 	}
 	for _, child := range organizationChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &organizationMenu.ID, child.order); err != nil {
@@ -349,8 +348,6 @@ func SeedMenus() error {
 		{"Customer Invoices", "receipt", "/sales/invoices", 4},
 		{"Customer Invoices Down Payments", "banknote", "/sales/customer-invoice-down-payments", 5},
 		{"Returns", "rotate-ccw", "/sales/returns", 6},
-		{"Sales Estimation", "calculator", "/sales/estimations", 7},
-		{"Sales Target", "target", "/crm/targets", 8},
 		{"Payments", "credit-card", "/sales/payments", 9},
 		{"Receivables Recap", "bar-chart-3", "/sales/receivables-recap", 10},
 	}
@@ -438,16 +435,28 @@ func SeedMenus() error {
 		}
 	}
 
-	// Journal Group (has sub-menus: Journal Entries, Journal Lines)
+	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {
 		return err
 	}
-	if _, err := createChildMenu("Journal Entries", "book-open", "/finance/journals", &journalMenu.ID, 1); err != nil {
-		return err
+	journalSubMenus := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Journal Entries", "file-text", "/finance/journals", 1},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
+		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
+		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
+		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
 	}
-	if _, err := createChildMenu("Journal Lines", "table", "/finance/journal-lines", &journalMenu.ID, 2); err != nil {
-		return err
+	for _, sub := range journalSubMenus {
+		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
+			return err
+		}
 	}
 
 	// Finance Reports Group
@@ -497,28 +506,6 @@ func SeedMenus() error {
 		}
 	}
 
-	// Employee Documents Group
-	empDocsMenu, err := createChildMenu("Employee Documents", "folder", "/hrd/documents", &hrdMenu.ID, 3)
-	if err != nil {
-		return err
-	}
-
-	empDocsChildren := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"Contracts", "file-text", "/hrd/contracts", 1},
-		{"Education History", "graduation-cap", "/hrd/education", 2},
-		{"Certifications", "award", "/hrd/certifications", 3},
-	}
-	for _, child := range empDocsChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &empDocsMenu.ID, child.order); err != nil {
-			return err
-		}
-	}
-
 	// ============================================================
 	// AI ASSISTANT SUB-MENUS
 	// ============================================================
@@ -530,7 +517,6 @@ func SeedMenus() error {
 		order int
 	}{
 		{"AI Chatbot", "bot", "/ai-chatbot", 1},
-		{"AI Settings", "settings", "/ai-settings", 2},
 	}
 	for _, child := range aiChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &aiMenu.ID, child.order); err != nil {
@@ -574,6 +560,11 @@ func SeedMenus() error {
 
 	// CRM Area Mapping menu (Sprint 24)
 	if _, err := createChildMenu("Area Mapping", "map", "/crm/area-mapping", &crmMenu.ID, 7); err != nil {
+		return err
+	}
+
+	// Sales Target (moved from Sales to CRM)
+	if _, err := createChildMenu("Sales Target", "check-square", "/crm/targets", &crmMenu.ID, 8); err != nil {
 		return err
 	}
 
@@ -625,6 +616,50 @@ func SeedMenus() error {
 	return nil
 }
 
+func migrateMenuURL(oldURL, newURL string) error {
+	var oldMenu permission.Menu
+	if err := database.DB.Where("url = ?", oldURL).First(&oldMenu).Error; err != nil {
+		return nil
+	}
+
+	var newMenu permission.Menu
+	if err := database.DB.Where("url = ?", newURL).First(&newMenu).Error; err == nil {
+		if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
+			"status": "inactive",
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Menu URL migration skipped (target exists): %s -> %s", oldURL, newURL)
+		return nil
+	}
+
+	if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
+		"url":    newURL,
+		"status": "active",
+	}).Error; err != nil {
+		return err
+	}
+	log.Printf("Migrated menu URL: %s -> %s", oldURL, newURL)
+	return nil
+}
+
+func deactivateMenuURL(url string) error {
+	var legacyMenu permission.Menu
+	if err := database.DB.Where("url = ?", url).First(&legacyMenu).Error; err != nil {
+		return nil
+	}
+	if legacyMenu.Status == "inactive" {
+		return nil
+	}
+	if err := database.DB.Model(&legacyMenu).Updates(map[string]interface{}{
+		"status": "inactive",
+	}).Error; err != nil {
+		return err
+	}
+	log.Printf("Deprecated menu URL: %s", url)
+	return nil
+}
+
 // UpdateMenuStructure updates existing menu structure (migration helper)
 func UpdateMenuStructure() error {
 	log.Println("Updating menu structure (migration helper)...")
@@ -641,42 +676,27 @@ func UpdateMenuStructure() error {
 	}
 
 	for _, m := range migrations {
-		var oldMenu permission.Menu
-		if err := database.DB.Where("url = ?", m.oldURL).First(&oldMenu).Error; err != nil {
-			continue
-		}
-
-		var newMenu permission.Menu
-		if err := database.DB.Where("url = ?", m.newURL).First(&newMenu).Error; err == nil {
-			// Target already exists; keep the old row but inactivate it to avoid confusion.
-			if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
-				"status": "inactive",
-			}).Error; err != nil {
-				return err
-			}
-			log.Printf("Menu URL migration skipped (target exists): %s -> %s", m.oldURL, m.newURL)
-			continue
-		}
-
-		if err := database.DB.Model(&oldMenu).Updates(map[string]interface{}{
-			"url":    m.newURL,
-			"status": "active",
-		}).Error; err != nil {
+		if err := migrateMenuURL(m.oldURL, m.newURL); err != nil {
 			return err
 		}
-		log.Printf("Migrated menu URL: %s -> %s", m.oldURL, m.newURL)
 	}
 
 	// Deprecate Sales Estimation menu — replaced by CRM Pipeline
-	var estimationMenu permission.Menu
-	if err := database.DB.Where("url = ?", "/sales/estimations").First(&estimationMenu).Error; err == nil {
-		if estimationMenu.Status != "inactive" {
-			if err := database.DB.Model(&estimationMenu).Updates(map[string]interface{}{
-				"status": "inactive",
-			}).Error; err != nil {
-				return err
-			}
-			log.Println("Deprecated Sales Estimation menu (replaced by CRM Pipeline)")
+	deprecatedMenuURLs := []string{
+		"/sales/estimations",
+		"/master-data/area-supervisors",
+		"/hrd/documents",
+		"/hrd/contracts",
+		"/hrd/education",
+		"/hrd/certifications",
+		"/ai-settings",
+		"/finance/journal-lines",
+		"/finance/reports/trial-balance",
+	}
+
+	for _, deprecatedURL := range deprecatedMenuURLs {
+		if err := deactivateMenuURL(deprecatedURL); err != nil {
+			return err
 		}
 	}
 

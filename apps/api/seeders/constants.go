@@ -9,14 +9,16 @@ const (
 	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
 	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
 	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
+	AccountantRoleID     = "b8e8a9b0-d1e2-4f3a-5b6c-7d8e9f0a1b2c"
+	AuditorRoleID        = "c9f9b0c1-e2f3-4a5b-6c7d-8e9f0a1b2c3d"
 )
 
 // User IDs (Fixed)
 const (
-	AdminUserID      = "ee0b14e0-c651-4814-a5a2-e7398f81dcf4"
-	ManagerUserID    = "2b83a042-45e3-46d4-a957-3f8d22384784"
-	StaffUserID      = "51d45763-8a39-4d6b-b4dc-7d2e057865c6"
-	ViewerUserID     = "98f45a2d-3c21-41b5-82e6-1234567890ab"
+	AdminUserID   = "ee0b14e0-c651-4814-a5a2-e7398f81dcf4"
+	ManagerUserID = "2b83a042-45e3-46d4-a957-3f8d22384784"
+	StaffUserID   = "51d45763-8a39-4d6b-b4dc-7d2e057865c6"
+	ViewerUserID  = "98f45a2d-3c21-41b5-82e6-1234567890ab"
 )
 
 // Organization IDs (Fixed)
@@ -46,27 +48,27 @@ const (
 
 // Area IDs (Fixed)
 const (
-	AreaJabodetabekID = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
-	AreaJawaBaratID   = "a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2"
-	AreaJawaTengahID  = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
-	AreaJawaTimurID   = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
-	AreaBaliID        = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
-	AreaBantenID      = "a6a6a6a6-a6a6-a6a6-a6a6-a6a6a6a6a6a6"
-	AreaDIYID         = "a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a7"
-	AreaSumateraUtaraID = "a8a8a8a8-a8a8-a8a8-a8a8-a8a8a8a8a8a8"
+	AreaJabodetabekID     = "a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1"
+	AreaJawaBaratID       = "a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2"
+	AreaJawaTengahID      = "a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3"
+	AreaJawaTimurID       = "a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4"
+	AreaBaliID            = "a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5"
+	AreaBantenID          = "a6a6a6a6-a6a6-a6a6-a6a6-a6a6a6a6a6a6"
+	AreaDIYID             = "a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a7"
+	AreaSumateraUtaraID   = "a8a8a8a8-a8a8-a8a8-a8a8-a8a8a8a8a8a8"
 	AreaSulawesiSelatanID = "a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9"
 	AreaKalimantanTimurID = "aabababa-baba-baba-baba-babababababa" // hex-only: a, b
 )
 
 // Employee IDs (Fixed)
 const (
-	AdminEmployeeID      = "11111111-1111-1111-1111-111111111111"
-	ManagerEmployeeID    = "22222222-2222-2222-2222-222222222222"
-	StaffEmployeeID      = "33333333-3333-3333-3333-333333333333"
-	SalesRep1EmployeeID  = "44444444-4444-4444-4444-444444444444"
-	SalesRep2EmployeeID  = "55555555-5555-5555-5555-555555555555"
+	AdminEmployeeID        = "11111111-1111-1111-1111-111111111111"
+	ManagerEmployeeID      = "22222222-2222-2222-2222-222222222222"
+	StaffEmployeeID        = "33333333-3333-3333-3333-333333333333"
+	SalesRep1EmployeeID    = "44444444-4444-4444-4444-444444444444"
+	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
 	FinanceStaffEmployeeID = "66666666-6666-6666-6666-666666666666"
-	HRStaffEmployeeID    = "77777777-7777-7777-7777-777777777777"
+	HRStaffEmployeeID      = "77777777-7777-7777-7777-777777777777"
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)

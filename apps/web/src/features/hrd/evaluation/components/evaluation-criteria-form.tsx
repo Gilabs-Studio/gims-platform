@@ -43,7 +43,7 @@ export function EvaluationCriteriaForm({ open, onClose, criteria, defaultGroupId
   const createCriteria = useCreateEvaluationCriteria();
   const updateCriteria = useUpdateEvaluationCriteria();
 
-  const { data: groupsData } = useEvaluationGroups({ per_page: 100, is_active: true });
+  const { data: groupsData } = useEvaluationGroups({ per_page: 20, is_active: true });
   const groups = groupsData?.data ?? [];
 
   const schema = isEdit

@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -30,18 +32,20 @@ func NewLeadSourceUsecase(repo repositories.LeadSourceRepository) LeadSourceUsec
 }
 
 func (u *leadSourceUsecase) Create(ctx context.Context, req dto.CreateLeadSourceRequest) (dto.LeadSourceResponse, error) {
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
+	nextOrder, err := u.nextLeadSourceOrder(ctx)
+	if err != nil {
+		return dto.LeadSourceResponse{}, err
 	}
 
+	sourceID := uuid.New().String()
+
 	source := &models.LeadSource{
-		ID:          uuid.New().String(),
+		ID:          sourceID,
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:        generateLeadSourceCode(req.Name, sourceID),
 		Description: req.Description,
-		Order:       req.Order,
-		IsActive:    isActive,
+		Order:       nextOrder,
+		IsActive:    true,
 	}
 
 	if err := u.repo.Create(ctx, source); err != nil {
@@ -76,14 +80,8 @@ func (u *leadSourceUsecase) Update(ctx context.Context, id string, req dto.Updat
 	if req.Name != "" {
 		source.Name = req.Name
 	}
-	if req.Code != "" {
-		source.Code = req.Code
-	}
 	if req.Description != "" {
 		source.Description = req.Description
-	}
-	if req.Order != nil {
-		source.Order = *req.Order
 	}
 	if req.IsActive != nil {
 		source.IsActive = *req.IsActive
@@ -102,4 +100,47 @@ func (u *leadSourceUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("lead source not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func (u *leadSourceUsecase) nextLeadSourceOrder(ctx context.Context) (int, error) {
+	maxOrder, err := u.repo.GetMaxOrder(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder + 1, nil
+}
+
+func generateLeadSourceCode(name, sourceID string) string {
+	base := normalizeCodeBase(name, "SOURCE")
+	return fmt.Sprintf("%s-%s", base, strings.Split(sourceID, "-")[0])
+}
+
+func normalizeCodeBase(name, fallback string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(name))
+	b := strings.Builder{}
+	prevUnderscore := false
+
+	for _, ch := range normalized {
+		if (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+			b.WriteRune(ch)
+			prevUnderscore = false
+			continue
+		}
+
+		if b.Len() > 0 && !prevUnderscore {
+			b.WriteByte('_')
+			prevUnderscore = true
+		}
+	}
+
+	base := strings.Trim(b.String(), "_")
+	if base == "" {
+		return fallback
+	}
+
+	if len(base) > 41 {
+		return base[:41]
+	}
+
+	return base
 }

@@ -16,7 +16,6 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useDeletePurchaseReturn, usePurchaseReturns, useUpdatePurchaseReturnStatus } from "../hooks/use-purchase-returns";
-import { useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { PurchaseReturnDetail } from "./purchase-return-detail";
 import { CreatePurchaseReturnDialog } from "./create-purchase-return-dialog";
 import type { PurchaseReturn, PurchaseReturnStatus } from "../types";
@@ -42,11 +41,14 @@ export function PurchaseReturnsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
   });
-  const { data: goodsReceiptsData } = useGoodsReceipts({ per_page: 100 });
 
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
-  const goodsReceiptCodeMap = new Map((goodsReceiptsData?.data ?? []).map((gr) => [gr.id, gr.code]));
+
+  const getGoodsReceiptLabel = (row: PurchaseReturn) => {
+    const goodsReceipt = (row as PurchaseReturn & { goods_receipt?: { code?: string | null } }).goods_receipt;
+    return goodsReceipt?.code ?? row.goods_receipt_id;
+  };
 
   if (isError) {
     return <div className="text-destructive">{t("common.error")}</div>;
@@ -209,7 +211,7 @@ export function PurchaseReturnsList() {
               rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.return_number}</TableCell>
-                  <TableCell>{goodsReceiptCodeMap.get(row.goods_receipt_id) ?? "-"}</TableCell>
+                  <TableCell>{getGoodsReceiptLabel(row)}</TableCell>
                   <TableCell>{getActionBadge(row.action)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
                   <TableCell>{formatDate(row.created_at)}</TableCell>

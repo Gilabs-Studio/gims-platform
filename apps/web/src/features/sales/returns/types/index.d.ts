@@ -70,6 +70,20 @@ export interface SalesReturn {
   updated_at: string;
 }
 
+export interface SalesReturnAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata?: Record<string, unknown>;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+  } | null;
+  created_at: string;
+}
+
 export type SalesReturnStatus = "DRAFT" | "SUBMITTED" | "PROCESSED" | "REJECTED";
 
 export interface SalesReturnListParams {

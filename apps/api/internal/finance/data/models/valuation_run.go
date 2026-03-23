@@ -1,0 +1,66 @@
+package models
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// ValuationRunStatus represents the lifecycle status of a valuation run.
+type ValuationRunStatus string
+
+const (
+	ValuationRunStatusRequested    ValuationRunStatus = "requested"
+	ValuationRunStatusProcessing   ValuationRunStatus = "processing"
+	ValuationRunStatusCompleted    ValuationRunStatus = "completed"
+	ValuationRunStatusNoDifference ValuationRunStatus = "no_difference"
+	ValuationRunStatusFailed       ValuationRunStatus = "failed"
+)
+
+// ValuationType represents the kind of valuation being run.
+type ValuationType string
+
+const (
+	ValuationTypeInventory    ValuationType = "inventory"
+	ValuationTypeCurrency     ValuationType = "currency"
+	ValuationTypeDepreciation ValuationType = "depreciation"
+	ValuationTypeCost         ValuationType = "cost"
+)
+
+// ValuationRun tracks each valuation run with lifecycle status, totals, and link to generated journal.
+type ValuationRun struct {
+	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+
+	ReferenceID   string             `gorm:"type:varchar(255);uniqueIndex;not null" json:"reference_id"`
+	ValuationType ValuationType      `gorm:"type:varchar(50);not null;index" json:"valuation_type"`
+	PeriodStart   time.Time          `gorm:"type:date;not null" json:"period_start"`
+	PeriodEnd     time.Time          `gorm:"type:date;not null" json:"period_end"`
+	Status        ValuationRunStatus `gorm:"type:varchar(20);not null;default:'requested';index" json:"status"`
+
+	TotalDebit  float64 `gorm:"type:decimal(18,2);default:0" json:"total_debit"`
+	TotalCredit float64 `gorm:"type:decimal(18,2);default:0" json:"total_credit"`
+
+	JournalEntryID *string       `gorm:"type:uuid" json:"journal_entry_id"`
+	JournalEntry   *JournalEntry `gorm:"foreignKey:JournalEntryID" json:"journal_entry,omitempty"`
+
+	ErrorMessage *string `gorm:"type:text" json:"error_message,omitempty"`
+
+	CreatedBy   *string    `gorm:"type:uuid" json:"created_by"`
+	CompletedAt *time.Time `json:"completed_at"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (ValuationRun) TableName() string {
+	return "valuation_runs"
+}
+
+func (vr *ValuationRun) BeforeCreate(tx *gorm.DB) error {
+	if vr.ID == "" {
+		vr.ID = uuid.New().String()
+	}
+	return nil
+}

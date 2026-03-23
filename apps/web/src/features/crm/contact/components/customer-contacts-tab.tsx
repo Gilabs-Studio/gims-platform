@@ -101,7 +101,7 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
           />
         </div>
         {canCreate && (
-          <Button size="sm" onClick={handleCreate} className="cursor-pointer">
+          <Button type="button" size="sm" onClick={handleCreate} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-1" />
             {t("addContact")}
           </Button>
@@ -148,11 +148,6 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
                     </Badge>
                   )}
                 </div>
-                {contact.position && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {contact.position}
-                  </p>
-                )}
                 <div className="flex items-center gap-3 mt-1.5">
                   {contact.phone && (
                     <a
@@ -183,6 +178,7 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
               <div className="flex items-center gap-1 ml-2" onClick={(e) => e.stopPropagation()}>
                 {canUpdate && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 cursor-pointer"
@@ -193,6 +189,7 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
                 )}
                 {canDelete && (
                   <Button
+                    type="button"
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"

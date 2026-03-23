@@ -12,12 +12,15 @@ import {
   type UpdateInvoiceFormData,
 } from "../schemas/invoice.schema";
 import { useCreateInvoice, useUpdateInvoice, useInvoice } from "../hooks/use-invoices";
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
-import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
+import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCustomerInvoiceDPs } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { productService } from "@/features/master-data/product/services/product-service";
+import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
+import { orderService } from "@/features/sales/order/services/order-service";
 import type { CustomerInvoice } from "../types";
 import { sortOptions } from "@/lib/utils";
+import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
 
 const STORAGE_KEY = "invoice_form_cache";
 
@@ -37,11 +40,21 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
+  const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
 
   type QuickCreateType = "paymentTerm" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
+
+  const enableReferenceOptionsFetch = useCallback(() => {
+    setShouldLoadReferenceOptions(true);
+  }, []);
+
+  const enableProductOptionsFetch = useCallback(() => {
+    setShouldLoadProductOptions(true);
+  }, []);
 
   // Fetch full invoice data with items when editing
   const { data: fullInvoiceData, isLoading: isLoadingInvoice, isFetching: isFetchingInvoice } = useInvoice(
@@ -49,25 +62,106 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     { enabled: open && isEdit && !!invoice?.id }
   );
 
-  // Fetch lookup data
-  const { data: productsData } = useProducts({ per_page: 100, is_approved: true }, { enabled: open });
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: open });
-  const { data: ordersData } = useOrders({ per_page: 100, status: "approved" }, { enabled: open });
+  const selectedInvoice = fullInvoiceData?.data ?? invoice ?? null;
+  const referenceOptionsEnabled = open && shouldLoadReferenceOptions;
+  const productOptionsEnabled = open && shouldLoadProductOptions;
 
-  const products = useMemo(() => {
-    const data = productsData?.data ?? [];
-    return sortOptions(data, (a) => `${a.code} - ${a.name}`);
-  }, [productsData?.data]);
+  const productsCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "products"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      productService.list({
+        ...params,
+        is_approved: true,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: `${item.code} - ${item.name}`,
+    }),
+    enabled: productOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.items?.length
+        ? selectedInvoice.items
+            .filter((item) => item.product?.id)
+            .map((item) => ({
+              value: item.product_id,
+              label: item.product?.code
+                ? `${item.product.code} - ${item.product.name}`
+                : item.product?.name ?? item.product_id,
+            }))
+        : undefined,
+  });
 
-  const paymentTerms = useMemo(() => {
-    const data = paymentTermsData?.data ?? [];
-    return sortOptions(data, (a) => a.name);
-  }, [paymentTermsData?.data]);
+  const paymentTermsCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "payment-terms"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      paymentTermsService.list({
+        ...params,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code ? `${item.code} - ${item.name}` : item.name,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.payment_terms?.id
+        ? [
+            {
+              value: selectedInvoice.payment_terms.id,
+              label: selectedInvoice.payment_terms.code
+                ? `${selectedInvoice.payment_terms.code} - ${selectedInvoice.payment_terms.name}`
+                : selectedInvoice.payment_terms.name,
+            },
+          ]
+        : undefined,
+  });
 
-  const orders = useMemo(() => {
-    const data = ordersData?.data ?? [];
-    return sortOptions(data, (a) => a.code);
-  }, [ordersData?.data]);
+  const ordersCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "invoice", "orders"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      orderService.list({
+        ...params,
+        status: "approved",
+        sort_by: "order_date",
+        sort_dir: "desc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedInvoice?.sales_order?.id
+        ? [{ value: selectedInvoice.sales_order.id, label: selectedInvoice.sales_order.code }]
+        : undefined,
+  });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setShouldLoadReferenceOptions(true);
+    setShouldLoadProductOptions(true);
+  }, [open]);
+
+  const products = useMemo(
+    () => sortOptions(productsCombobox.items, (a) => `${a.code} - ${a.name}`),
+    [productsCombobox.items],
+  );
+
+  const paymentTerms = useMemo(
+    () => sortOptions(paymentTermsCombobox.items, (a) => a.name),
+    [paymentTermsCombobox.items],
+  );
+
+  const orders = useMemo(
+    () => sortOptions(ordersCombobox.items, (a) => a.code),
+    [ordersCombobox.items],
+  );
 
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
@@ -130,7 +224,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
   // Fetch DP invoices linked to the selected SO for DP detection
   const { data: dpInvoicesData } = useCustomerInvoiceDPs(
-    { sales_order_id: watchedSalesOrderId ?? "", per_page: 100 },
+    { sales_order_id: watchedSalesOrderId ?? "", per_page: 20 },
     { enabled: open && !!watchedSalesOrderId },
   );
 
@@ -359,12 +453,23 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       if (isEdit && invoice) {
         await updateInvoice.mutateAsync({
           id: invoice.id,
-          data: { ...data, items: filteredItems },
+          data: {
+            ...data,
+            due_date: toOptionalString(data.due_date),
+            payment_terms_id: toOptionalString(data.payment_terms_id),
+            notes: toOptionalString(data.notes),
+            items: filteredItems,
+          },
         });
         toast.success(t("updated"));
       } else {
         await createInvoice.mutateAsync({
           ...data,
+          due_date: toOptionalString(data.due_date),
+          sales_order_id: toOptionalString(data.sales_order_id),
+          delivery_order_id: toOptionalString(data.delivery_order_id),
+          payment_terms_id: toOptionalString(data.payment_terms_id),
+          notes: toOptionalString(data.notes),
           items: filteredItems,
         } as CreateInvoiceFormData);
         toast.success(t("created"));
@@ -373,7 +478,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       onClose();
     } catch (error) {
       console.error("Failed to save invoice:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -421,9 +526,20 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     if (basicError) {
       setActiveTab("basic");
       setTimeout(() => {
-        toast.error(t("common.validationError") || "Please fill all required fields in General tab");
+        toast.error(
+          getFirstFormErrorMessage(errors) ||
+          t("common.validationError") ||
+          "Please fill all required fields in General tab",
+        );
       }, 100);
+      return;
     }
+
+    toast.error(
+      getFirstFormErrorMessage(errors) ||
+      t("validation.itemsMin") ||
+      "Please complete all required item fields.",
+    );
   };
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
@@ -459,8 +575,13 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
+    enableProductOptionsFetch,
     handlePaymentTermCreated,
     detectedDownPayments,
     dpSummary,
+    productsCombobox,
+    paymentTermsCombobox,
+    ordersCombobox,
   };
 }

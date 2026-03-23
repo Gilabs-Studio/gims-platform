@@ -42,7 +42,7 @@ export function SalesReturnsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
   });
-  const { data: deliveryData } = useDeliveryOrders({ per_page: 100 });
+  const { data: deliveryData } = useDeliveryOrders({ per_page: 20 });
 
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;

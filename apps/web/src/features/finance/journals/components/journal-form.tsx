@@ -3,12 +3,13 @@
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,13 +25,20 @@ import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa"
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 
 import { journalFormSchema, type JournalFormValues } from "../schemas/journal.schema";
-import { useCreateFinanceJournal, useFinanceJournal, useUpdateFinanceJournal } from "../hooks/use-finance-journals";
+import {
+  useCreateFinanceJournal,
+  useFinanceJournal,
+  useUpdateFinanceJournal,
+  useCreateFinanceAdjustmentJournal,
+  useUpdateFinanceAdjustmentJournal
+} from "../hooks/use-finance-journals";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   id?: string | null;
+  isAdjustment?: boolean;
 };
 
 type CoaOption = { id: string; code: string; name: string };
@@ -55,15 +63,21 @@ function todayISO(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function JournalForm({ open, onOpenChange, mode, id }: Props) {
+export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false }: Props) {
   const t = useTranslations("financeJournals");
 
   const { data: coaData } = useFinanceCoaTree({ only_active: true });
   const coaOptions = useMemo(() => flattenCoa(coaData?.data ?? []), [coaData?.data]);
 
   const journalQuery = useFinanceJournal(id ?? "", { enabled: open && mode === "edit" && !!id });
-  const createMutation = useCreateFinanceJournal();
-  const updateMutation = useUpdateFinanceJournal();
+
+  const createMutationGen = useCreateFinanceJournal();
+  const updateMutationGen = useUpdateFinanceJournal();
+  const createMutationAdj = useCreateFinanceAdjustmentJournal();
+  const updateMutationAdj = useUpdateFinanceAdjustmentJournal();
+
+  const createMutation = isAdjustment ? createMutationAdj : createMutationGen;
+  const updateMutation = isAdjustment ? updateMutationAdj : updateMutationGen;
 
   const defaultValues: JournalFormValues = useMemo(() => {
     if (mode === "edit") {
@@ -140,7 +154,7 @@ export function JournalForm({ open, onOpenChange, mode, id }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      <DialogContent size="2xl" className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
@@ -201,19 +215,31 @@ export function JournalForm({ open, onOpenChange, mode, id }: Props) {
 
                     <div className="md:col-span-2 space-y-1">
                       <Label>{t("fields.debit")}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...form.register(`lines.${idx}.debit`, { valueAsNumber: true })}
+                      <Controller
+                        control={form.control}
+                        name={`lines.${idx}.debit`}
+                        render={({ field }) => (
+                          <NumericInput
+                            value={field.value ?? ""}
+                            onChange={(value) => field.onChange(value)}
+                            placeholder="0"
+                          />
+                        )}
                       />
                     </div>
 
                     <div className="md:col-span-2 space-y-1">
                       <Label>{t("fields.credit")}</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...form.register(`lines.${idx}.credit`, { valueAsNumber: true })}
+                      <Controller
+                        control={form.control}
+                        name={`lines.${idx}.credit`}
+                        render={({ field }) => (
+                          <NumericInput
+                            value={field.value ?? ""}
+                            onChange={(value) => field.onChange(value)}
+                            placeholder="0"
+                          />
+                        )}
                       />
                     </div>
 

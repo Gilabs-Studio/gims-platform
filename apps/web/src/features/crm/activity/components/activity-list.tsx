@@ -40,7 +40,7 @@ export function ActivityList() {
   const { t, tCommon } = translations;
 
   const { data: formDataRes } = useLeadFormData({ enabled: permissions.canCreate });
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const { data: activityTypesData } = useActivityTypes({ per_page: 20, sort_by: "order", sort_dir: "asc" });
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.data?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);

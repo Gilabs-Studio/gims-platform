@@ -66,6 +66,8 @@ export const purchaseOrderId = {
     orderDate: "Tanggal Order",
     dueDate: "Tanggal Jatuh Tempo",
     supplier: "Supplier",
+    supplierPhoneNumber: "Nomor Telepon Supplier",
+    supplierContact: "Kontak Supplier",
     supplierInfo: "Informasi Supplier",
     paymentTerms: "Termin Pembayaran",
     businessUnit: "Business Unit",

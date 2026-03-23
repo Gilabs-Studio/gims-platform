@@ -14,7 +14,7 @@ func RegisterCustomerInvoiceDownPaymentRoutes(router *gin.RouterGroup, h *handle
 		group.GET("/add", h.Add)
 		group.GET("/export", h.Export)
 		group.GET("/:id", h.GetByID)
-		group.GET("/:id/audit-trail", h.AuditTrail)
+		group.GET("/:id/audit-trail", middleware.RequirePermission("customer_invoice_dp.read"), h.AuditTrail)
 		group.GET("/:id/print", middleware.RequirePermission("customer_invoice_dp.print"), printH.PrintDownPaymentInvoice)
 
 		group.POST("", h.Create)

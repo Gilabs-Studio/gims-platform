@@ -15,6 +15,7 @@ import { ChevronRight, Search, X, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
+import { isValidRoute } from "@/lib/route-validator";
 import { ButtonLoading } from "@/components/loading";
 import type { Permission, PermissionScope } from "../types";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ interface PermissionTreeNode {
   id: string;
   name: string;
   icon: string;
+  url?: string;
   type: "section" | "group" | "resource";
   children?: PermissionTreeNode[];
   resource?: string;
@@ -111,59 +113,118 @@ interface TreeCounts {
 function buildPermissionTree(
   navConfig: NavItem[],
   permissions: Permission[],
+  tNav?: (key: string) => string
 ): PermissionTreeNode[] {
-  // Index permissions by resource prefix (e.g. "country" -> [country.read, country.create, ...])
+  const normalizeRoute = (path?: string): string => {
+    if (!path) return "";
+    const trimmed = path.trim().replace(/^\/+|\/+$/g, "");
+    return trimmed ? `/${trimmed}` : "";
+  };
+
+  const getResourceFromCode = (code?: string): string => {
+    if (!code) return "";
+    const [resource] = code.split(".");
+    return resource ?? "";
+  };
+
+  const toTitle = (value: string): string =>
+    value
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
   const permsByResource = new Map<string, Permission[]>();
-  for (const p of permissions) {
-    const [resource] = p.code.split(".");
+  for (const permission of permissions) {
+    const resource = getResourceFromCode(permission.code);
+    if (!resource) continue;
     if (!permsByResource.has(resource)) permsByResource.set(resource, []);
-    permsByResource.get(resource)!.push(p);
+    permsByResource.get(resource)!.push(permission);
   }
-  // Sort each resource's permissions by action order
-  for (const perms of permsByResource.values()) {
-    perms.sort((a, b) => actionSortKey(a) - actionSortKey(b));
+  for (const groupedPerms of permsByResource.values()) {
+    groupedPerms.sort((a, b) => actionSortKey(a) - actionSortKey(b));
   }
 
-  const usedResources = new Set<string>();
+  const usedPermissionIds = new Set<string>();
+
+  const getUnmatchedPerms = (perms: Permission[]): Permission[] =>
+    perms.filter((perm) => !usedPermissionIds.has(perm.id));
+
+  const markUsed = (perms: Permission[]): void => {
+    for (const perm of perms) {
+      usedPermissionIds.add(perm.id);
+    }
+  };
+
+  const makeResourceNode = (
+    id: string,
+    name: string,
+    icon: string,
+    resource: string,
+    perms: Permission[],
+    url?: string,
+  ): PermissionTreeNode => ({
+    id,
+    name,
+    icon,
+    url,
+    type: "resource",
+    resource,
+    permissions: perms,
+  });
 
   function processNode(nav: NavItem, depth: number): PermissionTreeNode | null {
-    // Leaf - has permission and no children
-    if (nav.permission && !nav.children?.length) {
-      const [resource] = nav.permission.split(".");
-      const perms = permsByResource.get(resource);
-      if (!perms?.length) return null;
-      usedResources.add(resource);
-      
-      const safeSuffix = nav.url ? nav.url.replace(/[^a-zA-Z0-9]/g, "-") : Math.random().toString(36).substring(7);
+    const translatedName = nav.i18nKey && tNav ? tNav(nav.i18nKey) || nav.name : nav.name;
+    const normalizedUrl = normalizeRoute(nav.url);
+    const hasChildren = Boolean(nav.children?.length);
+    const navResource = getResourceFromCode(nav.permission);
+    const selfPerms = navResource
+      ? getUnmatchedPerms(permsByResource.get(navResource) ?? [])
+      : [];
 
-      return {
-        id: `resource-${resource}-${safeSuffix}`,
-        name: nav.name,
-        icon: nav.icon,
-        type: "resource",
-        resource,
-        permissions: perms,
-      };
+    if (!hasChildren) {
+      if (!navResource || selfPerms.length === 0) return null;
+      markUsed(selfPerms);
+      return makeResourceNode(
+        `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+        translatedName,
+        nav.icon,
+        navResource,
+        selfPerms,
+        normalizedUrl || undefined,
+      );
     }
 
-    // Branch - has children
-    if (nav.children?.length) {
-      const children: PermissionTreeNode[] = [];
-      for (const child of nav.children) {
-        const node = processNode(child, depth + 1);
-        if (node) children.push(node);
-      }
-      if (children.length === 0) return null;
-      return {
-        id: `${depth === 0 ? "section" : "group"}-${nav.name}`,
-        name: nav.name,
-        icon: nav.icon,
-        type: depth === 0 ? "section" : "group",
-        children,
-      };
+    const children: PermissionTreeNode[] = [];
+
+    // Keep branch-level permissions visible (example: /reports -> report.view).
+    if (navResource && selfPerms.length > 0) {
+      markUsed(selfPerms);
+      children.push(
+        makeResourceNode(
+          `resource-${navResource}-${normalizedUrl.replace(/[^a-zA-Z0-9]/g, "-")}`,
+          translatedName,
+          nav.icon,
+          navResource,
+          selfPerms,
+          normalizedUrl || undefined,
+        ),
+      );
     }
 
-    return null;
+    for (const child of nav.children ?? []) {
+      const node = processNode(child, depth + 1);
+      if (node) children.push(node);
+    }
+
+    if (children.length === 0) return null;
+
+    return {
+      id: `${depth === 0 ? "section" : "group"}-${translatedName}`,
+      name: translatedName,
+      icon: nav.icon,
+      url: normalizedUrl || undefined,
+      type: depth === 0 ? "section" : "group",
+      children,
+    };
   }
 
   const tree: PermissionTreeNode[] = [];
@@ -172,26 +233,95 @@ function buildPermissionTree(
     if (node) tree.push(node);
   }
 
-  // Collect orphaned permissions not matched by any navConfig leaf
-  const orphaned: PermissionTreeNode[] = [];
-  for (const [resource, perms] of permsByResource) {
-    if (usedResources.has(resource)) continue;
-    orphaned.push({
+  const urlIndex = new Map<string, { node: PermissionTreeNode; parent: PermissionTreeNode | null }>();
+  const topSectionsByUrl = new Map<string, PermissionTreeNode>();
+
+  const indexTree = (nodes: PermissionTreeNode[], parent: PermissionTreeNode | null): void => {
+    for (const node of nodes) {
+      const nodeUrl = normalizeRoute(node.url);
+      if (nodeUrl) {
+        urlIndex.set(nodeUrl, { node, parent });
+        if (!parent && node.type === "section") {
+          topSectionsByUrl.set(nodeUrl, node);
+        }
+      }
+      if (node.children?.length) {
+        indexTree(node.children, node);
+      }
+    }
+  };
+
+  indexTree(tree, null);
+
+  const createOrphanNode = (resource: string, perms: Permission[]): PermissionTreeNode => {
+    const menuIcon = perms.find((perm) => perm.menu?.icon)?.menu?.icon;
+    const menuUrl = normalizeRoute(perms.find((perm) => perm.menu?.url)?.menu?.url);
+    return {
       id: `resource-${resource}`,
-      name: resource.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-      icon: "file",
+      name: toTitle(resource),
+      icon: menuIcon ?? "file",
+      url: menuUrl || undefined,
       type: "resource",
       resource,
       permissions: perms,
-    });
+    };
+  };
+
+  const globalOrphans: PermissionTreeNode[] = [];
+
+  for (const [resource, allPerms] of permsByResource) {
+    const remainingPerms = getUnmatchedPerms(allPerms);
+    if (remainingPerms.length === 0) continue;
+
+    const menuUrl = normalizeRoute(remainingPerms[0]?.menu?.url);
+    let targetContainer: PermissionTreeNode | null = null;
+
+    if (menuUrl && (isValidRoute(menuUrl) || urlIndex.has(menuUrl))) {
+      const indexedTarget = urlIndex.get(menuUrl);
+      if (indexedTarget) {
+        targetContainer =
+          indexedTarget.node.type === "resource"
+            ? indexedTarget.parent
+            : indexedTarget.node;
+      } else {
+        const topLevelSegment = menuUrl.split("/")[1];
+        if (topLevelSegment) {
+          targetContainer = topSectionsByUrl.get(`/${topLevelSegment}`) ?? null;
+        }
+      }
+    }
+
+    if (targetContainer?.children) {
+      const existingNode = targetContainer.children.find(
+        (child) => child.type === "resource" && child.resource === resource,
+      );
+
+      if (existingNode?.permissions) {
+        const mergedById = new Map(existingNode.permissions.map((perm) => [perm.id, perm]));
+        for (const perm of remainingPerms) {
+          mergedById.set(perm.id, perm);
+        }
+        existingNode.permissions = Array.from(mergedById.values()).sort(
+          (a, b) => actionSortKey(a) - actionSortKey(b),
+        );
+      } else {
+        targetContainer.children.push(createOrphanNode(resource, remainingPerms));
+      }
+
+      markUsed(remainingPerms);
+      continue;
+    }
+
+    globalOrphans.push(createOrphanNode(resource, remainingPerms));
   }
-  if (orphaned.length > 0) {
+
+  if (globalOrphans.length > 0) {
     tree.push({
       id: "section-Other",
       name: "Other",
       icon: "more-horizontal",
       type: "section",
-      children: orphaned,
+      children: globalOrphans,
     });
   }
 
@@ -280,16 +410,22 @@ const TreeResourceRow = memo(function TreeResourceRow({
   onUpdateScope: (id: string, scope: PermissionScope) => void;
   t: ReturnType<typeof useTranslations>;
 }) {
-  const perms = node.permissions ?? [];
-  const selectedCount = perms.filter((p) => p.id in selected).length;
+  const perms = useMemo(() => node.permissions ?? [], [node.permissions]);
+  const permIds = useMemo(() => perms.map((p) => p.id), [perms]);
+
+  const selectedCount = useMemo(() => perms.filter((p) => p.id in selected).length, [perms, selected]);
   const allSelected = selectedCount === perms.length && perms.length > 0;
   const someSelected = selectedCount > 0 && !allSelected;
 
   // Determine the scope to display (common scope across selected perms)
-  const scopeApplicablePerms = perms.filter((p) => {
-    const [, action] = p.code.split(".");
-    return p.id in selected && isScopeApplicable(action);
-  });
+  const scopeApplicablePerms = useMemo(
+    () =>
+      perms.filter((p) => {
+        const [, action] = p.code.split(".");
+        return p.id in selected && isScopeApplicable(action);
+      }),
+    [perms, selected],
+  );
   const displayScope = scopeApplicablePerms.length > 0
     ? (selected[scopeApplicablePerms[0].id] ?? "ALL")
     : "ALL";
@@ -297,9 +433,8 @@ const TreeResourceRow = memo(function TreeResourceRow({
     scopeApplicablePerms.some((p) => selected[p.id] !== displayScope);
 
   const handleMasterToggle = useCallback(() => {
-    const ids = perms.map((p) => p.id);
-    onToggleAll(ids, !allSelected);
-  }, [perms, allSelected, onToggleAll]);
+    onToggleAll(permIds, !allSelected);
+  }, [permIds, allSelected, onToggleAll]);
 
   const handleScopeChange = useCallback(
     (scope: string) => {
@@ -551,11 +686,15 @@ function PermissionsSelector({
 }) {
   const assignPermissions = useAssignPermissionsToRole();
   const t = useTranslations("userManagement.assignPermissions");
+  const tNav = useTranslations("navigation");
+
+  // Provide a stable, typed translator function for buildPermissionTree
+  const tNavFn = useMemo(() => (key: string) => tNav(key), [tNav]);
 
   // Build tree from navConfig + permissions (stable across renders)
   const tree = useMemo(
-    () => buildPermissionTree(navigationConfig, permissions),
-    [permissions],
+    () => buildPermissionTree(navigationConfig, permissions, tNavFn),
+    [permissions, tNavFn],
   );
 
   // Valid permission ID set for filtering stale IDs from the role

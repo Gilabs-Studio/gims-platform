@@ -12,6 +12,18 @@ export interface SupplierType {
   updated_at: string;
 }
 
+export interface SupplierPaymentTerms {
+  id: string;
+  code: string;
+  name: string;
+  days: number;
+}
+
+export interface SupplierBusinessUnit {
+  id: string;
+  name: string;
+}
+
 export interface CreateSupplierTypeData {
   name: string;
   description?: string;
@@ -49,28 +61,44 @@ export interface UpdateBankData {
   is_active?: boolean;
 }
 
-// === Supplier Phone Number ===
-export interface SupplierPhoneNumber {
+// === Supplier Contact ===
+export interface SupplierContact {
   id: string;
   supplier_id: string;
-  phone_number: string;
-  label?: string;
+  contact_role_id?: string;
+  contact_role?: {
+    id: string;
+    name: string;
+    code: string;
+    badge_color: string;
+  };
+  name: string;
+  email?: string;
+  phone: string;
+  notes?: string;
   is_primary: boolean;
+  is_active: boolean;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface CreatePhoneNumberData {
-  phone_number: string;
-  label?: string;
+export interface CreateContactData {
+  contact_role_id?: string;
+  name: string;
+  email?: string;
+  phone: string;
+  notes?: string;
   is_primary?: boolean;
+  is_active?: boolean;
 }
 
-export interface UpdatePhoneNumberData {
-  phone_number?: string;
-  label?: string;
-  is_primary?: boolean;
-}
+export interface UpdateContactData extends Partial<CreateContactData> {}
+
+// Backward-compat aliases for old naming
+export type SupplierPhoneNumber = SupplierContact;
+export type CreatePhoneNumberData = CreateContactData;
+export type UpdatePhoneNumberData = UpdateContactData;
 
 // === Supplier Bank Account ===
 export interface SupplierBank {
@@ -139,6 +167,10 @@ export interface Supplier {
   name: string;
   supplier_type_id?: string;
   supplier_type?: SupplierType;
+  payment_terms_id?: string;
+  payment_terms?: SupplierPaymentTerms;
+  business_unit_id?: string;
+  business_unit?: SupplierBusinessUnit;
   address?: string;
   province_id?: string;
   province?: { id: string; name: string };
@@ -164,13 +196,16 @@ export interface Supplier {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  phone_numbers?: SupplierPhoneNumber[];
+  contacts?: SupplierContact[];
+  phone_numbers?: SupplierContact[];
   bank_accounts?: SupplierBank[];
 }
 
 export interface CreateSupplierData {
   name: string;
   supplier_type_id?: string;
+  payment_terms_id?: string;
+  business_unit_id?: string;
   address?: string;
   province_id?: string;
   city_id?: string;
@@ -185,13 +220,15 @@ export interface CreateSupplierData {
   latitude?: number | null;
   longitude?: number | null;
   is_active?: boolean;
-  phone_numbers?: CreatePhoneNumberData[];
+  contacts?: CreateContactData[];
   bank_accounts?: CreateSupplierBankData[];
 }
 
 export interface UpdateSupplierData {
   name?: string;
   supplier_type_id?: string | null;
+  payment_terms_id?: string | null;
+  business_unit_id?: string | null;
   address?: string;
   province_id?: string | null;
   city_id?: string | null;

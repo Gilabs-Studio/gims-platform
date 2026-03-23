@@ -1,14 +1,23 @@
 import { Badge } from "@/components/ui/badge";
 import { StockMovementType } from "../types";
-import { ArrowDownLeft, ArrowUpRight, RefreshCw, Repeat } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, RefreshCw } from "lucide-react";
 
 interface MovementBadgeProps {
   type: StockMovementType;
+  refType?: string;
 }
 
-export function MovementBadge({ type }: MovementBadgeProps) {
-  const t = useTranslations("common.movementType"); // map types in en.json later, or hardcode for now if strict
+export function MovementBadge({ type, refType }: MovementBadgeProps) {
+  const isTransfer = type === "TRANSFER" || refType?.toUpperCase() === "TRANSFER";
+
+  if (isTransfer) {
+    return (
+      <Badge variant="warning">
+        <ArrowRightLeft className="h-3 w-3 mr-1" />
+        TRANSFER
+      </Badge>
+    );
+  }
 
   switch (type) {
     case "IN":
@@ -30,13 +39,6 @@ export function MovementBadge({ type }: MovementBadgeProps) {
         <Badge variant="warning">
           <RefreshCw className="h-3 w-3 mr-1" />
           ADJUST
-        </Badge>
-      );
-    case "TRANSFER":
-      return (
-        <Badge variant="default">
-          <Repeat className="h-3 w-3 mr-1" />
-          TRANSFER
         </Badge>
       );
     default:

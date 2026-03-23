@@ -14,6 +14,7 @@ export const purchaseOrderItemSchema = z.object({
 export const purchaseOrderSchema = z.object({
   source: z.enum(["manual", "pr", "so"]).default("manual"),
   supplier_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
+  supplier_contact_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
   payment_terms_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
   business_unit_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),
   purchase_requisitions_id: uuidLike().nullable().optional().or(z.literal("").transform(() => null)),

@@ -14,10 +14,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 import { useGoodsReceipt, useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
-import { useCreatePurchaseReturn, usePurchaseReturnFormData, usePurchaseReturns, useWarehouseInventoryAvailability } from "../hooks/use-purchase-returns";
+import { useCreatePurchaseReturn, usePurchaseReturnFormDataLazy, usePurchaseReturns, useWarehouseInventoryAvailability } from "../hooks/use-purchase-returns";
 import { purchaseReturnSchema, type PurchaseReturnFormData } from "../schemas/purchase-return.schema";
 
 interface PurchaseReturnFormProps {
+  readonly open: boolean;
   readonly defaultGoodsReceiptId?: string;
   readonly onSuccess?: () => void;
 }
@@ -40,12 +41,12 @@ const formatQty = (value: number) =>
     maximumFractionDigits: 3,
   }).format(value);
 
-export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: PurchaseReturnFormProps) {
+export function PurchaseReturnForm({ open, defaultGoodsReceiptId, onSuccess }: PurchaseReturnFormProps) {
   const t = useTranslations("purchaseReturns");
   const isGoodsReceiptLocked = !!defaultGoodsReceiptId;
 
-  const { data: formDataResponse } = usePurchaseReturnFormData();
-  const { data: goodsReceiptsResponse } = useGoodsReceipts({ per_page: 100 });
+  const { data: formDataResponse } = usePurchaseReturnFormDataLazy({ enabled: open });
+  const { data: goodsReceiptsResponse } = useGoodsReceipts({ per_page: 20 }, { enabled: open });
   const createMutation = useCreatePurchaseReturn();
 
   const form = useForm<PurchaseReturnFormData>({
@@ -80,18 +81,20 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
 
   const { data: goodsReceiptResponse, isLoading: isLoadingGoodsReceipt, isError: isGoodsReceiptError } = useGoodsReceipt(
     selectedGoodsReceiptId ?? "",
-    { enabled: !!selectedGoodsReceiptId },
+    { enabled: open && !!selectedGoodsReceiptId },
   );
 
   const { data: returnHistoryResponse } = usePurchaseReturns(
     {
-      per_page: 100,
+      per_page: 20,
       goods_receipt_id: selectedGoodsReceiptId,
     },
-    { enabled: !!selectedGoodsReceiptId },
+    { enabled: open && !!selectedGoodsReceiptId },
   );
 
-  const { data: warehouseAvailabilityResponse } = useWarehouseInventoryAvailability(selectedWarehouseId);
+  const { data: warehouseAvailabilityResponse } = useWarehouseInventoryAvailability(selectedWarehouseId, {
+    enabled: open && !!selectedWarehouseId,
+  });
 
   const goodsReceipt = goodsReceiptResponse?.data;
   const goodsReceiptWarehouseId = (goodsReceipt as { warehouse_id?: string } | undefined)?.warehouse_id ?? "";
@@ -104,7 +107,7 @@ export function PurchaseReturnForm({ defaultGoodsReceiptId, onSuccess }: Purchas
   );
 
   const { data: purchaseOrderResponse } = usePurchaseOrder(goodsReceipt?.purchase_order?.id ?? "", {
-    enabled: !!goodsReceipt?.purchase_order?.id,
+    enabled: open && !!goodsReceipt?.purchase_order?.id,
   });
 
   const purchaseOrderItems = useMemo(() => purchaseOrderResponse?.data?.items ?? [], [purchaseOrderResponse?.data?.items]);

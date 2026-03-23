@@ -3,9 +3,9 @@ package usecase
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -537,6 +537,9 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 
 	refID := pay.ID
 	refType := "PURCHASE_PAYMENT"
+	traceKey := refType + ":" + refID
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
 
 	req := &finDto.CreateJournalEntryRequest{
 		EntryDate:     pay.PaymentDate,
@@ -546,8 +549,31 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
-	return err
+	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
+		"trace_key":      traceKey,
+		"module":         "purchase_payment",
+		"reference_type": refType,
+		"reference_id":   refID,
+		"line_count":     len(lines),
+		"actor_id":       actorID,
+	})
+
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
+			"trace_key": traceKey,
+			"module":    "purchase_payment",
+			"error":     err.Error(),
+		})
+		return err
+	}
+
+	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
+		"trace_key": traceKey,
+		"module":    "purchase_payment",
+	})
+
+	return nil
 }
 
 func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error) {
@@ -597,19 +623,30 @@ func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 
 	entries := make([]dto.PurchasePaymentAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		metaMap := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &metaMap)
+		metaMap := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
+
+		var usr *dto.AuditTrailUser
+		if r.ActorID != "" {
+			email := ""
+			name := ""
+			if r.ActorEmail != nil {
+				email = *r.ActorEmail
+			}
+			if r.ActorName != nil {
+				name = *r.ActorName
+			}
+			usr = &dto.AuditTrailUser{ID: r.ActorID, Email: email, Name: name}
 		}
+
 		entries = append(entries, dto.PurchasePaymentAuditTrailEntry{
 			ID:             r.ID,
-			ActorID:        r.ActorID,
-			ActorEmail:     r.ActorEmail,
-			ActorName:      r.ActorName,
 			PermissionCode: r.PermissionCode,
 			Action:         r.Action,
+			TargetID:       r.TargetID,
 			Metadata:       metaMap,
+			User:           usr,
 			CreatedAt:      r.CreatedAt,
 		})
 	}

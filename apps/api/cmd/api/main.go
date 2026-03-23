@@ -339,7 +339,11 @@ func main() {
 		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
 
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
+		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, salesPresentation.SalesRouteDeps{
+			InventoryUC: invUC,
+			JournalUC:   financeDeps.JournalUC,
+			CoaUC:       financeDeps.CoaUC,
+		})
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -353,7 +357,7 @@ func main() {
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// Stock Opname module (Sprint 9) — depends on inventory for stock movement on Post
-		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -379,6 +383,7 @@ func main() {
 			AttendanceUC:     hrdDeps.AttendanceUC,
 			SalesQuotationUC: salesDeps.QuotationUC,
 			SalesOrderUC:     salesDeps.OrderUC,
+			YearlyTargetUC:   salesDeps.YearlyTargetUC,
 			InventoryUC:      invUC,
 		})
 	}

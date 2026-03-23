@@ -54,6 +54,14 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not handle constraint issues (this may be expected): %v", err)
 	}
 
+	// PRE-MIGRATION FIX: Change reference_id to varchar to support non-UUID references
+	// We ignore the error if the table doesn't exist yet (fresh install)
+	_ = DB.Exec(`
+		ALTER TABLE journal_entries 
+		ALTER COLUMN reference_id TYPE VARCHAR(255) 
+		USING reference_id::varchar;
+	`)
+
 	// Use a custom migration approach that handles constraint errors gracefully
 	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
 	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
@@ -90,12 +98,11 @@ func AutoMigrate() error {
 		&supplier.SupplierType{},
 		&supplier.Bank{},
 		&supplier.Supplier{},
-		&supplier.SupplierPhoneNumber{},
+		&supplier.SupplierContact{},
 		&supplier.SupplierBank{},
 		// Customer entities (Master Data)
 		&customer.CustomerType{},
 		&customer.Customer{},
-		&customer.CustomerPhoneNumber{},
 		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},
@@ -119,6 +126,8 @@ func AutoMigrate() error {
 		&finance.ChartOfAccount{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
+		&finance.JournalReversal{},
+		&finance.JournalAttachment{},
 		// Finance entities (Sprint 11)
 		&finance.Payment{},
 		&finance.PaymentAllocation{},
@@ -142,6 +151,7 @@ func AutoMigrate() error {
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
+		&finance.ValuationRun{},
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},

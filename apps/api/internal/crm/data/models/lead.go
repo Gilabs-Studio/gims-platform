@@ -22,6 +22,8 @@ type Lead struct {
 	CompanyName string  `gorm:"type:varchar(200);index" json:"company_name"`
 	Email       string  `gorm:"type:varchar(100)" json:"email"`
 	Phone       string  `gorm:"type:varchar(30)" json:"phone"`
+	ContactRoleID *string `gorm:"type:uuid;index" json:"contact_role_id"`
+	ContactRole   *ContactRole `gorm:"foreignKey:ContactRoleID" json:"contact_role,omitempty"`
 	JobTitle    string  `gorm:"type:varchar(100)" json:"job_title"`
 	Address     string  `gorm:"type:text" json:"address"`
 	City        string  `gorm:"type:varchar(100)" json:"city"`

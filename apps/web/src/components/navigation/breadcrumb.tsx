@@ -6,14 +6,12 @@ import { useBreadcrumb } from "@/hooks/use-breadcrumb";
 import { usePathname } from "@/i18n/routing";
 import { useDealById } from "@/features/crm/deal/hooks/use-deals";
 import { useRecruitmentRequest } from "@/features/hrd/recruitment/hooks/use-recruitment";
-import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
-import type { MenuWithActions } from "@/features/master-data/user-management/types";
+import { useNavigation } from "@/hooks/use-navigation";
 import { getMenuIcon } from "@/lib/menu-icons";
 import { cn } from "@/lib/utils";
 
 export function Breadcrumb() {
-  const { data: permissionsData } = useUserPermissions();
-  const menus = permissionsData?.data?.menus as MenuWithActions[] | undefined;
+  const { menus } = useNavigation();
   const breadcrumbItems = useBreadcrumb(menus);
   const pathname = usePathname();
 

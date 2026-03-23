@@ -33,10 +33,13 @@ type LeadUsecase interface {
 	GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error)
 }
 
+var ErrCannotManuallySetConvertedStatus = errors.New("cannot manually set converted status, use the convert endpoint")
+
 type leadUsecase struct {
 	leadRepo          repositories.LeadRepository
 	leadStatusRepo    repositories.LeadStatusRepository
 	leadSourceRepo    repositories.LeadSourceRepository
+	contactRoleRepo   repositories.ContactRoleRepository
 	dealRepo          repositories.DealRepository
 	pipelineStageRepo repositories.PipelineStageRepository
 	activityRepo      repositories.ActivityRepository
@@ -52,6 +55,7 @@ func NewLeadUsecase(
 	leadRepo repositories.LeadRepository,
 	leadStatusRepo repositories.LeadStatusRepository,
 	leadSourceRepo repositories.LeadSourceRepository,
+	contactRoleRepo repositories.ContactRoleRepository,
 	dealRepo repositories.DealRepository,
 	pipelineStageRepo repositories.PipelineStageRepository,
 	activityRepo repositories.ActivityRepository,
@@ -65,6 +69,7 @@ func NewLeadUsecase(
 		leadRepo:          leadRepo,
 		leadStatusRepo:    leadStatusRepo,
 		leadSourceRepo:    leadSourceRepo,
+		contactRoleRepo:   contactRoleRepo,
 		dealRepo:          dealRepo,
 		pipelineStageRepo: pipelineStageRepo,
 		activityRepo:      activityRepo,
@@ -109,6 +114,14 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		}
 	}
 
+	// Validate contact role if provided
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
+	}
+
 	// Parse time expected
 	var timeExpected *time.Time
 	if req.TimeExpected != nil && *req.TimeExpected != "" {
@@ -126,6 +139,7 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		CompanyName:          req.CompanyName,
 		Email:                req.Email,
 		Phone:                req.Phone,
+		ContactRoleID:        req.ContactRoleID,
 		JobTitle:             req.JobTitle,
 		Address:              req.Address,
 		City:                 req.City,
@@ -141,6 +155,8 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		Website:              req.Website,
 		BankAccountID:        req.BankAccountID,
 		BankAccountReference: req.BankAccountReference,
+		Latitude:             req.Latitude,
+		Longitude:            req.Longitude,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
 		AuthConfirmed:        req.AuthConfirmed,
@@ -275,7 +291,7 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		}
 		// Prevent manual assignment of converted status
 		if status.IsConverted {
-			return dto.LeadResponse{}, errors.New("cannot manually set converted status, use the convert endpoint")
+			return dto.LeadResponse{}, ErrCannotManuallySetConvertedStatus
 		}
 
 		// Track status changes for activity logging
@@ -295,6 +311,14 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 			return dto.LeadResponse{}, errors.New("assigned employee not found")
 		}
 		lead.AssignedTo = req.AssignedTo
+	}
+
+	// Validate contact role if changing
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
 	}
 
 	// Apply partial updates
@@ -317,6 +341,18 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Phone != nil {
 		addStringChange("phone", lead.Phone, *req.Phone)
 		lead.Phone = *req.Phone
+	}
+	if req.ContactRoleID != nil {
+		old := ""
+		if lead.ContactRoleID != nil {
+			old = *lead.ContactRoleID
+		}
+		newVal := ""
+		if *req.ContactRoleID != "" {
+			newVal = *req.ContactRoleID
+		}
+		addStringChange("contact_role_id", old, newVal)
+		lead.ContactRoleID = req.ContactRoleID
 	}
 	if req.JobTitle != nil {
 		addStringChange("job_title", lead.JobTitle, *req.JobTitle)
@@ -600,7 +636,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	// Resolve pipeline stage: use provided stage or default to first stage (order=1)
+	// Resolve pipeline stage: use provided stage or default to lowest-probability active pipeline stage
 	var pipelineStageID string
 	if req.PipelineStageID != nil && *req.PipelineStageID != "" {
 		stage, err := u.pipelineStageRepo.FindByID(ctx, *req.PipelineStageID)
@@ -609,11 +645,32 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		}
 		pipelineStageID = stage.ID
 	} else {
-		firstStage, err := u.pipelineStageRepo.FindByOrder(ctx, 1)
+		stages, _, err := u.pipelineStageRepo.List(ctx, repositories.ListParams{Limit: 100})
 		if err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to find default pipeline stage: %w", err)
+			return dto.LeadResponse{}, fmt.Errorf("failed to load pipeline stages: %w", err)
 		}
-		pipelineStageID = firstStage.ID
+		if len(stages) == 0 {
+			return dto.LeadResponse{}, errors.New("no pipeline stages available")
+		}
+
+		// Choose lowest probability stage (avoid won/lost stages if possible)
+		var defaultStage *models.PipelineStage
+		for i := range stages {
+			stage := &stages[i]
+			if stage.IsWon || stage.IsLost || !stage.IsActive {
+				continue
+			}
+			if defaultStage == nil || stage.Probability < defaultStage.Probability {
+				defaultStage = stage
+			}
+		}
+
+		if defaultStage == nil {
+			// Fallback: take first stage if no non-won/non-lost stage exists
+			defaultStage = &stages[0]
+		}
+
+		pipelineStageID = defaultStage.ID
 	}
 
 	// Build deal title from request or lead data
@@ -647,8 +704,6 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		Probability:          lead.Probability,
 		LeadID:               &lead.ID,
 		AssignedTo:           lead.AssignedTo,
-		BankAccountID:        lead.BankAccountID,
-		BankAccountReference: lead.BankAccountReference,
 		BudgetConfirmed:      lead.BudgetConfirmed,
 		BudgetAmount:         lead.BudgetAmount,
 		AuthConfirmed:        lead.AuthConfirmed,

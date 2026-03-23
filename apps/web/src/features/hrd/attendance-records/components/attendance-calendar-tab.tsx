@@ -51,7 +51,7 @@ export function AttendanceCalendarTab() {
   const { data, isLoading, isError } = useMyAttendanceHistory({
     date_from: monthFrom,
     date_to: monthTo,
-    per_page: 100,
+    per_page: 20,
     page: 1,
   });
 

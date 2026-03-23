@@ -137,15 +137,15 @@ export function LocationPicker({
   // Pre-fetch when IDs are already set (reverse geocode / edit mode)
   // so data is ready before the user opens advanced mode.
   const { data: provincesData } = useProvinces(
-    { per_page: 100, sort_by: "name", sort_dir: "asc" },
+    { per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && (showAdvanced || !!provinceId) }
   );
   const { data: citiesData } = useCities(
-    { province_id: String(provinceId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
+    { province_id: String(provinceId ?? ""), per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!provinceId && (showAdvanced || !!cityId) }
   );
   const { data: districtsData } = useDistricts(
-    { city_id: String(cityId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
+    { city_id: String(cityId ?? ""), per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!cityId && (showAdvanced || !!districtId) }
   );
 

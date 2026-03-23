@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -350,6 +349,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -358,6 +358,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
 		}
@@ -377,7 +378,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.submit", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.submit", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -385,6 +391,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -393,6 +400,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -424,7 +432,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.approve", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.approve", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -432,6 +445,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -440,6 +454,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -459,7 +474,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.reject", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.reject", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -467,6 +487,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -475,6 +496,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
 			si.Status == models.SupplierInvoiceStatusSubmitted ||
 			si.Status == models.SupplierInvoiceStatusApproved ||
@@ -498,7 +520,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.cancel", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.cancel", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -546,7 +573,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		Lines:         lines,
 	}
 
-	_, err = uc.journalUC.Create(ctx, req)
+	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	return err
 }
 
@@ -597,11 +624,9 @@ func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context,
 	}
 
 	entries := make([]dto.SupplierInvoiceAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {

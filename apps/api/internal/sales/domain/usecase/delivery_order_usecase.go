@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
@@ -31,6 +32,11 @@ var (
 	ErrBatchNotFound                   = errors.New("inventory batch not found")
 )
 
+const (
+	errDeliveryWarehouseIDRequired = "warehouse_id is required"
+	errDeliveryDBNil               = "db is nil"
+)
+
 // DeliveryOrderUsecase defines the interface for delivery order business logic
 type DeliveryOrderUsecase interface {
 	List(ctx context.Context, req *dto.ListDeliveryOrdersRequest) ([]dto.DeliveryOrderResponse, *utils.PaginationResult, error)
@@ -43,6 +49,7 @@ type DeliveryOrderUsecase interface {
 	Ship(ctx context.Context, id string, req *dto.ShipDeliveryOrderRequest, userID *string) (*dto.DeliveryOrderResponse, error)
 	Deliver(ctx context.Context, id string, req *dto.DeliverDeliveryOrderRequest, userID *string) (*dto.DeliveryOrderResponse, error)
 	SelectBatches(ctx context.Context, req *dto.BatchSelectionRequest) (*dto.BatchSelectionResponse, error)
+	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
 type deliveryOrderUsecase struct {
@@ -51,6 +58,7 @@ type deliveryOrderUsecase struct {
 	salesOrderRepo    salesOrderRepos.SalesOrderRepository
 	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
+	auditService      audit.AuditService
 }
 
 // NewDeliveryOrderUsecase creates a new DeliveryOrderUsecase
@@ -60,6 +68,7 @@ func NewDeliveryOrderUsecase(
 	salesOrderRepo salesOrderRepos.SalesOrderRepository,
 	productRepo productRepos.ProductRepository,
 	inventoryUC inventoryUsecase.InventoryUsecase,
+	auditService audit.AuditService,
 ) DeliveryOrderUsecase {
 	return &deliveryOrderUsecase{
 		db:                db,
@@ -67,6 +76,7 @@ func NewDeliveryOrderUsecase(
 		salesOrderRepo:    salesOrderRepo,
 		productRepo:       productRepo,
 		inventoryUC:       inventoryUC,
+		auditService:      auditService,
 	}
 }
 
@@ -170,7 +180,7 @@ func (u *deliveryOrderUsecase) GetByID(ctx context.Context, id string) (*dto.Del
 func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDeliveryOrderRequest, createdBy *string) (*dto.DeliveryOrderResponse, error) {
 	warehouseID := strings.TrimSpace(req.WarehouseID)
 	if warehouseID == "" {
-		return nil, errors.New("warehouse_id is required")
+		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 	req.WarehouseID = warehouseID
 
@@ -302,6 +312,14 @@ func (u *deliveryOrderUsecase) Create(ctx context.Context, req *dto.CreateDelive
 	}
 
 	response := mapper.ToDeliveryOrderResponse(created)
+	logSalesAudit(u.auditService, ctx, "delivery_order.create", created.ID, map[string]interface{}{
+		"after": map[string]interface{}{
+			"code":           created.Code,
+			"status":         created.Status,
+			"delivery_date":  created.DeliveryDate,
+			"sales_order_id": created.SalesOrderID,
+		},
+	})
 	return &response, nil
 }
 
@@ -319,12 +337,14 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, ErrInvalidDeliveryOrderStatus
 	}
 	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
-		return nil, errors.New("warehouse_id is required")
+		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
+
+	beforeSnapshot := deliveryOrderAuditSnapshot(deliveryOrder)
 	if req.WarehouseID != nil {
 		trimmedWarehouseID := strings.TrimSpace(*req.WarehouseID)
 		if trimmedWarehouseID == "" {
-			return nil, errors.New("warehouse_id is required")
+			return nil, errors.New(errDeliveryWarehouseIDRequired)
 		}
 		req.WarehouseID = &trimmedWarehouseID
 	}
@@ -400,6 +420,10 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)
+	logSalesAudit(u.auditService, ctx, "delivery_order.update", id, map[string]interface{}{
+		"before": beforeSnapshot,
+		"after":  deliveryOrderAuditSnapshot(updated),
+	})
 	return &response, nil
 }
 
@@ -447,6 +471,7 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	}
 
 	newStatus := models.DeliveryOrderStatus(req.Status)
+	previousStatus := deliveryOrder.Status
 
 	// Validate status transition
 	if !u.isValidStatusTransition(deliveryOrder.Status, newStatus) {
@@ -474,6 +499,11 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)
+	logSalesAudit(u.auditService, ctx, "delivery_order.status_change", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  updated.Status,
+		"reason":        req.CancellationReason,
+	})
 	return &response, nil
 }
 
@@ -513,6 +543,11 @@ func (u *deliveryOrderUsecase) cancelAndReleaseStock(
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)
+	logSalesAudit(u.auditService, ctx, "delivery_order.status_change", updated.ID, map[string]interface{}{
+		"before_status": deliveryOrder.Status,
+		"after_status":  updated.Status,
+		"reason":        reason,
+	})
 	return &response, nil
 }
 
@@ -530,7 +565,7 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 		return nil, ErrInvalidDeliveryStatusTransition
 	}
 	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
-		return nil, errors.New("warehouse_id is required")
+		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 
 	// Ship delivery order
@@ -583,7 +618,22 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)
+	logSalesAudit(u.auditService, ctx, "delivery_order.ship", id, map[string]interface{}{
+		"after": map[string]interface{}{
+			"status":          updated.Status,
+			"tracking_number": updated.TrackingNumber,
+			"shipped_at":      updated.ShippedAt,
+		},
+	})
 	return &response, nil
+}
+
+func (u *deliveryOrderUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
+	if u.db == nil {
+		return nil, 0, errors.New(errDeliveryDBNil)
+	}
+
+	return listAuditTrailEntries(ctx, u.db, id, "delivery_order.", page, perPage)
 }
 
 func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.DeliverDeliveryOrderRequest, userID *string) (*dto.DeliveryOrderResponse, error) {
@@ -623,6 +673,13 @@ func (u *deliveryOrderUsecase) Deliver(ctx context.Context, id string, req *dto.
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)
+	logSalesAudit(u.auditService, ctx, "delivery_order.deliver", id, map[string]interface{}{
+		"after": map[string]interface{}{
+			"status":        updated.Status,
+			"delivered_at":  updated.DeliveredAt,
+			"receiver_name": updated.ReceiverName,
+		},
+	})
 	return &response, nil
 }
 
@@ -710,6 +767,57 @@ func (u *deliveryOrderUsecase) isValidStatusTransition(current, new models.Deliv
 	}
 
 	return false
+}
+
+func deliveryOrderAuditSnapshot(deliveryOrder *models.DeliveryOrder) map[string]interface{} {
+	if deliveryOrder == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"code":                deliveryOrder.Code,
+		"status":              deliveryOrder.Status,
+		"delivery_date":       deliveryOrder.DeliveryDate,
+		"sales_order_id":      deliveryOrder.SalesOrderID,
+		"warehouse_id":        deliveryOrder.WarehouseID,
+		"delivered_by_id":     deliveryOrder.DeliveredByID,
+		"courier_agency_id":   deliveryOrder.CourierAgencyID,
+		"tracking_number":     deliveryOrder.TrackingNumber,
+		"receiver_name":       deliveryOrder.ReceiverName,
+		"receiver_phone":      deliveryOrder.ReceiverPhone,
+		"delivery_address":    deliveryOrder.DeliveryAddress,
+		"receiver_signature":  deliveryOrder.ReceiverSignature,
+		"is_partial_delivery": deliveryOrder.IsPartialDelivery,
+		"notes":               deliveryOrder.Notes,
+		"items":               deliveryOrderAuditItems(deliveryOrder.Items),
+	}
+}
+
+func deliveryOrderAuditItems(items []models.DeliveryOrderItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"id":                    item.ID,
+			"sales_order_item_id":   item.SalesOrderItemID,
+			"product_id":            item.ProductID,
+			"inventory_batch_id":    item.InventoryBatchID,
+			"quantity":              item.Quantity,
+			"price":                 item.Price,
+			"subtotal":              item.Subtotal,
+			"is_equipment":          item.IsEquipment,
+			"installation_status":   item.InstallationStatus,
+			"function_test_status":  item.FunctionTestStatus,
+			"installation_date":     item.InstallationDate,
+			"function_test_date":    item.FunctionTestDate,
+			"installation_notes":    item.InstallationNotes,
+		})
+	}
+
+	return out
 }
 
 // isPartialDelivery checks if delivery order is a partial delivery

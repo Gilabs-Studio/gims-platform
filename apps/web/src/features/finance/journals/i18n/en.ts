@@ -1,6 +1,21 @@
 export const financeJournalsEn = {
   title: "Journal Entries",
   description: "Manage journal entries.",
+  salesTitle: "Sales Journal",
+  salesDescription:
+    "Read-only posted and draft journals generated from sales transactions.",
+  purchaseTitle: "Purchase Journal",
+  purchaseDescription:
+    "Read-only journals generated from purchase transactions (Goods Receipt, Supplier Invoice, Purchase Payment).",
+  adjustmentTitle: "Adjustment Journal",
+  adjustmentDescription:
+    "Manual correction journals controlled by Finance. Supports create, post, and reverse.",
+  valuationTitle: "Journal Valuation",
+  valuationDescription:
+    "Journals from valuation processes: inventory valuation, currency revaluation, and cost adjustment.",
+  cashBankTitle: "Cash & Bank Journal",
+  cashBankDescription:
+    "Read-only monitoring view of cash and bank transaction journals.",
   search: "Search description...",
   toast: {
     created: "Journal created",
@@ -10,9 +25,11 @@ export const financeJournalsEn = {
     reversed: "Journal reversed",
     failed: "Something went wrong",
     unbalanced: "Journal must be balanced (debit = credit)",
+    saved: "Journal saved",
   },
   actions: {
     create: "Create",
+    export: "Export",
     edit: "Edit",
     delete: "Delete",
     post: "Post",
@@ -28,11 +45,13 @@ export const financeJournalsEn = {
     credit: "Credit",
     memo: "Memo",
     account: "Account",
+    dateRange: "Date Range",
     startDate: "Start Date",
     endDate: "End Date",
     code: "Code",
     name: "Name",
     balance: "Balance",
+    referenceType: "Reference Type",
   },
   status: {
     draft: "Draft",
@@ -48,5 +67,32 @@ export const financeJournalsEn = {
   },
   placeholders: {
     select: "Select...",
+  },
+  runValuation: "Run Valuation",
+  runValuationConfirm:
+    "Are you sure you want to run the valuation process? This will generate and post adjustment journals automatically.",
+  runValuationFormTitle: "Configure Valuation Run",
+  runValuationFormDescription: "Configure the valuation parameters below.",
+  valuationTypeLabel: "Valuation Type",
+  periodStartLabel: "Period Start",
+  periodEndLabel: "Period End",
+  referenceIdLabel: "Reference ID",
+  referenceIdPlaceholder: "VAL-RUN-INVENTORY-20260331-001",
+  referenceIdHelp: "For idempotency. Leave empty to auto-generate.",
+  recentRuns: "Recent Valuation Runs",
+  kpi: {
+    totalEntries: "Total Entries",
+    totalDebit: "Total Debit",
+    totalCredit: "Total Credit",
+    runs: "Runs",
+    completed: "completed",
+    processing: "processing",
+    failed: "failed",
+  },
+  common: {
+    cancel: "Cancel",
+    confirm: "Confirm",
+    continue: "Continue",
+    loading: "Loading...",
   },
 };

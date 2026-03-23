@@ -4,7 +4,13 @@ import type { LeadStatusListParams, CreateLeadStatusData, UpdateLeadStatusData }
 
 const QUERY_KEY = "lead-statuses";
 
-export function useLeadStatuses(params?: LeadStatusListParams) { return useQuery({ queryKey: [QUERY_KEY, params], queryFn: () => leadStatusService.list(params) }); }
+export function useLeadStatuses(params?: LeadStatusListParams, options?: { enabled?: boolean }) {
+	return useQuery({
+		queryKey: [QUERY_KEY, params],
+		queryFn: () => leadStatusService.list(params),
+		enabled: options?.enabled ?? true,
+	});
+}
 export function useLeadStatusById(id: string) { return useQuery({ queryKey: [QUERY_KEY, id], queryFn: () => leadStatusService.getById(id), enabled: !!id }); }
 export function useCreateLeadStatus() { const qc = useQueryClient(); return useMutation({ mutationFn: (data: CreateLeadStatusData) => leadStatusService.create(data), onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }) }); }
 export function useUpdateLeadStatus() { const qc = useQueryClient(); return useMutation({ mutationFn: ({ id, data }: { id: string; data: UpdateLeadStatusData }) => leadStatusService.update(id, data), onSuccess: () => qc.invalidateQueries({ queryKey: [QUERY_KEY] }) }); }

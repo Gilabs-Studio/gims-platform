@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -30,48 +32,21 @@ func NewLeadStatusUsecase(repo repositories.LeadStatusRepository) LeadStatusUsec
 }
 
 func (u *leadStatusUsecase) Create(ctx context.Context, req dto.CreateLeadStatusRequest) (dto.LeadStatusResponse, error) {
-	// Validate: only one default status allowed
-	if req.IsDefault != nil && *req.IsDefault {
-		existing, err := u.repo.FindDefault(ctx)
-		if err == nil && existing != nil {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as default")
-		}
+	nextOrder, err := u.nextLeadStatusOrder(ctx)
+	if err != nil {
+		return dto.LeadStatusResponse{}, err
 	}
 
-	// Validate: only one converted status allowed
-	if req.IsConverted != nil && *req.IsConverted {
-		existing, err := u.repo.FindConverted(ctx)
-		if err == nil && existing != nil {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as converted")
-		}
-	}
-
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
-	}
-
-	isDefault := false
-	if req.IsDefault != nil {
-		isDefault = *req.IsDefault
-	}
-
-	isConverted := false
-	if req.IsConverted != nil {
-		isConverted = *req.IsConverted
-	}
-
+	statusID := uuid.New().String()
 	status := &models.LeadStatus{
-		ID:          uuid.New().String(),
+		ID:          statusID,
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:        generateLeadStatusCode(req.Name, statusID),
 		Description: req.Description,
 		Score:       req.Score,
 		Color:       req.Color,
-		Order:       req.Order,
-		IsActive:    isActive,
-		IsDefault:   isDefault,
-		IsConverted: isConverted,
+		Order:       nextOrder,
+		IsActive:    true,
 	}
 
 	if err := u.repo.Create(ctx, status); err != nil {
@@ -103,27 +78,17 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 		return dto.LeadStatusResponse{}, errors.New("lead status not found")
 	}
 
-	// Validate: only one default status allowed (excluding current)
-	if req.IsDefault != nil && *req.IsDefault {
-		existing, err := u.repo.FindDefault(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as default")
-		}
+	applyLeadStatusUpdate(status, req)
+
+	if err := u.repo.Update(ctx, status); err != nil {
+		return dto.LeadStatusResponse{}, err
 	}
 
-	// Validate: only one converted status allowed (excluding current)
-	if req.IsConverted != nil && *req.IsConverted {
-		existing, err := u.repo.FindConverted(ctx)
-		if err == nil && existing != nil && existing.ID != id {
-			return dto.LeadStatusResponse{}, errors.New("only one lead status can be marked as converted")
-		}
-	}
-
+	return mapper.ToLeadStatusResponse(status), nil
+}
+func applyLeadStatusUpdate(status *models.LeadStatus, req dto.UpdateLeadStatusRequest) {
 	if req.Name != "" {
 		status.Name = req.Name
-	}
-	if req.Code != "" {
-		status.Code = req.Code
 	}
 	if req.Description != "" {
 		status.Description = req.Description
@@ -134,24 +99,9 @@ func (u *leadStatusUsecase) Update(ctx context.Context, id string, req dto.Updat
 	if req.Color != "" {
 		status.Color = req.Color
 	}
-	if req.Order != nil {
-		status.Order = *req.Order
-	}
 	if req.IsActive != nil {
 		status.IsActive = *req.IsActive
 	}
-	if req.IsDefault != nil {
-		status.IsDefault = *req.IsDefault
-	}
-	if req.IsConverted != nil {
-		status.IsConverted = *req.IsConverted
-	}
-
-	if err := u.repo.Update(ctx, status); err != nil {
-		return dto.LeadStatusResponse{}, err
-	}
-
-	return mapper.ToLeadStatusResponse(status), nil
 }
 
 func (u *leadStatusUsecase) Delete(ctx context.Context, id string) error {
@@ -160,4 +110,17 @@ func (u *leadStatusUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("lead status not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func (u *leadStatusUsecase) nextLeadStatusOrder(ctx context.Context) (int, error) {
+	maxOrder, err := u.repo.GetMaxOrder(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder + 1, nil
+}
+
+func generateLeadStatusCode(name, statusID string) string {
+	base := normalizeCodeBase(name, "STATUS")
+	return fmt.Sprintf("%s-%s", base, strings.Split(statusID, "-")[0])
 }

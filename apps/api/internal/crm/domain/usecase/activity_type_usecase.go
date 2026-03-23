@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -30,20 +32,22 @@ func NewActivityTypeUsecase(repo repositories.ActivityTypeRepository) ActivityTy
 }
 
 func (u *activityTypeUsecase) Create(ctx context.Context, req dto.CreateActivityTypeRequest) (dto.ActivityTypeResponse, error) {
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
+	nextOrder, err := u.nextActivityTypeOrder(ctx)
+	if err != nil {
+		return dto.ActivityTypeResponse{}, err
 	}
 
+	activityTypeID := uuid.New().String()
+
 	actType := &models.ActivityType{
-		ID:          uuid.New().String(),
+		ID:          activityTypeID,
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:        generateActivityTypeCode(req.Name, activityTypeID),
 		Description: req.Description,
 		Icon:        req.Icon,
 		BadgeColor:  req.BadgeColor,
-		Order:       req.Order,
-		IsActive:    isActive,
+		Order:       nextOrder,
+		IsActive:    true,
 	}
 
 	if err := u.repo.Create(ctx, actType); err != nil {
@@ -78,9 +82,6 @@ func (u *activityTypeUsecase) Update(ctx context.Context, id string, req dto.Upd
 	if req.Name != "" {
 		actType.Name = req.Name
 	}
-	if req.Code != "" {
-		actType.Code = req.Code
-	}
 	if req.Description != "" {
 		actType.Description = req.Description
 	}
@@ -89,9 +90,6 @@ func (u *activityTypeUsecase) Update(ctx context.Context, id string, req dto.Upd
 	}
 	if req.BadgeColor != "" {
 		actType.BadgeColor = req.BadgeColor
-	}
-	if req.Order != nil {
-		actType.Order = *req.Order
 	}
 	if req.IsActive != nil {
 		actType.IsActive = *req.IsActive
@@ -110,4 +108,17 @@ func (u *activityTypeUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("activity type not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func (u *activityTypeUsecase) nextActivityTypeOrder(ctx context.Context) (int, error) {
+	maxOrder, err := u.repo.GetMaxOrder(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder + 1, nil
+}
+
+func generateActivityTypeCode(name, activityTypeID string) string {
+	base := normalizeCodeBase(name, "ACTIVITY")
+	return fmt.Sprintf("%s-%s", base, strings.Split(activityTypeID, "-")[0])
 }

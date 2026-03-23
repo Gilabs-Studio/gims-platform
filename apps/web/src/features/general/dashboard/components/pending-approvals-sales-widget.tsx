@@ -10,6 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,19 +27,10 @@ import type { SalesQuotation } from "@/features/sales/quotation/types";
 import type { SalesOrder } from "@/features/sales/order/types";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
 import type { CustomerInvoice } from "@/features/sales/invoice/types";
-import { formatDate as formatDateUtil } from "@/lib/utils";
+import { formatCurrency, formatDate as formatDateUtil } from "@/lib/utils";
 
 const PER_PAGE = 8;
 type SalesTab = "quotation" | "order" | "delivery" | "invoice";
-
-function formatIDR(amount: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 function formatDate(dateStr: string) {
   return formatDateUtil(dateStr);
@@ -104,6 +96,7 @@ function ApprovalRow({ code, date, party, amount, onClick }: ApprovalRowProps) {
 
 export function PendingApprovalsSalesWidget() {
   const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
 
   // Permissions — always call hooks unconditionally
   const canViewQuotation = useHasPermission("sales_quotation.read");
@@ -133,24 +126,48 @@ export function PendingApprovalsSalesWidget() {
     useState<CustomerInvoice | null>(null);
 
   // Queries — hooks must be called unconditionally; use `enabled` where supported
-  const { data: qData, isLoading: qLoading } = useQuotations(
+  const {
+    data: qData,
+    isLoading: qLoading,
+    isError: qError,
+    refetch: qRefetch,
+  } = useQuotations(
     { status: "sent", per_page: PER_PAGE },
     { enabled: canViewQuotation },
   );
-  const { data: oData, isLoading: oLoading } = useOrders(
+  const {
+    data: oData,
+    isLoading: oLoading,
+    isError: oError,
+    refetch: oRefetch,
+  } = useOrders(
     { status: "submitted", per_page: PER_PAGE },
     { enabled: canViewOrder },
   );
-  // useDeliveryOrders / useInvoices do not expose an enabled option;
-  // they always fire but the tab is hidden when the user has no permission.
-  const { data: dData, isLoading: dLoading } = useDeliveryOrders({
-    status: "sent",
-    per_page: PER_PAGE,
-  });
-  const { data: iData, isLoading: iLoading } = useInvoices({
-    status: "sent",
-    per_page: PER_PAGE,
-  });
+  const {
+    data: dData,
+    isLoading: dLoading,
+    isError: dError,
+    refetch: dRefetch,
+  } = useDeliveryOrders(
+    {
+      status: "sent",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewDelivery },
+  );
+  const {
+    data: iData,
+    isLoading: iLoading,
+    isError: iError,
+    refetch: iRefetch,
+  } = useInvoices(
+    {
+      status: "sent",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewInvoice },
+  );
 
   const quotations = qData?.data ?? [];
   const orders = oData?.data ?? [];
@@ -242,6 +259,21 @@ export function PendingApprovalsSalesWidget() {
             <TabsContent value="quotation" className="mt-0 flex-1">
               {qLoading ? (
                 <RowSkeleton />
+              ) : qError ? (
+                <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                  <p className="text-sm text-muted-foreground">{t("error")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      void qRefetch();
+                    }}
+                  >
+                    {tCommon("retry")}
+                  </Button>
+                </div>
               ) : quotations.length === 0 ? (
                 <EmptyState label={t("approvals.empty")} />
               ) : (
@@ -252,7 +284,7 @@ export function PendingApprovalsSalesWidget() {
                       code={q.code}
                       date={formatDate(q.quotation_date)}
                       party={q.customer?.name}
-                      amount={formatIDR(q.total_amount)}
+                      amount={formatCurrency(q.total_amount)}
                       onClick={() => setSelectedQuotation(q)}
                     />
                   ))}
@@ -264,6 +296,21 @@ export function PendingApprovalsSalesWidget() {
             <TabsContent value="order" className="mt-0 flex-1">
               {oLoading ? (
                 <RowSkeleton />
+              ) : oError ? (
+                <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                  <p className="text-sm text-muted-foreground">{t("error")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      void oRefetch();
+                    }}
+                  >
+                    {tCommon("retry")}
+                  </Button>
+                </div>
               ) : orders.length === 0 ? (
                 <EmptyState label={t("approvals.empty")} />
               ) : (
@@ -274,7 +321,7 @@ export function PendingApprovalsSalesWidget() {
                       code={o.code}
                       date={formatDate(o.order_date)}
                       party={o.customer?.name}
-                      amount={formatIDR(o.total_amount)}
+                      amount={formatCurrency(o.total_amount)}
                       onClick={() => setSelectedOrder(o)}
                     />
                   ))}
@@ -286,6 +333,21 @@ export function PendingApprovalsSalesWidget() {
             <TabsContent value="delivery" className="mt-0 flex-1">
               {dLoading ? (
                 <RowSkeleton />
+              ) : dError ? (
+                <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                  <p className="text-sm text-muted-foreground">{t("error")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      void dRefetch();
+                    }}
+                  >
+                    {tCommon("retry")}
+                  </Button>
+                </div>
               ) : deliveries.length === 0 ? (
                 <EmptyState label={t("approvals.empty")} />
               ) : (
@@ -307,6 +369,21 @@ export function PendingApprovalsSalesWidget() {
             <TabsContent value="invoice" className="mt-0 flex-1">
               {iLoading ? (
                 <RowSkeleton />
+              ) : iError ? (
+                <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                  <p className="text-sm text-muted-foreground">{t("error")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      void iRefetch();
+                    }}
+                  >
+                    {tCommon("retry")}
+                  </Button>
+                </div>
               ) : invoices.length === 0 ? (
                 <EmptyState label={t("approvals.empty")} />
               ) : (
@@ -317,7 +394,7 @@ export function PendingApprovalsSalesWidget() {
                       code={inv.code}
                       date={formatDate(inv.invoice_date)}
                       party={inv.sales_order?.customer?.name}
-                      amount={formatIDR(inv.amount)}
+                      amount={formatCurrency(inv.amount)}
                       onClick={() => setSelectedInvoice(inv)}
                     />
                   ))}

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FileText, Plus, ShoppingCart, Trash2 } from "lucide-react";
 
@@ -13,10 +13,12 @@ import { NumericInput } from "@/components/ui/numeric-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 import { useDeliveryOrder, useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCreateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
 import { salesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
+import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 interface SalesReturnFormProps {
   readonly defaultInvoiceId?: string;
@@ -43,10 +45,8 @@ const formatQty = (value: number) =>
 export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
   const t = useTranslations("salesReturns");
   const isDeliveryLocked = !!defaultDeliveryId;
-
-  const { data: formDataResponse } = useSalesReturnFormData();
-  const { data: deliveryOptionsResponse } = useDeliveryOrders({ per_page: 100, status: "delivered" });
-  const createMutation = useCreateSalesReturn();
+  const [shouldLoadDeliveryOptions, setShouldLoadDeliveryOptions] = useState(true);
+  const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!defaultDeliveryId);
 
   const form = useForm<SalesReturnFormData>({
     resolver: zodResolver(salesReturnSchema),
@@ -77,6 +77,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const selectedDeliveryId = useWatch({ control, name: "delivery_id" });
 
+  const shouldLoadReferenceDataEnabled = shouldLoadReferenceData || !!selectedDeliveryId;
+  const { data: formDataResponse } = useSalesReturnFormData({
+    enabled: shouldLoadReferenceDataEnabled,
+  });
+  const { data: deliveryOptionsResponse } = useDeliveryOrders(
+    { per_page: 20, status: "delivered" },
+    { enabled: !isDeliveryLocked && shouldLoadDeliveryOptions },
+  );
+  const createMutation = useCreateSalesReturn();
+
   const { data: deliveryResponse, isLoading: isLoadingDelivery, isError: isDeliveryError } = useDeliveryOrder(
     selectedDeliveryId ?? "",
     { enabled: !!selectedDeliveryId },
@@ -84,7 +94,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const { data: returnHistoryResponse } = useSalesReturns(
     {
-      per_page: 100,
+      per_page: 20,
       delivery_id: selectedDeliveryId,
     },
     { enabled: !!selectedDeliveryId },
@@ -275,20 +285,24 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
       }
     }
 
-    await createMutation.mutateAsync({
-      ...values,
-      delivery_id: selectedDeliveryId,
-      warehouse_id: values.warehouse_id,
-      invoice_id: values.invoice_id || undefined,
-      customer_id: values.customer_id || undefined,
-      notes: values.notes || undefined,
-      items: values.items.map((item) => ({
-        ...item,
-        unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
-      })),
-    });
+    try {
+      await createMutation.mutateAsync({
+        ...values,
+        delivery_id: selectedDeliveryId,
+        warehouse_id: values.warehouse_id,
+        invoice_id: values.invoice_id || undefined,
+        customer_id: values.customer_id || undefined,
+        notes: values.notes || undefined,
+        items: values.items.map((item) => ({
+          ...item,
+          unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
+        })),
+      });
 
-    onSuccess?.();
+      onSuccess?.();
+    } catch (error) {
+      toast.error(getSalesErrorMessage(error, t("common.error") || "Failed to create sales return"));
+    }
   };
 
   if (!selectedDeliveryId) {
@@ -305,7 +319,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
               name="delivery_id"
               control={control}
               render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      setShouldLoadDeliveryOptions(true);
+                      setShouldLoadReferenceData(true);
+                    }
+                  }}
+                >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder="Select delivery order" />
                   </SelectTrigger>
@@ -339,7 +362,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      onSubmit={form.handleSubmit(onSubmit, (formErrors) => {
+        toast.error(
+          getFirstFormErrorMessage(formErrors) ||
+          t("common.error") ||
+          "Please complete all required fields.",
+        );
+      })}
+      className="space-y-6"
+    >
       <div className="space-y-4">
         <div className="flex items-center space-x-2 border-b border-border/50 pb-2">
           <FileText className="h-4 w-4 text-primary" />
@@ -354,7 +386,16 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
                 name="delivery_id"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    onOpenChange={(isOpen) => {
+                      if (isOpen) {
+                        setShouldLoadDeliveryOptions(true);
+                        setShouldLoadReferenceData(true);
+                      }
+                    }}
+                  >
                     <SelectTrigger className="cursor-pointer">
                       <SelectValue placeholder="Select delivery order" />
                     </SelectTrigger>

@@ -95,8 +95,22 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
   const deleteMutation = useDeleteDeal();
-  const { data: formDataRes } = useDealFormData();
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showMoveStage, setShowMoveStage] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
+
+  const { data: formDataRes } = useDealFormData({ enabled: showActivityDialog || showVisitDialog });
+  const { data: activityTypesData } = useActivityTypes(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: showActivityDialog },
+  );
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);
@@ -109,24 +123,20 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canCreateTask = useUserPermission("crm_task.create");
   const canViewProduct = useUserPermission("product.read");
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showMoveStage, setShowMoveStage] = useState(false);
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
-  const [showActivityDialog, setShowActivityDialog] = useState(false);
-  const [showVisitDialog, setShowVisitDialog] = useState(false);
-  const [showTaskDialog, setShowTaskDialog] = useState(false);
-  const [showMapPicker, setShowMapPicker] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
-
-  const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId);
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId, undefined, {
+    enabled: visitedTabs.has("tasks"),
+  });
   const deal: Deal | undefined = response?.data;
   const { totalCount: activitiesCount } = useDealActivityTimeline(dealId, deal?.lead_id ?? undefined);
   const updateLeadMutation = useUpdateLead();
   // Fetch the lead's current product items for live interest levels, deleted state, and survey answers
-  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", { enabled: !!deal?.lead_id });
-  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: !!deal?.lead_id });
+  const isItemsTabVisited = visitedTabs.has("items");
+  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", {
+    enabled: isItemsTabVisited && !!deal?.lead_id,
+  });
+  const { data: visitFormDataRes } = useVisitReportFormData({
+    enabled: isItemsTabVisited && !!deal?.lead_id,
+  });
   const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
 
   const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);

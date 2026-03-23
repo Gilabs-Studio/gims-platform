@@ -78,7 +78,6 @@ func (u *contactUsecase) Create(ctx context.Context, req dto.CreateContactReques
 		Name:          req.Name,
 		Phone:         req.Phone,
 		Email:         req.Email,
-		Position:      req.Position,
 		Notes:         req.Notes,
 		IsActive:      isActive,
 	}
@@ -167,9 +166,6 @@ func (u *contactUsecase) Update(ctx context.Context, id string, req dto.UpdateCo
 	}
 	if req.Email != "" {
 		contact.Email = req.Email
-	}
-	if req.Position != "" {
-		contact.Position = req.Position
 	}
 	if req.Notes != "" {
 		contact.Notes = req.Notes

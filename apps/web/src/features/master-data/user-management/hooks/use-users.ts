@@ -78,10 +78,11 @@ export function useUserPermissions(userId: string) {
   });
 }
 
-export function useRoles() {
+export function useRoles(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["roles"],
     queryFn: () => roleService.list(),
+    enabled: options?.enabled ?? true,
   });
 }
 

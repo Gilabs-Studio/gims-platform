@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -30,11 +31,20 @@ func parseDateOrDefault(c *gin.Context, key string, def time.Time) time.Time {
 	return t
 }
 
+func parseOptionalCompanyID(c *gin.Context) *string {
+	value := strings.TrimSpace(c.Query("company_id"))
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate)
+	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "GENERAL_LEDGER_FAILED", err.Error(), nil, nil)
 		return
@@ -45,8 +55,9 @@ func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate)
+	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "BALANCE_SHEET_FAILED", err.Error(), nil, nil)
 		return
@@ -57,8 +68,9 @@ func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
 func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	res, err := h.uc.GetProfitAndLoss(c.Request.Context(), startDate, endDate)
+	res, err := h.uc.GetProfitAndLoss(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "PROFIT_LOSS_FAILED", err.Error(), nil, nil)
 		return
@@ -69,8 +81,9 @@ func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
 func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	bytes, err := h.uc.ExportGeneralLedger(c.Request.Context(), startDate, endDate)
+	bytes, err := h.uc.ExportGeneralLedger(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
@@ -84,8 +97,9 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate)
+	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
@@ -99,8 +113,9 @@ func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 func (h *FinanceReportHandler) ExportProfitAndLoss(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
 
-	bytes, err := h.uc.ExportProfitAndLoss(c.Request.Context(), startDate, endDate)
+	bytes, err := h.uc.ExportProfitAndLoss(c.Request.Context(), startDate, endDate, companyID)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return

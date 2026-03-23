@@ -35,7 +35,13 @@ import {
   useUpdateMaintenanceSchedule,
   useMaintenanceFormData,
 } from "../hooks/use-asset-maintenance";
-import type { MaintenanceSchedule, MaintenanceScheduleType, MaintenanceFrequency } from "../types";
+import type {
+  MaintenanceSchedule,
+  MaintenanceScheduleType,
+  MaintenanceFrequency,
+  CreateMaintenanceScheduleInput,
+  UpdateMaintenanceScheduleInput,
+} from "../types";
 
 interface ScheduleFormProps {
   open: boolean;
@@ -127,7 +133,13 @@ export function ScheduleForm({ open, onOpenChange, mode, schedule }: ScheduleFor
     e.preventDefault();
     if (!validate()) return;
 
-    const data = {
+    if (!formData.next_maintenance_date) {
+      return;
+    }
+
+    const nextMaintenanceDate = format(formData.next_maintenance_date, "yyyy-MM-dd");
+
+    const createData: CreateMaintenanceScheduleInput = {
       ...formData,
       estimated_cost: Number(formData.estimated_cost),
       frequency_value: Number(formData.frequency_value),
@@ -135,18 +147,28 @@ export function ScheduleForm({ open, onOpenChange, mode, schedule }: ScheduleFor
       last_maintenance_date: formData.last_maintenance_date
         ? format(formData.last_maintenance_date, "yyyy-MM-dd")
         : undefined,
-      next_maintenance_date: formData.next_maintenance_date
-        ? format(formData.next_maintenance_date, "yyyy-MM-dd")
-        : undefined,
+      next_maintenance_date: nextMaintenanceDate,
     };
 
     if (mode === "edit" && schedule) {
+      const updateData: UpdateMaintenanceScheduleInput = {
+        schedule_type: createData.schedule_type,
+        frequency: createData.frequency,
+        frequency_value: createData.frequency_value,
+        last_maintenance_date: createData.last_maintenance_date,
+        next_maintenance_date: createData.next_maintenance_date,
+        description: createData.description,
+        estimated_cost: createData.estimated_cost,
+        assigned_to: createData.assigned_to,
+        is_active: formData.is_active,
+      };
+
       updateSchedule.mutate(
-        { id: schedule.id, data },
+        { id: schedule.id, data: updateData },
         { onSuccess: () => onOpenChange(false) }
       );
     } else {
-      createSchedule.mutate(data, {
+      createSchedule.mutate(createData, {
         onSuccess: () => onOpenChange(false),
       });
     }
@@ -274,7 +296,9 @@ export function ScheduleForm({ open, onOpenChange, mode, schedule }: ScheduleFor
                   <Calendar
                     mode="single"
                     selected={formData.last_maintenance_date}
-                    onSelect={(date) => setFormData({ ...formData, last_maintenance_date: date })}
+                    onSelect={(date: Date | undefined) =>
+                      setFormData({ ...formData, last_maintenance_date: date })
+                    }
                   />
                 </PopoverContent>
               </Popover>
@@ -302,7 +326,9 @@ export function ScheduleForm({ open, onOpenChange, mode, schedule }: ScheduleFor
                   <Calendar
                     mode="single"
                     selected={formData.next_maintenance_date}
-                    onSelect={(date) => setFormData({ ...formData, next_maintenance_date: date })}
+                    onSelect={(date: Date | undefined) =>
+                      setFormData({ ...formData, next_maintenance_date: date })
+                    }
                   />
                 </PopoverContent>
               </Popover>

@@ -26,6 +26,22 @@ func (h *DashboardHandler) GetOverview(c *gin.Context) {
 		return
 	}
 
+	if req.Scope != "" {
+		if !req.Scope.IsValid() {
+			errors.InvalidQueryParamResponse(c)
+			return
+		}
+
+		result, err := h.uc.GetOverviewByScope(c.Request.Context(), req)
+		if err != nil {
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+
+		response.SuccessResponse(c, result, nil)
+		return
+	}
+
 	result, err := h.uc.GetOverview(c.Request.Context(), req)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())

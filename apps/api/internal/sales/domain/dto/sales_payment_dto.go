@@ -73,11 +73,10 @@ type CreateSalesPaymentRequest struct {
 
 type SalesPaymentAuditTrailEntry struct {
 	ID             string                 `json:"id"`
-	ActorID        string                 `json:"actor_id"`
-	ActorEmail     *string                `json:"actor_email,omitempty"`
-	ActorName      *string                `json:"actor_name,omitempty"`
-	PermissionCode string                 `json:"permission_code"`
 	Action         string                 `json:"action"`
+	PermissionCode string                 `json:"permission_code"`
+	TargetID       string                 `json:"target_id"`
 	Metadata       map[string]interface{} `json:"metadata"`
+	User           *AuditTrailUser        `json:"user"`
 	CreatedAt      time.Time              `json:"created_at"`
 }

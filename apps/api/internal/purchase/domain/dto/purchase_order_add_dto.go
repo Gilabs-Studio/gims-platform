@@ -13,11 +13,21 @@ type PurchaseOrderAddProduct struct {
 	IsApproved bool    `json:"is_approved"`
 }
 
+type PurchaseOrderAddSupplierContact struct {
+	ID          string `json:"id"`
+	PhoneNumber string `json:"phone_number"`
+	Label       string `json:"label"`
+	IsPrimary   bool   `json:"is_primary"`
+}
+
 type PurchaseOrderAddSupplier struct {
-	ID       string                `json:"id"`
-	Code     string                `json:"code"`
-	Name     string                `json:"name"`
-	Products []PurchaseOrderAddProduct `json:"products"`
+	ID             string                                `json:"id"`
+	Code           string                                `json:"code"`
+	Name           string                                `json:"name"`
+	PaymentTermsID *string                               `json:"payment_terms_id"`
+	BusinessUnitID *string                               `json:"business_unit_id"`
+	Contacts   []PurchaseOrderAddSupplierContact `json:"contacts"`
+	Products       []PurchaseOrderAddProduct             `json:"products"`
 }
 
 type PurchaseOrderAddPaymentTerms struct {

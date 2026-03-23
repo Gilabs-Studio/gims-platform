@@ -18,9 +18,9 @@ type SupplierRepository interface {
 	// Code generation
 	GetNextCode(ctx context.Context) (string, error)
 	// Nested operations
-	CreatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error
-	UpdatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error
-	DeletePhoneNumber(ctx context.Context, id string) error
+	CreateContact(ctx context.Context, phone *models.SupplierContact) error
+	UpdateContact(ctx context.Context, phone *models.SupplierContact) error
+	DeleteContact(ctx context.Context, id string) error
 	CreateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	UpdateBankAccount(ctx context.Context, bank *models.SupplierBank) error
 	DeleteBankAccount(ctx context.Context, id string) error
@@ -43,11 +43,13 @@ func (r *supplierRepository) FindByID(ctx context.Context, id string) (*models.S
 	var supplier models.Supplier
 	err := r.db.WithContext(ctx).
 		Preload("SupplierType").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
 		Preload("Province").
 		Preload("City").
 		Preload("District").
 		Preload("Village.District.City.Province").
-		Preload("PhoneNumbers").
+		Preload("Contacts.ContactRole").
 		Preload("BankAccounts.Bank").
 		Preload("BankAccounts.Currency").
 		First(&supplier, "id = ?", id).Error
@@ -61,6 +63,8 @@ func (r *supplierRepository) FindByCode(ctx context.Context, code string) (*mode
 	var supplier models.Supplier
 	err := r.db.WithContext(ctx).
 		Preload("SupplierType").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
 		First(&supplier, "code = ?", code).Error
 	if err != nil {
 		return nil, err
@@ -126,7 +130,9 @@ func (r *supplierRepository) List(ctx context.Context, params SupplierListParams
 		Preload("City").
 		Preload("District").
 		Preload("SupplierType").
-		Preload("PhoneNumbers").
+		Preload("PaymentTerms").
+		Preload("BusinessUnit").
+		Preload("Contacts.ContactRole").
 		Preload("BankAccounts.Bank").
 		Preload("BankAccounts.Currency")
 
@@ -168,16 +174,16 @@ func padSupplierNumber(n, width int) string {
 }
 
 // Nested Phone Number operations
-func (r *supplierRepository) CreatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error {
+func (r *supplierRepository) CreateContact(ctx context.Context, phone *models.SupplierContact) error {
 	return r.db.WithContext(ctx).Create(phone).Error
 }
 
-func (r *supplierRepository) UpdatePhoneNumber(ctx context.Context, phone *models.SupplierPhoneNumber) error {
+func (r *supplierRepository) UpdateContact(ctx context.Context, phone *models.SupplierContact) error {
 	return r.db.WithContext(ctx).Save(phone).Error
 }
 
-func (r *supplierRepository) DeletePhoneNumber(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SupplierPhoneNumber{}, "id = ?", id).Error
+func (r *supplierRepository) DeleteContact(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.SupplierContact{}, "id = ?", id).Error
 }
 
 // Nested Bank Account operations

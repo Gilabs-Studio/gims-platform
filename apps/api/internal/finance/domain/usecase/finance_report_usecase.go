@@ -12,12 +12,12 @@ import (
 )
 
 type FinanceReportUsecase interface {
-	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time) (*dto.GeneralLedgerResponse, error)
-	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time) (*dto.BalanceSheetResponse, error)
-	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time) (*dto.ProfitAndLossResponse, error)
-	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
-	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
-	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time) ([]byte, error)
+	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error)
+	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.BalanceSheetResponse, error)
+	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error)
+	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
+	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
+	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
 }
 
 type financeReportUsecase struct {
@@ -29,8 +29,8 @@ func NewFinanceReportUsecase(coaRepo repositories.ChartOfAccountRepository, repo
 	return &financeReportUsecase{coaRepo: coaRepo, reportRepo: reportRepo}
 }
 
-func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time) (*dto.GeneralLedgerResponse, error) {
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate)
+func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error) {
+	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +43,14 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 
 	accounts := make([]dto.GeneralLedgerAccount, 0, len(balances))
 	for _, b := range balances {
+		// Only include accounts with posted activity or non-zero opening balance.
+		if b.OpeningBalance == 0 && b.DebitTotal == 0 && b.CreditTotal == 0 {
+			continue
+		}
+
 		coa := coaMap[b.ChartOfAccountID]
 
-		lines, err := uc.reportRepo.GetGLAccountTransactions(ctx, b.ChartOfAccountID, startDate, endDate)
+		lines, err := uc.reportRepo.GetGLAccountTransactions(ctx, b.ChartOfAccountID, startDate, endDate, companyID)
 		if err != nil {
 			return nil, err
 		}
@@ -63,27 +68,48 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 			}
 			runningBalance += change
 
+			refCode := ""
+			if l.JournalEntry != nil && l.JournalEntry.ReferenceType != nil && l.JournalEntry.ReferenceID != nil {
+				refCode = *l.JournalEntry.ReferenceType + "/" + *l.JournalEntry.ReferenceID
+			}
+
+			entryDate := time.Time{}
+			description := ""
+			var refType *string
+			var refID *string
+			journalID := l.JournalEntryID
+			if l.JournalEntry != nil {
+				entryDate = l.JournalEntry.EntryDate
+				description = l.JournalEntry.Description
+				refType = l.JournalEntry.ReferenceType
+				refID = l.JournalEntry.ReferenceID
+			}
+
 			transactions = append(transactions, dto.GLTransactionRow{
-				ID:            l.ID,
-				JournalID:     l.JournalEntryID,
-				EntryDate:     l.JournalEntry.EntryDate,
-				Description:   l.JournalEntry.Description,
-				ReferenceType: l.JournalEntry.ReferenceType,
-				ReferenceID:   l.JournalEntry.ReferenceID,
-				Debit:         l.Debit,
-				Credit:        l.Credit,
-				Balance:       runningBalance,
+				ID:             l.ID,
+				JournalID:      journalID,
+				EntryDate:      entryDate,
+				Description:    description,
+				Memo:           l.Memo,
+				ReferenceType:  refType,
+				ReferenceID:    refID,
+				ReferenceCode:  refCode,
+				Debit:          l.Debit,
+				Credit:         l.Credit,
+				RunningBalance: runningBalance,
 			})
 		}
 
 		accounts = append(accounts, dto.GeneralLedgerAccount{
-			ChartOfAccountID: b.ChartOfAccountID,
-			Code:             coa.Code,
-			Name:             coa.Name,
-			AccountType:      string(coa.Type),
-			OpeningBalance:   b.OpeningBalance,
-			ClosingBalance:   b.ClosingBalance,
-			Transactions:     transactions,
+			AccountID:      b.ChartOfAccountID,
+			AccountCode:    coa.Code,
+			AccountName:    coa.Name,
+			AccountType:    string(coa.Type),
+			OpeningBalance: b.OpeningBalance,
+			TotalDebit:     b.DebitTotal,
+			TotalCredit:    b.CreditTotal,
+			ClosingBalance: b.ClosingBalance,
+			Transactions:   transactions,
 		})
 	}
 
@@ -94,13 +120,13 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 	}, nil
 }
 
-func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time) (*dto.BalanceSheetResponse, error) {
+func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.BalanceSheetResponse, error) {
 	// For Balance Sheet, we get changes from start to end date.
 	// But usually users want to see balance as of end date.
 	// By using startDate, we can see the movement (Opening vs Closing), but currently GetAccountBalances just returns Opening, Debit, Credit, Closing.
 	// Since Balance Sheet is a snapshot, we will display closing balance as of endDate.
 	// However, GetAccountBalances returns accurate ClosingBalance using startDate (the Opening is calculated prior to startDate).
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate)
+	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +174,8 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 	return res, nil
 }
 
-func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time) (*dto.ProfitAndLossResponse, error) {
-	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate)
+func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error) {
+	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +231,8 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 	return res, nil
 }
 
-func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time) ([]byte, error) {
-	data, err := uc.GetGeneralLedger(ctx, startDate, endDate)
+func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +248,7 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 	rowNum := 4
 	for _, acc := range data.Accounts {
 		f.SetCellValue(sheet, fmt.Sprintf("A%d", rowNum), "Account:")
-		f.SetCellValue(sheet, fmt.Sprintf("B%d", rowNum), acc.Code+" - "+acc.Name)
+		f.SetCellValue(sheet, fmt.Sprintf("B%d", rowNum), acc.AccountCode+" - "+acc.AccountName)
 		rowNum++
 
 		headers := []string{"Date", "Description", "Ref Type", "Ref ID", "Debit", "Credit", "Balance"}
@@ -251,7 +277,7 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 			f.SetCellValue(sheet, "D"+fmt.Sprintf("%d", rowNum), refID)
 			f.SetCellValue(sheet, "E"+fmt.Sprintf("%d", rowNum), txn.Debit)
 			f.SetCellValue(sheet, "F"+fmt.Sprintf("%d", rowNum), txn.Credit)
-			f.SetCellValue(sheet, "G"+fmt.Sprintf("%d", rowNum), txn.Balance)
+			f.SetCellValue(sheet, "G"+fmt.Sprintf("%d", rowNum), txn.RunningBalance)
 			rowNum++
 		}
 		rowNum++ // Space between accounts
@@ -261,8 +287,8 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 	return buf.Bytes(), nil
 }
 
-func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time) ([]byte, error) {
-	data, err := uc.GetBalanceSheet(ctx, startDate, endDate)
+func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+	data, err := uc.GetBalanceSheet(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +342,8 @@ func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDat
 	return buf.Bytes(), nil
 }
 
-func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time) ([]byte, error) {
-	data, err := uc.GetProfitAndLoss(ctx, startDate, endDate)
+func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+	data, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
 	}

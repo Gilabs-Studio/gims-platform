@@ -48,6 +48,10 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 	// Permission Code is often "resource.action". 
 	// We can infer it or pass it. Using action as PermissionCode for now.
 	
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+
 	metaJSON, _ := json.Marshal(metadata)
 
 	log := &models.AuditLog{

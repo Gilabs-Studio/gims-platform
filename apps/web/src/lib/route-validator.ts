@@ -55,7 +55,11 @@ const VALID_DASHBOARD_ROUTES = [
   // Finance routes
   "/finance/coa",
   "/finance/journals",
-  "/finance/journal-lines",
+  "/finance/journals/sales",
+  "/finance/journals/purchase",
+  "/finance/journals/adjustment",
+  "/finance/journals/valuation",
+  "/finance/journals/cash-bank",
   "/finance/bank-accounts",
   "/finance/payments",
   "/finance/tax-invoices",
@@ -108,7 +112,7 @@ const VALID_DASHBOARD_ROUTES = [
 
 /**
  * Checks if a given route path is valid and exists in the application
- * 
+ *
  * @param href - The route path to validate
  * @returns true if the route exists, false if it would result in 404
  */
@@ -119,7 +123,7 @@ export function isValidRoute(href: string | null | undefined): boolean {
 
   // Remove leading/trailing slashes and normalize path
   const normalizedPath = href.trim().replace(/^\/+|\/+$/g, "");
-  
+
   // Empty path after normalization
   if (normalizedPath === "") {
     return false;

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	stdErrors "errors"
 	"strconv"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -381,6 +382,12 @@ func handleLeadError(c *gin.Context, err error) {
 			"field":   "time_expected",
 		}, nil)
 	default:
+		if stdErrors.Is(err, usecase.ErrCannotManuallySetConvertedStatus) {
+			errors.ErrorResponse(c, "CRM_LEAD_INVALID_STATUS", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 	}
 }

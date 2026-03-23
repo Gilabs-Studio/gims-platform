@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import type { Control, UseFormSetValue } from "react-hook-form";
 import {
@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useProvinces } from "../hooks/use-provinces";
+import { useProvince, useProvinces } from "../hooks/use-provinces";
 import { useCities } from "../hooks/use-cities";
 import { useDistricts } from "../hooks/use-districts";
+import { provinceService } from "../services/geographic-service";
+import type { Province } from "../types";
 
 interface FieldNames {
   province_id: string;
@@ -47,6 +49,8 @@ interface LocationSelectorProps {
   readonly fieldNames?: Partial<FieldNames>;
   readonly labels?: LocationSelectorLabels;
   readonly className?: string;
+  readonly lazyLoad?: boolean;
+  readonly pageSize?: number;
   /** Fired when user explicitly selects a province. Provides province ID and name. */
   readonly onProvinceChange?: (id: string, name: string) => void;
 }
@@ -84,32 +88,99 @@ export function LocationSelector({
   fieldNames: customFieldNames,
   labels: customLabels,
   className,
+  lazyLoad = false,
+  pageSize = 20,
   onProvinceChange,
 }: LocationSelectorProps) {
   const fields = { ...DEFAULT_FIELD_NAMES, ...customFieldNames };
   const labels = { ...DEFAULT_LABELS, ...customLabels };
+  const [shouldLoadProvinces, setShouldLoadProvinces] = useState(!lazyLoad);
+  const [shouldLoadCities, setShouldLoadCities] = useState(!lazyLoad);
+  const [shouldLoadDistricts, setShouldLoadDistricts] = useState(!lazyLoad);
+  const [provinceExtraPages, setProvinceExtraPages] = useState<Province[]>([]);
+  const [provinceCurrentPage, setProvinceCurrentPage] = useState(1);
+  const [provinceHasMore, setProvinceHasMore] = useState(false);
+  const [isLoadingMoreProvinces, setIsLoadingMoreProvinces] = useState(false);
 
   const provinceId = useWatch({ control, name: fields.province_id });
   const cityId = useWatch({ control, name: fields.city_id });
   const districtId = useWatch({ control, name: fields.district_id });
+  const selectedProvinceId = typeof provinceId === "string" ? provinceId : "";
 
   // Fetch data with cascading dependencies
-  const { data: provincesData } = useProvinces(
-    { per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled }
+  const { data: provincesData, isLoading: isProvincesLoading } = useProvinces(
+    { per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && (shouldLoadProvinces || !!provinceId) }
   );
+  const { data: selectedProvinceData } = useProvince(selectedProvinceId);
   const { data: citiesData } = useCities(
-    { province_id: String(provinceId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: enabled && !!provinceId }
+    { province_id: String(provinceId ?? ""), per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && !!provinceId && (shouldLoadCities || !!cityId) }
   );
   const { data: districtsData } = useDistricts(
-    { city_id: String(cityId ?? ""), per_page: 100, sort_by: "name", sort_dir: "asc" },
-    { enabled: enabled && !!cityId }
+    { city_id: String(cityId ?? ""), per_page: pageSize, sort_by: "name", sort_dir: "asc" },
+    { enabled: enabled && !!cityId && (shouldLoadDistricts || !!districtId) }
   );
 
-  const provinces = provincesData?.data ?? [];
+  const baseProvinces = provincesData?.data ?? [];
+  const provinces = useMemo(() => {
+    const map = new Map<string, Province>();
+
+    for (const province of baseProvinces) {
+      map.set(province.id, province);
+    }
+
+    for (const province of provinceExtraPages) {
+      map.set(province.id, province);
+    }
+
+    const selectedProvince = selectedProvinceData?.data;
+    if (selectedProvince?.id && !map.has(selectedProvince.id)) {
+      map.set(selectedProvince.id, selectedProvince);
+    }
+
+    return Array.from(map.values());
+  }, [baseProvinces, provinceExtraPages, selectedProvinceData?.data]);
   const cities = citiesData?.data ?? [];
   const districts = districtsData?.data ?? [];
+
+  useEffect(() => {
+    if (provinceCurrentPage > 1 || !provincesData) return;
+
+    const pagination = provincesData.meta?.pagination;
+    if (pagination) {
+      setProvinceHasMore(pagination.has_next);
+      return;
+    }
+
+    setProvinceHasMore((provincesData.data?.length ?? 0) >= pageSize);
+  }, [pageSize, provinceCurrentPage, provincesData]);
+
+  const handleLoadMoreProvinces = useCallback(async () => {
+    if (isProvincesLoading || isLoadingMoreProvinces || !provinceHasMore) return;
+
+    const nextPage = provinceCurrentPage + 1;
+    setIsLoadingMoreProvinces(true);
+
+    try {
+      const res = await provinceService.list({
+        page: nextPage,
+        per_page: pageSize,
+        sort_by: "name",
+        sort_dir: "asc",
+      });
+
+      const nextItems = res.data ?? [];
+      const pagination = res.meta?.pagination;
+      const hasMore = pagination ? pagination.has_next : nextItems.length === pageSize;
+
+      setProvinceExtraPages((prev) => [...prev, ...nextItems]);
+      setProvinceCurrentPage(nextPage);
+      setProvinceHasMore(hasMore);
+    } finally {
+      setIsLoadingMoreProvinces(false);
+    }
+  }, [isLoadingMoreProvinces, isProvincesLoading, pageSize, provinceCurrentPage, provinceHasMore]);
 
   // Clear dependent fields when parent value is cleared externally
   useEffect(() => {
@@ -130,6 +201,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadProvinces(true);
+                }
+              }}
               onValueChange={(val) => {
                 if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
@@ -143,7 +219,11 @@ export function LocationSelector({
               <SelectTrigger className="cursor-pointer">
                 <SelectValue placeholder={labels.selectProvince} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                onLoadMore={handleLoadMoreProvinces}
+                hasMore={provinceHasMore}
+                isLoadingMore={isLoadingMoreProvinces}
+              >
                 {provinces.map((p) => (
                   <SelectItem key={p.id} value={p.id} className="cursor-pointer">
                     {p.name}
@@ -164,6 +244,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadCities(true);
+                }
+              }}
               onValueChange={(val) => {
                 if (!val) return; // Radix fires onValueChange("") when value not in item list
                 field.onChange(val);
@@ -201,6 +286,11 @@ export function LocationSelector({
           render={({ field }) => (
             <Select
               value={field.value ?? ""}
+              onOpenChange={(isOpen) => {
+                if (isOpen) {
+                  setShouldLoadDistricts(true);
+                }
+              }}
               onValueChange={(val) => {
                 field.onChange(val);
               }}

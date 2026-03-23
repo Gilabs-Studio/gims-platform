@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 import type {
   DashboardOverviewResponse,
   DashboardOverviewData,
+  DashboardOverviewScope,
   DashboardDateFilter,
   WidgetConfig,
 } from "../types";
@@ -20,6 +21,21 @@ export const dashboardService = {
   ): Promise<DashboardOverviewData> {
     const params = buildDateParams(filter);
     const response = await apiClient.get<DashboardOverviewResponse>(
+      "/general/dashboard/overview",
+      { params },
+    );
+    return response.data.data;
+  },
+
+  async getOverviewScope(
+    scope: DashboardOverviewScope,
+    filter?: DashboardDateFilter,
+  ): Promise<Partial<DashboardOverviewData>> {
+    const params = {
+      ...buildDateParams(filter),
+      scope,
+    };
+    const response = await apiClient.get<{ success: boolean; data: Partial<DashboardOverviewData> }>(
       "/general/dashboard/overview",
       { params },
     );

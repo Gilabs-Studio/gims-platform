@@ -29,10 +29,10 @@ import { Loader2 } from "lucide-react";
 import { ButtonLoading } from "@/components/loading";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { SupplierPhoneList } from "./supplier-phone-list";
+import { SupplierContactList } from "./supplier-contact-list";
 import { SupplierBankList } from "./supplier-bank-list";
 import { useSupplierForm } from "../../hooks/use-supplier-form";
-import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
+import type { Supplier, CreateContactData, CreateSupplierBankData } from "../../types";
 
 interface SupplierDialogProps {
   open: boolean;
@@ -57,6 +57,8 @@ export function SupplierDialog({
     isLoadingDetail,
     activeItem,
     supplierTypes,
+    paymentTerms,
+    businessUnits,
     isQuickCreateOpen,
     quickCreateQuery,
     openQuickCreate,
@@ -74,21 +76,23 @@ export function SupplierDialog({
 
 
   const supplierTypeId = watch("supplier_type_id");
+  const paymentTermsId = watch("payment_terms_id");
+  const businessUnitId = watch("business_unit_id");
   const isActive = watch("is_active");
-  const formPhones = watch("phone_numbers") as CreatePhoneNumberData[] ?? [];
+  const formContacts = watch("contacts") as CreateContactData[] ?? [];
   const formBanks = watch("bank_accounts") as CreateSupplierBankData[] ?? [];
 
   // Handlers for Create Mode lists
-  const handleAddPhone = (phone: CreatePhoneNumberData) => {
-    setValue("phone_numbers", [...formPhones, phone]);
+  const handleAddContact = (contact: CreateContactData) => {
+    setValue("contacts", [...formContacts, contact]);
   };
-  const handleUpdatePhone = (index: number, phone: CreatePhoneNumberData) => {
-    const newPhones = [...formPhones];
-    newPhones[index] = phone;
-    setValue("phone_numbers", newPhones);
+  const handleUpdateContact = (index: number, contact: CreateContactData) => {
+    const nextContacts = [...formContacts];
+    nextContacts[index] = contact;
+    setValue("contacts", nextContacts);
   };
-  const handleDeletePhone = (index: number) => {
-    setValue("phone_numbers", formPhones.filter((_, i) => i !== index));
+  const handleDeleteContact = (index: number) => {
+    setValue("contacts", formContacts.filter((_, i) => i !== index));
   };
 
   const handleAddBank = (bank: CreateSupplierBankData) => {
@@ -119,7 +123,7 @@ export function SupplierDialog({
             <Tabs defaultValue="general" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="general" className="cursor-pointer">{t("sections.basicInfo")}</TabsTrigger>
-                <TabsTrigger value="phones" className="cursor-pointer">{t("sections.phoneNumbers")}</TabsTrigger>
+                <TabsTrigger value="phones" className="cursor-pointer">{t("sections.contact")}</TabsTrigger>
                 <TabsTrigger value="banks" className="cursor-pointer">{t("sections.bankAccounts")}</TabsTrigger>
               </TabsList>
               
@@ -143,6 +147,28 @@ export function SupplierDialog({
                         onCreateClick={(q) => openQuickCreate(q)}
                       />
                       {errors.supplier_type_id && <FieldError>{errors.supplier_type_id.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
+                      <CreatableCombobox
+                        value={paymentTermsId ?? ""}
+                        onValueChange={(val) => setValue("payment_terms_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                        options={paymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        placeholder={t("form.paymentTermsPlaceholder")}
+                      />
+                      {errors.payment_terms_id && <FieldError>{errors.payment_terms_id.message}</FieldError>}
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>{t("form.businessUnit")}</FieldLabel>
+                      <CreatableCombobox
+                        value={businessUnitId ?? ""}
+                        onValueChange={(val) => setValue("business_unit_id", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
+                        options={businessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
+                        placeholder={t("form.businessUnitPlaceholder")}
+                      />
+                      {errors.business_unit_id && <FieldError>{errors.business_unit_id.message}</FieldError>}
                     </Field>
 
                     <Field>
@@ -206,16 +232,16 @@ export function SupplierDialog({
               </TabsContent>
               
               <TabsContent value="phones" className="mt-4 space-y-4">
-                <SupplierPhoneList
+                <SupplierContactList
                   supplierId={isEditing ? editingItem?.id : undefined}
-                  phones={isEditing ? (activeItem?.phone_numbers ?? []) : formPhones}
-                  onAdd={handleAddPhone}
-                  onUpdate={handleUpdatePhone}
-                  onDelete={handleDeletePhone}
+                  contacts={isEditing ? (activeItem?.contacts ?? activeItem?.phone_numbers ?? []) : formContacts}
+                  onAdd={handleAddContact}
+                  onUpdate={handleUpdateContact}
+                  onDelete={handleDeleteContact}
                 />
                 {!isEditing && (
                    <p className="text-xs text-muted-foreground italic">
-                     Note: Phone numbers added here will be saved when you click "{tCommon("create")}".
+                    Note: Contacts added here will be saved when you click "{tCommon("create")}".
                    </p>
                 )}
               </TabsContent>

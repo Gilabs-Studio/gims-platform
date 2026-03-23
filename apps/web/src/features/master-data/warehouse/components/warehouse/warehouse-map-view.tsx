@@ -82,7 +82,7 @@ export function WarehouseMapView() {
 
   // Data fetching
   const { data, isLoading, refetch } = useWarehouses({
-    per_page: 100,
+    per_page: 20,
     search: debouncedSearch || undefined,
     is_active: activeFilter === "all" ? undefined : activeFilter === "active",
   });

@@ -24,7 +24,9 @@ type NonTradePayableUsecase interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
 	List(ctx context.Context, req *dto.ListNonTradePayablesRequest) ([]dto.NonTradePayableResponse, int64, error)
+	Submit(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
 	Approve(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
+	Reject(ctx context.Context, id string) (*dto.NonTradePayableResponse, error)
 	Pay(ctx context.Context, id string, req *dto.PayNonTradePayableRequest) (*dto.NonTradePayableResponse, error)
 	GetFormData(ctx context.Context) (*dto.NonTradePayableFormDataResponse, error)
 }
@@ -260,7 +262,7 @@ func (uc *nonTradePayableUsecase) List(ctx context.Context, req *dto.ListNonTrad
 	return res, total, nil
 }
 
-func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.NonTradePayableResponse, error) {
+func (uc *nonTradePayableUsecase) Submit(ctx context.Context, id string) (*dto.NonTradePayableResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
@@ -281,7 +283,42 @@ func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.
 	}
 
 	if item.Status != financeModels.NTPStatusDraft {
-		return nil, errors.New("only draft non-trade payable can be approved")
+		return nil, errors.New("only draft non-trade payable can be submitted")
+	}
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status": financeModels.NTPStatusSubmitted,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.NTPStatusSubmitted
+	res := uc.mapper.ToResponse(item)
+	return &res, nil
+}
+
+func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.NonTradePayableResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNonTradePayableNotFound
+		}
+		return nil, err
+	}
+
+	if item.Status != financeModels.NTPStatusSubmitted {
+		return nil, errors.New("only submitted non-trade payable can be approved")
 	}
 
 	// NTP Approval creates journal:
@@ -348,6 +385,41 @@ func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.
 	item.Status = financeModels.NTPStatusApproved
 	res := uc.mapper.ToResponse(item)
 	res.JournalID = &journalRes.ID // Assuming we add this to DTO
+	return &res, nil
+}
+
+func (uc *nonTradePayableUsecase) Reject(ctx context.Context, id string) (*dto.NonTradePayableResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrNonTradePayableNotFound
+		}
+		return nil, err
+	}
+
+	if item.Status != financeModels.NTPStatusSubmitted {
+		return nil, errors.New("only submitted non-trade payable can be rejected")
+	}
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status": financeModels.NTPStatusRejected,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	item.Status = financeModels.NTPStatusRejected
+	res := uc.mapper.ToResponse(item)
 	return &res, nil
 }
 

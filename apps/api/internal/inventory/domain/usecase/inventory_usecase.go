@@ -97,7 +97,7 @@ func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInve
 		req.PerPage = 20
 	}
 
-	items, total, err := u.repo.GetTreeProducts(ctx, req)
+	items, total, summary, err := u.repo.GetTreeProducts(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +114,7 @@ func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInve
 			HasNext:    req.Page < totalPages,
 			HasPrev:    req.Page > 1,
 		},
+		Summary: summary,
 	}, nil
 }
 
@@ -435,6 +436,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				ReferenceNumber:  req.ReferenceNumber,
 				Description:      req.Description,
 				CreatedBy:        &req.CreatedBy,
+				MovementDirection: "OUT",
 			}
 			if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
 				return err
@@ -464,8 +466,8 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 			return err
 		}
 
-		batchNumber := "MB-" + time.Now().Format("060102150405")
-		now := time.Now()
+		now := apptime.Now()
+		batchNumber := "MB-" + now.Format("060102150405")
 		
 		batchParams := &dto.CreateBatchParams{
 			ProductID:       req.ProductID,
@@ -492,6 +494,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 			ReferenceNumber:  req.ReferenceNumber,
 			Description:      req.Description,
 			CreatedBy:        &req.CreatedBy,
+			MovementDirection: "IN",
 		}
 		if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
 			return err
@@ -515,10 +518,10 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 		if req.TargetWarehouseID == nil || *req.TargetWarehouseID == "" {
 			return ErrTargetWarehouseRequired
 		}
-		if err := deductStock(req.WarehouseID, req.Quantity, "OUT"); err != nil {
+		if err := deductStock(req.WarehouseID, req.Quantity, "TRANSFER"); err != nil {
 			return err
 		}
-		if err := addStock(*req.TargetWarehouseID, req.Quantity, "IN"); err != nil {
+		if err := addStock(*req.TargetWarehouseID, req.Quantity, "TRANSFER"); err != nil {
 			return err
 		}
 	}

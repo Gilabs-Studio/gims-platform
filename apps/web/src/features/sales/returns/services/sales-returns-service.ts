@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 import type {
   ApiResponse,
   CreateSalesReturnInput,
+  SalesReturnAuditTrailEntry,
   SalesReturn,
   SalesReturnFormData,
   SalesReturnListParams,
@@ -28,6 +29,11 @@ export const salesReturnsService = {
 
   async getById(id: string): Promise<ApiResponse<SalesReturn>> {
     const response = await apiClient.get<ApiResponse<SalesReturn>>(`${BASE_PATH}/${id}`);
+    return response.data;
+  },
+
+  async auditTrail(id: string, params?: { page?: number; per_page?: number }): Promise<ApiResponse<SalesReturnAuditTrailEntry[]>> {
+    const response = await apiClient.get<ApiResponse<SalesReturnAuditTrailEntry[]>>(`${BASE_PATH}/${id}/audit-trail`, { params });
     return response.data;
   },
 

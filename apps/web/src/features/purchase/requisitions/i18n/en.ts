@@ -52,8 +52,10 @@ export const purchaseRequisitionEn = {
     general: "General",
     basic: "Basic Info",
     items: "Items",
+    auditTrail: "Audit Trail",
   },
   sections: {
+    orderInfo: "Order Information",
     procurement: "Procurement",
     financial: "Financial Summary",
   },
@@ -74,6 +76,8 @@ export const purchaseRequisitionEn = {
   fields: {
     requestDate: "Request Date",
     supplier: "Supplier",
+    supplierPhoneNumber: "Supplier Phone Number",
+    supplierContact: "Supplier Contact",
     paymentTerms: "Payment Terms",
     businessUnit: "Business Unit",
     employee: "Employee",

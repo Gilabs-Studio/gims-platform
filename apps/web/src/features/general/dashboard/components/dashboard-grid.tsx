@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Download, LayoutDashboard, RotateCcw, Check } from "lucide-react";
+import { LayoutDashboard, RotateCcw, Check } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { PageMotion } from "@/components/motion/page-motion";
 import type { DateRange } from "react-day-picker";
-import { useDashboard, useDashboardLayout, useSaveLayout } from "../hooks/use-dashboard";
+import { useDashboardLayout, useSaveLayout } from "../hooks/use-dashboard";
 import { useDashboardStore } from "../stores/useDashboardStore";
 import { SortableWidget } from "./sortable-widget";
 import { WidgetRenderer } from "./widget-renderer";
@@ -31,7 +31,6 @@ import type { WidgetType } from "../types";
 
 export function DashboardGrid() {
   const t = useTranslations("dashboard");
-  const { data, isLoading } = useDashboard();
   const { data: layoutData } = useDashboardLayout();
   const { mutate: saveLayout, isPending: isSaving } = useSaveLayout();
 
@@ -200,11 +199,7 @@ export function DashboardGrid() {
                   onResizeCol={resizeWidgetCol}
                   onResizeRow={resizeWidgetRow}
                 >
-                  <WidgetRenderer
-                    widget={widget}
-                    data={data}
-                    isLoading={isLoading}
-                  />
+                  <WidgetRenderer widget={widget} />
                 </SortableWidget>
               ))}
             </div>

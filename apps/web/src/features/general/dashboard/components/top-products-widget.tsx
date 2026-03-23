@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatIDR } from "../utils/format";
+import { formatCurrency } from "@/lib/utils";
 import type { TopProductRow } from "../types";
 
 interface TopProductsWidgetProps {
@@ -42,7 +42,7 @@ export function TopProductsWidget({ data }: TopProductsWidgetProps) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold">{formatIDR(row.revenue)}</p>
+                  <p className="text-sm font-semibold">{formatCurrency(row.revenue)}</p>
                   <p className="text-xs text-muted-foreground">
                     {row.quantity_sold} {t("widgets.top_products.sold")}
                   </p>

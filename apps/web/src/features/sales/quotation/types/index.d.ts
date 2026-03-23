@@ -84,7 +84,6 @@ export interface SalesQuotation {
   business_unit?: BusinessUnit;
   business_type_id?: string;
   business_type?: BusinessType;
-  delivery_area_id?: string;
   sales_prospect?: SalesProspect;
   customer_name?: string;
   customer_contact?: string;

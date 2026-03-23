@@ -3,12 +3,15 @@ import type {
   SalesOrder,
   SalesOrderListResponse,
   SalesOrderSingleResponse,
+  SalesOrderItemsListResponse,
   ListSalesOrdersParams,
+  ListSalesOrderItemsParams,
   CreateSalesOrderData,
   UpdateSalesOrderData,
   UpdateSalesOrderStatusData,
   ConvertQuotationToOrderData,
 } from "../types";
+import type { AuditTrailApiResponse } from "@/components/ui/audit-trail-table";
 
 const BASE_PATH = "/sales/sales-orders";
 
@@ -27,6 +30,17 @@ export const orderService = {
   async getById(id: string): Promise<SalesOrderSingleResponse> {
     const response = await apiClient.get<SalesOrderSingleResponse>(
       `${BASE_PATH}/${id}`
+    );
+    return response.data;
+  },
+
+  async getItems(
+    id: string,
+    params?: ListSalesOrderItemsParams,
+  ): Promise<SalesOrderItemsListResponse> {
+    const response = await apiClient.get<SalesOrderItemsListResponse>(
+      `${BASE_PATH}/${id}/items`,
+      { params }
     );
     return response.data;
   },
@@ -83,6 +97,17 @@ export const orderService = {
     const response = await apiClient.post<SalesOrderSingleResponse>(
       `${BASE_PATH}/convert-from-quotation`,
       data
+    );
+    return response.data;
+  },
+
+  async auditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number }
+  ): Promise<AuditTrailApiResponse> {
+    const response = await apiClient.get<AuditTrailApiResponse>(
+      `${BASE_PATH}/${id}/audit-trail`,
+      { params }
     );
     return response.data;
   },

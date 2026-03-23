@@ -113,11 +113,20 @@ type GetInventoryTreeProductsRequest struct {
 	Search      string `form:"search"`
 }
 
-type GetInventoryTreeProductsResponse struct {
-	Data []InventoryStockItem `json:"data"`
-	Meta PaginationMeta       `json:"meta"`
+
+type TreeProductsSummary struct {
+	TotalItems int `json:"total_items"`
+	Ok         int `json:"ok"`
+	Low        int `json:"low"`
+	OutOfStock int `json:"out_of_stock"`
+	Overstock  int `json:"overstock"`
 }
 
+type GetInventoryTreeProductsResponse struct {
+	Data    []InventoryStockItem `json:"data"`
+	Meta    PaginationMeta       `json:"meta"`
+	Summary TreeProductsSummary  `json:"summary"`
+}
 type GetInventoryTreeBatchesRequest struct {
 	WarehouseID string `form:"warehouse_id" binding:"required"`
 	ProductID   string `form:"product_id" binding:"required"`

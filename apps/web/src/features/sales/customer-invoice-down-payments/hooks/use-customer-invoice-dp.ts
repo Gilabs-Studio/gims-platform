@@ -17,7 +17,8 @@ export const customerInvoiceDPKeys = {
   details: () => [...customerInvoiceDPKeys.all, "detail"] as const,
   detail: (id: string) => [...customerInvoiceDPKeys.details(), id] as const,
   addData: () => [...customerInvoiceDPKeys.all, "add"] as const,
-  auditTrail: (id: string) => [...customerInvoiceDPKeys.all, "audit-trail", id] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...customerInvoiceDPKeys.all, "audit-trail", id, params] as const,
 };
 
 export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams, options?: { enabled?: boolean }) {
@@ -148,10 +149,15 @@ export function useApproveCustomerInvoiceDP() {
   });
 }
 
-export function useCustomerInvoiceDPAuditTrail(id: string, options?: { enabled?: boolean }) {
+export function useCustomerInvoiceDPAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
-    queryKey: customerInvoiceDPKeys.auditTrail(id),
-    queryFn: () => customerInvoiceDPService.auditTrail(id),
+    queryKey: customerInvoiceDPKeys.auditTrail(id, params),
+    queryFn: () => customerInvoiceDPService.auditTrail(id, params),
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    placeholderData: (previousData) => previousData,
   });
 }

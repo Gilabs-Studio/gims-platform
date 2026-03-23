@@ -9,7 +9,7 @@ import { PageMotion } from "@/components/motion";
 
 const ProfitLossView = dynamic(
   () =>
-    import("@/features/finance/reports/components/profit-loss-view").then((mod) => ({
+    import("@/features/finance/reports/profit-loss/components/profit-loss-view").then((mod) => ({
       default: mod.ProfitLossView,
     })),
   { loading: () => null },

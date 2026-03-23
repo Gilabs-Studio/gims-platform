@@ -12,6 +12,9 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Input } from "./input";
+import { StageScrollLoader } from "./stage-scroll-loader";
+
+const LOCAL_SELECT_PAGE_SIZE = 20;
 
 // Context for search functionality
 const SelectContext = React.createContext<{
@@ -25,11 +28,24 @@ const SelectContext = React.createContext<{
 
 function Select({
   onOpenChange,
+  onSearchChange,
+  searchDebounceMs = 300,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+}: React.ComponentProps<typeof SelectPrimitive.Root> & {
+  onSearchChange?: (query: string) => void;
+  searchDebounceMs?: number;
+}) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [itemCount, setItemCount] = React.useState(0);
   const showSearch = itemCount > 5;
+
+  React.useEffect(() => {
+    if (!onSearchChange) return;
+    const timer = window.setTimeout(() => {
+      onSearchChange(searchQuery);
+    }, searchDebounceMs);
+    return () => window.clearTimeout(timer);
+  }, [onSearchChange, searchDebounceMs, searchQuery]);
 
   const incrementItemCount = React.useCallback(() => {
     setItemCount((prev) => prev + 1);
@@ -45,10 +61,11 @@ function Select({
     (open: boolean) => {
       if (!open) {
         resetItemCount();
+        onSearchChange?.("");
       }
       onOpenChange?.(open);
     },
-    [onOpenChange, resetItemCount],
+    [onOpenChange, onSearchChange, resetItemCount],
   );
 
   return (
@@ -114,11 +131,55 @@ function SelectContent({
   children,
   position = "popper",
   align = "center",
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+}) {
   const context = React.useContext(SelectContext);
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
+  const [localVisibleCount, setLocalVisibleCount] = React.useState(
+    LOCAL_SELECT_PAGE_SIZE,
+  );
+
+  const childArray = React.useMemo(
+    () => React.Children.toArray(children),
+    [children],
+  );
+  const isSearching = (context?.searchQuery?.trim().length ?? 0) > 0;
+  const localHasMore = !isSearching && childArray.length > localVisibleCount;
+  const effectiveHasMore = onLoadMore ? hasMore : localHasMore;
+  const effectiveIsLoadingMore = onLoadMore ? isLoadingMore : false;
+
+  const effectiveLoadMore = React.useCallback(() => {
+    if (onLoadMore) {
+      onLoadMore();
+      return;
+    }
+    if (!localHasMore) return;
+    setLocalVisibleCount((prev) => prev + LOCAL_SELECT_PAGE_SIZE);
+  }, [localHasMore, onLoadMore]);
+
+  const visibleChildren = React.useMemo(() => {
+    if (isSearching) return childArray;
+    if (onLoadMore) return childArray;
+    return childArray.slice(0, localVisibleCount);
+  }, [childArray, isSearching, localVisibleCount, onLoadMore]);
+
+  React.useEffect(() => {
+    if (onLoadMore) return;
+    if (isSearching) {
+      setLocalVisibleCount(childArray.length);
+      return;
+    }
+    setLocalVisibleCount(LOCAL_SELECT_PAGE_SIZE);
+  }, [childArray.length, isSearching, onLoadMore]);
 
   // Auto focus search input when content opens and search is enabled
   React.useEffect(() => {
@@ -131,6 +192,50 @@ function SelectContent({
 
     return () => clearTimeout(timer);
   }, [context?.showSearch]);
+
+  const handleViewportWheel = React.useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const viewportElement = viewportRef.current;
+      if (!viewportElement) return;
+
+      const hasScrollableContent =
+        viewportElement.scrollHeight > viewportElement.clientHeight;
+      if (!hasScrollableContent) return;
+
+      // Keep wheel/touchpad scrolling working when parent modal scroll-lock is active.
+      e.preventDefault();
+      e.stopPropagation();
+      viewportElement.scrollTop += e.deltaY;
+    },
+    [],
+  );
+
+  const maybeLoadMore = React.useCallback(() => {
+    if (!effectiveHasMore || effectiveIsLoadingMore) return;
+    effectiveLoadMore();
+  }, [effectiveHasMore, effectiveIsLoadingMore, effectiveLoadMore]);
+
+  const handleViewportScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!effectiveHasMore || effectiveIsLoadingMore) return;
+      const target = e.currentTarget;
+      const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (distanceToBottom <= 48) {
+        effectiveLoadMore();
+      }
+    },
+    [effectiveHasMore, effectiveIsLoadingMore, effectiveLoadMore],
+  );
+
+  React.useEffect(() => {
+    const viewportElement = viewportRef.current;
+    if (!viewportElement || !effectiveHasMore || effectiveIsLoadingMore) return;
+
+    const hasScrollableContent = viewportElement.scrollHeight > viewportElement.clientHeight;
+    if (!hasScrollableContent) {
+      maybeLoadMore();
+    }
+  }, [effectiveHasMore, effectiveIsLoadingMore, maybeLoadMore, visibleChildren]);
 
   return (
     <SelectPrimitive.Portal>
@@ -180,13 +285,23 @@ function SelectContent({
           </div>
         )}
         <SelectPrimitive.Viewport
+          ref={viewportRef}
+          onWheel={handleViewportWheel}
+          onScroll={handleViewportScroll}
           className={cn(
             "p-1",
             position === "popper" &&
               "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
           )}
         >
-          {children}
+          {visibleChildren}
+          {effectiveHasMore && (
+            <StageScrollLoader
+              onLoadMore={effectiveLoadMore}
+              hasMore={effectiveHasMore}
+              isLoading={effectiveIsLoadingMore}
+            />
+          )}
         </SelectPrimitive.Viewport>
         <SelectScrollDownButton />
       </SelectPrimitive.Content>

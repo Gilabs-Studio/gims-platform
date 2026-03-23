@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Phone, Landmark, Users, ExternalLink } from "lucide-react";
+import { MapPin, Edit, Landmark, Users, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,6 @@ import { Separator } from "@/components/ui/separator";
 import { CustomerContactsTab } from "@/features/crm/contact/components/customer-contacts-tab";
 import { useCustomer } from "../../hooks/use-customers";
 import type { Customer } from "../../types";
-import { formatWhatsAppLink } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerBankList } from "./customer-bank-list";
 
@@ -71,7 +70,6 @@ export function CustomerDetailModal({
 
   const hasSalesDefaults =
     entity.default_business_type_id ||
-    entity.default_area_id ||
     entity.default_sales_rep_id ||
     entity.default_payment_terms_id ||
     entity.default_tax_rate != null;
@@ -285,47 +283,12 @@ export function CustomerDetailModal({
               )}
 
               {/* Advanced Properties */}
-              {(((entity.phone_numbers ?? []).length > 0) || ((entity.bank_accounts ?? []).length > 0) || hasSalesDefaults) && (
+              {(((entity.bank_accounts ?? []).length > 0) || hasSalesDefaults) && (
                 <>
                   <Separator />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Phone Numbers && Bank Accounts */}
+                {/* Bank Accounts */}
                     <div className="space-y-6">
-                      {(entity.phone_numbers ?? []).length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            {t("sections.phoneNumbers")}
-                          </h3>
-                          <div className="border rounded-lg overflow-hidden">
-                            <Table>
-                              <TableBody>
-                                {entity.phone_numbers?.map((phone) => (
-                                  <TableRow key={phone.id}>
-                                    <TableCell>
-                                      <a
-                                        href={formatWhatsAppLink(phone.phone_number)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary text-sm cursor-pointer hover:underline font-medium"
-                                      >
-                                        {phone.phone_number}
-                                      </a>
-                                    </TableCell>
-                                    <TableCell className="text-sm">{phone.label ?? "-"}</TableCell>
-                                    <TableCell className="text-right">
-                                      {phone.is_primary && (
-                                        <Badge variant="secondary" className="text-[10px]">Primary</Badge>
-                                      )}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      )}
-
                       {(entity.bank_accounts ?? []).length > 0 && (
                         <div>
                           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -372,12 +335,6 @@ export function CustomerDetailModal({
                                   <TableRow>
                                     <TableCell className="font-medium bg-muted/50 w-48">{t("form.defaultBusinessType")}</TableCell>
                                     <TableCell>{entity.default_business_type.name}</TableCell>
-                                  </TableRow>
-                                )}
-                                {entity.default_area && (
-                                  <TableRow>
-                                    <TableCell className="font-medium bg-muted/50">{t("form.defaultArea")}</TableCell>
-                                    <TableCell>{entity.default_area.name}</TableCell>
                                   </TableRow>
                                 )}
                                 {entity.default_sales_rep && (

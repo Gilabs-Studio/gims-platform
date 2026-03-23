@@ -77,6 +77,7 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 	err := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Preload("Customer").
 		Preload("Contact").
@@ -108,6 +109,7 @@ func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models
 	err := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Where("email = ? AND converted_at IS NULL", email).
 		First(&lead).Error
@@ -123,6 +125,7 @@ func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, compan
 	query := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Where("converted_at IS NULL")
 
@@ -225,6 +228,7 @@ func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]mod
 	err := query.
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
 		Limit(params.Limit).

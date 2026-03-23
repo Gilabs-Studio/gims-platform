@@ -62,11 +62,6 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		resp.District = &dto.DistrictResponse{ID: m.District.ID, Name: m.District.Name}
 	}
 
-	// Map phone numbers if loaded
-	if len(m.PhoneNumbers) > 0 {
-		resp.PhoneNumbers = toPhoneNumberResponseList(m.PhoneNumbers)
-	}
-
 	// Map bank accounts if loaded
 	if len(m.BankAccounts) > 0 {
 		resp.BankAccounts = toCustomerBankResponseList(m.BankAccounts)
@@ -107,27 +102,6 @@ func ToCustomerResponseList(models []models.Customer) []dto.CustomerResponse {
 	responses := make([]dto.CustomerResponse, len(models))
 	for i := range models {
 		responses[i] = ToCustomerResponse(&models[i])
-	}
-	return responses
-}
-
-// toPhoneNumberResponse converts a single CustomerPhoneNumber model to DTO
-func toPhoneNumberResponse(m *models.CustomerPhoneNumber) dto.PhoneNumberResponse {
-	return dto.PhoneNumberResponse{
-		ID:          m.ID,
-		CustomerID:  m.CustomerID,
-		PhoneNumber: m.PhoneNumber,
-		Label:       m.Label,
-		IsPrimary:   m.IsPrimary,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
-	}
-}
-
-func toPhoneNumberResponseList(models []models.CustomerPhoneNumber) []dto.PhoneNumberResponse {
-	responses := make([]dto.PhoneNumberResponse, len(models))
-	for i := range models {
-		responses[i] = toPhoneNumberResponse(&models[i])
 	}
 	return responses
 }

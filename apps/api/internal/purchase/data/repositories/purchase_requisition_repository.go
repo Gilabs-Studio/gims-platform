@@ -231,19 +231,24 @@ func (r *purchaseRequisitionRepository) Update(ctx context.Context, pr *models.P
 
 		// Replace scalar fields (keep Code/Status as provided by caller)
 		if err := tx.Model(&existing).Updates(map[string]interface{}{
-			"supplier_id":      pr.SupplierID,
-			"payment_terms_id": pr.PaymentTermsID,
-			"business_unit_id": pr.BusinessUnitID,
-			"employee_id":      pr.EmployeeID,
-			"request_date":     pr.RequestDate,
-			"address":          pr.Address,
-			"notes":            pr.Notes,
-			"tax_rate":         pr.TaxRate,
-			"tax_amount":       pr.TaxAmount,
-			"delivery_cost":    pr.DeliveryCost,
-			"other_cost":       pr.OtherCost,
-			"subtotal":         pr.Subtotal,
-			"total_amount":     pr.TotalAmount,
+			"supplier_id":                 pr.SupplierID,
+			"supplier_code_snapshot":      pr.SupplierCodeSnapshot,
+			"supplier_name_snapshot":      pr.SupplierNameSnapshot,
+			"payment_terms_id":            pr.PaymentTermsID,
+			"payment_terms_name_snapshot": pr.PaymentTermsNameSnapshot,
+			"payment_terms_days_snapshot": pr.PaymentTermsDaysSnapshot,
+			"business_unit_id":            pr.BusinessUnitID,
+			"business_unit_name_snapshot": pr.BusinessUnitNameSnapshot,
+			"employee_id":                 pr.EmployeeID,
+			"request_date":                pr.RequestDate,
+			"address":                     pr.Address,
+			"notes":                       pr.Notes,
+			"tax_rate":                    pr.TaxRate,
+			"tax_amount":                  pr.TaxAmount,
+			"delivery_cost":               pr.DeliveryCost,
+			"other_cost":                  pr.OtherCost,
+			"subtotal":                    pr.Subtotal,
+			"total_amount":                pr.TotalAmount,
 		}).Error; err != nil {
 			return err
 		}

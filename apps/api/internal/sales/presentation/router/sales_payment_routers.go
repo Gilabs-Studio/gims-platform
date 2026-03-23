@@ -7,12 +7,11 @@ import (
 )
 
 const (
-	salesPaymentRead       = "sales_payment.read"
-	salesPaymentCreate     = "sales_payment.create"
-	salesPaymentDelete     = "sales_payment.delete"
-	salesPaymentConfirm    = "sales_payment.confirm"
-	salesPaymentExport     = "sales_payment.export"
-	salesPaymentAuditTrail = "sales_payment.audit_trail"
+	salesPaymentRead    = "sales_payment.read"
+	salesPaymentCreate  = "sales_payment.create"
+	salesPaymentDelete  = "sales_payment.delete"
+	salesPaymentConfirm = "sales_payment.confirm"
+	salesPaymentExport  = "sales_payment.export"
 )
 
 func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandler, printH *handler.SalesPaymentPrintHandler) {
@@ -22,7 +21,7 @@ func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandl
 	g.GET("/export", middleware.RequirePermission(salesPaymentExport), h.Export)
 	g.POST("", middleware.RequirePermission(salesPaymentCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(salesPaymentRead), h.GetByID)
-	g.GET("/:id/audit-trail", middleware.RequirePermission(salesPaymentAuditTrail), h.AuditTrail)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(salesPaymentRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission("sales_payment.print"), printH.PrintPayment)
 	g.DELETE("/:id", middleware.RequirePermission(salesPaymentDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(salesPaymentConfirm), h.Confirm)
