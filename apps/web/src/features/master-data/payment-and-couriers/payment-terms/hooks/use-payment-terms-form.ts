@@ -20,11 +20,18 @@ export interface UsePaymentTermsFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: PaymentTerms | null;
+  initialData?: { name?: string };
   /** Called after a successful create with the newly created item's id and name */
   onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function usePaymentTermsForm({ open, onOpenChange, editingItem, onCreated }: UsePaymentTermsFormProps) {
+export function usePaymentTermsForm({
+  open,
+  onOpenChange,
+  editingItem,
+  initialData,
+  onCreated,
+}: UsePaymentTermsFormProps) {
   const t = useTranslations("paymentTerm");
   const tCommon = useTranslations("common");
 
@@ -52,14 +59,14 @@ export function usePaymentTermsForm({ open, onOpenChange, editingItem, onCreated
         });
       } else {
         form.reset({
-          name: "",
+          name: initialData?.name ?? "",
           description: "",
           days: 0,
           is_active: true,
         });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialData?.name, open]);
 
   const onSubmit: SubmitHandler<PaymentTermsFormData> = async (data) => {
     try {

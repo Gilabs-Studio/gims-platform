@@ -828,6 +828,7 @@ export function LeadFormDialog({
         open={quickCreate.type === "source"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handleSourceCreated}
       />
 
@@ -835,11 +836,13 @@ export function LeadFormDialog({
         open={quickCreate.type === "status"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handleStatusCreated}
       />
 
       <BusinessTypeForm
         open={quickCreate.type === "businessType"}
+        initialData={{ name: quickCreate.query }}
         onClose={handleBusinessTypeCreated}
       />
 
@@ -847,6 +850,7 @@ export function LeadFormDialog({
         open={quickCreate.type === "paymentTerm"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handlePaymentTermCreated}
       />
 
