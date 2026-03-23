@@ -94,6 +94,17 @@ export const crmVisitReportEn = {
       approvalNotes: "Notes",
       approvalNotesPlaceholder: "Additional notes (optional)",
     },
+    surveyQuestions: {
+      need: "Does the customer have a clear need for this product?",
+      budget: "Is the budget confirmed?",
+      decisionMaker: "Is the decision maker involved?",
+      timeline: "Is the timeline for purchase defined?",
+      fit: "Does our solution fit their requirements?",
+    },
+    surveyAnswers: {
+      yes: "Yes",
+      no: "No",
+    },
     actions: {
       checkIn: "Check In",
       checkOut: "Check Out",

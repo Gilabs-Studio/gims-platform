@@ -43,7 +43,7 @@ import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-vi
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { VISIT_INTEREST_QUESTIONS, calculateVisitInterestLevel } from "@/features/crm/visit-report/constants/interest-questions";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { ActivityTypeDialog } from "@/features/crm/activity-type/components/activity-type-dialog";
 
@@ -99,13 +99,10 @@ export function LogActivityDialog({
   const { mutateAsync: createActivity, isPending } = useCreateActivity();
   const authUser = useAuthStore((state) => state.user);
 
-  // Form data for product interest (products list + survey questions)
+  // Form data for product interest (products list)
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions: VisitInterestQuestion[] = useMemo(
-    () => formDataRes?.data?.interest_questions ?? [],
-    [formDataRes?.data?.interest_questions],
-  );
+  const questions = VISIT_INTEREST_QUESTIONS;
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", {
@@ -123,18 +120,9 @@ export function LogActivityDialog({
   const calculateInterest = useCallback(
     (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers.length) return 0;
-      const questionMap = new Map(questions.map((q) => [q.id, q]));
-      let score = 0;
-      answers.forEach((ans) => {
-        const question = questionMap.get(ans.question_id);
-        if (question) {
-          const option = question.options.find((o) => o.id === ans.option_id);
-          if (option) score += option.score;
-        }
-      });
-      return Math.min(score, 5);
+      return calculateVisitInterestLevel(answers);
     },
-    [questions],
+    [],
   );
 
   const schema = useMemo(
@@ -322,7 +310,11 @@ export function LogActivityDialog({
                     if (!q) return null;
                     const opt = q.options.find((o) => o.id === ans.option_id);
                     if (!opt) return null;
-                    return { question_text: q.question_text, option_text: opt.option_text, score: opt.score };
+                    return {
+                      question_text: tVisit(q.question_text_key),
+                      option_text: tVisit(opt.option_text_key),
+                      score: opt.score,
+                    };
                   })
                   .filter((sa): sa is { question_text: string; option_text: string; score: number } => sa !== null);
                 return {
@@ -581,7 +573,7 @@ export function LogActivityDialog({
                             const currentAnswer = item.answers.find((a) => a.question_id === q.id);
                             return (
                               <div key={q.id} className="space-y-1.5">
-                                <Label className="text-xs">{q.question_text}</Label>
+                                <Label className="text-xs">{tVisit(q.question_text_key)}</Label>
                                 <div className="flex flex-wrap gap-4">
                                   {q.options.map((opt) => (
                                     <div key={opt.id} className="flex items-center gap-1.5">
@@ -598,7 +590,7 @@ export function LogActivityDialog({
                                         className="h-4 w-4 cursor-pointer accent-primary"
                                       />
                                       <label htmlFor={`la-${idx}-${q.id}-${opt.id}`} className="text-xs cursor-pointer">
-                                        {opt.option_text}
+                                        {tVisit(opt.option_text_key)}
                                       </label>
                                     </div>
                                   ))}

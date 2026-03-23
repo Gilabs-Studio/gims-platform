@@ -55,8 +55,7 @@ import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
-import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByLead } from "@/features/crm/task/hooks/use-tasks";
@@ -210,6 +209,7 @@ function LeadDetailSkeleton() {
 export function LeadDetail({ leadId }: LeadDetailProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
+  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
@@ -253,24 +253,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
     enabled: isProductItemsTabActive,
   });
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
-  // Fetch interest questions for resolving survey answers in the product tooltip
-  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isProductItemsTabActive });
-  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
 
   /** Resolves raw { question_id, option_id }[] JSON to display-friendly text array */
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    if (!raw) return [];
-    try {
-      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
-      return parsed.flatMap((ans) => {
-        const q = interestQuestions.find((q) => q.id === ans.question_id);
-        const opt = q?.options.find((o) => o.id === ans.option_id);
-        if (!q || !opt) return [];
-        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
-      });
-    } catch {
-      return [];
-    }
+    return resolveVisitSurveyAnswers(raw, (key) => tVisit(key));
   }
 
   const lead: Lead | undefined = response?.data;

@@ -35,7 +35,6 @@ type SalesVisitUsecase interface {
 	CheckIn(ctx context.Context, id string, req *dto.CheckInRequest, userID *string) (*dto.SalesVisitResponse, error)
 	CheckOut(ctx context.Context, id string, req *dto.CheckOutRequest, userID *string) (*dto.SalesVisitResponse, error)
 	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) (*dto.CalendarSummaryResponse, error)
-	ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error)
 }
 
 type salesVisitUsecase struct {
@@ -549,10 +548,3 @@ func (u *salesVisitUsecase) GetCalendarSummary(ctx context.Context, req *dto.Get
 	return &dto.CalendarSummaryResponse{Summary: summaries}, nil
 }
 
-func (u *salesVisitUsecase) ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error) {
-	questions, err := u.visitRepo.ListInterestQuestions(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return mapper.MapSalesVisitInterestQuestionsToResponse(questions), nil
-}

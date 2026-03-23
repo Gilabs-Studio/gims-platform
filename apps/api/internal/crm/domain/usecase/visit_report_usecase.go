@@ -721,13 +721,6 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		})
 	}
 
-	// Interest questions
-	questions, err := u.visitRepo.ListInterestQuestions(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch interest questions: %w", err)
-	}
-	questionResponses := mapper.MapInterestQuestionsToResponse(questions)
-
 	// Enum options
 	outcomes := []dto.VisitFormDataOption{
 		{Value: "positive", Label: "Positive"},
@@ -750,7 +743,6 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		Deals:             dealOptions,
 		Leads:             leadOptions,
 		Products:          productOptions,
-		InterestQuestions: questionResponses,
 		Outcomes:          outcomes,
 		Statuses:          statuses,
 	}, nil
