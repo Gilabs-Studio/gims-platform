@@ -129,7 +129,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         director_id: data.director_id || null,
         latitude: data.latitude ?? null,
         longitude: data.longitude ?? null,
-        is_active: data.is_active,
+        is_active: true,
       };
 
       if (isEditing && fullCompany) {
