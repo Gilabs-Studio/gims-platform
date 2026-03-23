@@ -44,7 +44,7 @@ export function useBusinessTypeForm({
         form.reset({
           name: businessType.name,
           description: businessType.description ?? "",
-          is_active: businessType.is_active,
+          is_active: true,
         });
       } else {
         form.reset({

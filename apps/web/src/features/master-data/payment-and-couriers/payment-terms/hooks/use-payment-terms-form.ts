@@ -55,7 +55,7 @@ export function usePaymentTermsForm({
           name: editingItem.name,
           description: editingItem.description ?? "",
           days: editingItem.days,
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({

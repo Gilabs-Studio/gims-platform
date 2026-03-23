@@ -35,7 +35,7 @@ export function useJobPositionForm({ open, onClose, jobPosition }: UseJobPositio
         form.reset({
           name: jobPosition.name,
           description: jobPosition.description ?? "",
-          is_active: jobPosition.is_active,
+          is_active: true,
         });
       } else {
         form.reset({

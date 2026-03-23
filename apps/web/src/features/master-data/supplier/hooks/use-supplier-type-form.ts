@@ -52,7 +52,7 @@ export function useSupplierTypeForm({ open, onOpenChange, editingItem, initialNa
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -72,7 +72,7 @@ export function useSupplierTypeForm({ open, onOpenChange, editingItem, initialNa
           data: {
             name: data.name,
             description: data.description || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updateSuccess", { fallback: "Supplier Type updated successfully" }));
@@ -80,7 +80,7 @@ export function useSupplierTypeForm({ open, onOpenChange, editingItem, initialNa
         const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("createSuccess", { fallback: "Supplier Type created successfully" }));
         onSuccess?.(result.data.id, result.data.name);

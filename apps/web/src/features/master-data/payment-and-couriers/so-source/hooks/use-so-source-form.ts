@@ -43,7 +43,7 @@ export function useSOSourceForm({ open, onOpenChange, editingItem }: UseSOSource
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({

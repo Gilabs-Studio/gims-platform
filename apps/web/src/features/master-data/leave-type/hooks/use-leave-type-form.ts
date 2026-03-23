@@ -43,7 +43,7 @@ export function useLeaveTypeForm({ open, onOpenChange, editingItem }: UseLeaveTy
           description: editingItem.description ?? "",
           max_days: editingItem.max_days,
           is_paid: editingItem.is_paid,
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({ name: "", description: "", max_days: 0, is_paid: true, is_active: true });

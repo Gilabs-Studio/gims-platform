@@ -35,7 +35,7 @@ export function useDivisionForm({ open, onClose, division }: UseDivisionFormProp
         form.reset({
           name: division.name,
           description: division.description ?? "",
-          is_active: division.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
