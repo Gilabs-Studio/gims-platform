@@ -29,6 +29,7 @@ interface ContactFormDialogProps {
   readonly contact?: Contact | null;
   readonly customerId: string;
   readonly onSuccess?: () => void;
+  readonly onCreated?: (contact: Contact) => void;
 }
 
 export function ContactFormDialog({
@@ -37,6 +38,7 @@ export function ContactFormDialog({
   contact,
   customerId,
   onSuccess,
+  onCreated,
 }: ContactFormDialogProps) {
   const isEditing = !!contact;
 
@@ -50,6 +52,11 @@ export function ContactFormDialog({
     },
     editingItem: contact,
     customerId,
+    onSaved: (savedContact) => {
+      if (!isEditing) {
+        onCreated?.(savedContact);
+      }
+    },
   };
 
   const { form, onSubmit, isSubmitting, t, tCommon } =
@@ -87,7 +94,7 @@ export function ContactFormDialog({
 
       await refetchFormData();
 
-      toast.success(tCommon("success") || "Success");
+      toast.success(tCommon("savedSuccessfully") || "Success");
     } catch {
       toast.error(tCommon("error") || "Something went wrong");
     }

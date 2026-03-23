@@ -59,7 +59,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
   const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
 
-  type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "employee" | null;
+  type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "contact" | "employee" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; itemIndex?: number }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -833,6 +833,14 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
+  const handleContactCreated = useCallback((item: { id: string; name: string; phone?: string; email?: string }) => {
+    setSelectedContactId(item.id);
+    setValue("customer_contact", item.name, { shouldValidate: true });
+    setValue("customer_phone", item.phone ?? "", { shouldValidate: true });
+    setValue("customer_email", item.email ?? "", { shouldValidate: true });
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
   const handleSalesRepCreated = useCallback((item: { id: string; name: string }) => {
     setValue("sales_rep_id", item.id, { shouldValidate: true });
     closeQuickCreate();
@@ -917,6 +925,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleSalesRepCreated,
     customerCombobox,
     paymentTermsCombobox,

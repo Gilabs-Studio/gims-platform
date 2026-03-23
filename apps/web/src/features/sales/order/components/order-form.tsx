@@ -29,6 +29,7 @@ import { BusinessUnitForm } from "@/features/master-data/organization/components
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
 import { CustomerSidePanel } from "@/features/master-data/customer/components/customer/customer-side-panel";
 import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
+import { ContactFormDialog } from "@/features/crm/contact/components/contact-form-dialog";
 
 import { useOrderForm } from "../hooks/use-order-form";
 
@@ -83,6 +84,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleSalesRepCreated,
     customerCombobox,
     paymentTermsCombobox,
@@ -379,7 +381,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       .filter(Boolean)
                       .join(" - "),
                   }))}
-                  value={selectedContactId || undefined}
+                  value={selectedContactId || ""}
                   onValueChange={handleContactChange}
                   onOpenChange={(isOpen) => {
                     if (isOpen) {
@@ -388,6 +390,9 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   }}
                   placeholder={t("customerContact")}
                   emptyText={t("notFound")}
+                  createPermission="customer.create"
+                  createLabel={`${t("common.create") || "Create"} "{query}"`}
+                  onCreateClick={() => openQuickCreate("contact")}
                   disabled={!watch("customer_id")}
                 />
                 {errors.customer_contact && (
@@ -789,6 +794,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           open
           onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
           onCreated={handleSalesRepCreated}
+        />
+      )}
+      {quickCreate.type === "contact" && watch("customer_id") && (
+        <ContactFormDialog
+          open
+          onClose={closeQuickCreate}
+          customerId={watch("customer_id")}
+          onCreated={handleContactCreated}
         />
       )}
     </Dialog>

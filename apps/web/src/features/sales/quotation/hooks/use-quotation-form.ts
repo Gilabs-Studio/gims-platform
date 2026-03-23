@@ -673,6 +673,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     | "businessUnit"
     | "businessType"
     | "customer"
+    | "contact"
     | "product"
     | "employee"
     | null;
@@ -725,6 +726,17 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
       setValue("customer_phone", "", { shouldValidate: true });
       setValue("customer_email", "", { shouldValidate: true });
       setSelectedContactId("");
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleContactCreated = useCallback(
+    (item: { id: string; name: string; phone?: string; email?: string }) => {
+      setSelectedContactId(item.id);
+      setValue("customer_contact", item.name, { shouldValidate: true });
+      setValue("customer_phone", item.phone ?? "", { shouldValidate: true });
+      setValue("customer_email", item.email ?? "", { shouldValidate: true });
       closeQuickCreate();
     },
     [setValue, closeQuickCreate],
@@ -837,6 +849,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleProductCreated,
     handleEmployeeCreated,
     customerCombobox,

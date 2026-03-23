@@ -14,9 +14,16 @@ export interface UseContactFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: Contact | null;
   customerId?: string;
+  onSaved?: (contact: Contact) => void;
 }
 
-export function useContactForm({ open, onOpenChange, editingItem, customerId }: UseContactFormProps) {
+export function useContactForm({
+  open,
+  onOpenChange,
+  editingItem,
+  customerId,
+  onSaved,
+}: UseContactFormProps) {
   const t = useTranslations("crmContact");
   const tCommon = useTranslations("common");
 
@@ -100,10 +107,18 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
       };
 
       if (editingItem) {
-        await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        const response = await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        if (response.data) {
+          onSaved?.(response.data);
+        }
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(payload as Parameters<typeof createMutation.mutateAsync>[0]);
+        const response = await createMutation.mutateAsync(
+          payload as Parameters<typeof createMutation.mutateAsync>[0],
+        );
+        if (response.data) {
+          onSaved?.(response.data);
+        }
         toast.success(t("created"));
       }
       onOpenChange(false);
