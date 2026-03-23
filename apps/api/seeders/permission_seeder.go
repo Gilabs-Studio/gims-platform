@@ -463,6 +463,9 @@ func SeedPermissions() error {
 		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.delete", "Delete Up Country Cost", "DELETE", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.approve", "Approve Up Country Cost", "APPROVE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.submit", "Submit Up Country Cost", "SUBMIT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.reject", "Reject Up Country Cost", "REJECT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.pay", "Pay Up Country Cost", "PAY", "up_country_cost"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},

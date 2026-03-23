@@ -4,6 +4,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
@@ -13,9 +15,10 @@ import (
 )
 
 type FinanceDeps struct {
-	JournalUC usecase.JournalEntryUsecase
-	CoaUC     usecase.ChartOfAccountUsecase
-	AssetUC   usecase.AssetUsecase
+	JournalUC  usecase.JournalEntryUsecase
+	CoaUC      usecase.ChartOfAccountUsecase
+	AssetUC    usecase.AssetUsecase
+	SettingsUC financesettings.SettingsService
 }
 
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
@@ -61,12 +64,17 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryMapper := mapper.NewSalaryStructureMapper()
 	upCountryMapper := mapper.NewUpCountryCostMapper()
 
+	// Settings & Accounting Engine
+	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
+	settingsService := financesettings.NewSettingsService(financeSettingRepo)
+	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo)
+
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
-	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper)
+	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
@@ -82,9 +90,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		financialClosingMapper,
 	)
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
-	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper)
+	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
-	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper)
+	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper, settingsService, accountingEngine)
 	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
 
@@ -142,8 +150,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
 
 	return &FinanceDeps{
-		JournalUC: journalUC,
-		CoaUC:     coaUC,
-		AssetUC:   assetUC,
+		JournalUC:  journalUC,
+		CoaUC:      coaUC,
+		AssetUC:    assetUC,
+		SettingsUC: settingsService,
 	}
 }

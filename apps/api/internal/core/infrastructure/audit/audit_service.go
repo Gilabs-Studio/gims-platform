@@ -12,6 +12,7 @@ import (
 
 type AuditService interface {
 	Log(ctx context.Context, action string, targetID string, metadata map[string]interface{})
+	LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{})
 }
 
 type databaseAuditService struct {
@@ -25,6 +26,10 @@ func NewAuditService(db *gorm.DB) AuditService {
 }
 
 func (s *databaseAuditService) Log(ctx context.Context, action string, targetID string, metadata map[string]interface{}) {
+	s.LogWithChanges(ctx, action, targetID, metadata, nil)
+}
+
+func (s *databaseAuditService) LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{}) {
 	// Extract actor from context (assumes AuthMiddleware sets "user_id" and "user_email")
 	actorID := ""
 	if v := ctx.Value("user_id"); v != nil {
@@ -33,11 +38,6 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 
 	ip := ""
 	userAgent := ""
-	// Gin Context might not be available here directly if using pure context. 
-	// But usually we pass context from Gin handler.
-	// NOTE: Gin context methods regarding request headers aren't available on standard context.Background().
-	// We might need to pass IP/UA explicitly or rely on middleware putting them in context values.
-	// Assuming middleware puts "client_ip" and "user_agent" in context.
 	if v := ctx.Value("client_ip"); v != nil {
 		ip = fmt.Sprintf("%v", v)
 	}
@@ -45,10 +45,14 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 		userAgent = fmt.Sprintf("%v", v)
 	}
 
-	// Permission Code is often "resource.action". 
-	// We can infer it or pass it. Using action as PermissionCode for now.
-	
 	metaJSON, _ := json.Marshal(metadata)
+	
+	var changesStr string
+	if changes != nil {
+		if cBytes, err := json.Marshal(changes); err == nil {
+			changesStr = string(cBytes)
+		}
+	}
 
 	log := &models.AuditLog{
 		ActorID:        actorID,
@@ -58,6 +62,7 @@ func (s *databaseAuditService) Log(ctx context.Context, action string, targetID 
 		IPAddress:      ip,
 		UserAgent:      userAgent,
 		Metadata:       string(metaJSON),
+		Changes:        changesStr,
 		ResultStatus:   "success", // Default to success if logged after action
 		CreatedAt:      apptime.Now(),
 	}

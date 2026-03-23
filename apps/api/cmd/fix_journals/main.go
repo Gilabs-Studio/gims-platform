@@ -25,19 +25,19 @@ func main() {
 
 	// Define required COAs
 	requiredCOAs := []models.ChartOfAccount{
-		{Code: "11100", Name: "Cash on Hand", Type: models.AccountTypeCashBank, IsActive: true},
-		{Code: "11300", Name: "Trade Receivables", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "11400", Name: "Inventory", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "11800", Name: "VAT Input", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "11900", Name: "Advances to Suppliers", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "21000", Name: "Trade Payables", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "21100", Name: "GR/IR Clearing", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "21200", Name: "Sales Advances", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "21500", Name: "VAT Output", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "4100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true},
-		{Code: "4110", Name: "Sales Discount", Type: models.AccountTypeRevenue, IsActive: true},
-		{Code: "5100", Name: "Cost of Goods Sold", Type: models.AccountTypeExpense, IsActive: true},
-		{Code: "61000", Name: "Delivery / Variance Expense", Type: models.AccountTypeExpense, IsActive: true},
+		{Code: "1-1110", Name: "Cash on Hand", Type: models.AccountTypeCashBank, IsActive: true},
+		{Code: "1-1130", Name: "Trade Receivables", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "1-1140", Name: "Inventory", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "1-1180", Name: "VAT Input", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "1-1190", Name: "Advances to Suppliers", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "2-2100", Name: "Trade Payables", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "2-2110", Name: "GR/IR Clearing", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "2-2120", Name: "Sales Advances", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "2-2150", Name: "VAT Output", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "4-4100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true},
+		{Code: "4-4110", Name: "Sales Discount", Type: models.AccountTypeRevenue, IsActive: true},
+		{Code: "5-5100", Name: "Cost of Goods Sold", Type: models.AccountTypeExpense, IsActive: true},
+		{Code: "6-6100", Name: "Delivery / Variance Expense", Type: models.AccountTypeExpense, IsActive: true},
 	}
 
 	for _, coa := range requiredCOAs {

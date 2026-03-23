@@ -87,5 +87,5 @@ func (s *AssetMaintenanceSchedule) DaysUntilDue() int {
 	if s.NextMaintenanceDate == nil {
 		return 0
 	}
-	return int(s.NextMaintenanceDate.Sub(time.Now()).Hours() / 24)
+	return int(time.Until(*s.NextMaintenanceDate).Hours() / 24)
 }

@@ -1,4 +1,4 @@
-package usecase
+package repositories
 
 import (
 	"context"
@@ -100,8 +100,8 @@ func appendUnique(dst []string, v string) []string {
 	return append(dst, v)
 }
 
-// batchResolveJournalReferenceCodes resolves human-readable business codes for journal rows (per page).
-func batchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries []financeModels.JournalEntry) map[string]string {
+// BatchResolveJournalReferenceCodes resolves human-readable business codes for journal rows (per page).
+func BatchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries []financeModels.JournalEntry) map[string]string {
 	out := make(map[string]string, len(entries))
 	if len(entries) == 0 || db == nil {
 		return out
@@ -272,12 +272,11 @@ func batchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries
 			InvoiceCode     *string `gorm:"column:invoice_code"`
 		}
 		var rows []spRow
-		if err := db.WithContext(ctx).Raw(`
-			SELECT sp.id, sp.reference_number, ci.code AS invoice_code
-			FROM sales_payments sp
-			LEFT JOIN customer_invoices ci ON ci.id = sp.customer_invoice_id
-			WHERE sp.id IN ?
-		`, ids).Scan(&rows).Error; err == nil {
+		err := db.WithContext(ctx).Table("sales_payments sp").
+			Select("sp.id, sp.reference_number, ci.code AS invoice_code").
+			Joins("LEFT JOIN customer_invoices ci ON ci.id = sp.customer_invoice_id").
+			Where("sp.id IN ?", ids).Scan(&rows).Error
+		if err == nil {
 			m := codeByKindAndID["SALES_PAYMENT"]
 			if m == nil {
 				m = map[string]string{}
@@ -305,12 +304,11 @@ func batchResolveJournalReferenceCodes(ctx context.Context, db *gorm.DB, entries
 			InvoiceCode     *string `gorm:"column:invoice_code"`
 		}
 		var rows []ppRow
-		if err := db.WithContext(ctx).Raw(`
-			SELECT pp.id, pp.reference_number, si.code AS invoice_code
-			FROM purchase_payments pp
-			LEFT JOIN supplier_invoices si ON si.id = pp.supplier_invoice_id
-			WHERE pp.id IN ?
-		`, ids).Scan(&rows).Error; err == nil {
+		err := db.WithContext(ctx).Table("purchase_payments pp").
+			Select("pp.id, pp.reference_number, si.code AS invoice_code").
+			Joins("LEFT JOIN supplier_invoices si ON si.id = pp.supplier_invoice_id").
+			Where("pp.id IN ?", ids).Scan(&rows).Error
+		if err == nil {
 			m := codeByKindAndID["PURCHASE_PAYMENT"]
 			if m == nil {
 				m = map[string]string{}

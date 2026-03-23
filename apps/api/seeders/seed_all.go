@@ -12,9 +12,9 @@ func SeedAll() error {
 	}
 
 	// Minimal seed mode: small, traceable dataset for debugging and validation.
-	if os.Getenv("SEED_MINIMAL_DATA") == "true" {
-		return seedMinimalData()
-	}
+	// if os.Getenv("SEED_MINIMAL_DATA") == "true" {
+	// 	return seedMinimalData()
+	// }
 
 	if os.Getenv("SEED_ONLY_MASTER_DATA") == "true" {
 		return seedMasterData()
@@ -242,16 +242,6 @@ func SeedAll() error {
 
 	// HRD - Recruitment Requests seeder (Sprint 15)
 	if err := SeedRecruitmentRequests(); err != nil {
-		return err
-	}
-
-	// HRD - Applicant Stages seeder (Sprint 15)
-	if err := SeedApplicantStages(); err != nil {
-		return err
-	}
-
-	// HRD - Recruitment Applicants seeder (Sprint 15)
-	if err := SeedRecruitmentApplicants(); err != nil {
 		return err
 	}
 

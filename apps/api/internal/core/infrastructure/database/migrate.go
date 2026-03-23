@@ -125,6 +125,7 @@ func AutoMigrate() error {
 		&core.BankAccount{},
 		// Finance entities (Sprint 10)
 		&finance.ChartOfAccount{},
+		&finance.FinanceSetting{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
 		&finance.JournalReversal{},
