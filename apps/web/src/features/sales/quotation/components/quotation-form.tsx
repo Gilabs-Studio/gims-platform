@@ -377,7 +377,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   emptyText={t("notFound")}
                   createPermission="customer.create"
                   createLabel={`${t("common.create") || "Create"} "{query}"`}
-                  onCreateClick={() => openQuickCreate("contact")}
+                  onCreateClick={(q) => openQuickCreate("contact", q)}
                   disabled={!form.watch("customer_id")}
                 />
                 {errors.customer_contact && (
@@ -758,6 +758,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <PaymentTermsDialog
           open
           onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          initialData={{ name: quickCreate.query }}
           onCreated={handlePaymentTermCreated}
         />
       )}
@@ -765,6 +766,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <BusinessUnitForm
           open
           onClose={closeQuickCreate}
+          initialData={{ name: quickCreate.query }}
           onCreated={handleBusinessUnitCreated}
         />
       )}
@@ -772,6 +774,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <BusinessTypeForm
           open
           onClose={closeQuickCreate}
+          initialData={{ name: quickCreate.query }}
           onCreated={handleBusinessTypeCreated}
         />
       )}
@@ -780,6 +783,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           isOpen
           onClose={closeQuickCreate}
           mode="create"
+          initialData={{ name: quickCreate.query }}
           onCreated={handleCustomerCreated}
         />
       )}
@@ -798,14 +802,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           onCreated={handleEmployeeCreated}
         />
       )}
-      {quickCreate.type === "contact" && form.watch("customer_id") && (
-        <ContactFormDialog
-          open
-          onClose={closeQuickCreate}
-          customerId={form.watch("customer_id")}
-          onCreated={handleContactCreated}
-        />
-      )}
+      {quickCreate.type === "contact" && (() => {
+        const customerId = form.watch("customer_id");
+        if (!customerId) return null;
+        return (
+          <ContactFormDialog
+            open
+            onClose={closeQuickCreate}
+            customerId={customerId}
+            initialName={quickCreate.query}
+            onCreated={handleContactCreated}
+          />
+        );
+      })()}
     </Dialog>
   );
 }

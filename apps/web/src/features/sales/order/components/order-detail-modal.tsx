@@ -456,7 +456,13 @@ export function OrderDetailModal({
                                   )}
                                 </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
-                              <TableCell>{displayOrder.customer_contact ?? "-"}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.name ?? displayOrder.customer_contact ?? "-"}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.phone")}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.phone ?? displayOrder.customer_phone ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.email")}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.email ?? displayOrder.customer_email ?? "-"}</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>

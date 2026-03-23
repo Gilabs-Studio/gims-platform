@@ -6,6 +6,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -41,6 +42,7 @@ type salesQuotationUsecase struct {
 	db            *gorm.DB
 	quotationRepo salesRepos.SalesQuotationRepository
 	customerRepo  customerRepos.CustomerRepository
+	contactRepo   crmRepos.ContactRepository
 	productRepo   productRepos.ProductRepository
 	auditService  audit.AuditService
 }
@@ -56,6 +58,7 @@ func NewSalesQuotationUsecase(
 		db:            db,
 		quotationRepo: quotationRepo,
 		customerRepo:  customerRepos.NewCustomerRepository(db),
+		contactRepo:   crmRepos.NewContactRepository(db),
 		productRepo:   productRepo,
 		auditService:  auditService,
 	}
@@ -70,6 +73,7 @@ func (u *salesQuotationUsecase) List(ctx context.Context, req *dto.ListSalesQuot
 	responses := make([]dto.SalesQuotationResponse, len(quotations))
 	for i := range quotations {
 		responses[i] = mapper.ToSalesQuotationResponse(&quotations[i])
+		u.attachCustomerContactResponse(ctx, &responses[i])
 	}
 
 	// Calculate pagination
@@ -150,6 +154,7 @@ func (u *salesQuotationUsecase) GetByID(ctx context.Context, id string) (*dto.Sa
 	}
 
 	response := mapper.ToSalesQuotationResponse(quotation)
+	u.attachCustomerContactResponse(ctx, &response)
 	return &response, nil
 }
 
@@ -209,6 +214,7 @@ func (u *salesQuotationUsecase) Create(ctx context.Context, req *dto.CreateSales
 	}
 
 	response := mapper.ToSalesQuotationResponse(created)
+	u.attachCustomerContactResponse(ctx, &response)
 	logSalesAudit(u.auditService, ctx, "sales_quotation.create", created.ID, map[string]interface{}{
 		"after": map[string]interface{}{
 			"code":           created.Code,
@@ -279,6 +285,7 @@ func (u *salesQuotationUsecase) Update(ctx context.Context, id string, req *dto.
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	u.attachCustomerContactResponse(ctx, &response)
 	afterSnapshot := salesQuotationAuditSnapshot(updated)
 	if shouldLogSnapshotChange(beforeSnapshot, afterSnapshot) {
 		logSalesAudit(u.auditService, ctx, "sales_quotation.update", id, map[string]interface{}{
@@ -340,6 +347,7 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 	}
 
 	response := mapper.ToSalesQuotationResponse(updated)
+	u.attachCustomerContactResponse(ctx, &response)
 	logSalesAudit(u.auditService, ctx, "sales_quotation.status_change", id, map[string]interface{}{
 		"before_status": previousStatus,
 		"after_status":  updated.Status,
@@ -421,6 +429,17 @@ func (u *salesQuotationUsecase) isValidStatusTransition(current, new models.Sale
 }
 
 func (u *salesQuotationUsecase) applyCustomerSnapshot(ctx context.Context, quotation *models.SalesQuotation) error {
+	if quotation != nil && quotation.CustomerContactID != nil && *quotation.CustomerContactID != "" && u.contactRepo != nil {
+		contact, err := u.contactRepo.FindByID(ctx, *quotation.CustomerContactID)
+		if err == nil {
+			if quotation.CustomerID == nil || *quotation.CustomerID == "" || contact.CustomerID == *quotation.CustomerID {
+				quotation.CustomerContact = salesQuotationFirstNonEmpty(quotation.CustomerContact, contact.Name)
+				quotation.CustomerEmail = salesQuotationFirstNonEmpty(quotation.CustomerEmail, contact.Email)
+				quotation.CustomerPhone = salesQuotationFirstNonEmpty(quotation.CustomerPhone, contact.Phone)
+			}
+		}
+	}
+
 	if quotation == nil || quotation.CustomerID == nil || *quotation.CustomerID == "" || u.customerRepo == nil {
 		return nil
 	}
@@ -439,6 +458,24 @@ func (u *salesQuotationUsecase) applyCustomerSnapshot(ctx context.Context, quota
 	quotation.CustomerPhone = salesQuotationFirstNonEmpty(quotation.CustomerPhone, salesQuotationResolvePrimaryPhone(customer))
 
 	return nil
+}
+
+func (u *salesQuotationUsecase) attachCustomerContactResponse(ctx context.Context, response *dto.SalesQuotationResponse) {
+	if response == nil || response.CustomerContactID == nil || *response.CustomerContactID == "" || u.contactRepo == nil {
+		return
+	}
+
+	contact, err := u.contactRepo.FindByID(ctx, *response.CustomerContactID)
+	if err != nil {
+		return
+	}
+
+	response.CustomerContactRef = &dto.CustomerContactResponse{
+		ID:    contact.ID,
+		Name:  contact.Name,
+		Phone: contact.Phone,
+		Email: contact.Email,
+	}
 }
 
 func salesQuotationFirstNonEmpty(current string, fallback string) string {

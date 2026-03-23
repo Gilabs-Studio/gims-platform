@@ -297,13 +297,19 @@ func AutoMigrate() error {
 		return fmt.Errorf("failed to ensure goods receipt warehouse column: %w", err)
 	}
 
+	// Safety net for rollout compatibility: older databases may miss
+	// customer_contact_id columns introduced in sales documents.
+	if err := ensureSalesCustomerContactColumns(); err != nil {
+		return fmt.Errorf("failed to ensure sales customer contact columns: %w", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
 	return nil
-} 	
+}
 
 // migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
 // employee_areas with is_supervisor=true. This is idempotent — if the source
@@ -384,6 +390,78 @@ func ensureGoodsReceiptWarehouseColumn() error {
 				ADD CONSTRAINT fk_goods_receipts_warehouse
 				FOREIGN KEY (warehouse_id)
 				REFERENCES warehouses(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureSalesCustomerContactColumns() error {
+	if err := DB.Exec(`
+		ALTER TABLE sales_quotations
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		ALTER TABLE sales_orders
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_quotations_customer_contact_id
+		ON sales_quotations (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_orders_customer_contact_id
+		ON sales_orders (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_quotations_customer_contact'
+			) THEN
+				ALTER TABLE sales_quotations
+				ADD CONSTRAINT fk_sales_quotations_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_orders_customer_contact'
+			) THEN
+				ALTER TABLE sales_orders
+				ADD CONSTRAINT fk_sales_orders_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
 				ON UPDATE CASCADE
 				ON DELETE SET NULL;
 			END IF;

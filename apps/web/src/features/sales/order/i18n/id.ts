@@ -35,6 +35,8 @@ export const orderId = {
       next: "Selanjutnya",
       select: "Pilih",
       customer: "Pelanggan",
+      phone: "Telepon",
+      email: "Email",
       selectCustomer: "Pilih pelanggan",
       selectDate: "Pilih tanggal",
       validating: "Memvalidasi...",

@@ -45,6 +45,7 @@ type SalesQuotation struct {
 	// Customer reference (FK to master data customer)
 	CustomerID      *string                    `gorm:"type:uuid;index" json:"customer_id"`
 	Customer        *customerModels.Customer   `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	CustomerContactID *string                  `gorm:"type:uuid;index" json:"customer_contact_id"`
 
 	// Customer snapshot (stored at quotation creation for historical record)
 	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`

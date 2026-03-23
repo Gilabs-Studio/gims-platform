@@ -26,7 +26,7 @@ interface ContactFormDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly contact?: Contact | null;
-  readonly customerId: string;
+  readonly customerId?: string;
   readonly initialName?: string;
   readonly onSuccess?: () => void;
   readonly onCreated?: (contact: Contact) => void;

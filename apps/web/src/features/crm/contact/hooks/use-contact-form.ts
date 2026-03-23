@@ -47,6 +47,7 @@ export function useContactForm({
           .optional()
           .or(z.literal("")),
         notes: z.string().max(1000).optional().or(z.literal("")),
+        is_active: z.boolean(),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
@@ -64,6 +65,7 @@ export function useContactForm({
       phone: "",
       email: "",
       notes: "",
+      is_active: true,
     },
   });
 
@@ -77,6 +79,7 @@ export function useContactForm({
           phone: editingItem.phone ?? "",
           email: editingItem.email ?? "",
           notes: editingItem.notes ?? "",
+          is_active: editingItem.is_active,
         });
       } else {
         form.reset({
@@ -86,6 +89,7 @@ export function useContactForm({
           phone: "",
           email: "",
           notes: "",
+          is_active: true,
         });
       }
     }

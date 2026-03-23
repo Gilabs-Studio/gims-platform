@@ -479,6 +479,12 @@ export function QuotationDetailModal({
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
                             </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerEmail")}</TableCell>
+                              <TableCell>{displayQuotation.customer_contact_ref?.email ?? displayQuotation.customer_email ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerPhone")}</TableCell>
+                              <TableCell>{displayQuotation.customer_contact_ref?.phone ?? displayQuotation.customer_phone ?? "-"}</TableCell>
+                            </TableRow>
                           </TableBody>
                         </Table>
                       </div>
