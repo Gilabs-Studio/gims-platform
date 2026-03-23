@@ -219,6 +219,13 @@ export function LeadList() {
               data.items.map((item) => {
                 const isConverted = !!item.converted_at;
                 const statusColor = item.lead_status?.color ?? undefined;
+                const statusLabel = isConverted ? t("convertedBadge") : (item.lead_status?.name ?? "-");
+                const statusStyle = isConverted
+                  ? undefined
+                  : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
+                const statusClassName = isConverted
+                  ? "bg-success/10 text-success border-success/30 cursor-pointer hover:border-primary hover:text-primary transition-colors"
+                  : (item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : "");
 
                 return (
                   <TableRow
@@ -254,10 +261,10 @@ export function LeadList() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                        className={isConverted && item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                        style={statusStyle}
+                        className={statusClassName}
                         onClick={
-                          isConverted && item.deal_id
+                          item.deal_id
                             ? (e) => {
                                 e.stopPropagation();
                                 router.push(`/crm/pipeline/${item.deal_id}`);
@@ -265,7 +272,7 @@ export function LeadList() {
                             : undefined
                         }
                       >
-                        {item.lead_status?.name ?? "-"}
+                        {statusLabel}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono">{item.lead_score}</TableCell>

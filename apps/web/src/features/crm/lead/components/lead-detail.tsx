@@ -318,6 +318,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   }
 
   const statusColor = lead.lead_status?.color ?? undefined;
+  const statusLabel = isConverted ? t("convertedBadge") : (lead.lead_status?.name ?? "-");
+  const statusStyle = isConverted
+    ? undefined
+    : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
+  const statusClassName = isConverted && lead.deal_id
+    ? "bg-success/10 text-success border-success/30 cursor-pointer hover:border-primary hover:text-primary transition-colors"
+    : "";
   const bantCount = [
     lead.budget_confirmed,
     lead.auth_confirmed,
@@ -380,18 +387,18 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {lead.first_name} {lead.last_name}
                 </h1>
-                {lead.lead_status && (
+                {(lead.lead_status || isConverted) && (
                   <Badge
                     variant="outline"
-                    style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                    className={isConverted && lead.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                    style={statusStyle}
+                    className={statusClassName}
                     onClick={
                       isConverted && lead.deal_id
                         ? () => router.push(`/crm/pipeline/${lead.deal_id}`)
                         : undefined
                     }
                   >
-                    {lead.lead_status.name}
+                    {statusLabel}
                   </Badge>
                 )}
               </div>
