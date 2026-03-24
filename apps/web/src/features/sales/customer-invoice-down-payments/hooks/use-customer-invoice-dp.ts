@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orderKeys } from "../../order/hooks/use-orders";
-import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
+import type { CustomerInvoiceSummary, SalesOrder, SalesOrderListResponse } from "../../order/types";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import type {
   CreateCustomerInvoiceDPInput,
+  CustomerInvoiceDPDetail,
   CustomerInvoiceDPListParams,
   UpdateCustomerInvoiceDPInput,
 } from "../types";
@@ -20,6 +21,53 @@ export const customerInvoiceDPKeys = {
   auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
     [...customerInvoiceDPKeys.all, "audit-trail", id, params] as const,
 };
+
+function upsertCustomerInvoiceSummaryAtFront(
+  invoices: CustomerInvoiceSummary[],
+  next: CustomerInvoiceSummary,
+): CustomerInvoiceSummary[] {
+  const withoutCurrent = invoices.filter((entry) => entry.id !== next.id);
+  return [next, ...withoutCurrent];
+}
+
+function applyDPToSalesOrderLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  dp: CustomerInvoiceDPDetail | undefined,
+) {
+  const salesOrderId = dp?.sales_order?.id;
+  if (!dp || !salesOrderId) return;
+
+  const queries = queryClient.getQueriesData({ queryKey: orderKeys.lists() });
+  queries.forEach(([key, old]) => {
+    if (!old || typeof old !== "object" || !("data" in (old as Record<string, unknown>))) return;
+    queryClient.setQueryData(key as readonly unknown[], (prev: unknown) => {
+      if (!prev || typeof prev !== "object" || !("data" in (prev as Record<string, unknown>))) return prev;
+      const list = prev as SalesOrderListResponse;
+      return {
+        ...list,
+        data: list.data.map((order) => {
+          if (order.id !== salesOrderId) return order;
+          const existing = Array.isArray(order.customer_invoices) ? order.customer_invoices : [];
+          const found = existing.find((entry) => entry.id === dp.id);
+          const nextEntry: CustomerInvoiceSummary = {
+            id: dp.id,
+            code: dp.code ?? found?.code ?? "",
+            status: dp.status ?? found?.status ?? "DRAFT",
+            invoice_date: dp.invoice_date ?? found?.invoice_date ?? "",
+            due_date: dp.due_date ?? found?.due_date ?? "",
+            amount: dp.amount ?? found?.amount ?? 0,
+            paid_amount: (dp.amount ?? 0) - (dp.remaining_amount ?? dp.amount ?? 0),
+          };
+
+          return {
+            ...order,
+            customer_invoices: upsertCustomerInvoiceSummaryAtFront(existing, nextEntry),
+          };
+        }),
+      } as SalesOrderListResponse;
+    });
+  });
+}
 
 export function useCustomerInvoiceDPs(params?: CustomerInvoiceDPListParams, options?: { enabled?: boolean }) {
   return useQuery({
@@ -84,6 +132,7 @@ export function useCreateCustomerInvoiceDP() {
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
+      applyDPToSalesOrderLists(queryClient, response?.data);
       const soId = response?.data?.sales_order?.id;
       if (soId) {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(soId) });
@@ -105,6 +154,7 @@ export function useUpdateCustomerInvoiceDP() {
     onSuccess: (response, variables) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(variables.id) });
+      applyDPToSalesOrderLists(queryClient, response?.data);
       const soId = response?.data?.sales_order?.id;
       if (soId) {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(soId) });
@@ -130,9 +180,10 @@ export function usePendingCustomerInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => customerInvoiceDPService.pending(id),
-    onSuccess: (_, id) => {
+    onSuccess: (response, id) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
+      applyDPToSalesOrderLists(queryClient, response?.data);
     },
   });
 }
@@ -142,9 +193,10 @@ export function useApproveCustomerInvoiceDP() {
 
   return useMutation({
     mutationFn: (id: string) => customerInvoiceDPService.approve(id),
-    onSuccess: (_, id) => {
+    onSuccess: (response, id) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
+      applyDPToSalesOrderLists(queryClient, response?.data);
     },
   });
 }
