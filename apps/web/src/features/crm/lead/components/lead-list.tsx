@@ -24,6 +24,10 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
 
+const LEAD_SOURCE_GOOGLE_MAPS_ID = "cb000001-0000-0000-0000-000000000006";
+const LEAD_SOURCE_LINKEDIN_ID = "cb000001-0000-0000-0000-000000000007";
+const LEAD_STATUS_NEW_ID = "cc000001-0000-0000-0000-000000000001";
+
 export function LeadList() {
   const { state, actions, data, permissions, translations } = useLeadList();
   const { t, tCommon } = translations;
@@ -219,7 +223,16 @@ export function LeadList() {
               data.items.map((item) => {
                 const isConverted = !!item.converted_at;
                 const statusColor = item.lead_status?.color ?? undefined;
-                const statusLabel = isConverted ? t("convertedBadge") : (item.lead_status?.name ?? "-");
+                const sourceLabel = item.lead_source?.name
+                  ?? (item.lead_source_id === LEAD_SOURCE_LINKEDIN_ID
+                    ? "LinkedIn Scraping"
+                    : item.lead_source_id === LEAD_SOURCE_GOOGLE_MAPS_ID
+                      ? "Google Maps Scraping"
+                      : "-");
+                const statusLabel = isConverted
+                  ? t("convertedBadge")
+                  : (item.lead_status?.name
+                    ?? (item.lead_status_id === LEAD_STATUS_NEW_ID || !item.lead_status_id ? "New" : "-"));
                 const statusStyle = isConverted
                   ? undefined
                   : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
@@ -247,9 +260,9 @@ export function LeadList() {
                             className="text-xs text-primary hover:underline w-fit"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {item.lead_source?.name === "LinkedIn" || item.lead_source?.name === "LinkedIn Scraping"
+                            {sourceLabel === "LinkedIn" || sourceLabel === "LinkedIn Scraping"
                               ? "View LinkedIn Profile"
-                              : item.lead_source?.name === "Google Maps" || item.lead_source?.name === "Google Maps Scraping"
+                              : sourceLabel === "Google Maps" || sourceLabel === "Google Maps Scraping"
                               ? "View on Google Maps"
                               : t("form.visitLink") || "Visit Source Link"}
                           </a>
@@ -257,7 +270,7 @@ export function LeadList() {
                       </div>
                     </TableCell>
                     <TableCell>{item.company_name || "-"}</TableCell>
-                    <TableCell>{item.lead_source?.name ?? "-"}</TableCell>
+                    <TableCell>{sourceLabel}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"

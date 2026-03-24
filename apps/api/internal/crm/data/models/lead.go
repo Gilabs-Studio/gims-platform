@@ -94,11 +94,13 @@ type Lead struct {
 	BankAccountReference string   `gorm:"type:varchar(255)" json:"bank_account_reference"`
 
 	// Metadata
-	Notes     string         `gorm:"type:text" json:"notes"`
-	CreatedBy *string        `gorm:"type:uuid" json:"created_by"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	Notes              string         `gorm:"type:text" json:"notes"`
+	ProcessedFromN8N   bool           `gorm:"type:boolean;default:false;index" json:"processed_from_n8n"`
+	ProcessedAt        *time.Time     `gorm:"type:timestamptz" json:"processed_at"`
+	CreatedBy          *string        `gorm:"type:uuid" json:"created_by"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Associations
 	Activities   []Activity        `gorm:"foreignKey:LeadID" json:"activities,omitempty"`
