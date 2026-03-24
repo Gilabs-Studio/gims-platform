@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
@@ -12,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/utils"
 	inventoryDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesOrderRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -496,6 +498,24 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	updated, err := u.deliveryOrderRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// Trigger approval notification when DO is sent for approval
+	if newStatus == models.DeliveryOrderStatusSent {
+		actorUserID := ""
+		if userID != nil {
+			actorUserID = *userID
+		}
+		if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "delivery_order.approve",
+			EntityType:     "delivery_order",
+			EntityID:       updated.ID,
+			Title:          "Delivery Order Approval",
+			Message:        "A delivery order has been submitted and requires your approval.",
+			ActorUserID:    actorUserID,
+		}); err != nil {
+			log.Printf("warning: failed to create delivery order notification: %v", err)
+		}
 	}
 
 	response := mapper.ToDeliveryOrderResponse(updated)

@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/mapper"
@@ -223,7 +225,24 @@ func (u *stockOpnameUsecase) ListItems(ctx context.Context, opnameID string) ([]
 }
 
 func (u *stockOpnameUsecase) Submit(ctx context.Context, id string) (*dto.StockOpnameResponse, error) {
-	return u.updateStatus(ctx, id, models.StockOpnameStatusPending, nil)
+	updated, err := u.updateStatus(ctx, id, models.StockOpnameStatusPending, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+		PermissionCode: "stock_opname.approve",
+		EntityType:     "stock_opname",
+		EntityID:       updated.ID,
+		Title:          "Stock Opname Approval",
+		Message:        "A stock opname has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		logDebug(fmt.Sprintf("warning: failed to create stock opname notification: %v", err))
+	}
+
+	return updated, nil
 }
 
 func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error) {

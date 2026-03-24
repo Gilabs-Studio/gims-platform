@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,15 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
 
+function getInitialOpenStockOpnameFromURL(): string | null {
+    if (typeof window === "undefined") {
+        return null;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get("open_stock_opname");
+}
+
 export function StockOpnameList() {
   const t = useTranslations("stock_opname");
   const tCommon = useTranslations("common");
@@ -42,7 +51,7 @@ export function StockOpnameList() {
   const canApprove = useUserPermission("stock_opname.approve");
   
   // Dialog State
-  const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(null);
+    const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(getInitialOpenStockOpnameFromURL);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpnameOpen, setEditOpnameOpen] = useState(false);
@@ -53,6 +62,24 @@ export function StockOpnameList() {
     setSelectedOpnameId(id);
     setDetailOpen(true);
   };
+
+    useEffect(() => {
+        if (selectedOpnameId) {
+            setDetailOpen(true);
+        }
+    }, [selectedOpnameId]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        if (!searchParams.get("open_stock_opname")) return;
+
+        searchParams.delete("open_stock_opname");
+        const nextQuery = searchParams.toString();
+        const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+        window.history.replaceState(null, "", nextURL);
+    }, []);
 
   // Filter States
   const [search, setSearch] = useState("");

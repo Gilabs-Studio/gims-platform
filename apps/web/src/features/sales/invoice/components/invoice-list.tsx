@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,15 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
+
+function getInitialOpenCustomerInvoiceFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_customer_invoice");
+}
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -101,6 +110,7 @@ export function InvoiceList() {
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [isCustomerOpen, setIsCustomerOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openInvoiceId, setOpenInvoiceId] = useState<string | null>(getInitialOpenCustomerInvoiceFromURL);
 
   const { data, isLoading, isError } = useInvoices({
     page,
@@ -132,6 +142,32 @@ export function InvoiceList() {
   const queryClient = useQueryClient();
   const invoices = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+
+  useEffect(() => {
+    if (!openInvoiceId) {
+      return;
+    }
+
+    const target = invoices.find((invoice) => invoice.id === openInvoiceId);
+    if (!target) {
+      return;
+    }
+
+    setViewingInvoice(target);
+    setOpenInvoiceId(null);
+  }, [invoices, openInvoiceId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_customer_invoice")) return;
+
+    searchParams.delete("open_customer_invoice");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const handleEdit = (invoice: CustomerInvoice) => {
     setEditingInvoice(invoice);

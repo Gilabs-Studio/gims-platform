@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
@@ -69,6 +69,15 @@ import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
 
+function getInitialOpenGoodsReceiptFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_goods_receipt");
+}
+
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
   const tCommon = useTranslations("common");
@@ -82,7 +91,7 @@ export function GoodsReceiptsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
@@ -128,6 +137,24 @@ export function GoodsReceiptsList() {
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_goods_receipt")) return;
+
+    searchParams.delete("open_goods_receipt");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   if (isError) {
     return (

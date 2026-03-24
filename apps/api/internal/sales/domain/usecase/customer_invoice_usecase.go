@@ -16,6 +16,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -651,6 +652,20 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		"paid_amount":   req.PaidAmount,
 		"payment_at":    req.PaymentAt,
 	})
+
+	if newStatus == models.CustomerInvoiceStatusSubmitted {
+		actorUserID, _ := ctx.Value("user_id").(string)
+		if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "customer_invoice.approve",
+			EntityType:     "customer_invoice",
+			EntityID:       updatedInvoice.ID,
+			Title:          "Customer Invoice Approval",
+			Message:        "A customer invoice has been submitted and requires your approval.",
+			ActorUserID:    actorUserID,
+		}); err != nil {
+			log.Printf("warning: failed to create customer invoice notification: %v", err)
+		}
+	}
 
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
 }

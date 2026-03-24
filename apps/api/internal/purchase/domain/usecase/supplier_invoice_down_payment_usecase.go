@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -384,6 +386,17 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 		"before":        map[string]interface{}{"status": beforeStatus},
 		"after":         map[string]interface{}{"status": out.Status},
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "supplier_invoice_dp.approve",
+		EntityType:     "supplier_invoice_dp",
+		EntityID:       out.ID,
+		Title:          "Supplier Invoice Down Payment Approval",
+		Message:        "A supplier invoice down payment has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create supplier invoice DP notification: %v", err)
+	}
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 

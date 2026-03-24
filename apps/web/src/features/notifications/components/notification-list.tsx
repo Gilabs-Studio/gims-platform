@@ -58,21 +58,55 @@ export function NotificationList() {
       case "sales_order":
         return `/sales/orders?open_order=${notification.entity_id}`;
       case "purchase_requisition":
-        return `/purchase/purchase-requisitions?open_requisition=${notification.entity_id}`;
+        return `/purchase/purchase-requisitions?open_purchase_requisition=${notification.entity_id}`;
       case "purchase_order":
-        return `/purchase/purchase-orders?open_order=${notification.entity_id}`;
+        return `/purchase/purchase-orders?open_purchase_order=${notification.entity_id}`;
+      case "delivery_order":
+        return `/sales/delivery-orders?open_delivery_order=${notification.entity_id}`;
       case "goods_receipt":
-        return `/purchase/goods-receipt?open_receipt=${notification.entity_id}`;
+        return `/purchase/goods-receipt?open_goods_receipt=${notification.entity_id}`;
       case "supplier_invoice":
-        return `/purchase/supplier-invoices?open_invoice=${notification.entity_id}`;
+        return `/purchase/supplier-invoices?open_supplier_invoice=${notification.entity_id}`;
+      case "supplier_invoice_dp":
+        return `/purchase/supplier-invoice-down-payments?open_supplier_invoice_dp=${notification.entity_id}`;
+      case "customer_invoice":
+        return `/sales/invoices?open_customer_invoice=${notification.entity_id}`;
+      case "customer_invoice_dp":
+        return `/sales/customer-invoice-down-payments?open_customer_invoice_dp=${notification.entity_id}`;
       case "non_trade_payable":
-        return `/finance/non-trade-payables?open_payable=${notification.entity_id}`;
+        return `/finance/non-trade-payables?open_non_trade_payable=${notification.entity_id}`;
+      case "payment":
+        return `/finance/payments?open_payment=${notification.entity_id}`;
+      case "budget":
+        return `/finance/budget?open_budget=${notification.entity_id}`;
+      case "financial_closing":
+        return `/finance/closing?open_financial_closing=${notification.entity_id}`;
+      case "asset_maintenance":
+        return `/finance/asset-maintenance?open_asset_maintenance=${notification.entity_id}`;
       case "up_country_cost":
-        return `/finance/up-country-cost?open_cost=${notification.entity_id}`;
+        return `/finance/up-country-cost?open_up_country_cost=${notification.entity_id}`;
+      case "leave_request":
+        return `/hrd/leave-requests?open_leave_request=${notification.entity_id}`;
+      case "overtime":
+        return `/hrd/overtime?open_overtime=${notification.entity_id}`;
+      case "recruitment":
+        return `/hrd/recruitment?open_recruitment=${notification.entity_id}`;
       case "crm_visit":
-        return `/crm/visits?open_visit=${notification.entity_id}`;
+        return `/crm/visits?open_crm_visit=${notification.entity_id}`;
       case "company":
-        return "/master-data/company";
+        return `/master-data/company?open_company=${notification.entity_id}`;
+      case "employee":
+        return `/master-data/employees?open_employee=${notification.entity_id}`;
+      case "supplier":
+        return `/master-data/suppliers?open_supplier=${notification.entity_id}`;
+      case "customer":
+        return `/master-data/customers?open_customer=${notification.entity_id}`;
+      case "product":
+        return `/master-data/products?open_product=${notification.entity_id}`;
+      case "stock_opname":
+        return `/stock/opname?open_stock_opname=${notification.entity_id}`;
+      case "salary":
+        return `/finance/salary?open_salary=${notification.entity_id}`;
       default:
         return null;
     }

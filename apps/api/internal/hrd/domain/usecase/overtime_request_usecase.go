@@ -3,14 +3,17 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"gorm.io/gorm"
@@ -141,6 +144,18 @@ func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOver
 
 	if err := u.repo.Create(ctx, or); err != nil {
 		return nil, err
+	}
+
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+		PermissionCode: "overtime.approve",
+		EntityType:     "overtime",
+		EntityID:       or.ID,
+		Title:          "Overtime Request Approval",
+		Message:        "An overtime request has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create overtime notification: %v", err)
 	}
 
 	return u.mapper.ToResponse(or), nil

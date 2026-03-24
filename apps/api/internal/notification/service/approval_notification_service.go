@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/notification/data/models"
@@ -43,6 +45,11 @@ func CreateApprovalNotification(ctx context.Context, db *gorm.DB, params Approva
 		return nil
 	}
 
+	traceSQL := isApprovalNotificationTraceEnabled()
+	if traceSQL {
+		db = db.Debug()
+	}
+
 	permissionCode := strings.TrimSpace(params.PermissionCode)
 	entityType := strings.TrimSpace(params.EntityType)
 	entityID := strings.TrimSpace(params.EntityID)
@@ -55,27 +62,38 @@ func CreateApprovalNotification(ctx context.Context, db *gorm.DB, params Approva
 	}
 
 	if permissionCode == "" || entityType == "" || entityID == "" || title == "" || message == "" {
+		if traceSQL {
+			log.Printf("[approval_notification] skipped: missing required fields permission=%q entityType=%q entityID=%q", permissionCode, entityType, entityID)
+		}
 		return nil
 	}
 
 	targetCtx, err := resolveTargetScopeContext(ctx, db, entityType, entityID)
 	if err != nil {
+		if traceSQL {
+			log.Printf("[approval_notification] resolve target scope failed: permission=%s entityType=%s entityID=%s err=%v", permissionCode, entityType, entityID, err)
+		}
 		return err
 	}
 
-	recipients, err := findApprovalRecipients(ctx, db, permissionCode)
+	recipients, err := findApprovalRecipients(ctx, db, permissionCode, entityType)
 	if err != nil {
+		if traceSQL {
+			log.Printf("[approval_notification] find recipients failed: permission=%s err=%v", permissionCode, err)
+		}
 		return err
 	}
 
 	notifications := make([]models.Notification, 0, len(recipients))
+	scopedRecipientCount := 0
 	for _, recipient := range recipients {
-		if strings.TrimSpace(recipient.UserID) == "" || recipient.UserID == actorUserID {
+		if strings.TrimSpace(recipient.UserID) == "" {
 			continue
 		}
 		if !isRecipientAllowedByScope(recipient, targetCtx) {
 			continue
 		}
+		scopedRecipientCount++
 
 		notifications = append(notifications, models.Notification{
 			UserID:     recipient.UserID,
@@ -88,14 +106,46 @@ func CreateApprovalNotification(ctx context.Context, db *gorm.DB, params Approva
 		})
 	}
 
+	fallbackUsed := false
 	if len(notifications) == 0 {
+		fallbackUsed = true
+		for _, recipient := range recipients {
+			if strings.TrimSpace(recipient.UserID) == "" {
+				continue
+			}
+
+			notifications = append(notifications, models.Notification{
+				UserID:     recipient.UserID,
+				Type:       models.NotificationTypeApprovalRequest,
+				Title:      title,
+				Message:    message,
+				EntityType: entityType,
+				EntityID:   entityID,
+				IsRead:     false,
+			})
+		}
+	}
+
+	if len(notifications) == 0 {
+		if traceSQL {
+			log.Printf("[approval_notification] no recipient after filtering: permission=%s entityType=%s entityID=%s actor=%s recipients=%d scoped=%d fallback=%t", permissionCode, entityType, entityID, actorUserID, len(recipients), scopedRecipientCount, fallbackUsed)
+		}
 		return nil
+	}
+
+	if traceSQL {
+		log.Printf("[approval_notification] create notifications: permission=%s entityType=%s entityID=%s actor=%s recipients=%d scoped=%d final=%d fallback=%t", permissionCode, entityType, entityID, actorUserID, len(recipients), scopedRecipientCount, len(notifications), fallbackUsed)
 	}
 
 	return db.WithContext(ctx).Create(&notifications).Error
 }
 
-func findApprovalRecipients(ctx context.Context, db *gorm.DB, permissionCode string) ([]approvalRecipient, error) {
+func isApprovalNotificationTraceEnabled() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("APPROVAL_NOTIFICATION_TRACE_SQL")))
+	return v == "1" || v == "true" || v == "yes" || v == "on"
+}
+
+func findApprovalRecipients(ctx context.Context, db *gorm.DB, permissionCode, entityType string) ([]approvalRecipient, error) {
 	rows := make([]struct {
 		UserID     string
 		Email      sql.NullString
@@ -104,18 +154,32 @@ func findApprovalRecipients(ctx context.Context, db *gorm.DB, permissionCode str
 		DivisionID sql.NullString
 	}, 0)
 
-	err := db.WithContext(ctx).
-		Table("users").
-		Select("users.id AS user_id, users.email AS email, COALESCE(NULLIF(rp.scope, ''), 'ALL') AS scope, e.id AS employee_id, e.division_id AS division_id").
-		Joins("JOIN role_permissions rp ON rp.role_id = users.role_id").
-		Joins("JOIN permissions p ON p.id = rp.permission_id").
-		Joins("LEFT JOIN employees e ON e.user_id = users.id AND e.deleted_at IS NULL").
-		Where("users.deleted_at IS NULL").
-		Where("users.status = ?", "active").
+	buildBaseQuery := func() *gorm.DB {
+		return db.WithContext(ctx).
+			Table("users").
+			Select("users.id AS user_id, users.email AS email, COALESCE(NULLIF(rp.scope, ''), 'ALL') AS scope, e.id AS employee_id, e.division_id AS division_id").
+			Joins("JOIN role_permissions rp ON rp.role_id = users.role_id").
+			Joins("JOIN permissions p ON p.id = rp.permission_id").
+			Joins("LEFT JOIN employees e ON e.user_id = users.id AND e.deleted_at IS NULL").
+			Where("users.deleted_at IS NULL").
+			Where("users.status = ?", "active")
+	}
+
+	err := buildBaseQuery().
 		Where("p.code = ?", permissionCode).
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
+	}
+
+	if len(rows) == 0 && strings.TrimSpace(entityType) != "" {
+		err = buildBaseQuery().
+			Where("p.resource = ?", entityType).
+			Where("p.action = ?", "APPROVE").
+			Scan(&rows).Error
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	recipients := make([]approvalRecipient, 0, len(rows))
@@ -265,6 +329,34 @@ func resolveTargetScopeContext(ctx context.Context, db *gorm.DB, entityType, ent
 		if row.SalesRepID.Valid {
 			target.OwnerEmployeeID = row.SalesRepID.String
 		}
+	case "purchase_requisition":
+		row := struct {
+			EmployeeID sql.NullString
+		}{}
+		err := db.WithContext(ctx).
+			Table("purchase_requisitions").
+			Select("employee_id").
+			Where("id = ? AND deleted_at IS NULL", entityID).
+			Take(&row).Error
+		if err != nil {
+			return target, err
+		}
+
+		if row.EmployeeID.Valid {
+			target.OwnerEmployeeID = row.EmployeeID.String
+			empByID := struct {
+				UserID sql.NullString
+			}{}
+			if err := db.WithContext(ctx).
+				Table("employees").
+				Select("user_id").
+				Where("id = ? AND deleted_at IS NULL", row.EmployeeID.String).
+				Take(&empByID).Error; err == nil {
+				if empByID.UserID.Valid {
+					target.CreatorUserID = empByID.UserID.String
+				}
+			}
+		}
 	default:
 		tableName, hasTable := resolveEntityTableName(entityType)
 		if !hasTable {
@@ -280,6 +372,9 @@ func resolveTargetScopeContext(ctx context.Context, db *gorm.DB, entityType, ent
 			Where("id = ? AND deleted_at IS NULL", entityID).
 			Take(&row).Error
 		if err != nil {
+			if isMissingCreatedByColumnError(err) {
+				return target, nil
+			}
 			return target, err
 		}
 		if row.CreatedBy.Valid {
@@ -356,6 +451,14 @@ func resolveTargetScopeContext(ctx context.Context, db *gorm.DB, entityType, ent
 	return target, nil
 }
 
+func isMissingCreatedByColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "column") && strings.Contains(errText, "created_by") && strings.Contains(errText, "does not exist")
+}
+
 func resolveEntityTableName(entityType string) (string, bool) {
 	switch entityType {
 	case "company":
@@ -364,16 +467,30 @@ func resolveEntityTableName(entityType string) (string, bool) {
 		return "purchase_requisitions", true
 	case "sales_order":
 		return "sales_orders", true
+	case "customer_invoice":
+		return "customer_invoices", true
+	case "customer_invoice_dp":
+		return "customer_invoices", true
 	case "purchase_order":
 		return "purchase_orders", true
 	case "goods_receipt":
 		return "goods_receipts", true
 	case "supplier_invoice":
 		return "supplier_invoices", true
+	case "supplier_invoice_dp":
+		return "supplier_invoices", true
 	case "non_trade_payable":
 		return "non_trade_payables", true
 	case "up_country_cost":
 		return "up_country_costs", true
+	case "leave_request":
+		return "leave_requests", true
+	case "recruitment":
+		return "recruitment_requests", true
+	case "overtime":
+		return "overtime_requests", true
+	case "stock_opname":
+		return "stock_opnames", true
 	case "crm_visit":
 		return "visit_reports", true
 	default:

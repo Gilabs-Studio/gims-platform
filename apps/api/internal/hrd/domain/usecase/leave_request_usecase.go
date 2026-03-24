@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"gorm.io/gorm"
@@ -302,6 +304,18 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 	// 9. Save to database
 	if err := u.leaveRequestRepo.Create(ctx, leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to create leave request: %w", err)
+	}
+
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "leave_request.approve",
+		EntityType:     "leave_request",
+		EntityID:       leaveRequest.ID,
+		Title:          "Leave Request Approval",
+		Message:        "A leave request has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create leave request notification: %v", err)
 	}
 
 	// 10. Return response DTO with full details
