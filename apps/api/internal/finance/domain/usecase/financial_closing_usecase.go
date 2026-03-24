@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
-	"github.com/google/uuid"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -125,6 +126,9 @@ func (uc *financialClosingUsecase) GetByID(ctx context.Context, id string) (*dto
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.FinancialClosing{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrFinancialClosingNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id)
 	if err != nil {

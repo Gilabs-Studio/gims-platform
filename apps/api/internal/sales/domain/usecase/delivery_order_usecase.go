@@ -162,17 +162,15 @@ func (u *deliveryOrderUsecase) ListItems(ctx context.Context, deliveryOrderID st
 }
 
 func (u *deliveryOrderUsecase) GetByID(ctx context.Context, id string) (*dto.DeliveryOrderResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrDeliveryOrderNotFound
+	}
 	deliveryOrder, err := u.deliveryOrderRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrDeliveryOrderNotFound
 		}
 		return nil, err
-	}
-
-	// Scope-based access control: consistent with List filtering
-	if !security.CheckRecordScopeAccess(u.db, ctx, &models.DeliveryOrder{}, id, security.DefaultScopeQueryOptions()) {
-		return nil, ErrDeliveryOrderNotFound
 	}
 
 	response := mapper.ToDeliveryOrderResponse(deliveryOrder)

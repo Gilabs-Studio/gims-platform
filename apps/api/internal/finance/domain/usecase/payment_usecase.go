@@ -11,6 +11,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -347,6 +348,9 @@ func (uc *paymentUsecase) GetByID(ctx context.Context, id string) (*dto.PaymentR
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.Payment{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrPaymentNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {

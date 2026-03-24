@@ -13,6 +13,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -71,6 +72,10 @@ func (uc *supplierInvoiceUsecase) List(ctx context.Context, params repositories.
 }
 
 func (uc *supplierInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrSupplierInvoiceNotFound
+	}
+
 	si, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -81,6 +83,9 @@ func (u *salesVisitUsecase) List(ctx context.Context, req *dto.ListSalesVisitsRe
 }
 
 func (u *salesVisitUsecase) GetByID(ctx context.Context, id string) (*dto.SalesVisitResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.SalesVisit{}, id, security.HRDScopeQueryOptions()) {
+		return nil, ErrSalesVisitNotFound
+	}
 	visit, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, ErrSalesVisitNotFound

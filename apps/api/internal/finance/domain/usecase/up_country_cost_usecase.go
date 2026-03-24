@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -200,6 +202,9 @@ func (uc *upCountryCostUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (uc *upCountryCostUsecase) GetByID(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.UpCountryCost{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+		return nil, ErrUpCountryCostNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		return nil, err

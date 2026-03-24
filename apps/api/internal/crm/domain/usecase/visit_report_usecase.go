@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -179,6 +180,9 @@ func (u *visitReportUsecase) List(ctx context.Context, req *dto.ListVisitReports
 }
 
 func (u *visitReportUsecase) GetByID(ctx context.Context, id string) (*dto.VisitReportResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.VisitReport{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+		return nil, ErrVisitReportNotFound
+	}
 	report, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, ErrVisitReportNotFound

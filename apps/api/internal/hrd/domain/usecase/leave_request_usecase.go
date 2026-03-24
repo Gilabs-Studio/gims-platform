@@ -11,6 +11,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -325,6 +327,10 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 // GetByID retrieves a leave request by ID
 // WHY: Only approvers/HR can view leave request details (business rule change)
 func (u *leaveRequestUsecase) GetByID(ctx context.Context, id string, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.LeaveRequest{}, id, security.HRDScopeQueryOptions()) {
+		return nil, fmt.Errorf("leave request not found")
+	}
+
 	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err

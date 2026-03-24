@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
 )
@@ -48,6 +49,7 @@ func (r *purchaseReturnRepository) List(ctx context.Context, params PurchaseRetu
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&models.PurchaseReturn{}).Preload("Items")
+	q = security.ApplyScopeFilter(q, ctx, security.PurchaseScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

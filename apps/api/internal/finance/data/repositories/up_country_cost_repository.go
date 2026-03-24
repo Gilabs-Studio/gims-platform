@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -61,6 +62,7 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.UpCountryCost{})
+	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.EmployeeID != nil && *params.EmployeeID != "" {
 		q = q.Joins("JOIN up_country_cost_employees uce ON uce.up_country_cost_id = up_country_costs.id AND uce.deleted_at IS NULL").

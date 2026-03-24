@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -97,6 +98,10 @@ func (u *overtimeRequestUsecase) List(ctx context.Context, req *dto.ListOvertime
 }
 
 func (u *overtimeRequestUsecase) GetByID(ctx context.Context, id string) (*dto.OvertimeRequestResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.OvertimeRequest{}, id, security.HRDScopeQueryOptions()) {
+		return nil, ErrOvertimeRequestNotFound
+	}
+
 	or, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

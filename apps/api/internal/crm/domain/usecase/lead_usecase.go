@@ -10,6 +10,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -203,6 +205,10 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 }
 
 func (u *leadUsecase) GetByID(ctx context.Context, id string) (dto.LeadResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Lead{}, id, security.MixedOwnershipScopeQueryOptions("assigned_to")) {
+		return dto.LeadResponse{}, errors.New("lead not found")
+	}
+
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.LeadResponse{}, errors.New("lead not found")

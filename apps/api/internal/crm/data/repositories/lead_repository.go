@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -168,6 +169,7 @@ func (r *leadRepository) FindUnprocessed(ctx context.Context, limit int) ([]mode
 
 func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Lead{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
 	if params.Search != "" {

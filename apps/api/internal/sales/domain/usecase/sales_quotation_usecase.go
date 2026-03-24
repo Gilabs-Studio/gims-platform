@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
@@ -147,6 +148,10 @@ func (u *salesQuotationUsecase) ListItems(ctx context.Context, quotationID strin
 }
 
 func (u *salesQuotationUsecase) GetByID(ctx context.Context, id string) (*dto.SalesQuotationResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesQuotation{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesQuotationNotFound
+	}
+
 	quotation, err := u.quotationRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -11,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -73,6 +74,10 @@ func (uc *purchaseOrderUsecase) List(ctx context.Context, params repositories.Pu
 }
 
 func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseOrder{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchaseOrderNotFound
+	}
+
 	po, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

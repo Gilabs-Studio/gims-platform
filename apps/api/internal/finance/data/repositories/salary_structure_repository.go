@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -93,6 +94,7 @@ func (r *salaryStructureRepository) List(ctx context.Context, params SalaryStruc
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.SalaryStructure{})
+	q = security.ApplyScopeFilter(q, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	if params.EmployeeID != nil {
 		q = q.Where("employee_id = ?", *params.EmployeeID)

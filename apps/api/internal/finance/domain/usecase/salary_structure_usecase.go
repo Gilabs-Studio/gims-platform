@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -132,6 +133,9 @@ func (uc *salaryStructureUsecase) Delete(ctx context.Context, id string) error {
 
 func (uc *salaryStructureUsecase) GetByID(ctx context.Context, id string) (*dto.SalaryStructureResponse, error) {
 	id = strings.TrimSpace(id)
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.SalaryStructure{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+		return nil, ErrSalaryStructureNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

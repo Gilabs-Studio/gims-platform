@@ -10,6 +10,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -136,6 +137,10 @@ func (u *stockOpnameUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (u *stockOpnameUsecase) GetByID(ctx context.Context, id string) (*dto.StockOpnameResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.StockOpname{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrStockOpnameNotFound
+	}
+
 	opname, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

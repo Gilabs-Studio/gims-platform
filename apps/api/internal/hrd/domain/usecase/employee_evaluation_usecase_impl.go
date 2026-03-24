@@ -11,6 +11,7 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -127,6 +128,9 @@ func (u *employeeEvaluationUsecase) GetAll(ctx context.Context, page, perPage in
 }
 
 func (u *employeeEvaluationUsecase) GetByID(ctx context.Context, id string) (*dto.EmployeeEvaluationResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.EmployeeEvaluation{}, id, security.HRDScopeQueryOptions()) {
+		return nil, errors.New(errEmployeeEvaluationNotFound)
+	}
 	eval, err := u.evaluationRepo.FindByIDWithDetails(ctx, id)
 	if err != nil {
 		return nil, err

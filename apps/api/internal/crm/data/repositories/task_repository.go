@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -71,6 +72,7 @@ func (r *taskRepository) FindByID(ctx context.Context, id string) (*models.Task,
 
 func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]models.Task, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Task{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
 		searchTerm := params.Search + "%"

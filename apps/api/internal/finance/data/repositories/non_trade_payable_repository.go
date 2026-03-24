@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -57,6 +58,7 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Preload("ChartOfAccount")
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("non_trade_payables.description ILIKE ? OR non_trade_payables.vendor_name ILIKE ? OR non_trade_payables.reference_no ILIKE ? OR non_trade_payables.code ILIKE ?", like, like, like, like)

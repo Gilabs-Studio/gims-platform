@@ -13,6 +13,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -87,6 +88,10 @@ func (uc *goodsReceiptUsecase) List(ctx context.Context, params repositories.Goo
 }
 
 func (uc *goodsReceiptUsecase) GetByID(ctx context.Context, id string) (*dto.GoodsReceiptDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.GoodsReceipt{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrGoodsReceiptNotFound
+	}
+
 	gr, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

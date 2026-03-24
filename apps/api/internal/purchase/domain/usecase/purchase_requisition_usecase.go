@@ -10,6 +10,7 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -66,6 +67,10 @@ func (uc *purchaseRequisitionUsecase) List(ctx context.Context, params repositor
 }
 
 func (uc *purchaseRequisitionUsecase) GetByID(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseRequisition{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchaseRequisitionNotFound
+	}
+
 	pr, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

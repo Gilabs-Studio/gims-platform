@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -145,6 +147,10 @@ func (u *taskUsecase) Create(ctx context.Context, req dto.CreateTaskRequest, cre
 }
 
 func (u *taskUsecase) GetByID(ctx context.Context, id string) (dto.TaskResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Task{}, id, security.MixedOwnershipScopeQueryOptions("assigned_to")) {
+		return dto.TaskResponse{}, errors.New("task not found")
+	}
+
 	task, err := u.taskRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.TaskResponse{}, errors.New("task not found")

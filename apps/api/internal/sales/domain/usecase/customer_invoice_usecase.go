@@ -128,13 +128,11 @@ func normalizeCustomerInvoiceListStatus(status string) string {
 }
 
 func (uc *customerInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error) {
-	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
-	if err != nil {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
 		return nil, ErrCustomerInvoiceNotFound
 	}
-
-	// Scope-based access control: consistent with List filtering
-	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
+	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
+	if err != nil {
 		return nil, ErrCustomerInvoiceNotFound
 	}
 

@@ -183,17 +183,15 @@ func (u *salesOrderUsecase) ListItems(ctx context.Context, orderID string, req *
 }
 
 func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesOrderResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesOrderNotFound
+	}
 	order, err := u.orderRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrSalesOrderNotFound
 		}
 		return nil, err
-	}
-
-	// Scope-based access control: consistent with List filtering
-	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
-		return nil, ErrSalesOrderNotFound
 	}
 
 	// Fetch pending delivery quantities for this order
