@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
 )
 
@@ -296,6 +298,16 @@ func (uc *upCountryCostUsecase) Submit(ctx context.Context, id string) (*dto.UpC
 	item.Status = financeModels.UpCountryCostStatusSubmitted
 	item.SubmittedAt = &now
 	item.SubmittedBy = &actorID
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "up_country_cost.approve",
+		EntityType:     "up_country_cost",
+		EntityID:       item.ID,
+		Title:          "Up Country Cost Approval",
+		Message:        "An up country cost request has been submitted and requires your approval.",
+		ActorUserID:    actorID,
+	}); err != nil {
+		log.Printf("warning: failed to create up country cost notification: %v", err)
+	}
 	res := uc.mapper.ToResponse(item)
 	return &res, nil
 }
@@ -356,13 +368,13 @@ func (uc *upCountryCostUsecase) ManagerApprove(ctx context.Context, id string) (
 	}
 
 	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":                financeModels.UpCountryCostStatusManagerApproved,
-		"manager_approved_at":   &now,
-		"manager_approved_by":   &actorID,
-		"manager_comment":       "",
+		"status":              financeModels.UpCountryCostStatusManagerApproved,
+		"manager_approved_at": &now,
+		"manager_approved_by": &actorID,
+		"manager_comment":     "",
 		// legacy fields
-		"approved_at":           &now,
-		"approved_by":           &actorID,
+		"approved_at": &now,
+		"approved_by": &actorID,
 	}).Error; err != nil {
 		return nil, err
 	}

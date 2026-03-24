@@ -14,22 +14,24 @@ import (
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
 	"github.com/gilabs/gims/api/internal/crm/domain/mapper"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Visit report error codes
 var (
-	ErrVisitReportNotFound            = errors.New("VISIT_NOT_FOUND")
-	ErrVisitReportNotDraft            = errors.New("VISIT_NOT_DRAFT")
-	ErrVisitReportAlreadyCheckedIn    = errors.New("VISIT_ALREADY_CHECKED_IN")
-	ErrVisitReportNotCheckedIn        = errors.New("VISIT_NOT_CHECKED_IN")
-	ErrVisitReportCannotApproveOwn    = errors.New("VISIT_CANNOT_APPROVE_OWN")
-	ErrVisitReportRejectionRequired   = errors.New("VISIT_REJECTION_REASON_REQUIRED")
-	ErrVisitReportMaxPhotosExceeded   = errors.New("VISIT_MAX_PHOTOS_EXCEEDED")
-	ErrVisitReportNotSubmitted        = errors.New("VISIT_NOT_SUBMITTED")
-	ErrVisitReportImmutable           = errors.New("VISIT_APPROVED_IMMUTABLE")
+	ErrVisitReportNotFound          = errors.New("VISIT_NOT_FOUND")
+	ErrVisitReportNotDraft          = errors.New("VISIT_NOT_DRAFT")
+	ErrVisitReportAlreadyCheckedIn  = errors.New("VISIT_ALREADY_CHECKED_IN")
+	ErrVisitReportNotCheckedIn      = errors.New("VISIT_NOT_CHECKED_IN")
+	ErrVisitReportCannotApproveOwn  = errors.New("VISIT_CANNOT_APPROVE_OWN")
+	ErrVisitReportRejectionRequired = errors.New("VISIT_REJECTION_REASON_REQUIRED")
+	ErrVisitReportMaxPhotosExceeded = errors.New("VISIT_MAX_PHOTOS_EXCEEDED")
+	ErrVisitReportNotSubmitted      = errors.New("VISIT_NOT_SUBMITTED")
+	ErrVisitReportImmutable         = errors.New("VISIT_APPROVED_IMMUTABLE")
 )
 
 const maxPhotosPerVisit = 5
@@ -39,19 +41,19 @@ const visitActivityTypeID = "ce000001-0000-0000-0000-000000000001"
 
 // VisitActivityMetadata defines the JSONB metadata structure for visit activities
 type VisitActivityMetadata struct {
-	VisitCode     string                    `json:"visit_code"`
-	Purpose       string                    `json:"purpose"`
-	Outcome       string                    `json:"outcome"`
-	Result        string                    `json:"result"`
-	Photos        []string                  `json:"photos"`
-	CheckInAt     *string                   `json:"check_in_at,omitempty"`
-	CheckOutAt    *string                   `json:"check_out_at,omitempty"`
-	CheckInLat    *float64                  `json:"check_in_lat,omitempty"`
-	CheckInLng    *float64                  `json:"check_in_lng,omitempty"`
-	CheckOutLat   *float64                  `json:"check_out_lat,omitempty"`
-	CheckOutLng   *float64                  `json:"check_out_lng,omitempty"`
-	Address       string                    `json:"address"`
-	ContactPerson string                    `json:"contact_person"`
+	VisitCode     string                     `json:"visit_code"`
+	Purpose       string                     `json:"purpose"`
+	Outcome       string                     `json:"outcome"`
+	Result        string                     `json:"result"`
+	Photos        []string                   `json:"photos"`
+	CheckInAt     *string                    `json:"check_in_at,omitempty"`
+	CheckOutAt    *string                    `json:"check_out_at,omitempty"`
+	CheckInLat    *float64                   `json:"check_in_lat,omitempty"`
+	CheckInLng    *float64                   `json:"check_in_lng,omitempty"`
+	CheckOutLat   *float64                   `json:"check_out_lat,omitempty"`
+	CheckOutLng   *float64                   `json:"check_out_lng,omitempty"`
+	Address       string                     `json:"address"`
+	ContactPerson string                     `json:"contact_person"`
 	Products      []VisitActivityProductInfo `json:"products,omitempty"`
 }
 
@@ -102,6 +104,7 @@ type visitReportUsecase struct {
 	dealRepo     repositories.DealRepository
 	leadRepo     repositories.LeadRepository
 	productRepo  productRepos.ProductRepository
+	db           *gorm.DB
 }
 
 // NewVisitReportUsecase creates a new visit report usecase
@@ -114,6 +117,7 @@ func NewVisitReportUsecase(
 	dealRepo repositories.DealRepository,
 	leadRepo repositories.LeadRepository,
 	productRepo productRepos.ProductRepository,
+	db *gorm.DB,
 ) VisitReportUsecase {
 	return &visitReportUsecase{
 		visitRepo:    visitRepo,
@@ -124,6 +128,7 @@ func NewVisitReportUsecase(
 		dealRepo:     dealRepo,
 		leadRepo:     leadRepo,
 		productRepo:  productRepo,
+		db:           db,
 	}
 }
 
@@ -480,6 +485,17 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 	// Sync product interests to the associated lead
 	u.syncProductItemsToLead(ctx, id)
 
+	if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "crm_visit.approve",
+		EntityType:     "crm_visit",
+		EntityID:       report.ID,
+		Title:          "Visit report approval required",
+		Message:        fmt.Sprintf("Visit report %s from %s requires approval.", report.Code, report.VisitDate.Format("2006-01-02")),
+		ActorUserID:    stringValue(userID),
+	}); err != nil {
+		fmt.Printf("failed to create visit report approval notification: %v\n", err)
+	}
+
 	updated, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -737,14 +753,14 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 	}
 
 	return &dto.VisitReportFormDataResponse{
-		Customers:         customerOptions,
-		Contacts:          contactOptions,
-		Employees:         employeeOptions,
-		Deals:             dealOptions,
-		Leads:             leadOptions,
-		Products:          productOptions,
-		Outcomes:          outcomes,
-		Statuses:          statuses,
+		Customers: customerOptions,
+		Contacts:  contactOptions,
+		Employees: employeeOptions,
+		Deals:     dealOptions,
+		Leads:     leadOptions,
+		Products:  productOptions,
+		Outcomes:  outcomes,
+		Statuses:  statuses,
 	}, nil
 }
 
@@ -836,6 +852,13 @@ func buildLocationJSON(lat, lng, accuracy *float64) string {
 		return "{}"
 	}
 	return string(data)
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // ListByEmployee returns paginated per-employee visit report metrics for ALL/DIVISION/AREA scope views.

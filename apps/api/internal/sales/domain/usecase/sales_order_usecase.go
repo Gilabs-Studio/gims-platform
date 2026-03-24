@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
@@ -13,6 +14,7 @@ import (
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -491,6 +493,20 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
 	u.attachCustomerContactResponse(ctx, &response)
+
+	if newStatus == models.SalesOrderStatusSubmitted {
+		if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "sales_order.approve",
+			EntityType:     "sales_order",
+			EntityID:       updated.ID,
+			Title:          "Sales order approval required",
+			Message:        fmt.Sprintf("Sales order %s requires approval and review.", updated.Code),
+			ActorUserID:    stringValue(userID),
+		}); err != nil {
+			fmt.Printf("failed to create sales order approval notification: %v\n", err)
+		}
+	}
+
 	logSalesAudit(u.auditService, ctx, "sales_order.status_change", id, map[string]interface{}{
 		"before_status": previousStatus,
 		"after_status":  updated.Status,

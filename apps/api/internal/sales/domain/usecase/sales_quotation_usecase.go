@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -348,6 +350,20 @@ func (u *salesQuotationUsecase) UpdateStatus(ctx context.Context, id string, req
 
 	response := mapper.ToSalesQuotationResponse(updated)
 	u.attachCustomerContactResponse(ctx, &response)
+
+	if newStatus == models.SalesQuotationStatusSent {
+		if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "sales_quotation.approve",
+			EntityType:     "sales_quotation",
+			EntityID:       updated.ID,
+			Title:          "Sales quotation approval required",
+			Message:        fmt.Sprintf("Sales quotation %s requires approval and review.", updated.Code),
+			ActorUserID:    stringValue(userID),
+		}); err != nil {
+			fmt.Printf("failed to create sales quotation approval notification: %v\n", err)
+		}
+	}
+
 	logSalesAudit(u.auditService, ctx, "sales_quotation.status_change", id, map[string]interface{}{
 		"before_status": previousStatus,
 		"after_status":  updated.Status,

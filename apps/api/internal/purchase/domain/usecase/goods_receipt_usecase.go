@@ -17,6 +17,7 @@ import (
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -786,6 +787,16 @@ func (uc *goodsReceiptUsecase) Submit(ctx context.Context, id string) (*dto.Good
 		"before": before,
 		"after":  grAuditSnapshot(updated),
 	})
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "goods_receipt.approve",
+		EntityType:     "goods_receipt",
+		EntityID:       updated.ID,
+		Title:          "Goods Receipt Approval",
+		Message:        "A goods receipt has been submitted and requires your approval.",
+		ActorUserID:    actorID,
+	}); err != nil {
+		log.Printf("warning: failed to create goods receipt notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(updated), nil
 }
 

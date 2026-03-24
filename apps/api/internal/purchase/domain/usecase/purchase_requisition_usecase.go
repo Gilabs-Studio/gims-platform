@@ -3,12 +3,14 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
 	"strings"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -299,7 +301,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 			Name:           s.Name,
 			PaymentTermsID: s.PaymentTermsID,
 			BusinessUnitID: s.BusinessUnitID,
-			Contacts: addPhones,
+			Contacts:       addPhones,
 			Products:       productsBySupplier[s.ID],
 		})
 	}
@@ -394,6 +396,17 @@ func (uc *purchaseRequisitionUsecase) Submit(ctx context.Context, id string) (*d
 		"before": before,
 		"after":  prAuditSnapshot(updated),
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "purchase_requisition.approve",
+		EntityType:     "purchase_requisition",
+		EntityID:       updated.ID,
+		Title:          "Purchase Requisition Approval",
+		Message:        "A purchase requisition has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create purchase requisition notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(updated), nil
 }
 

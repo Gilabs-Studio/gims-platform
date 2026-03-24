@@ -16,6 +16,7 @@ import (
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
@@ -76,6 +77,7 @@ func AutoMigrate() error {
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
 		&core.AuditLog{},
+		&notification.Notification{},
 		// Geographic entities (Sprint 1)
 		&geographic.Country{},
 		&geographic.Province{},

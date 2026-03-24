@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
 )
 
@@ -293,6 +295,16 @@ func (uc *nonTradePayableUsecase) Submit(ctx context.Context, id string) (*dto.N
 	}
 
 	item.Status = financeModels.NTPStatusSubmitted
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "non_trade_payable.approve",
+		EntityType:     "non_trade_payable",
+		EntityID:       item.ID,
+		Title:          "Non-Trade Payable Approval",
+		Message:        "A non-trade payable has been submitted and requires your approval.",
+		ActorUserID:    actorID,
+	}); err != nil {
+		log.Printf("warning: failed to create non-trade payable notification: %v", err)
+	}
 	res := uc.mapper.ToResponse(item)
 	return &res, nil
 }

@@ -25,7 +25,9 @@ export function useNotificationCount() {
   return useQuery({
     queryKey: ["notifications", "unread-count"],
     queryFn: () => notificationService.getUnreadCount(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -59,23 +61,6 @@ export function useMarkAllAsRead() {
     onError: (error: unknown) => {
       const message =
         error instanceof Error ? error.message : "Failed to mark all notifications as read";
-      toast.error(message);
-    },
-  });
-}
-
-export function useDeleteNotification() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => notificationService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
-      toast.success("Notification deleted");
-    },
-    onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : "Failed to delete notification";
       toast.error(message);
     },
   });
