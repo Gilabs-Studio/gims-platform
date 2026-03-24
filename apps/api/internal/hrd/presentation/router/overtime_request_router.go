@@ -11,9 +11,9 @@ func RegisterOvertimeRequestRoutes(rg *gin.RouterGroup, h *handler.OvertimeReque
 	g := rg.Group("/overtime")
 
 	// Employee self-service routes
-	g.POST("", h.Create)                                     // Submit overtime request
-	g.GET("/my-summary", h.GetMonthlySummary)                // Get own monthly summary
-	g.POST("/:id/cancel", h.Cancel)                          // Cancel own request
+	g.POST("", h.Create)                      // Submit overtime request
+	g.GET("/my-summary", h.GetMonthlySummary) // Get own monthly summary
+	g.POST("/:id/cancel", h.Cancel)           // Cancel own request
 
 	// Manager routes (for approval workflow)
 	g.GET("/pending", middleware.RequirePermission("overtime.approve"), h.GetPending)

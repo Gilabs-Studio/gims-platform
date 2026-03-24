@@ -80,6 +80,7 @@ const VALID_DASHBOARD_ROUTES = [
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",
+  "/hrd/overtime",
   "/hrd/evaluation",
   "/hrd/recruitment",
   "/hrd/work-schedule",

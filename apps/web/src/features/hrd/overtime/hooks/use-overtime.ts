@@ -2,8 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { overtimeService } from "../services/overtime-service";
-import type { 
-  CreateOvertimeRequest, 
+import { attendanceRecordService } from "@/features/hrd/attendance-records/services/attendance-record-service";
+import type {
+  CreateOvertimeRequest,
   UpdateOvertimeRequest,
   ApproveOvertimeRequest,
   RejectOvertimeRequest,
@@ -13,29 +14,23 @@ import type {
 const QUERY_KEYS = {
   overtime: (params?: unknown) => ["overtime", params],
   overtimeById: (id: string) => ["overtime", id],
-  myRequests: (params?: unknown) => ["overtime", "my-requests", params],
   mySummary: (params?: unknown) => ["overtime", "my-summary", params],
   pending: () => ["overtime", "pending"],
   notifications: () => ["overtime", "notifications"],
-  employeeSummary: (id: string, params?: unknown) => ["overtime", "summary", id, params],
+  employeeSummary: (id: string, params?: unknown) => [
+    "overtime",
+    "summary",
+    id,
+    params,
+  ],
+  formData: () => ["overtime", "form-data"],
 } as const;
 
 // Self-service hooks
-export function useMyOvertimeRequests(params?: {
-  page?: number;
-  per_page?: number;
+export function useMyOvertimeSummary(params?: {
   month?: number;
   year?: number;
-  status?: string;
 }) {
-  return useQuery({
-    queryKey: QUERY_KEYS.myRequests(params),
-    queryFn: () => overtimeService.getMyRequests(params),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-}
-
-export function useMyOvertimeSummary(params?: { month?: number; year?: number }) {
   return useQuery({
     queryKey: QUERY_KEYS.mySummary(params),
     queryFn: () => overtimeService.getMySummary(params),
@@ -131,8 +126,8 @@ export function useUpdateOvertimeRequest() {
       overtimeService.update(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["overtime"] });
-      queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.overtimeById(variables.id) 
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.overtimeById(variables.id),
       });
     },
   });
@@ -151,12 +146,21 @@ export function useDeleteOvertimeRequest() {
 
 export function useEmployeeOvertimeSummary(
   employeeId: string,
-  params?: { month?: number; year?: number }
+  params?: { month?: number; year?: number },
 ) {
   return useQuery({
     queryKey: QUERY_KEYS.employeeSummary(employeeId, params),
     queryFn: () => overtimeService.getEmployeeSummary(employeeId, params),
     enabled: !!employeeId,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+// Form data hook - fetches employees for selection
+export function useOvertimeFormData() {
+  return useQuery({
+    queryKey: QUERY_KEYS.formData(),
+    queryFn: () => attendanceRecordService.getFormData(),
+    staleTime: 1000 * 60 * 10,
   });
 }

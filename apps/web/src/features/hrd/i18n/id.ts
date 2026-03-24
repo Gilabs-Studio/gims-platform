@@ -76,7 +76,8 @@ export const hrdId = {
       listView: "Tampilan Daftar",
       calendarView: "Tampilan Kalender",
       noRecords: "Tidak ada catatan kehadiran",
-      noRecordsDesc: "Tidak ada catatan kehadiran yang sesuai dengan filter saat ini",
+      noRecordsDesc:
+        "Tidak ada catatan kehadiran yang sesuai dengan filter saat ini",
       calendar: {
         workDay: "Hari Kerja",
         nonWorkDay: "Bukan Hari Kerja",
@@ -200,7 +201,8 @@ export const hrdId = {
         updateSuccess: "Catatan absensi berhasil diperbarui",
         deleteSuccess: "Catatan absensi berhasil dihapus",
         deleteConfirm: "Apakah Anda yakin ingin menghapus catatan absensi ini?",
-        deleteConfirmDesc: "Tindakan ini tidak dapat dibatalkan. Catatan absensi akan dihapus secara permanen.",
+        deleteConfirmDesc:
+          "Tindakan ini tidak dapat dibatalkan. Catatan absensi akan dihapus secara permanen.",
         locationRequired: "Akses lokasi diperlukan untuk absen",
         outsideRadius: "Anda berada di luar radius lokasi yang diizinkan",
         alreadyClockedIn: "Anda sudah absen masuk hari ini",
@@ -234,7 +236,8 @@ export const hrdId = {
         leaveDays: "Cuti",
         halfDays: "Setengah Hari",
         totalWorkingHours: "Jam Kerja",
-        totalWorkingHoursDescription: "Total jam kerja dari semua catatan absensi",
+        totalWorkingHoursDescription:
+          "Total jam kerja dari semua catatan absensi",
         totalOvertimeHours: "Jam Lembur",
         totalOvertimeDescription: "Total jam lembur dari semua catatan",
         totalLateMinutes: "Menit Terlambat",
@@ -245,7 +248,8 @@ export const hrdId = {
       // Dialog alasan terlambat
       lateDialog: {
         title: "Absen Terlambat",
-        description: "Anda terlambat {minutes} menit. Mohon berikan alasan keterlambatan Anda.",
+        description:
+          "Anda terlambat {minutes} menit. Mohon berikan alasan keterlambatan Anda.",
         reasonLabel: "Alasan keterlambatan",
         reasonPlaceholder: "Jelaskan alasan keterlambatan Anda...",
         cancel: "Batal",
@@ -255,14 +259,17 @@ export const hrdId = {
       // Dialog foto bukti kehadiran
       cameraDialog: {
         title: "Bukti Foto Diperlukan",
-        description_WFH: "Silakan ambil foto selfie sebagai bukti kehadiran Kerja dari Rumah.",
-        description_FIELD_WORK: "Silakan ambil foto selfie sebagai bukti kehadiran Kerja Lapangan.",
+        description_WFH:
+          "Silakan ambil foto selfie sebagai bukti kehadiran Kerja dari Rumah.",
+        description_FIELD_WORK:
+          "Silakan ambil foto selfie sebagai bukti kehadiran Kerja Lapangan.",
         capture: "Ambil Foto",
         retake: "Ulangi",
         confirm: "Gunakan Foto & Absen Masuk",
         cancel: "Batal",
         retry: "Coba Lagi",
-        permissionDenied: "Izin kamera ditolak. Silakan izinkan akses kamera di pengaturan browser Anda.",
+        permissionDenied:
+          "Izin kamera ditolak. Silakan izinkan akses kamera di pengaturan browser Anda.",
         notAvailable: "Kamera tidak tersedia di perangkat ini.",
         uploading: "Mengunggah...",
         uploadFailed: "Gagal mengunggah foto. Silakan coba lagi.",
@@ -271,7 +278,8 @@ export const hrdId = {
       // Geolokasi / izin lokasi
       location: {
         permissionDenied: "Akses lokasi ditolak",
-        enableInSettings: "Silakan aktifkan akses lokasi di pengaturan browser Anda untuk absen masuk/keluar.",
+        enableInSettings:
+          "Silakan aktifkan akses lokasi di pengaturan browser Anda untuk absen masuk/keluar.",
         permissionPrompt: "Akses lokasi diperlukan untuk absensi.",
         enable: "Aktifkan",
         denied: "Lokasi ditolak",
@@ -279,37 +287,40 @@ export const hrdId = {
         notAtOffice: "Di luar kantor ({distance}m jauhnya)",
         requestPermission: "Aktifkan Akses Lokasi",
         openSettings: "Pengaturan Lokasi",
-        deniedInstructions: "Akses lokasi diblokir. Untuk mengaktifkan: klik ikon gembok/tune di address bar → Setelan situs → Lokasi → Izinkan, lalu muat ulang halaman.",
+        deniedInstructions:
+          "Akses lokasi diblokir. Untuk mengaktifkan: klik ikon gembok/tune di address bar → Setelan situs → Lokasi → Izinkan, lalu muat ulang halaman.",
         settingsDialog: {
           title: "Akses Lokasi Diblokir",
-          description: "Akses lokasi telah ditolak oleh browser Anda. Ikuti langkah-langkah di bawah untuk mengaktifkannya, lalu muat ulang halaman.",
+          description:
+            "Akses lokasi telah ditolak oleh browser Anda. Ikuti langkah-langkah di bawah untuk mengaktifkannya, lalu muat ulang halaman.",
           stepsTitle: "Langkah untuk {browser}",
-          addressBarHint: "Cari ikon gembok/tune di sisi kiri address bar — klik untuk mengakses izin situs dengan cepat.",
+          addressBarHint:
+            "Cari ikon gembok/tune di sisi kiri address bar — klik untuk mengakses izin situs dengan cepat.",
           retryPermission: "Coba Lagi Izin",
           reloadPage: "Muat Ulang",
           steps_chrome: {
             1: "Klik ikon gembok/tune (🔒) di sebelah kiri address bar",
-            2: "Temukan \"Lokasi\" di daftar izin dan atur ke \"Izinkan\"",
-            3: "Klik \"Muat ulang\" atau tekan tombol di bawah untuk menerapkan perubahan",
+            2: 'Temukan "Lokasi" di daftar izin dan atur ke "Izinkan"',
+            3: 'Klik "Muat ulang" atau tekan tombol di bawah untuk menerapkan perubahan',
           },
           steps_edge: {
             1: "Klik ikon gembok (🔒) di sebelah kiri address bar",
-            2: "Temukan \"Lokasi\" dan ubah ke \"Izinkan\"",
-            3: "Klik \"Muat ulang\" atau tekan tombol di bawah untuk menerapkan perubahan",
+            2: 'Temukan "Lokasi" dan ubah ke "Izinkan"',
+            3: 'Klik "Muat ulang" atau tekan tombol di bawah untuk menerapkan perubahan',
           },
           steps_firefox: {
             1: "Klik ikon gembok (🔒) di sebelah kiri address bar",
-            2: "Klik \"Hapus cookie dan data situs\" atau buka \"Izin\" → \"Akses Lokasi Anda\" → hapus pemblokiran",
+            2: 'Klik "Hapus cookie dan data situs" atau buka "Izin" → "Akses Lokasi Anda" → hapus pemblokiran',
             3: "Muat ulang halaman menggunakan tombol di bawah",
           },
           steps_safari: {
             1: "Buka menu Safari → Pengaturan → Situs Web → Lokasi",
-            2: "Temukan situs web ini dan ubah izin ke \"Izinkan\"",
+            2: 'Temukan situs web ini dan ubah izin ke "Izinkan"',
             3: "Tutup Pengaturan dan muat ulang halaman menggunakan tombol di bawah",
           },
           steps_other: {
             1: "Buka pengaturan situs atau izin browser Anda",
-            2: "Temukan izin \"Lokasi\" dan atur ke \"Izinkan\" untuk situs ini",
+            2: 'Temukan izin "Lokasi" dan atur ke "Izinkan" untuk situs ini',
             3: "Muat ulang halaman menggunakan tombol di bawah",
           },
         },
@@ -365,10 +376,13 @@ export const hrdId = {
       },
 
       descriptions: {
-        flexible: "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
+        flexible:
+          "Aktifkan jam kerja fleksibel dengan rentang waktu mulai dan selesai yang diizinkan",
         gps: "Wajibkan karyawan untuk absen masuk/keluar dalam radius GPS yang ditentukan dari kantor",
-        division: "Tetapkan jadwal ini ke divisi tertentu, atau kosongkan untuk jadwal umum",
-        officeLocation: "Pilih perusahaan untuk menggunakan koordinat GPS-nya untuk verifikasi kehadiran",
+        division:
+          "Tetapkan jadwal ini ke divisi tertentu, atau kosongkan untuk jadwal umum",
+        officeLocation:
+          "Pilih perusahaan untuk menggunakan koordinat GPS-nya untuk verifikasi kehadiran",
       },
 
       placeholders: {
@@ -461,6 +475,18 @@ export const hrdId = {
       myRequests: "Permintaan Lembur Saya",
       pending: "Menunggu Persetujuan",
       summary: "Ringkasan Lembur",
+      calendarView: "Kalender",
+      listView: "Daftar",
+      today: "Hari Ini",
+      clear: "Bersihkan",
+      noRecordsForDate: "Tidak ada permintaan lembur untuk tanggal ini",
+      backToCalendar: "Kembali ke Kalender",
+      records: "records",
+      calendar: {
+        hasOvertime: "Ada Lembur",
+        noOvertime: "Tidak Ada Lembur",
+        more: "lainnya",
+      },
 
       types: {
         AUTO_DETECTED: "Terdeteksi Otomatis",
@@ -473,42 +499,94 @@ export const hrdId = {
         APPROVED: "Disetujui",
         REJECTED: "Ditolak",
         CANCELED: "Dibatalkan",
+        HOLIDAY: "Libur",
       },
 
       fields: {
         date: "Tanggal",
         startTime: "Waktu Mulai",
         endTime: "Waktu Selesai",
+        duration: "Durasi",
+        planned: "Rencana",
+        actual: "Aktual",
         requestedMinutes: "Diminta (menit)",
         approvedMinutes: "Disetujui (menit)",
+        minutes: "menit",
         rateMultiplier: "Rate",
         reason: "Alasan",
+        description: "Deskripsi",
         type: "Jenis",
         status: "Status",
         approvedBy: "Disetujui Oleh",
         approvedAt: "Disetujui Pada",
+        rejectedBy: "Ditolak Oleh",
         rejectionReason: "Alasan Penolakan",
         employee: "Karyawan",
+        division: "Divisi",
+        taskDetails: "Detail Tugas",
+      },
+
+      filters: {
+        search: "Cari karyawan atau alasan...",
+        status: "Status",
+        allStatus: "Semua Status",
+        month: "Bulan",
+        year: "Tahun",
       },
 
       actions: {
+        add: "Tambah Lembur",
         create: "Ajukan Lembur",
         edit: "Ubah Permintaan",
         cancel: "Batalkan Permintaan",
         approve: "Setujui",
         reject: "Tolak",
         viewDetails: "Lihat Detail",
+        submit: "Ajukan",
+      },
+
+      detail: {
+        title: "Detail Permintaan Lembur",
+      },
+
+      delete: {
+        title: "Hapus Permintaan Lembur",
+        description:
+          "Apakah Anda yakin ingin menghapus permintaan lembur ini? Tindakan ini tidak dapat dibatalkan.",
+      },
+
+      empty: {
+        noRecords: "Tidak ada permintaan lembur",
+      },
+
+      errors: {
+        loadFailed: "Gagal memuat permintaan lembur",
+      },
+
+      form: {
+        employeeInfo: "Informasi Karyawan",
+        overtimeDetails: "Detail Lembur",
+        reasonAndNotes: "Alasan & Catatan",
+        selectEmployee: "Pilih karyawan",
+        submit: "Ajukan Permintaan",
+      },
+
+      validation: {
+        rejectionReasonRequired: "Harap berikan alasan penolakan",
       },
 
       messages: {
         createSuccess: "Permintaan lembur berhasil diajukan",
         updateSuccess: "Permintaan lembur berhasil diperbarui",
+        deleteSuccess: "Permintaan lembur berhasil dihapus",
         cancelSuccess: "Permintaan lembur dibatalkan",
         approveSuccess: "Permintaan lembur disetujui",
         rejectSuccess: "Permintaan lembur ditolak",
-        cancelConfirm: "Apakah Anda yakin ingin membatalkan permintaan lembur ini?",
+        cancelConfirm:
+          "Apakah Anda yakin ingin membatalkan permintaan lembur ini?",
         rejectConfirm: "Harap berikan alasan penolakan",
-        autoDetectedInfo: "Lembur ini terdeteksi otomatis berdasarkan waktu pulang Anda",
+        autoDetectedInfo:
+          "Lembur ini terdeteksi otomatis berdasarkan waktu pulang Anda",
       },
 
       stats: {

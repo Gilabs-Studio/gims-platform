@@ -83,6 +83,7 @@ import {
   Kanban,
   Route,
   RotateCcw,
+  Moon,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -152,7 +153,7 @@ const iconMap: Record<string, React.ReactNode> = {
   contact: <Contact className="h-4 w-4" />,
   // Returns icon (rotate-ccw)
   "rotate-ccw": <RotateCcw className="h-4 w-4" />,
-  "rotate_ccw": <RotateCcw className="h-4 w-4" />,
+  rotate_ccw: <RotateCcw className="h-4 w-4" />,
   rotateccw: <RotateCcw className="h-4 w-4" />,
   returns: <RotateCcw className="h-4 w-4" />,
   return: <RotateCcw className="h-4 w-4" />,
@@ -181,7 +182,7 @@ const iconMap: Record<string, React.ReactNode> = {
   barchart3: <BarChart3 className="h-4 w-4" />,
   "bar-chart-3": <BarChart3 className="h-4 w-4" />,
   table: <Table className="h-4 w-4" />,
-  "scale": <Scale className="h-4 w-4" />,
+  scale: <Scale className="h-4 w-4" />,
 
   // Activity & Health icons
   activity: <Activity className="h-4 w-4" />,
@@ -239,6 +240,9 @@ const iconMap: Record<string, React.ReactNode> = {
   zap: <Zap className="h-4 w-4" />,
   kanban: <Kanban className="h-4 w-4" />,
   route: <Route className="h-4 w-4" />,
+
+  // Overtime icon (moon for working outside regular hours)
+  moon: <Moon className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

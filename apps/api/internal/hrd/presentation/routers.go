@@ -83,7 +83,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
 	holidayHandler := handler.NewHolidayHandler(holidayUC)
 	attendanceHandler := handler.NewAttendanceRecordHandler(attendanceUC)
-	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC)
+	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC, employeeRepo)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
 	evaluationGroupHandler := handler.NewEvaluationGroupHandler(evaluationGroupUC)
 	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)

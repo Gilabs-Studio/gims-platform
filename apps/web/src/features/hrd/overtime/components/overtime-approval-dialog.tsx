@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -16,7 +16,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, X, Clock, User, Calendar } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  X,
+  Clock,
+  User,
+  Calendar,
+  Building2,
+} from "lucide-react";
 import { useApproveOvertime, useRejectOvertime } from "../hooks/use-overtime";
 import type { OvertimeRequest } from "../types";
 import { format } from "date-fns";
@@ -26,6 +34,7 @@ interface OvertimeApprovalDialogProps {
   onOpenChange: (open: boolean) => void;
   item: OvertimeRequest | null;
   action: "approve" | "reject" | null;
+  onSuccess?: () => void;
 }
 
 export function OvertimeApprovalDialog({
@@ -33,29 +42,45 @@ export function OvertimeApprovalDialog({
   onOpenChange,
   item,
   action,
+  onSuccess,
 }: OvertimeApprovalDialogProps) {
   const t = useTranslations("hrd.overtime");
   const tCommon = useTranslations("common");
 
-  const [approvedMinutes, setApprovedMinutes] = useState<number | undefined>(
-    item?.planned_minutes
-  );
+  const [approvedMinutes, setApprovedMinutes] = useState<number>(0);
   const [rejectionReason, setRejectionReason] = useState("");
 
   const approveMutation = useApproveOvertime();
   const rejectMutation = useRejectOvertime();
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (open && item) {
+      // Set default approved minutes to planned_minutes (or actual_minutes if planned is 0)
+      const defaultMinutes =
+        item.planned_minutes > 0 ? item.planned_minutes : item.actual_minutes;
+      setApprovedMinutes(defaultMinutes);
+      setRejectionReason("");
+    } else if (!open) {
+      // Clear state when dialog closes
+      setApprovedMinutes(0);
+      setRejectionReason("");
+    }
+  }, [open, item]);
 
   const handleApprove = async () => {
     if (!item) return;
     try {
       await approveMutation.mutateAsync({
         id: item.id,
-        data: approvedMinutes !== undefined && approvedMinutes !== item.planned_minutes 
-          ? { approved_minutes: approvedMinutes }
-          : { approved_minutes: item.planned_minutes },
+        data: { approved_minutes: approvedMinutes },
       });
       toast.success(t("messages.approveSuccess"));
+      // Reset state after successful action
+      setApprovedMinutes(0);
+      setRejectionReason("");
       onOpenChange(false);
+      onSuccess?.();
     } catch {
       toast.error(tCommon("error"));
     }
@@ -73,13 +98,18 @@ export function OvertimeApprovalDialog({
         data: { reason: rejectionReason },
       });
       toast.success(t("messages.rejectSuccess"));
+      // Reset state after successful action
+      setApprovedMinutes(0);
+      setRejectionReason("");
       onOpenChange(false);
+      onSuccess?.();
     } catch {
       toast.error(tCommon("error"));
     }
   };
 
   const formatMinutes = (minutes: number) => {
+    if (!minutes || minutes <= 0) return "0m";
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
@@ -91,9 +121,33 @@ export function OvertimeApprovalDialog({
     return time.substring(0, 5);
   };
 
+  // Calculate duration from start and end time for display
+  const calculateDuration = (startTime: string, endTime: string) => {
+    const start = startTime.substring(0, 5);
+    const end = endTime.substring(0, 5);
+    const [startH, startM] = start.split(":").map(Number);
+    const [endH, endM] = end.split(":").map(Number);
+
+    let startMinutes = startH * 60 + startM;
+    let endMinutes = endH * 60 + endM;
+
+    // If end time is before start time, assume it's next day
+    if (endMinutes < startMinutes) {
+      endMinutes += 24 * 60;
+    }
+
+    const duration = endMinutes - startMinutes;
+    return duration;
+  };
+
   const isPending = approveMutation.isPending || rejectMutation.isPending;
 
   if (!item || !action) return null;
+
+  // Calculate actual duration from time range
+  const calculatedDuration = calculateDuration(item.start_time, item.end_time);
+  const displayMinutes =
+    item.planned_minutes > 0 ? item.planned_minutes : calculatedDuration;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,7 +167,7 @@ export function OvertimeApprovalDialog({
           <div className="flex items-center gap-3">
             <User className="h-4 w-4 text-muted-foreground" />
             <div>
-              <p className="font-medium">{item.employee_name}</p>
+              <p className="font-medium">{item.employee_name || "-"}</p>
               {item.employee_code && (
                 <p className="text-xs text-muted-foreground">
                   {item.employee_code}
@@ -121,6 +175,15 @@ export function OvertimeApprovalDialog({
               )}
             </div>
           </div>
+
+          {item.division_name && (
+            <div className="flex items-center gap-3">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {item.division_name}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -132,9 +195,7 @@ export function OvertimeApprovalDialog({
             <span>
               {formatTime(item.start_time)} - {formatTime(item.end_time)}
             </span>
-            <Badge variant="secondary">
-              {formatMinutes(item.planned_minutes)}
-            </Badge>
+            <Badge variant="secondary">{formatMinutes(displayMinutes)}</Badge>
           </div>
 
           <div className="pt-2 border-t">
@@ -155,24 +216,20 @@ export function OvertimeApprovalDialog({
                   id="approved-minutes"
                   type="number"
                   min={1}
-                  max={item.planned_minutes}
-                  value={approvedMinutes ?? item.planned_minutes}
+                  max={displayMinutes}
+                  value={approvedMinutes}
                   onChange={(e) =>
-                    setApprovedMinutes(
-                      e.target.value ? Number(e.target.value) : undefined
-                    )
+                    setApprovedMinutes(Number(e.target.value) || 0)
                   }
                   className="w-24"
                 />
                 <span className="text-sm text-muted-foreground">minutes</span>
-                {approvedMinutes && (
-                  <Badge variant="outline">
-                    {formatMinutes(approvedMinutes)}
-                  </Badge>
-                )}
+                <Badge variant="outline">
+                  {formatMinutes(approvedMinutes)}
+                </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                You can adjust the approved overtime duration if needed
+                Default set to planned duration: {formatMinutes(displayMinutes)}
               </p>
             </div>
           </div>
@@ -217,7 +274,9 @@ export function OvertimeApprovalDialog({
               variant="destructive"
               className="cursor-pointer"
             >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isPending && (
+                <Loader2 className="mr-2 h-4 h-4 w-4 animate-spin" />
+              )}
               <X className="mr-2 h-4 w-4" />
               {t("actions.reject")}
             </Button>

@@ -219,7 +219,7 @@ func (r *employeeRepository) GetLastEmployeeCode(ctx context.Context) (string, e
 		}
 		return "", err
 	}
-	
+
 	if lastCode == "" {
 		return "EMP-000", nil
 	}
