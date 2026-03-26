@@ -93,7 +93,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper, settingsService, accountingEngine)
-	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
+	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
 
 	// Asset Maintenance
@@ -132,7 +132,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterChartOfAccountRoutes(group, coaH)
 	router.RegisterJournalLineRoutes(group, journalLineH)
 	router.RegisterJournalEntryRoutes(group, journalH)
-	router.RegisterFinanceReportRoutes(group, journalH)
 	router.RegisterPaymentRoutes(group, paymentH)
 	router.RegisterBudgetRoutes(group, budgetH)
 	router.RegisterCashBankJournalRoutes(group, cashBankH)

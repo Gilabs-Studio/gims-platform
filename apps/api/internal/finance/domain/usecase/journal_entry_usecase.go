@@ -455,12 +455,12 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 	if math.Abs(debitTotal-creditTotal) > 0.000001 {
 		return nil, ErrJournalUnbalanced
 	}
-	if err := ensureNotClosed(ctx, uc.db, entry.EntryDate); err != nil {
+	if err := ensureNotClosed(ctx, database.GetDB(ctx, uc.db), entry.EntryDate); err != nil {
 		return nil, err
 	}
 
 	now := apptime.Now()
-	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+	if err := database.GetDB(ctx, uc.db).Model(&financeModels.JournalEntry{}).
 		Where("id = ? AND status = ?", id, financeModels.JournalStatusDraft).
 		Updates(map[string]interface{}{
 			"status":    financeModels.JournalStatusPosted,

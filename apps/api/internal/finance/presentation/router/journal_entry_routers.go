@@ -23,7 +23,6 @@ const (
 	journalDelete            = "journal.delete"
 	journalPost              = "journal.post"
 	journalReverse           = "journal.reverse"
-	trialBalanceRead         = "trial_balance_report.read"
 )
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
@@ -61,7 +60,3 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.POST("/:id/reverse", middleware.RequirePermission(journalReverse), h.Reverse)
 }
 
-func RegisterFinanceReportRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
-	g := rg.Group("/reports")
-	g.GET("/trial-balance", middleware.RequirePermission(trialBalanceRead), h.TrialBalance)
-}

@@ -518,7 +518,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		return nil, ErrCustomerInvoiceNotFound
 	}
 
-	newStatus := models.CustomerInvoiceStatus(req.Status)
+	newStatus := models.CustomerInvoiceStatus(strings.ToUpper(strings.TrimSpace(req.Status)))
 
 	// Validate status transition
 	if !isValidStatusTransition(invoice.Status, newStatus) {

@@ -54,7 +54,7 @@ func runValidation(ctx context.Context) error {
 	db := database.DB
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
-	reportUC := usecase.NewFinanceReportUsecase(coaRepo, reportRepo)
+	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())

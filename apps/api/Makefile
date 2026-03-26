@@ -1,4 +1,4 @@
-.PHONY: build run test clean docker-build docker-run docker-up docker-down migrate seed deps
+.PHONY: build run test clean docker-build docker-run docker-up docker-down migrate seed deps analyze
 
 # Build the application
 build:
@@ -15,6 +15,21 @@ migrate:
 # Run seeders (explicit, does not start server)
 seed:
 	go run ./cmd/tools/seed
+
+# Run ERP Analyzer
+# Usage: make analyze
+# Usage: make analyze MODULES=finance,sales FROM=2025-01-01 TO=2025-12-31
+analyze:
+	@echo "Running GIMS ERP Analyzer..."
+	@if [ -n "$(MODULES)" ] && [ -n "$(FROM)" ] && [ -n "$(TO)" ]; then \
+		go run ./cmd/analyzer/main.go --module=$(MODULES) --from-date=$(FROM) --to-date=$(TO); \
+	elif [ -n "$(MODULES)" ]; then \
+		go run ./cmd/analyzer/main.go --module=$(MODULES); \
+	elif [ -n "$(FROM)" ] && [ -n "$(TO)" ]; then \
+		go run ./cmd/analyzer/main.go --from-date=$(FROM) --to-date=$(TO); \
+	else \
+		go run ./cmd/analyzer/main.go; \
+	fi
 
 # Run tests
 test:

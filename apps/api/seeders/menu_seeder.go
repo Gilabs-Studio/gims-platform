@@ -474,9 +474,10 @@ func SeedMenus() error {
 		order int
 	}{
 		{"General Ledger", "book-open", "/finance/reports/general-ledger", 1},
-		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 2},
-		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 3},
-		{"Aging Reports", "clock", "/finance/aging-reports", 4},
+		{"Trial Balance", "file-spreadsheet", "/finance/reports/trial-balance", 2},
+		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 3},
+		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 4},
+		{"Aging Reports", "clock", "/finance/aging-reports", 5},
 	}
 	for _, child := range financeReportChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeReportsMenu.ID, child.order); err != nil {

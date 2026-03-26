@@ -92,6 +92,19 @@ func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *FinanceReportHandler) TrialBalance(c *gin.Context) {
+	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+
+	res, err := h.uc.GetTrialBalance(c.Request.Context(), startDate, endDate, companyID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "TRIAL_BALANCE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())

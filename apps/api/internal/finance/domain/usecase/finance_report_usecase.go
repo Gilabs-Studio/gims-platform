@@ -14,6 +14,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"gorm.io/gorm"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -21,6 +22,7 @@ type FinanceReportUsecase interface {
 	GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error)
 	GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) (*dto.BalanceSheetResponse, error)
 	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error)
+	GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.TrialBalanceResponse, error)
 	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
 	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) ([]byte, error)
 	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error)
@@ -32,6 +34,7 @@ type balanceSheetCacheEntry struct {
 }
 
 type financeReportUsecase struct {
+	db         *gorm.DB
 	coaRepo    repositories.ChartOfAccountRepository
 	reportRepo repositories.FinanceReportRepository
 	cacheTTL   time.Duration
@@ -39,7 +42,7 @@ type financeReportUsecase struct {
 	bsCache    map[string]balanceSheetCacheEntry
 }
 
-func NewFinanceReportUsecase(coaRepo repositories.ChartOfAccountRepository, reportRepo repositories.FinanceReportRepository) FinanceReportUsecase {
+func NewFinanceReportUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, reportRepo repositories.FinanceReportRepository) FinanceReportUsecase {
 	ttlSeconds := 120
 	if raw := strings.TrimSpace(os.Getenv("FINANCE_REPORT_BALANCE_SHEET_CACHE_TTL_SECONDS")); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 0 {
@@ -48,6 +51,7 @@ func NewFinanceReportUsecase(coaRepo repositories.ChartOfAccountRepository, repo
 	}
 
 	return &financeReportUsecase{
+		db:         db,
 		coaRepo:    coaRepo,
 		reportRepo: reportRepo,
 		cacheTTL:   time.Duration(ttlSeconds) * time.Second,
@@ -127,6 +131,15 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 			return nil, err
 		}
 
+		// Resolve human-readable reference codes for this batch of journals
+		entries := make([]financeModels.JournalEntry, 0, len(lines))
+		for _, l := range lines {
+			if l.JournalEntry != nil {
+				entries = append(entries, *l.JournalEntry)
+			}
+		}
+		refCodeMap := repositories.BatchResolveJournalReferenceCodes(ctx, uc.db, entries)
+
 		transactions := make([]dto.GLTransactionRow, 0, len(lines))
 		runningBalance := b.OpeningBalance
 		for _, l := range lines {
@@ -141,8 +154,10 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 			runningBalance += change
 
 			refCode := ""
-			if l.JournalEntry != nil && l.JournalEntry.ReferenceType != nil && l.JournalEntry.ReferenceID != nil {
-				refCode = *l.JournalEntry.ReferenceType + "/" + *l.JournalEntry.ReferenceID
+			if l.JournalEntry != nil {
+				if code, ok := refCodeMap[l.JournalEntry.ID]; ok {
+					refCode = code
+				}
 			}
 
 			entryDate := time.Time{}
@@ -572,6 +587,38 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 	}
 
 	return current, nil
+}
+
+func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.TrialBalanceResponse, error) {
+	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]dto.TrialBalanceRow, 0, len(balances))
+	for _, b := range balances {
+		coa, err := uc.coaRepo.FindByID(ctx, b.ChartOfAccountID)
+		if err != nil {
+			continue
+		}
+
+		rows = append(rows, dto.TrialBalanceRow{
+			ChartOfAccountID: b.ChartOfAccountID,
+			Code:             coa.Code,
+			Name:             coa.Name,
+			Type:             coa.Type,
+			OpeningBalance:   b.OpeningBalance,
+			DebitTotal:       b.DebitTotal,
+			CreditTotal:      b.CreditTotal,
+			Balance:          b.ClosingBalance,
+		})
+	}
+
+	return &dto.TrialBalanceResponse{
+		StartDate: &startDate,
+		EndDate:   &endDate,
+		Rows:      rows,
+	}, nil
 }
 
 func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {

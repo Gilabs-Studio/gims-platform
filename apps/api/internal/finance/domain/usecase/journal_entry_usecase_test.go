@@ -206,7 +206,7 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 		{ChartOfAccountID: "zero-1", ClosingBalance: 0},
 	}}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
 	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
 
 	require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements(t *test
 		{ChartOfAccountID: "asset-1", DebitTotal: 1500, CreditTotal: 300},
 	}}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
 	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil)
 
 	require.NoError(t, err)
@@ -263,7 +263,7 @@ func TestFinanceReportUsecase_ShouldRespectIncludeZeroFlag_InBalanceSheet(t *tes
 		{ChartOfAccountID: "asset-2", ClosingBalance: 0},
 	}}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
 	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
 	require.NoError(t, err)
 	require.Len(t, hideZero.Assets, 1)
@@ -298,7 +298,7 @@ func TestFinanceReportUsecase_ShouldComposeFinalEquity_FromRetainedAndCurrentPro
 		},
 	}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
 	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 700.0, res.EquityTotal)

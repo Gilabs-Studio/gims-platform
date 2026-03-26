@@ -91,6 +91,7 @@ type TrialBalanceRow struct {
 	Code             string                    `json:"code"`
 	Name             string                    `json:"name"`
 	Type             financeModels.AccountType `json:"type"`
+	OpeningBalance   float64                   `json:"opening_balance"`
 	DebitTotal       float64                   `json:"debit_total"`
 	CreditTotal      float64                   `json:"credit_total"`
 	Balance          float64                   `json:"balance"`

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -363,34 +362,6 @@ func (h *JournalEntryHandler) GetFormData(c *gin.Context) {
 	res, err := h.uc.GetFormData(c.Request.Context())
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "JOURNAL_FORM_DATA_FAILED", err.Error(), nil, nil)
-		return
-	}
-	response.SuccessResponse(c, res, nil)
-}
-
-func (h *JournalEntryHandler) TrialBalance(c *gin.Context) {
-	var startDate *time.Time
-	if v := strings.TrimSpace(c.Query("start_date")); v != "" {
-		parsed, err := time.Parse("2006-01-02", v)
-		if err != nil {
-			response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid start_date", nil, nil)
-			return
-		}
-		startDate = &parsed
-	}
-	var endDate *time.Time
-	if v := strings.TrimSpace(c.Query("end_date")); v != "" {
-		parsed, err := time.Parse("2006-01-02", v)
-		if err != nil {
-			response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid end_date", nil, nil)
-			return
-		}
-		endDate = &parsed
-	}
-
-	res, err := h.uc.TrialBalance(c.Request.Context(), startDate, endDate)
-	if err != nil {
-		response.ErrorResponse(c, http.StatusInternalServerError, "TRIAL_BALANCE_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

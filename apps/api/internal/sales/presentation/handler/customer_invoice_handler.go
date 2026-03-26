@@ -273,7 +273,7 @@ func (h *CustomerInvoiceHandler) Approve(c *gin.Context) {
 		}
 	}
 
-	req := dto.UpdateCustomerInvoiceStatusRequest{Status: "approved"}
+	req := dto.UpdateCustomerInvoiceStatusRequest{Status: "APPROVED"}
 	invoice, err := h.invoiceUC.UpdateStatus(c.Request.Context(), id, &req, userID)
 	if err != nil {
 		if err == usecase.ErrCustomerInvoiceNotFound {
