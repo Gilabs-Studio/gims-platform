@@ -549,14 +549,14 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 
 func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
 	// DP Invoice recognition:
-	// Debit: Purchase Advances (11900) - asset representing advance paid to supplier
-	// Credit: AP (21000) - liability to pay the supplier
+	// Debit: Purchase Advances (from settings) - asset representing advance paid to supplier
+	// Credit: AP (from settings) - liability to pay the supplier
 
-	advAcct, err := uc.coaUC.GetByCode(ctx, "11900")
+	advAcct, err := uc.coaUC.GetByCode(ctx, "11900") // Purchase Advances
 	if err != nil {
 		return err
 	}
-	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
+	apAcct, err := uc.coaUC.GetByCode(ctx, "21000") // Accounts Payable
 	if err != nil {
 		return err
 	}

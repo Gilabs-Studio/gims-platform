@@ -103,19 +103,53 @@ func initInfrastructure() {
 	}
 	// Defer redis.Close() also needs to be in main
 
-	// Run migrations
+	// Run migrations (optionally only once)
+	migrateOnce := os.Getenv("MIGRATE_ONCE") == "true"
+	migrateFlagFile := os.Getenv("MIGRATE_FLAG_FILE")
+	if migrateFlagFile == "" {
+		migrateFlagFile = "/app/.migrated"
+	}
+
 	if config.AppConfig.Startup.RunMigrations {
-		if err := database.AutoMigrate(); err != nil {
-			log.Fatal("Failed to run migrations:", err)
+		if migrateOnce {
+			if _, err := os.Stat(migrateFlagFile); err == nil {
+				log.Println("Skipping migrations (already migrated)")
+			} else {
+				if err := database.AutoMigrate(); err != nil {
+					log.Fatal("Failed to run migrations:", err)
+				}
+				_ = os.WriteFile(migrateFlagFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+			}
+		} else {
+			if err := database.AutoMigrate(); err != nil {
+				log.Fatal("Failed to run migrations:", err)
+			}
 		}
 	} else {
 		log.Println("Skipping migrations (RUN_MIGRATIONS=false)")
 	}
 
-	// Seed data
+	// Seed data (optionally only once)
+	seedOnce := os.Getenv("SEED_ONCE") == "true"
+	seedFlagFile := os.Getenv("SEED_FLAG_FILE")
+	if seedFlagFile == "" {
+		seedFlagFile = "/app/.seeded"
+	}
+
 	if config.AppConfig.Startup.RunSeeders {
-		if err := seeders.SeedAll(); err != nil {
-			log.Fatal("Failed to seed data:", err)
+		if seedOnce {
+			if _, err := os.Stat(seedFlagFile); err == nil {
+				log.Println("Skipping seeders (already seeded)")
+			} else {
+				if err := seeders.SeedAll(); err != nil {
+					log.Fatal("Failed to seed data:", err)
+				}
+				_ = os.WriteFile(seedFlagFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+			}
+		} else {
+			if err := seeders.SeedAll(); err != nil {
+				log.Fatal("Failed to seed data:", err)
+			}
 		}
 	} else {
 		log.Println("Skipping seeders (RUN_SEEDERS=false)")
@@ -264,35 +298,8 @@ func main() {
 		})
 	})
 
-	// Serve static files from uploads directory with CORS support
-	uploadsGroup := r.Group("/uploads")
-	{
-		uploadsGroup.Use(func(c *gin.Context) {
-			origin := c.Request.Header.Get("Origin")
-			// Allow common development origins
-			allowedOrigins := []string{
-				"http://localhost:3000",
-				"http://127.0.0.1:3000",
-				"http://localhost:3001",
-				"http://127.0.0.1:3001",
-			}
-			for _, allowed := range allowedOrigins {
-				if origin == allowed {
-					c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-					break
-				}
-			}
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-			if c.Request.Method == "OPTIONS" {
-				c.AbortWithStatus(http.StatusNoContent)
-				return
-			}
-			c.Next()
-		})
-		uploadsGroup.Static("", config.AppConfig.Storage.UploadDir)
-	}
+	// Serve static files from uploads directory
+	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
 	// API v1 routes
 	var autoAbsentWorker *hrdWorker.AutoAbsentWorker

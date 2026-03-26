@@ -10,11 +10,56 @@ import (
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
+	"gorm.io/gorm"
 )
 
 // SeedInventory seeds sample inventory batches
 func SeedInventory() error {
 	db := database.DB
+
+	if isMinimalSeedMode() {
+		log.Println("Seeding minimal inventory batch for SEED_MINIMAL_DATA")
+		var warehouse warehouseModels.Warehouse
+		if err := db.First(&warehouse).Error; err != nil {
+			return err
+		}
+		var product productModels.Product
+		if err := db.First(&product).Error; err != nil {
+			return err
+		}
+
+		batch := inventoryModels.InventoryBatch{
+			BatchNumber:     "BATCH-MIN-001",
+			ProductID:       product.ID,
+			WarehouseID:     warehouse.ID,
+			InitialQuantity: 100,
+			CurrentQuantity: 100,
+			ReservedQuantity: 0,
+		}
+
+		var existing inventoryModels.InventoryBatch
+		if err := db.Where("batch_number = ?", batch.BatchNumber).First(&existing).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				if err := db.Create(&batch).Error; err != nil {
+					return err
+				}
+				return nil
+			}
+			return err
+		}
+
+		if err := db.Model(&existing).Updates(map[string]interface{}{
+			"product_id":        batch.ProductID,
+			"warehouse_id":      batch.WarehouseID,
+			"initial_quantity":  batch.InitialQuantity,
+			"current_quantity":  batch.CurrentQuantity,
+			"reserved_quantity": batch.ReservedQuantity,
+			"updated_at":        time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	}
 
 	log.Println("Seeding inventory batches...")
 

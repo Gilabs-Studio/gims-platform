@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { BarChart3, BookOpenText, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,20 +35,28 @@ function toApiDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+function parseApiDate(value: string | null, fallback: Date): Date {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date;
+}
+
 export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
   const canExport = useUserPermission("general_ledger_report.export");
+  const searchParams = useSearchParams();
 
   const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
-    from: new Date(now.getFullYear(), 0, 1),
-    to: now,
+    from: initialStart,
+    to: initialEnd,
   });
-  const [companyID, setCompanyID] = useState<string>("");
+  const [companyID, setCompanyID] = useState<string>(initialCompany);
   const [accountTypeFilter, setAccountTypeFilter] = useState<string>("ALL");
   const [accountSearch, setAccountSearch] = useState<string>("");
-  const [selectedAccountID, setSelectedAccountID] = useState<string | null>(null);
+  const [selectedAccountID, setSelectedAccountID] = useState<string | null>(initialAccountID);
   const [selectedJournalID, setSelectedJournalID] = useState<string | null>(null);
   const [isJournalDetailOpen, setIsJournalDetailOpen] = useState(false);
   const [selectedSourceRow, setSelectedSourceRow] = useState<UnifiedJournalRow | null>(null);

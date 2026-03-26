@@ -39,6 +39,7 @@ type PurchasePaymentUsecase interface {
 	Confirm(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error)
 	ExportCSV(ctx context.Context, params repositories.PurchasePaymentListParams) ([]byte, error)
+	TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error
 }
 
 type purchasePaymentUsecase struct {
@@ -579,6 +580,10 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 	})
 
 	return nil
+}
+
+func (uc *purchasePaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error {
+	return uc.triggerJournalEntry(ctx, pay)
 }
 
 func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error) {

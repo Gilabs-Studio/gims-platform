@@ -157,10 +157,10 @@ func SeedPurchaseRequisition() error {
 
 		pr := purchaseModels.PurchaseRequisition{
 			Code:           makeCode(i + 1),
-			SupplierID:     &supplier.ID,
-			PaymentTermsID: &pt.ID,
-			BusinessUnitID: &bu.ID,
-			EmployeeID:     &emp.ID,
+			SupplierID:     nilIfEmpty(supplier.ID),
+			PaymentTermsID: nilIfEmpty(pt.ID),
+			BusinessUnitID: nilIfEmpty(bu.ID),
+			EmployeeID:     nilIfEmpty(emp.ID),
 			RequestDate:    requestDate,
 			Notes:          def.notes,
 			Status:         def.status,

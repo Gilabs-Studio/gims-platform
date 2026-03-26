@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
@@ -36,9 +37,13 @@ func NewJournalEntryRepository(db *gorm.DB) JournalEntryRepository {
 	return &journalEntryRepository{db: db}
 }
 
+func (r *journalEntryRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 func (r *journalEntryRepository) FindByID(ctx context.Context, id string, withLines bool) (*financeModels.JournalEntry, error) {
 	var item financeModels.JournalEntry
-	q := r.db.WithContext(ctx)
+	q := r.getDB(ctx)
 	if withLines {
 		q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
 	}
@@ -59,7 +64,7 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 	var items []financeModels.JournalEntry
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).Preload("Lines")
+	q := r.getDB(ctx).Model(&financeModels.JournalEntry{}).Preload("Lines")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())

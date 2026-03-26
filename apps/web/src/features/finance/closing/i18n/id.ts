@@ -31,6 +31,14 @@ export const financeClosingId = {
     submit: "Simpan",
     cancel: "Batal",
   },
+  snapshot: {
+    title: "Snapshot",
+    netProfit: "Laba Bersih",
+    retainedEarnings: "Laba Ditahan",
+  },
+  validation: {
+    title: "Validasi",
+  },
   toast: {
     created: "Tutup buku dibuat",
     approved: "Tutup buku disetujui",

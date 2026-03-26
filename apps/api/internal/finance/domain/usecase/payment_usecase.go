@@ -16,6 +16,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
@@ -461,7 +462,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		je := &financeModels.JournalEntry{
 			EntryDate:     p.PaymentDate,
 			Description:   strings.TrimSpace(p.Description),
-			ReferenceType: func() *string { v := "payment"; return &v }(),
+			ReferenceType: func() *string { v := reference.RefTypePayment; return &v }(),
 			ReferenceID:   &p.ID,
 			Status:        financeModels.JournalStatusPosted,
 			PostedAt:      &now,

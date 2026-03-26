@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -11,8 +10,11 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
 )
@@ -35,15 +37,33 @@ type NonTradePayableUsecase interface {
 }
 
 type nonTradePayableUsecase struct {
-	db        *gorm.DB
-	coaRepo   repositories.ChartOfAccountRepository
-	repo      repositories.NonTradePayableRepository
-	journalUC JournalEntryUsecase
-	mapper    *mapper.NonTradePayableMapper
+	db               *gorm.DB
+	coaRepo          repositories.ChartOfAccountRepository
+	repo             repositories.NonTradePayableRepository
+	journalUC        JournalEntryUsecase
+	mapper           *mapper.NonTradePayableMapper
+	settingsService  financesettings.SettingsService
+	accountingEngine accounting.AccountingEngine
 }
 
-func NewNonTradePayableUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.NonTradePayableRepository, journalUC JournalEntryUsecase, mapper *mapper.NonTradePayableMapper) NonTradePayableUsecase {
-	return &nonTradePayableUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
+func NewNonTradePayableUsecase(
+	db *gorm.DB,
+	coaRepo repositories.ChartOfAccountRepository,
+	repo repositories.NonTradePayableRepository,
+	journalUC JournalEntryUsecase,
+	mapper *mapper.NonTradePayableMapper,
+	settingsService financesettings.SettingsService,
+	accountingEngine accounting.AccountingEngine,
+) NonTradePayableUsecase {
+	return &nonTradePayableUsecase{
+		db:               db,
+		coaRepo:          coaRepo,
+		repo:             repo,
+		journalUC:        journalUC,
+		mapper:           mapper,
+		settingsService:  settingsService,
+		accountingEngine: accountingEngine,
+	}
 }
 
 func parseOptDate(value *string) (*time.Time, error) {
@@ -337,53 +357,19 @@ func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.
 		return nil, errors.New("only submitted non-trade payable can be approved")
 	}
 
-	// NTP Approval creates journal:
-	// Debit: Expense Account (item.ChartOfAccountID)
-	// Credit: Non-Trade Payable Account (we usually have a specific CoA for NTP,
-	// but the logic doc says "Debit Expense CoA, Credit NTP CoA".
-	// For simplicity, we use what's in ChartOfAccountID as the "target" (debit side)
-	// and we need a default NTP CoA for the credit side.
-	// Fixed: Logic doc implies ChartOfAccountID is the one related to the expense.
-
-	// I'll look for a common NTP CoA or ask...
-	// Wait, the logic doc says: "Debit Expense CoA, Credit NTP CoA"
-	// I'll check if there is a default NTP CoA in the system or if I should pass it.
-	// Actually, usually in NTP, the user selects the "target" account (Expense/Asset/etc)
-	// and the Credit side is fixed to "Hutang Non-Dagang" (Liability).
-
-	// Let's search for "Hutang Non-Dagang" or similar CoA in the DB or use a placeholder if not found.
-	// Typically, it should be in the settings. For now, I'll assume it's provided or I use a hardcoded fallback if I must,
-	// but better to have it in the request or logic.
-
-	// Revisiting logic doc:
-	// "Debit Expense CoA, Credit NTP CoA"
-
-	// Look up NTP liability account by well-known COA code (stable, unlike name-based ILIKE).
-	ntpCoA, err := uc.coaRepo.FindByCode(ctx, COACodeNonTradePayable)
-	if err != nil {
-		return nil, fmt.Errorf("non-trade payable account (code %s) not found in Chart of Accounts: %w", COACodeNonTradePayable, err)
+	txData := accounting.TransactionData{
+		ReferenceType:       reference.RefTypeNonTradePayable,
+		ReferenceID:         item.ID,
+		EntryDate:           item.TransactionDate.Format("2006-01-02"),
+		Description:         "NTP Approval: " + item.Code + " - " + item.Description,
+		TotalAmount:         item.Amount,
+		TransactionCOAID:    item.ChartOfAccountID,
+		MemoArgs:            []interface{}{item.Description},
 	}
 
-	refType := "ntp"
-	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:     item.TransactionDate.Format("2006-01-02"),
-		Description:   "NTP Approval: " + item.Code + " - " + item.Description,
-		ReferenceType: &refType,
-		ReferenceID:   &item.ID,
-		Lines: []dto.JournalLineRequest{
-			{
-				ChartOfAccountID: item.ChartOfAccountID,
-				Debit:            item.Amount,
-				Credit:           0,
-				Memo:             item.Description,
-			},
-			{
-				ChartOfAccountID: ntpCoA.ID,
-				Debit:            0,
-				Credit:           item.Amount,
-				Memo:             "Payable record",
-			},
-		},
+	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileNonTradePayableApproval, txData)
+	if err != nil {
+		return nil, err
 	}
 
 	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
@@ -463,32 +449,19 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 		return nil, errors.New("only approved non-trade payable can be paid")
 	}
 
-	// Look up NTP liability account by well-known COA code (stable, unlike name-based ILIKE).
-	ntpCoA, err := uc.coaRepo.FindByCode(ctx, COACodeNonTradePayable)
-	if err != nil {
-		return nil, fmt.Errorf("non-trade payable account (code %s) not found in Chart of Accounts: %w", COACodeNonTradePayable, err)
+	txData := accounting.TransactionData{
+		ReferenceType:       reference.RefTypeNTPPayment,
+		ReferenceID:         item.ID,
+		EntryDate:           req.PaymentDate,
+		Description:         "NTP Payment: " + item.Code + " - Ref: " + req.BankReference,
+		TotalAmount:         req.Amount,
+		PaymentAccountCOAID: req.ChartOfAccountID,
+		MemoArgs:            []interface{}{req.BankReference},
 	}
 
-	refType := "ntp_payment"
-	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:     req.PaymentDate,
-		Description:   "NTP Payment: " + item.Code + " - Ref: " + req.BankReference,
-		ReferenceType: &refType,
-		ReferenceID:   &item.ID,
-		Lines: []dto.JournalLineRequest{
-			{
-				ChartOfAccountID: ntpCoA.ID,
-				Debit:            req.Amount,
-				Credit:           0,
-				Memo:             "Settling payable",
-			},
-			{
-				ChartOfAccountID: req.ChartOfAccountID, // Bank/Cash Account
-				Debit:            0,
-				Credit:           req.Amount,
-				Memo:             req.BankReference,
-			},
-		},
+	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileNonTradePayablePayment, txData)
+	if err != nil {
+		return nil, err
 	}
 
 	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)

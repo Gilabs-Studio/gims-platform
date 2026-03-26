@@ -41,6 +41,7 @@ type StockOpnameUsecase interface {
 	Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error)
 	Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error)
 	Post(ctx context.Context, id string, postedBy *string) (*dto.StockOpnameResponse, error)
+	TriggerJournalForStockOpname(ctx context.Context, opname *models.StockOpname) error
 }
 
 type stockOpnameUsecase struct {
@@ -324,6 +325,18 @@ func (u *stockOpnameUsecase) updateStatus(ctx context.Context, id string, status
 		return nil, err
 	}
 	return u.GetByID(ctx, id)
+}
+
+func (u *stockOpnameUsecase) TriggerJournalForStockOpname(ctx context.Context, opname *models.StockOpname) error {
+	if opname == nil {
+		return nil
+	}
+
+	items, err := u.repo.ListItems(ctx, opname.ID)
+	if err != nil {
+		return err
+	}
+	return u.triggerStockOpnameJournal(ctx, opname, items)
 }
 
 func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opname *models.StockOpname, items []models.StockOpnameItem) error {

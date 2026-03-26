@@ -45,6 +45,7 @@ type CustomerInvoiceUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceRequest) (*dto.CustomerInvoiceResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error)
+	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
@@ -605,7 +606,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		return nil, ErrCustomerInvoiceNotFound
 	}
 
-	newStatus := models.CustomerInvoiceStatus(req.Status)
+	newStatus := models.CustomerInvoiceStatus(strings.ToUpper(strings.TrimSpace(req.Status)))
 	previousStatus := invoice.Status
 
 	// Validate status transition
@@ -771,6 +772,10 @@ func withActorContext(ctx context.Context, preferredUserID, fallbackUserID *stri
 	}
 
 	return ctx
+}
+
+func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error {
+	return uc.triggerSalesInvoiceJournal(ctx, invoice)
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {

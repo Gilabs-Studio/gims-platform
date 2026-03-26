@@ -126,6 +126,7 @@ func AutoMigrate() error {
 		&core.BankAccount{},
 		// Finance entities (Sprint 10)
 		&finance.ChartOfAccount{},
+		&finance.FinanceSetting{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
 		&finance.JournalReversal{},
@@ -146,6 +147,9 @@ func AutoMigrate() error {
 		&finance.AssetBudget{},
 		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
+		&finance.AccountingPeriod{},
+		&finance.FinancialClosingSnapshot{},
+		&finance.FinancialClosingLog{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
@@ -310,11 +314,47 @@ func AutoMigrate() error {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
+	// Create triggers to enforce closed accounting periods on journal entries
+	if err := createJournalEntryPeriodLockTrigger(); err != nil {
+		log.Printf("Warning: Failed to create journal entry period lock trigger (this is non-fatal): %v", err)
+	}
+
 	return nil
 }
 
-// migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
-// employee_areas with is_supervisor=true. This is idempotent — if the source
+func createJournalEntryPeriodLockTrigger() error {
+	// The trigger will prevent inserts/updates of journal entries if their entry_date falls within a closed accounting period.
+	// It is intentionally permissive for historical entries when the accounting_periods table is empty.
+	if err := DB.Exec(`
+		CREATE OR REPLACE FUNCTION enforce_journal_entry_period_not_closed()
+		RETURNS trigger AS $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1 FROM accounting_periods
+				WHERE status = 'closed'
+				  AND NEW.entry_date BETWEEN start_date AND end_date
+			) THEN
+				RAISE EXCEPTION 'Period is closed (%), cannot modify journal entries in this period', NEW.entry_date;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DROP TRIGGER IF EXISTS trg_journal_entry_period_lock ON journal_entries;
+		CREATE TRIGGER trg_journal_entry_period_lock
+		BEFORE INSERT OR UPDATE ON journal_entries
+		FOR EACH ROW EXECUTE FUNCTION enforce_journal_entry_period_not_closed();
+	`).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+
 // tables no longer exist the function silently returns nil.
 func migrateAreaSupervisorsToEmployeeAreas() error {
 	// Check if the legacy tables still exist
