@@ -418,14 +418,3 @@ func (h *SalesVisitHandler) GetCalendarSummary(c *gin.Context) {
 
 	response.SuccessResponse(c, summary, nil)
 }
-
-// ListInterestQuestions handles list interest questions request
-func (h *SalesVisitHandler) ListInterestQuestions(c *gin.Context) {
-	questions, err := h.visitUC.ListInterestQuestions(c.Request.Context())
-	if err != nil {
-		errors.InternalServerErrorResponse(c, err.Error())
-		return
-	}
-
-	response.SuccessResponse(c, questions, nil)
-}

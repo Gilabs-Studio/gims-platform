@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -131,6 +133,10 @@ func (u *attendanceRecordUsecase) List(ctx context.Context, req *dto.ListAttenda
 }
 
 func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.AttendanceRecordResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.AttendanceRecord{}, id, security.HRDScopeQueryOptions()) {
+		return nil, ErrAttendanceNotFound
+	}
+
 	ar, err := u.attendanceRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

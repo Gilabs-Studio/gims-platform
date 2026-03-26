@@ -9,6 +9,7 @@ type CreateSalesQuotationRequest struct {
 	BusinessUnitID  string   `json:"business_unit_id" binding:"required,uuid"`
 	BusinessTypeID  *string  `json:"business_type_id"`
 	CustomerID      *string  `json:"customer_id"`
+	CustomerContactID *string `json:"customer_contact_id"`
 	CustomerName    string   `json:"customer_name"`
 	CustomerContact string   `json:"customer_contact"`
 	CustomerPhone   string   `json:"customer_phone"`
@@ -38,6 +39,7 @@ type UpdateSalesQuotationRequest struct {
 	BusinessUnitID  *string  `json:"business_unit_id"`
 	BusinessTypeID  *string  `json:"business_type_id"`
 	CustomerID      *string  `json:"customer_id"`
+	CustomerContactID *string `json:"customer_contact_id"`
 	CustomerName    *string  `json:"customer_name"`
 	CustomerContact *string  `json:"customer_contact"`
 	CustomerPhone   *string  `json:"customer_phone"`
@@ -92,6 +94,8 @@ type SalesQuotationResponse struct {
 	BusinessType        *BusinessTypeResponse         `json:"business_type,omitempty"`
 	CustomerID          *string                       `json:"customer_id"`
 	Customer            *CustomerResponse             `json:"customer,omitempty"`
+	CustomerContactID   *string                       `json:"customer_contact_id"`
+	CustomerContactRef  *CustomerContactResponse      `json:"customer_contact_ref,omitempty"`
 	CustomerName        string                        `json:"customer_name"`
 	CustomerContact     string                        `json:"customer_contact"`
 	CustomerPhone       string                        `json:"customer_phone"`
@@ -183,4 +187,12 @@ type CustomerResponse struct {
 	Address        string  `json:"address"`
 	Email          string  `json:"email"`
 	ContactPerson  string  `json:"contact_person"`
+}
+
+// CustomerContactResponse represents CRM contact in sales quotation response
+type CustomerContactResponse struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
+	Email string `json:"email"`
 }

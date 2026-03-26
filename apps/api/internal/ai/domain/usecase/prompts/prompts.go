@@ -44,6 +44,7 @@ RULES:
 5. For stock/inventory queries with keywords like "kurang", "habis", "rendah", "minimum", "low", "out of stock", "stok", "stock": use QUERY_STOCK or LIST_INVENTORY, NOT LIST_PRODUCTS. Set "low_stock": true.
 6. Do NOT put filter words (kurang, habis, rendah, semua, apa saja) into the "search" parameter. The "search" parameter is ONLY for specific product/entity names.
 7. If the user mentions "product" + "stock"/"stok" together (e.g., "product yang stocknya", "stok produk", "product stock kurang"), classify as QUERY_STOCK, NOT LIST_PRODUCTS. LIST_PRODUCTS is ONLY for browsing the product catalog.
+8. For requests like "buat target sales", "create sales target", "target area bali", prioritize CREATE_SALES_TARGET (if available) over GENERAL_CHAT.
 
 RESPONSE FORMAT:
 {"intent_code":"string","confidence":0.0,"parameters":{},"module":"string","action_type":"string","is_query":false}`

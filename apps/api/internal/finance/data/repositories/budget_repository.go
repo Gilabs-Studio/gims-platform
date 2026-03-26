@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -60,6 +61,7 @@ func (r *budgetRepository) List(ctx context.Context, params BudgetListParams) ([
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.Budget{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("budgets.name ILIKE ? OR budgets.description ILIKE ?", like, like)

@@ -90,7 +90,7 @@ export function SupplierDetailPage({ supplierId }: SupplierDetailPageProps) {
 
   const { data: purchaseOrdersData, isLoading: isOrdersLoading } = usePurchaseOrders({
     supplier_id: supplierId,
-    per_page: 100,
+    per_page: 20,
     sort_by: "order_date",
     sort_dir: "desc",
   });

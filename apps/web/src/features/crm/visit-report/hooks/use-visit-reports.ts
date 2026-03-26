@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { visitReportService } from "../services/visit-report-service";
 import type {
@@ -158,6 +159,19 @@ export function useUploadVisitPhotos() {
       qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
+}
+
+export function useUploadVisitImage() {
+  return useMutation({
+    mutationFn: (file: File) => visitReportService.uploadImage(file),
+  });
+}
+
+export function useVisitReportPrintUrl(id: string) {
+  return useMemo(() => {
+    if (!id) return "";
+    return visitReportService.getPrintUrl(id);
+  }, [id]);
 }
 
 /** Fetches per-employee visit report metrics for the ALL/DIVISION/AREA team views. */

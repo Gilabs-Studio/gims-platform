@@ -84,10 +84,7 @@ func MapVisitReportToResponse(report *models.VisitReport) *dto.VisitReportRespon
 
 	// Map Customer
 	if report.Customer != nil {
-		customerPhone := ""
-		if len(report.Customer.PhoneNumbers) > 0 {
-			customerPhone = report.Customer.PhoneNumbers[0].PhoneNumber
-		}
+		customerPhone := report.ContactPhone
 		resp.Customer = &dto.VisitCustomerBrief{
 			ID:      report.Customer.ID,
 			Name:    report.Customer.Name,

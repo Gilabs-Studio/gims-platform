@@ -14,9 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 
-import { useProfitAndLoss } from "../hooks/use-finance-reports";
-import { financeReportsService } from "../services/finance-reports-service";
-import type { PLReportRow } from "../types";
+import { useProfitAndLoss } from "../profit-loss/hooks/use-profit-loss";
+import { profitLossService } from "../profit-loss/services/profit-loss-service";
+import type { ReportRow as PLReportRow } from "../profit-loss/types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
 
@@ -84,7 +84,7 @@ export function ProfitLossView() {
 
   const handleExport = async () => {
     try {
-      const blob = await financeReportsService.exportProfitAndLoss(dateRange);
+      const blob = await profitLossService.exportProfitAndLoss(dateRange);
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;

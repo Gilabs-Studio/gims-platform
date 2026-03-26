@@ -264,7 +264,6 @@ export interface VisitReportFormDataResponse {
   deals: VisitFormDataDeal[];
   leads: VisitFormDataLead[];
   products: VisitFormDataProduct[];
-  interest_questions: VisitInterestQuestion[];
   outcomes: VisitFormDataOption[];
   statuses: VisitFormDataOption[];
 }

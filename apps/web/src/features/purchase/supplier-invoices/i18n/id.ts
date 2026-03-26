@@ -1,6 +1,7 @@
 export const supplierInvoiceId = {
   common: {
     view: "Lihat",
+    basicInfo: "Informasi Dasar",
   },
   title: "Faktur Supplier",
   description: "Buat faktur dari goods receipt yang sudah ditutup.",
@@ -24,11 +25,14 @@ export const supplierInvoiceId = {
     general: "Umum",
     basic: "Informasi Dasar",
     items: "Item",
+    auditTrail: "Jejak Audit",
   },
   sections: {
     invoiceInfo: "Informasi Faktur",
     supplier: "Supplier",
     financial: "Ringkasan Keuangan",
+    detectedDownPayments: "Down Payment Terdeteksi",
+    invoiceSummary: "Ringkasan Faktur",
   },
   auditTrail: {
     title: "Jejak Audit",
@@ -71,6 +75,8 @@ export const supplierInvoiceId = {
     taxAmount: "Nilai Pajak",
     total: "Total",
     summaryTitle: "Ringkasan",
+    downPaymentApplied: "Down Payment Digunakan",
+    amountDue: "Sisa Tagihan",
   },
   items: {
     title: "Item",

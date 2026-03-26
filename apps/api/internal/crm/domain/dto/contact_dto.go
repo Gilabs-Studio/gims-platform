@@ -9,7 +9,6 @@ type CreateContactRequest struct {
 	Name          string  `json:"name" binding:"required,min=2,max=200"`
 	Phone         string  `json:"phone" binding:"omitempty,max=30"`
 	Email         string  `json:"email" binding:"omitempty,email,max=100"`
-	Position      string  `json:"position" binding:"omitempty,max=100"`
 	Notes         string  `json:"notes" binding:"max=1000"`
 	IsActive      *bool   `json:"is_active"`
 }
@@ -21,7 +20,6 @@ type UpdateContactRequest struct {
 	Name          string  `json:"name" binding:"omitempty,min=2,max=200"`
 	Phone         string  `json:"phone" binding:"omitempty,max=30"`
 	Email         string  `json:"email" binding:"omitempty,email,max=100"`
-	Position      string  `json:"position" binding:"omitempty,max=100"`
 	Notes         string  `json:"notes" binding:"max=1000"`
 	IsActive      *bool   `json:"is_active"`
 }
@@ -36,7 +34,6 @@ type ContactResponse struct {
 	Name          string               `json:"name"`
 	Phone         string               `json:"phone"`
 	Email         string               `json:"email"`
-	Position      string               `json:"position"`
 	Notes         string               `json:"notes"`
 	IsActive      bool                 `json:"is_active"`
 	CreatedBy     *string              `json:"created_by"`

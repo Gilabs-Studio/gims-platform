@@ -17,6 +17,10 @@ export const supplierInvoiceDPId = {
     title: "Detail Down Payment",
     failed: "Gagal memuat data DP faktur",
   },
+  tabs: {
+    general: "Invoice",
+    auditTrail: "Jejak Audit",
+  },
   auditTrail: {
     title: "Jejak Audit",
     empty: "Belum ada data jejak audit",
@@ -35,6 +39,8 @@ export const supplierInvoiceDPId = {
   sections: {
     invoiceInfo: "Info Faktur",
     poDetail: "Detail Purchase Order",
+    financial: "Keuangan",
+    invoiceSummary: "Ringkasan Faktur",
   },
   fields: {
     purchaseOrder: "Purchase Order",
@@ -51,6 +57,8 @@ export const supplierInvoiceDPId = {
     price: "Harga",
     subtotal: "Subtotal",
     items: "Item",
+    downPayment: "Down Payment",
+    amountDue: "Sisa Tagihan",
   },
   columns: {
     code: "Kode",

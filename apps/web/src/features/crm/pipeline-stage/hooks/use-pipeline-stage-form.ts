@@ -9,13 +9,10 @@ import type { PipelineStage } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
-  order: z.number().min(0),
   color: z.string().max(20).optional(),
   probability: z.number().min(0).max(100),
   is_won: z.boolean(),
   is_lost: z.boolean(),
-  is_active: z.boolean(),
   description: z.string().max(500).optional(),
 });
 
@@ -36,7 +33,7 @@ export function usePipelineStageForm({ open, onOpenChange, editingItem }: UsePip
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", order: 0, color: "#3B82F6", probability: 0, is_won: false, is_lost: false, is_active: true, description: "" },
+    defaultValues: { name: "", color: "#3B82F6", probability: 0, is_won: false, is_lost: false, description: "" },
   });
 
   useEffect(() => {
@@ -44,17 +41,14 @@ export function usePipelineStageForm({ open, onOpenChange, editingItem }: UsePip
       if (editingItem) {
         form.reset({
           name: editingItem.name,
-          code: editingItem.code,
-          order: editingItem.order,
           color: editingItem.color ?? "#3B82F6",
           probability: editingItem.probability,
           is_won: editingItem.is_won,
           is_lost: editingItem.is_lost,
-          is_active: editingItem.is_active,
           description: editingItem.description ?? "",
         });
       } else {
-        form.reset({ name: "", code: "", order: 0, color: "#3B82F6", probability: 0, is_won: false, is_lost: false, is_active: true, description: "" });
+        form.reset({ name: "", color: "#3B82F6", probability: 0, is_won: false, is_lost: false, description: "" });
       }
     }
   }, [editingItem, form, open]);

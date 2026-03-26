@@ -52,15 +52,15 @@ func (h *SalesReturnHandler) List(c *gin.Context) {
 	}
 
 	params := repositories.SalesReturnListParams{
-		Search:    c.Query("search"),
-		Status:    c.Query("status"),
-		Action:    c.Query("action"),
-		InvoiceID: c.Query("invoice_id"),
+		Search:     c.Query("search"),
+		Status:     c.Query("status"),
+		Action:     c.Query("action"),
+		InvoiceID:  c.Query("invoice_id"),
 		DeliveryID: c.Query("delivery_id"),
-		SortBy:    c.DefaultQuery("sort_by", "created_at"),
-		SortDir:   c.DefaultQuery("sort_dir", "desc"),
-		Limit:     perPage,
-		Offset:    (page - 1) * perPage,
+		SortBy:     c.DefaultQuery("sort_by", "created_at"),
+		SortDir:    c.DefaultQuery("sort_dir", "desc"),
+		Limit:      perPage,
+		Offset:     (page - 1) * perPage,
 	}
 
 	items, total, err := h.uc.List(c.Request.Context(), params)
@@ -208,4 +208,38 @@ func (h *SalesReturnHandler) Delete(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, map[string]string{"id": id}, nil)
+}
+
+// AuditTrail handles GET /sales/returns/:id/audit-trail.
+func (h *SalesReturnHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": salesReturnIDRequiredMessage}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": invalidIDFormatMessage}, nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	items, total, err := h.uc.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, items, meta)
 }

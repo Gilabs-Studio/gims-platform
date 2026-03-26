@@ -19,6 +19,13 @@ export interface CustomerBrief {
   contact_person?: string;
 }
 
+export interface CustomerContactBrief {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface SalesOrderSummary {
   id: string;
   code: string;
@@ -89,6 +96,8 @@ export interface SalesOrder {
   sales_quotation?: SalesQuotation;
   customer_id?: string;
   customer?: CustomerBrief;
+  customer_contact_id?: string;
+  customer_contact_ref?: CustomerContactBrief;
   payment_terms_id?: string;
   payment_terms?: {
     id: string;
@@ -112,8 +121,6 @@ export interface SalesOrder {
     id: string;
     name: string;
   };
-  delivery_area_id?: string;
-  delivery_area?: Area;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;
@@ -189,16 +196,40 @@ export interface SalesOrderSingleResponse {
   request_id: string;
 }
 
+export interface ListSalesOrderItemsParams {
+  page?: number;
+  per_page?: number;
+  sort_by?: string;
+  sort_dir?: "asc" | "desc";
+}
+
+export interface SalesOrderItemsListResponse {
+  success: boolean;
+  data: SalesOrderItem[];
+  meta?: {
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_next: boolean;
+      has_prev: boolean;
+    };
+  };
+  timestamp: string;
+  request_id: string;
+}
+
 // Form data types for create/update
 export interface CreateSalesOrderData {
   order_date: string;
   sales_quotation_id?: string;
   customer_id?: string;
+  customer_contact_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
-  delivery_area_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;
@@ -221,11 +252,11 @@ export interface CreateSalesOrderItemData {
 export interface UpdateSalesOrderData {
   order_date?: string;
   customer_id?: string;
+  customer_contact_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
-  delivery_area_id?: string;
   tax_rate?: number;
   delivery_cost?: number;
   other_cost?: number;
@@ -246,6 +277,7 @@ export interface UpdateSalesOrderStatusData {
 export interface ConvertQuotationToOrderData {
   quotation_id: string;
   customer_id?: string;
+  customer_contact_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;

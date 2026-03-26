@@ -3,15 +3,11 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { customerService } from "../services/customer-service";
 import type {
-  Customer,
   CreateCustomerData,
   UpdateCustomerData,
-  CreatePhoneNumberData,
-  UpdatePhoneNumberData,
   CreateCustomerBankData,
   UpdateCustomerBankData,
   CustomerListParams,
-  CustomerListResponse,
 } from "../types";
 
 // Query keys factory
@@ -26,11 +22,12 @@ export const customerKeys = {
 };
 
 // === List Hook ===
-export function useCustomers(params?: CustomerListParams) {
+export function useCustomers(params?: CustomerListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: customerKeys.list(params),
     queryFn: () => customerService.list(params),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -99,66 +96,6 @@ export function useDeleteCustomer() {
     mutationFn: (id: string) => customerService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
-    },
-  });
-}
-
-// === Phone Number Hooks ===
-export function useAddCustomerPhone() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      customerId,
-      data,
-    }: {
-      customerId: string;
-      data: CreatePhoneNumberData;
-    }) => customerService.addPhoneNumber(customerId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: customerKeys.detail(variables.customerId),
-      });
-    },
-  });
-}
-
-export function useUpdateCustomerPhone() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      customerId,
-      phoneId,
-      data,
-    }: {
-      customerId: string;
-      phoneId: string;
-      data: UpdatePhoneNumberData;
-    }) => customerService.updatePhoneNumber(customerId, phoneId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: customerKeys.detail(variables.customerId),
-      });
-    },
-  });
-}
-
-export function useDeleteCustomerPhone() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      customerId,
-      phoneId,
-    }: {
-      customerId: string;
-      phoneId: string;
-    }) => customerService.deletePhoneNumber(customerId, phoneId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: customerKeys.detail(variables.customerId),
-      });
     },
   });
 }

@@ -14,7 +14,6 @@ func ToContactResponse(m *models.Contact) dto.ContactResponse {
 		Name:          m.Name,
 		Phone:         m.Phone,
 		Email:         m.Email,
-		Position:      m.Position,
 		Notes:         m.Notes,
 		IsActive:      m.IsActive,
 		CreatedBy:     m.CreatedBy,

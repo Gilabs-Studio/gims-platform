@@ -267,10 +267,10 @@ func (h *SupplierHandler) Approve(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
-// === Nested Phone Number Handlers ===
+// === Nested Contact Handlers ===
 
-// AddPhoneNumber handles POST /suppliers/:id/phone-numbers
-func (h *SupplierHandler) AddPhoneNumber(c *gin.Context) {
+// AddContact handles POST /suppliers/:id/contacts
+func (h *SupplierHandler) AddContact(c *gin.Context) {
 	supplierID := c.Param("id")
 	if supplierID == "" {
 		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
@@ -279,7 +279,7 @@ func (h *SupplierHandler) AddPhoneNumber(c *gin.Context) {
 		return
 	}
 
-	var req dto.CreatePhoneNumberRequest
+	var req dto.CreateContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			errors.HandleValidationError(c, validationErrors)
@@ -289,7 +289,7 @@ func (h *SupplierHandler) AddPhoneNumber(c *gin.Context) {
 		return
 	}
 
-	result, err := h.uc.AddPhoneNumber(c.Request.Context(), supplierID, req)
+	result, err := h.uc.AddContact(c.Request.Context(), supplierID, req)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
@@ -298,17 +298,17 @@ func (h *SupplierHandler) AddPhoneNumber(c *gin.Context) {
 	response.SuccessResponseCreated(c, result, nil)
 }
 
-// UpdatePhoneNumber handles PUT /suppliers/:id/phone-numbers/:phoneId
-func (h *SupplierHandler) UpdatePhoneNumber(c *gin.Context) {
-	phoneID := c.Param("phoneId")
-	if phoneID == "" {
+// UpdateContact handles PUT /suppliers/:id/contacts/:contactId
+func (h *SupplierHandler) UpdateContact(c *gin.Context) {
+	contactID := c.Param("contactId")
+	if contactID == "" {
 		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
-			"message": "Phone ID is required",
+			"message": "Contact ID is required",
 		}, nil)
 		return
 	}
 
-	var req dto.UpdatePhoneNumberRequest
+	var req dto.UpdateContactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			errors.HandleValidationError(c, validationErrors)
@@ -318,7 +318,7 @@ func (h *SupplierHandler) UpdatePhoneNumber(c *gin.Context) {
 		return
 	}
 
-	result, err := h.uc.UpdatePhoneNumber(c.Request.Context(), phoneID, req)
+	result, err := h.uc.UpdateContact(c.Request.Context(), contactID, req)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
@@ -327,22 +327,22 @@ func (h *SupplierHandler) UpdatePhoneNumber(c *gin.Context) {
 	response.SuccessResponse(c, result, nil)
 }
 
-// DeletePhoneNumber handles DELETE /suppliers/:id/phone-numbers/:phoneId
-func (h *SupplierHandler) DeletePhoneNumber(c *gin.Context) {
-	phoneID := c.Param("phoneId")
-	if phoneID == "" {
+// DeleteContact handles DELETE /suppliers/:id/contacts/:contactId
+func (h *SupplierHandler) DeleteContact(c *gin.Context) {
+	contactID := c.Param("contactId")
+	if contactID == "" {
 		errors.ErrorResponse(c, "INVALID_ID", map[string]interface{}{
-			"message": "Phone ID is required",
+			"message": "Contact ID is required",
 		}, nil)
 		return
 	}
 
-	if err := h.uc.DeletePhoneNumber(c.Request.Context(), phoneID); err != nil {
+	if err := h.uc.DeleteContact(c.Request.Context(), contactID); err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
 
-	response.SuccessResponseDeleted(c, "phone_number", phoneID, nil)
+	response.SuccessResponseDeleted(c, "contact", contactID, nil)
 }
 
 // === Nested Bank Account Handlers ===

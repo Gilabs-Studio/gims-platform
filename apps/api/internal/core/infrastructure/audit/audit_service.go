@@ -45,6 +45,13 @@ func (s *databaseAuditService) LogWithChanges(ctx context.Context, action string
 		userAgent = fmt.Sprintf("%v", v)
 	}
 
+	// Permission Code is often "resource.action". 
+	// We can infer it or pass it. Using action as PermissionCode for now.
+	
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+
 	metaJSON, _ := json.Marshal(metadata)
 	
 	var changesStr string

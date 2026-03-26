@@ -10,6 +10,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +81,7 @@ function PurchaseApprovalRow({ href, code, date, party, amount }: PurchaseApprov
 
 export function PendingApprovalsPurchaseWidget() {
   const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
 
   // Permissions — always call hooks unconditionally
   const canViewRequisition = useHasPermission("purchase_requisition.read");
@@ -99,24 +101,54 @@ export function PendingApprovalsPurchaseWidget() {
 
   const [activeTab, setActiveTab] = useState<PurchaseTab>(defaultTab);
 
-  // All hooks called unconditionally (React rules); enabled not supported by these hooks.
-  // Tabs for modules without permission are simply hidden, so 403 results are never rendered.
-  const { data: prData, isLoading: prLoading } = usePurchaseRequisitions({
-    status: "SUBMITTED",
-    per_page: PER_PAGE,
-  });
-  const { data: poData, isLoading: poLoading } = usePurchaseOrders({
-    status: "SUBMITTED",
-    per_page: PER_PAGE,
-  });
-  const { data: grData, isLoading: grLoading } = useGoodsReceipts({
-    status: "SUBMITTED",
-    per_page: PER_PAGE,
-  });
-  const { data: siData, isLoading: siLoading } = useSupplierInvoices({
-    status: "SUBMITTED",
-    per_page: PER_PAGE,
-  });
+  const {
+    data: prData,
+    isLoading: prLoading,
+    isError: prError,
+    refetch: prRefetch,
+  } = usePurchaseRequisitions(
+    {
+      status: "SUBMITTED",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewRequisition },
+  );
+  const {
+    data: poData,
+    isLoading: poLoading,
+    isError: poError,
+    refetch: poRefetch,
+  } = usePurchaseOrders(
+    {
+      status: "SUBMITTED",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewOrder },
+  );
+  const {
+    data: grData,
+    isLoading: grLoading,
+    isError: grError,
+    refetch: grRefetch,
+  } = useGoodsReceipts(
+    {
+      status: "SUBMITTED",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewGoodsReceipt },
+  );
+  const {
+    data: siData,
+    isLoading: siLoading,
+    isError: siError,
+    refetch: siRefetch,
+  } = useSupplierInvoices(
+    {
+      status: "SUBMITTED",
+      per_page: PER_PAGE,
+    },
+    { enabled: canViewSupplierInvoice },
+  );
 
   const requisitions = prData?.data ?? [];
   const orders = poData?.data ?? [];
@@ -210,6 +242,21 @@ export function PendingApprovalsPurchaseWidget() {
           <TabsContent value="requisition" className="mt-0 flex-1">
             {prLoading ? (
               <RowSkeleton />
+            ) : prError ? (
+              <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                <p className="text-sm text-muted-foreground">{t("error")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => {
+                    void prRefetch();
+                  }}
+                >
+                  {tCommon("retry")}
+                </Button>
+              </div>
             ) : requisitions.length === 0 ? (
               <EmptyState label={t("approvals.empty")} />
             ) : (
@@ -232,6 +279,21 @@ export function PendingApprovalsPurchaseWidget() {
           <TabsContent value="order" className="mt-0 flex-1">
             {poLoading ? (
               <RowSkeleton />
+            ) : poError ? (
+              <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                <p className="text-sm text-muted-foreground">{t("error")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => {
+                    void poRefetch();
+                  }}
+                >
+                  {tCommon("retry")}
+                </Button>
+              </div>
             ) : orders.length === 0 ? (
               <EmptyState label={t("approvals.empty")} />
             ) : (
@@ -254,6 +316,21 @@ export function PendingApprovalsPurchaseWidget() {
           <TabsContent value="goods-receipt" className="mt-0 flex-1">
             {grLoading ? (
               <RowSkeleton />
+            ) : grError ? (
+              <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                <p className="text-sm text-muted-foreground">{t("error")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => {
+                    void grRefetch();
+                  }}
+                >
+                  {tCommon("retry")}
+                </Button>
+              </div>
             ) : goodsReceipts.length === 0 ? (
               <EmptyState label={t("approvals.empty")} />
             ) : (
@@ -275,6 +352,21 @@ export function PendingApprovalsPurchaseWidget() {
           <TabsContent value="supplier-invoice" className="mt-0 flex-1">
             {siLoading ? (
               <RowSkeleton />
+            ) : siError ? (
+              <div className="flex h-36 flex-col items-center justify-center gap-2 text-center">
+                <p className="text-sm text-muted-foreground">{t("error")}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                  onClick={() => {
+                    void siRefetch();
+                  }}
+                >
+                  {tCommon("retry")}
+                </Button>
+              </div>
             ) : supplierInvoices.length === 0 ? (
               <EmptyState label={t("approvals.empty")} />
             ) : (

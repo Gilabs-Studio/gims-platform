@@ -11,6 +11,7 @@ func RegisterSalesQuotationRoutes(rg *gin.RouterGroup, h *handler.SalesQuotation
 	g := rg.Group("/sales-quotations")
 	g.GET("", middleware.RequirePermission("sales_quotation.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("sales_quotation.read"), h.GetByID)
+	g.GET("/:id/audit-trail", middleware.RequirePermission("sales_quotation.read"), h.AuditTrail)
 	g.GET("/:id/items", middleware.RequirePermission("sales_quotation.read"), h.ListItems)
 	g.GET("/:id/print", middleware.RequirePermission("sales_quotation.print"), printH.PrintQuotation)
 	g.POST("", middleware.RequirePermission("sales_quotation.create"), h.Create)

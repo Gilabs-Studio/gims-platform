@@ -318,8 +318,6 @@ func SeedCustomers() error {
 		}
 	}
 
-	// Seed phone numbers for each customer
-	seedCustomerPhoneNumbers()
 	seedCustomerBankAccounts(customers)
 
 	log.Println("Customers seeded successfully")
@@ -406,22 +404,3 @@ func seedCustomerBankAccounts(customers []models.Customer) {
 	}
 }
 
-func seedCustomerPhoneNumbers() {
-	phones := []models.CustomerPhoneNumber{
-		{ID: "c0000003-0000-0000-0000-000000000001", CustomerID: Customer1ID, PhoneNumber: "021-7654321", Label: "Kantor", IsPrimary: true},
-		{ID: "c0000003-0000-0000-0000-000000000002", CustomerID: Customer2ID, PhoneNumber: "021-5684093", Label: "Procurement", IsPrimary: true},
-		{ID: "c0000003-0000-0000-0000-000000000003", CustomerID: Customer3ID, PhoneNumber: "022-4261234", Label: "Resepsionis", IsPrimary: true},
-		{ID: "c0000003-0000-0000-0000-000000000004", CustomerID: Customer4ID, PhoneNumber: "031-5035335", Label: "Purchasing", IsPrimary: true},
-		{ID: "c0000003-0000-0000-0000-000000000005", CustomerID: Customer5ID, PhoneNumber: "021-8845678", Label: "Apotek", IsPrimary: true},
-		{ID: "c0000003-0000-0000-0000-000000000006", CustomerID: Customer6ID, PhoneNumber: "021-4246781", Label: "Admin", IsPrimary: true},
-	}
-
-	for _, p := range phones {
-		if err := database.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"phone_number", "updated_at"}),
-		}).Create(&p).Error; err != nil {
-			log.Printf("Warning: Failed to seed customer phone %s: %v", p.PhoneNumber, err)
-		}
-	}
-}

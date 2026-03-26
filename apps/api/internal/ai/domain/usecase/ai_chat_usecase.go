@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/ai/data/models"
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/dto"
 	"github.com/gilabs/gims/api/internal/ai/domain/mapper"
 	"github.com/gilabs/gims/api/internal/ai/domain/usecase/prompts"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 	"github.com/gilabs/gims/api/internal/core/utils"
 )
@@ -217,6 +219,9 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 		// Fall back to general chat on intent resolution failure
 		return u.handleGeneralChat(ctx, session, req.Message, conversationHistory, req.Model, start)
 	}
+
+	// Deterministic fallback for critical business actions when classifier confidence is low.
+	intent = u.applyDeterministicIntentFallback(req.Message, intent)
 
 	// Step 2: Handle general chat directly without agentic flow
 	if intent.IntentCode == "GENERAL_CHAT" || intent.Confidence < 0.6 {
@@ -755,6 +760,24 @@ func (u *aiChatUsecase) buildConfirmationMessage(intent *IntentResult, resolvedE
 		}
 		msg = fmt.Sprintf("Saya akan membuat Sales Quotation:\n%s\n\nApakah Anda setuju?", strings.Join(details, "\n"))
 
+	case "CREATE_SALES_TARGET":
+		year := getIntParam(intent.Parameters, "year")
+		if year == 0 {
+			year = apptime.Now().Year()
+		}
+		area := getStringParam(intent.Parameters, "area_name")
+		if a, ok := resolvedEntities["area"]; ok && a.DisplayName != "" {
+			area = a.DisplayName
+		}
+		if area == "" {
+			area = "Semua Area"
+		}
+		total := getFloatParam(intent.Parameters, "total_target")
+		if total <= 0 {
+			total = inferAnnualSalesTarget(intent.Parameters)
+		}
+		msg = fmt.Sprintf("Saya akan membuat Sales Target tahunan dengan detail:\n- **Area**: %s\n- **Tahun**: %d\n- **Total Target**: %.0f\n\nApakah Anda setuju?", area, year, total)
+
 	case "CREATE_LEAVE_REQUEST":
 		msg = "Saya akan membuat pengajuan cuti dengan detail yang Anda berikan.\n\nApakah Anda setuju?"
 
@@ -823,6 +846,16 @@ func (u *aiChatUsecase) buildKnownParamsSummary(intent *IntentResult) string {
 		if sn := getStringParam(intent.Parameters, "supplier_name"); sn != "" {
 			parts = append(parts, fmt.Sprintf("- **Supplier**: %s", sn))
 		}
+	case "CREATE_SALES_TARGET":
+		if area := getStringParam(intent.Parameters, "area_name"); area != "" {
+			parts = append(parts, fmt.Sprintf("- **Area**: %s", area))
+		}
+		if year := getIntParam(intent.Parameters, "year"); year != 0 {
+			parts = append(parts, fmt.Sprintf("- **Tahun**: %d", year))
+		}
+		if total := getFloatParam(intent.Parameters, "total_target"); total > 0 {
+			parts = append(parts, fmt.Sprintf("- **Total Target**: %.0f", total))
+		}
 	}
 
 	if len(parts) > 0 {
@@ -836,6 +869,7 @@ func (u *aiChatUsecase) getIntentDisplayName(intentCode string) string {
 	names := map[string]string{
 		"CREATE_SALES_QUOTATION":      "Sales Quotation",
 		"CREATE_SALES_ORDER":          "Sales Order",
+		"CREATE_SALES_TARGET":         "Sales Target",
 		"CREATE_PURCHASE_ORDER":       "Purchase Order",
 		"CREATE_HOLIDAY":              "Hari Libur",
 		"CREATE_LEAVE_REQUEST":        "Pengajuan Cuti",
@@ -919,6 +953,12 @@ func (u *aiChatUsecase) formatValidationGuidance(ve ValidationError, formOpts *F
 		}
 		return guidance
 
+	case ve.Field == "area_name" && ve.Code == "REQUIRED":
+		return "**Area** - Mohon sebutkan area target (contoh: Bali, Jakarta, Surabaya)."
+
+	case ve.Field == "area_name" && ve.Code == "ENTITY_NOT_FOUND":
+		return fmt.Sprintf("**Area** - %s", ve.Message)
+
 	case ve.Code == "REQUIRED":
 		return fmt.Sprintf("**%s** - Mohon isi informasi ini.", ve.Field)
 	case ve.Code == "INVALID_FORMAT":
@@ -969,10 +1009,59 @@ func (u *aiChatUsecase) sanitizeIfRandomRequest(message string, params map[strin
 
 // normalizeParamNames standardizes parameter names from LLM variations to expected field names
 func (u *aiChatUsecase) normalizeParamNames(intent *IntentResult) {
+	params := intent.Parameters
+
+	if intent.IntentCode == "CREATE_SALES_TARGET" {
+		// Extract direct amount revisions from raw user text (e.g., "200jt", "200 juta", "Rp 200.000.000").
+		if amount, ok := extractTargetAmountFromText(intent.RawMessage); ok {
+			params["total_target"] = amount
+		}
+
+		// area / wilayah / region / lokasi -> area_name
+		if _, has := params["area_name"]; !has {
+			for _, key := range []string{"area", "wilayah", "region", "lokasi"} {
+				if val, ok := params[key].(string); ok && val != "" {
+					params["area_name"] = strings.TrimSpace(strings.TrimSuffix(strings.ToLower(val), " full"))
+					delete(params, key)
+					break
+				}
+			}
+		}
+
+		// tahun -> year
+		if _, has := params["year"]; !has {
+			if val, ok := params["tahun"]; ok {
+				params["year"] = val
+				delete(params, "tahun")
+			}
+		}
+
+		// target / nominal_target / target_tahunan -> total_target
+		if _, has := params["total_target"]; !has {
+			for _, key := range []string{"target", "nominal_target", "target_tahunan", "annual_target"} {
+				if val, ok := params[key]; ok {
+					params["total_target"] = val
+					delete(params, key)
+					break
+				}
+			}
+		}
+
+		// Capture loose profile hints for executor defaulting logic.
+		if _, has := params["target_profile"]; !has {
+			for _, key := range []string{"profile", "kategori_target", "jenis_target"} {
+				if val, ok := params[key].(string); ok && val != "" {
+					params["target_profile"] = val
+					delete(params, key)
+					break
+				}
+			}
+		}
+	}
+
 	if intent.IntentCode != "CREATE_SALES_QUOTATION" && intent.IntentCode != "CREATE_SALES_ORDER" {
 		return
 	}
-	params := intent.Parameters
 
 	// payment_terms / syarat_pembayaran → payment_terms_name
 	if _, has := params["payment_terms_name"]; !has {
@@ -995,6 +1084,88 @@ func (u *aiChatUsecase) normalizeParamNames(intent *IntentResult) {
 			}
 		}
 	}
+}
+
+func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent *IntentResult) *IntentResult {
+	if intent == nil {
+		return intent
+	}
+
+	lower := strings.ToLower(strings.TrimSpace(message))
+	if !isLikelySalesTargetCreateMessage(lower) {
+		return intent
+	}
+
+	if intent.IntentCode != "GENERAL_CHAT" && intent.Confidence >= 0.6 {
+		return intent
+	}
+
+	params := make(map[string]interface{})
+
+	areaRegex := regexp.MustCompile(`(?i)area\s+([a-zA-Z\s]+)`)
+	if matches := areaRegex.FindStringSubmatch(message); len(matches) > 1 {
+		areaRaw := strings.TrimSpace(matches[1])
+		areaRaw = strings.TrimSpace(strings.ReplaceAll(strings.ToLower(areaRaw), " full", ""))
+		for _, stop := range []string{" untuk", " dengan", " target", " normal", " sales", " farmasi"} {
+			if idx := strings.Index(areaRaw, stop); idx > 0 {
+				areaRaw = strings.TrimSpace(areaRaw[:idx])
+			}
+		}
+		if areaRaw != "" {
+			params["area_name"] = areaRaw
+		}
+	}
+
+	yearRegex := regexp.MustCompile(`\b(20[2-9][0-9]|2100)\b`)
+	if year := yearRegex.FindString(message); year != "" {
+		if parsed, err := strconv.Atoi(year); err == nil {
+			params["year"] = parsed
+		}
+	}
+
+	if strings.Contains(lower, "normal") || strings.Contains(lower, "farmasi") {
+		params["target_profile"] = "normal_sales_farmasi"
+		params["total_target"] = 180000000
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_SALES_TARGET",
+		Confidence: 0.8,
+		Parameters: params,
+		Module:     "sales",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func isLikelySalesTargetCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
+	hasTarget := strings.Contains(lowerMessage, "target") && (strings.Contains(lowerMessage, "sales") || strings.Contains(lowerMessage, "penjualan"))
+	hasSalesTargetPhrase := strings.Contains(lowerMessage, "sales target") || strings.Contains(lowerMessage, "target sales")
+
+	return (hasCreateVerb && hasTarget) || hasSalesTargetPhrase
+}
+
+func extractTargetAmountFromText(message string) (float64, bool) {
+	msg := strings.TrimSpace(message)
+	if msg == "" {
+		return 0, false
+	}
+
+	// Strong pattern for shorthand and rupiah expression
+	amountPattern := regexp.MustCompile(`(?i)(rp\s*)?\d+[\d\.,]*\s*(jt|juta|m)?`)
+	candidate := amountPattern.FindString(msg)
+	if candidate == "" {
+		return 0, false
+	}
+
+	value, ok := parseAmountString(candidate)
+	if !ok || value <= 0 {
+		return 0, false
+	}
+
+	return value, true
 }
 
 // mergeWithPreviousIntentParams carries forward parameters from a previous same-intent

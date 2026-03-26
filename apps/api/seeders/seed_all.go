@@ -165,11 +165,6 @@ func SeedAll() error {
 		return err
 	}
 
-	// Sales Visit Interest Questions seeder (Sprint 7)
-	if err := SeedSalesVisitInterestQuestions(); err != nil {
-		return err
-	}
-
 	// Sales Visit seeder (Sprint 7)
 	if err := SeedSalesVisit(); err != nil {
 		return err

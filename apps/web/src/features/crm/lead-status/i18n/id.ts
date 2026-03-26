@@ -17,11 +17,6 @@ export const leadStatusId = {
     score: "Skor",
     color: "Warna",
     order: "Urutan",
-    flags: "Penanda",
-    isDefault: "Status Default",
-    isDefaultDescription: "Tandai sebagai status default untuk prospek baru",
-    isConverted: "Status Terkonversi",
-    isConvertedDescription: "Tandai sebagai status terkonversi/terkualifikasi",
     isActive: "Aktif",
   },
 };

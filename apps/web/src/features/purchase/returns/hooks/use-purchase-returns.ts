@@ -38,11 +38,24 @@ export function usePurchaseReturnFormData() {
   });
 }
 
-export function useWarehouseInventoryAvailability(warehouseId?: string) {
+export function usePurchaseReturnFormDataLazy(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.formData(),
+    queryFn: () => purchaseReturnsService.getFormData(),
+    enabled: options?.enabled ?? false,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+export function useWarehouseInventoryAvailability(
+  warehouseId?: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: purchaseReturnsKeys.warehouseAvailability(warehouseId),
     queryFn: () => inventoryService.getTreeProducts(warehouseId ?? "", { page: 1, per_page: 500 }),
-    enabled: !!warehouseId,
+    enabled: (options?.enabled ?? true) && !!warehouseId,
     staleTime: 15000,
     refetchInterval: 15000,
   });

@@ -60,7 +60,7 @@ export function PurchasePaymentsList() {
   const canDelete = useUserPermission("purchase_payment.delete");
   const canConfirm = useUserPermission("purchase_payment.confirm");
   const canExport = useUserPermission("purchase_payment.export");
-  const canAuditTrail = useUserPermission("purchase_payment.audit_trail");
+  const canAuditTrail = useUserPermission("purchase_payment.read");
   const canView = useUserPermission("purchase_payment.read");
   const canPrint = useUserPermission("purchase_payment.print");
 

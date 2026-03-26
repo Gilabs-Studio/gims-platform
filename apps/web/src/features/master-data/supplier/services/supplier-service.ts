@@ -3,7 +3,7 @@ import type {
   SupplierType,
   Bank,
   Supplier,
-  SupplierPhoneNumber,
+  SupplierContact,
   SupplierBank,
   CreateSupplierTypeData,
   UpdateSupplierTypeData,
@@ -12,8 +12,8 @@ import type {
   CreateSupplierData,
   UpdateSupplierData,
   ApproveSupplierData,
-  CreatePhoneNumberData,
-  UpdatePhoneNumberData,
+  CreateContactData,
+  UpdateContactData,
   CreateSupplierBankData,
   UpdateSupplierBankData,
   ListParams,
@@ -23,6 +23,23 @@ import type {
 } from "../types";
 
 const BASE_PATH = "/supplier";
+
+function normalizeSupplier(supplier: Supplier): Supplier {
+  return {
+    ...supplier,
+    contacts: supplier.contacts ?? supplier.phone_numbers ?? [],
+  };
+}
+
+function normalizeSupplierList(payload: SupplierListResponse<Supplier>): SupplierListResponse<Supplier> {
+  payload.data = payload.data.map(normalizeSupplier);
+  return payload;
+}
+
+function normalizeSupplierSingle(payload: SupplierSingleResponse<Supplier>): SupplierSingleResponse<Supplier> {
+  payload.data = normalizeSupplier(payload.data);
+  return payload;
+}
 
 // ============================================
 // Supplier Type Service
@@ -134,24 +151,28 @@ export const supplierService = {
       `${BASE_PATH}/suppliers`,
       { params }
     );
-    return response.data;
+    return normalizeSupplierList(response.data);
   },
 
   async getById(id: string): Promise<SupplierSingleResponse<Supplier>> {
     const response = await apiClient.get<SupplierSingleResponse<Supplier>>(
       `${BASE_PATH}/suppliers/${id}`
     );
-    return response.data;
+    return normalizeSupplierSingle(response.data);
   },
 
   async create(
     data: CreateSupplierData
   ): Promise<SupplierSingleResponse<Supplier>> {
+    const payload = {
+      ...data,
+      contacts: data.contacts,
+    };
     const response = await apiClient.post<SupplierSingleResponse<Supplier>>(
       `${BASE_PATH}/suppliers`,
-      data
+      payload
     );
-    return response.data;
+    return normalizeSupplierSingle(response.data);
   },
 
   async update(
@@ -191,34 +212,34 @@ export const supplierService = {
     return response.data;
   },
 
-  // Nested phone numbers
-  async addPhoneNumber(
+  // Nested contacts
+  async addContact(
     supplierId: string,
-    data: CreatePhoneNumberData
-  ): Promise<SupplierSingleResponse<SupplierPhoneNumber>> {
+    data: CreateContactData
+  ): Promise<SupplierSingleResponse<SupplierContact>> {
     const response = await apiClient.post<
-      SupplierSingleResponse<SupplierPhoneNumber>
-    >(`${BASE_PATH}/suppliers/${supplierId}/phone-numbers`, data);
+      SupplierSingleResponse<SupplierContact>
+    >(`${BASE_PATH}/suppliers/${supplierId}/contacts`, data);
     return response.data;
   },
 
-  async updatePhoneNumber(
+  async updateContact(
     supplierId: string,
-    phoneId: string,
-    data: UpdatePhoneNumberData
-  ): Promise<SupplierSingleResponse<SupplierPhoneNumber>> {
+    contactId: string,
+    data: UpdateContactData
+  ): Promise<SupplierSingleResponse<SupplierContact>> {
     const response = await apiClient.put<
-      SupplierSingleResponse<SupplierPhoneNumber>
-    >(`${BASE_PATH}/suppliers/${supplierId}/phone-numbers/${phoneId}`, data);
+      SupplierSingleResponse<SupplierContact>
+    >(`${BASE_PATH}/suppliers/${supplierId}/contacts/${contactId}`, data);
     return response.data;
   },
 
-  async deletePhoneNumber(
+  async deleteContact(
     supplierId: string,
-    phoneId: string
+    contactId: string
   ): Promise<SupplierSingleResponse<null>> {
     const response = await apiClient.delete<SupplierSingleResponse<null>>(
-      `${BASE_PATH}/suppliers/${supplierId}/phone-numbers/${phoneId}`
+      `${BASE_PATH}/suppliers/${supplierId}/contacts/${contactId}`
     );
     return response.data;
   },

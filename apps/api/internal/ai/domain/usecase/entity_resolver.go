@@ -287,6 +287,85 @@ func (r *EntityResolver) ResolveSupplier(ctx context.Context, nameOrCode string)
 	return nil, fmt.Errorf("ENTITY_NOT_FOUND: supplier '%s' not found", nameOrCode)
 }
 
+// ResolveArea resolves area name/code to area ID
+func (r *EntityResolver) ResolveArea(ctx context.Context, nameOrCode string) (*ResolvedEntity, error) {
+	var result struct {
+		ID   string
+		Code string
+		Name string
+	}
+
+	searchTerm := sanitizeAreaSearch(strings.TrimSpace(nameOrCode))
+	if searchTerm == "" {
+		return nil, fmt.Errorf("ENTITY_NOT_FOUND: area '%s' not found", nameOrCode)
+	}
+
+	// Try exact code/name match first
+	err := r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(code) = LOWER(?) OR LOWER(name) = LOWER(?)", searchTerm, searchTerm).
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area query error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	// Fallback to prefix search
+	err = r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area search error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	// Last attempt using contains for phrases like "bali full"
+	err = r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", "%"+searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area contains search error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("ENTITY_NOT_FOUND: area '%s' not found", nameOrCode)
+}
+
+func sanitizeAreaSearch(v string) string {
+	lower := strings.ToLower(strings.TrimSpace(v))
+	replacements := []string{" area ", " full", " seluruh", " semua", "region", "wilayah"}
+	for _, token := range replacements {
+		lower = strings.ReplaceAll(lower, token, " ")
+	}
+	return strings.TrimSpace(lower)
+}
+
 // ResolveUserToEmployeeID looks up the employee record linked to a user account.
 // Returns the employee ID (UUID) that corresponds to the given user ID.
 func (r *EntityResolver) ResolveUserToEmployeeID(ctx context.Context, userID string) (string, error) {
@@ -344,6 +423,15 @@ func (r *EntityResolver) ResolveEntitiesFromParameters(ctx context.Context, para
 			return resolved, err
 		}
 		resolved["customer"] = entity
+	}
+
+	// Resolve area references
+	if areaName, ok := params["area_name"].(string); ok && areaName != "" {
+		entity, err := r.ResolveArea(ctx, areaName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["area"] = entity
 	}
 
 	return resolved, nil

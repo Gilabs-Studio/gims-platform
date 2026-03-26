@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -12,8 +12,10 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -108,6 +110,10 @@ func (uc *supplierInvoiceDownPaymentUsecase) List(ctx context.Context, params re
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrSupplierInvoiceNotFound
+	}
+
 	si, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -350,6 +356,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -358,6 +365,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusDraft {
 			return ErrSupplierInvoiceConflict
 		}
@@ -377,7 +385,23 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.submit", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.submit", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "supplier_invoice_dp.approve",
+		EntityType:     "supplier_invoice_dp",
+		EntityID:       out.ID,
+		Title:          "Supplier Invoice Down Payment Approval",
+		Message:        "A supplier invoice down payment has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create supplier invoice DP notification: %v", err)
+	}
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -385,6 +409,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -393,6 +418,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -424,7 +450,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Approve(ctx context.Context, id str
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.approve", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.approve", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -432,6 +463,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -440,6 +472,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		if si.Status != models.SupplierInvoiceStatusSubmitted {
 			return ErrSupplierInvoiceConflict
 		}
@@ -459,7 +492,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Reject(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.reject", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.reject", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -467,6 +505,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 	if uc.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	var beforeStatus models.SupplierInvoiceStatus
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var si models.SupplierInvoice
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
@@ -475,6 +514,7 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 		if si.Type != models.SupplierInvoiceTypeDownPayment {
 			return ErrSupplierInvoiceNotFound
 		}
+		beforeStatus = si.Status
 		allowed := si.Status == models.SupplierInvoiceStatusDraft ||
 			si.Status == models.SupplierInvoiceStatusSubmitted ||
 			si.Status == models.SupplierInvoiceStatusApproved ||
@@ -498,7 +538,12 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 	if err != nil {
 		return nil, err
 	}
-	uc.auditService.Log(ctx, "supplier_invoice_dp.cancel", id, nil)
+	uc.auditService.Log(ctx, "supplier_invoice_dp.cancel", id, map[string]interface{}{
+		"before_status": beforeStatus,
+		"after_status":  out.Status,
+		"before":        map[string]interface{}{"status": beforeStatus},
+		"after":         map[string]interface{}{"status": out.Status},
+	})
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -597,11 +642,9 @@ func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context,
 	}
 
 	entries := make([]dto.SupplierInvoiceAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {

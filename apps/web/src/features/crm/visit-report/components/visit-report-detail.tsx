@@ -43,8 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
-import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport } from "../hooks/use-visit-reports";
-import { visitReportService } from "../services/visit-report-service";
+import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport, useVisitReportPrintUrl } from "../hooks/use-visit-reports";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
 import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
@@ -128,6 +127,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const visit: VisitReport | undefined = response?.data;
+  const printUrl = useVisitReportPrintUrl(visit?.id ?? "");
   const history = historyResponse?.data ?? [];
   const isDraft = visit?.status === "draft";
   const isSubmitted = visit?.status === "submitted";
@@ -258,7 +258,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               variant="outline"
               size="sm"
               className="cursor-pointer"
-              onClick={() => window.open(visitReportService.getPrintUrl(visit.id), "_blank")}
+              onClick={() => window.open(printUrl, "_blank")}
             >
               <Printer className="h-4 w-4 mr-1" />
               {tCommon("print")}

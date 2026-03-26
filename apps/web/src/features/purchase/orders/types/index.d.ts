@@ -78,10 +78,22 @@ export interface PurchaseOrderAddProduct {
   is_approved: boolean;
 }
 
+export interface PurchaseOrderAddSupplierContact {
+  id: string;
+  name?: string;
+  email?: string;
+  phone: string;
+  position?: string;
+  is_primary: boolean;
+}
+
 export interface PurchaseOrderAddSupplier {
   id: string;
   code: string;
   name: string;
+  payment_terms_id?: string | null;
+  business_unit_id?: string | null;
+  contacts?: PurchaseOrderAddSupplierContact[];
   products: PurchaseOrderAddProduct[];
 }
 
@@ -113,6 +125,7 @@ export interface PurchaseOrderItemInput {
 
 export interface CreatePurchaseOrderInput {
   supplier_id?: string | null;
+  supplier_contact_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   purchase_requisitions_id?: string | null;
@@ -128,6 +141,7 @@ export interface CreatePurchaseOrderInput {
 
 export interface UpdatePurchaseOrderInput {
   supplier_id?: string | null;
+  supplier_contact_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   order_date: string;
@@ -147,7 +161,7 @@ export interface PurchaseOrderItemDetail {
   discount?: number;
   subtotal: number;
   notes?: string | null;
-  product?: unknown;
+  product?: PurchaseOrderParty;
   quantity_received?: number;
   quantity_remaining?: number;
 }
@@ -170,9 +184,9 @@ export interface PurchaseOrderDetail {
   other_cost?: number;
   sub_total?: number;
   total_amount: number;
-  supplier?: unknown;
-  payment_terms?: unknown;
-  business_unit?: unknown;
+  supplier?: PurchaseOrderAddSupplier;
+  payment_terms?: PurchaseOrderAddPaymentTerms;
+  business_unit?: PurchaseOrderAddBusinessUnit;
   purchase_requisition?: PurchaseOrderRequisitionRef | null;
   items: PurchaseOrderItemDetail[];
   created_at: string;

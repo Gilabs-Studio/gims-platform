@@ -37,6 +37,20 @@ export const salesReturnsEn = {
       reject: "Reject",
       delete: "Delete",
     },
+    tabs: {
+      general: "General",
+      auditTrail: "Audit Trail",
+    },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit trail entries",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time",
+        details: "Details",
+      },
+    },
     detail: {
       title: "Sales Return Detail",
       status: "Status",

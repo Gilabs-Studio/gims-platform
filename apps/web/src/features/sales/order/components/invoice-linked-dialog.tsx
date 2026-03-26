@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Receipt, Banknote, CheckCircle2, Clock, CreditCard, PieChart, Send, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,17 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { invoiceService } from "../../invoice/services/invoice-service";
-import { invoiceKeys } from "../../invoice/hooks/use-invoices";
-import { customerInvoiceDPService } from "../../customer-invoice-down-payments/services/customer-invoice-dp-service";
-import { customerInvoiceDPKeys } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { InvoiceDetailModal } from "../../invoice/components/invoice-detail-modal";
 import { CustomerInvoiceDPDetailModal } from "../../customer-invoice-down-payments/components/customer-invoice-dp-detail-modal";
 import { SalesPaymentsLinkedDialog } from "@/features/sales/payments/components/sales-payments-linked-dialog";
 import type { CustomerInvoice } from "../../invoice/types";
-import { useUserPermission } from "@/hooks/use-user-permission";
+import { useInvoiceLinkedDialog } from "../hooks/use-invoice-linked-dialog";
 
 function DPStatusBadge({ status, className }: { status?: string; className?: string }) {
   const t = useTranslations("customerInvoiceDP");
@@ -104,44 +98,31 @@ interface InvoiceLinkedDialogProps {
 export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpenChange }: InvoiceLinkedDialogProps) {
   const t = useTranslations("invoice");
   const tDP = useTranslations("customerInvoiceDP");
-  const canViewInvoice = useUserPermission("customer_invoice.read");
-  const canViewDP = useUserPermission("customer_invoice.read");
-  const [selectedInvoice, setSelectedInvoice] = useState<CustomerInvoice | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selectedDPId, setSelectedDPId] = useState<string | null>(null);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
-
-  const isPaymentStatus = (status?: string): boolean => {
-    const normalized = (status ?? "").toLowerCase();
-    return normalized === "waiting_payment" || normalized === "partial" || normalized === "paid";
-  };
-
-  // Fetch regular invoices
-  const { data, isLoading } = useQuery({
-    queryKey: invoiceKeys.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    queryFn: () => invoiceService.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    enabled: open && !!salesOrderId && canViewInvoice,
-  });
-
-  // Fetch DP invoices for the same SO
-  const { data: dpData, isLoading: dpLoading } = useQuery({
-    queryKey: customerInvoiceDPKeys.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    queryFn: () => customerInvoiceDPService.list({ sales_order_id: salesOrderId, per_page: 100 }),
-    enabled: open && !!salesOrderId && canViewDP,
-  });
-
-  const invoices = data?.data ?? [];
-  const dpInvoices = dpData?.data ?? [];
-
-  // Exclude any invoice items that are actually down-payment records (avoid showing DP in both tabs)
-  const dpCodes = new Set(dpInvoices.map((d) => d.code));
-  const visibleInvoices = invoices.filter((inv) => !dpCodes.has(inv.code));
-
-  const totalDPAmount = dpInvoices.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
-  const totalInvoiceAmount = visibleInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
-
-  const hasNoPermission = !canViewInvoice && !canViewDP;
+  const {
+    canViewInvoice,
+    canViewDP,
+    activeTab,
+    setActiveTab,
+    hasNoPermission,
+    visibleInvoices,
+    dpInvoices,
+    isInvoiceLoading,
+    isDPLoading,
+    totalDPAmount,
+    totalInvoiceAmount,
+    selectedInvoiceId,
+    detailOpen,
+    setDetailOpen,
+    selectedDPId,
+    setSelectedDPId,
+    isPaymentOpen,
+    setIsPaymentOpen,
+    selectedInvoiceForPayments,
+    setSelectedInvoiceForPayments,
+    openInvoiceDetail,
+    openPaymentDialog,
+    isPaymentStatus,
+  } = useInvoiceLinkedDialog({ open, salesOrderId });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -158,8 +139,8 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Financial Overview */}
-            {(dpInvoices.length > 0 || invoices.length > 0) && (
+            {/* Financial overview is calculated from currently loaded tab data */}
+            {(dpInvoices.length > 0 || visibleInvoices.length > 0) && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border p-3 text-center bg-primary/5">
                   <p className="text-xs text-muted-foreground uppercase font-semibold">Down Payments</p>
@@ -174,7 +155,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
               </div>
             )}
 
-            <Tabs defaultValue="invoices" className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value === "dp" ? "dp" : "invoices")} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="invoices" className="flex items-center gap-1.5">
                   <Receipt className="h-3.5 w-3.5" />
@@ -201,7 +182,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoading ? (
+                      {isInvoiceLoading ? (
                         Array.from({ length: 3 }).map((_, i) => (
                           <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -225,10 +206,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                               {canViewInvoice ? (
                                 <button
                                   className="font-medium text-primary hover:underline cursor-pointer"
-                                  onClick={() => {
-                                    setSelectedInvoice({ id: invoice.id } as CustomerInvoice);
-                                    setDetailOpen(true);
-                                  }}
+                                  onClick={() => openInvoiceDetail(invoice.id)}
                                 >
                                   {invoice.code}
                                 </button>
@@ -252,10 +230,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                                   type="button"
                                   className="inline-flex items-center cursor-pointer"
                                   title={t("common.view")}
-                                  onClick={() => {
-                                    setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.code });
-                                    setIsPaymentOpen(true);
-                                  }}
+                                  onClick={() => openPaymentDialog(invoice.id, invoice.code)}
                                 >
                                   <InvoiceStatusBadge status={invoice.status} className="text-xs" />
                                 </button>
@@ -292,7 +267,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dpLoading ? (
+                      {isDPLoading ? (
                         Array.from({ length: 3 }).map((_, i) => (
                           <TableRow key={i}>
                             <TableCell><Skeleton className="h-4 w-24" /></TableCell>
@@ -358,7 +333,7 @@ export function InvoiceLinkedDialog({ salesOrderCode, salesOrderId, open, onOpen
       <InvoiceDetailModal
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        invoice={selectedInvoice}
+        invoice={selectedInvoiceId ? ({ id: selectedInvoiceId } as CustomerInvoice) : null}
       />
 
       <CustomerInvoiceDPDetailModal

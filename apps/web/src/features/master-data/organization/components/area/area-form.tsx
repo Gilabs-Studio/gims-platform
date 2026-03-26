@@ -5,7 +5,6 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -50,8 +49,6 @@ function AreaFormContent({ open, onClose, area }: Omit<AreaFormProps, "embedded"
     watch,
     formState: { errors },
   } = form;
-
-  const isActive = watch("is_active");
   const selectedColor = watch("color");
 
   return (
@@ -152,17 +149,7 @@ function AreaFormContent({ open, onClose, area }: Omit<AreaFormProps, "embedded"
       </Field>
 
       {/* Active toggle */}
-      <Field
-        orientation="horizontal"
-        className="flex items-center justify-between rounded-lg border p-3"
-      >
-        <FieldLabel>{t("area.form.isActive")}</FieldLabel>
-        <Switch
-          checked={isActive}
-          onCheckedChange={(val) => setValue("is_active", val)}
-        />
-      </Field>
-
+      
       <div className="flex justify-end gap-2">
         <Button
           type="button"

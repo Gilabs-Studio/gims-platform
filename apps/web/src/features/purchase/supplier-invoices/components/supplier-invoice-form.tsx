@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { CalendarIcon, DollarSign, FileText, ShoppingCart } from "lucide-react";
+import { CalendarIcon, CheckCircle2, DollarSign, FileText, Receipt, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,6 +54,8 @@ type InvoiceItem = SupplierInvoiceFormData["items"][number];
 type QuickCreateType = "paymentTerm" | null;
 
 const NONE_VALUE = "__none__";
+const LOADING_VALUE = "__loading__";
+const EMPTY_VALUE = "__empty__";
 
 export function SupplierInvoiceFormDialog({
   open,
@@ -76,10 +77,11 @@ export function SupplierInvoiceFormDialog({
 
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(true);
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
-  const addDataQuery = useSupplierInvoiceAddData({ enabled: open });
+  const addDataQuery = useSupplierInvoiceAddData({ enabled: open && shouldLoadSelectData });
   const detailQuery = useSupplierInvoice(invoiceId ?? "", { enabled: open && isEdit });
   const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
 
@@ -114,6 +116,13 @@ export function SupplierInvoiceFormDialog({
 
   const selectedGRId = form.watch("goods_receipt_id");
   const setFormValue = form.setValue;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setShouldLoadSelectData(true);
+  }, [open]);
 
   const filteredGRs = useMemo(() => {
     const all = addData?.goods_receipts ?? [];
@@ -226,7 +235,7 @@ export function SupplierInvoiceFormDialog({
     closeQuickCreate();
   }, [form, closeQuickCreate]);
 
-  const isBusy = addDataQuery.isLoading || detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
+  const isBusy = detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
 
   const watchedItems = form.watch("items");
   const taxRate = form.watch("tax_rate") ?? 0;
@@ -244,6 +253,21 @@ export function SupplierInvoiceFormDialog({
   );
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
+  const detectedDownPayments = useMemo(() => {
+    if (isEdit) return [];
+    const dp = selectedGR?.invoice_dp;
+    if (!dp) return [];
+
+    const status = (dp.status ?? "").toLowerCase();
+    if (status !== "approved" && status !== "partial" && status !== "paid") return [];
+
+    return [dp];
+  }, [isEdit, selectedGR]);
+  const downPaymentAmount = useMemo(
+    () => detectedDownPayments.reduce((sum, dp) => sum + (dp.amount ?? 0), 0),
+    [detectedDownPayments],
+  );
+  const amountDue = useMemo(() => Math.max(0, totalAmount - downPaymentAmount), [totalAmount, downPaymentAmount]);
   const formatMoney = useCallback((v: number) => formatCurrency(v), []);
 
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
@@ -278,12 +302,10 @@ export function SupplierInvoiceFormDialog({
           <DialogTitle>{isEdit ? t("form.editTitle") : t("form.createTitle")}</DialogTitle>
         </DialogHeader>
 
-        {addDataQuery.isLoading ? <Skeleton className="h-40 w-full" /> : null}
-
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "basic" | "items")} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">{t("tabs.basic") || "Basic Info"}</TabsTrigger>
-            <TabsTrigger value="items">{t("tabs.items") || "Items"}</TabsTrigger>
+            <TabsTrigger value="basic">{t("common.basicInfo") || t("tabs.basic") || "Basic Information"}</TabsTrigger>
+            <TabsTrigger value="items">{t("items.title") || "Items"} & {t("fields.summaryTitle") || "Summary"}</TabsTrigger>
           </TabsList>
 
           <form
@@ -320,14 +342,27 @@ export function SupplierInvoiceFormDialog({
                 <Select
                   value={selectedGRId}
                   onValueChange={(value) => setFormValue("goods_receipt_id", value, { shouldValidate: true })}
+                  onOpenChange={(isOpen) => {
+                    if (isOpen) {
+                      setShouldLoadSelectData(true);
+                    }
+                  }}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder={t("placeholders.select")} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     <SelectItem value={NONE_VALUE} className="cursor-pointer">{t("placeholders.none") || "None"}</SelectItem>
-                  {filteredGRs.map((gr) => (
+                    {addDataQuery.isFetching && filteredGRs.length === 0 ? (
+                      <SelectItem value={LOADING_VALUE} disabled>
+                        Loading...
+                      </SelectItem>
+                    ) : filteredGRs.length === 0 ? (
+                      <SelectItem value={EMPTY_VALUE} disabled>
+                        No data available
+                      </SelectItem>
+                    ) : filteredGRs.map((gr) => (
                       <SelectItem key={gr.id} value={gr.id} className="cursor-pointer">
                         {gr.code}{gr.purchase_order ? ` (PO: ${gr.purchase_order.code})` : ""}{gr.supplier ? ` - ${gr.supplier.name}` : ""}
                       </SelectItem>
@@ -343,43 +378,6 @@ export function SupplierInvoiceFormDialog({
                   <p className="text-sm text-destructive mt-1">{form.formState.errors.goods_receipt_id.message}</p>
                 )}
               </Field>
-
-              {/* Payment Terms + Invoice Number — paired row */}
-              <div className="grid grid-cols-2 gap-4">
-                <Field orientation="vertical">
-                  <FieldLabel>{t("fields.paymentTerms")}</FieldLabel>
-                  <Controller
-                    control={form.control}
-                    name="payment_terms_id"
-                    render={({ field }) => (
-                      <CreatableCombobox
-                        value={field.value ?? ""}
-                        onValueChange={(v) => field.onChange(v || "")}
-                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
-                        createPermission="payment_term.create"
-                        onCreateClick={() => openQuickCreate("paymentTerm")}
-                        placeholder={t("placeholders.select")}
-                        createLabel={t("actions.createNew") || "Create New Payment Terms"}
-                      />
-                    )}
-                  />
-                  {form.formState.errors.payment_terms_id && (
-                    <p className="text-sm text-destructive mt-1">{form.formState.errors.payment_terms_id.message}</p>
-                  )}
-                </Field>
-
-                <Field orientation="vertical">
-                  <FieldLabel>{t("fields.invoiceNumber")}</FieldLabel>
-                  <Input
-                    value={form.watch("invoice_number")}
-                    onChange={(e) => setFormValue("invoice_number", e.target.value, { shouldValidate: true })}
-                    disabled={isBusy}
-                  />
-                  {form.formState.errors.invoice_number && (
-                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_number.message}</p>
-                  )}
-                </Field>
-              </div>
 
               {/* Invoice Date + Due Date — paired row with Calendar */}
               <div className="grid grid-cols-2 gap-4">
@@ -456,6 +454,49 @@ export function SupplierInvoiceFormDialog({
                 </Field>
               </div>
 
+              {/* Payment Terms + Invoice Number — paired row */}
+              <div className="grid grid-cols-2 gap-4">
+                <Field orientation="vertical">
+                  <FieldLabel>{t("fields.paymentTerms")}</FieldLabel>
+                  <Controller
+                    control={form.control}
+                    name="payment_terms_id"
+                    render={({ field }) => (
+                      <CreatableCombobox
+                        value={field.value ?? ""}
+                        onValueChange={(v) => field.onChange(v || "")}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setShouldLoadSelectData(true);
+                          }
+                        }}
+                        options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+                        createPermission="payment_term.create"
+                        onCreateClick={() => openQuickCreate("paymentTerm")}
+                        placeholder={t("placeholders.select")}
+                        createLabel={t("actions.createNew") || "Create New Payment Terms"}
+                        isLoading={addDataQuery.isFetching}
+                      />
+                    )}
+                  />
+                  {form.formState.errors.payment_terms_id && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.payment_terms_id.message}</p>
+                  )}
+                </Field>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("fields.invoiceNumber")}</FieldLabel>
+                  <Input
+                    value={form.watch("invoice_number")}
+                    onChange={(e) => setFormValue("invoice_number", e.target.value, { shouldValidate: true })}
+                    disabled={isBusy}
+                  />
+                  {form.formState.errors.invoice_number && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.invoice_number.message}</p>
+                  )}
+                </Field>
+              </div>
+
               <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
                 <DollarSign className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-medium">{t("sections.financial") || "Financial"}</h3>
@@ -496,6 +537,45 @@ export function SupplierInvoiceFormDialog({
                   disabled={isBusy}
                 />
               </Field>
+
+              {!isEdit && detectedDownPayments.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+                    <Receipt className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium">{t("sections.detectedDownPayments") || "Detected Down Payments"}</h3>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+                    {detectedDownPayments.map((dp) => (
+                      <div key={dp.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-card border">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                          <span className="text-sm font-medium">{dp.code}</span>
+                          <span className="text-xs text-muted-foreground">({dp.status})</span>
+                        </div>
+                        <span className="text-sm font-semibold text-primary">{formatMoney(dp.amount ?? 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-lg border bg-card p-4 space-y-2">
+                    <h4 className="text-sm font-semibold">{t("sections.invoiceSummary") || "Invoice Summary"}</h4>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{t("fields.total") || "Invoice Total"}</span>
+                        <span className="font-medium">{formatMoney(totalAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-success">
+                        <span>{t("fields.downPaymentApplied") || "Down Payment Applied"}</span>
+                        <span className="font-medium">-{formatMoney(downPaymentAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1.5">
+                        <span>{t("fields.amountDue") || "Amount Due"}</span>
+                        <span className="text-primary">{formatMoney(amountDue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
@@ -619,6 +699,16 @@ export function SupplierInvoiceFormDialog({
                                 <div className="flex flex-wrap items-end gap-1 border-t pt-3 mt-2">
                                     <span className="text-lg font-bold">{t("fields.total")}:</span>
                                     <span className="text-lg font-bold text-primary ml-auto">{formatMoney(totalAmount)}</span>
+                                </div>
+                                <div className="border-t pt-3 mt-4 space-y-2 bg-muted/30 p-3 rounded-lg">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">{t("fields.downPaymentApplied") || "Down Payment Applied"}</span>
+                                    <span className="font-medium text-success">-{formatMoney(downPaymentAmount)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm font-bold border-t pt-2">
+                                    <span>{t("fields.amountDue") || "Amount Due"}</span>
+                                    <span className="text-primary">{formatMoney(amountDue)}</span>
+                                  </div>
                                 </div>
                             </div>
                         </div>

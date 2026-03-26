@@ -52,8 +52,6 @@ export function PipelineStageList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("form.name")}</TableHead>
-              <TableHead>{t("form.code")}</TableHead>
-              <TableHead>{t("form.order")}</TableHead>
               <TableHead>{t("form.probability")}</TableHead>
               <TableHead>{t("form.color")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
@@ -66,8 +64,6 @@ export function PipelineStageList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
@@ -75,7 +71,7 @@ export function PipelineStageList() {
               ))
             ) : data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 7 : 6} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
               </TableRow>
             ) : (
               data.items.map((item) => (
@@ -87,8 +83,6 @@ export function PipelineStageList() {
                       {item.is_lost && <Badge variant="destructive">Lost</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{item.code}</TableCell>
-                  <TableCell>{item.order}</TableCell>
                   <TableCell>{item.probability}%</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

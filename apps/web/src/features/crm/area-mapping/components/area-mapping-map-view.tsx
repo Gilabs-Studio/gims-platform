@@ -35,9 +35,9 @@ import type { Feature, FeatureCollection } from "geojson";
 import { useAreaMapping } from "../hooks/use-area-mapping";
 import type {
   AreaMappingCluster,
-  AreaMappingCustomerData,
   AreaMappingItem,
   AreaMappingLeadData,
+  AreaMappingPipelineData,
   AreaMappingRequest,
 } from "../types";
 
@@ -55,7 +55,6 @@ L.Icon.Default.mergeOptions({
 
 type MapStyle = "auto" | "light" | "dark" | "satellite";
 type MapMode = "location-view" | "regional-intensity";
-
 const TILE_LAYERS: Record<
   Exclude<MapStyle, "auto">,
   { url: string; attribution: string }
@@ -91,13 +90,32 @@ const INTENSITY_COLORS = [
 ];
 
 function normalizeRegionName(value: string | undefined): string {
-  return String(value ?? "")
+  const normalized = String(value ?? "")
     .toLowerCase()
+    .replace(/[.,]/g, " ")
+    .replace(/^city\s+of\s+/, "")
     .replace(/^provinsi\s+/, "")
+    .replace(/^province\s+/, "")
+    .replace(/^prov\s+/, "")
     .replace(/^kota\s+/, "")
     .replace(/^kabupaten\s+/, "")
+    .replace(/^kab\.?\s+/, "")
+    .replace(/\s+city$/, "")
+    .replace(/\s+province$/, "")
     .replace(/\s+/g, " ")
     .trim();
+
+  if (!normalized) return "";
+
+  if (normalized === "west sumatra") return "sumatera barat";
+  if (normalized === "north sumatra") return "sumatera utara";
+  if (normalized === "south sumatra") return "sumatera selatan";
+  if (normalized === "special capital region of jakarta") return "dki jakarta";
+  if (normalized === "special region of yogyakarta") return "daerah istimewa yogyakarta";
+  if (normalized === "riau islands") return "kepulauan riau";
+  if (normalized === "bangka belitung islands") return "kepulauan bangka belitung";
+
+  return normalized.replace(/sumatra/g, "sumatera");
 }
 
 function getColorForIntensity(score: number): string {
@@ -120,61 +138,108 @@ function getColorForValue(value: number, maxValue: number): string {
   return INTENSITY_COLORS[index];
 }
 
-function buildClustersFromItems(items: AreaMappingItem[]): AreaMappingCluster[] {
-  const clusters = new Map<
-    string,
-    {
-      city: string;
-      totalPoints: number;
-      customerCount: number;
-      leadCount: number;
-      totalLat: number;
-      totalLng: number;
-      totalIntensity: number;
-      maxIntensity: number;
-    }
-  >();
+type GeometryBounds = {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+};
 
-  for (const item of items) {
-    const point = item.type === "customer" ? item.customer : item.lead;
-    if (!point) continue;
+function isPointInRing(lng: number, lat: number, ring: number[][]): boolean {
+  let inside = false;
 
-    const city = String(point.city ?? "").trim() || "Unknown";
-    const key = normalizeRegionName(city);
-    const existing = clusters.get(key) ?? {
-      city,
-      totalPoints: 0,
-      customerCount: 0,
-      leadCount: 0,
-      totalLat: 0,
-      totalLng: 0,
-      totalIntensity: 0,
-      maxIntensity: 0,
-    };
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i]?.[0] ?? 0;
+    const yi = ring[i]?.[1] ?? 0;
+    const xj = ring[j]?.[0] ?? 0;
+    const yj = ring[j]?.[1] ?? 0;
 
-    existing.totalPoints += 1;
-    existing.customerCount += item.type === "customer" ? 1 : 0;
-    existing.leadCount += item.type === "lead" ? 1 : 0;
-    existing.totalLat += point.latitude;
-    existing.totalLng += point.longitude;
-    existing.totalIntensity += point.intensity_score;
-    existing.maxIntensity = Math.max(existing.maxIntensity, point.intensity_score);
-    clusters.set(key, existing);
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi + Number.EPSILON) + xi;
+
+    if (intersect) inside = !inside;
   }
 
-  return Array.from(clusters.values())
-    .filter((cluster) => cluster.totalPoints > 0)
-    .sort((left, right) => right.totalPoints - left.totalPoints)
-    .map((cluster) => ({
-      city: cluster.city,
-      total_points: cluster.totalPoints,
-      customer_count: cluster.customerCount,
-      lead_count: cluster.leadCount,
-      avg_intensity: cluster.totalIntensity / cluster.totalPoints,
-      max_intensity: cluster.maxIntensity,
-      center_lat: cluster.totalLat / cluster.totalPoints,
-      center_lng: cluster.totalLng / cluster.totalPoints,
-    }));
+  return inside;
+}
+
+function isPointInPolygon(lng: number, lat: number, polygon: number[][][]): boolean {
+  if (!polygon.length) return false;
+  if (!isPointInRing(lng, lat, polygon[0])) return false;
+
+  for (let i = 1; i < polygon.length; i += 1) {
+    if (isPointInRing(lng, lat, polygon[i])) return false;
+  }
+
+  return true;
+}
+
+function isPointInFeature(lng: number, lat: number, feature?: Feature): boolean {
+  const geometry = feature?.geometry;
+  if (!geometry) return false;
+
+  if (geometry.type === "Polygon") {
+    return isPointInPolygon(lng, lat, geometry.coordinates as number[][][]);
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    const polygons = geometry.coordinates as number[][][][];
+    return polygons.some((polygon) => isPointInPolygon(lng, lat, polygon));
+  }
+
+  return false;
+}
+
+function getFeatureBounds(feature?: Feature): GeometryBounds | null {
+  const geometry = feature?.geometry;
+  if (!geometry) return null;
+
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+  let minLng = Number.POSITIVE_INFINITY;
+  let maxLng = Number.NEGATIVE_INFINITY;
+
+  const updateBounds = (lng: number, lat: number) => {
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+  };
+
+  if (geometry.type === "Polygon") {
+    const polygon = geometry.coordinates as number[][][];
+    for (const ring of polygon) {
+      for (const coord of ring) {
+        updateBounds(coord?.[0] ?? 0, coord?.[1] ?? 0);
+      }
+    }
+  } else if (geometry.type === "MultiPolygon") {
+    const polygons = geometry.coordinates as number[][][][];
+    for (const polygon of polygons) {
+      for (const ring of polygon) {
+        for (const coord of ring) {
+          updateBounds(coord?.[0] ?? 0, coord?.[1] ?? 0);
+        }
+      }
+    }
+  } else {
+    return null;
+  }
+
+  if (!Number.isFinite(minLat) || !Number.isFinite(minLng)) return null;
+
+  return { minLat, maxLat, minLng, maxLng };
+}
+
+function isPointInBounds(lat: number, lng: number, bounds?: GeometryBounds | null): boolean {
+  if (!bounds) return false;
+  return (
+    lat >= bounds.minLat &&
+    lat <= bounds.maxLat &&
+    lng >= bounds.minLng &&
+    lng <= bounds.maxLng
+  );
 }
 
 function FitBoundsToMarkers({ items }: { items: AreaMappingItem[] }) {
@@ -186,7 +251,7 @@ function FitBoundsToMarkers({ items }: { items: AreaMappingItem[] }) {
     const bounds = L.latLngBounds(
       items
         .map((item) => {
-          const point = item.type === "customer" ? item.customer : item.lead;
+          const point = item.type === "lead" ? item.lead : item.pipeline;
           if (!point) return null;
           return [point.latitude, point.longitude] as [number, number];
         })
@@ -199,97 +264,6 @@ function FitBoundsToMarkers({ items }: { items: AreaMappingItem[] }) {
   }, [items, map]);
 
   return null;
-}
-
-function CustomerMarker({ data, simple }: { data: AreaMappingCustomerData; simple?: boolean }) {
-  if (simple) {
-    return (
-      <Marker position={[data.latitude, data.longitude]} title={data.name}>
-        <Popup className="area-mapping-popup">
-          <div className="w-48 p-2 text-xs text-foreground">
-            <h4 className="mb-2 font-semibold text-foreground">{data.name}</h4>
-            <p className="mb-1 text-foreground">{data.code}</p>
-            <p className="mb-2 text-foreground">
-              {data.city}, {data.province}
-            </p>
-            <div className="space-y-1 border-t border-border pt-2">
-              <div className="flex justify-between">
-                <span>Activity:</span>
-                <span className="font-medium">{data.activity_count}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Deals:</span>
-                <span className="font-medium">{data.deal_count}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Value:</span>
-                <span className="font-medium text-green-600">
-                  {formatCurrency(data.total_deal_value)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Popup>
-      </Marker>
-    );
-  }
-
-  const color = getColorForIntensity(data.intensity_score);
-  const icon = L.divIcon({
-    html: `
-      <div style="
-        background-color: ${color};
-        border: 3px solid #1e40af;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      ">
-        C
-      </div>
-    `,
-    iconSize: [30, 30],
-    className: "customer-marker",
-  });
-
-  return (
-    <Marker position={[data.latitude, data.longitude]} icon={icon} title={data.name}>
-      <Popup className="area-mapping-popup">
-        <div className="w-48 p-2 text-xs">
-          <h4 className="mb-2 font-semibold">{data.name}</h4>
-          <p className="mb-1 text-muted-foreground">{data.code}</p>
-          <p className="mb-2">
-            {data.city}, {data.province}
-          </p>
-          <div className="space-y-1 border-t border-border pt-2">
-            <div className="flex justify-between">
-              <span>Activity:</span>
-              <span className="font-medium">{data.activity_count}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Deals:</span>
-              <span className="font-medium">{data.deal_count}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Value:</span>
-              <span className="font-medium text-green-600">
-                {formatCurrency(data.total_deal_value)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Intensity:</span>
-              <span className="font-medium">{data.intensity_score.toFixed(1)}</span>
-            </div>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
 }
 
 function LeadMarker({ data, simple }: { data: AreaMappingLeadData; simple?: boolean }) {
@@ -403,13 +377,76 @@ function LeadMarker({ data, simple }: { data: AreaMappingLeadData; simple?: bool
   );
 }
 
+function PipelineMarker({ data, simple }: { data: AreaMappingPipelineData; simple?: boolean }) {
+  if (simple) {
+    return (
+      <Marker position={[data.latitude, data.longitude]} title={data.title}>
+        <Popup className="area-mapping-popup">
+          <div className="w-52 p-2 text-xs text-foreground">
+            <h4 className="mb-2 font-semibold text-foreground">{data.title}</h4>
+            <p className="mb-1 text-foreground">{data.code}</p>
+            <p className="mb-2 text-foreground">
+              {data.city}, {data.province}
+            </p>
+            <div className="space-y-1 border-t border-border pt-2">
+              <div className="flex justify-between">
+                <span>Stage:</span>
+                <span className="font-medium">{data.pipeline_stage_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Status:</span>
+                <Badge variant="outline" className="text-xs">
+                  {data.status}
+                </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span>Probability:</span>
+                <span className="font-medium">{data.probability}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Pipeline Value:</span>
+                <span className="font-medium text-green-600">{formatCurrency(data.value)}</span>
+              </div>
+            </div>
+          </div>
+        </Popup>
+      </Marker>
+    );
+  }
+
+  const color = getColorForIntensity(data.intensity_score);
+  const icon = L.divIcon({
+    html: `
+      <div style="
+        background-color: ${color};
+        border: 3px solid #14532d;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      ">
+        P
+      </div>
+    `,
+    iconSize: [30, 30],
+    className: "pipeline-marker",
+  });
+
+  return <Marker position={[data.latitude, data.longitude]} icon={icon} title={data.title} />;
+}
+
 export function AreaMappingMapView() {
   const t = useTranslations("areaMapping");
   const { resolvedTheme } = useTheme();
 
   const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
   const [mapMode, setMapMode] = useState<MapMode>("location-view");
-  const [selectedType, setSelectedType] = useState<"all" | "customer" | "lead">("all");
+  const [selectedType, setSelectedType] = useState<"all" | "lead" | "pipeline">("all");
   const [selectedMonth, setSelectedMonth] = useState<string>("__all__");
   const [selectedYear, setSelectedYear] = useState<string>("__all__");
   const [allFeatures, setAllFeatures] = useState<Feature[]>([]);
@@ -444,15 +481,153 @@ export function AreaMappingMapView() {
       });
   }, []);
 
-  const items = useMemo((): AreaMappingItem[] => data?.data?.items ?? [], [data?.data?.items]);
+  const mapItems = useMemo(
+    (): AreaMappingItem[] =>
+      (data?.data?.items ?? []).filter((item: AreaMappingItem) => {
+        if (item.type === "lead") return Boolean(item.lead);
+        if (item.type === "pipeline") return Boolean(item.pipeline);
+        return false;
+      }),
+    [data?.data?.items]
+  );
+
   const filteredItems = useMemo((): AreaMappingItem[] => {
-    if (selectedType === "all") return items;
-    return items.filter((item) => item.type === selectedType);
-  }, [items, selectedType]);
+    if (selectedType === "all") return mapItems;
+    return mapItems.filter((item) => item.type === selectedType);
+  }, [mapItems, selectedType]);
+
+  const summaryMetrics = useMemo(() => {
+    return mapItems.reduce(
+      (acc, item) => {
+        if (item.type === "lead" && item.lead) {
+          acc.totalLeads += 1;
+          acc.totalActivities += item.lead.activity_count + item.lead.task_count;
+          acc.totalPipelineValue += item.lead.estimated_value;
+        }
+
+        if (item.type === "pipeline" && item.pipeline) {
+          acc.pipelineDealCount += 1;
+          acc.totalPipelineValue += item.pipeline.value;
+        }
+
+        return acc;
+      },
+      {
+        totalLeads: 0,
+        pipelineDealCount: 0,
+        totalActivities: 0,
+        totalPipelineValue: 0,
+      }
+    );
+  }, [mapItems]);
+
+  const geoCityFeatures = useMemo(() => {
+    return allFeatures
+      .map((feature) => {
+        const properties = feature.properties as Record<string, unknown> | undefined;
+        const cityLabel = String(properties?.WADMKK ?? "").trim();
+        const cityKey = normalizeRegionName(cityLabel);
+
+        if (!cityKey) return null;
+
+        return {
+          feature,
+          cityKey,
+          cityLabel,
+          bounds: getFeatureBounds(feature),
+        };
+      })
+      .filter(
+        (
+          entry
+        ): entry is {
+          feature: Feature;
+          cityKey: string;
+          cityLabel: string;
+          bounds: GeometryBounds | null;
+        } => entry !== null
+      );
+  }, [allFeatures]);
 
   const visibleClusters = useMemo((): AreaMappingCluster[] => {
-    return buildClustersFromItems(filteredItems);
-  }, [filteredItems]);
+    if (!filteredItems.length) return [];
+
+    const clusters = new Map<
+      string,
+      {
+        city: string;
+        totalPoints: number;
+        leadCount: number;
+        pipelineDealCount: number;
+        totalPipelineValue: number;
+        totalLat: number;
+        totalLng: number;
+        totalIntensity: number;
+        maxIntensity: number;
+      }
+    >();
+
+    for (const item of filteredItems) {
+      const point = item.type === "lead" ? item.lead : item.pipeline;
+      if (!point) continue;
+
+      const matchedGeoCity = geoCityFeatures.find((entry) => {
+        if (!isPointInBounds(point.latitude, point.longitude, entry.bounds)) return false;
+        return isPointInFeature(point.longitude, point.latitude, entry.feature);
+      });
+
+      const fallbackCity =
+        String(point.city ?? "").trim() ||
+        String(point.province ?? "").trim() ||
+        "Unknown";
+
+      const cityKey =
+        matchedGeoCity?.cityKey || normalizeRegionName(fallbackCity) || "unknown";
+      const cityLabel = matchedGeoCity?.cityLabel || fallbackCity;
+
+      const existing = clusters.get(cityKey) ?? {
+        city: cityLabel,
+        totalPoints: 0,
+        leadCount: 0,
+        pipelineDealCount: 0,
+        totalPipelineValue: 0,
+        totalLat: 0,
+        totalLng: 0,
+        totalIntensity: 0,
+        maxIntensity: 0,
+      };
+
+      existing.totalPoints += 1;
+      if (item.type === "lead") {
+        existing.leadCount += 1;
+        existing.totalPipelineValue += item.lead?.estimated_value ?? 0;
+      }
+      if (item.type === "pipeline") {
+        existing.pipelineDealCount += 1;
+        existing.totalPipelineValue += item.pipeline?.value ?? 0;
+      }
+      existing.totalLat += point.latitude;
+      existing.totalLng += point.longitude;
+      existing.totalIntensity += point.intensity_score;
+      existing.maxIntensity = Math.max(existing.maxIntensity, point.intensity_score);
+      clusters.set(cityKey, existing);
+    }
+
+    return Array.from(clusters.values())
+      .filter((cluster) => cluster.totalPoints > 0)
+      .sort((left, right) => right.totalPoints - left.totalPoints)
+      .map((cluster) => ({
+        city: cluster.city,
+        total_points: cluster.totalPoints,
+        lead_count: cluster.leadCount,
+        pipeline_deal_count: cluster.pipelineDealCount,
+        total_pipeline_value: cluster.totalPipelineValue,
+        avg_intensity: cluster.totalIntensity / cluster.totalPoints,
+        max_intensity: cluster.maxIntensity,
+        center_lat: cluster.totalLat / cluster.totalPoints,
+        center_lng: cluster.totalLng / cluster.totalPoints,
+      }));
+  }, [filteredItems, geoCityFeatures]);
 
   const selectedTileLayer = useMemo(() => {
     if (mapStyle !== "auto") return TILE_LAYERS[mapStyle];
@@ -475,32 +650,54 @@ export function AreaMappingMapView() {
   }, [visibleClusters]);
 
   const geoJsonData = useMemo<FeatureCollection | null>(() => {
-    if (!allFeatures.length || !visibleClusters.length) return null;
+    if (!allFeatures.length) return null;
 
-    const features = allFeatures.filter((feature) => {
-      const city = normalizeRegionName(String(feature.properties?.WADMKK ?? ""));
-      const cluster = clusterLookup.get(city);
-      return (cluster?.total_points ?? 0) > 0;
-    });
+    // Join by city name (WADMKK), same strategy as geo-performance report map.
+    const groupedByCity = new Map<string, Feature[]>();
 
-    if (!features.length) return null;
+    for (const feature of allFeatures) {
+      const properties = feature.properties as Record<string, unknown> | undefined;
+      const cityName = normalizeRegionName(String(properties?.WADMKK ?? ""));
+      if (!cityName) continue;
 
-    return { type: "FeatureCollection", features };
-  }, [allFeatures, clusterLookup, visibleClusters]);
+      const existing = groupedByCity.get(cityName) ?? [];
+      existing.push(feature);
+      groupedByCity.set(cityName, existing);
+    }
+
+    const featuresWithData: Feature[] = [];
+    for (const [cityKey, features] of groupedByCity) {
+      const cluster = clusterLookup.get(cityKey);
+      if (!cluster || cluster.total_points <= 0) continue;
+
+      for (const feature of features) {
+        featuresWithData.push({
+          ...feature,
+          properties: {
+            ...(feature.properties as Record<string, unknown> | undefined),
+            _clusterData: cluster,
+          },
+        });
+      }
+    }
+
+    if (!featuresWithData.length) return null;
+    return { type: "FeatureCollection", features: featuresWithData };
+  }, [allFeatures, clusterLookup]);
 
   const geoJsonStyle = useCallback(
     (feature?: Feature) => {
-      const city = normalizeRegionName(String(feature?.properties?.WADMKK ?? ""));
-      const cluster = clusterLookup.get(city);
+      const properties = feature?.properties as Record<string, unknown> | undefined;
+      const cluster = properties?._clusterData as AreaMappingCluster | undefined;
       const totalPoints = cluster?.total_points ?? 0;
 
       if (totalPoints <= 0) {
         return {
           fillColor: "transparent",
           fillOpacity: 0,
-          weight: 0,
-          color: "transparent",
-          opacity: 0,
+          weight: 0.5,
+          color: resolvedTheme === "dark" ? "#334155" : "#cbd5e1",
+          opacity: 0.35,
         };
       }
 
@@ -512,13 +709,14 @@ export function AreaMappingMapView() {
         opacity: 0.8,
       };
     },
-    [clusterLookup, maxClusterPoints, resolvedTheme]
+    [maxClusterPoints, resolvedTheme]
   );
 
   const onEachGeoJsonFeature = useCallback(
     (feature: Feature, layer: L.Layer) => {
       const cityLabel = String(feature.properties?.WADMKK ?? "Unknown City");
-      const cluster = clusterLookup.get(normalizeRegionName(cityLabel));
+      const properties = feature.properties as Record<string, unknown> | undefined;
+      const cluster = properties?._clusterData as AreaMappingCluster | undefined;
       if (!cluster || cluster.total_points <= 0) {
         return;
       }
@@ -526,7 +724,7 @@ export function AreaMappingMapView() {
       const pathLayer = layer as L.Path;
 
       layer.bindTooltip(
-        `<div style="font-size:12px;"><strong>${cityLabel}</strong><br/>Locations: ${cluster.total_points}<br/>Customers: ${cluster.customer_count}<br/>Leads: ${cluster.lead_count}</div>`,
+        `<div style="font-size:12px;"><strong>${cityLabel}</strong><br/>Leads: ${cluster.lead_count}<br/>Pipeline Deals: ${cluster.pipeline_deal_count}<br/>Pipeline Value: ${formatCurrency(cluster.total_pipeline_value)}</div>`,
         {
           sticky: true,
           direction: "top",
@@ -543,7 +741,7 @@ export function AreaMappingMapView() {
         },
       });
     },
-    [clusterLookup]
+    []
   );
 
   if (error) {
@@ -574,12 +772,12 @@ export function AreaMappingMapView() {
         {!isLoading && mapMode === "location-view" && (
           <MarkerClusterGroup chunkedLoading>
             {filteredItems.map((item) => {
-              if (item.type === "customer" && item.customer) {
-                return <CustomerMarker key={`customer-${item.customer.id}`} data={item.customer} simple />;
-              }
-
               if (item.type === "lead" && item.lead) {
                 return <LeadMarker key={`lead-${item.lead.id}`} data={item.lead} simple />;
+              }
+
+              if (item.type === "pipeline" && item.pipeline) {
+                return <PipelineMarker key={`pipeline-${item.pipeline.id}`} data={item.pipeline} simple />;
               }
 
               return null;
@@ -587,7 +785,7 @@ export function AreaMappingMapView() {
           </MarkerClusterGroup>
         )}
 
-        {!isLoading && <FitBoundsToMarkers items={filteredItems} />}
+        {!isLoading && mapMode === "location-view" && <FitBoundsToMarkers items={filteredItems} />}
       </MapContainer>
 
       <motion.div
@@ -603,7 +801,9 @@ export function AreaMappingMapView() {
           </div>
           <div>
             <h1 className="font-medium text-foreground">{t("map.areaMapping")}</h1>
-            <p className="text-xs text-muted-foreground">{t("map.showingLocations")}</p>
+            <p className="text-xs text-muted-foreground">
+              {mapMode === "regional-intensity" ? t("map.showingHeatmap") : t("map.locationView")}
+            </p>
           </div>
         </div>
 
@@ -644,11 +844,11 @@ export function AreaMappingMapView() {
           </Select>
         </div>
 
-        <div className="mt-2 flex gap-2">
+        <div className="mt-3 flex gap-2 border-t border-border/40 pt-3">
           {([
-            { value: "all", label: "All" },
-            { value: "customer", label: "Customers" },
-            { value: "lead", label: "Leads" },
+            { value: "all", label: t("map.all") },
+            { value: "lead", label: t("map.leads") },
+            { value: "pipeline", label: t("map.pipelineDeals") },
           ] as const).map((option) => (
             <Button
               key={option.value}
@@ -661,6 +861,7 @@ export function AreaMappingMapView() {
             </Button>
           ))}
         </div>
+
       </motion.div>
 
       <motion.div
@@ -674,34 +875,34 @@ export function AreaMappingMapView() {
           <div className="w-80 border border-border/30 bg-card/95 p-4 shadow-2xl backdrop-blur-md rounded-lg">
             <h3 className="mb-3 flex items-center gap-2 font-semibold">
               <TrendingUp className="h-4 w-4" />
-              Summary
+              {t("map.summary")}
             </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">{t("map.customers")}</p>
-                <p className="text-lg font-bold text-primary">
-                  {isLoading ? <Skeleton className="h-6 w-8" /> : data.data.summary.total_customers}
-                </p>
-              </div>
-              <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-3 border-t border-border/40 pt-3">
+              <div className="space-y-1 rounded-md border border-border/40 p-2">
                 <p className="text-xs text-muted-foreground">{t("map.leads")}</p>
-                <p className="text-lg font-bold text-orange-600">
-                  {isLoading ? <Skeleton className="h-6 w-8" /> : data.data.summary.total_leads}
+                <p className="text-lg font-bold text-primary">
+                  {isLoading ? <Skeleton className="h-6 w-8" /> : summaryMetrics.totalLeads}
                 </p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 rounded-md border border-border/40 p-2">
+                <p className="text-xs text-muted-foreground">{t("map.pipelineDeals")}</p>
+                <p className="text-lg font-bold text-orange-600">
+                  {isLoading ? <Skeleton className="h-6 w-8" /> : summaryMetrics.pipelineDealCount}
+                </p>
+              </div>
+              <div className="space-y-1 rounded-md border border-border/40 p-2">
                 <p className="text-xs text-muted-foreground">{t("map.activities")}</p>
                 <p className="text-lg font-bold">
-                  {isLoading ? <Skeleton className="h-6 w-8" /> : data.data.summary.total_activities}
+                  {isLoading ? <Skeleton className="h-6 w-8" /> : summaryMetrics.totalActivities}
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Pipeline Value</p>
+              <div className="space-y-1 rounded-md border border-border/40 p-2">
+                <p className="text-xs text-muted-foreground">{t("map.pipelineValue")}</p>
                 <p className="text-sm font-bold text-green-600">
                   {isLoading ? (
                     <Skeleton className="h-5 w-12" />
                   ) : (
-                    formatCurrency(data.data.summary.total_pipeline_value)
+                    formatCurrency(summaryMetrics.totalPipelineValue)
                   )}
                 </p>
               </div>

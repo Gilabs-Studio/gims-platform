@@ -14,21 +14,16 @@ export interface ActivityType {
 
 export interface CreateActivityTypeData {
   name: string;
-  code: string;
   description?: string;
   icon?: string;
   badge_color?: string;
-  order?: number;
-  is_active?: boolean;
 }
 
 export interface UpdateActivityTypeData {
   name?: string;
-  code?: string;
   description?: string;
   icon?: string;
   badge_color?: string;
-  order?: number;
   is_active?: boolean;
 }
 

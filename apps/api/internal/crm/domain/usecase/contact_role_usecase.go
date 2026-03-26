@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
@@ -30,18 +32,15 @@ func NewContactRoleUsecase(repo repositories.ContactRoleRepository) ContactRoleU
 }
 
 func (u *contactRoleUsecase) Create(ctx context.Context, req dto.CreateContactRoleRequest) (dto.ContactRoleResponse, error) {
-	isActive := true
-	if req.IsActive != nil {
-		isActive = *req.IsActive
-	}
+	roleID := uuid.New().String()
 
 	role := &models.ContactRole{
-		ID:          uuid.New().String(),
+		ID:          roleID,
 		Name:        req.Name,
-		Code:        req.Code,
+		Code:        generateContactRoleCode(req.Name, roleID),
 		Description: req.Description,
 		BadgeColor:  req.BadgeColor,
-		IsActive:    isActive,
+		IsActive:    true,
 	}
 
 	if err := u.repo.Create(ctx, role); err != nil {
@@ -76,9 +75,6 @@ func (u *contactRoleUsecase) Update(ctx context.Context, id string, req dto.Upda
 	if req.Name != "" {
 		role.Name = req.Name
 	}
-	if req.Code != "" {
-		role.Code = req.Code
-	}
 	if req.Description != "" {
 		role.Description = req.Description
 	}
@@ -102,4 +98,9 @@ func (u *contactRoleUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("contact role not found")
 	}
 	return u.repo.Delete(ctx, id)
+}
+
+func generateContactRoleCode(name, roleID string) string {
+	base := normalizeCodeBase(name, "ROLE")
+	return fmt.Sprintf("%s-%s", base, strings.Split(roleID, "-")[0])
 }

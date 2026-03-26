@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,11 +9,12 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
-	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -26,6 +26,12 @@ var (
 	ErrCustomerInvoiceConflict = errors.New("customer invoice status conflict")
 	ErrCustomerInvoiceInvalid  = errors.New("invalid operation for customer invoice")
 	ErrInvalidStatus           = errors.New("invalid status")
+)
+
+const (
+	customerInvoiceDPDateFormat = "2006-01-02"
+	customerInvoiceDPByIDQuery  = "id = ?"
+	errCustomerInvoiceDPDBNil   = "db is nil"
 )
 
 type CustomerInvoiceDownPaymentUsecase interface {
@@ -103,7 +109,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
-		d := ci.DueDate.Format("2006-01-02")
+		d := ci.DueDate.Format(customerInvoiceDPDateFormat)
 		dueDate = &d
 	}
 	salesOrderID := ""
@@ -124,7 +130,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToDetail(ctx context.Context, ci
 		Code:               ci.Code,
 		RelatedInvoiceCode: relatedCode,
 		InvoiceNumber:      ci.InvoiceNumber,
-		InvoiceDate:        ci.InvoiceDate.Format("2006-01-02"),
+		InvoiceDate:        ci.InvoiceDate.Format(customerInvoiceDPDateFormat),
 		DueDate:            dueDate,
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
@@ -150,7 +156,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 	}
 	var dueDate *string
 	if ci.DueDate != nil {
-		d := ci.DueDate.Format("2006-01-02")
+		d := ci.DueDate.Format(customerInvoiceDPDateFormat)
 		dueDate = &d
 	}
 	salesOrderID := ""
@@ -170,7 +176,7 @@ func (uc *customerInvoiceDownPaymentUsecase) mapToList(ctx context.Context, ci *
 		Code:               ci.Code,
 		RelatedInvoiceCode: relatedCode,
 		InvoiceNumber:      ci.InvoiceNumber,
-		InvoiceDate:        ci.InvoiceDate.Format("2006-01-02"),
+		InvoiceDate:        ci.InvoiceDate.Format(customerInvoiceDPDateFormat),
 		DueDate:            dueDate,
 		Amount:             ci.Amount,
 		RemainingAmount:    ci.RemainingAmount,
@@ -194,6 +200,9 @@ func (uc *customerInvoiceDownPaymentUsecase) List(ctx context.Context, params *d
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrCustomerInvoiceNotFound
+	}
 	ci, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -209,60 +218,20 @@ func (uc *customerInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id str
 
 func (uc *customerInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dto.CreateCustomerInvoiceDownPaymentRequest) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
 	if uc.db == nil {
-		return nil, errors.New("db is nil")
+		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
-	invDate, err := time.Parse("2006-01-02", req.InvoiceDate)
+	invDate, dueDate, err := parseCustomerInvoiceDPDates(req.InvoiceDate, req.DueDate)
 	if err != nil {
-		return nil, errors.New("invalid invoice date")
-	}
-	dueDate, err := time.Parse("2006-01-02", req.DueDate)
-	if err != nil {
-		return nil, errors.New("invalid due date")
+		return nil, err
 	}
 
 	var out *models.CustomerInvoice
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var so models.SalesOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&so, "id = ?", req.SalesOrderID).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return ErrSalesOrderNotFound
-			}
-			return err
+		created, createErr := uc.createDraftDownPaymentInTx(ctx, tx, req, invDate, dueDate)
+		if createErr != nil {
+			return createErr
 		}
-		if so.Status != models.SalesOrderStatusApproved {
-			return ErrCustomerInvoiceInvalid
-		}
-
-		code, err := uc.repo.GetNextInvoiceNumber(ctx, "CIDP")
-		if err != nil {
-			return err
-		}
-		invNo := fmt.Sprintf("CUS-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "CIDP-"))
-
-		creatorID, _ := ctx.Value("user_id").(string)
-
-		var notes string
-		if req.Notes != nil {
-			notes = *req.Notes
-		}
-
-		ci := models.CustomerInvoice{
-			Type:          models.CustomerInvoiceTypeDownPayment,
-			SalesOrderID:  &so.ID,
-			Code:          code,
-			InvoiceNumber: &invNo,
-			InvoiceDate:   invDate,
-			DueDate:       &dueDate,
-			Amount:        req.Amount,
-			Subtotal:      req.Amount,
-			Status:        models.CustomerInvoiceStatusDraft,
-			Notes:         notes,
-			CreatedBy:     &creatorID,
-		}
-		if err := tx.Create(&ci).Error; err != nil {
-			return err
-		}
-		out = &ci
+		out = created
 		return nil
 	})
 	if err != nil {
@@ -292,56 +261,18 @@ func (uc *customerInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 		return nil, ErrCustomerInvoiceConflict
 	}
 
-	invDate, err := time.Parse("2006-01-02", req.InvoiceDate)
+	invDate, dueDate, err := parseCustomerInvoiceDPDates(req.InvoiceDate, req.DueDate)
 	if err != nil {
-		return nil, errors.New("invalid invoice date")
-	}
-	dueDate, err := time.Parse("2006-01-02", req.DueDate)
-	if err != nil {
-		return nil, errors.New("invalid due date")
+		return nil, err
 	}
 
 	var out *models.CustomerInvoice
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var ci models.CustomerInvoice
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, "id = ?", id).Error; err != nil {
-			return err
+		updated, updateErr := uc.updateDraftDownPaymentInTx(ctx, tx, id, req, invDate, dueDate)
+		if updateErr != nil {
+			return updateErr
 		}
-		if ci.Status != models.CustomerInvoiceStatusDraft || ci.Type != models.CustomerInvoiceTypeDownPayment {
-			return ErrCustomerInvoiceConflict
-		}
-
-		var so models.SalesOrder
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&so, "id = ?", req.SalesOrderID).Error; err != nil {
-			return err
-		}
-		if so.Status != models.SalesOrderStatusApproved {
-			return ErrCustomerInvoiceInvalid
-		}
-
-		var notes string
-		if req.Notes != nil {
-			notes = *req.Notes
-		}
-
-		updates := map[string]interface{}{
-			"sales_order_id": so.ID,
-			"invoice_date":   invDate,
-			"due_date":       dueDate,
-			"amount":         req.Amount,
-			"subtotal":       req.Amount,
-			"notes":          notes,
-			"updated_at":     apptime.Now(),
-		}
-		if err := tx.Model(&ci).Updates(updates).Error; err != nil {
-			return err
-		}
-
-		loaded, err := uc.repo.FindByID(ctx, id)
-		if err != nil {
-			return err
-		}
-		out = loaded
+		out = updated
 		return nil
 	})
 	if err != nil {
@@ -377,12 +308,12 @@ func (uc *customerInvoiceDownPaymentUsecase) Delete(ctx context.Context, id stri
 
 func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
 	if uc.db == nil {
-		return nil, errors.New("db is nil")
+		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
 	var out *models.CustomerInvoice
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var ci models.CustomerInvoice
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, "id = ?", id).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
 			return err
 		}
 		if ci.Type != models.CustomerInvoiceTypeDownPayment {
@@ -409,44 +340,26 @@ func (uc *customerInvoiceDownPaymentUsecase) Pending(ctx context.Context, id str
 		return nil, err
 	}
 	uc.auditService.Log(ctx, "customer_invoice_dp.pending", id, map[string]interface{}{"after": out})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "customer_invoice_dp.approve",
+		EntityType:     "customer_invoice_dp",
+		EntityID:       out.ID,
+		Title:          "Customer Invoice Down Payment Approval",
+		Message:        "A customer invoice down payment has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create customer invoice DP notification: %v", err)
+	}
 	return uc.mapToDetail(ctx, out), nil
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error) {
 	if uc.db == nil {
-		return nil, errors.New("db is nil")
+		return nil, errors.New(errCustomerInvoiceDPDBNil)
 	}
 	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var ci models.CustomerInvoice
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, "id = ?", id).Error; err != nil {
-			return err
-		}
-		if ci.Type != models.CustomerInvoiceTypeDownPayment {
-			return ErrCustomerInvoiceNotFound
-		}
-		if ci.Status != models.CustomerInvoiceStatusSubmitted {
-			return ErrCustomerInvoiceConflict
-		}
-		previousStatus := ci.Status
-		now := apptime.Now()
-		// Approve and transition to UNPAID so it appears in the payment form
-		if err := tx.Model(&ci).Updates(map[string]interface{}{
-			"status":           models.CustomerInvoiceStatusUnpaid,
-			"approved_at":      &now,
-			"remaining_amount": ci.Amount,
-		}).Error; err != nil {
-			return err
-		}
-
-		if shouldTriggerSalesInvoiceDPJournal(previousStatus, models.CustomerInvoiceStatusUnpaid, ci.Type) {
-			txCtx := database.WithTx(ctx, tx)
-			triggerCtx := withActorContext(txCtx, nil, ci.CreatedBy)
-			if err := uc.triggerSalesInvoiceDPJournal(triggerCtx, &ci); err != nil {
-				return fmt.Errorf("failed to trigger customer invoice DP journal: %w", err)
-			}
-		}
-
-		return nil
+		return uc.approveDownPaymentInTx(ctx, tx, id)
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -514,8 +427,8 @@ func (uc *customerInvoiceDownPaymentUsecase) triggerSalesInvoiceDPJournal(ctx co
 	actorID = strings.TrimSpace(actorID)
 
 	req := &finDto.CreateJournalEntryRequest{
-		EntryDate:         invoice.InvoiceDate.Format("2006-01-02"),
-		Description:       fmt.Sprintf("Customer Down Payment Invoice %s (%s)", invoice.InvoiceNumber, invoice.Code),
+		EntryDate:         invoice.InvoiceDate.Format(customerInvoiceDPDateFormat),
+		Description:       fmt.Sprintf("Customer Down Payment Invoice %s (%s)", safeInvoiceNumber(invoice.InvoiceNumber), invoice.Code),
 		ReferenceType:     &refType,
 		ReferenceID:       &refID,
 		Lines:             lines,
@@ -549,82 +462,166 @@ func (uc *customerInvoiceDownPaymentUsecase) triggerSalesInvoiceDPJournal(ctx co
 	return nil
 }
 
+func safeInvoiceNumber(invoiceNumber *string) string {
+	if invoiceNumber == nil || strings.TrimSpace(*invoiceNumber) == "" {
+		return "-"
+	}
+
+	return strings.TrimSpace(*invoiceNumber)
+}
+
 func (uc *customerInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if uc.db == nil {
-		return nil, 0, errors.New("db is nil")
-	}
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 {
-		perPage = 10
-	}
-	if perPage > 100 {
-		perPage = 100
+		return nil, 0, errors.New(errCustomerInvoiceDPDBNil)
 	}
 
-	tx := uc.db.WithContext(ctx).Model(&coreModels.AuditLog{}).
-		Where("audit_logs.target_id = ?", id).
-		Where("audit_logs.permission_code LIKE ?", "customer_invoice_dp.%")
+	return listAuditTrailEntries(ctx, uc.db, id, "customer_invoice_dp.", page, perPage)
+}
 
-	var total int64
-	if err := tx.Count(&total).Error; err != nil {
-		return nil, 0, err
+func parseCustomerInvoiceDPDates(invoiceDateRaw, dueDateRaw string) (time.Time, time.Time, error) {
+	invoiceDate, err := time.Parse(customerInvoiceDPDateFormat, invoiceDateRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid invoice date")
 	}
 
-	type auditRow struct {
-		ID             string    `gorm:"column:id"`
-		ActorID        string    `gorm:"column:actor_id"`
-		PermissionCode string    `gorm:"column:permission_code"`
-		TargetID       string    `gorm:"column:target_id"`
-		Action         string    `gorm:"column:action"`
-		Metadata       string    `gorm:"column:metadata"`
-		CreatedAt      time.Time `gorm:"column:created_at"`
-		ActorEmail     *string   `gorm:"column:actor_email"`
-		ActorName      *string   `gorm:"column:actor_name"`
+	dueDate, err := time.Parse(customerInvoiceDPDateFormat, dueDateRaw)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid due date")
 	}
 
-	rows := make([]auditRow, 0)
-	if err := tx.
-		Select("audit_logs.id, audit_logs.actor_id, audit_logs.permission_code, audit_logs.target_id, audit_logs.action, audit_logs.metadata, audit_logs.created_at, users.email as actor_email, users.name as actor_name").
-		Joins("LEFT JOIN users ON users.id = audit_logs.actor_id").
-		Order("audit_logs.created_at DESC").
-		Limit(perPage).
-		Offset((page - 1) * perPage).
-		Scan(&rows).Error; err != nil {
-		return nil, 0, err
-	}
+	return invoiceDate, dueDate, nil
+}
 
-	entries := make([]dto.CustomerInvoiceAuditTrailEntry, 0, len(rows))
-	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
+func (uc *customerInvoiceDownPaymentUsecase) createDraftDownPaymentInTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	req *dto.CreateCustomerInvoiceDownPaymentRequest,
+	invDate time.Time,
+	dueDate time.Time,
+) (*models.CustomerInvoice, error) {
+	var so models.SalesOrder
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&so, customerInvoiceDPByIDQuery, req.SalesOrderID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrSalesOrderNotFound
 		}
-
-		var usr *dto.AuditTrailUser
-		if r.ActorID != "" {
-			email := ""
-			name := ""
-			if r.ActorEmail != nil {
-				email = *r.ActorEmail
-			}
-			if r.ActorName != nil {
-				name = *r.ActorName
-			}
-			usr = &dto.AuditTrailUser{ID: r.ActorID, Email: email, Name: name}
-		}
-
-		entries = append(entries, dto.CustomerInvoiceAuditTrailEntry{
-			ID:             r.ID,
-			Action:         r.Action,
-			PermissionCode: r.PermissionCode,
-			TargetID:       r.TargetID,
-			Metadata:       meta,
-			User:           usr,
-			CreatedAt:      r.CreatedAt,
-		})
+		return nil, err
+	}
+	if so.Status != models.SalesOrderStatusApproved {
+		return nil, ErrCustomerInvoiceInvalid
 	}
 
-	return entries, total, nil
+	code, err := uc.repo.GetNextInvoiceNumber(ctx, "CIDP")
+	if err != nil {
+		return nil, err
+	}
+
+	invNo := fmt.Sprintf("CUS-DP-%s-%s", apptime.Now().Format("20060102"), strings.TrimPrefix(code, "CIDP-"))
+	creatorID, _ := ctx.Value("user_id").(string)
+
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	ci := &models.CustomerInvoice{
+		Type:          models.CustomerInvoiceTypeDownPayment,
+		SalesOrderID:  &so.ID,
+		Code:          code,
+		InvoiceNumber: &invNo,
+		InvoiceDate:   invDate,
+		DueDate:       &dueDate,
+		Amount:        req.Amount,
+		Subtotal:      req.Amount,
+		Status:        models.CustomerInvoiceStatusDraft,
+		Notes:         notes,
+		CreatedBy:     &creatorID,
+	}
+
+	if err := tx.Create(ci).Error; err != nil {
+		return nil, err
+	}
+
+	return ci, nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) updateDraftDownPaymentInTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	id string,
+	req *dto.UpdateCustomerInvoiceDownPaymentRequest,
+	invDate time.Time,
+	dueDate time.Time,
+) (*models.CustomerInvoice, error) {
+	var ci models.CustomerInvoice
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
+		return nil, err
+	}
+	if ci.Status != models.CustomerInvoiceStatusDraft || ci.Type != models.CustomerInvoiceTypeDownPayment {
+		return nil, ErrCustomerInvoiceConflict
+	}
+
+	var so models.SalesOrder
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&so, customerInvoiceDPByIDQuery, req.SalesOrderID).Error; err != nil {
+		return nil, err
+	}
+	if so.Status != models.SalesOrderStatusApproved {
+		return nil, ErrCustomerInvoiceInvalid
+	}
+
+	notes := ""
+	if req.Notes != nil {
+		notes = *req.Notes
+	}
+
+	if err := tx.Model(&ci).Updates(map[string]interface{}{
+		"sales_order_id": so.ID,
+		"invoice_date":   invDate,
+		"due_date":       dueDate,
+		"amount":         req.Amount,
+		"subtotal":       req.Amount,
+		"notes":          notes,
+		"updated_at":     apptime.Now(),
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	loaded, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return loaded, nil
+}
+
+func (uc *customerInvoiceDownPaymentUsecase) approveDownPaymentInTx(ctx context.Context, tx *gorm.DB, id string) error {
+	var ci models.CustomerInvoice
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ci, customerInvoiceDPByIDQuery, id).Error; err != nil {
+		return err
+	}
+	if ci.Type != models.CustomerInvoiceTypeDownPayment {
+		return ErrCustomerInvoiceNotFound
+	}
+	if ci.Status != models.CustomerInvoiceStatusSubmitted {
+		return ErrCustomerInvoiceConflict
+	}
+
+	previousStatus := ci.Status
+	now := apptime.Now()
+	if err := tx.Model(&ci).Updates(map[string]interface{}{
+		"status":           models.CustomerInvoiceStatusUnpaid,
+		"approved_at":      &now,
+		"remaining_amount": ci.Amount,
+	}).Error; err != nil {
+		return err
+	}
+
+	if shouldTriggerSalesInvoiceDPJournal(previousStatus, models.CustomerInvoiceStatusUnpaid, ci.Type) {
+		txCtx := database.WithTx(ctx, tx)
+		triggerCtx := withActorContext(txCtx, nil, ci.CreatedBy)
+		if err := uc.triggerSalesInvoiceDPJournal(triggerCtx, &ci); err != nil {
+			return fmt.Errorf("failed to trigger customer invoice DP journal: %w", err)
+		}
+	}
+
+	return nil
 }

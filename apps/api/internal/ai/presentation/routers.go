@@ -25,6 +25,7 @@ type AIDeps struct {
 	AttendanceUC     hrdUsecase.AttendanceRecordUsecase
 	SalesQuotationUC salesUsecase.SalesQuotationUsecase
 	SalesOrderUC     salesUsecase.SalesOrderUsecase
+	YearlyTargetUC   salesUsecase.YearlyTargetUsecase
 	InventoryUC      inventoryUsecase.InventoryUsecase
 }
 
@@ -62,6 +63,7 @@ func RegisterRoutes(
 		executorDeps.AttendanceUsecase = deps.AttendanceUC
 		executorDeps.SalesQuotationUsecase = deps.SalesQuotationUC
 		executorDeps.SalesOrderUsecase = deps.SalesOrderUC
+		executorDeps.YearlyTargetUsecase = deps.YearlyTargetUC
 		executorDeps.InventoryUsecase = deps.InventoryUC
 	}
 	actionExecutor := usecase.NewActionExecutor(executorDeps, entityResolver)

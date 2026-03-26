@@ -19,10 +19,10 @@ func RegisterSupplierRoutes(rg *gin.RouterGroup, h *handler.SupplierHandler) {
 		g.POST("/:id/submit", h.Submit)
 		g.POST("/:id/approve", h.Approve)
 		
-		// Nested phone numbers
-		g.POST("/:id/phone-numbers", h.AddPhoneNumber)
-		g.PUT("/:id/phone-numbers/:phoneId", h.UpdatePhoneNumber)
-		g.DELETE("/:id/phone-numbers/:phoneId", h.DeletePhoneNumber)
+		// Nested contacts
+		g.POST("/:id/contacts", h.AddContact)
+		g.PUT("/:id/contacts/:contactId", h.UpdateContact)
+		g.DELETE("/:id/contacts/:contactId", h.DeleteContact)
 		
 		// Nested bank accounts
 		g.POST("/:id/bank-accounts", h.AddBankAccount)

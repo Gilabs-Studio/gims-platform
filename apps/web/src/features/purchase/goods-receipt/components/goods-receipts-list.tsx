@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
@@ -68,7 +68,15 @@ import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
-import { usePurchaseReturns } from "@/features/purchase/returns/hooks/use-purchase-returns";
+
+function getInitialOpenGoodsReceiptFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_goods_receipt");
+}
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -83,7 +91,7 @@ export function GoodsReceiptsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
@@ -101,7 +109,7 @@ export function GoodsReceiptsList() {
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
-  const canAuditTrail = useUserPermission("goods_receipt.audit_trail");
+  const canAuditTrail = useUserPermission("goods_receipt.read");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
@@ -124,17 +132,29 @@ export function GoodsReceiptsList() {
 
   const items: GoodsReceiptListItem[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
-  const { data: purchaseReturnsData } = usePurchaseReturns({ per_page: 100 });
-  const returnedGoodsReceiptIDs = new Set(
-    (purchaseReturnsData?.data ?? [])
-      .map((row) => row.goods_receipt_id)
-      .filter((id): id is string => !!id),
-  );
 
   const deleteMutation = useDeleteGoodsReceipt();
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_goods_receipt")) return;
+
+    searchParams.delete("open_goods_receipt");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   if (isError) {
     return (
@@ -319,21 +339,14 @@ export function GoodsReceiptsList() {
                   </TableCell>
                   <TableCell>{formatDate(it.receipt_date)}</TableCell>
                   <TableCell>
-                    {returnedGoodsReceiptIDs.has(it.id) ? (
-                      <Badge variant="warning" className="text-xs font-medium">
-                        <FileText className="h-3 w-3 mr-1" />
-                        {t("status.returned")}
-                      </Badge>
-                    ) : (
-                      <GoodsReceiptStatusBadge
-                        status={it.status ?? ""}
-                        onClick={
-                          it.status === "CLOSED" || it.status === "PARTIAL"
-                            ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
-                            : undefined
-                        }
-                      />
-                    )}
+                    <GoodsReceiptStatusBadge
+                      status={it.status ?? ""}
+                      onClick={
+                        it.status === "CLOSED" || it.status === "PARTIAL"
+                          ? () => setSiLinkedData({ id: it.id, code: it.code, purchase_order_id: it.purchase_order?.id ?? "" })
+                          : undefined
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     {canShowActions && (

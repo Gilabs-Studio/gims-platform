@@ -1,6 +1,7 @@
 export const supplierInvoiceEn = {
   common: {
     view: "View",
+    basicInfo: "Basic Information",
   },
   title: "Supplier Invoices",
   description: "Create invoices from closed goods receipts.",
@@ -24,11 +25,14 @@ export const supplierInvoiceEn = {
     general: "General",
     basic: "Basic Info",
     items: "Items",
+    auditTrail: "Audit Trail",
   },
   sections: {
     invoiceInfo: "Invoice Information",
     supplier: "Supplier",
     financial: "Financial Summary",
+    detectedDownPayments: "Detected Down Payments",
+    invoiceSummary: "Invoice Summary",
   },
   auditTrail: {
     title: "Audit Trail",
@@ -71,6 +75,8 @@ export const supplierInvoiceEn = {
     taxAmount: "Tax Amount",
     total: "Total",
     summaryTitle: "Summary",
+    downPaymentApplied: "Down Payment Applied",
+    amountDue: "Amount Due",
   },
   items: {
     title: "Items",

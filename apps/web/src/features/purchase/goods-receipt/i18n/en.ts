@@ -45,6 +45,7 @@ export const goodsReceiptEn = {
     basic: "Basic Info",
     items: "Items",
     general: "General",
+    auditTrail: "Audit Trail",
     audit_trail: "Audit Trail",
   },
   sections: {

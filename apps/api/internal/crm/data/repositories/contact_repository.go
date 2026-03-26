@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -57,10 +58,11 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.Contact{})
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
 		search := params.Search + "%"
-		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR position ILIKE ?", search, search, search, search)
+		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", search, search, search)
 	}
 
 	if params.CustomerID != "" {
@@ -76,13 +78,14 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	}
 
 	if params.SortBy != "" {
-		sortOrder := params.SortBy
+		// Quote column name to handle reserved keywords
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			sortOrder += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			sortOrder += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(sortOrder)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("name ASC")
 	}
@@ -106,6 +109,7 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.Contact{}).Where("customer_id = ?", customerID)
+	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
 		search := params.Search + "%"
@@ -117,13 +121,14 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 	}
 
 	if params.SortBy != "" {
-		sortOrder := params.SortBy
+		// Quote column name to handle reserved keywords
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			sortOrder += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			sortOrder += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(sortOrder)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("name ASC")
 	}

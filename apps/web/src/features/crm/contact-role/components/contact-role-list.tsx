@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Switch } from "@/components/ui/switch";
 import { ContactRoleDialog } from "./contact-role-dialog";
 import { useContactRoleList } from "../hooks/use-contact-role-list";
 
@@ -49,7 +49,6 @@ export function ContactRoleList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("form.name")}</TableHead>
-              <TableHead>{t("form.code")}</TableHead>
               <TableHead>{t("form.badgeColor")}</TableHead>
               <TableHead>{t("form.description")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
@@ -61,22 +60,19 @@ export function ContactRoleList() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && <TableCell><Skeleton className="h-8 w-8" /></TableCell>}
                 </TableRow>
               ))
             ) : data.items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
+                <TableCell colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4} className="h-24 text-center text-muted-foreground">{t("empty")}</TableCell>
               </TableRow>
             ) : (
               data.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: item.badge_color }} />

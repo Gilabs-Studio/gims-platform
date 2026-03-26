@@ -49,6 +49,18 @@ export const quotationId = {
       financial: "Keuangan",
       items: "Item",
       history: "Riwayat",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada data audit trail",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
     },
 
     // Status
@@ -135,6 +147,8 @@ export const quotationId = {
     // Validation
     validation: {
       required: "Kolom ini wajib diisi",
+      customerRequired: "Customer wajib dipilih",
+      invalidCustomer: "Pilih customer yang valid",
       invalidId: "ID tidak valid",
       quantityPositive: "Jumlah harus lebih besar dari 0",
       quantityMin: "Jumlah minimal 0.001",

@@ -18,7 +18,6 @@ const (
 	goodsReceiptClose                 = "goods_receipt.close"
 	goodsReceiptConvert               = "goods_receipt.convert"
 	goodsReceiptExport                = "goods_receipt.export"
-	goodsReceiptAuditTrail            = "goods_receipt.audit_trail"
 	goodsReceiptPrint                 = "goods_receipt.print"
 )
 
@@ -29,7 +28,7 @@ func RegisterGoodsReceiptRoutes(r *gin.RouterGroup, h *handler.GoodsReceiptHandl
 	g.GET("/export", middleware.RequirePermission(goodsReceiptExport), h.Export)
 	g.POST("", middleware.RequirePermission(goodsReceiptCreate), h.Create)
 	g.GET("/:id", middleware.RequirePermission(goodsReceiptRead), h.GetByID)
-	g.GET("/:id/audit-trail", middleware.RequirePermission(goodsReceiptAuditTrail), h.AuditTrail)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(goodsReceiptRead), h.AuditTrail)
 	g.GET("/:id/print", middleware.RequirePermission(goodsReceiptPrint), printH.PrintGoodsReceipt)
 	g.PUT("/:id", middleware.RequirePermission(goodsReceiptUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(goodsReceiptDelete), h.Delete)

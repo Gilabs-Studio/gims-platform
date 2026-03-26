@@ -54,13 +54,14 @@ func (r *contactRoleRepository) List(ctx context.Context, params ListParams) ([]
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
+		// Quote column name to handle reserved keywords
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			order += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			order += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(order)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("name ASC")
 	}

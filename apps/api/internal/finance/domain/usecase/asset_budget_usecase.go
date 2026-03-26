@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -16,7 +17,7 @@ import (
 var (
 	ErrAssetBudgetNotFound = errors.New("asset budget not found")
 	ErrInvalidBudgetStatus = errors.New("invalid budget status transition")
-	ErrBudgetHasUsage      = errors.New("budget has usage and cannot be deleted")
+	ErrBudgetHasUsage     = errors.New("budget has usage and cannot be deleted")
 	ErrActiveBudgetExists  = errors.New("active budget already exists for this fiscal year")
 )
 
@@ -167,6 +168,9 @@ func (uc *assetBudgetUsecase) GetByID(ctx context.Context, id string) (*dto.Asse
 	if id == "" {
 		return nil, errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.AssetBudget{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrAssetBudgetNotFound
+	}
 
 	budget, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
@@ -184,6 +188,9 @@ func (uc *assetBudgetUsecase) GetByCode(ctx context.Context, code string) (*dto.
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, errors.New("code is required")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.AssetBudget{}, code, security.FinanceScopeQueryOptions()) {
+		return nil, ErrAssetBudgetNotFound
 	}
 
 	budget, err := uc.repo.FindByCode(ctx, code)

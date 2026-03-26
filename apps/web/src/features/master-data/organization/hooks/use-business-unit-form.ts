@@ -11,11 +11,12 @@ export interface UseBusinessUnitFormProps {
   open: boolean;
   onClose: () => void;
   businessUnit?: BusinessUnit | null;
+  initialData?: { name?: string };
   /** Called after a successful create with the newly created item's id and name */
   onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useBusinessUnitForm({ open, onClose, businessUnit, onCreated }: UseBusinessUnitFormProps) {
+export function useBusinessUnitForm({ open, onClose, businessUnit, initialData, onCreated }: UseBusinessUnitFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!businessUnit;
 
@@ -37,17 +38,17 @@ export function useBusinessUnitForm({ open, onClose, businessUnit, onCreated }: 
         form.reset({
           name: businessUnit.name,
           description: businessUnit.description ?? "",
-          is_active: businessUnit.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
-          name: "",
+          name: initialData?.name ?? "",
           description: "",
           is_active: true,
         });
       }
     }
-  }, [open, businessUnit, form]);
+  }, [open, businessUnit, form, initialData?.name]);
 
   const onSubmit: SubmitHandler<BusinessUnitFormData> = async (data) => {
     try {

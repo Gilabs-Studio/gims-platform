@@ -37,6 +37,8 @@ export const orderEn = {
       selectDate: "Select date",
       selectCustomer: "Select customer",
       customer: "Customer",
+      phone: "Phone",
+      email: "Email",
       validating: "Validating...",
       back: "Back",
     },
@@ -47,6 +49,18 @@ export const orderEn = {
       financial: "Financial",
       items: "Items",
       history: "History",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "No audit trail entries",
+      columns: {
+        action: "Action",
+        user: "User",
+        time: "Time",
+        details: "Details",
+      },
     },
 
     // Status
@@ -164,6 +178,8 @@ export const orderEn = {
     // Validation
     validation: {
       required: "This field is required",
+      customerRequired: "Customer is required",
+      invalidCustomer: "Select a valid customer",
       invalidId: "Invalid ID",
       quantityPositive: "Quantity must be greater than 0",
       quantityMin: "Quantity must be at least 0.001",

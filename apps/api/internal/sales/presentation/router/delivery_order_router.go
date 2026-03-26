@@ -11,6 +11,7 @@ func RegisterDeliveryOrderRoutes(rg *gin.RouterGroup, h *handler.DeliveryOrderHa
 	g := rg.Group("/delivery-orders")
 	g.GET("", middleware.RequirePermission("delivery_order.read"), h.List)
 	g.GET("/:id", middleware.RequirePermission("delivery_order.read"), h.GetByID)
+	g.GET("/:id/audit-trail", middleware.RequirePermission("delivery_order.read"), h.AuditTrail)
 	g.GET("/:id/items", middleware.RequirePermission("delivery_order.read"), h.ListItems)
 	g.POST("", middleware.RequirePermission("delivery_order.create"), h.Create)
 	g.PUT("/:id", middleware.RequirePermission("delivery_order.update"), h.Update)

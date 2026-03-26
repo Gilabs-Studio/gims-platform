@@ -5,7 +5,6 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useBusinessTypeForm } from "../../hooks/use-business-type-form";
 import { ButtonLoading } from "@/components/loading";
 import { BusinessType } from "../../types";
@@ -14,12 +13,25 @@ export interface BusinessTypeFormProps {
   open: boolean;
   onClose: () => void;
   businessType?: BusinessType | null;
+  initialData?: { name?: string };
   /** Called after a successful create with id and name of the new item */
   onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function BusinessTypeForm({ open, onClose, businessType, onCreated }: BusinessTypeFormProps) {
-  const { form, t, isEditing, isLoading, onSubmit } = useBusinessTypeForm({ open, onClose, businessType, onCreated });
+export function BusinessTypeForm({
+  open,
+  onClose,
+  businessType,
+  initialData,
+  onCreated,
+}: BusinessTypeFormProps) {
+  const { form, t, isEditing, isLoading, onSubmit } = useBusinessTypeForm({
+    open,
+    onClose,
+    businessType,
+    initialData,
+    onCreated,
+  });
 
   const {
     register,
@@ -27,9 +39,6 @@ export function BusinessTypeForm({ open, onClose, businessType, onCreated }: Bus
     watch,
     formState: { errors },
   } = form;
-
-  const isActive = watch("is_active");
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent size="default">
@@ -60,17 +69,7 @@ export function BusinessTypeForm({ open, onClose, businessType, onCreated }: Bus
             )}
           </Field>
 
-          <Field
-            orientation="horizontal"
-            className="flex items-center justify-between rounded-lg border p-3"
-          >
-            <FieldLabel>{t("businessType.form.isActive")}</FieldLabel>
-            <Switch
-              checked={isActive}
-              onCheckedChange={(val) => setValue("is_active", val)}
-            />
-          </Field>
-
+          
           <div className="flex justify-end gap-2">
             <Button
               type="button"

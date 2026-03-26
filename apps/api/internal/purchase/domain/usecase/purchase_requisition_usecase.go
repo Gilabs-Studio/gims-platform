@@ -2,14 +2,16 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"log"
 	"math"
 	"strings"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -65,6 +67,10 @@ func (uc *purchaseRequisitionUsecase) List(ctx context.Context, params repositor
 }
 
 func (uc *purchaseRequisitionUsecase) GetByID(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseRequisition{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchaseRequisitionNotFound
+	}
+
 	pr, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -239,6 +245,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	var suppliers []supplierModels.Supplier
 	if err := uc.db.WithContext(ctx).
 		Model(&supplierModels.Supplier{}).
+		Preload("Contacts").
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&suppliers).Error; err != nil {
@@ -284,11 +291,23 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	addSuppliers := make([]dto.PurchaseRequisitionAddSupplier, 0, len(suppliers))
 	for _, s := range suppliers {
+		addPhones := make([]dto.PurchaseRequisitionAddSupplierContact, 0, len(s.Contacts))
+		for _, ph := range s.Contacts {
+			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierContact{
+				ID:          ph.ID,
+				PhoneNumber: ph.Phone,
+				Label:       ph.Position,
+				IsPrimary:   ph.IsPrimary,
+			})
+		}
 		addSuppliers = append(addSuppliers, dto.PurchaseRequisitionAddSupplier{
-			ID:       s.ID,
-			Code:     s.Code,
-			Name:     s.Name,
-			Products: productsBySupplier[s.ID],
+			ID:             s.ID,
+			Code:           s.Code,
+			Name:           s.Name,
+			PaymentTermsID: s.PaymentTermsID,
+			BusinessUnitID: s.BusinessUnitID,
+			Contacts:       addPhones,
+			Products:       productsBySupplier[s.ID],
 		})
 	}
 
@@ -382,6 +401,17 @@ func (uc *purchaseRequisitionUsecase) Submit(ctx context.Context, id string) (*d
 		"before": before,
 		"after":  prAuditSnapshot(updated),
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "purchase_requisition.approve",
+		EntityType:     "purchase_requisition",
+		EntityID:       updated.ID,
+		Title:          "Purchase Requisition Approval",
+		Message:        "A purchase requisition has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create purchase requisition notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(updated), nil
 }
 
@@ -508,11 +538,9 @@ func (uc *purchaseRequisitionUsecase) ListAuditTrail(ctx context.Context, id str
 	}
 
 	entries := make([]dto.PurchaseRequisitionAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		meta := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &meta)
-		}
+		meta := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
 		var usr *dto.AuditTrailUser
 		if r.ActorID != "" {
 			email := ""
@@ -544,21 +572,50 @@ func prAuditSnapshot(pr *models.PurchaseRequisition) map[string]interface{} {
 		return nil
 	}
 	return map[string]interface{}{
-		"id":               pr.ID,
-		"code":             pr.Code,
-		"status":           pr.Status,
-		"supplier_id":      pr.SupplierID,
-		"payment_terms_id": pr.PaymentTermsID,
-		"business_unit_id": pr.BusinessUnitID,
-		"employee_id":      pr.EmployeeID,
-		"request_date":     pr.RequestDate,
-		"tax_rate":         pr.TaxRate,
-		"tax_amount":       pr.TaxAmount,
-		"delivery_cost":    pr.DeliveryCost,
-		"other_cost":       pr.OtherCost,
-		"subtotal":         pr.Subtotal,
-		"total_amount":     pr.TotalAmount,
+		"id":                 pr.ID,
+		"code":               pr.Code,
+		"status":             pr.Status,
+		"supplier_id":        pr.SupplierID,
+		"payment_terms_id":   pr.PaymentTermsID,
+		"payment_terms_name": pr.PaymentTermsNameSnapshot,
+		"business_unit_id":   pr.BusinessUnitID,
+		"business_unit_name": pr.BusinessUnitNameSnapshot,
+		"employee_id":        pr.EmployeeID,
+		"request_date":       pr.RequestDate,
+		"address":            pr.Address,
+		"tax_rate":           pr.TaxRate,
+		"tax_amount":         pr.TaxAmount,
+		"delivery_cost":      pr.DeliveryCost,
+		"other_cost":         pr.OtherCost,
+		"subtotal":           pr.Subtotal,
+		"notes":              pr.Notes,
+		"total_amount":       pr.TotalAmount,
+		"items":              prAuditItems(pr.Items),
 	}
+}
+
+func prAuditItems(items []models.PurchaseRequisitionItem) []map[string]interface{} {
+	if len(items) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		out = append(out, map[string]interface{}{
+			"id":             item.ID,
+			"product_id":     item.ProductID,
+			"product_code":   item.ProductCodeSnapshot,
+			"product_name":   item.ProductNameSnapshot,
+			"quantity":       item.Quantity,
+			"purchase_price": item.PurchasePrice,
+			"price":          item.PurchasePrice,
+			"discount":       item.Discount,
+			"subtotal":       item.Subtotal,
+			"notes":          item.Notes,
+		})
+	}
+
+	return out
 }
 
 func calcItemSubtotal(qty, price, discount float64) float64 {

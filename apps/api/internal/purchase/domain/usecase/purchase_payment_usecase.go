@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -126,6 +126,10 @@ func (uc *purchasePaymentUsecase) List(ctx context.Context, params repositories.
 }
 
 func (uc *purchasePaymentUsecase) GetByID(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchasePayment{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchasePaymentNotFound
+	}
+
 	p, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -629,19 +633,30 @@ func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string,
 	}
 
 	entries := make([]dto.PurchasePaymentAuditTrailEntry, 0, len(rows))
+	refCache := make(map[string]string)
 	for _, r := range rows {
-		metaMap := map[string]interface{}{}
-		if strings.TrimSpace(r.Metadata) != "" {
-			_ = json.Unmarshal([]byte(r.Metadata), &metaMap)
+		metaMap := parsePurchaseAuditMetadata(ctx, uc.db, r.Metadata, refCache)
+
+		var usr *dto.AuditTrailUser
+		if r.ActorID != "" {
+			email := ""
+			name := ""
+			if r.ActorEmail != nil {
+				email = *r.ActorEmail
+			}
+			if r.ActorName != nil {
+				name = *r.ActorName
+			}
+			usr = &dto.AuditTrailUser{ID: r.ActorID, Email: email, Name: name}
 		}
+
 		entries = append(entries, dto.PurchasePaymentAuditTrailEntry{
 			ID:             r.ID,
-			ActorID:        r.ActorID,
-			ActorEmail:     r.ActorEmail,
-			ActorName:      r.ActorName,
 			PermissionCode: r.PermissionCode,
 			Action:         r.Action,
+			TargetID:       r.TargetID,
 			Metadata:       metaMap,
+			User:           usr,
 			CreatedAt:      r.CreatedAt,
 		})
 	}

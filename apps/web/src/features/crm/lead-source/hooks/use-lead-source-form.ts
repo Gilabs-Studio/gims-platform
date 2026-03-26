@@ -9,10 +9,7 @@ import type { LeadSource } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
   description: z.string().max(500).optional(),
-  order: z.number().min(0),
-  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -22,7 +19,7 @@ export interface UseLeadSourceFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: LeadSource | null;
   onCreated?: (item: { id: string; name: string }) => void;
-  initialData?: { name?: string; order?: number };
+  initialData?: { name?: string };
 }
 
 export function useLeadSourceForm({
@@ -40,24 +37,21 @@ export function useLeadSourceForm({
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", description: "", order: 0, is_active: true },
+    defaultValues: { name: "", description: "" },
   });
 
   useEffect(() => {
     if (open) {
       if (editingItem) {
-        form.reset({ name: editingItem.name, code: editingItem.code, description: editingItem.description ?? "", order: editingItem.order, is_active: editingItem.is_active });
+        form.reset({ name: editingItem.name, description: editingItem.description ?? "" });
       } else {
         form.reset({
           name: initialData?.name ?? "",
-          code: initialData?.name?.toUpperCase() ?? "",
           description: "",
-          order: initialData?.order ?? 0,
-          is_active: true,
         });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialData?.name, open]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {

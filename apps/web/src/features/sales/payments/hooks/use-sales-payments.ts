@@ -19,10 +19,11 @@ export const salesPaymentKeys = {
     [...salesPaymentKeys.all, "audit-trail", id, params] as const,
 };
 
-export function useSalesPayments(params?: SalesPaymentListParams) {
+export function useSalesPayments(params?: SalesPaymentListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: salesPaymentKeys.list(params),
     queryFn: () => salesPaymentsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

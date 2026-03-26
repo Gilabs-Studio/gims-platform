@@ -2,7 +2,7 @@ import * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { DayPicker, type DayPickerProps } from "react-day-picker";
 
-import { cn } from "@/lib/utils";
+import { cn, parseLocalDate } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 type CalendarMode = "day" | "month" | "year";
@@ -11,6 +11,10 @@ interface CaptionComponentProps extends React.HTMLAttributes<HTMLDivElement> {
   readonly calendarMonth?: { month?: Date; year?: number } | Date;
   readonly displayIndex?: number;
 }
+
+type CalendarDateRange = { from?: Date; to?: Date };
+type CalendarSelected = Date | string | Date[] | CalendarDateRange;
+type CalendarOnSelectValue = Date | Date[] | CalendarDateRange | undefined;
 
 interface ChevronProps {
   readonly className?: string;
@@ -24,6 +28,58 @@ function ChevronComponent(chevronProps: ChevronProps) {
     return <ChevronLeftIcon size={16} {...chevronProps} aria-hidden="true" />;
   }
   return <ChevronRightIcon size={16} {...chevronProps} aria-hidden="true" />;
+}
+
+function createLocalIsoString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}T00:00:00.000Z`;
+}
+
+function toSerializableLocalDate(date: Date): Date {
+  const normalized = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const localIso = createLocalIsoString(normalized);
+
+  Object.defineProperty(normalized, "toISOString", {
+    value: () => localIso,
+    writable: true,
+    configurable: true,
+  });
+  Object.defineProperty(normalized, "toJSON", {
+    value: () => localIso,
+    writable: true,
+    configurable: true,
+  });
+
+  return normalized;
+}
+
+function normalizeSelectedValue(value: CalendarOnSelectValue): CalendarOnSelectValue {
+  if (value instanceof Date) {
+    return toSerializableLocalDate(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((date) => toSerializableLocalDate(date));
+  }
+
+  if (value && typeof value === "object") {
+    return {
+      from: value.from ? toSerializableLocalDate(value.from) : undefined,
+      to: value.to ? toSerializableLocalDate(value.to) : undefined,
+    };
+  }
+
+  return value;
 }
 
 interface CaptionComponentFactoryProps {
@@ -48,11 +104,9 @@ function createCaptionComponentFactory({
   setMode,
 }: CaptionComponentFactoryProps) {
   const CaptionComponent = (captionProps: CaptionComponentProps) => {
-    // Extract only valid DOM props, exclude calendarMonth and displayIndex
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // Extract only valid DOM props, exclude custom caption props
     const {
       calendarMonth,
-      displayIndex: _displayIndex,
       ...restProps
     } = captionProps;
     // Filter out any non-DOM props that might have leaked through
@@ -136,11 +190,11 @@ type CalendarProps = CalendarPropsBase & {
   readonly onMonthChange?: (month: Date | undefined) => void;
   // Explicitly allow common DayPicker props that are conditionally typed
   readonly mode?: "single" | "multiple" | "range";
-  readonly selected?: Date | Date[] | { from?: Date; to?: Date };
+  readonly selected?: CalendarSelected;
   readonly onSelect?:
     | ((date: Date | undefined) => void)
     | ((dates: Date[] | undefined) => void)
-    | ((range: { from?: Date; to?: Date } | undefined) => void);
+    | ((range: CalendarDateRange | undefined) => void);
 };
 
 function Calendar({
@@ -153,10 +207,16 @@ function Calendar({
   ...props
 }: CalendarProps) {
   // Destructure out props that conflict with DayPicker's conditional types
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { required, ...safeProps } = props as CalendarProps & {
+  const {
+    required,
+    selected: rawSelected,
+    onSelect: rawOnSelect,
+    ...safeProps
+  } = props as CalendarProps & {
     required?: boolean;
+    selected?: CalendarProps["selected"];
   };
+  void required;
   const [internalMonth, setInternalMonth] = React.useState<Date>(
     controlledMonth ?? new Date(),
   );
@@ -171,6 +231,20 @@ function Calendar({
       setInternalMonth(controlledMonth);
     }
   }, [controlledMonth]);
+
+  const normalizedSelected = React.useMemo(() => {
+    if (typeof rawSelected === "string") {
+      return parseLocalDate(rawSelected);
+    }
+
+    return rawSelected;
+  }, [rawSelected]);
+
+  const handleSelect = React.useCallback((value: CalendarOnSelectValue) => {
+    (rawOnSelect as ((selected: CalendarOnSelectValue) => void) | undefined)?.(
+      normalizeSelectedValue(value),
+    );
+  }, [rawOnSelect]);
 
   const defaultClassNames = {
     months: "relative flex flex-col sm:flex-row gap-4",
@@ -406,13 +480,17 @@ function Calendar({
   return (
     <div className={cn(className)}>
       <DayPicker
-        showOutsideDays={mode === "day" ? showOutsideDays : false}
-        className={cn("w-full", className)}
-        classNames={mergedClassNames}
-        components={mergedComponents}
-        month={month}
-        onMonthChange={onMonthChange}
-        {...(safeProps as DayPickerProps)}
+        {...({
+          ...safeProps,
+          showOutsideDays: mode === "day" ? showOutsideDays : false,
+          className: cn("w-full", className),
+          classNames: mergedClassNames,
+          components: mergedComponents,
+          month,
+          onMonthChange,
+          selected: normalizedSelected,
+          onSelect: rawOnSelect ? handleSelect : undefined,
+        } as DayPickerProps)}
       />
       {monthYearContent}
     </div>

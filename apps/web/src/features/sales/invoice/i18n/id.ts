@@ -53,6 +53,18 @@ export const invoiceId = {
       items: "Item",
       history: "Riwayat",
       payments: "Pembayaran",
+      auditTrail: "Audit Trail",
+    },
+
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada data audit trail",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
     },
 
     // Status

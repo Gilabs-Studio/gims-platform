@@ -73,6 +73,8 @@ export interface SalesPaymentListItem {
 export interface SalesPaymentDetail extends SalesPaymentListItem {
   reference_number?: string | null;
   notes?: string | null;
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface SalesPaymentAddInvoiceItem {

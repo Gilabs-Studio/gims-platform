@@ -12,27 +12,24 @@ import {
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { toast } from "sonner";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import {
   useContactForm,
   type UseContactFormProps,
 } from "../hooks/use-contact-form";
 import { useContactFormData } from "../hooks/use-contact";
+import { useCreateContactRole } from "@/features/crm/contact-role/hooks/use-contact-role";
 import type { Contact } from "../types";
 
 interface ContactFormDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly contact?: Contact | null;
-  readonly customerId: string;
+  readonly customerId?: string;
+  readonly initialName?: string;
   readonly onSuccess?: () => void;
+  readonly onCreated?: (contact: Contact) => void;
 }
 
 export function ContactFormDialog({
@@ -40,7 +37,9 @@ export function ContactFormDialog({
   onClose,
   contact,
   customerId,
+  initialName,
   onSuccess,
+  onCreated,
 }: ContactFormDialogProps) {
   const isEditing = !!contact;
 
@@ -54,11 +53,18 @@ export function ContactFormDialog({
     },
     editingItem: contact,
     customerId,
+    initialName,
+    onSaved: (savedContact) => {
+      if (!isEditing) {
+        onCreated?.(savedContact);
+      }
+    },
   };
 
   const { form, onSubmit, isSubmitting, t, tCommon } =
     useContactForm(formProps);
-  const { data: formDataRes } = useContactFormData({ enabled: open });
+  const { data: formDataRes, refetch: refetchFormData } = useContactFormData({ enabled: open });
+  const createContactRoleMutation = useCreateContactRole();
 
   const contactRoles = formDataRes?.data?.contact_roles ?? [];
 
@@ -66,11 +72,32 @@ export function ContactFormDialog({
     register,
     control,
     setValue,
-    watch,
     formState: { errors },
   } = form;
 
-  const isActive = watch("is_active");
+  const handleCreateContactRole = async (query: string) => {
+    const trimmedName = query.trim();
+    if (!trimmedName) return;
+
+    try {
+      const response = await createContactRoleMutation.mutateAsync({
+        name: trimmedName,
+      });
+
+      if (response.data?.id) {
+        setValue("contact_role_id", response.data.id, {
+          shouldDirty: true,
+          shouldTouch: true,
+        });
+      }
+
+      await refetchFormData();
+
+      toast.success(tCommon("savedSuccessfully") || "Success");
+    } catch {
+      toast.error(tCommon("error") || "Something went wrong");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -105,32 +132,23 @@ export function ContactFormDialog({
                 control={control}
                 name="contact_role_id"
                 render={({ field }) => (
-                  <Select
+                  <CreatableCombobox
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t("form.contactRolePlaceholder")}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contactRoles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={contactRoles.map((role) => ({
+                      value: role.id,
+                      label: role.name,
+                    }))}
+                    placeholder={t("form.contactRolePlaceholder")}
+                    searchPlaceholder={t("searchPlaceholder")}
+                    createPermission="crm_contact_role.create"
+                    createLabel={`${tCommon("create") || "Create"} "{query}"`}
+                    onCreateClick={(query) => {
+                      void handleCreateContactRole(query);
+                    }}
+                    isLoading={createContactRoleMutation.isPending}
+                  />
                 )}
-              />
-            </Field>
-
-            <Field orientation="vertical">
-              <FieldLabel>{t("form.position")}</FieldLabel>
-              <Input
-                placeholder={t("form.positionPlaceholder")}
-                {...register("position")}
               />
             </Field>
           </div>
@@ -177,22 +195,6 @@ export function ContactFormDialog({
               />
             </Field>
 
-            <Field
-              orientation="horizontal"
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <div className="space-y-0.5">
-                <FieldLabel>{t("form.isActive")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">
-                  {isActive ? t("form.activeStatus") : t("form.inactiveStatus")}
-                </p>
-              </div>
-              <Switch
-                checked={isActive}
-                onCheckedChange={(val) => setValue("is_active", val)}
-                className="cursor-pointer"
-              />
-            </Field>
           </div>
 
           {/* Action Buttons */}

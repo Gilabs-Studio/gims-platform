@@ -14,10 +14,11 @@ export const financeBankAccountKeys = {
   history: (id: string, params?: { page?: number; per_page?: number }) => [...financeBankAccountKeys.detail(id), "history", params] as const,
 };
 
-export function useFinanceBankAccounts(params?: ListBankAccountsParams) {
+export function useFinanceBankAccounts(params?: ListBankAccountsParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: financeBankAccountKeys.list(params),
     queryFn: () => financeBankAccountsService.list(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

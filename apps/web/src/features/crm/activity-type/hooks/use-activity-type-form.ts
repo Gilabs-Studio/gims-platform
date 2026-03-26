@@ -9,12 +9,9 @@ import type { ActivityType } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
   description: z.string().max(500).optional(),
   icon: z.string().max(50).optional(),
   badge_color: z.string().max(20).optional(),
-  order: z.number().min(0),
-  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -23,9 +20,17 @@ export interface UseActivityTypeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: ActivityType | null;
+  initialData?: { name?: string };
+  onCreated?: (item: ActivityType) => void;
 }
 
-export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActivityTypeFormProps) {
+export function useActivityTypeForm({
+  open,
+  onOpenChange,
+  editingItem,
+  initialData,
+  onCreated,
+}: UseActivityTypeFormProps) {
   const t = useTranslations("activityType");
   const tCommon = useTranslations("common");
 
@@ -34,7 +39,7 @@ export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActi
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", description: "", icon: "", badge_color: "#3B82F6", order: 0, is_active: true },
+    defaultValues: { name: "", description: "", icon: "", badge_color: "#3B82F6" },
   });
 
   useEffect(() => {
@@ -42,18 +47,20 @@ export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActi
       if (editingItem) {
         form.reset({
           name: editingItem.name,
-          code: editingItem.code,
           description: editingItem.description ?? "",
           icon: editingItem.icon ?? "",
           badge_color: editingItem.badge_color ?? "#3B82F6",
-          order: editingItem.order,
-          is_active: editingItem.is_active,
         });
       } else {
-        form.reset({ name: "", code: "", description: "", icon: "", badge_color: "#3B82F6", order: 0, is_active: true });
+        form.reset({
+          name: initialData?.name ?? "",
+          description: "",
+          icon: "",
+          badge_color: "#3B82F6",
+        });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialData?.name, open]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
@@ -61,7 +68,8 @@ export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActi
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = await createMutation.mutateAsync(data);
+        onCreated?.(result.data);
         toast.success(t("created"));
       }
       onOpenChange(false);

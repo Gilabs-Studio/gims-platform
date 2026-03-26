@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -253,6 +254,9 @@ func (uc *valuationRunUsecase) Run(ctx context.Context, req *dto.RunValuationReq
 }
 
 func (uc *valuationRunUsecase) GetByID(ctx context.Context, id string) (*dto.ValuationRunResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.ValuationRun{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, errors.New("valuation run not found")
+	}
 	run, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err

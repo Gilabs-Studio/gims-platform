@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
@@ -139,10 +140,6 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 			Type:                        req.Type,
 			Description:                 strings.TrimSpace(req.Description),
 			BankAccountID:               bankAccountID,
-			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
-			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
-			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
-			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
 			TotalAmount:                 sum,
 			Status:                      financeModels.CashBankStatusDraft,
 			CreatedBy:                   &actorID,
@@ -333,6 +330,9 @@ func (uc *cashBankJournalUsecase) GetByID(ctx context.Context, id string) (*dto.
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.CashBankJournal{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrCashBankNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {

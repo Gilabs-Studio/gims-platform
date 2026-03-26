@@ -14,7 +14,7 @@ import (
 
 // AreaMappingUsecase defines operations for area mapping
 type AreaMappingUsecase interface {
-	// GetAreaMapping returns all customers and leads with their activity metrics
+	// GetAreaMapping returns all lead and pipeline items with activity metrics
 	GetAreaMapping(ctx context.Context, req *dto.GetAreaMappingRequest) (*dto.AreaMappingResponse, error)
 }
 
@@ -29,15 +29,9 @@ type areaMappingUsecase struct {
 	repo repositories.AreaMappingRepository
 }
 
-// GetAreaMapping fetches customers and leads with aggregated activity metrics
+// GetAreaMapping fetches lead and pipeline data with aggregated metrics
 func (u *areaMappingUsecase) GetAreaMapping(ctx context.Context, req *dto.GetAreaMappingRequest) (*dto.AreaMappingResponse, error) {
 	startDate, endDate, err := resolveDateRange(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch customers
-	customers, err := u.repo.GetCustomersForMapping(ctx, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -48,16 +42,14 @@ func (u *areaMappingUsecase) GetAreaMapping(ctx context.Context, req *dto.GetAre
 		return nil, err
 	}
 
-	// Combine into unified items list
-	items := make([]dto.AreaMappingItem, 0, len(customers)+len(leads))
-
-	// Add customers
-	for i := range customers {
-		items = append(items, dto.AreaMappingItem{
-			Type:     "customer",
-			Customer: &customers[i],
-		})
+	// Fetch pipelines
+	pipelines, err := u.repo.GetPipelinesForMapping(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
 	}
+
+	// Combine into unified items list
+	items := make([]dto.AreaMappingItem, 0, len(leads)+len(pipelines))
 
 	// Add leads
 	for i := range leads {
@@ -67,9 +59,17 @@ func (u *areaMappingUsecase) GetAreaMapping(ctx context.Context, req *dto.GetAre
 		})
 	}
 
+	// Add pipelines
+	for i := range pipelines {
+		items = append(items, dto.AreaMappingItem{
+			Type:     "pipeline",
+			Pipeline: &pipelines[i],
+		})
+	}
+
 	// Calculate summary statistics
-	summary := calculateSummary(customers, leads)
-	clusters := buildClusters(customers, leads)
+	summary := calculateSummary(leads, pipelines)
+	clusters := buildClusters(leads, pipelines)
 
 	filters := dto.AreaMappingFilterMeta{}
 	if req != nil {
@@ -120,14 +120,15 @@ func resolveDateRange(req *dto.GetAreaMappingRequest) (*time.Time, *time.Time, e
 }
 
 type clusterAccumulator struct {
-	city           string
-	totalPoints    int
-	customerCount  int
-	leadCount      int
-	totalLat       float64
-	totalLng       float64
-	totalIntensity float64
-	maxIntensity   float64
+	city               string
+	totalPoints        int
+	leadCount          int
+	pipelineCount      int
+	totalPipelineValue float64
+	totalLat           float64
+	totalLng           float64
+	totalIntensity     float64
+	maxIntensity       float64
 }
 
 func normalizeCityKey(city string) string {
@@ -151,11 +152,13 @@ func updateCluster(
 	latitude float64,
 	longitude float64,
 	intensity float64,
-	isCustomer bool,
+	isPipeline bool,
+	pipelineValue float64,
 ) {
 	acc.totalPoints++
-	if isCustomer {
-		acc.customerCount++
+	if isPipeline {
+		acc.pipelineCount++
+		acc.totalPipelineValue += pipelineValue
 	} else {
 		acc.leadCount++
 	}
@@ -167,18 +170,8 @@ func updateCluster(
 	}
 }
 
-func buildClusters(customers []dto.AreaMappingCustomerData, leads []dto.AreaMappingLeadData) []dto.AreaMappingClusterResponse {
+func buildClusters(leads []dto.AreaMappingLeadData, pipelines []dto.AreaMappingPipelineData) []dto.AreaMappingClusterResponse {
 	clusters := make(map[string]*clusterAccumulator)
-
-	for _, customer := range customers {
-		updateCluster(
-			ensureCluster(clusters, customer.City),
-			customer.Latitude,
-			customer.Longitude,
-			customer.IntensityScore,
-			true,
-		)
-	}
 
 	for _, lead := range leads {
 		updateCluster(
@@ -187,6 +180,18 @@ func buildClusters(customers []dto.AreaMappingCustomerData, leads []dto.AreaMapp
 			lead.Longitude,
 			lead.IntensityScore,
 			false,
+			lead.EstimatedVal,
+		)
+	}
+
+	for _, pipeline := range pipelines {
+		updateCluster(
+			ensureCluster(clusters, pipeline.City),
+			pipeline.Latitude,
+			pipeline.Longitude,
+			pipeline.IntensityScore,
+			true,
+			pipeline.Value,
 		)
 	}
 
@@ -200,14 +205,15 @@ func buildClusters(customers []dto.AreaMappingCustomerData, leads []dto.AreaMapp
 			city = "Unknown"
 		}
 		result = append(result, dto.AreaMappingClusterResponse{
-			City:          city,
-			TotalPoints:   acc.totalPoints,
-			CustomerCount: acc.customerCount,
-			LeadCount:     acc.leadCount,
-			AvgIntensity:  acc.totalIntensity / float64(acc.totalPoints),
-			MaxIntensity:  acc.maxIntensity,
-			CenterLat:     acc.totalLat / float64(acc.totalPoints),
-			CenterLng:     acc.totalLng / float64(acc.totalPoints),
+			City:               city,
+			TotalPoints:        acc.totalPoints,
+			LeadCount:          acc.leadCount,
+			PipelineDealCount:  acc.pipelineCount,
+			TotalPipelineValue: acc.totalPipelineValue,
+			AvgIntensity:       acc.totalIntensity / float64(acc.totalPoints),
+			MaxIntensity:       acc.maxIntensity,
+			CenterLat:          acc.totalLat / float64(acc.totalPoints),
+			CenterLng:          acc.totalLng / float64(acc.totalPoints),
 		})
 	}
 
@@ -218,32 +224,19 @@ func buildClusters(customers []dto.AreaMappingCustomerData, leads []dto.AreaMapp
 	return result
 }
 
-// calculateSummary aggregates statistics from customers and leads
-func calculateSummary(customers []dto.AreaMappingCustomerData, leads []dto.AreaMappingLeadData) dto.AreaMappingSummary {
+// calculateSummary aggregates statistics from leads and pipelines
+func calculateSummary(leads []dto.AreaMappingLeadData, pipelines []dto.AreaMappingPipelineData) dto.AreaMappingSummary {
 	summary := dto.AreaMappingSummary{
-		TotalCustomers: len(customers),
 		TotalLeads:     len(leads),
+		TotalPipelines: len(pipelines),
 	}
 
 	maxScore := 0.0
 	minScore := 100.0
 
-	// Aggregate from customers
-	for _, c := range customers {
-		summary.TotalActivities += c.ActivityCount
-		summary.TotalPipelineValue += c.TotalDealValue
-
-		if c.IntensityScore > maxScore {
-			maxScore = c.IntensityScore
-		}
-		if c.IntensityScore < minScore {
-			minScore = c.IntensityScore
-		}
-	}
-
 	// Aggregate from leads
 	for _, l := range leads {
-		summary.TotalActivities += l.ActivityCount
+		summary.TotalActivities += l.ActivityCount + l.TaskCount
 		summary.TotalPipelineValue += l.EstimatedVal
 
 		if l.IntensityScore > maxScore {
@@ -252,6 +245,21 @@ func calculateSummary(customers []dto.AreaMappingCustomerData, leads []dto.AreaM
 		if l.IntensityScore < minScore {
 			minScore = l.IntensityScore
 		}
+	}
+
+	for _, p := range pipelines {
+		summary.TotalPipelineValue += p.Value
+
+		if p.IntensityScore > maxScore {
+			maxScore = p.IntensityScore
+		}
+		if p.IntensityScore < minScore {
+			minScore = p.IntensityScore
+		}
+	}
+
+	if len(leads) == 0 && len(pipelines) == 0 {
+		minScore = 0
 	}
 
 	summary.MaxIntensityScore = maxScore

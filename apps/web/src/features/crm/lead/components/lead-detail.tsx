@@ -55,8 +55,7 @@ import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
-import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByLead } from "@/features/crm/task/hooks/use-tasks";
@@ -210,13 +209,12 @@ function LeadDetailSkeleton() {
 export function LeadDetail({ leadId }: LeadDetailProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
+  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useLeadById(leadId);
   const { data: formDataRes } = useLeadFormData();
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
   const authUser = useAuthStore((state) => state.user);
-  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const deleteMutation = useDeleteLead();
   const updateMutation = useUpdateLead();
 
@@ -235,30 +233,30 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const [showActivityDialog, setShowActivityDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("activities");
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId);
-  const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId);
+  const isActivitiesTabActive = activeTab === "activities";
+  const isTasksTabActive = activeTab === "tasks";
+  const isProductItemsTabActive = activeTab === "productItems";
+  const { data: activityTypesData } = useActivityTypes(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: showActivityDialog }
+  );
+  const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
+
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByLead(leadId, undefined, {
+    enabled: isTasksTabActive,
+  });
+  const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId, {
+    enabled: isProductItemsTabActive,
+  });
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
-  // Fetch interest questions for resolving survey answers in the product tooltip
-  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: true });
-  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
 
   /** Resolves raw { question_id, option_id }[] JSON to display-friendly text array */
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    if (!raw) return [];
-    try {
-      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
-      return parsed.flatMap((ans) => {
-        const q = interestQuestions.find((q) => q.id === ans.question_id);
-        const opt = q?.options.find((o) => o.id === ans.option_id);
-        if (!q || !opt) return [];
-        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
-      });
-    } catch {
-      return [];
-    }
+    return resolveVisitSurveyAnswers(raw, (key) => tVisit(key));
   }
 
   const lead: Lead | undefined = response?.data;
@@ -320,6 +318,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   }
 
   const statusColor = lead.lead_status?.color ?? undefined;
+  const statusLabel = isConverted ? t("convertedBadge") : (lead.lead_status?.name ?? "-");
+  const statusStyle = isConverted
+    ? undefined
+    : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
+  const statusClassName = isConverted && lead.deal_id
+    ? "bg-success/10 text-success border-success/30 cursor-pointer hover:border-primary hover:text-primary transition-colors"
+    : "";
   const bantCount = [
     lead.budget_confirmed,
     lead.auth_confirmed,
@@ -345,7 +350,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   );
   // "Converted" status must not be reachable via the quick-action button
   // (it is exclusively set through the dedicated Convert workflow)
-  const convertedStatus = sortedStatuses.find((s) => s.is_converted);
+  const convertedStatus = sortedStatuses.find((s) => s.code?.toUpperCase() === "CONVERTED");
 
   const hasCoordinates = lead.latitude != null && lead.longitude != null;
 
@@ -382,18 +387,18 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                 <h1 className="text-2xl font-bold tracking-tight">
                   {lead.first_name} {lead.last_name}
                 </h1>
-                {lead.lead_status && (
+                {(lead.lead_status || isConverted) && (
                   <Badge
                     variant="outline"
-                    style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                    className={isConverted && lead.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                    style={statusStyle}
+                    className={statusClassName}
                     onClick={
                       isConverted && lead.deal_id
                         ? () => router.push(`/crm/pipeline/${lead.deal_id}`)
                         : undefined
                     }
                   >
-                    {lead.lead_status.name}
+                    {statusLabel}
                   </Badge>
                 )}
               </div>
@@ -509,7 +514,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
             )}
 
             {/* Tabs: Activities | Tasks | Information */}
-            <Tabs defaultValue="activities">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="activities" className="cursor-pointer gap-1.5">
                   <History className="h-4 w-4" />
@@ -547,6 +552,7 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
               <TabsContent value="activities" className="mt-4">
                 <LeadActivityFeed
                   leadId={lead.id}
+                  enabled={isActivitiesTabActive}
                   canCreateActivity={canCreateActivity}
                   canCreateVisit={canCreateVisit}
                   onLogActivity={() => setShowActivityDialog(true)}
@@ -820,10 +826,10 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">{lead.company_name}</span>
                       </div>
-                      {lead.job_title && (
+                      {lead.contact_role && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Briefcase className="h-3 w-3" />
-                          {lead.job_title}
+                          {lead.contact_role.name}
                         </div>
                       )}
                     </>

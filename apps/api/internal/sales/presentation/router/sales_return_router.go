@@ -17,6 +17,7 @@ func RegisterSalesReturnRoutes(rg *gin.RouterGroup, h *handler.SalesReturnHandle
 	g := rg.Group("/returns")
 	g.GET("/form-data", middleware.RequirePermission(salesReturnReadPermission), h.GetFormData)
 	g.GET("", middleware.RequirePermission(salesReturnReadPermission), h.List)
+	g.GET("/:id/audit-trail", middleware.RequirePermission(salesReturnReadPermission), h.AuditTrail)
 	g.POST("", middleware.RequirePermission(salesReturnCreatePermission), h.Create)
 	g.PATCH("/:id/status", middleware.RequirePermission(salesReturnUpdatePermission), h.UpdateStatus)
 	g.DELETE("/:id", middleware.RequirePermission(salesReturnDeletePermission), h.Delete)

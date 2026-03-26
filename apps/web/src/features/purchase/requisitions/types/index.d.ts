@@ -133,10 +133,20 @@ export interface PurchaseRequisitionAddProduct {
   is_approved: boolean;
 }
 
+export interface PurchaseRequisitionAddSupplierContact {
+  id: string;
+  phone: string;
+  label?: string;
+  is_primary: boolean;
+}
+
 export interface PurchaseRequisitionAddSupplier {
   id: string;
   code: string;
   name: string;
+  payment_terms_id?: string | null;
+  business_unit_id?: string | null;
+  contacts?: PurchaseRequisitionAddSupplierContact[];
   products: PurchaseRequisitionAddProduct[];
 }
 
@@ -229,6 +239,7 @@ export interface PurchaseRequisitionItemInput {
 
 export interface CreatePurchaseRequisitionInput {
   supplier_id?: string | null;
+  supplier_contact_id?: string | null;
   payment_terms_id?: string | null;
   business_unit_id?: string | null;
   employee_id?: string | null;

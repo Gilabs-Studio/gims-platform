@@ -2,6 +2,7 @@ package handler
 
 import (
 	stderrors "errors"
+	"strconv"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -338,4 +339,30 @@ func (h *CustomerInvoiceHandler) ListItems(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, items, meta)
+}
+
+// AuditTrail handles list customer invoice audit trail with pagination.
+func (h *CustomerInvoiceHandler) AuditTrail(c *gin.Context) {
+	id := c.Param("id")
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	entries, total, err := h.invoiceUC.ListAuditTrail(c.Request.Context(), id, page, perPage)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(page, perPage, int(total))}
+	response.SuccessResponse(c, entries, meta)
 }

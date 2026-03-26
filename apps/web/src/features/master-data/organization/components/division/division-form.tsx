@@ -5,7 +5,6 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Division } from "../../types";
 import { useDivisionForm } from "../../hooks/use-division-form";
 import { ButtonLoading } from "@/components/loading";
@@ -25,9 +24,6 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
     watch,
     formState: { errors },
   } = form;
-
-  const isActive = watch("is_active");
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -58,17 +54,7 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
             )}
           </Field>
 
-          <Field
-            orientation="horizontal"
-            className="flex items-center justify-between rounded-lg border p-3"
-          >
-            <FieldLabel>{t("division.form.isActive")}</FieldLabel>
-            <Switch
-              checked={isActive}
-              onCheckedChange={(val) => setValue("is_active", val)}
-            />
-          </Field>
-
+          
           <div className="flex justify-end gap-2">
             <Button
               type="button"

@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -23,12 +24,9 @@ import { SILinkedDialog } from "@/features/purchase/orders/components/si-linked-
 import { usePurchaseOrders } from "@/features/purchase/orders/hooks/use-purchase-orders";
 import type { PurchaseOrderListItem } from "@/features/purchase/orders/types";
 
-interface TrackPurchaseOrderCardProps {
-  readonly isLoading?: boolean;
-}
-
-export function TrackPurchaseOrderCard({ isLoading }: TrackPurchaseOrderCardProps) {
+export function TrackPurchaseOrderCard() {
   const t = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [grDialogItem, setGrDialogItem] = useState<PurchaseOrderListItem | null>(null);
@@ -38,7 +36,12 @@ export function TrackPurchaseOrderCard({ isLoading }: TrackPurchaseOrderCardProp
   const canViewGR = useUserPermission("goods_receipt.read");
   const canViewSI = useUserPermission("supplier_invoice.read");
 
-  const { data, isLoading: isPOsLoading } = usePurchaseOrders({
+  const {
+    data,
+    isLoading: isPOsLoading,
+    isError: isPOsError,
+    refetch: refetchPOs,
+  } = usePurchaseOrders({
     page: 1,
     per_page: 8,
     sort_by: "created_at",
@@ -118,7 +121,7 @@ export function TrackPurchaseOrderCard({ isLoading }: TrackPurchaseOrderCardProp
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(isLoading || isPOsLoading) ? (
+                {isPOsLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 6 }).map((__, j) => (
@@ -128,6 +131,25 @@ export function TrackPurchaseOrderCard({ isLoading }: TrackPurchaseOrderCardProp
                       ))}
                     </TableRow>
                   ))
+                ) : isPOsError ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center">
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">{t("error")}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => {
+                            void refetchPOs();
+                          }}
+                        >
+                          {tCommon("retry")}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : orders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">

@@ -5,22 +5,17 @@ import "time"
 // CreateActivityTypeRequest represents the request to create an activity type
 type CreateActivityTypeRequest struct {
 	Name        string `json:"name" binding:"required,min=2,max=100"`
-	Code        string `json:"code" binding:"required,min=2,max=50"`
 	Description string `json:"description" binding:"max=500"`
 	Icon        string `json:"icon" binding:"max=50"`
 	BadgeColor  string `json:"badge_color" binding:"max=20"`
-	Order       int    `json:"order"`
-	IsActive    *bool  `json:"is_active"`
 }
 
 // UpdateActivityTypeRequest represents the request to update an activity type
 type UpdateActivityTypeRequest struct {
 	Name        string `json:"name" binding:"omitempty,min=2,max=100"`
-	Code        string `json:"code" binding:"omitempty,min=2,max=50"`
 	Description string `json:"description" binding:"max=500"`
 	Icon        string `json:"icon" binding:"max=50"`
 	BadgeColor  string `json:"badge_color" binding:"max=20"`
-	Order       *int   `json:"order"`
 	IsActive    *bool  `json:"is_active"`
 }
 

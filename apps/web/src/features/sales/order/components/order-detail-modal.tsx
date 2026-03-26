@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,8 @@ import { OrderForm } from "./order-form";
 import {
   useDeleteOrder,
   useUpdateOrderStatus,
-  useOrder,
+  useOrderItems,
+  useOrderAuditTrail,
 } from "../hooks/use-orders";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -38,6 +39,7 @@ import { DeliveryForm } from "../../delivery/components/delivery-form";
 import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
 import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
+import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -56,11 +58,21 @@ export function OrderDetailModal({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("order");
 
-  const { data: detailData, isLoading } = useOrder(order?.id ?? "", {
-    enabled: open && !!order?.id,
-  });
+  const { data: itemData, isFetching: isItemsLoading } = useOrderItems(
+    order?.id ?? "",
+    { page: itemsPage, per_page: pageSize },
+    { enabled: open && !!order?.id && activeTab === "items" },
+  );
+  const { data: auditData, isFetching: auditLoading, isError: auditError } = useOrderAuditTrail(
+    order?.id ?? "",
+    { page: auditPage, per_page: auditPageSize },
+    { enabled: open && !!order?.id && activeTab === "audit-trail" },
+  );
 
   const canEdit = useUserPermission("sales_order.update");
   const canDelete = useUserPermission("sales_order.delete");
@@ -88,10 +100,12 @@ export function OrderDetailModal({
 
   // Fetch invoices and DPs for the SO to compute financial overview
   const { data: invoicesData } = useInvoices(
-    { sales_order_id: order?.id, per_page: 100 },
+    { sales_order_id: order?.id, per_page: 20 },
+    { enabled: open && !!order?.id && activeTab === "general" },
   );
   const { data: dpData } = useCustomerInvoiceDPs(
-    { sales_order_id: order?.id, per_page: 100 },
+    { sales_order_id: order?.id, per_page: 20 },
+    { enabled: open && !!order?.id && activeTab === "general" },
   );
 
   const financialOverview = useMemo(() => {
@@ -122,15 +136,61 @@ export function OrderDetailModal({
     };
   }, [order, invoicesData, dpData]);
 
-  if (!order) return null;
+  const displayOrder = order as SalesOrder;
+  const fallbackAuditEntries = useMemo(
+    () => {
+      if (!displayOrder) return [];
 
-  const displayOrder = detailData?.data ?? order;
-  const allItems = displayOrder.items ?? [];
-  const totalItems = allItems.length;
-  const paginatedItems = allItems.slice(
-    (itemsPage - 1) * pageSize,
-    itemsPage * pageSize
+      return buildFallbackAuditTrailEntries([
+        {
+          id: `${displayOrder.id}-created`,
+          action: "sales_order.create",
+          at: displayOrder.created_at,
+          user: displayOrder.created_by,
+          metadata: {
+            details: `Created order with total ${formatCurrency(displayOrder.total_amount ?? 0)}`,
+          },
+        },
+        {
+          id: `${displayOrder.id}-updated`,
+          action: "sales_order.update",
+          at: displayOrder.updated_at,
+          metadata:
+            displayOrder.updated_at && displayOrder.updated_at !== displayOrder.created_at
+              ? { details: "Order data updated" }
+              : null,
+        },
+        {
+          id: `${displayOrder.id}-confirmed`,
+          action: "sales_order.confirm",
+          at: displayOrder.confirmed_at,
+          user: displayOrder.confirmed_by,
+          metadata: {
+            status: "approved",
+          },
+        },
+        {
+          id: `${displayOrder.id}-cancelled`,
+          action: "sales_order.cancel",
+          at: displayOrder.cancelled_at,
+          user: displayOrder.cancelled_by,
+          metadata: {
+            status: "cancelled",
+            details: displayOrder.cancellation_reason ?? "Order cancelled",
+          },
+        },
+      ]);
+    },
+    [displayOrder],
   );
+  const useServerAudit = (auditData?.data?.length ?? 0) > 0;
+  const auditEntries = useServerAudit ? auditData?.data ?? [] : fallbackAuditEntries;
+  const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
+
+  if (!displayOrder) return null;
+
+  const paginatedItems = itemData?.data ?? [];
+  const totalItems = itemData?.meta?.pagination?.total ?? paginatedItems.length;
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -196,7 +256,15 @@ export function OrderDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onClose}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setActiveTab("general");
+          }
+          onClose();
+        }}
+      >
         <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
@@ -282,16 +350,17 @@ export function OrderDetailModal({
             </div>
           </DialogHeader>
 
-          {isLoading ? (
-            <div className="space-y-4 py-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-64 w-full" />
-            </div>
-          ) : (
-            <Tabs defaultValue="general" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value === "items" || value === "audit-trail" ? value : "general")
+            }
+            className="w-full"
+          >
               <TabsList>
                 <TabsTrigger value="general">{t("tabs.general")}</TabsTrigger>
                 <TabsTrigger value="items">{t("tabs.items")}</TabsTrigger>
+                <TabsTrigger value="audit-trail">{t("tabs.auditTrail")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="general" className="space-y-6 py-4">
@@ -361,8 +430,7 @@ export function OrderDetailModal({
                 </div>
 
                 {/* Customer Information Table */}
-                {(displayOrder.customer_name || displayOrder.customer_contact || 
-                  displayOrder.customer_phone || displayOrder.customer_email) && (
+                {(displayOrder.customer_id || displayOrder.customer?.name || displayOrder.customer_name || displayOrder.customer_contact) && (
                   <>
                     <Separator />
                     <div>
@@ -371,7 +439,7 @@ export function OrderDetailModal({
                         <Table>
                           <TableBody>
                             <TableRow>
-                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerName")}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.customer")}</TableCell>
                                 <TableCell>
                                   {canViewCustomer && displayOrder.customer_id ? (
                                     <button
@@ -381,37 +449,20 @@ export function OrderDetailModal({
                                       }}
                                       className="text-primary hover:underline cursor-pointer text-left"
                                     >
-                                      {displayOrder.customer_name ?? displayOrder.customer_id}
+                                      {displayOrder.customer?.name ?? displayOrder.customer_name ?? displayOrder.customer_id}
                                     </button>
                                   ) : (
-                                    <span>{displayOrder.customer_name ?? "-"}</span>
+                                    <span>{displayOrder.customer?.name ?? displayOrder.customer_name ?? "-"}</span>
                                   )}
                                 </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
-                              <TableCell>{displayOrder.customer_contact ?? "-"}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.name ?? displayOrder.customer_contact ?? "-"}</TableCell>
                             </TableRow>
                             <TableRow>
-                              <TableCell className="font-medium bg-muted/50">{t("customerPhone")}</TableCell>
-                              <TableCell>
-                                {displayOrder.customer_phone ? (
-                                  <a
-                                    href={`https://wa.me/${displayOrder.customer_phone.replace(/[^0-9+]/g, "").replace(/^\+/, "")}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-primary hover:underline"
-                                  >
-                                    {displayOrder.customer_phone}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
-                              <TableCell className="font-medium bg-muted/50">{t("customerEmail")}</TableCell>
-                              <TableCell>
-                                {displayOrder.customer_email ? (
-                                  <a href={`mailto:${displayOrder.customer_email}`} className="text-primary hover:underline">
-                                    {displayOrder.customer_email}
-                                  </a>
-                                ) : "-"}
-                              </TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.phone")}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.phone ?? displayOrder.customer_phone ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("common.email")}</TableCell>
+                              <TableCell>{displayOrder.customer_contact_ref?.email ?? displayOrder.customer_email ?? "-"}</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -556,7 +607,13 @@ export function OrderDetailModal({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedItems.length === 0 ? (
+                        {isItemsLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="py-4">
+                              <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                          </TableRow>
+                        ) : paginatedItems.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                               {t("noItems")}
@@ -612,8 +669,34 @@ export function OrderDetailModal({
                   )}
                 </>
               </TabsContent>
-            </Tabs>
-          )}
+
+              <TabsContent value="audit-trail" className="py-4">
+                <AuditTrailTable
+                  entries={auditEntries}
+                  isLoading={auditLoading && auditEntries.length === 0}
+                  errorText={auditError && auditEntries.length === 0 ? t("common.error") : undefined}
+                  pagination={auditPagination}
+                  onPageChange={useServerAudit ? setAuditPage : undefined}
+                  onPageSizeChange={
+                    useServerAudit
+                      ? (newSize) => {
+                          setAuditPageSize(newSize);
+                          setAuditPage(1);
+                        }
+                      : undefined
+                  }
+                  labels={{
+                    empty: t("auditTrail.empty"),
+                    columns: {
+                      action: t("auditTrail.columns.action"),
+                      user: t("auditTrail.columns.user"),
+                      time: t("auditTrail.columns.time"),
+                      details: t("auditTrail.columns.details"),
+                    },
+                  }}
+                />
+              </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -645,7 +728,7 @@ export function OrderDetailModal({
       <CustomerDetailModal
         open={isCustomerOpen}
         onOpenChange={setIsCustomerOpen}
-        customer={selectedCustomerId ? { id: selectedCustomerId } as any : null}
+        customerId={selectedCustomerId}
       />
 
       <QuotationDetailModal

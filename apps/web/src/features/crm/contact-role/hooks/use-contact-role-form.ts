@@ -9,10 +9,8 @@ import type { ContactRole } from "../types";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  code: z.string().min(2).max(50),
   description: z.string().max(500).optional(),
   badge_color: z.string().max(20).optional(),
-  is_active: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -21,9 +19,11 @@ export interface UseContactRoleFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: ContactRole | null;
+  onCreated?: (item: { id: string; name: string }) => void;
+  initialName?: string;
 }
 
-export function useContactRoleForm({ open, onOpenChange, editingItem }: UseContactRoleFormProps) {
+export function useContactRoleForm({ open, onOpenChange, editingItem, onCreated, initialName }: UseContactRoleFormProps) {
   const t = useTranslations("contactRole");
   const tCommon = useTranslations("common");
 
@@ -32,18 +32,18 @@ export function useContactRoleForm({ open, onOpenChange, editingItem }: UseConta
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", code: "", description: "", badge_color: "#3B82F6", is_active: true },
+    defaultValues: { name: initialName ?? "", description: "", badge_color: "#3B82F6" },
   });
 
   useEffect(() => {
     if (open) {
       if (editingItem) {
-        form.reset({ name: editingItem.name, code: editingItem.code, description: editingItem.description ?? "", badge_color: editingItem.badge_color ?? "#3B82F6", is_active: editingItem.is_active });
+        form.reset({ name: editingItem.name, description: editingItem.description ?? "", badge_color: editingItem.badge_color ?? "#3B82F6" });
       } else {
-        form.reset({ name: "", code: "", description: "", badge_color: "#3B82F6", is_active: true });
+        form.reset({ name: initialName ?? "", description: "", badge_color: "#3B82F6" });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialName, open]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
@@ -51,7 +51,8 @@ export function useContactRoleForm({ open, onOpenChange, editingItem }: UseConta
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(data);
+        const response = await createMutation.mutateAsync(data);
+        onCreated?.(response.data);
         toast.success(t("created"));
       }
       onOpenChange(false);

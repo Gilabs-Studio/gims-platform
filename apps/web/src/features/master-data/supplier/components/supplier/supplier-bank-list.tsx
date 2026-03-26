@@ -88,8 +88,8 @@ export function SupplierBankList({
   const updateMutation = useUpdateBankAccount();
   const deleteMutation = useDeleteBankAccount();
 
-  const { data: bankOptionsData } = useBanks({ page: 1, per_page: 100 });
-  const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 100, sort_by: "code", sort_dir: "asc" });
+  const { data: bankOptionsData } = useBanks({ page: 1, per_page: 20 });
+  const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 20, sort_by: "code", sort_dir: "asc" });
   const bankOptions = bankOptionsData?.data ?? [];
   const currencyOptions = currencyOptionsData?.data ?? [];
 

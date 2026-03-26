@@ -16,7 +16,6 @@ const (
 	purchaseRequisitionReject    = "purchase_requisition.reject"
 	purchaseRequisitionConvert   = "purchase_requisition.convert"
 	purchaseRequisitionExport    = "purchase_requisition.export"
-	purchaseRequisitionAuditTrail = "purchase_requisition.audit_trail"
 	purchaseRequisitionPrint      = "purchase_requisition.print"
 )
 
@@ -33,7 +32,7 @@ func RegisterPurchaseRequisitionRoutes(rg *gin.RouterGroup, h *handler.PurchaseR
 		g.POST("/:id/approve", middleware.RequirePermission(purchaseRequisitionApprove), h.Approve)
 		g.POST("/:id/reject", middleware.RequirePermission(purchaseRequisitionReject), h.Reject)
 		g.POST("/:id/convert", middleware.RequirePermission(purchaseRequisitionConvert), h.Convert)
-		g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseRequisitionAuditTrail), h.AuditTrail)
+		g.GET("/:id/audit-trail", middleware.RequirePermission(purchaseRequisitionRead), h.AuditTrail)
 		g.GET("/:id/print", middleware.RequirePermission(purchaseRequisitionPrint), printH.PrintPurchaseRequisition)
 		g.DELETE("/:id", middleware.RequirePermission(purchaseRequisitionDelete), h.Delete)
 	}

@@ -63,9 +63,6 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
     },
   });
 
-  const provinceId = form.watch("province_id");
-  const cityId = form.watch("city_id");
-
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
     if (!open) return;
@@ -76,25 +73,22 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
           ? result.data.data
           : editingItem;
         if (!entity) return;
-        
-        const v = entity.village;
-        const d = v?.district;
-        const c = d?.city;
-        const p = c?.province;
+
+        const warehouse: Warehouse = entity;
 
         form.reset({
-          code: entity.code,
-          name: entity.name,
-          description: entity.description ?? "",
-          capacity: entity.capacity ?? null,
-          address: entity.address ?? "",
-          province_id: (entity as any).province_id || entity.village?.district?.city?.province?.id,
-          city_id: (entity as any).city_id || entity.village?.district?.city?.id,
-          district_id: (entity as any).district_id || entity.village?.district?.id,
-          village_name: entity.village_name ?? "",
-          latitude: entity.latitude ?? -6.2088,
-          longitude: entity.longitude ?? 106.8456,
-          is_active: entity.is_active,
+          code: warehouse.code,
+          name: warehouse.name,
+          description: warehouse.description ?? "",
+          capacity: warehouse.capacity ?? null,
+          address: warehouse.address ?? "",
+          province_id: warehouse.province_id ?? warehouse.village?.district?.city?.province?.id,
+          city_id: warehouse.city_id ?? warehouse.village?.district?.city?.id,
+          district_id: warehouse.district_id ?? warehouse.village?.district?.id,
+          village_name: warehouse.village_name ?? "",
+          latitude: warehouse.latitude ?? -6.2088,
+          longitude: warehouse.longitude ?? 106.8456,
+          is_active: true,
         });
       });
     } else if (!isEditing) {
@@ -113,7 +107,7 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
         is_active: true,
       });
     }
-  }, [open, isEditing, editingItem?.id, refetchDetail, form]);
+  }, [open, isEditing, editingItem, editingItem?.id, refetchDetail, form]);
 
   const onSubmit: SubmitHandler<WarehouseFormData> = async (data) => {
     try {
@@ -129,7 +123,7 @@ export function useWarehouseForm({ open, onOpenChange, editingItem }: UseWarehou
         village_name: data.village_name || undefined,
         latitude: data.latitude,
         longitude: data.longitude,
-        is_active: data.is_active,
+        is_active: true,
       };
 
       if (isEditing && fullWarehouse) {

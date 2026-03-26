@@ -37,6 +37,20 @@ export const salesReturnsId = {
       reject: "Tolak",
       delete: "Hapus",
     },
+    tabs: {
+      general: "Umum",
+      auditTrail: "Audit Trail",
+    },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada data audit trail",
+      columns: {
+        action: "Aksi",
+        user: "Pengguna",
+        time: "Waktu",
+        details: "Detail",
+      },
+    },
     detail: {
       title: "Detail Retur Penjualan",
       status: "Status",

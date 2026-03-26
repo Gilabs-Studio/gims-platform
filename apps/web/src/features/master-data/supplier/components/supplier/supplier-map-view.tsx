@@ -80,12 +80,12 @@ export function SupplierMapView() {
 
   // Data fetching
   const { data, isLoading, refetch } = useSuppliers({
-    per_page: 100,
+    per_page: 20,
     search: debouncedSearch || undefined,
     supplier_type_id: typeFilter !== "all" ? typeFilter : undefined,
   });
 
-  const { data: supplierTypesData } = useSupplierTypes({ per_page: 100 });
+  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20 });
   const supplierTypes = supplierTypesData?.data ?? [];
 
   const deleteSupplier = useDeleteSupplier();
@@ -334,6 +334,7 @@ export function SupplierMapView() {
                   isSelected={selectedSupplierId === supplier.id}
                   onClick={() => handleSupplierClick(supplier)}
                   t={t}
+                  tCommon={tCommon}
                   onDetail={() => handleView(supplier)}
                   onEdit={() => handleEdit(supplier)}
                   onDelete={() => setDeletingId(supplier.id)}

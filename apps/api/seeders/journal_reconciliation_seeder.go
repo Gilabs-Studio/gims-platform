@@ -40,10 +40,11 @@ func SeedJournalReconciliation() error {
 	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
 	productRepo := productRepos.NewProductRepository(db)
 	orderRepo := salesRepos.NewSalesOrderRepository(db)
-	customerInvoiceUC := salesUsecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, journalUC, coaUC)
+	auditSvc := audit.NewAuditService(db)
+	customerInvoiceUC := salesUsecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, journalUC, coaUC, auditSvc)
 
 	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
-	auditSvc := audit.NewAuditService(db)
+
 	salesPaymentUC := salesUsecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditSvc, journalUC, coaUC)
 
 	// Purchase usecases

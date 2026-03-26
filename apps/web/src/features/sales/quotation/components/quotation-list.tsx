@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,20 @@ import { OrderDetailModal } from "@/features/sales/order/components/order-detail
 import { useConvertQuotationToOrder } from "@/features/sales/order/hooks/use-orders";
 import type { SalesOrder } from "@/features/sales/order/types";
 
+function getInitialOpenQuotationFromURL(): SalesQuotation | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const openQuotationId = searchParams.get("open_quotation");
+  if (!openQuotationId) {
+    return null;
+  }
+
+  return { id: openQuotationId } as SalesQuotation;
+}
+
 export function QuotationList() {
   const t = useTranslations("quotation");
   const [search, setSearch] = useState("");
@@ -40,10 +54,22 @@ export function QuotationList() {
   const [statusFilter, setStatusFilter] = useState<SalesQuotationStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingQuotation, setEditingQuotation] = useState<SalesQuotation | null>(null);
-  const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(null);
+  const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(getInitialOpenQuotationFromURL);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [printingQuotationId, setPrintingQuotationId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_quotation")) return;
+
+    searchParams.delete("open_quotation");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const { data, isLoading, isError } = useQuotations({
     page,

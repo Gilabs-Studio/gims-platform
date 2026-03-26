@@ -51,17 +51,25 @@ export function LeadConvertDialog({
   const { data: formDataRes } = useLeadFormData({ enabled: open });
   const pipelineStages = formDataRes?.data?.pipeline_stages ?? [];
 
-  // Pre-fill deal title from lead company name when dialog opens
+  // Pre-fill deal title and pipeline stage from lead when dialog opens
   useEffect(() => {
     if (open && lead) {
       const title = lead.company_name || `${lead.first_name} ${lead.last_name ?? ""}`.trim();
       setDealTitle(title);
-      setPipelineStageId("");
+
+      const defaultStage = pipelineStages.reduce<null | { id: string; probability: number }>((best, stage) => {
+        if (!best || stage.probability < best.probability) {
+          return { id: stage.id, probability: stage.probability };
+        }
+        return best;
+      }, null);
+      setPipelineStageId(defaultStage?.id ?? "");
+
       // Auto-fill deal value from budget_amount when budget is confirmed
       setDealValue(lead.budget_confirmed && lead.budget_amount > 0 ? lead.budget_amount : undefined);
       setNotes("");
     }
-  }, [open, lead]);
+  }, [open, lead, pipelineStages]);
 
   const handleConvert = async () => {
     if (!lead) return;

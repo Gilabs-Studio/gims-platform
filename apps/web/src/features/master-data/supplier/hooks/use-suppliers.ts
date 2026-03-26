@@ -4,11 +4,12 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import { supplierService } from "../services/supplier-service";
 import type {
   Supplier,
+  SupplierContact,
   CreateSupplierData,
   UpdateSupplierData,
   ApproveSupplierData,
-  CreatePhoneNumberData,
-  UpdatePhoneNumberData,
+  CreateContactData,
+  UpdateContactData,
   CreateSupplierBankData,
   UpdateSupplierBankData,
   SupplierListParams,
@@ -120,10 +121,10 @@ export function useApproveSupplier() {
 }
 
 // ============================================
-// Nested Phone Number Hooks
+// Nested Contact Hooks
 // ============================================
 
-export function useAddPhoneNumber() {
+export function useAddContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -132,9 +133,24 @@ export function useAddPhoneNumber() {
       data,
     }: {
       supplierId: string;
-      data: CreatePhoneNumberData;
-    }) => supplierService.addPhoneNumber(supplierId, data),
-    onSuccess: (_, variables) => {
+      data: CreateContactData;
+    }) => supplierService.addContact(supplierId, data),
+    onSuccess: (result, variables) => {
+      const createdContact = result.data;
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: [...contacts, createdContact as SupplierContact],
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });
@@ -142,20 +158,39 @@ export function useAddPhoneNumber() {
   });
 }
 
-export function useUpdatePhoneNumber() {
+export function useUpdateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       supplierId,
-      phoneId,
+      contactId,
       data,
     }: {
       supplierId: string;
-      phoneId: string;
-      data: UpdatePhoneNumberData;
-    }) => supplierService.updatePhoneNumber(supplierId, phoneId, data),
-    onSuccess: (_, variables) => {
+      contactId: string;
+      data: UpdateContactData;
+    }) => supplierService.updateContact(supplierId, contactId, data),
+    onSuccess: (result, variables) => {
+      const updatedContact = result.data;
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: contacts.map((contact) =>
+                contact.id === variables.contactId
+                  ? { ...contact, ...(updatedContact as SupplierContact) }
+                  : contact
+              ),
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });
@@ -163,18 +198,32 @@ export function useUpdatePhoneNumber() {
   });
 }
 
-export function useDeletePhoneNumber() {
+export function useDeleteContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       supplierId,
-      phoneId,
+      contactId,
     }: {
       supplierId: string;
-      phoneId: string;
-    }) => supplierService.deletePhoneNumber(supplierId, phoneId),
+      contactId: string;
+    }) => supplierService.deleteContact(supplierId, contactId),
     onSuccess: (_, variables) => {
+      queryClient.setQueryData<SupplierDetailResult>(
+        supplierKeys.detail(variables.supplierId),
+        (prev) => {
+          if (!prev?.data) return prev;
+          const contacts = prev.data.contacts ?? [];
+          return {
+            ...prev,
+            data: {
+              ...prev.data,
+              contacts: contacts.filter((contact) => contact.id !== variables.contactId),
+            },
+          };
+        }
+      );
       queryClient.invalidateQueries({
         queryKey: supplierKeys.detail(variables.supplierId),
       });

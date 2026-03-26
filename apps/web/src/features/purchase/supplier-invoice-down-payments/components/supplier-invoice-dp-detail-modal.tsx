@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   FileText,
   Printer,
-  Receipt,
   Send,
   Trash2,
   XCircle,
@@ -41,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { AuditTrailTable } from "@/components/ui/audit-trail-table";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
 import type { SupplierInvoiceDPDetail } from "../types";
@@ -61,47 +61,39 @@ import { SupplierInvoiceDetail } from "../../supplier-invoices/components/suppli
 
 // ─── Audit Trail tab ──────────────────────────────────────────────────────────
 
-function AuditTrailTab({ invoiceId }: { invoiceId: string }) {
+function AuditTrailTab({ invoiceId, enabled }: { invoiceId: string; enabled: boolean }) {
   const t = useTranslations("supplierInvoiceDP");
-  const { data, isLoading } = useSupplierInvoiceDPAuditTrail(invoiceId, {
-    page: 1,
-    per_page: 50,
-  });
+  const tCommon = useTranslations("common");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const { data, isLoading, isError } = useSupplierInvoiceDPAuditTrail(invoiceId, {
+    page,
+    per_page: pageSize,
+  }, { enabled });
   const entries = data?.data ?? [];
-
-  if (isLoading) return <Skeleton className="h-32 w-full mt-4" />;
-  if (entries.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        {t("auditTrail.empty")}
-      </p>
-    );
+  const pagination = data?.meta?.pagination;
 
   return (
-    <div className="rounded-md border mt-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("auditTrail.columns.action")}</TableHead>
-            <TableHead>{t("auditTrail.columns.user")}</TableHead>
-            <TableHead>{t("auditTrail.columns.time")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.id}>
-              <TableCell className="font-medium">{entry.action}</TableCell>
-              <TableCell>
-                {entry.user?.name ?? entry.user?.email ?? "-"}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {entry.created_at ? formatDate(entry.created_at) : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <AuditTrailTable
+      entries={entries}
+      isLoading={isLoading && entries.length === 0}
+      errorText={isError && entries.length === 0 ? tCommon("error") : undefined}
+      pagination={pagination}
+      onPageChange={(nextPage) => setPage(nextPage)}
+      onPageSizeChange={(nextPageSize) => {
+        setPageSize(nextPageSize);
+        setPage(1);
+      }}
+      labels={{
+        empty: t("auditTrail.empty"),
+        columns: {
+          action: t("auditTrail.columns.action"),
+          user: t("auditTrail.columns.user"),
+          time: t("auditTrail.columns.time"),
+          details: t("auditTrail.columns.details"),
+        },
+      }}
+    />
   );
 }
 
@@ -148,6 +140,7 @@ function SupplierInvoiceDPDetailView({
 
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"invoice" | "audit">("invoice");
 
   const isPaymentStatus = (status?: string): boolean => {
     const normalized = (status ?? "").toLowerCase();
@@ -204,17 +197,11 @@ function SupplierInvoiceDPDetailView({
 
   return (
     <>
-      <Tabs defaultValue="invoice" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "invoice" | "audit")} className="w-full">
         <div className="flex items-center justify-between mb-4">
           <TabsList className="flex-1">
-            <TabsTrigger value="invoice">
-              <Receipt className="h-3.5 w-3.5 mr-1.5" />
-              Invoice
-            </TabsTrigger>
-            <TabsTrigger value="audit">
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              {t("auditTrail.title")}
-            </TabsTrigger>
+            <TabsTrigger value="invoice">{t("tabs.general") || "Invoice"}</TabsTrigger>
+            <TabsTrigger value="audit">{t("tabs.auditTrail") || t("auditTrail.title")}</TabsTrigger>
           </TabsList>
 
           
@@ -347,7 +334,7 @@ function SupplierInvoiceDPDetailView({
           )}
         </TabsContent>
         <TabsContent value="audit">
-          <AuditTrailTab invoiceId={data.id} />
+          <AuditTrailTab invoiceId={data.id} enabled={activeTab === "audit"} />
         </TabsContent>
       </Tabs>
 

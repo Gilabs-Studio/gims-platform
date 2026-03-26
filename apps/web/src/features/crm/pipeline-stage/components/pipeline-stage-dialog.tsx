@@ -14,7 +14,6 @@ export function PipelineStageDialog({ open, onOpenChange, editingItem }: { reado
   const { form, t, tCommon, isLoading, onSubmit } = usePipelineStageForm({ open, onOpenChange, editingItem });
   const { register, setValue, watch, formState: { errors } } = form;
 
-  const isActive = watch("is_active");
   const isWon = watch("is_won");
   const isLost = watch("is_lost");
 
@@ -26,24 +25,14 @@ export function PipelineStageDialog({ open, onOpenChange, editingItem }: { reado
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Field>
               <FieldLabel>{t("form.name")}</FieldLabel>
               <Input placeholder={t("form.namePlaceholder")} {...register("name")} />
               {errors.name && <FieldError>{errors.name.message}</FieldError>}
             </Field>
-            <Field>
-              <FieldLabel>{t("form.code")}</FieldLabel>
-              <Input placeholder={t("form.codePlaceholder")} {...register("code")} />
-              {errors.code && <FieldError>{errors.code.message}</FieldError>}
-            </Field>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Field>
-              <FieldLabel>{t("form.order")}</FieldLabel>
-              <Input type="number" min={0} {...register("order", { valueAsNumber: true })} />
-              {errors.order && <FieldError>{errors.order.message}</FieldError>}
-            </Field>
+          <div className="grid grid-cols-2 gap-4">
             <Field>
               <FieldLabel>{t("form.probability")}</FieldLabel>
               <Input type="number" min={0} max={100} {...register("probability", { valueAsNumber: true })} />
@@ -74,13 +63,6 @@ export function PipelineStageDialog({ open, onOpenChange, editingItem }: { reado
                 <p className="text-sm text-muted-foreground">{t("form.isLostDescription")}</p>
               </div>
               <Switch checked={isLost} onCheckedChange={(val) => setValue("is_lost", val)} className="cursor-pointer" />
-            </Field>
-            <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <FieldLabel>{t("form.isActive")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">{isActive ? tCommon("active") : tCommon("inactive")} status</p>
-              </div>
-              <Switch checked={isActive} onCheckedChange={(val) => setValue("is_active", val)} className="cursor-pointer" />
             </Field>
           </div>
           <DialogFooter>

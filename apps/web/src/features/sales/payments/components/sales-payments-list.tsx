@@ -7,7 +7,6 @@ import {
   Clock,
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Plus,
   Search,
@@ -38,7 +37,6 @@ import type { SalesPaymentListItem } from "../types";
 import { salesPaymentsService } from "../services/sales-payments-service";
 import { SalesPaymentForm } from "./sales-payment-form";
 import { SalesPaymentDetail } from "./sales-payment-detail";
-import { SalesPaymentAuditTrail } from "./sales-payment-audit-trail";
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
@@ -58,15 +56,12 @@ export function SalesPaymentsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
   const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("sales_payment.create");
   const canDelete = useUserPermission("sales_payment.delete");
   const canConfirm = useUserPermission("sales_payment.confirm");
   const canExport = useUserPermission("sales_payment.export");
-  const canAuditTrail = useUserPermission("sales_payment.audit_trail");
   const canView = useUserPermission("sales_payment.read");
   const canPrint = useUserPermission("sales_payment.print");
 
@@ -262,19 +257,6 @@ export function SalesPaymentsList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canAuditTrail && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setAuditId(item.id);
-                                  setAuditOpen(true);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <History className="h-4 w-4 mr-2" />
-                                {t("actions.auditTrail")}
-                              </DropdownMenuItem>
-                            )}
-
                             {canPrint && (
                               <DropdownMenuItem
                                 onClick={() => setPrintingPaymentId(item.id)}
@@ -331,15 +313,6 @@ export function SalesPaymentsList() {
         onClose={() => {
           setDetailOpen(false);
           setDetailId(null);
-        }}
-      />
-
-      <SalesPaymentAuditTrail
-        open={auditOpen}
-        paymentId={auditId}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
         }}
       />
 

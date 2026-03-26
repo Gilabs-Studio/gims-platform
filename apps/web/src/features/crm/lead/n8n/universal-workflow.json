@@ -12,25 +12,37 @@
       "name": "On Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [220, 300],
+      "position": [
+        220,
+        300
+      ],
       "webhookId": "gims-leads"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": false,
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "check-type-numeric",
               "leftValue": "={{ Number(($json.body && $json.body.type !== undefined) ? $json.body.type : $json.type) }}",
               "rightValue": 1,
-              "operator": { "type": "number", "operation": "equals" }
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
             },
             {
               "id": "check-source-string",
               "leftValue": "={{ String(($json.body && $json.body.source !== undefined) ? $json.body.source : $json.source).toLowerCase() }}",
               "rightValue": "linkedin",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "or"
@@ -40,7 +52,10 @@
       "name": "If Source is LinkedIn",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [430, 300]
+      "position": [
+        430,
+        300
+      ]
     },
     {
       "parameters": {
@@ -50,7 +65,10 @@
       "name": "Serper Query Generator",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [640, 180]
+      "position": [
+        640,
+        180
+      ]
     },
     {
       "parameters": {
@@ -59,30 +77,44 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Content-Type", "value": "application/json" },
-            { "name": "X-API-KEY", "value": "={{ $vars.SERPER_API_KEY || $json.serper_api_key }}" }
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $vars.SERPER_API_KEY || $json.serper_api_key }}"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.serper_search_params) }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "serper-search",
       "name": "Serper LinkedIn Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [860, 180]
+      "position": [
+        860,
+        180
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const webhookRaw = $('On Webhook Trigger').first().json;\nconst webhook = (webhookRaw.body && typeof webhookRaw.body === 'object') ? webhookRaw.body : webhookRaw;\n\nconst results = $input.first().json.organic || [];\nconst leadSourceId = webhook.lead_source_id || null;\n\nconst leads = results.map(p => {\n  const isCompany = p.link && p.link.includes('/company/');\n  let firstName = 'Unknown';\n  let lastName = '';\n  let companyName = '';\n  let jobTitle = '';\n\n  if (isCompany) {\n    companyName = (p.title || '').replace(' | LinkedIn', '').replace(' - LinkedIn', '').trim();\n    firstName = 'Company';\n  } else {\n    const titleParts = (p.title || '').replace(' | LinkedIn', '').replace(' - LinkedIn', '').split(' - ');\n    const name = titleParts[0] ? titleParts[0].trim() : 'Unknown';\n    const nameParts = name.split(' ');\n    firstName = nameParts[0] || 'Unknown';\n    lastName = nameParts.slice(1).join(' ') || '';\n    \n    jobTitle = titleParts[1] ? titleParts[1].trim() : '';\n    // Use empty string instead of 'Unknown Company' to prevent merging unrelated leads in backend\n    companyName = titleParts.length > 2 ? titleParts.slice(2).join(' ').trim() : titleParts.length === 2 && !titleParts[1].includes(' at ') && !titleParts[1].toLowerCase().includes('freelance') ? titleParts[1].trim() : '';\n  }\n\n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: companyName,\n    email: '',\n    phone: '',\n    job_title: jobTitle,\n    city: webhook.city || '',\n    province: '',\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    // Use LinkedIn URL as place_id to guarantee unique deduplication per person\n    place_id: p.link || '',\n    website: p.link || '',\n    notes: [\n      `Source: LinkedIn via Serper Google Search`,\n      `LinkedIn URL: ${p.link || 'N/A'}`,\n      `Headline/Snippet: ${p.snippet || 'N/A'}`,\n      `Keyword: ${webhook.keyword}`\n    ].join('\\n')\n  };\n});\n\nreturn [{ json: { leads: leads, source: 'linkedin' } }];"
+        "jsCode": "const webhookRaw = $('On Webhook Trigger').first().json;\nconst webhook = (webhookRaw.body && typeof webhookRaw.body === 'object') ? webhookRaw.body : webhookRaw;\n\nconst results = $input.first().json.organic || [];\nconst linkedinId = 'cb000001-0000-0000-0000-000000000007';\nconst leadSourceId = webhook.lead_source_id || linkedinId;\n\nconst normalizeLinkedInUrl = (url) => {\n  if (!url || typeof url !== 'string') return '';\n  try {\n    const u = new URL(url);\n    u.search = '';\n    u.hash = '';\n    return u.toString().replace(/\\/+$/, '');\n  } catch {\n    return url.trim().replace(/\\/+$/, '');\n  }\n};\n\nconst leads = results.map(p => {\n  const isCompany = p.link && p.link.includes('/company/');\n  let firstName = 'Unknown';\n  let lastName = '';\n  let companyName = '';\n  let jobTitle = '';\n\n  if (isCompany) {\n    companyName = (p.title || '').replace(' | LinkedIn', '').replace(' - LinkedIn', '').trim();\n    firstName = 'Company';\n  } else {\n    const titleParts = (p.title || '').replace(' | LinkedIn', '').replace(' - LinkedIn', '').split(' - ');\n    const name = titleParts[0] ? titleParts[0].trim() : 'Unknown';\n    const nameParts = name.split(' ');\n    firstName = nameParts[0] || 'Unknown';\n    lastName = nameParts.slice(1).join(' ') || '';\n\n    jobTitle = titleParts[1] ? titleParts[1].trim() : '';\n    companyName = titleParts.length > 2\n      ? titleParts.slice(2).join(' ').trim()\n      : titleParts.length === 2 && !titleParts[1].includes(' at ') && !titleParts[1].toLowerCase().includes('freelance')\n        ? titleParts[1].trim()\n        : '';\n  }\n\n  const normalizedUrl = normalizeLinkedInUrl(p.link || '');\n  const fallbackPlaceId = `linkedin:${[firstName, lastName, companyName, jobTitle, webhook.city || ''].join('|').toLowerCase().replace(/\\s+/g, ' ').trim()}`;\n\n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: companyName,\n    email: '',\n    phone: '',\n    job_title: jobTitle,\n    city: webhook.city || '',\n    province: '',\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    placeId: normalizedUrl || fallbackPlaceId,\n    website: normalizedUrl || '',\n    notes: [\n      'Source: LinkedIn via Serper Google Search',\n      `LinkedIn URL: ${p.link || 'N/A'}`,\n      `Headline/Snippet: ${p.snippet || 'N/A'}`,\n      `Keyword: ${webhook.keyword}`\n    ].join('\\n')\n  };\n});\n\nreturn [{ json: { leads: leads, source: 'linkedin' } }];"
       },
       "id": "parse-lead-data-native",
       "name": "Parse Lead Data Native",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1080, 180]
+      "position": [
+        1080,
+        180
+      ]
     },
     {
       "parameters": {
@@ -91,41 +123,61 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "X-API-KEY", "value": "={{ $vars.SERPER_API_KEY || $json.body.serper_api_key }}" },
-            { "name": "Content-Type", "value": "application/json" }
+            {
+              "name": "X-API-KEY",
+              "value": "={{ $vars.SERPER_API_KEY || $json.body.serper_api_key }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ q: $json.body.keyword + ' in ' + $json.body.city, num: Math.min($json.body.limit || 10, 20) }) }}",
-        "options": { "timeout": 30000 }
+        "jsonBody": "={{ JSON.stringify({ q: $json.body.keyword + ' in ' + $json.body.city, num: Math.min($json.body.limit || 10, 20), page: Math.max(Number($json.body.page || 1), 1) }) }}",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "serper-maps-search",
       "name": "Serper Maps Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 420]
+      "position": [
+        640,
+        420
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Map Serper Google Maps results directly to GIMS Lead interface\n// Serper output is already structured — no AI needed\nconst webhookRaw = $('On Webhook Trigger').first().json;\n// n8n Webhook typeVersion 2 wraps payload under .body\nconst webhook = (webhookRaw.body && typeof webhookRaw.body === 'object') ? webhookRaw.body : webhookRaw;\n\nconst places = $input.first().json.places || [];\nconst leadSourceId = webhook.lead_source_id || null;\nconst limit = Math.min(webhook.limit || 10, 20);\n\nconst leads = places.slice(0, limit).map(place => {\n  // Split business name: first word = first_name, rest = last_name\n  const rawTitle = place.title || '';\n  const nameParts = rawTitle.split(' ');\n  const firstName = nameParts[0] || '';\n  const lastName = nameParts.slice(1).join(' ') || '';\n\n  // Extract city and province from comma-separated address\n  const addressParts = (place.address || '').split(',').map(s => s.trim());\n  let city = webhook.city || '';\n  let province = '';\n\n  if (addressParts.length > 0) {\n    if (addressParts[addressParts.length - 1].toLowerCase() === 'indonesia') {\n      if (addressParts.length >= 3) {\n        city = addressParts[addressParts.length - 3].replace(/^(Kota|Kabupaten)\\s+/i, '').trim();\n        province = addressParts[addressParts.length - 2].replace(/\\d+$/, '').trim();\n      } else if (addressParts.length === 2) {\n        province = addressParts[0].replace(/\\d+$/, '').trim();\n      }\n    } else {\n      if (addressParts.length >= 2) {\n        city = addressParts[addressParts.length - 2].replace(/^(Kota|Kabupaten)\\s+/i, '').trim();\n        province = addressParts[addressParts.length - 1].replace(/\\d+$/, '').trim();\n      } else if (addressParts.length === 1) {\n        province = addressParts[0].replace(/\\d+$/, '').trim();\n      }\n    }\n  }\n\n  // Derive email from website domain when available\n  let email = '';\n  if (place.website) {\n    try {\n      const domain = new URL(place.website).hostname.replace('www.', '');\n      email = 'info@' + domain;\n    } catch(e) { /* skip malformed URL */ }\n  }\n\n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: rawTitle,\n    email: email,\n    phone: place.phoneNumber || place.phone || '',\n    job_title: place.type || (place.types && place.types[0]) || '',\n    address: place.address || '',\n    city: city,\n    province: province,\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    // Map Serper link to place_id for clickable UI\n    place_id: place.link || '',\n    website: place.website || '',\n    notes: [\n      `Source: Google Maps`,\n      `Rating: ${place.rating || 'N/A'} (${place.ratingCount || 0} reviews)`,\n      `Category: ${place.type || 'N/A'}`,\n      `Website: ${place.website || 'N/A'}`,\n      `CID: ${place.cid || 'N/A'}`,\n      `Place ID: ${place.placeId || 'N/A'}`,\n      `Keyword: ${webhook.keyword}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\nreturn [{ json: { leads: leads, source: 'google_maps' } }];"
+        "jsCode": "// Map Serper Google Maps results directly to GIMS Lead interface\nconst webhookRaw = $('On Webhook Trigger').first().json;\nconst webhook = (webhookRaw.body && typeof webhookRaw.body === 'object') ? webhookRaw.body : webhookRaw;\n\nconst places = $input.first().json.places || [];\nconst mapsId = 'cb000001-0000-0000-0000-000000000006';\nconst leadSourceId = webhook.lead_source_id || mapsId;\nconst limit = Math.min(webhook.limit || 10, 20);\nconst requestPage = Math.max(Number(webhook.page || 1), 1);\n\nconst normalizePlaceLink = (url) => {\n  if (!url || typeof url !== 'string') return '';\n  try {\n    const u = new URL(url);\n    u.search = '';\n    u.hash = '';\n    return u.toString().replace(/\\/+$/, '');\n  } catch {\n    return url.trim().replace(/\\/+$/, '');\n  }\n};\n\nconst toNumberInRange = (value, min, max) => {\n  const n = Number(value);\n  return Number.isFinite(n) && n >= min && n <= max ? n : null;\n};\n\nconst extractFromGoogleMapsUrl = (url) => {\n  if (!url || typeof url !== 'string') return { latitude: null, longitude: null };\n  const match = url.match(/@(-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)/);\n  if (!match) return { latitude: null, longitude: null };\n\n  return {\n    latitude: toNumberInRange(match[1], -90, 90),\n    longitude: toNumberInRange(match[2], -180, 180),\n  };\n};\n\nconst extractCoordinates = (place) => {\n  const candidates = [\n    { latitude: place.latitude, longitude: place.longitude },\n    { latitude: place.lat, longitude: place.lng },\n    { latitude: place.lat, longitude: place.lon },\n    { latitude: place.location?.lat, longitude: place.location?.lng },\n    { latitude: place.location?.latitude, longitude: place.location?.longitude },\n    { latitude: place.gpsCoordinates?.latitude, longitude: place.gpsCoordinates?.longitude },\n    { latitude: place.coordinates?.lat, longitude: place.coordinates?.lng },\n    { latitude: place.coordinates?.latitude, longitude: place.coordinates?.longitude },\n  ];\n\n  for (const candidate of candidates) {\n    const latitude = toNumberInRange(candidate.latitude, -90, 90);\n    const longitude = toNumberInRange(candidate.longitude, -180, 180);\n    if (latitude !== null && longitude !== null) {\n      return { latitude, longitude };\n    }\n  }\n\n  return extractFromGoogleMapsUrl(place.link || '');\n};\n\nconst leads = places.slice(0, limit).map(place => {\n  const rawTitle = place.title || '';\n  const nameParts = rawTitle.split(' ');\n  const firstName = nameParts[0] || '';\n  const lastName = nameParts.slice(1).join(' ') || '';\n\n  const addressParts = (place.address || '').split(',').map(s => s.trim());\n  let city = webhook.city || '';\n  let province = '';\n\n  if (addressParts.length > 0) {\n    if (addressParts[addressParts.length - 1].toLowerCase() === 'indonesia') {\n      if (addressParts.length >= 3) {\n        city = addressParts[addressParts.length - 3].replace(/^(Kota|Kabupaten)\\s+/i, '').trim();\n        province = addressParts[addressParts.length - 2].replace(/\\d+$/, '').trim();\n      } else if (addressParts.length === 2) {\n        province = addressParts[0].replace(/\\d+$/, '').trim();\n      }\n    } else {\n      if (addressParts.length >= 2) {\n        city = addressParts[addressParts.length - 2].replace(/^(Kota|Kabupaten)\\s+/i, '').trim();\n        province = addressParts[addressParts.length - 1].replace(/\\d+$/, '').trim();\n      } else if (addressParts.length === 1) {\n        province = addressParts[0].replace(/\\d+$/, '').trim();\n      }\n    }\n  }\n\n  let email = '';\n  if (place.website) {\n    try {\n      const domain = new URL(place.website).hostname.replace('www.', '');\n      email = 'info@' + domain;\n    } catch { }\n  }\n\n  const { latitude, longitude } = extractCoordinates(place);\n  const mapQuery = latitude !== null && longitude !== null\n    ? `https://maps.google.com/?q=${latitude},${longitude}`\n    : (place.link || 'N/A');\n\n  const fallbackPlaceID = `gmap:${[rawTitle, place.address || '', webhook.city || ''].join('|').toLowerCase().replace(/\\s+/g, ' ').trim()}`;\n\n  return {\n    first_name: firstName,\n    last_name: lastName,\n    company_name: rawTitle,\n    email: email,\n    phone: place.phoneNumber || place.phone || '',\n    job_title: place.type || (place.types && place.types[0]) || '',\n    address: place.address || '',\n    city: city,\n    province: province,\n    lead_source_id: leadSourceId,\n    estimated_value: 0,\n    latitude: latitude,\n    longitude: longitude,\n    rating: toNumberInRange(place.rating, 0, 5),\n    ratingCount: Number.isFinite(Number(place.ratingCount)) ? Number(place.ratingCount) : null,\n    types: Array.isArray(place.types) ? place.types.join(', ') : (place.type || ''),\n    cid: place.cid || '',\n    placeId: place.placeId || place.cid || normalizePlaceLink(place.link || '') || fallbackPlaceID,\n    website: place.website || '',\n    notes: [\n      'Source: Google Maps',\n      `Rating: ${place.rating || 'N/A'} (${place.ratingCount || 0} reviews)`,\n      `Category: ${place.type || 'N/A'}`,\n      `Coordinates: ${latitude ?? 'N/A'}, ${longitude ?? 'N/A'}`,\n      `Map: ${mapQuery}`,\n      `Website: ${place.website || 'N/A'}`,\n      `CID: ${place.cid || 'N/A'}`,\n      `Place ID: ${place.placeId || 'N/A'}`,\n      `Keyword: ${webhook.keyword}`,\n      `Page: ${requestPage}`,\n      `Scraped: ${new Date().toISOString()}`\n    ].join('\\n')\n  };\n});\n\nreturn [{ json: { leads: leads, source: 'google_maps' } }];"
       },
       "id": "parse-lead-data",
       "name": "Parse Lead Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [860, 420]
+      "position": [
+        860,
+        420
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false, "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": false,
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "check-leads",
               "leftValue": "={{ ($json.leads || []).length }}",
               "rightValue": 0,
-              "operator": { "type": "number", "operation": "gt" }
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
             }
           ],
           "combinator": "and"
@@ -135,81 +187,209 @@
       "name": "If Leads Exist",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1080, 360]
+      "position": [
+        1080,
+        360
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "={{ $('On Webhook Trigger').first().json.body.erp_base_url || 'http://localhost:8080' }}/api/v1/crm/leads/upsert",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [{ "name": "Content-Type", "value": "application/json" }] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ leads: $json.leads || [] }) }}",
-        "options": { "timeout": 60000 }
+        "options": {
+          "timeout": 60000
+        }
       },
       "id": "send-to-erp",
       "name": "Send to GIMS ERP",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1300, 360]
+      "position": [
+        1300,
+        360
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, source: (($('On Webhook Trigger').first().json.body.type === 1 || $('On Webhook Trigger').first().json.body.type === '1') ? 'linkedin' : ($('On Webhook Trigger').first().json.body.source || 'google_maps')), keyword: $('On Webhook Trigger').first().json.body.keyword, city: $('On Webhook Trigger').first().json.body.city, erp_result: $json }) }}"
+        "responseBody": "={{ JSON.stringify({ success: true, source: (($('On Webhook Trigger').first().json.body.type === 1 || $('On Webhook Trigger').first().json.body.type === '1') ? 'linkedin' : ($('On Webhook Trigger').first().json.body.source || 'google_maps')), keyword: $('On Webhook Trigger').first().json.body.keyword, city: $('On Webhook Trigger').first().json.body.city, page: Number($('On Webhook Trigger').first().json.body.page || 1), erp_result: $json }) }}"
       },
       "id": "respond-webhook",
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1520, 360]
+      "position": [
+        1520,
+        360
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ success: false, source: (($('On Webhook Trigger').first().json.body.type === 1 || $('On Webhook Trigger').first().json.body.type === '1') ? 'linkedin' : ($('On Webhook Trigger').first().json.body.source || 'google_maps')), message: 'No valid leads returned. Try different keyword or city.', keyword: $('On Webhook Trigger').first().json.body.keyword }) }}",
-        "options": { "responseCode": 200 }
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "respond-no-leads",
       "name": "Respond No Leads",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1520, 520]
+      "position": [
+        1520,
+        520
+      ]
     }
   ],
   "connections": {
-    "On Webhook Trigger": { "main": [[{ "node": "If Source is LinkedIn", "type": "main", "index": 0 }]] },
+    "On Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "If Source is LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "If Source is LinkedIn": {
       "main": [
-        [{ "node": "Serper Query Generator", "type": "main", "index": 0 }],
-        [{ "node": "Serper Maps Search", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Serper Query Generator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Serper Maps Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Serper Query Generator": { "main": [[{ "node": "Serper LinkedIn Search", "type": "main", "index": 0 }]] },
-    "Serper LinkedIn Search": { "main": [[{ "node": "Parse Lead Data Native", "type": "main", "index": 0 }]] },
-    "Parse Lead Data Native": { "main": [[{ "node": "If Leads Exist", "type": "main", "index": 0 }]] },
-    "Serper Maps Search": { "main": [[{ "node": "Parse Lead Data", "type": "main", "index": 0 }]] },
-    "Parse Lead Data": { "main": [[{ "node": "If Leads Exist", "type": "main", "index": 0 }]] },
+    "Serper Query Generator": {
+      "main": [
+        [
+          {
+            "node": "Serper LinkedIn Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper LinkedIn Search": {
+      "main": [
+        [
+          {
+            "node": "Parse Lead Data Native",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Lead Data Native": {
+      "main": [
+        [
+          {
+            "node": "If Leads Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper Maps Search": {
+      "main": [
+        [
+          {
+            "node": "Parse Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Lead Data": {
+      "main": [
+        [
+          {
+            "node": "If Leads Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "If Leads Exist": {
       "main": [
-        [{ "node": "Send to GIMS ERP", "type": "main", "index": 0 }],
-        [{ "node": "Respond No Leads", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send to GIMS ERP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Send to GIMS ERP": { "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]] }
+    "Send to GIMS ERP": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "staticData": null,
   "tags": [
-    { "name": "GIMS", "id": "gims" },
-    { "name": "CRM", "id": "crm" },
-    { "name": "Lead Generation", "id": "lead-gen" }
+    {
+      "name": "GIMS",
+      "id": "gims"
+    },
+    {
+      "name": "CRM",
+      "id": "crm"
+    },
+    {
+      "name": "Lead Generation",
+      "id": "lead-gen"
+    }
   ],
   "triggerCount": 0,
   "meta": {
     "templateCredsSetupCompleted": false,
     "instanceId": "gims-erp",
-    "notes": "Unified workflow supporting both Google Maps and LinkedIn lead generation based on payload.source (\"google_maps\"|\"linkedin\"). Use /webhook/gims-leads with JSON body { source, keyword, city, limit, lead_source_id, erp_base_url }"
+    "notes": "Unified workflow supporting both Google Maps and LinkedIn lead generation based on payload.source (\"google_maps\"|\"linkedin\"). Use /webhook/gims-leads with JSON body { source, keyword, city, limit, page, lead_source_id, erp_base_url }"
   }
 }

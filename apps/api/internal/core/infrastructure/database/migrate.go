@@ -16,6 +16,7 @@ import (
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
@@ -76,6 +77,7 @@ func AutoMigrate() error {
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
 		&core.AuditLog{},
+		&notification.Notification{},
 		// Geographic entities (Sprint 1)
 		&geographic.Country{},
 		&geographic.Province{},
@@ -98,12 +100,11 @@ func AutoMigrate() error {
 		&supplier.SupplierType{},
 		&supplier.Bank{},
 		&supplier.Supplier{},
-		&supplier.SupplierPhoneNumber{},
+		&supplier.SupplierContact{},
 		&supplier.SupplierBank{},
 		// Customer entities (Master Data)
 		&customer.CustomerType{},
 		&customer.Customer{},
-		&customer.CustomerPhoneNumber{},
 		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},
@@ -302,6 +303,12 @@ func AutoMigrate() error {
 		return fmt.Errorf("failed to ensure goods receipt warehouse column: %w", err)
 	}
 
+	// Safety net for rollout compatibility: older databases may miss
+	// customer_contact_id columns introduced in sales documents.
+	if err := ensureSalesCustomerContactColumns(); err != nil {
+		return fmt.Errorf("failed to ensure sales customer contact columns: %w", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
@@ -346,6 +353,7 @@ func createJournalEntryPeriodLockTrigger() error {
 	}
 	return nil
 }
+
 
 // tables no longer exist the function silently returns nil.
 func migrateAreaSupervisorsToEmployeeAreas() error {
@@ -424,6 +432,78 @@ func ensureGoodsReceiptWarehouseColumn() error {
 				ADD CONSTRAINT fk_goods_receipts_warehouse
 				FOREIGN KEY (warehouse_id)
 				REFERENCES warehouses(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureSalesCustomerContactColumns() error {
+	if err := DB.Exec(`
+		ALTER TABLE sales_quotations
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		ALTER TABLE sales_orders
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_quotations_customer_contact_id
+		ON sales_quotations (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_orders_customer_contact_id
+		ON sales_orders (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_quotations_customer_contact'
+			) THEN
+				ALTER TABLE sales_quotations
+				ADD CONSTRAINT fk_sales_quotations_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_orders_customer_contact'
+			) THEN
+				ALTER TABLE sales_orders
+				ADD CONSTRAINT fk_sales_orders_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
 				ON UPDATE CASCADE
 				ON DELETE SET NULL;
 			END IF;

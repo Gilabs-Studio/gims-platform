@@ -57,6 +57,7 @@ import (
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
+	notificationPresentation "github.com/gilabs/gims/api/internal/notification/presentation"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
@@ -316,6 +317,7 @@ func main() {
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
 		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)
 		coreRouter.RegisterUploadRoutes(v1, jwtManager, permissionService)
+		notificationPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Geographic module (Sprint 1)
 		geographicPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -346,7 +348,11 @@ func main() {
 		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
 
 		// Sales module (Sprint 5 - Sales Quotation)
-		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
+		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, salesPresentation.SalesRouteDeps{
+			InventoryUC: invUC,
+			JournalUC:   financeDeps.JournalUC,
+			CoaUC:       financeDeps.CoaUC,
+		})
 
 		// HRD module (Sprint 13 - Attendance)
 		hrdDeps := hrdPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -386,6 +392,7 @@ func main() {
 			AttendanceUC:     hrdDeps.AttendanceUC,
 			SalesQuotationUC: salesDeps.QuotationUC,
 			SalesOrderUC:     salesDeps.OrderUC,
+			YearlyTargetUC:   salesDeps.YearlyTargetUC,
 			InventoryUC:      invUC,
 		})
 	}

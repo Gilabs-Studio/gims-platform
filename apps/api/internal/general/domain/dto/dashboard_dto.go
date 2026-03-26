@@ -2,9 +2,45 @@ package dto
 
 // DashboardRequest holds the query parameters for filtering dashboard data.
 type DashboardRequest struct {
-	StartDate string `form:"start_date"`
-	EndDate   string `form:"end_date"`
-	Year      int    `form:"year"`
+	StartDate string                 `form:"start_date"`
+	EndDate   string                 `form:"end_date"`
+	Year      int                    `form:"year"`
+	Scope     DashboardOverviewScope `form:"scope"`
+}
+
+// DashboardOverviewScope controls which section of overview data should be returned.
+type DashboardOverviewScope string
+
+const (
+	DashboardOverviewScopeKPI              DashboardOverviewScope = "kpi"
+	DashboardOverviewScopeCharts           DashboardOverviewScope = "charts"
+	DashboardOverviewScopeBalance          DashboardOverviewScope = "balance"
+	DashboardOverviewScopeCosts            DashboardOverviewScope = "costs"
+	DashboardOverviewScopeInvoices         DashboardOverviewScope = "invoices"
+	DashboardOverviewScopeSalesPerformance DashboardOverviewScope = "sales-performance"
+	DashboardOverviewScopeProducts         DashboardOverviewScope = "products"
+	DashboardOverviewScopeDelivery         DashboardOverviewScope = "delivery"
+	DashboardOverviewScopeGeo              DashboardOverviewScope = "geo"
+	DashboardOverviewScopeWarehouse        DashboardOverviewScope = "warehouse"
+)
+
+// IsValid returns true when the scope value is one of the supported scope constants.
+func (s DashboardOverviewScope) IsValid() bool {
+	switch s {
+	case DashboardOverviewScopeKPI,
+		DashboardOverviewScopeCharts,
+		DashboardOverviewScopeBalance,
+		DashboardOverviewScopeCosts,
+		DashboardOverviewScopeInvoices,
+		DashboardOverviewScopeSalesPerformance,
+		DashboardOverviewScopeProducts,
+		DashboardOverviewScopeDelivery,
+		DashboardOverviewScopeGeo,
+		DashboardOverviewScopeWarehouse:
+		return true
+	default:
+		return false
+	}
 }
 
 // DashboardOverviewResponse is the top-level dashboard API response.
@@ -23,6 +59,24 @@ type DashboardOverviewResponse struct {
 	DeliveryStatus     DeliveryStatusData    `json:"delivery_status"`
 	GeographicOverview GeoOverviewData       `json:"geographic_overview"`
 	WarehouseOverview  WarehouseOverviewData `json:"warehouse_overview"`
+}
+
+// DashboardScopedOverviewResponse is used when the request includes a scope query.
+// Only requested sections are included, reducing payload size.
+type DashboardScopedOverviewResponse struct {
+	KPI                *KPIData               `json:"kpi,omitempty"`
+	RevenueChart       *PeriodChartData       `json:"revenue_chart,omitempty"`
+	CostsChart         *PeriodChartData       `json:"costs_chart,omitempty"`
+	RevenueVsCosts     *PeriodChartData       `json:"revenue_vs_costs,omitempty"`
+	BalanceOverview    *BalanceOverviewData   `json:"balance_overview,omitempty"`
+	CostsByCategory    []CostCategoryItem     `json:"costs_by_category,omitempty"`
+	InvoicesSummary    *InvoiceSummaryData    `json:"invoices_summary,omitempty"`
+	RecentInvoices     []InvoiceRow           `json:"recent_invoices,omitempty"`
+	SalesPerformance   []SalesPerformanceRow  `json:"sales_performance,omitempty"`
+	TopProducts        []TopProductRow        `json:"top_products,omitempty"`
+	DeliveryStatus     *DeliveryStatusData    `json:"delivery_status,omitempty"`
+	GeographicOverview *GeoOverviewData       `json:"geographic_overview,omitempty"`
+	WarehouseOverview  *WarehouseOverviewData `json:"warehouse_overview,omitempty"`
 }
 
 // KPIData contains the five main KPI summary cards.
@@ -107,10 +161,10 @@ type InvoiceSummaryData struct {
 // Field names match the TypeScript InvoiceRow interface.
 type InvoiceRow struct {
 	ID             string  `json:"id"`
-	CustomerID     string  `json:"customer_id"`       // customer UUID for detail modal
-	Company        string  `json:"company"`          // customer name
-	Contact        string  `json:"contact"`           // invoice code
-	IssueDate      string  `json:"issue_date"`        // due date
+	CustomerID     string  `json:"customer_id"` // customer UUID for detail modal
+	Company        string  `json:"company"`     // customer name
+	Contact        string  `json:"contact"`     // invoice code
+	IssueDate      string  `json:"issue_date"`  // due date
 	Value          float64 `json:"value"`
 	ValueFormatted string  `json:"value_formatted"`
 	Status         string  `json:"status"` // "paid" | "unpaid" | "overdue"

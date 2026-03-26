@@ -19,7 +19,7 @@ export function CreatePurchaseReturnDialog({ open, onOpenChange, goodsReceiptId 
         <DialogHeader>
           <DialogTitle>{t("add")}</DialogTitle>
         </DialogHeader>
-        <PurchaseReturnForm defaultGoodsReceiptId={goodsReceiptId} onSuccess={() => onOpenChange(false)} />
+        <PurchaseReturnForm open={open} defaultGoodsReceiptId={goodsReceiptId} onSuccess={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );

@@ -20,11 +20,13 @@ export function CreateSalesReturnDialog({ open, onOpenChange, invoiceId, deliver
         <DialogHeader>
           <DialogTitle>{t("add")}</DialogTitle>
         </DialogHeader>
-        <SalesReturnForm
-          defaultInvoiceId={invoiceId}
-          defaultDeliveryId={deliveryId}
-          onSuccess={() => onOpenChange(false)}
-        />
+        {open && (
+          <SalesReturnForm
+            defaultInvoiceId={invoiceId}
+            defaultDeliveryId={deliveryId}
+            onSuccess={() => onOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

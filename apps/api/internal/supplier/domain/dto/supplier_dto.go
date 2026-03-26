@@ -11,6 +11,8 @@ import (
 type CreateSupplierRequest struct {
 	Name           string                      `json:"name" binding:"required,min=2,max=200"`
 	SupplierTypeID string                      `json:"supplier_type_id" binding:"omitempty,uuid"`
+	PaymentTermsID string                      `json:"payment_terms_id" binding:"omitempty,uuid"`
+	BusinessUnitID string                      `json:"business_unit_id" binding:"omitempty,uuid"`
 	Address        string                      `json:"address" binding:"max=500"`
 	ProvinceID     string                      `json:"province_id" binding:"omitempty,uuid"`
 	CityID         string                      `json:"city_id" binding:"omitempty,uuid"`
@@ -25,7 +27,7 @@ type CreateSupplierRequest struct {
 	Latitude       *float64                    `json:"latitude" binding:"omitempty,min=-90,max=90"`
 	Longitude      *float64                    `json:"longitude" binding:"omitempty,min=-180,max=180"`
 	IsActive       *bool                       `json:"is_active"`
-	PhoneNumbers   []CreatePhoneNumberRequest  `json:"phone_numbers"`
+	Contacts       []CreateContactRequest      `json:"contacts"`
 	BankAccounts   []CreateSupplierBankRequest `json:"bank_accounts"`
 }
 
@@ -38,6 +40,8 @@ type CreateSupplierRequest struct {
 type UpdateSupplierRequest struct {
 	Name           *string  `json:"name" binding:"omitempty,min=2,max=200"`
 	SupplierTypeID *string  `json:"supplier_type_id"`
+	PaymentTermsID *string  `json:"payment_terms_id"`
+	BusinessUnitID *string  `json:"business_unit_id"`
 	Address        *string  `json:"address" binding:"omitempty,max=500"`
 	ProvinceID     *string  `json:"province_id"`
 	CityID         *string  `json:"city_id"`
@@ -65,6 +69,10 @@ type SupplierResponse struct {
 	Name           string                 `json:"name"`
 	SupplierTypeID *string                `json:"supplier_type_id"`
 	SupplierType   *SupplierTypeResponse  `json:"supplier_type,omitempty"`
+	PaymentTermsID *string                `json:"payment_terms_id"`
+	PaymentTerms   *PaymentTermsResponse  `json:"payment_terms,omitempty"`
+	BusinessUnitID *string                `json:"business_unit_id"`
+	BusinessUnit   *BusinessUnitResponse  `json:"business_unit,omitempty"`
 	Address        string                 `json:"address"`
 	ProvinceID     *string                `json:"province_id"`
 	Province       *ProvinceResponse      `json:"province,omitempty"`
@@ -90,32 +98,53 @@ type SupplierResponse struct {
 	IsActive       bool                   `json:"is_active"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
-	PhoneNumbers   []PhoneNumberResponse  `json:"phone_numbers,omitempty"`
+	Contacts       []ContactResponse      `json:"contacts,omitempty"`
 	BankAccounts   []SupplierBankResponse `json:"bank_accounts,omitempty"`
 }
 
-// === Phone Number DTOs ===
+// === Contact DTOs ===
 
-type CreatePhoneNumberRequest struct {
-	PhoneNumber string `json:"phone_number" binding:"required,max=30"`
-	Label       string `json:"label" binding:"max=50"`
-	IsPrimary   bool   `json:"is_primary"`
+type CreateContactRequest struct {
+	ContactRoleID *string `json:"contact_role_id" binding:"omitempty,uuid"`
+	Name          string  `json:"name" binding:"required,max=100"`
+	Email         string  `json:"email" binding:"omitempty,email,max=100"`
+	Phone         string  `json:"phone" binding:"required,max=30"`
+	Notes         string  `json:"notes" binding:"max=1000"`
+	IsPrimary     bool    `json:"is_primary"`
+	IsActive      *bool   `json:"is_active"`
 }
 
-type UpdatePhoneNumberRequest struct {
-	PhoneNumber string `json:"phone_number" binding:"omitempty,max=30"`
-	Label       string `json:"label" binding:"max=50"`
-	IsPrimary   *bool  `json:"is_primary"`
+type UpdateContactRequest struct {
+	ContactRoleID *string `json:"contact_role_id" binding:"omitempty,uuid"`
+	Name          string  `json:"name" binding:"omitempty,max=100"`
+	Email         string  `json:"email" binding:"omitempty,email,max=100"`
+	Phone         string  `json:"phone" binding:"omitempty,max=30"`
+	Notes         string  `json:"notes" binding:"max=1000"`
+	IsPrimary     *bool   `json:"is_primary"`
+	IsActive      *bool   `json:"is_active"`
 }
 
-type PhoneNumberResponse struct {
-	ID          string    `json:"id"`
-	SupplierID  string    `json:"supplier_id"`
-	PhoneNumber string    `json:"phone_number"`
-	Label       string    `json:"label"`
-	IsPrimary   bool      `json:"is_primary"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+type ContactRoleInfo struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Code       string `json:"code"`
+	BadgeColor string `json:"badge_color"`
+}
+
+type ContactResponse struct {
+	ID            string           `json:"id"`
+	SupplierID    string           `json:"supplier_id"`
+	ContactRoleID *string          `json:"contact_role_id"`
+	ContactRole   *ContactRoleInfo `json:"contact_role,omitempty"`
+	Name          string           `json:"name"`
+	Email         string           `json:"email"`
+	Phone         string           `json:"phone"`
+	Notes         string           `json:"notes"`
+	IsPrimary     bool             `json:"is_primary"`
+	IsActive      bool             `json:"is_active"`
+	CreatedBy     *string          `json:"created_by"`
+	CreatedAt     time.Time        `json:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at"`
 }
 
 // === Supplier Bank DTOs ===
@@ -174,6 +203,18 @@ type CityResponse struct {
 }
 
 type ProvinceResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type PaymentTermsResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+	Days int    `json:"days"`
+}
+
+type BusinessUnitResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }

@@ -50,8 +50,8 @@ export function useLoginGuard() {
     try {
       const { authService } = await import("../services/auth-service");
 
-      // CSRF prefetch is a best-effort optimization; it is not required for
-      // /auth/refresh-token but can help for the subsequent login request.
+      // Ensure CSRF token is available before /auth/refresh-token in
+      // cross-origin production setups.
       try {
         await authService.prefetchCSRFToken();
       } catch {

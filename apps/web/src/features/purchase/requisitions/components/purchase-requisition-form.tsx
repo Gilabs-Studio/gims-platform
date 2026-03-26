@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
 import type { FieldErrors, Resolver, SubmitErrorHandler } from "react-hook-form";
-import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
@@ -14,6 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -21,14 +27,16 @@ import { NumericInput } from "@/components/ui/numeric-input";
 
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { ButtonLoading } from "@/components/loading";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 
 import { toast } from "sonner";
 
-import { useProducts } from "@/features/master-data/product/hooks/use-products";
-import { usePurchaseRequisitionAddData } from "../hooks/use-purchase-requisitions";
-import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
-import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
-import { useEmployee, useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+import { supplierService } from "@/features/master-data/supplier/services/supplier-service";
+import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
+import { paymentTermsService } from "@/features/master-data/payment-and-couriers/payment-terms/services/payment-terms-service";
+import { businessUnitService } from "@/features/master-data/organization/services/organization-service";
+import { employeeService } from "@/features/master-data/employee/services/employee-service";
+import { productService } from "@/features/master-data/product/services/product-service";
 import { SupplierDialog } from "@/features/master-data/supplier/components/supplier/supplier-dialog";
 import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
@@ -108,6 +116,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
 	const [requestDateOpen, setRequestDateOpen] = useState(false);
+	const [shouldLoadSelectData, setShouldLoadSelectData] = useState(true);
 	const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
 	const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
 	const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -127,12 +136,12 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		control,
 		reset,
 		setValue,
-		watch,
 		formState: { errors },
 	} = useForm<PurchaseRequisitionFormData>({
 		resolver,
 		defaultValues: {
 			supplier_id: null,
+			supplier_contact_id: null,
 			payment_terms_id: null,
 			business_unit_id: null,
 			employee_id: null,
@@ -147,13 +156,18 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 	});
 
 	const { fields, append, remove } = useFieldArray({ control, name: "items" });
-	const watchedItems = watch("items");
+	const watchedItems = useWatch({ control, name: "items" });
+	const selectedSupplierId = useWatch({ control, name: "supplier_id" });
 
 	useEffect(() => {
-		if (!open) { setActiveTab("basic"); return; }
+		if (!open) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
+			setActiveTab("basic");
+			return;
+		}
 		if (!isEdit) {
 			reset({
-				supplier_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
+					supplier_id: null, supplier_contact_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
 				request_date: todayISO(), address: null, notes: "", tax_rate: 0, delivery_cost: 0, other_cost: 0,
 				items: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 			});
@@ -161,7 +175,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!detail) return;
 		reset({
-			supplier_id: detail.supplier_id ?? null, payment_terms_id: detail.payment_terms_id ?? null,
+				supplier_id: detail.supplier_id ?? null, supplier_contact_id: null, payment_terms_id: detail.payment_terms_id ?? null,
 			business_unit_id: detail.business_unit_id ?? null, employee_id: detail.employee_id ?? null,
 			request_date: detail.request_date, address: detail.address ?? null, notes: detail.notes ?? "",
 			tax_rate: detail.tax_rate ?? 0, delivery_cost: detail.delivery_cost ?? 0, other_cost: detail.other_cost ?? 0,
@@ -171,46 +185,205 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		});
 	}, [detail, isEdit, open, reset]);
 
-	const addDataQuery = usePurchaseRequisitionAddData({ enabled: open });
-	const { data: productsData } = useProducts({ per_page: 100, is_approved: true });
-	const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 });
-	const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 });
-	const { data: employeesData } = useEmployees({ per_page: 100 });
-	const selectedEmployeeId = detail?.employee_id ?? null;
-	const { data: selectedEmployeeData } = useEmployee(open && isEdit && selectedEmployeeId ? selectedEmployeeId : undefined);
+	const supplierCombobox = usePaginatedComboboxOptions({
+		queryKey: ["purchase", "requisition", "suppliers"],
+		queryFn: (params: { page: number; per_page: number; search?: string }) =>
+			supplierService.list({
+				...params,
+				sort_by: "name",
+				sort_dir: "asc",
+			}),
+		mapOption: (item) => ({
+			value: item.id,
+			label: item.code ? `${item.code} - ${item.name}` : item.name,
+		}),
+		enabled: open && shouldLoadSelectData,
+		pinnedOptions:
+			detail?.supplier?.id
+				? [{ value: detail.supplier.id, label: detail.supplier.code ? `${detail.supplier.code} - ${detail.supplier.name}` : detail.supplier.name }]
+				: undefined,
+	});
 
-	const products = useMemo(() => productsData?.data ?? [], [productsData?.data]);
-	const suppliers = useMemo(() => addDataQuery.data?.data.suppliers ?? [], [addDataQuery.data?.data.suppliers]);
-	const paymentTerms = useMemo(() => paymentTermsData?.data ?? [], [paymentTermsData?.data]);
-	const businessUnits = useMemo(() => businessUnitsData?.data ?? [], [businessUnitsData?.data]);
-	const employees = useMemo(() => employeesData?.data ?? [], [employeesData?.data]);
+
+
+	const employeesCombobox = usePaginatedComboboxOptions({
+		queryKey: ["purchase", "requisition", "employees"],
+		queryFn: (params: { page: number; per_page: number; search?: string }) =>
+			employeeService.list({
+				...params,
+				sort_by: "name",
+				sort_dir: "asc",
+			}),
+		mapOption: (item) => ({
+			value: item.id,
+			label: item.employee_code ? `${item.employee_code} - ${item.name}` : item.name,
+		}),
+		enabled: open && shouldLoadSelectData,
+		pinnedOptions:
+			detail?.employee?.id
+				? [{ value: detail.employee.id, label: detail.employee.name }]
+				: undefined,
+	});
+
+	const productsCombobox = usePaginatedComboboxOptions({
+		queryKey: ["purchase", "requisition", "products"],
+		queryFn: (params: { page: number; per_page: number; search?: string }) =>
+			productService.list({
+				...params,
+				is_approved: true,
+				sort_by: "name",
+				sort_dir: "asc",
+			}),
+		mapOption: (item) => ({
+			value: item.id,
+			label: item.code ? `${item.code} - ${item.name}` : item.name,
+		}),
+		enabled: open && shouldLoadSelectData,
+		pinnedOptions:
+			detail?.items?.length
+				? detail.items
+					.filter((item) => item.product?.id)
+					.map((item) => ({
+						value: item.product_id,
+						label: item.product?.code ? `${item.product.code} - ${item.product.name}` : item.product?.name ?? item.product_id,
+					}))
+				: undefined,
+	});
+
+	const products = useMemo(() => productsCombobox.items, [productsCombobox.items]);
+	const suppliers = useMemo(() => supplierCombobox.items, [supplierCombobox.items]);
+	const employees = useMemo(() => employeesCombobox.items, [employeesCombobox.items]);
 
 	const mergedSuppliers = useMemo(() => {
-		const list = [...suppliers];
-		const selected = detail?.supplier;
-		if (selected && !list.some(x => x.id === selected.id)) list.push(selected as any);
-		return list;
-	}, [suppliers, detail?.supplier]);
+		return [...suppliers];
+	}, [suppliers]);
+
+	const selectedSupplier = useMemo(() => {
+		if (!selectedSupplierId) return null;
+		return mergedSuppliers.find((s) => s.id === selectedSupplierId) ?? null;
+	}, [selectedSupplierId, mergedSuppliers]);
+
+	const { data: selectedSupplierData } = useSupplier(selectedSupplierId ?? "", {
+		enabled: open && !!selectedSupplierId,
+	});
+
+	const selectedSupplierWithDetail = selectedSupplierData?.data ?? selectedSupplier;
+
+	const paymentTermsCombobox = usePaginatedComboboxOptions({
+		queryKey: ["purchase", "requisition", "payment-terms"],
+		queryFn: (params: { page: number; per_page: number; search?: string }) =>
+			paymentTermsService.list({
+				...params,
+				sort_by: "name",
+				sort_dir: "asc",
+			}),
+		mapOption: (item) => ({
+			value: item.id,
+			label: item.name,
+		}),
+		enabled: open && shouldLoadSelectData,
+		pinnedOptions: (() => {
+			const options = [];
+			if (detail?.payment_terms?.id) {
+				options.push({ value: detail.payment_terms.id, label: detail.payment_terms.name });
+			}
+			if (selectedSupplierWithDetail?.payment_terms_id) {
+				options.push({
+					value: selectedSupplierWithDetail.payment_terms_id,
+					label:
+						selectedSupplierWithDetail.payment_terms?.name ??
+						detail?.payment_terms?.name ??
+						selectedSupplierWithDetail.payment_terms_id,
+				});
+			}
+			return options.length ? options : undefined;
+		})(),
+	});
+
+	const businessUnitsCombobox = usePaginatedComboboxOptions({
+		queryKey: ["purchase", "requisition", "business-units"],
+		queryFn: (params: { page: number; per_page: number; search?: string }) =>
+			businessUnitService.list({
+				...params,
+				sort_by: "name",
+				sort_dir: "asc",
+			}),
+		mapOption: (item) => ({
+			value: item.id,
+			label: item.name,
+		}),
+		enabled: open && shouldLoadSelectData,
+		pinnedOptions: (() => {
+			const options = [];
+			if (detail?.business_unit?.id) {
+				options.push({ value: detail.business_unit.id, label: detail.business_unit.name });
+			}
+			if (selectedSupplierWithDetail?.business_unit_id) {
+				options.push({
+					value: selectedSupplierWithDetail.business_unit_id,
+					label:
+						selectedSupplierWithDetail.business_unit?.name ??
+						detail?.business_unit?.name ??
+						selectedSupplierWithDetail.business_unit_id,
+				});
+			}
+			return options.length ? options : undefined;
+		})(),
+	});
+
+	const paymentTerms = useMemo(() => paymentTermsCombobox.items, [paymentTermsCombobox.items]);
+	const businessUnits = useMemo(() => businessUnitsCombobox.items, [businessUnitsCombobox.items]);
+	const supplierContacts = useMemo(
+		() => selectedSupplierWithDetail?.contacts ?? [],
+		[selectedSupplierWithDetail],
+	);
+
+	useEffect(() => {
+		if (!selectedSupplierId) {
+			setValue("payment_terms_id", null, { shouldValidate: true });
+			setValue("business_unit_id", null, { shouldValidate: true });
+			setValue("supplier_contact_id", null, { shouldValidate: true });
+			return;
+		}
+
+		if (!selectedSupplierWithDetail) return;
+
+		const nextPaymentTermsId =
+			selectedSupplierWithDetail.payment_terms_id ??
+			selectedSupplierWithDetail.payment_terms?.id ??
+			null;
+		const nextBusinessUnitId =
+			selectedSupplierWithDetail.business_unit_id ??
+			selectedSupplierWithDetail.business_unit?.id ??
+			null;
+		const contacts = selectedSupplierWithDetail.contacts ?? [];
+		const defaultContact = contacts.find((ct) => ct.is_primary) ?? contacts[0];
+		const nextSupplierContactId = defaultContact?.id ?? null;
+
+		setValue("payment_terms_id", nextPaymentTermsId, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+		setValue("business_unit_id", nextBusinessUnitId, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+		setValue("supplier_contact_id", nextSupplierContactId, {
+			shouldValidate: true,
+			shouldDirty: true,
+		});
+
+	}, [selectedSupplierId, selectedSupplierWithDetail, setValue, selectedSupplierData?.data]);
 
 	const mergedPaymentTerms = useMemo(() => {
-		const list = [...paymentTerms];
-		const selected = detail?.payment_terms;
-		if (selected && !list.some(x => x.id === selected.id)) list.push(selected as any);
-		return list;
-	}, [paymentTerms, detail?.payment_terms]);
+		return [...paymentTerms];
+	}, [paymentTerms]);
 
 	const mergedBusinessUnits = useMemo(() => {
-		const list = [...businessUnits];
-		const selected = detail?.business_unit;
-		if (selected && !list.some(x => x.id === selected.id)) list.push(selected as any);
-		return list;
-	}, [businessUnits, detail?.business_unit]);
+		return [...businessUnits];
+	}, [businessUnits]);
 
-	const selectedEmployee = selectedEmployeeData?.data ?? null;
-	const mergedEmployees = useMemo(() => {
-		if (!selectedEmployee) return employees;
-		return employees.some((e) => e.id === selectedEmployee.id) ? employees : [selectedEmployee, ...employees];
-	}, [employees, selectedEmployee]);
+	const mergedEmployees = useMemo(() => [...employees], [employees]);
 
 	const overview = usePurchaseRequisitionOverview({
 		control, suppliers: mergedSuppliers, paymentTerms: mergedPaymentTerms,
@@ -234,7 +407,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		const normalized = normalizeEmployeeId(item.id, mergedEmployees);
 		setValue("employee_id", normalized ?? item.id); closeQuickCreate();
 	}, [setValue, closeQuickCreate, mergedEmployees]);
-	const handleProductCreated = useCallback((item: { id: string; name: string }) => {
+	const handleProductCreated = useCallback(() => {
 		closeQuickCreate();
 	}, [closeQuickCreate]);
 
@@ -244,6 +417,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		const payload = {
 			supplier_id: formData.supplier_id ?? null, payment_terms_id: formData.payment_terms_id ?? null,
 			business_unit_id: formData.business_unit_id ?? null, employee_id: formData.employee_id ?? null,
+			supplier_contact_id: formData.supplier_contact_id ?? null,
 			request_date: formData.request_date, address: formData.address ?? null, notes: formData.notes ?? "",
 			tax_rate: formData.tax_rate ?? 0, delivery_cost: formData.delivery_cost ?? 0, other_cost: formData.other_cost ?? 0,
 			items: (formData.items ?? []).map((it) => ({ product_id: it.product_id, quantity: it.quantity, purchase_price: it.purchase_price, discount: it.discount ?? 0, notes: it.notes ?? null })),
@@ -285,13 +459,43 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 					<form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6 mt-4">
 						<TabsContent value="basic" className="space-y-4 mt-0">
-							{/* Procurement Section */}
-							<div className="space-y-4">
-								<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
-									<FileText className="h-4 w-4 text-primary" />
-									<h3 className="text-sm font-medium">{t("sections.procurement") || "Procurement"}</h3>
-								</div>
-								<div className="grid grid-cols-2 gap-4">
+						{/* Order Information Section */}
+						<div className="space-y-4">
+							<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+								<FileText className="h-4 w-4 text-primary" />
+								<h3 className="text-sm font-medium">{t("sections.orderInfo") || "Order Information"}</h3>
+							</div>
+							<div className="grid grid-cols-1 gap-4">
+									<Field orientation="vertical">
+										<FieldLabel>{t("fields.requestedBy") || "Request By"}</FieldLabel>
+										<Controller
+											control={control} name="employee_id"
+											render={({ field }) => (
+												<CreatableCombobox
+													value={field.value ?? undefined}
+													onValueChange={(v) => field.onChange(v ? normalizeEmployeeId(v, mergedEmployees) : null)}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+														employeesCombobox.onOpenChange(isOpen);
+													}}
+													onSearchChange={employeesCombobox.onSearchChange}
+													onLoadMore={employeesCombobox.onLoadMore}
+													hasMore={employeesCombobox.hasMore}
+													isLoadingMore={employeesCombobox.isLoadingMore}
+													searchDebounceMs={300}
+													options={mergedEmployees.map((e) => ({ value: e.id, label: e.employee_code ? `${e.employee_code} - ${e.name}` : e.name }))}
+													placeholder={t("placeholders.select")}
+													createPermission="employee.create"
+													createLabel={t("actions.createNew") || "Create Employee"}
+													onCreateClick={() => openQuickCreate("employee")}
+													isLoading={employeesCombobox.isLoading || employeesCombobox.isFetching}
+												/>
+											)}
+										/>
+									</Field>
+
 									<Field orientation="vertical">
 										<FieldLabel>{t("fields.requestDate")}</FieldLabel>
 										<Controller
@@ -320,7 +524,16 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 										/>
 										{errors.request_date && <FieldError>{t("validation.required")}</FieldError>}
 									</Field>
+										</div>
+									</div>
 
+									{/* Procurement Section */}
+									<div className="space-y-4">
+										<div className="flex items-center space-x-2 pb-2 border-b border-border/50">
+											<ShoppingCart className="h-4 w-4 text-primary" />
+											<h3 className="text-sm font-medium">{t("sections.procurement") || "Procurement"}</h3>
+										</div>
+										<div className="grid grid-cols-2 gap-4">
 									<Field orientation="vertical">
 										<FieldLabel>{t("fields.supplier")}</FieldLabel>
 										<Controller
@@ -328,13 +541,74 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 											render={({ field }) => (
 												<CreatableCombobox
 													value={field.value ?? undefined}
-													onValueChange={(v) => field.onChange(v || null)}
+													onValueChange={(v) => {
+														const selectedId = v || null;
+														field.onChange(selectedId);
+														const supplierFromList = mergedSuppliers.find((s) => s.id === selectedId);
+														const supplier = selectedSupplierWithDetail ?? supplierFromList;
+														const nextPaymentTermsId =
+															(supplier?.payment_terms_id?.trim() ? supplier.payment_terms_id : null) ??
+															supplier?.payment_terms?.id ??
+															null;
+														const nextBusinessUnitId =
+															(supplier?.business_unit_id?.trim() ? supplier.business_unit_id : null) ??
+															supplier?.business_unit?.id ??
+															null;
+														const nextSupplierContacts = supplier?.contacts ?? [];
+														const defaultContact =
+															nextSupplierContacts.find((ct: { is_primary?: boolean; id?: string }) => ct.is_primary) ?? nextSupplierContacts[0];
+														const nextSupplierContactId = defaultContact?.id ?? null;
+														if (nextPaymentTermsId !== null) {
+															setValue('payment_terms_id', nextPaymentTermsId, { shouldValidate: true, shouldDirty: true });
+														}
+														setValue("business_unit_id", nextBusinessUnitId, { shouldValidate: true, shouldDirty: true });
+														setValue("supplier_contact_id", nextSupplierContactId, { shouldValidate: true, shouldDirty: true });
+
+													}}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+														supplierCombobox.onOpenChange(isOpen);
+													}}
+													onSearchChange={supplierCombobox.onSearchChange}
+													onLoadMore={supplierCombobox.onLoadMore}
+													hasMore={supplierCombobox.hasMore}
+													isLoadingMore={supplierCombobox.isLoadingMore}
+													searchDebounceMs={300}
 													options={mergedSuppliers.map((s) => ({ value: s.id, label: s.code ? `${s.code} - ${s.name}` : s.name }))}
 													placeholder={t("placeholders.select")}
 													createPermission="supplier.create"
 													createLabel={t("actions.createNew") || "Create New Supplier"}
 													onCreateClick={() => openQuickCreate("supplier")}
+													isLoading={supplierCombobox.isLoading || supplierCombobox.isFetching}
 												/>
+											)}
+										/>
+									</Field>
+
+									<Field orientation="vertical">
+										<FieldLabel>{t("fields.supplierContact") || "Supplier Contact"}</FieldLabel>
+										<Controller
+											control={control}
+											name="supplier_contact_id"
+											render={({ field }) => (
+												<Select
+													value={field.value ?? ""}
+													onValueChange={(v) => field.onChange(v || null)}
+													disabled={!selectedSupplierId || supplierContacts.length === 0}
+												>
+													<SelectTrigger className="cursor-pointer">
+														<SelectValue placeholder={t("placeholders.select")} />
+													</SelectTrigger>
+													<SelectContent>
+														{supplierContacts.map((contact) => (
+															<SelectItem key={contact.id} value={contact.id} className="cursor-pointer">
+																{contact.phone}{contact.is_primary ? " - Primary" : ""}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
 											)}
 										/>
 									</Field>
@@ -347,11 +621,23 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
-													options={mergedPaymentTerms.map((pt) => ({ value: pt.id, label: pt.code ? `${pt.code} - ${pt.name}` : pt.name }))}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+														paymentTermsCombobox.onOpenChange(isOpen);
+													}}
+													onSearchChange={paymentTermsCombobox.onSearchChange}
+													onLoadMore={paymentTermsCombobox.onLoadMore}
+													hasMore={paymentTermsCombobox.hasMore}
+													isLoadingMore={paymentTermsCombobox.isLoadingMore}
+													searchDebounceMs={300}
+													options={paymentTermsCombobox.options}
 													placeholder={t("placeholders.select")}
 													createPermission="payment_term.create"
 													createLabel={t("actions.createNew") || "Create Payment Term"}
 													onCreateClick={() => openQuickCreate("paymentTerm")}
+													isLoading={paymentTermsCombobox.isLoading || paymentTermsCombobox.isFetching}
 												/>
 											)}
 										/>
@@ -365,29 +651,23 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => field.onChange(v || null)}
-													options={mergedBusinessUnits.map((bu) => ({ value: bu.id, label: bu.name }))}
+													onOpenChange={(isOpen) => {
+														if (isOpen) {
+															setShouldLoadSelectData(true);
+														}
+														businessUnitsCombobox.onOpenChange(isOpen);
+													}}
+													onSearchChange={businessUnitsCombobox.onSearchChange}
+													onLoadMore={businessUnitsCombobox.onLoadMore}
+													hasMore={businessUnitsCombobox.hasMore}
+													isLoadingMore={businessUnitsCombobox.isLoadingMore}
+													searchDebounceMs={300}
+													options={businessUnitsCombobox.options}
 													placeholder={t("placeholders.select")}
 													createPermission="business_unit.create"
 													createLabel={t("actions.createNew") || "Create Business Unit"}
 													onCreateClick={() => openQuickCreate("businessUnit")}
-												/>
-											)}
-										/>
-									</Field>
-
-									<Field orientation="vertical" className="col-span-2">
-										<FieldLabel>{t("fields.employee")}</FieldLabel>
-										<Controller
-											control={control} name="employee_id"
-											render={({ field }) => (
-												<CreatableCombobox
-													value={field.value ?? undefined}
-													onValueChange={(v) => field.onChange(v ? normalizeEmployeeId(v, mergedEmployees) : null)}
-													options={mergedEmployees.map((e) => ({ value: e.id, label: e.employee_code ? `${e.employee_code} - ${e.name}` : e.name }))}
-													placeholder={t("placeholders.select")}
-													createPermission="employee.create"
-													createLabel={t("actions.createNew") || "Create Employee"}
-													onCreateClick={() => openQuickCreate("employee")}
+													isLoading={businessUnitsCombobox.isLoading || businessUnitsCombobox.isFetching}
 												/>
 											)}
 										/>
@@ -401,7 +681,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 									<DollarSign className="h-4 w-4 text-primary" />
 									<h3 className="text-sm font-medium">{t("sections.financial") || "Financial"}</h3>
 								</div>
-								<div className="grid grid-cols-2 gap-4">
+								<div className="grid grid-cols-3 gap-4">
 									<Field orientation="vertical">
 										<FieldLabel>{t("fields.taxRate")}</FieldLabel>
 										<Controller control={control} name="tax_rate" render={({ field }) => (
@@ -420,16 +700,16 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 											<NumericInput value={field.value ?? 0} onChange={field.onChange} />
 										)} />
 									</Field>
-									<Field orientation="vertical">
-										<FieldLabel>{t("fields.address") || "Address"}</FieldLabel>
-										<Input {...register("address")} placeholder={t("placeholders.address") || "Delivery address"} />
-									</Field>
-									<Field orientation="vertical" className="col-span-2">
-										<FieldLabel>{t("fields.notes")}</FieldLabel>
-										<Textarea rows={3} {...register("notes")} />
-										{errors.notes && <FieldError>{t("validation.invalid")}</FieldError>}
-									</Field>
 								</div>
+								<Field orientation="vertical">
+									<FieldLabel>{t("fields.address") || "Address"}</FieldLabel>
+									<Input {...register("address")} placeholder={t("placeholders.address") || "Delivery address"} />
+								</Field>
+								<Field orientation="vertical">
+									<FieldLabel>{t("fields.notes")}</FieldLabel>
+									<Textarea rows={3} {...register("notes")} />
+									{errors.notes && <FieldError>{t("validation.invalid")}</FieldError>}
+								</Field>
 							</div>
 
 							<div className="flex items-center justify-end gap-2 pt-4 border-t">
@@ -486,12 +766,32 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 																render={({ field }) => (
 																	<CreatableCombobox
 																		value={field.value || undefined}
-																		onValueChange={(v) => field.onChange(v || "")}
+																		onValueChange={(v) => {
+																			field.onChange(v || "");
+																			if (v) {
+																				const found = products.find((p) => p.id === v);
+																				if (found?.cost_price !== undefined) {
+																					setValue(`items.${idx}.purchase_price`, found.cost_price, { shouldValidate: true });
+																				}
+																			}
+																		}}
+																		onOpenChange={(isOpen) => {
+																			if (isOpen) {
+																				setShouldLoadSelectData(true);
+																			}
+																			productsCombobox.onOpenChange(isOpen);
+																		}}
+																		onSearchChange={productsCombobox.onSearchChange}
+																		onLoadMore={productsCombobox.onLoadMore}
+																		hasMore={productsCombobox.hasMore}
+																		isLoadingMore={productsCombobox.isLoadingMore}
+																		searchDebounceMs={300}
 																		options={products.map((p) => ({ value: p.id, label: p.code ? `${p.code} - ${p.name}` : p.name }))}
 																		placeholder={t("placeholders.select")}
 																		createPermission="product.create"
 																		createLabel={t("actions.createNew") || "Create Product"}
 																		onCreateClick={() => openQuickCreate("product")}
+																		isLoading={productsCombobox.isLoading || productsCombobox.isFetching}
 																	/>
 																)}
 															/>
@@ -516,6 +816,15 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 															<FieldLabel>{t("fields.discount")}</FieldLabel>
 															<Controller control={control} name={`items.${idx}.discount`}
 																render={({ field }) => <NumericInput value={field.value ?? 0} onChange={field.onChange} />}
+															/>
+														</Field>
+
+														<Field orientation="vertical" className="col-span-2">
+															<FieldLabel>{t("fields.notes")}</FieldLabel>
+															<Controller control={control} name={`items.${idx}.notes`}
+																render={({ field }) => (
+																	<Input value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
+																)}
 															/>
 														</Field>
 
@@ -598,34 +907,44 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 				)}
 			</DialogContent>
 
-			<SupplierDialog
-				open={quickCreate.type === "supplier"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleSupplierCreated}
-			/>
-			<PaymentTermsDialog
-				open={quickCreate.type === "paymentTerm"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handlePaymentTermCreated}
-			/>
-			<BusinessUnitForm
-				open={quickCreate.type === "businessUnit"}
-				onClose={closeQuickCreate}
-				onCreated={handleBusinessUnitCreated}
-			/>
-			<EmployeeForm
-				open={quickCreate.type === "employee"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				onCreated={handleEmployeeCreated}
-			/>
-			<ProductDialog
-				open={quickCreate.type === "product"}
-				onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
-				editingItem={null}
-				onCreated={handleProductCreated}
-			/>
+			{quickCreate.type === "supplier" && (
+				<SupplierDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleSupplierCreated}
+				/>
+			)}
+			{quickCreate.type === "paymentTerm" && (
+				<PaymentTermsDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handlePaymentTermCreated}
+				/>
+			)}
+			{quickCreate.type === "businessUnit" && (
+				<BusinessUnitForm
+					open
+					onClose={closeQuickCreate}
+					onCreated={handleBusinessUnitCreated}
+				/>
+			)}
+			{quickCreate.type === "employee" && (
+				<EmployeeForm
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					onCreated={handleEmployeeCreated}
+				/>
+			)}
+			{quickCreate.type === "product" && (
+				<ProductDialog
+					open
+					onOpenChange={(v) => { if (!v) closeQuickCreate(); }}
+					editingItem={null}
+					onCreated={handleProductCreated}
+				/>
+			)}
 		</Dialog>
 	);
 }

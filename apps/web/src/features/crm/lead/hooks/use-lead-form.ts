@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import { useCreateLead, useUpdateLead } from "./use-leads";
 import type { Lead } from "../types";
 import { provinceService, cityService } from "@/features/master-data/geographic/services/geographic-service";
@@ -21,6 +22,7 @@ export interface UseLeadFormProps {
 export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseLeadFormProps) {
   const t = useTranslations("crmLead");
   const tCommon = useTranslations("common");
+  const isConvertedLead = !!editingItem?.converted_at;
 
   const schema = useMemo(
     () =>
@@ -39,7 +41,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           .optional()
           .or(z.literal("")),
         phone: z.string().max(30).optional().or(z.literal("")),
-        job_title: z.string().max(100).optional().or(z.literal("")),
+        contact_role_id: z.string().optional().or(z.literal("")),
         address: z.string().optional().or(z.literal("")),
         city: z.string().max(100).optional().or(z.literal("")),
         province: z.string().max(100).optional().or(z.literal("")),
@@ -47,6 +49,8 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         city_id: z.string().optional().or(z.literal("")),
         district_id: z.string().optional().or(z.literal("")),
         village_name: z.string().max(200).optional().or(z.literal("")),
+        latitude: z.number().min(-90).max(90).optional().nullable(),
+        longitude: z.number().min(-180).max(180).optional().nullable(),
         lead_source_id: z.string().optional().or(z.literal("")),
         lead_status_id: z.string().optional().or(z.literal("")),
         estimated_value: z.number().min(0).optional(),
@@ -62,8 +66,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         assigned_to: z.string().optional().or(z.literal("")),
         notes: z.string().optional().or(z.literal("")),
         website: z.string().optional().or(z.literal("")),
-        bank_account_id: z.string().optional().or(z.literal("")),
-        bank_account_reference: z.string().max(255).optional().or(z.literal("")),
         business_type_id: z.string().optional().or(z.literal("")),
         area_id: z.string().optional().or(z.literal("")),
         payment_terms_id: z.string().optional().or(z.literal("")),
@@ -84,7 +86,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         company_name: editingItem.company_name ?? "",
         email: editingItem.email ?? "",
         phone: editingItem.phone ?? "",
-        job_title: editingItem.job_title ?? "",
+        contact_role_id: editingItem.contact_role_id ?? "",
         address: editingItem.address ?? "",
         city: editingItem.city ?? "",
         province: editingItem.province ?? "",
@@ -92,8 +94,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         city_id: editingItem.city_id ?? "",
         district_id: editingItem.district_id ?? "",
         village_name: editingItem.village_name ?? "",
+        latitude: editingItem.latitude ?? null,
+        longitude: editingItem.longitude ?? null,
         lead_source_id: editingItem.lead_source_id ?? "",
-        lead_status_id: editingItem.lead_status_id ?? "",
+        lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
         estimated_value: editingItem.estimated_value ?? 0,
         probability: editingItem.probability ?? 0,
         budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -107,8 +111,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         assigned_to: editingItem.assigned_to ?? "",
         notes: editingItem.notes ?? "",
         website: editingItem.website ?? "",
-        bank_account_id: editingItem.bank_account_id ?? "",
-        bank_account_reference: editingItem.bank_account_reference ?? "",
         business_type_id: editingItem.business_type_id ?? "",
         area_id: editingItem.area_id ?? "",
         payment_terms_id: editingItem.payment_terms_id ?? "",
@@ -119,7 +121,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         company_name: "",
         email: "",
         phone: "",
-        job_title: "",
+        contact_role_id: "",
         address: "",
         city: "",
         province: "",
@@ -127,6 +129,8 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         city_id: "",
         district_id: "",
         village_name: "",
+        latitude: null,
+        longitude: null,
         lead_source_id: "",
         lead_status_id: "",
         estimated_value: 0,
@@ -142,8 +146,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         assigned_to: "",
         notes: "",
         website: "",
-        bank_account_id: "",
-        bank_account_reference: "",
         business_type_id: "",
         area_id: "",
         payment_terms_id: "",
@@ -165,7 +167,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           company_name: editingItem.company_name ?? "",
           email: editingItem.email ?? "",
           phone: editingItem.phone ?? "",
-          job_title: editingItem.job_title ?? "",
+          contact_role_id: editingItem.contact_role_id ?? "",
           address: editingItem.address ?? "",
           city: editingItem.city ?? "",
           province: editingItem.province ?? "",
@@ -173,8 +175,10 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           city_id: editingItem.city_id ?? "",
           district_id: editingItem.district_id ?? "",
           village_name: editingItem.village_name ?? "",
+          latitude: editingItem.latitude ?? null,
+          longitude: editingItem.longitude ?? null,
           lead_source_id: editingItem.lead_source_id ?? "",
-          lead_status_id: editingItem.lead_status_id ?? "",
+          lead_status_id: isConvertedLead ? "" : editingItem.lead_status_id ?? "",
           estimated_value: editingItem.estimated_value ?? 0,
           probability: editingItem.probability ?? 0,
           budget_confirmed: editingItem.budget_confirmed ?? false,
@@ -188,8 +192,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           assigned_to: editingItem.assigned_to ?? "",
           notes: editingItem.notes ?? "",
           website: editingItem.website ?? "",
-          bank_account_id: editingItem.bank_account_id ?? "",
-          bank_account_reference: editingItem.bank_account_reference ?? "",
           business_type_id: editingItem.business_type_id ?? "",
           area_id: editingItem.area_id ?? "",
           payment_terms_id: editingItem.payment_terms_id ?? "",
@@ -238,7 +240,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           company_name: "",
           email: "",
           phone: "",
-          job_title: "",
+          contact_role_id: "",
           address: "",
           city: "",
           province: "",
@@ -246,6 +248,8 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           city_id: "",
           district_id: "",
           village_name: "",
+          latitude: null,
+          longitude: null,
           lead_source_id: "",
           lead_status_id: "",
           estimated_value: 0,
@@ -261,8 +265,6 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
           assigned_to: "",
           notes: "",
           website: "",
-          bank_account_id: "",
-          bank_account_reference: "",
           business_type_id: "",
           area_id: "",
           payment_terms_id: "",
@@ -277,14 +279,14 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       const payload = {
         ...data,
         lead_source_id: data.lead_source_id || null,
-        lead_status_id: data.lead_status_id || null,
+        lead_status_id: isConvertedLead ? null : data.lead_status_id || null,
         assigned_to: data.assigned_to || null,
         time_expected: data.time_expected || null,
         last_name: data.last_name || undefined,
         company_name: data.company_name || undefined,
         email: data.email || undefined,
         phone: data.phone || undefined,
-        job_title: data.job_title || undefined,
+        contact_role_id: data.contact_role_id || null,
         address: data.address || undefined,
         city: data.city || undefined,
         province: data.province || undefined,
@@ -292,12 +294,12 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         city_id: data.city_id || null,
         district_id: data.district_id || null,
         village_name: data.village_name || undefined,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         auth_person: data.auth_person || undefined,
         need_description: data.need_description || undefined,
         notes: data.notes || undefined,
         website: data.website || undefined,
-        bank_account_id: data.bank_account_id || null,
-        bank_account_reference: data.bank_account_reference || undefined,
         business_type_id: data.business_type_id || null,
         area_id: data.area_id || null,
         payment_terms_id: data.payment_terms_id || null,
@@ -313,7 +315,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       onOpenChange(false);
       form.reset();
       onSuccess?.();
-    } catch {
+    } catch (error: unknown) {
       toast.error(tCommon("error"));
     }
   };

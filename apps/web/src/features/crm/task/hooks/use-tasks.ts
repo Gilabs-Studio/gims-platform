@@ -26,6 +26,7 @@ export function useTasks(params: TaskListParams = {}) {
   return useQuery({
     queryKey: taskKeys.list(params),
     queryFn: () => taskService.list(params),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -41,6 +42,7 @@ export function useTaskFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: taskKeys.formData(),
     queryFn: () => taskService.getFormData(),
+    staleTime: 10 * 60 * 1000,
     enabled: options?.enabled ?? true,
   });
 }
@@ -172,20 +174,20 @@ export function useDeleteReminder() {
 }
 
 // Scoped task queries for lead/deal detail tabs
-export function useTasksByLead(leadId: string, params?: TaskListParams) {
+export function useTasksByLead(leadId: string, params?: TaskListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: taskKeys.list({ lead_id: leadId, per_page: 20, ...params }),
     queryFn: () => taskService.list({ lead_id: leadId, per_page: 20, ...params }),
-    enabled: !!leadId,
+    enabled: (options?.enabled ?? true) && !!leadId,
     staleTime: 2 * 60 * 1000,
   });
 }
 
-export function useTasksByDeal(dealId: string, params?: TaskListParams) {
+export function useTasksByDeal(dealId: string, params?: TaskListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: taskKeys.list({ deal_id: dealId, per_page: 20, ...params }),
     queryFn: () => taskService.list({ deal_id: dealId, per_page: 20, ...params }),
-    enabled: !!dealId,
+    enabled: (options?.enabled ?? true) && !!dealId,
     staleTime: 2 * 60 * 1000,
   });
 }

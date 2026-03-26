@@ -36,16 +36,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { cn } from "@/lib/utils";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { useCreateActivity, activityKeys } from "@/features/crm/activity/hooks/use-activities";
-import { activityService } from "@/features/crm/activity/services/activity-service";
-import { getActivityTypeIcon } from "@/features/crm/activity/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCreateActivity, useActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { VISIT_INTEREST_QUESTIONS, calculateVisitInterestLevel } from "@/features/crm/visit-report/constants/interest-questions";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { ActivityTypeDialog } from "@/features/crm/activity-type/components/activity-type-dialog";
 
 interface EmployeeOption {
   id: string;
@@ -99,13 +99,10 @@ export function LogActivityDialog({
   const { mutateAsync: createActivity, isPending } = useCreateActivity();
   const authUser = useAuthStore((state) => state.user);
 
-  // Form data for product interest (products list + survey questions)
+  // Form data for product interest (products list)
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions: VisitInterestQuestion[] = useMemo(
-    () => formDataRes?.data?.interest_questions ?? [],
-    [formDataRes?.data?.interest_questions],
-  );
+  const questions = VISIT_INTEREST_QUESTIONS;
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", {
@@ -115,28 +112,17 @@ export function LogActivityDialog({
   // Fetch recent activities sorted by timestamp desc to determine the authoritative product state.
   // The latest activity's product list is the source of truth — not the accumulated DB state,
   // which may be stale due to activities being saved out of timestamp order.
-  const { data: recentActivitiesRes } = useQuery({
-    queryKey: activityKeys.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    queryFn: () => activityService.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    enabled: open && !!leadId,
-    staleTime: 60 * 1000,
-  });
+  const { data: recentActivitiesRes } = useActivityTimeline(
+    { lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" },
+    { enabled: open && !!leadId },
+  );
 
   const calculateInterest = useCallback(
     (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers.length) return 0;
-      const questionMap = new Map(questions.map((q) => [q.id, q]));
-      let score = 0;
-      answers.forEach((ans) => {
-        const question = questionMap.get(ans.question_id);
-        if (question) {
-          const option = question.options.find((o) => o.id === ans.option_id);
-          if (option) score += option.score;
-        }
-      });
-      return Math.min(score, 5);
+      return calculateVisitInterestLevel(answers);
     },
-    [questions],
+    [],
   );
 
   const schema = useMemo(
@@ -159,12 +145,20 @@ export function LogActivityDialog({
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [activityTypeOptions, setActivityTypeOptions] = useState<ActivityType[]>(activityTypes);
+  const [activityTypeDialogOpen, setActivityTypeDialogOpen] = useState(false);
+  const [activityTypeInitialName, setActivityTypeInitialName] = useState("");
+
+  useEffect(() => {
+    setActivityTypeOptions(activityTypes);
+  }, [activityTypes]);
 
   const {
     control,
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -190,6 +184,15 @@ export function LogActivityDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const handleActivityTypeCreated = useCallback((item: ActivityType) => {
+    setActivityTypeOptions((current) =>
+      current.some((option) => option.id === item.id) ? current : [...current, item],
+    );
+    setValue("activity_type_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    setActivityTypeDialogOpen(false);
+    setActivityTypeInitialName("");
+  }, [setValue]);
 
   // Pre-populate product items using the LATEST ACTIVITY BY TIMESTAMP as the authoritative source.
   // This fixes a bug where saving a backdated activity (e.g. Activity 2 at 06:00, logged after
@@ -288,7 +291,7 @@ export function LogActivityDialog({
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const selectedType = activityTypes.find(
+      const selectedType = activityTypeOptions.find(
         (at) => at.id === data.activity_type_id,
       );
       const [hours, minutes] = selectedTime.split(":").map(Number);
@@ -307,7 +310,11 @@ export function LogActivityDialog({
                     if (!q) return null;
                     const opt = q.options.find((o) => o.id === ans.option_id);
                     if (!opt) return null;
-                    return { question_text: q.question_text, option_text: opt.option_text, score: opt.score };
+                    return {
+                      question_text: tVisit(q.question_text_key),
+                      option_text: tVisit(opt.option_text_key),
+                      score: opt.score,
+                    };
                   })
                   .filter((sa): sa is { question_text: string; option_text: string; score: number } => sa !== null);
                 return {
@@ -349,29 +356,30 @@ export function LogActivityDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            {t("logActivity.title")}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              {t("logActivity.title")}
+            </DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={onSubmit}>
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "products")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="info">{t("logActivity.title")}</TabsTrigger>
-              <TabsTrigger value="products" className="flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5" />
-                {tVisit("sections.productInterest")}
-                {productItems.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
-                    {productItems.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
+          <form onSubmit={onSubmit}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "products")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info">{t("logActivity.title")}</TabsTrigger>
+                <TabsTrigger value="products" className="flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5" />
+                  {tVisit("sections.productInterest")}
+                  {productItems.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
+                      {productItems.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
 
             {/* ── Tab 1: Activity Info ── */}
             <TabsContent value="info" className="space-y-4 py-2">
@@ -381,40 +389,27 @@ export function LogActivityDialog({
                   control={control}
                   name="activity_type_id"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="cursor-pointer">
-                        <SelectValue
-                          placeholder={t("logActivity.form.typePlaceholder")}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activityTypes.map((at) => {
-                          const TypeIcon = getActivityTypeIcon(at.icon);
-                          return (
-                            <SelectItem
-                              key={at.id}
-                              value={at.id}
-                              className="cursor-pointer"
-                            >
-                              <span className="flex items-center gap-2">
-                                <span
-                                  className="flex h-5 w-5 items-center justify-center rounded"
-                                  style={{
-                                    backgroundColor: `${at.badge_color}22`,
-                                    color: at.badge_color,
-                                  }}
-                                >
-                                  <TypeIcon className="h-3.5 w-3.5" />
-                                </span>
-                                <span style={{ color: at.badge_color }}>
-                                  {at.name}
-                                </span>
-                              </span>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
+                    <CreatableCombobox
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      onOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setActivityTypeOptions(activityTypes);
+                        }
+                      }}
+                      ariaInvalid={!!errors.activity_type_id}
+                      options={activityTypeOptions.map((at) => ({
+                        value: at.id,
+                        label: at.name,
+                      }))}
+                      placeholder={t("logActivity.form.typePlaceholder")}
+                      createPermission="crm_activity_type.create"
+                      createLabel={`${tCommon("create")} "{query}"`}
+                      onCreateClick={(query) => {
+                        setActivityTypeInitialName(query);
+                        setActivityTypeDialogOpen(true);
+                      }}
+                    />
                   )}
                 />
                 {errors.activity_type_id && (
@@ -578,7 +573,7 @@ export function LogActivityDialog({
                             const currentAnswer = item.answers.find((a) => a.question_id === q.id);
                             return (
                               <div key={q.id} className="space-y-1.5">
-                                <Label className="text-xs">{q.question_text}</Label>
+                                <Label className="text-xs">{tVisit(q.question_text_key)}</Label>
                                 <div className="flex flex-wrap gap-4">
                                   {q.options.map((opt) => (
                                     <div key={opt.id} className="flex items-center gap-1.5">
@@ -595,7 +590,7 @@ export function LogActivityDialog({
                                         className="h-4 w-4 cursor-pointer accent-primary"
                                       />
                                       <label htmlFor={`la-${idx}-${q.id}-${opt.id}`} className="text-xs cursor-pointer">
-                                        {opt.option_text}
+                                        {tVisit(opt.option_text_key)}
                                       </label>
                                     </div>
                                   ))}
@@ -676,9 +671,22 @@ export function LogActivityDialog({
               {t("logActivity.submit")}
             </Button>
           </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <ActivityTypeDialog
+        open={activityTypeDialogOpen}
+        onOpenChange={(isOpen) => {
+          setActivityTypeDialogOpen(isOpen);
+          if (!isOpen) {
+            setActivityTypeInitialName("");
+          }
+        }}
+        editingItem={null}
+        initialData={{ name: activityTypeInitialName }}
+        onCreated={handleActivityTypeCreated}
+      />
+    </>
   );
 }
 

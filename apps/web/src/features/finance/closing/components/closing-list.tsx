@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus, RotateCcw, CalendarCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,15 @@ import type { FinancialClosing } from "../types";
 import { useApproveFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
 import { ClosingForm } from "./closing-form";
 import { ClosingDetail } from "./closing-detail";
+
+function getInitialOpenFinancialClosingFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_financial_closing");
+}
 
 function formatDate(value: string) {
   const d = new Date(value);
@@ -69,7 +78,7 @@ export function ClosingList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenFinancialClosingFromURL);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
   const [reopening, setReopening] = useState<FinancialClosing | null>(null);
   const [yearEndOpen, setYearEndOpen] = useState(false);
@@ -87,6 +96,24 @@ export function ClosingList() {
   const approveMutation = useApproveFinanceClosing();
   const reopenMutation = useReopenFinanceClosing();
   const yearEndMutation = useYearEndClose();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_financial_closing")) return;
+
+    searchParams.delete("open_financial_closing");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;

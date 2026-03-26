@@ -49,7 +49,7 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
   const tCommon = useTranslations("common");
   const [step, setStep] = useState(1);
   
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
+  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
   const createOpname = useCreateStockOpname();

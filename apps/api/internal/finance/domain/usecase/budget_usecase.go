@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -279,6 +280,9 @@ func (uc *budgetUsecase) GetByID(ctx context.Context, id string) (*dto.BudgetRes
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.Budget{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrBudgetNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {

@@ -1,18 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 import { Controller, FormProvider, useWatch, useFormContext } from "react-hook-form";
 import type { Control } from "react-hook-form";
 import { Loader2, Plus, Trash2, CalendarIcon, FileText, ShoppingCart, AlertTriangle, XCircle, CheckCircle2 } from "lucide-react";
 
-import {
-  getDeliveryOrderSchema,
-  getUpdateDeliveryOrderSchema,
-  type CreateDeliveryOrderFormData,
-  type UpdateDeliveryOrderFormData,
-  type DeliveryOrderItemFormData,
-} from "../schemas/delivery.schema";
+import { type CreateDeliveryOrderFormData, type UpdateDeliveryOrderFormData, type DeliveryOrderItemFormData } from "../schemas/delivery.schema";
 
 import { ButtonLoading } from "@/components/loading";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
@@ -72,8 +65,13 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
     quickCreate,
     openQuickCreate,
     closeQuickCreate,
+    enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
+    salesOrdersCombobox,
+    employeesCombobox,
+    courierAgenciesCombobox,
+    warehousesCombobox,
   } = useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId });
 
   const { register, handleSubmit, control, formState: { errors }, getValues, setValue } = form;
@@ -162,12 +160,24 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             onValueChange={(value) => {
                               field.onChange(value);
                             }}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                              salesOrdersCombobox.onOpenChange(isOpen);
+                            }}
+                            onSearchChange={salesOrdersCombobox.onSearchChange}
+                            searchDebounceMs={300}
                             disabled={isEdit}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder={t("salesOrder")} />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent
+                              onLoadMore={salesOrdersCombobox.onLoadMore}
+                              hasMore={salesOrdersCombobox.hasMore}
+                              isLoadingMore={salesOrdersCombobox.isLoadingMore}
+                            >
                               {salesOrders.map((order) => (
                                 <SelectItem key={order.id} value={order.id}>
                                   {order.code} - {formatCurrency(order.total_amount ?? 0)}
@@ -192,9 +202,21 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                              employeesCombobox.onOpenChange(isOpen);
+                            }}
+                            onSearchChange={employeesCombobox.onSearchChange}
+                            onLoadMore={employeesCombobox.onLoadMore}
+                            hasMore={employeesCombobox.hasMore}
+                            isLoadingMore={employeesCombobox.isLoadingMore}
+                            searchDebounceMs={300}
                             placeholder={t("deliveredBy")}
                             createPermission="employee.create"
                             onCreateClick={() => openQuickCreate("employee")}
+                            isLoading={employeesCombobox.isLoading || employeesCombobox.isFetching}
                           />
                         )}
                       />
@@ -213,9 +235,21 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                             options={courierAgencies.map((a: { id: string; name: string }) => ({ value: a.id, label: a.name }))}
                             value={field.value || ""}
                             onValueChange={field.onChange}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                              courierAgenciesCombobox.onOpenChange(isOpen);
+                            }}
+                            onSearchChange={courierAgenciesCombobox.onSearchChange}
+                            onLoadMore={courierAgenciesCombobox.onLoadMore}
+                            hasMore={courierAgenciesCombobox.hasMore}
+                            isLoadingMore={courierAgenciesCombobox.isLoadingMore}
+                            searchDebounceMs={300}
                             placeholder={t("courierAgency")}
                             createPermission="courier_agency.create"
                             onCreateClick={() => openQuickCreate("courierAgency")}
+                            isLoading={courierAgenciesCombobox.isLoading || courierAgenciesCombobox.isFetching}
                           />
                         )}
                       />
@@ -347,11 +381,23 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                                         // Reset batch when warehouse changes
                                         setValue(`items.${index}.inventory_batch_id`, "");
                                       }}
+                                      onOpenChange={(isOpen) => {
+                                        if (isOpen) {
+                                          enableReferenceOptionsFetch();
+                                        }
+                                        warehousesCombobox.onOpenChange(isOpen);
+                                      }}
+                                      onSearchChange={warehousesCombobox.onSearchChange}
+                                      searchDebounceMs={300}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder={t("warehouse")} />
                                       </SelectTrigger>
-                                      <SelectContent>
+                                      <SelectContent
+                                        onLoadMore={warehousesCombobox.onLoadMore}
+                                        hasMore={warehousesCombobox.hasMore}
+                                        isLoadingMore={warehousesCombobox.isLoadingMore}
+                                      >
                                         {warehouses.filter(w => w.is_active).map((w) => (
                                           <SelectItem key={w.id} value={w.id}>
                                             {w.code ? `${w.code} - ${w.name}` : w.name}
@@ -450,16 +496,20 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
         )}
       </DialogContent>
 
-      <EmployeeForm
-        open={quickCreate.type === "employee"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleDeliveredByCreated}
-      />
-      <CourierAgencyDialog
-        open={quickCreate.type === "courierAgency"}
-        onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
-        onCreated={handleCourierAgencyCreated}
-      />
+      {quickCreate.type === "employee" && (
+        <EmployeeForm
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleDeliveredByCreated}
+        />
+      )}
+      {quickCreate.type === "courierAgency" && (
+        <CourierAgencyDialog
+          open
+          onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          onCreated={handleCourierAgencyCreated}
+        />
+      )}
     </Dialog>
   );
 }

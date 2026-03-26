@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,20 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
+function getInitialOpenDeliveryFromURL(): DeliveryOrder | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const openDeliveryId = searchParams.get("open_delivery_order");
+  if (!openDeliveryId) {
+    return null;
+  }
+
+  return { id: openDeliveryId } as DeliveryOrder;
+}
+
 export function DeliveryList() {
   const t = useTranslations("delivery");
   const [search, setSearch] = useState("");
@@ -39,7 +53,7 @@ export function DeliveryList() {
   const [statusFilter, setStatusFilter] = useState<DeliveryOrderStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
-  const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(null);
+  const [viewingDelivery, setViewingDelivery] = useState<DeliveryOrder | null>(getInitialOpenDeliveryFromURL);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string | null>(null);
   const [isSalesOrderOpen, setIsSalesOrderOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -47,6 +61,19 @@ export function DeliveryList() {
   const [shipDeliveryId, setShipDeliveryId] = useState<string | null>(null);
   const [deliverDeliveryId, setDeliverDeliveryId] = useState<string | null>(null);
   const [createReturnDeliveryId, setCreateReturnDeliveryId] = useState<string | null>(null);
+
+  // Clear URL query param after modal is opened
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_delivery_order")) return;
+
+    searchParams.delete("open_delivery_order");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const { data, isLoading, isError } = useDeliveryOrders({
     page,
@@ -95,7 +122,7 @@ export function DeliveryList() {
   const canCreateSalesReturn = useUserPermission("sales_return.create");
 
   const [createInvoiceForOrderId, setCreateInvoiceForOrderId] = useState<string | null>(null);
-  const { data: salesReturnsData } = useSalesReturns({ per_page: 100 });
+  const { data: salesReturnsData } = useSalesReturns({ per_page: 20 });
   const returnedDeliveryIDs = new Set(
     (salesReturnsData?.data ?? []).map((row) => row.delivery_id).filter((id): id is string => !!id),
   );

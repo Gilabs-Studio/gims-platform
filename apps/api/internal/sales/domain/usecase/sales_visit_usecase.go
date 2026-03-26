@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -35,7 +37,6 @@ type SalesVisitUsecase interface {
 	CheckIn(ctx context.Context, id string, req *dto.CheckInRequest, userID *string) (*dto.SalesVisitResponse, error)
 	CheckOut(ctx context.Context, id string, req *dto.CheckOutRequest, userID *string) (*dto.SalesVisitResponse, error)
 	GetCalendarSummary(ctx context.Context, req *dto.GetCalendarSummaryRequest) (*dto.CalendarSummaryResponse, error)
-	ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error)
 }
 
 type salesVisitUsecase struct {
@@ -82,6 +83,9 @@ func (u *salesVisitUsecase) List(ctx context.Context, req *dto.ListSalesVisitsRe
 }
 
 func (u *salesVisitUsecase) GetByID(ctx context.Context, id string) (*dto.SalesVisitResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.SalesVisit{}, id, security.HRDScopeQueryOptions()) {
+		return nil, ErrSalesVisitNotFound
+	}
 	visit, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, ErrSalesVisitNotFound
@@ -549,10 +553,3 @@ func (u *salesVisitUsecase) GetCalendarSummary(ctx context.Context, req *dto.Get
 	return &dto.CalendarSummaryResponse{Summary: summaries}, nil
 }
 
-func (u *salesVisitUsecase) ListInterestQuestions(ctx context.Context) ([]dto.SalesVisitInterestQuestionResponse, error) {
-	questions, err := u.visitRepo.ListInterestQuestions(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return mapper.MapSalesVisitInterestQuestionsToResponse(questions), nil
-}

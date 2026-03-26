@@ -234,7 +234,6 @@ func SeedPermissions() error {
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.approve", "Approve Down Payments", "APPROVE", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.export", "Export Down Payments", "EXPORT", "customer_invoice_dp"},
 		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.print", "Print Down Payment Invoices", "PRINT", "customer_invoice_dp"},
-		{"/sales/customer-invoice-down-payments", "customer_invoice_dp.audit_trail", "View Down Payment Audit Trail", "VIEW", "customer_invoice_dp_audit"},
 
 		{"/sales/returns", "sales_return.read", "View Sales Returns", "VIEW", "sales_return"},
 		{"/sales/returns", "sales_return.create", "Create Sales Returns", "CREATE", "sales_return"},
@@ -251,7 +250,6 @@ func SeedPermissions() error {
 		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
 		{"/crm/targets", "sales_target.delete", "Delete Sales Targets", "DELETE", "sales_target"},
-		{"/crm/targets", "sales_target.audit_trail", "View Sales Target Audit Trail", "VIEW", "sales_target_audit"},
 
 		// Backwards-compatible yearly target permissions (used by yearly-targets routes/pages)
 		{"/crm/targets", "yearly_target.read", "View Yearly Targets", "VIEW", "yearly_target"},
@@ -266,7 +264,6 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.confirm", "Confirm Sales Payments", "APPROVE", "sales_payment"},
 		{"/sales/payments", "sales_payment.export", "Export Sales Payments", "EXPORT", "sales_payment"},
 		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
-		{"/sales/payments", "sales_payment.audit_trail", "View Sales Payment Audit Trail", "VIEW", "sales_payment_audit"},
 
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
@@ -278,7 +275,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-requisitions", "purchase_requisition.reject", "Reject Purchase Requisitions", "REJECT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.convert", "Convert Purchase Requisitions", "CONVERT", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.export", "Export Purchase Requisitions", "EXPORT", "purchase_requisition"},
-		{"/purchase/purchase-requisitions", "purchase_requisition.audit_trail", "View Purchase Requisition Audit Trail", "VIEW", "purchase_requisition_audit"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.print", "Print Purchase Requisitions", "PRINT", "purchase_requisition"},
 
 		{"/purchase/purchase-orders", "purchase_order.read", "View Purchase Orders", "VIEW", "purchase_order"},
@@ -292,7 +288,6 @@ func SeedPermissions() error {
 		{"/purchase/purchase-orders", "purchase_order.close", "Close Purchase Orders", "CLOSE", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.revise", "Revise Purchase Orders", "EDIT", "purchase_order"},
 		{"/purchase/purchase-orders", "purchase_order.export", "Export Purchase Orders", "EXPORT", "purchase_order"},
-		{"/purchase/purchase-orders", "purchase_order.audit_trail", "View Purchase Order Audit Trail", "VIEW", "purchase_order_audit"},
 		{"/purchase/purchase-orders", "purchase_order.print", "Print Purchase Orders", "PRINT", "purchase_order"},
 
 		{"/purchase/goods-receipt", "goods_receipt.read", "View Goods Receipts", "VIEW", "goods_receipt"},
@@ -306,7 +301,6 @@ func SeedPermissions() error {
 		{"/purchase/goods-receipt", "goods_receipt.close", "Close Goods Receipts", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.convert", "Convert Goods Receipts to Supplier Invoice", "APPROVE", "goods_receipt"},
 		{"/purchase/goods-receipt", "goods_receipt.export", "Export Goods Receipts", "EXPORT", "goods_receipt"},
-		{"/purchase/goods-receipt", "goods_receipt.audit_trail", "View Goods Receipt Audit Trail", "VIEW", "goods_receipt_audit"},
 		{"/purchase/goods-receipt", "goods_receipt.print", "Print Goods Receipts", "PRINT", "goods_receipt"},
 
 		{"/purchase/supplier-invoices", "supplier_invoice.read", "View Supplier Invoices", "VIEW", "supplier_invoice"},
@@ -319,7 +313,6 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoices", "supplier_invoice.reject", "Reject Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.cancel", "Cancel Supplier Invoices", "APPROVE", "supplier_invoice"},
 		{"/purchase/supplier-invoices", "supplier_invoice.export", "Export Supplier Invoices", "EXPORT", "supplier_invoice"},
-		{"/purchase/supplier-invoices", "supplier_invoice.audit_trail", "View Supplier Invoice Audit Trail", "VIEW", "supplier_invoice_audit"},
 		{"/purchase/supplier-invoices", "supplier_invoice.print", "Print Supplier Invoices", "PRINT", "supplier_invoice"},
 
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.read", "View Supplier Invoice Down Payments", "VIEW", "supplier_invoice_dp"},
@@ -331,7 +324,6 @@ func SeedPermissions() error {
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.approve", "Approve Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.reject", "Reject Supplier Invoice Down Payments", "REJECT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.cancel", "Cancel Supplier Invoice Down Payments", "APPROVE", "supplier_invoice_dp"},
-		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.audit_trail", "View Supplier Invoice Down Payment Audit Trail", "VIEW", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.export", "Export Supplier Invoice Down Payments", "EXPORT", "supplier_invoice_dp"},
 		{"/purchase/supplier-invoice-down-payments", "supplier_invoice_dp.print", "Print Supplier Invoice Down Payments", "PRINT", "supplier_invoice_dp"},
 
@@ -346,7 +338,6 @@ func SeedPermissions() error {
 		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
-		{"/purchase/payments", "purchase_payment.audit_trail", "View Purchase Payment Audit Trail", "VIEW", "purchase_payment_audit"},
 		{"/purchase/payments", "purchase_payment.print", "Print Purchase Payments", "PRINT", "purchase_payment"},
 		{"/purchase/payable-recap", "payable_recap.read", "View Payable Recap", "VIEW", "payable_recap"},
 
@@ -402,9 +393,6 @@ func SeedPermissions() error {
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
 		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
 		{"/finance/journals/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
-
-		// Deprecated: Journal Lines page merged into Journal Entries (kept for backward compatibility)
-		{"/finance/journal-lines", "journal_line.read", "View Journal Lines", "VIEW", "journal_line"},
 
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
@@ -525,7 +513,6 @@ func SeedPermissions() error {
 		{"/hrd/evaluation", "evaluation.create", "Create Evaluations", "CREATE", "evaluation"},
 		{"/hrd/evaluation", "evaluation.update", "Edit Evaluations", "EDIT", "evaluation"},
 		{"/hrd/evaluation", "evaluation.delete", "Delete Evaluations", "DELETE", "evaluation"},
-		{"/hrd/evaluation", "evaluation.audit_trail", "View Evaluation Audit Trail", "VIEW", "evaluation_audit"},
 
 		{"/hrd/recruitment", "recruitment.read", "View Recruitment", "VIEW", "recruitment"},
 		{"/hrd/recruitment", "recruitment.create", "Create Recruitment", "CREATE", "recruitment"},
@@ -719,6 +706,19 @@ func SeedPermissions() error {
 	}
 
 	log.Printf("Ensured existence of %d permissions", len(permissionIDs))
+
+	// Remove legacy permissions whose pages were removed from dashboard.
+	removeDeprecatedPermissions([]string{
+		"sales_estimation.read",
+		"sales_estimation.create",
+		"sales_estimation.update",
+		"sales_estimation.delete",
+		"journal_line.read",
+		"trial_balance_report.read",
+		"trial_balance_report.export",
+		"ai_settings.view",
+		"ai_settings.edit",
+	})
 
 	// Assign all permissions to admin role with ALL scope
 	var adminRole role.Role
@@ -940,6 +940,53 @@ func assignViewPermissionsToRole(roleCode, scope string) {
 	})
 
 	log.Printf("Assigned %d VIEW permissions to %s role (scope=%s)", count, roleCode, scope)
+}
+
+func getPermissionIDsByCodes(tx *gorm.DB, codes []string) ([]string, error) {
+	var deprecatedPerms []permission.Permission
+	if err := tx.Unscoped().Where("code IN ?", codes).Find(&deprecatedPerms).Error; err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, 0, len(deprecatedPerms))
+	for _, perm := range deprecatedPerms {
+		ids = append(ids, perm.ID)
+	}
+
+	return ids, nil
+}
+
+func removePermissionsByIDs(tx *gorm.DB, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := tx.Exec("DELETE FROM role_permissions WHERE permission_id IN ?", ids).Error; err != nil {
+		return err
+	}
+
+	if err := tx.Unscoped().Where("id IN ?", ids).Delete(&permission.Permission{}).Error; err != nil {
+		return err
+	}
+
+	log.Printf("Removed %d deprecated permissions", len(ids))
+	return nil
+}
+
+func removeDeprecatedPermissions(codes []string) {
+	if len(codes) == 0 {
+		return
+	}
+
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		ids, err := getPermissionIDsByCodes(tx, codes)
+		if err != nil {
+			return err
+		}
+		return removePermissionsByIDs(tx, ids)
+	}); err != nil {
+		log.Printf("Warning: Failed to remove deprecated permissions: %v", err)
+	}
 }
 
 // matchesModule checks if a permission resource belongs to a given module.

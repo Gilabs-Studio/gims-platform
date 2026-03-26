@@ -11,6 +11,8 @@ export const salesReturnsKeys = {
   details: () => [...salesReturnsKeys.all, "detail"] as const,
   detail: (id: string) => [...salesReturnsKeys.details(), id] as const,
   formData: () => [...salesReturnsKeys.all, "form-data"] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...salesReturnsKeys.detail(id), "audit-trail", params] as const,
 };
 
 export function useSalesReturns(params?: SalesReturnListParams, options?: { enabled?: boolean }) {
@@ -29,10 +31,24 @@ export function useSalesReturnDetail(id: string, enabled = true) {
   });
 }
 
-export function useSalesReturnFormData() {
+export function useSalesReturnAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: salesReturnsKeys.auditTrail(id, params),
+    queryFn: () => salesReturnsService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export function useSalesReturnFormData(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: salesReturnsKeys.formData(),
     queryFn: () => salesReturnsService.getFormData(),
+    enabled: options?.enabled ?? true,
   });
 }
 
