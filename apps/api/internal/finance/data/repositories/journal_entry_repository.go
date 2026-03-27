@@ -47,6 +47,7 @@ func (r *journalEntryRepository) FindByID(ctx context.Context, id string, withLi
 	if withLines {
 		q = q.Preload("Lines").Preload("Lines.ChartOfAccount")
 	}
+	q = q.Preload("CreatedByUser").Preload("PostedByUser").Preload("ReversedByUser")
 	if err := q.First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
@@ -64,7 +65,12 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 	var items []financeModels.JournalEntry
 	var total int64
 
-	q := r.getDB(ctx).Model(&financeModels.JournalEntry{}).Preload("Lines")
+	q := r.getDB(ctx).Model(&financeModels.JournalEntry{}).
+		Preload("Lines").
+		Preload("Lines.ChartOfAccount").
+		Preload("CreatedByUser").
+		Preload("PostedByUser").
+		Preload("ReversedByUser")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())

@@ -70,11 +70,11 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 	}
 
 	lines := make([]dto.JournalLineResponse, 0, len(item.Lines))
-	var debitTotal float64
-	var creditTotal float64
+	var calcDebit float64
+	var calcCredit float64
 	for _, ln := range item.Lines {
-		debitTotal += ln.Debit
-		creditTotal += ln.Credit
+		calcDebit += ln.Debit
+		calcCredit += ln.Credit
 
 		var coaResp *dto.ChartOfAccountResponse
 		if strings.TrimSpace(ln.ChartOfAccountCodeSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountNameSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountTypeSnapshot) != "" {
@@ -102,7 +102,15 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		})
 	}
 
-	return dto.JournalEntryResponse{
+	// Task 7: Fallback for totals if empty (legacy data)
+	finalDebit := item.DebitTotal
+	finalCredit := item.CreditTotal
+	if finalDebit == 0 && finalCredit == 0 && (calcDebit != 0 || calcCredit != 0) {
+		finalDebit = calcDebit
+		finalCredit = calcCredit
+	}
+
+	res := dto.JournalEntryResponse{
 		ID:                item.ID,
 		EntryDate:         item.EntryDate,
 		Description:       item.Description,
@@ -113,17 +121,36 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,
 		CreatedBy:         item.CreatedBy,
+		ReversedAt:        item.ReversedAt,
+		ReversedBy:        item.ReversedBy,
+		ReversalReason:    item.ReversalReason,
 		IsSystemGenerated: item.IsSystemGenerated,
 		SourceDocumentURL: item.SourceDocumentURL,
 		Lines:             lines,
-		DebitTotal:        debitTotal,
-		CreditTotal:       creditTotal,
+		DebitTotal:        finalDebit,
+		CreditTotal:       finalCredit,
 		IsValuation:       item.IsValuation,
 		Source:            string(item.Source),
 		ValuationRunID:    item.ValuationRunID,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
+
+	// Task 1: Audit names
+	if item.CreatedByUser != nil {
+		res.CreatedByName = &item.CreatedByUser.Name
+		res.CreatedByEmail = &item.CreatedByUser.Email
+	}
+	if item.PostedByUser != nil {
+		res.PostedByName = &item.PostedByUser.Name
+		res.PostedByEmail = &item.PostedByUser.Email
+	}
+	if item.ReversedByUser != nil {
+		res.ReversedByName = &item.ReversedByUser.Name
+		res.ReversedByEmail = &item.ReversedByUser.Email
+	}
+
+	return res
 }
 
 func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry) dto.JournalEntryResponse {
@@ -131,14 +158,22 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		return dto.JournalEntryResponse{}
 	}
 
-	var debitTotal float64
-	var creditTotal float64
+	var calcDebit float64
+	var calcCredit float64
 	for _, ln := range item.Lines {
-		debitTotal += ln.Debit
-		creditTotal += ln.Credit
+		calcDebit += ln.Debit
+		calcCredit += ln.Credit
 	}
 
-	return dto.JournalEntryResponse{
+	// Task 7: Fallback for totals if empty (legacy data)
+	finalDebit := item.DebitTotal
+	finalCredit := item.CreditTotal
+	if finalDebit == 0 && finalCredit == 0 && (calcDebit != 0 || calcCredit != 0) {
+		finalDebit = calcDebit
+		finalCredit = calcCredit
+	}
+
+	res := dto.JournalEntryResponse{
 		ID:                item.ID,
 		EntryDate:         item.EntryDate,
 		Description:       item.Description,
@@ -149,11 +184,14 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,
 		CreatedBy:         item.CreatedBy,
+		ReversedAt:        item.ReversedAt,
+		ReversedBy:        item.ReversedBy,
+		ReversalReason:    item.ReversalReason,
 		IsSystemGenerated: item.IsSystemGenerated,
 		SourceDocumentURL: item.SourceDocumentURL,
 		Lines:             []dto.JournalLineResponse{},
-		DebitTotal:        debitTotal,
-		CreditTotal:       creditTotal,
+		DebitTotal:        finalDebit,
+		CreditTotal:       finalCredit,
 		IsValuation:       item.IsValuation,
 		Source:            string(item.Source),
 		ValuationRunID:    item.ValuationRunID,
@@ -161,4 +199,19 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		UpdatedAt:         item.UpdatedAt,
 	}
 
+	// Task 1: Audit names
+	if item.CreatedByUser != nil {
+		res.CreatedByName = &item.CreatedByUser.Name
+		res.CreatedByEmail = &item.CreatedByUser.Email
+	}
+	if item.PostedByUser != nil {
+		res.PostedByName = &item.PostedByUser.Name
+		res.PostedByEmail = &item.PostedByUser.Email
+	}
+	if item.ReversedByUser != nil {
+		res.ReversedByName = &item.ReversedByUser.Name
+		res.ReversedByEmail = &item.ReversedByUser.Email
+	}
+
+	return res
 }

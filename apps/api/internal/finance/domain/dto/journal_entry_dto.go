@@ -71,9 +71,21 @@ type JournalEntryResponse struct {
 	ReferenceID       *string                     `json:"reference_id"`
 	ReferenceCode     *string                     `json:"reference_code"`
 	Status            financeModels.JournalStatus `json:"status"`
-	PostedAt          *time.Time                  `json:"posted_at"`
-	PostedBy          *string                     `json:"posted_by"`
-	CreatedBy         *string                     `json:"created_by,omitempty"`
+	PostedAt   *time.Time `json:"posted_at"`
+	PostedBy   *string    `json:"posted_by"`
+	PostedByName  *string `json:"posted_by_name,omitempty"`
+	PostedByEmail *string `json:"posted_by_email,omitempty"`
+
+	CreatedBy  *string `json:"created_by,omitempty"`
+	CreatedByName  *string `json:"created_by_name,omitempty"`
+	CreatedByEmail *string `json:"created_by_email,omitempty"`
+
+	ReversedAt *time.Time `json:"reversed_at,omitempty"`
+	ReversedBy *string    `json:"reversed_by,omitempty"`
+	ReversedByName  *string `json:"reversed_by_name,omitempty"`
+	ReversedByEmail *string `json:"reversed_by_email,omitempty"`
+	ReversalReason  string  `json:"reversal_reason,omitempty"`
+
 	IsSystemGenerated bool                        `json:"is_system_generated"`
 	SourceDocumentURL *string                     `json:"source_document_url,omitempty"`
 	Lines             []JournalLineResponse       `json:"lines"`

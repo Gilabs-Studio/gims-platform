@@ -224,12 +224,16 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 			refTypePtr = &refTypeNormalized
 		}
 
+		debitT, creditT, _ := validateLines(req.Lines)
+
 		entry := &financeModels.JournalEntry{
 			EntryDate:         entryDate,
 			Description:       strings.TrimSpace(req.Description),
 			ReferenceType:     refTypePtr,
 			ReferenceID:       req.ReferenceID,
 			Status:            financeModels.JournalStatusDraft,
+			DebitTotal:        debitT,
+			CreditTotal:       creditT,
 			CreatedBy:         &actorID,
 			IsSystemGenerated: req.IsSystemGenerated,
 			SourceDocumentURL: req.SourceDocumentURL,
@@ -316,6 +320,8 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 			refTypePtr = &refTypeNormalized
 		}
 
+		debitT, creditT, _ := validateLines(req.Lines)
+
 		if err := tx.Model(&financeModels.JournalEntry{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
@@ -323,6 +329,8 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 				"description":    strings.TrimSpace(req.Description),
 				"reference_type": refTypePtr,
 				"reference_id":   req.ReferenceID,
+				"debit_total":    debitT,
+				"credit_total":   creditT,
 			}).Error; err != nil {
 			return err
 		}
@@ -834,7 +842,13 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 		log.Printf("warning: failed to mark original entry %s as reversed: %v", entry.ID, err)
 	}
 
-	// Update reversal journal entry to link back
+	// Update reversal journal entry to link back and populate totals
+	var revDebit, revCredit float64
+	for _, rl := range reversedLines {
+		revDebit += rl.Debit
+		revCredit += rl.Credit
+	}
+
 	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
 		Where("id = ?", posted.ID).
 		Updates(map[string]interface{}{
@@ -842,6 +856,8 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 			"reversal_reason":    reason,
 			"reversed_at":        &now, // The reversal itself is "reversed" impact
 			"reversed_by":        &actorID,
+			"debit_total":        revDebit,
+			"credit_total":       revCredit,
 		}).Error; err != nil {
 		log.Printf("warning: failed to update reversal entry %s metadata: %v", posted.ID, err)
 	}

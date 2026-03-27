@@ -41,6 +41,8 @@ export interface JournalEntry {
   status: JournalStatus;
   posted_at?: string | null;
   posted_by?: string | null;
+  posted_by_name?: string | null;
+  posted_by_email?: string | null;
   is_system_generated?: boolean;
   is_valuation?: boolean;
   source?: string;
@@ -49,6 +51,13 @@ export interface JournalEntry {
   debit_total: number;
   credit_total: number;
   created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_email?: string | null;
+  reversed_at?: string | null;
+  reversed_by?: string | null;
+  reversed_by_name?: string | null;
+  reversed_by_email?: string | null;
+  reversal_reason?: string | null;
   created_at: string;
   updated_at: string;
 }
