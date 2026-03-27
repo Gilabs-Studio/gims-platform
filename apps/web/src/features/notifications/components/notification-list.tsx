@@ -1,14 +1,15 @@
 "use client";
 
-import { Bell, CheckCheck, RefreshCcw } from "lucide-react";
+import { Bell, Check, CheckCheck, Copy } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { MouseEvent, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { useRouter } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { setPasswordResetTokenPrefill } from "@/lib/password-reset-token-prefill";
 
 import {
   useMarkAllAsRead,
@@ -107,6 +108,8 @@ export function NotificationList() {
         return `/stock/opname?open_stock_opname=${notification.entity_id}`;
       case "salary":
         return `/finance/salary?open_salary=${notification.entity_id}`;
+      case "password_reset_request":
+        return `/master-data/users?open_user=${notification.entity_id}`;
       default:
         return null;
     }
@@ -226,14 +229,61 @@ interface NotificationItemProps {
 function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationItemProps) {
   const t = useTranslations("notifications");
   const markAsRead = useMarkAsRead();
+  const router = useRouter();
+  const [copiedToken, setCopiedToken] = useState(false);
 
   const timeAgo = formatDistanceToNow(new Date(notification.created_at), {
     addSuffix: true,
   });
 
+  const isPasswordResetRequest = notification.entity_type === "password_reset_request";
+
+  const extractToken = (message: string): string | null => {
+    const match = message.match(/token\s*:\s*([A-Za-z0-9._-]+)/i);
+    return match?.[1] ?? null;
+  };
+
+  const rawToken = isPasswordResetRequest ? extractToken(notification.message) : null;
+
+  const formatTokenPreview = (token: string) => {
+    if (token.length <= 20) return token;
+    return `${token.slice(0, 10)}...${token.slice(-6)}`;
+  };
+
+  const compactMessage = () => {
+    if (!isPasswordResetRequest) return notification.message;
+    if (!rawToken) return notification.message;
+    return notification.message.replace(/token\s*:\s*[A-Za-z0-9._-]+/i, "Token: ••••••••");
+  };
+
   const handleMarkAsRead = () => {
     if (!notification.is_read) {
       onMarkAsRead(notification.id);
+    }
+  };
+
+  const handleCopyToken = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (!rawToken) return;
+
+    try {
+      await navigator.clipboard.writeText(rawToken);
+      setCopiedToken(true);
+      setTimeout(() => setCopiedToken(false), 1500);
+
+      setPasswordResetTokenPrefill({
+        userId: notification.entity_id,
+        token: rawToken,
+        createdAt: Date.now(),
+      });
+
+      if (!notification.is_read) {
+        await markAsRead.mutateAsync(notification.id);
+      }
+
+      router.push(`/master-data/users?reset_user=${notification.entity_id}&open_change_password=1`);
+    } catch {
+      // Keep silent and rely on existing UI behavior.
     }
   };
 
@@ -251,11 +301,27 @@ function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationIt
               {!notification.is_read && (
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
               )}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h4 className={`text-sm font-medium ${!notification.is_read ? "font-semibold" : ""}`}>
                   {notification.title}
                 </h4>
-                <p className="mt-1 text-sm text-muted-foreground">{notification.message}</p>
+                <p className="mt-1 text-sm text-muted-foreground wrap-break-word line-clamp-2">{compactMessage()}</p>
+                {isPasswordResetRequest && rawToken && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="rounded-md bg-muted/70 px-2 py-0.5 font-mono text-xs text-foreground break-all">
+                      {formatTokenPreview(rawToken)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={handleCopyToken}
+                      className="h-7 w-7 cursor-pointer"
+                      title={copiedToken ? t("tokenCopied") : t("copyToken")}
+                    >
+                      {copiedToken ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                )}
                 <p className="mt-2 text-xs text-muted-foreground">{timeAgo}</p>
               </div>
             </div>
