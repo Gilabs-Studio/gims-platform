@@ -210,7 +210,12 @@ export function PurchaseReturnsList() {
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.return_number}</TableCell>
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => setSelected(row)}
+                  >
+                    {row.return_number}
+                  </TableCell>
                   <TableCell>{getGoodsReceiptLabel(row)}</TableCell>
                   <TableCell>{getActionBadge(row.action)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
