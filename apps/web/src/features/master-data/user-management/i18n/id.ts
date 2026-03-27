@@ -29,6 +29,7 @@ export const userManagementId: UserManagementTranslations = {
     activeFilters: "Filter Aktif",
     active: "Aktif",
     inactive: "Tidak Aktif",
+    resetPending: "Reset Tertunda",
   },
   detailModal: {
     title: "Detail Pengguna",

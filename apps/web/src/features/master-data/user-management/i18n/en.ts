@@ -27,6 +27,7 @@ export const userManagementEn = {
     activeFilters: "Active Filters",
     active: "Active",
     inactive: "Inactive",
+    resetPending: "Reset Pending",
   },
   detailModal: {
     title: "User Details",

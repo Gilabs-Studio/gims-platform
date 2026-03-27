@@ -18,6 +18,7 @@ import (
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
 	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
+	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -76,6 +77,7 @@ func AutoMigrate() error {
 		&permission.Permission{},
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
+		&passwordReset.PasswordResetRequest{},
 		&core.AuditLog{},
 		&notification.Notification{},
 		// Geographic entities (Sprint 1)

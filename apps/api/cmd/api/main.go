@@ -48,6 +48,13 @@ import (
 	userHandler "github.com/gilabs/gims/api/internal/user/presentation/handler"
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
+	passwordResetRepo "github.com/gilabs/gims/api/internal/password_reset/data/repositories"
+	passwordResetUsecase "github.com/gilabs/gims/api/internal/password_reset/domain/usecase"
+	passwordResetHandler "github.com/gilabs/gims/api/internal/password_reset/presentation/handler"
+	passwordResetRouter "github.com/gilabs/gims/api/internal/password_reset/presentation/router"
+
+	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
+
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
 	customerPresentation "github.com/gilabs/gims/api/internal/customer/presentation"
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
@@ -219,6 +226,8 @@ func main() {
 	roleRepository := roleRepo.NewRoleRepository(database.DB)
 	permissionRepository := permissionRepo.NewPermissionRepository(database.DB)
 	menuRepository := permissionRepo.NewMenuRepository(database.DB)
+	passwordResetRepository := passwordResetRepo.NewPasswordResetRequestRepository(database.DB)
+	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
 
 	// Setup Services
@@ -234,12 +243,14 @@ func main() {
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher)
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
+	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -313,6 +324,7 @@ func main() {
 		})
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
+		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
 		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)

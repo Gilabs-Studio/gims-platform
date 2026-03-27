@@ -92,15 +92,22 @@ export function UserList() {
       accessor: (row) => (
         <button
           onClick={() => handleViewUser(row.id)}
-          className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer"
+          className="flex items-center gap-3 font-medium text-primary hover:underline cursor-pointer group"
         >
           <Avatar className="h-8 w-8">
             <AvatarImage src={getAvatarUrl(row)} alt={row.name} />
           </Avatar>
-          <span>{row.name}</span>
+          <div className="flex flex-col items-start">
+            <span>{row.name}</span>
+            {row.password_reset_pending && (
+              <span className="text-xs text-orange-600 font-medium flex items-center gap-1">
+                🔐 {t("resetPending") || "Reset Pending"}
+              </span>
+            )}
+          </div>
         </button>
       ),
-      className: "w-[200px]",
+      className: "w-[250px]",
     },
     {
       id: "email",

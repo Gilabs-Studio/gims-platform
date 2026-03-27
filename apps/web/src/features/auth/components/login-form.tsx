@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "@/i18n/routing";
 import { AuthLayout } from "./auth-layout";
 import { loginSchema, type LoginFormData } from "../schemas/login.schema";
 import { useLogin } from "../hooks/use-login";
@@ -181,12 +182,12 @@ export default function LoginForm() {
                     <FieldLabel htmlFor="password">
                       {t("passwordLabel")}
                     </FieldLabel>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-primary hover:underline"
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs font-medium text-primary hover:underline cursor-pointer"
                     >
                       {t("forgotPassword")}
-                    </button>
+                    </Link>
                   </div>
                   <div className="relative">
                     <Input
