@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import {
   Edit,
   FileText,
-  Trash2,
   CheckCircle2,
   XCircle,
   Send,
@@ -176,7 +175,6 @@ export function PurchaseOrderDetail({
                   {po?.code ?? t("detail.title")}
                 </DialogTitle>
                 <div className="flex items-center gap-3">
-                  {po && <PurchaseOrderStatusBadge status={po.status} />}
                   <span className="text-sm text-muted-foreground">
                     {po?.order_date && formatDate(po.order_date)}
                   </span>
@@ -205,17 +203,6 @@ export function PurchaseOrderDetail({
                     title={t("common.edit")}
                   >
                     <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && status === "DRAFT" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsDeleteOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("common.delete")}
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
                 {canSubmit && status === "DRAFT" && (

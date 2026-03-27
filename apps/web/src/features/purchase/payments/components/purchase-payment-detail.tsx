@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 import {
   Dialog,
@@ -14,29 +14,11 @@ import { Separator } from "@/components/ui/separator";
 
 import { usePurchasePayment } from "../hooks/use-purchase-payments";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 interface PurchasePaymentDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly paymentId?: string | null;
-}
-function StatusBadge({ status, t }: { status?: string | null; t: ReturnType<typeof useTranslations> }) {
-  const normalized = (status ?? "").toUpperCase();
-  if (normalized === "CONFIRMED") {
-    return (
-      <Badge variant="success" className="text-xs font-medium">
-        <CheckCircle2 className="h-3 w-3 mr-1" />
-        {t("status.confirmed")}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="warning" className="text-xs font-medium">
-      <Clock className="h-3 w-3 mr-1" />
-      {t("status.pending")}
-    </Badge>
-  );
 }
 
 export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaymentDetailProps) {
@@ -61,7 +43,6 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
             <DialogTitle className="text-xl font-semibold tracking-tight">
               {detail?.invoice?.invoice_number ?? t("actions.view")}
             </DialogTitle>
-            {detail && <StatusBadge status={detail.status ?? ""} t={t} />}
           </div>
         </DialogHeader>
 
@@ -128,7 +109,7 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
             {detail.notes && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold">{t("fields.notes")}</h4>
-                <div className="text-sm text-muted-foreground bg-muted/30 p-3.5 rounded-md border min-h-[80px] whitespace-pre-wrap">
+                <div className="text-sm text-muted-foreground bg-muted/30 p-3.5 rounded-md border min-h-20 whitespace-pre-wrap">
                   {detail.notes}
                 </div>
               </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, Package, Truck, Clock, Receipt, DollarSign } from "lucide-react";
+import { Edit, CheckCircle2, XCircle, Truck, Clock, Receipt, DollarSign, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -246,6 +246,20 @@ export function OrderDetailModal({
     }
   };
 
+  const handleSubmit = async () => {
+    if (!displayOrder?.id) return;
+    try {
+      await updateStatus.mutateAsync({
+        id: displayOrder.id,
+        data: { status: "submitted" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch (error) {
+      console.error("Failed to submit order:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
   const handleCancel = async () => {
     if (!displayOrder?.id) return;
     try {
@@ -277,7 +291,6 @@ export function OrderDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayOrder?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {displayOrder && getStatusBadge(displayOrder.status)}
                   <span className="text-sm text-muted-foreground">
                     {displayOrder?.order_date && formatDate(displayOrder.order_date)}
                   </span>
@@ -295,15 +308,16 @@ export function OrderDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && displayOrder?.status === "draft" && (
+                {canEdit && displayOrder?.status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("common.delete")}
+                    onClick={handleSubmit}
+                    disabled={updateStatus.isPending}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.submit")}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Send className="h-4 w-4" />
                   </Button>
                 )}
                 {displayOrder?.status === "submitted" && canApprove && (
@@ -716,14 +730,16 @@ export function OrderDetailModal({
         />
       )}
 
-      <DeleteDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
-        title={t("delete")}
-        description={t("deleteDesc")}
-        isLoading={deleteOrder.isPending}
-      />
+      {canDelete && (
+        <DeleteDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleDelete}
+          title={t("delete")}
+          description={t("deleteDesc")}
+          isLoading={deleteOrder.isPending}
+        />
+      )}
 
       <EmployeeDetailModal
         open={isEmployeeOpen}
