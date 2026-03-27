@@ -174,23 +174,26 @@ export function AssetTimeline({
                             })
                           }
                         >
-                          <img
-                            src={resolveImageUrl(asset.asset_image) ?? ""}
-                            alt={asset.asset_name}
-                            className="object-cover w-full h-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = "none";
-                              target.parentElement?.classList.add(
-                                "flex",
-                                "items-center",
-                                "justify-center",
-                              );
-                              const icon = document.createElement("div");
-                              icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
-                              target.parentElement?.appendChild(icon);
-                            }}
-                          />
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolveImageUrl(asset.asset_image) ?? ""}
+                              alt={asset.asset_name}
+                              className="object-cover w-full h-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                target.parentElement?.classList.add(
+                                  "flex",
+                                  "items-center",
+                                  "justify-center",
+                                );
+                                const icon = document.createElement("div");
+                                icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+                                target.parentElement?.appendChild(icon);
+                              }}
+                            />
+                          </>
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                             <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
@@ -315,11 +318,14 @@ export function AssetTimeline({
             {previewImage?.alt ?? "Asset image"}
           </DialogTitle>
           {previewImage && (
-            <img
-              src={previewImage.src}
-              alt={previewImage.alt}
-              className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewImage.src}
+                alt={previewImage.alt}
+                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>

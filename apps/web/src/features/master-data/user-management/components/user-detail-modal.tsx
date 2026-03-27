@@ -45,7 +45,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
       toast.success(t("toastDeleted"));
       onOpenChange(false);
       onUserUpdated?.();
-    } catch (error) {
+    } catch {
       // Error already handled in api-client interceptor
     }
   };
@@ -297,7 +297,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                   setIsEditDialogOpen(false);
                   toast.success(t("toastUpdated"));
                   onUserUpdated?.();
-                } catch (error) {
+                } catch {
                   // Error already handled in api-client interceptor
                 }
               }}

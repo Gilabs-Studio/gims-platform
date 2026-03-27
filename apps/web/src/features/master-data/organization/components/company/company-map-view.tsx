@@ -47,7 +47,6 @@ export function CompanyMapView() {
       <MarkerClusterGroup chunkedLoading>
         {markerList.map((marker) => {
           const company = marker.data;
-          const isSelected = state.selectedCompanyId === marker.id;
           return (
             <Marker
               key={marker.id}
@@ -145,7 +144,9 @@ export function CompanyMapView() {
             <div className="flex items-center gap-2">
               <Select
                 value={state.statusFilter ?? "all"}
-                onValueChange={(v) => actions.setStatusFilter?.(v as any)}
+                onValueChange={(v) =>
+                  actions.setStatusFilter?.(v as "all" | "active" | "inactive")
+                }
               >
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder={t("common.status")} />

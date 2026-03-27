@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export function RoleForm({ role, onSubmit, onCancel, isLoading = false }: RoleFo
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = useForm<CreateRoleFormData | UpdateRoleFormData>({
@@ -48,6 +48,8 @@ export function RoleForm({ role, onSubmit, onCancel, isLoading = false }: RoleFo
           status: "active",
         },
   });
+
+  const status = useWatch({ control, name: "status" });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -92,7 +94,7 @@ export function RoleForm({ role, onSubmit, onCancel, isLoading = false }: RoleFo
       <Field>
         <FieldLabel htmlFor="status">{t("statusLabel")}</FieldLabel>
         <Select
-          value={watch("status") || "active"}
+          value={status || "active"}
           onValueChange={(value) => setValue("status", value as "active" | "inactive")}
           disabled={isLoading}
         >

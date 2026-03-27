@@ -50,7 +50,7 @@ export function useCustomerMapView() {
 
   const deleteCustomer = useDeleteCustomer();
 
-  const customers = data?.data ?? [];
+  const customers = useMemo(() => data?.data ?? [], [data?.data]);
 
   // Filter customers with valid coordinates for map markers
   const markers: MapMarker<Customer>[] = useMemo(() => {

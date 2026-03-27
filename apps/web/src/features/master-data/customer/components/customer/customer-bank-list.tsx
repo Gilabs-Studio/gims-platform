@@ -29,7 +29,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
@@ -101,7 +101,7 @@ export function CustomerBankList({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<BankFormData>({
     resolver: zodResolver(bankSchema) as any,
@@ -200,9 +200,9 @@ export function CustomerBankList({
     return currencyOptions.find((currency) => currency.id === id)?.code || "-";
   };
 
-  const bankId = watch("bank_id");
-  const currencyId = watch("currency_id");
-  const isPrimary = watch("is_primary");
+  const bankId = useWatch({ control, name: "bank_id" });
+  const currencyId = useWatch({ control, name: "currency_id" });
+  const isPrimary = useWatch({ control, name: "is_primary" });
 
   return (
     <div className="space-y-4">

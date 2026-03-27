@@ -40,7 +40,7 @@ export function useRoleList() {
       await createRole.mutateAsync(formData);
       setIsCreateDialogOpen(false);
       toast.success("Role created successfully");
-    } catch (error) {
+    } catch {
       // Error already handled in api-client interceptor
     }
   };
@@ -51,7 +51,7 @@ export function useRoleList() {
         await updateRole.mutateAsync({ id: editingRole, data: formData });
         setEditingRole(null);
         toast.success("Role updated successfully");
-      } catch (error) {
+      } catch {
         // Error already handled in api-client interceptor
       }
     }
@@ -61,7 +61,7 @@ export function useRoleList() {
     try {
       await deleteRole.mutateAsync(id);
       toast.success("Role deleted successfully");
-    } catch (error) {
+    } catch {
       // Error already handled in api-client interceptor
     }
   };

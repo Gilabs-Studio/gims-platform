@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateCompany, useUpdateCompany, useCompany } from "./use-companies";
@@ -61,7 +61,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
     },
   });
 
-  const isActive = watch("is_active");
+  const isActive = useWatch({ control, name: "is_active" });
 
   // Single effect: fetch first, then reset — eliminates race condition on re-open
   useEffect(() => {
@@ -69,9 +69,10 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
 
     if ((mode === "edit" || mode === "view") && company?.id) {
       void refetchDetail().then((result) => {
-        const entity = result.status === "success" && result.data?.data
-          ? (result.data.data as any) // Cast to any to access new fields
-          : (company as any);
+        const entity =
+          result.status === "success" && result.data?.data
+            ? result.data.data
+            : company;
         if (!entity) return;
         
         reset({
@@ -110,7 +111,7 @@ export function useCompanySidePanel(props: CompanySidePanelProps) {
         is_active: true,
       });
     }
-  }, [isOpen, mode, company?.id, refetchDetail, reset]);
+  }, [company, company?.id, isOpen, mode, refetchDetail, reset]);
 
   const onSubmit = async (data: CompanyFormData) => {
     try {

@@ -89,7 +89,7 @@ export function WarehouseMapView() {
 
   const deleteWarehouse = useDeleteWarehouse();
 
-  const warehouses = data?.data ?? [];
+  const warehouses = useMemo(() => data?.data ?? [], [data?.data]);
 
   // Filter warehouses with valid coordinates for map
   const markers: MapMarker<WarehouseType>[] = useMemo(
