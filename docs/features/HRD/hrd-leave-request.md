@@ -28,6 +28,11 @@
 
 The Leave Request Management module provides comprehensive leave management for employees with approval workflow, quota tracking, and integration with attendance system.
 
+> **Related Documentation:**
+>
+> - [Attendance Management](hrd-attendance.md) — Attendance rules, clock-in/out flow, and integration details
+> - [Self Service Header (Attendance & Leave)](hrd-self-service-header-attendance-leave.md) — Header drawer/self-service optimization and query strategy
+
 ### Key Features
 
 | Feature                      | Description                                                  |
