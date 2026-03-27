@@ -57,8 +57,6 @@ export function CurrencyFormDialog({ open, onOpenChange, editingItem, onCreated 
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
 

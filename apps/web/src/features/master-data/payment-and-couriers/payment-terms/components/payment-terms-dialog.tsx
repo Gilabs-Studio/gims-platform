@@ -42,8 +42,6 @@ export function PaymentTermsDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

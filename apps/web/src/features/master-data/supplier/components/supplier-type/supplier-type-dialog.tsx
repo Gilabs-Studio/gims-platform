@@ -41,8 +41,6 @@ export function SupplierTypeDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

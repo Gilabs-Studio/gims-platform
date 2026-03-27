@@ -20,8 +20,6 @@ export function DivisionForm({ open, onClose, division }: DivisionFormProps) {
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

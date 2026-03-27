@@ -36,8 +36,6 @@ export function BankDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

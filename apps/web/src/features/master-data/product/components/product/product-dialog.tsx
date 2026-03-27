@@ -1,9 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useTranslations } from "next-intl";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +16,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ButtonLoading } from "@/components/loading";
-import { toast } from "sonner";
 import {
   Select,
   SelectContent,

@@ -35,8 +35,6 @@ export function BusinessTypeForm({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

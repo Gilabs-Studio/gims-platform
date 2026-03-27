@@ -16,7 +16,7 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
     editingItem,
   });
 
-  const { register, setValue, watch, formState: { errors } } = form;
+  const { register, formState: { errors } } = form;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>

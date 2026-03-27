@@ -18,7 +18,6 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
-  ImageIcon,
   ZoomIn,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils";
@@ -142,7 +141,7 @@ export function AssetTimeline({
             {sorted.map((asset) => (
               <div key={asset.id} className="relative flex gap-4">
                 <div
-                  className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full ${getStatusColor(
+                  className={`relative z-10 shrink-0 w-12 h-12 rounded-full ${getStatusColor(
                     asset.status,
                   )} flex items-center justify-center shadow-md`}
                 >

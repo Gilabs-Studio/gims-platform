@@ -77,7 +77,6 @@ interface CollapsedCategoryViewProps {
 
 function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: CollapsedCategoryViewProps) {
   const t = useTranslations("product.transaction");
-  const tCommon = useTranslations("product.common");
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-2 p-2 pt-4">

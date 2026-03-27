@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  Employee,
   EmployeeListResponse,
   EmployeeSingleResponse,
   ListEmployeesParams,

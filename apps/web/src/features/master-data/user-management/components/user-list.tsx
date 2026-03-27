@@ -34,7 +34,6 @@ import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.sch
 
 export function UserList() {
   const {
-    page,
     setPage,
     setPerPage,
     search,

@@ -96,7 +96,7 @@ export function CreateContractDialog({
       onOpenChange(false);
       onSuccess?.();
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error(t("contract.messages.createError"));
     }
   };

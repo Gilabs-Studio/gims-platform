@@ -37,7 +37,6 @@ export function ProductCategoryDialog({
   const {
     form,
     t,
-    tCommon,
     tValidation,
     isEditing,
     isSubmitting,

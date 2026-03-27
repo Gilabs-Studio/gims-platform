@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { supplierService } from "../services/supplier-service";
 import type {
-  Supplier,
   SupplierContact,
   CreateSupplierData,
   UpdateSupplierData,

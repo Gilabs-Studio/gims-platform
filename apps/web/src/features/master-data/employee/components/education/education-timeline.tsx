@@ -103,7 +103,7 @@ export function EducationTimeline({
               return (
                 <div key={education.id} className="relative flex gap-4">
                   <div
-                    className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full ${getDegreeColor(
+                    className={`relative z-10 shrink-0 w-12 h-12 rounded-full ${getDegreeColor(
                       education.degree,
                     )} flex items-center justify-center shadow-md`}
                   >
@@ -196,7 +196,7 @@ export function EducationTimeline({
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-primary hover:text-primary hover:underline cursor-pointer font-medium"
                           >
-                            <Download className="h-3.5 w-3.5 flex-shrink-0" />
+                            <Download className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate max-w-[300px]">
                               {getDisplayFilename(education.document_path) ||
                                 t("education.fields.document")}
