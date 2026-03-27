@@ -90,7 +90,6 @@ export function SupplierCard({
   supplier,
   isSelected,
   onClick,
-  t,
   tCommon,
   onDetail,
   onEdit,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -48,6 +48,24 @@ interface RenewContractDialogProps {
 
 const CONTRACT_TYPES: ContractType[] = ["PKWTT", "PKWT", "Intern"];
 
+interface RenewContractFormState {
+  contractNumber: string;
+  contractType: ContractType;
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+  documentPath: string;
+}
+
+const getInitialFormState = (
+  contract: EmployeeContract | null,
+): RenewContractFormState => ({
+  contractNumber: contract ? `${contract.contract_number}-RENEWED` : "",
+  contractType: contract?.contract_type ?? "PKWT",
+  startDate: contract?.end_date ? addDays(new Date(contract.end_date), 1) : new Date(),
+  endDate: undefined,
+  documentPath: "",
+});
+
 export function RenewContractDialog({
   open,
   onOpenChange,
@@ -57,35 +75,13 @@ export function RenewContractDialog({
 }: RenewContractDialogProps) {
   const t = useTranslations("employee");
 
-  const [contractNumber, setContractNumber] = useState("");
-  const [contractType, setContractType] = useState<ContractType>("PKWT");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [documentPath, setDocumentPath] = useState<string>("");
+  const initialFormState = useMemo(() => getInitialFormState(contract), [contract]);
+  const [draftForm, setDraftForm] = useState<RenewContractFormState | null>(null);
 
   const renewMutation = useRenewEmployeeContract();
+  const formState = draftForm ?? initialFormState;
 
-  const isPermanent = contractType === "PKWTT";
-
-  // Pre-fill form when contract changes
-  useEffect(() => {
-    if (open && contract) {
-      // Generate new contract number
-      setContractNumber(`${contract.contract_number}-RENEWED`);
-      setContractType(contract.contract_type);
-
-      // Set start date to day after old contract ends (or today if no end date)
-      if (contract.end_date) {
-        const oldEnd = new Date(contract.end_date);
-        setStartDate(addDays(oldEnd, 1));
-      } else {
-        setStartDate(new Date());
-      }
-
-      setEndDate(undefined);
-      setDocumentPath("");
-    }
-  }, [open, contract]);
+  const isPermanent = formState.contractType === "PKWTT";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,29 +89,36 @@ export function RenewContractDialog({
     if (!contract) return;
 
     // Validation
-    if (!contractNumber.trim()) {
+    if (!formState.contractNumber.trim()) {
       toast.error(t("contract.validation.contractNumberRequired"));
       return;
     }
-    if (!startDate) {
+    if (!formState.startDate) {
       toast.error(t("contract.validation.startDateRequired"));
       return;
     }
-    if (!isPermanent && !endDate) {
+    if (!isPermanent && !formState.endDate) {
       toast.error(t("contract.validation.endDateRequired"));
       return;
     }
-    if (!isPermanent && endDate && endDate <= startDate) {
+    if (
+      !isPermanent &&
+      formState.endDate &&
+      formState.startDate &&
+      formState.endDate <= formState.startDate
+    ) {
       toast.error(t("contract.validation.invalidDateRange"));
       return;
     }
 
     const data: RenewEmployeeContractData = {
-      contract_number: contractNumber,
-      contract_type: contractType,
-      start_date: format(startDate, "yyyy-MM-dd"),
-      end_date: endDate ? format(endDate, "yyyy-MM-dd") : undefined,
-      document_path: documentPath || undefined,
+      contract_number: formState.contractNumber,
+      contract_type: formState.contractType,
+      start_date: format(formState.startDate, "yyyy-MM-dd"),
+      end_date: formState.endDate
+        ? format(formState.endDate, "yyyy-MM-dd")
+        : undefined,
+      document_path: formState.documentPath || undefined,
     };
 
     try {
@@ -128,28 +131,24 @@ export function RenewContractDialog({
       onOpenChange(false);
       onSuccess?.();
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error(t("contract.messages.renewError"));
     }
   };
 
   const resetForm = () => {
-    setContractNumber("");
-    setContractType("PKWT");
-    setStartDate(undefined);
-    setEndDate(undefined);
-    setDocumentPath("");
+    setDraftForm(null);
   };
 
-  const handleClose = () => {
-    if (!renewMutation.isPending) {
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && !renewMutation.isPending) {
       onOpenChange(false);
       resetForm();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent size="lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -187,8 +186,13 @@ export function RenewContractDialog({
                   </Label>
                   <Input
                     id="contractNumber"
-                    value={contractNumber}
-                    onChange={(e) => setContractNumber(e.target.value)}
+                    value={formState.contractNumber}
+                    onChange={(e) =>
+                      setDraftForm((prev) => ({
+                        ...(prev ?? initialFormState),
+                        contractNumber: e.target.value,
+                      }))
+                    }
                     placeholder={t("contract.placeholders.contractNumber")}
                   />
                 </div>
@@ -200,12 +204,16 @@ export function RenewContractDialog({
                     <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={contractType}
+                    value={formState.contractType}
                     onValueChange={(v) => {
-                      setContractType(v as ContractType);
-                      if (v === "PKWTT") {
-                        setEndDate(undefined);
-                      }
+                      setDraftForm((prev) => ({
+                        ...(prev ?? initialFormState),
+                        contractType: v as ContractType,
+                        endDate:
+                          v === "PKWTT"
+                            ? undefined
+                            : (prev ?? initialFormState).endDate,
+                      }));
                     }}
                   >
                     <SelectTrigger id="contractType">
@@ -233,18 +241,25 @@ export function RenewContractDialog({
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !startDate && "text-muted-foreground",
+                          !formState.startDate && "text-muted-foreground",
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, "PPP") : t("form.selectDate")}
+                        {formState.startDate
+                          ? format(formState.startDate, "PPP")
+                          : t("form.selectDate")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={startDate}
-                        onSelect={setStartDate}
+                        selected={formState.startDate}
+                        onSelect={(date: Date | undefined) =>
+                          setDraftForm((prev) => ({
+                            ...(prev ?? initialFormState),
+                            startDate: date,
+                          }))
+                        }
                         initialFocus
                       />
                     </PopoverContent>
@@ -265,13 +280,13 @@ export function RenewContractDialog({
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !endDate && "text-muted-foreground",
+                          !formState.endDate && "text-muted-foreground",
                         )}
                         disabled={isPermanent}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate
-                          ? format(endDate, "PPP")
+                        {formState.endDate
+                          ? format(formState.endDate, "PPP")
                           : isPermanent
                             ? t("contract.noEndDate")
                             : t("form.selectDate")}
@@ -280,10 +295,15 @@ export function RenewContractDialog({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
+                        selected={formState.endDate}
+                        onSelect={(date: Date | undefined) =>
+                          setDraftForm((prev) => ({
+                            ...(prev ?? initialFormState),
+                            endDate: date,
+                          }))
+                        }
                         disabled={(date) =>
-                          startDate ? date <= startDate : false
+                          formState.startDate ? date <= formState.startDate : false
                         }
                         initialFocus
                       />
@@ -298,8 +318,13 @@ export function RenewContractDialog({
                   {t("contract.fields.document")}
                 </Label>
                 <FileUpload
-                  value={documentPath}
-                  onChange={(url) => setDocumentPath(url || "")}
+                  value={formState.documentPath}
+                  onChange={(url) =>
+                    setDraftForm((prev) => ({
+                      ...(prev ?? initialFormState),
+                      documentPath: url || "",
+                    }))
+                  }
                   placeholder={t("contract.placeholders.document")}
                   accept=".pdf,.doc,.docx"
                 />
@@ -311,7 +336,7 @@ export function RenewContractDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={() => handleDialogOpenChange(false)}
               disabled={renewMutation.isPending}
             >
               {t("actions.cancel")}

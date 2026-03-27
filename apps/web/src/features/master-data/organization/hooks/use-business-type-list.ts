@@ -70,7 +70,7 @@ export function useBusinessTypeList() {
         data: { is_active: !currentStatus },
       });
       toast.success(t("common.success_update", { name }));
-    } catch (error) {
+    } catch {
       toast.error(t("common.error_update"));
     }
   };

@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  Employee,
   EmployeeListResponse,
   EmployeeSingleResponse,
   ListEmployeesParams,
@@ -348,8 +347,10 @@ export const employeeService = {
         data: EmployeeSignature;
       }>(`${BASE_PATH}/employees/${employeeId}/signature`);
       return response.data.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } }).response
+        ?.status;
+      if (status === 404) {
         return null;
       }
       throw error;

@@ -74,3 +74,13 @@ type PurchaseReturnResponse struct {
 	CreatedAt         time.Time                    `json:"created_at"`
 	UpdatedAt         time.Time                    `json:"updated_at"`
 }
+
+type PurchaseReturnAuditTrailEntry struct {
+	ID             string                 `json:"id"`
+	Action         string                 `json:"action"`
+	PermissionCode string                 `json:"permission_code"`
+	TargetID       string                 `json:"target_id"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	User           *AuditTrailUser        `json:"user"`
+	CreatedAt      time.Time              `json:"created_at"`
+}

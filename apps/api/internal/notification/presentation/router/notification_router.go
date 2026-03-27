@@ -9,5 +9,6 @@ func RegisterNotificationRoutes(r *gin.RouterGroup, h *handler.NotificationHandl
 	n := r.Group("/notifications")
 	n.GET("", h.List)
 	n.GET("/unread-count", h.GetUnreadCount)
+	n.POST("/read-all", h.MarkAllAsRead)
 	n.POST("/:id/read", h.MarkAsRead)
 }

@@ -222,25 +222,6 @@ export function InvoiceDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayInvoice?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {invoice && (() => {
-                    const clickable = isPaymentStatus(invoice.status);
-                    if (!clickable) {
-                      return <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />;
-                    }
-                    return (
-                      <button
-                        type="button"
-                        className="inline-flex items-center cursor-pointer"
-                        title={t("common.view")}
-                        onClick={() => {
-                          setSelectedInvoiceForPayments({ id: invoice.id, code: invoice.code || invoice.invoice_number || "" });
-                          setIsPaymentOpen(true);
-                        }}
-                      >
-                        <InvoiceStatusBadge status={invoice.status} className="text-xs font-medium" />
-                      </button>
-                    );
-                  })()}
                   <span className="text-sm text-muted-foreground">
                     {displayInvoice?.invoice_date && formatDate(displayInvoice.invoice_date)}
                   </span>
@@ -269,7 +250,7 @@ export function InvoiceDetailModal({
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && (status === "draft" || status === "unpaid") && (
+                {canDelete && status === "unpaid" && (
                   <Button
                     variant="ghost"
                     size="icon"

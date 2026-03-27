@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -23,24 +22,6 @@ interface SalesPaymentDetailProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly paymentId?: string | null;
-}
-
-function StatusBadge({ status, t }: { status?: string | null; t: ReturnType<typeof useTranslations> }) {
-  const normalized = (status ?? "").toUpperCase();
-  if (normalized === "CONFIRMED") {
-    return (
-      <Badge variant="success" className="text-xs font-medium">
-        <CheckCircle2 className="h-3 w-3 mr-1" />
-        {t("status.confirmed")}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="warning" className="text-xs font-medium">
-      <Clock className="h-3 w-3 mr-1" />
-      {t("status.pending")}
-    </Badge>
-  );
 }
 
 export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDetailProps) {
@@ -113,7 +94,6 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
             <DialogTitle className="text-xl font-semibold tracking-tight">
               {detail?.invoice?.invoice_number ?? t("actions.view")}
             </DialogTitle>
-            {detail && <StatusBadge status={detail.status} t={t} />}
           </div>
         </DialogHeader>
 

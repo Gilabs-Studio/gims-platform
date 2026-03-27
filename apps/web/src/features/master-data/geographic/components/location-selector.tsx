@@ -141,7 +141,7 @@ export function LocationSelector({
     { enabled: enabled && !!cityId && (shouldLoadDistricts || !!districtId) }
   );
 
-  const baseProvinces = provincesData?.data ?? [];
+  const baseProvinces = useMemo(() => provincesData?.data ?? [], [provincesData?.data]);
   const provinces = useMemo(() => {
     const map = new Map<string, Province>();
 

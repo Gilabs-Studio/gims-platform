@@ -49,6 +49,7 @@ type NotificationUsecase interface {
 	List(ctx context.Context, userID string, page, perPage int, notifType, entityType string, isRead *bool) ([]dto.NotificationResponse, int64, error)
 	GetUnreadCount(ctx context.Context, userID string) (*dto.UnreadCountResponse, error)
 	MarkAsRead(ctx context.Context, userID, id string) (*dto.NotificationResponse, error)
+	MarkAllAsRead(ctx context.Context, userID string) (*dto.MarkAllAsReadResponse, error)
 }
 
 type notificationUsecase struct {
@@ -94,6 +95,15 @@ func (u *notificationUsecase) MarkAsRead(ctx context.Context, userID, id string)
 	}
 	res := mapToResponse(*item)
 	return &res, nil
+}
+
+func (u *notificationUsecase) MarkAllAsRead(ctx context.Context, userID string) (*dto.MarkAllAsReadResponse, error) {
+	marked, err := u.repo.MarkAllAsRead(ctx, userID, apptime.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.MarkAllAsReadResponse{Marked: marked}, nil
 }
 
 func mapToResponse(item models.Notification) dto.NotificationResponse {

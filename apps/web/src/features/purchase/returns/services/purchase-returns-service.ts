@@ -2,6 +2,7 @@ import apiClient from "@/lib/api-client";
 import type {
   ApiResponse,
   CreatePurchaseReturnInput,
+  PurchaseReturnAuditTrailEntry,
   PurchaseReturn,
   PurchaseReturnFormData,
   PurchaseReturnListParams,
@@ -57,6 +58,17 @@ export const purchaseReturnsService = {
 
   async remove(id: string): Promise<ApiResponse<{ id: string }>> {
     const response = await apiClient.delete<ApiResponse<{ id: string }>>(`${BASE_PATH}/${id}`);
+    return response.data;
+  },
+
+  async auditTrail(
+    id: string,
+    params?: { page?: number; per_page?: number },
+  ): Promise<ApiResponse<PurchaseReturnAuditTrailEntry[]>> {
+    const response = await apiClient.get<ApiResponse<PurchaseReturnAuditTrailEntry[]>>(
+      `${BASE_PATH}/${id}/audit-trail`,
+      { params },
+    );
     return response.data;
   },
 };

@@ -44,7 +44,6 @@ export function WarehouseDialog({
     register,
     control,
     setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

@@ -36,7 +36,6 @@ export function EmployeeSignatureSection({
 }: EmployeeSignatureSectionProps) {
   const t = useTranslations("employee");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageError, setImageError] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -58,7 +57,6 @@ export function EmployeeSignatureSection({
         alert(t("signature.fileTooLarge"));
         return;
       }
-      setSelectedFile(file);
       handleUpload(file);
     }
   };
@@ -66,7 +64,6 @@ export function EmployeeSignatureSection({
   const handleUpload = async (file: File) => {
     try {
       await uploadMutation.mutateAsync({ employeeId, file });
-      setSelectedFile(null);
       setImageError(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -224,6 +221,7 @@ export function EmployeeSignatureSection({
             <div className="space-y-4">
               <div className="border rounded-lg p-4 bg-muted/50 flex justify-center items-center min-h-[150px]">
                 {!imageError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={getImageUrl(signature)}
                     alt={t("signature.altText")}

@@ -30,7 +30,6 @@ export function ProcurementTypeDialog({
   const {
     form,
     t,
-    tCommon,
     tValidation,
     isEditing,
     isSubmitting,
@@ -39,8 +38,6 @@ export function ProcurementTypeDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

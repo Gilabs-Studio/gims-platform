@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
-  Trash2,
   CheckCircle2,
   XCircle,
   FileText,
@@ -182,7 +181,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                   {pr?.code ?? t("detail.title")}
                 </DialogTitle>
                 <div className="flex items-center gap-3">
-                  {pr && <PurchaseRequisitionStatusBadge status={pr.status} />}
                   <span className="text-sm text-muted-foreground">
                     {pr?.request_date && formatDate(pr.request_date)}
                   </span>
@@ -211,17 +209,6 @@ export function PurchaseRequisitionDetail({ open, onClose, requisitionId }: Purc
                     title={t("common.edit")}
                   >
                     <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && status === "DRAFT" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsDeleteOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("common.delete")}
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
                 {canSubmit && status === "DRAFT" && (

@@ -77,7 +77,7 @@ export function TerminateContractDialog({
       onOpenChange(false);
       onSuccess?.();
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error(t("contract.messages.terminateError"));
     }
   };

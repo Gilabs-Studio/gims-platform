@@ -26,17 +26,8 @@ export const notificationService = {
   },
 
   async markAllAsRead(): Promise<ApiEnvelope<{ marked: number }>> {
-    const unread = await notificationService.list({ page: 1, per_page: 100, is_read: false });
-    const items = unread.data ?? [];
-    for (const item of items) {
-      await notificationService.markAsRead(item.id);
-    }
-    return {
-      success: true,
-      data: { marked: items.length },
-      timestamp: new Date().toISOString(),
-      request_id: "local_mark_all",
-    };
+    const response = await apiClient.post<ApiEnvelope<{ marked: number }>>(`${BASE_PATH}/read-all`);
+    return response.data;
   },
 };
 

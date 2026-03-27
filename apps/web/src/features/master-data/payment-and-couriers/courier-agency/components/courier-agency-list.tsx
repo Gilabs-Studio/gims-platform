@@ -11,6 +11,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Switch } from "@/components/ui/switch";
 import { CourierAgencyDialog } from "./courier-agency-dialog";
 import { useCourierAgencyList } from "../hooks/use-courier-agency-list";
+import type { CourierAgency } from "../types";
 
 export function CourierAgencyList() {
   const { state, actions, data, permissions, translations } = useCourierAgencyList();
@@ -86,7 +87,7 @@ export function CourierAgencyList() {
                 </TableCell>
               </TableRow>
             ) : (
-              data.items.map((item: any) => (
+              data.items.map((item: CourierAgency) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>

@@ -61,7 +61,6 @@ import {
 } from "../hooks/use-goods-receipts";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
-import { GoodsReceiptAuditTrail } from "./goods-receipt-audit-trail";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
@@ -92,8 +91,6 @@ export function GoodsReceiptsList() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -109,7 +106,6 @@ export function GoodsReceiptsList() {
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
-  const canAuditTrail = useUserPermission("goods_receipt.read");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
@@ -189,7 +185,7 @@ export function GoodsReceiptsList() {
   };
 
   const canShowActions =
-    canView || canAuditTrail || canUpdate || canDelete ||
+    canView || canUpdate || canDelete ||
     canSubmit || canApprove || canReject || canClose;
 
   return (
@@ -513,15 +509,6 @@ export function GoodsReceiptsList() {
         onClose={() => {
           setDetailOpen(false);
           setDetailId(null);
-        }}
-      />
-
-      <GoodsReceiptAuditTrail
-        open={auditOpen}
-        goodsReceiptId={detailId || auditId}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
         }}
       />
 

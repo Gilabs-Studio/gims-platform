@@ -20,8 +20,6 @@ export function JobPositionForm({ open, onClose, jobPosition }: JobPositionFormP
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

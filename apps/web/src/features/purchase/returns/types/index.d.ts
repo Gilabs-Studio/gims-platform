@@ -104,3 +104,19 @@ export interface CreatePurchaseReturnInput {
 export interface UpdatePurchaseReturnStatusInput {
   status: PurchaseReturnStatus;
 }
+
+export interface AuditTrailUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface PurchaseReturnAuditTrailEntry {
+  id: string;
+  action: string;
+  permission_code: string;
+  target_id: string;
+  metadata: Record<string, unknown>;
+  user?: AuditTrailUser | null;
+  created_at: string;
+}

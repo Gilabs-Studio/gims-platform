@@ -22,6 +22,7 @@ type NotificationRepository interface {
 	List(ctx context.Context, params ListParams) ([]models.Notification, int64, error)
 	CountUnread(ctx context.Context, userID string) (int64, error)
 	MarkAsRead(ctx context.Context, userID, id string, readAt time.Time) (*models.Notification, error)
+	MarkAllAsRead(ctx context.Context, userID string, readAt time.Time) (int64, error)
 	CreateBulk(ctx context.Context, notifications []models.Notification) error
 }
 
@@ -112,6 +113,25 @@ func (r *notificationRepository) MarkAsRead(ctx context.Context, userID, id stri
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *notificationRepository) MarkAllAsRead(ctx context.Context, userID string, readAt time.Time) (int64, error) {
+	result := r.db.WithContext(ctx).
+		Model(&models.Notification{}).
+		Where("user_id = ? AND is_read = ?", userID, false).
+		Updates(map[string]interface{}{
+			"is_read": true,
+			"read_at": readAt,
+		})
+
+	if result.Error != nil {
+		if isMissingNotificationsTableError(result.Error) {
+			return 0, nil
+		}
+		return 0, result.Error
+	}
+
+	return result.RowsAffected, nil
 }
 
 func (r *notificationRepository) CreateBulk(ctx context.Context, notifications []models.Notification) error {

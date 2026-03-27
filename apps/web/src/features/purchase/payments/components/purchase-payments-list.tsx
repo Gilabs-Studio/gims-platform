@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import {
   Download,
   Eye,
-  History,
   MoreHorizontal,
   Plus,
   Search,
@@ -35,7 +34,6 @@ import type { PurchasePaymentListItem } from "../types";
 import { purchasePaymentsService } from "../services/purchase-payments-service";
 import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail } from "./purchase-payment-detail";
-import { PurchasePaymentAuditTrail } from "./purchase-payment-audit-trail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 import { PurchasePaymentPrintDialog } from "./purchase-payment-print-dialog";
 
@@ -52,15 +50,12 @@ export function PurchasePaymentsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   const canCreate = useUserPermission("purchase_payment.create");
   const canDelete = useUserPermission("purchase_payment.delete");
   const canConfirm = useUserPermission("purchase_payment.confirm");
   const canExport = useUserPermission("purchase_payment.export");
-  const canAuditTrail = useUserPermission("purchase_payment.read");
   const canView = useUserPermission("purchase_payment.read");
   const canPrint = useUserPermission("purchase_payment.print");
 
@@ -220,7 +215,7 @@ export function PurchasePaymentsList() {
                       {formatCurrency(item.amount)}
                     </TableCell>
                     <TableCell>
-                      {(canView || canAuditTrail || canConfirm || canDelete) && (
+                      {(canView || canConfirm || canDelete || canPrint) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -256,19 +251,6 @@ export function PurchasePaymentsList() {
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
                                 {t("actions.confirm")}
-                              </DropdownMenuItem>
-                            )}
-
-                            {canAuditTrail && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setAuditId(item.id);
-                                  setAuditOpen(true);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <History className="h-4 w-4 mr-2" />
-                                {t("actions.auditTrail")}
                               </DropdownMenuItem>
                             )}
 
@@ -329,15 +311,6 @@ export function PurchasePaymentsList() {
         onClose={() => {
           setDetailOpen(false);
           setDetailId(null);
-        }}
-      />
-
-      <PurchasePaymentAuditTrail
-        open={auditOpen}
-        paymentId={detailId || auditId}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
         }}
       />
 

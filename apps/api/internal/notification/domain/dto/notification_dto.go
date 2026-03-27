@@ -19,3 +19,7 @@ type NotificationResponse struct {
 type UnreadCountResponse struct {
 	UnreadCount int64 `json:"unread_count"`
 }
+
+type MarkAllAsReadResponse struct {
+	Marked int64 `json:"marked"`
+}

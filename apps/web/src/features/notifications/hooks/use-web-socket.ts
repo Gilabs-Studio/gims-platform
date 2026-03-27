@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { notificationQueryKeys } from "./use-notifications";
 import type { WebSocketMessage, Notification } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
@@ -79,8 +80,13 @@ export function useWebSocket() {
             const notification = message.data as Notification;
             
             // Invalidate queries to refresh data
-            queryClientRef.current.invalidateQueries({ queryKey: ["notifications"] });
-            queryClientRef.current.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+            queryClientRef.current.invalidateQueries({
+              predicate: (query) =>
+                query.queryKey[0] === "notifications" && query.queryKey[1] !== "unread-count",
+            });
+            queryClientRef.current.setQueryData<number>(notificationQueryKeys.unreadCount, (current) =>
+              Math.max(0, (current ?? 0) + 1)
+            );
 
             // Show toast notification
             toast.info(notification.title, {
@@ -93,8 +99,11 @@ export function useWebSocket() {
           case "notification.updated":
           case "notification.deleted": {
             // Invalidate queries to refresh data
-            queryClientRef.current.invalidateQueries({ queryKey: ["notifications"] });
-            queryClientRef.current.invalidateQueries({ queryKey: ["notifications", "unread-count"] });
+            queryClientRef.current.invalidateQueries({
+              predicate: (query) =>
+                query.queryKey[0] === "notifications" && query.queryKey[1] !== "unread-count",
+            });
+            queryClientRef.current.invalidateQueries({ queryKey: notificationQueryKeys.unreadCount });
             break;
           }
 

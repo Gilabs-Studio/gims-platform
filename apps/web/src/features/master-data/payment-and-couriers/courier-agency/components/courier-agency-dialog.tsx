@@ -39,7 +39,6 @@ export function CourierAgencyDialog({
 
   const {
     register,
-    setValue,
     watch,
     formState: { errors },
   } = form;

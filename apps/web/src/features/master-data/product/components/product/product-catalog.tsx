@@ -77,7 +77,6 @@ interface CollapsedCategoryViewProps {
 
 function CollapsedCategoryView({ data, selectedId, onSelect, isLoading }: CollapsedCategoryViewProps) {
   const t = useTranslations("product.transaction");
-  const tCommon = useTranslations("product.common");
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-2 p-2 pt-4">
@@ -254,10 +253,10 @@ export function ProductCatalog() {
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setEditingItem(null);
     setDialogOpen(true);
-  };
+  }, []);
 
   const handleEdit = (item: Product, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -502,11 +501,14 @@ export function ProductCatalog() {
                     {/* Product Image */}
                     <div className="relative aspect-4/3 w-full bg-muted border-b">
                       {product.image_url ? (
-                        <img 
-                          src={resolveImageUrl(product.image_url)} 
-                          alt={product.name} 
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                        />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={resolveImageUrl(product.image_url)} 
+                            alt={product.name} 
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                          />
+                        </>
                       ) : (
                         <div className="flex flex-col items-center justify-center w-full h-full text-muted-foreground/30 bg-muted/50">
                           <ImageOff className="h-10 w-10 mb-2" />

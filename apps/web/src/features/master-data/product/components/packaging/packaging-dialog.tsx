@@ -30,7 +30,6 @@ export function PackagingDialog({
   const {
     form,
     t,
-    tCommon,
     tValidation,
     isEditing,
     isSubmitting,
@@ -39,8 +38,6 @@ export function PackagingDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (

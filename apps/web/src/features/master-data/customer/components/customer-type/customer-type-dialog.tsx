@@ -35,7 +35,7 @@ export function CustomerTypeDialog({
     onSubmit,
   } = useCustomerTypeForm({ open, onClose: () => onOpenChange(false), editingItem });
 
-  const { register, watch, setValue, formState: { errors } } = form;
+  const { register, formState: { errors } } = form;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

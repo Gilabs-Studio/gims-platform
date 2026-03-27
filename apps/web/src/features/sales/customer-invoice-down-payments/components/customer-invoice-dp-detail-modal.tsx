@@ -223,7 +223,6 @@ export function CustomerInvoiceDPDetailModal({
               </DialogTitle>
               {row && (
                 <div className="flex items-center gap-2 flex-wrap mt-1">
-                  <StatusBadge status={row.status as CustomerInvoiceDPStatus} t={t} />
                   {row.invoice_date && (
                     <span className="text-sm text-muted-foreground">
                       {formatDate(row.invoice_date)}

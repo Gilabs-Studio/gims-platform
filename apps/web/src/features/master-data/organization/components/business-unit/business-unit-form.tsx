@@ -29,8 +29,6 @@ export function BusinessUnitForm({ open, onClose, businessUnit, initialData, onC
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
   return (
