@@ -18,6 +18,7 @@ import { OrderForm } from "./order-form";
 import {
   useDeleteOrder,
   useUpdateOrderStatus,
+  useOrder,
   useOrderItems,
   useOrderAuditTrail,
 } from "../hooks/use-orders";
@@ -63,15 +64,21 @@ export function OrderDetailModal({
   const [activeTab, setActiveTab] = useState<"general" | "items" | "audit-trail">("general");
   const t = useTranslations("order");
 
+  const { data: detailData } = useOrder(order?.id ?? "", {
+    enabled: open && !!order?.id,
+  });
+
+  const displayOrder = detailData?.data ?? order;
+
   const { data: itemData, isFetching: isItemsLoading } = useOrderItems(
-    order?.id ?? "",
+    displayOrder?.id ?? "",
     { page: itemsPage, per_page: pageSize },
-    { enabled: open && !!order?.id && activeTab === "items" },
+    { enabled: open && !!displayOrder?.id && activeTab === "items" },
   );
   const { data: auditData, isFetching: auditLoading, isError: auditError } = useOrderAuditTrail(
-    order?.id ?? "",
+    displayOrder?.id ?? "",
     { page: auditPage, per_page: auditPageSize },
-    { enabled: open && !!order?.id && activeTab === "audit-trail" },
+    { enabled: open && !!displayOrder?.id && activeTab === "audit-trail" },
   );
 
   const canEdit = useUserPermission("sales_order.update");
@@ -100,16 +107,16 @@ export function OrderDetailModal({
 
   // Fetch invoices and DPs for the SO to compute financial overview
   const { data: invoicesData } = useInvoices(
-    { sales_order_id: order?.id, per_page: 20 },
-    { enabled: open && !!order?.id && activeTab === "general" },
+    { sales_order_id: displayOrder?.id, per_page: 20 },
+    { enabled: open && !!displayOrder?.id && activeTab === "general" },
   );
   const { data: dpData } = useCustomerInvoiceDPs(
-    { sales_order_id: order?.id, per_page: 20 },
-    { enabled: open && !!order?.id && activeTab === "general" },
+    { sales_order_id: displayOrder?.id, per_page: 20 },
+    { enabled: open && !!displayOrder?.id && activeTab === "general" },
   );
 
   const financialOverview = useMemo(() => {
-    if (!order) return null;
+    if (!displayOrder) return null;
 
     const invoiceList = invoicesData?.data ?? [];
     const dpList = dpData?.data ?? [];
@@ -119,7 +126,7 @@ export function OrderDetailModal({
     const totalDP = dpList.reduce((sum, dp) => sum + (dp.amount ?? 0), 0);
     const totalPaidDP = 0; // payment tracking not available for DPs in list item type
 
-    const orderTotal = order.total_amount ?? 0;
+    const orderTotal = displayOrder.total_amount ?? 0;
     const totalBilled = totalInvoiced + totalDP;
     const totalPaid = totalPaidInvoice + totalPaidDP;
     const remainingBalance = orderTotal - totalPaid;
@@ -134,9 +141,8 @@ export function OrderDetailModal({
       invoiceCount: invoiceList.length,
       dpCount: dpList.length,
     };
-  }, [order, invoicesData, dpData]);
+  }, [displayOrder, invoicesData, dpData]);
 
-  const displayOrder = order as SalesOrder;
   const fallbackAuditEntries = useMemo(
     () => {
       if (!displayOrder) return [];
@@ -215,9 +221,9 @@ export function OrderDetailModal({
   };
 
   const handleDelete = async () => {
-    if (!order?.id) return;
+    if (!displayOrder?.id) return;
     try {
-      await deleteOrder.mutateAsync(order.id);
+      await deleteOrder.mutateAsync(displayOrder.id);
       toast.success(t("deleted"));
       onClose();
     } catch (error) {
@@ -227,10 +233,10 @@ export function OrderDetailModal({
   };
 
   const handleApprove = async () => {
-    if (!order?.id) return;
+    if (!displayOrder?.id) return;
     try {
       await updateStatus.mutateAsync({
-        id: order.id,
+        id: displayOrder.id,
         data: { status: "approved" },
       });
       toast.success(t("statusUpdated"));
@@ -241,10 +247,10 @@ export function OrderDetailModal({
   };
 
   const handleCancel = async () => {
-    if (!order?.id) return;
+    if (!displayOrder?.id) return;
     try {
       await updateStatus.mutateAsync({
-        id: order.id,
+        id: displayOrder.id,
         data: { status: "cancelled" },
       });
       toast.success(t("statusUpdated"));
@@ -271,14 +277,14 @@ export function OrderDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayOrder?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {order && getStatusBadge(order.status)}
+                  {displayOrder && getStatusBadge(displayOrder.status)}
                   <span className="text-sm text-muted-foreground">
                     {displayOrder?.order_date && formatDate(displayOrder.order_date)}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {canEdit && order?.status === "draft" && (
+                {canEdit && displayOrder?.status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -289,7 +295,7 @@ export function OrderDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && order?.status === "draft" && (
+                {canDelete && displayOrder?.status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -700,13 +706,13 @@ export function OrderDetailModal({
         </DialogContent>
       </Dialog>
 
-      {order && (
+      {displayOrder && (
         <OrderForm
           open={isEditDialogOpen}
           onClose={() => {
             setIsEditDialogOpen(false);
           }}
-          order={order}
+          order={displayOrder as SalesOrder}
         />
       )}
 
@@ -744,20 +750,20 @@ export function OrderDetailModal({
       />
 
       {/* Create DO from approved SO */}
-      {order && isCreateDOOpen && (
+      {displayOrder && isCreateDOOpen && (
         <DeliveryForm
           open={isCreateDOOpen}
           onClose={() => setIsCreateDOOpen(false)}
-          defaultSalesOrderId={order.id}
+          defaultSalesOrderId={displayOrder.id}
         />
       )}
 
       {/* Create Invoice from approved SO */}
-      {order && isCreateInvoiceOpen && (
+      {displayOrder && isCreateInvoiceOpen && (
         <InvoiceForm
           open={isCreateInvoiceOpen}
           onClose={() => setIsCreateInvoiceOpen(false)}
-          defaultSalesOrderId={order.id}
+          defaultSalesOrderId={displayOrder.id}
         />
       )}
     </>
