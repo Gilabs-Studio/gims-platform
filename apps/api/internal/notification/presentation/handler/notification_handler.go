@@ -12,6 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const authRequiredMessage = "Authentication required"
+
 type NotificationHandler struct {
 	usecase usecase.NotificationUsecase
 }
@@ -23,7 +25,7 @@ func NewNotificationHandler(usecase usecase.NotificationUsecase) *NotificationHa
 func (h *NotificationHandler) List(c *gin.Context) {
 	userIDStr, ok := getValidatedUserID(c)
 	if !ok {
-		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil, nil)
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", authRequiredMessage, nil, nil)
 		return
 	}
 
@@ -66,7 +68,7 @@ func (h *NotificationHandler) List(c *gin.Context) {
 func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 	userIDStr, ok := getValidatedUserID(c)
 	if !ok {
-		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil, nil)
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", authRequiredMessage, nil, nil)
 		return
 	}
 
@@ -82,7 +84,7 @@ func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	userIDStr, ok := getValidatedUserID(c)
 	if !ok {
-		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil, nil)
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", authRequiredMessage, nil, nil)
 		return
 	}
 
@@ -103,6 +105,22 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, item, nil)
+}
+
+func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
+	userIDStr, ok := getValidatedUserID(c)
+	if !ok {
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", authRequiredMessage, nil, nil)
+		return
+	}
+
+	res, err := h.usecase.MarkAllAsRead(c.Request.Context(), userIDStr)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to mark all notifications as read", nil, nil)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
 }
 
 func getValidatedUserID(c *gin.Context) (string, bool) {
