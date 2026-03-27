@@ -59,6 +59,16 @@ export const SalesJournalsList = dynamic(
   },
 );
 
+export const InventoryJournalsList = dynamic(
+  () =>
+    import("./inventory-journals-list").then((m) => ({
+      default: m.InventoryJournalsList,
+    })),
+  {
+    loading: () => null,
+  },
+);
+
 export function FinanceJournalsContainer() {
   return (
     <PageMotion>

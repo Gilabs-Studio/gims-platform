@@ -1,6 +1,8 @@
 package presentation
 
 import (
+	"context"
+
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -19,9 +21,15 @@ type FinanceDeps struct {
 	CoaUC      usecase.ChartOfAccountUsecase
 	AssetUC    usecase.AssetUsecase
 	SettingsUC financesettings.SettingsService
+	Engine     accounting.AccountingEngine
 }
 
-func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, auditService interface {
+	Log(ctx context.Context, action string, targetID string, metadata map[string]interface{})
+	LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{})
+	LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{})
+	LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{})
+}, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) *FinanceDeps {
@@ -70,7 +78,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo)
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
@@ -153,5 +161,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		CoaUC:      coaUC,
 		AssetUC:    assetUC,
 		SettingsUC: settingsService,
+		Engine:     accountingEngine,
 	}
 }

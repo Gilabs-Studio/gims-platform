@@ -10,6 +10,7 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -482,7 +483,8 @@ func createJournalEntry(tx *gorm.DB, date time.Time, desc, refType, refID, admin
 	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
 	coaMapper := financeMapper.NewChartOfAccountMapper()
 	journalMapper := financeMapper.NewJournalEntryMapper(coaMapper)
-	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper)
+	auditSvc := audit.NewAuditService(tx)
+	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper, auditSvc)
 
 	reqLines := make([]financeDto.JournalLineRequest, 0, len(lines))
 	for _, l := range lines {

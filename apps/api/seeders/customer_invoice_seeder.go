@@ -243,6 +243,7 @@ func SeedCustomerInvoice() error {
 			Status:         invData.status,
 			Notes:          invData.notes,
 			CreatedBy:      &adminID,
+			RemainingAmount: totalAmount, // Initialize with total amount
 		}
 
 		// Link to sales order if available
@@ -264,8 +265,9 @@ func SeedCustomerInvoice() error {
 					Amount:       dpAmount,
 					Subtotal:     dpAmount,
 					PaidAmount:   dpAmount,
-					Status:       salesModels.CustomerInvoiceStatusPaid,
-					CreatedBy:    &adminID,
+					RemainingAmount: dpAmount,
+					Status:          salesModels.CustomerInvoiceStatusPaid,
+					CreatedBy:       &adminID,
 				}
 				db.Create(&dpInvoice)
 				log.Printf("Seeded Down Payment %s (ID: %s) for SO %s", dpCode, dpInvoice.ID, linkedOrder.Code)

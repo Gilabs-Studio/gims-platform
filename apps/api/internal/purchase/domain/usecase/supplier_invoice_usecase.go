@@ -14,7 +14,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -44,6 +46,8 @@ type SupplierInvoiceUsecase interface {
 	Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	Reverse(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
+	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
 	TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error
 }
@@ -57,10 +61,30 @@ type supplierInvoiceUsecase struct {
 	mapper       *mapper.SupplierInvoiceMapper
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
+	engine       accounting.AccountingEngine
 }
 
-func NewSupplierInvoiceUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, grRepo repositories.GoodsReceiptRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) SupplierInvoiceUsecase {
-	return &supplierInvoiceUsecase{db: db, repo: repo, poRepo: poRepo, grRepo: grRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC}
+func NewSupplierInvoiceUsecase(
+	db *gorm.DB,
+	repo repositories.SupplierInvoiceRepository,
+	poRepo repositories.PurchaseOrderRepository,
+	grRepo repositories.GoodsReceiptRepository,
+	auditService audit.AuditService,
+	journalUC finUsecase.JournalEntryUsecase,
+	coaUC finUsecase.ChartOfAccountUsecase,
+	engine accounting.AccountingEngine,
+) SupplierInvoiceUsecase {
+	return &supplierInvoiceUsecase{
+		db:           db,
+		repo:         repo,
+		poRepo:       poRepo,
+		grRepo:       grRepo,
+		auditService: auditService,
+		mapper:       mapper.NewSupplierInvoiceMapper(),
+		journalUC:    journalUC,
+		coaUC:        coaUC,
+		engine:       engine,
+	}
 }
 
 func (uc *supplierInvoiceUsecase) List(ctx context.Context, params repositories.SupplierInvoiceListParams) ([]*dto.SupplierInvoiceListResponse, int64, error) {
@@ -970,10 +994,11 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		// --- Budget Guard ---
 		extraCost := si.DeliveryCost + si.OtherCost
 		if extraCost > 0 {
-			expAcct, err := uc.coaUC.GetByCode(ctx, "61000") // Expense Account
-			if err == nil {
+			// Resolve Expense Account via engine instead of hardcoding
+			expAcctID, err := uc.engine.ResolveCOAID(ctx, "coa.expense")
+			if err == nil && expAcctID != "" {
 				parsedDate, _ := time.Parse("2006-01-02", si.InvoiceDate)
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcct.ID, parsedDate, extraCost); err != nil {
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcctID, parsedDate, extraCost); err != nil {
 					return err
 				}
 			}
@@ -1054,117 +1079,135 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 }
 
 func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
-	// Accounts:
-	// AP: 21000
-	// GR/IR: 21100
-	// VAT In: 11800
-	// Expense/Delivery: 61000 (Simplified)
-
-	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
-	if err != nil {
-		return err
+	if si == nil {
+		return errors.New("cannot trigger journal for nil invoice")
 	}
-	grirAcct, err := uc.coaUC.GetByCode(ctx, "21100")
-	if err != nil {
-		return err
+	if uc.journalUC == nil {
+		return errors.New("journal usecase not initialized")
+	}
+	if uc.engine == nil {
+		return errors.New("accounting engine not initialized")
 	}
 
-	lines := []finDto.JournalLineRequest{}
-
-	// Credit AP (Total Amount)
-	lines = append(lines, finDto.JournalLineRequest{
-		ChartOfAccountID: apAcct.ID,
-		Debit:            0,
-		Credit:           si.Amount,
-		Memo:             fmt.Sprintf("AP Invoice %s", si.InvoiceNumber),
-	})
-
-	// Debit GR/IR (SubTotal)
-	if si.SubTotal > 0 {
-		lines = append(lines, finDto.JournalLineRequest{
-			ChartOfAccountID: grirAcct.ID,
-			Debit:            si.SubTotal,
-			Credit:           0,
-			Memo:             fmt.Sprintf("Item Cost %s", si.Code),
-		})
-	}
-
-	// Debit VAT In
-	if si.TaxAmount > 0 {
-		vatAcct, err := uc.coaUC.GetByCode(ctx, "11800")
-		if err == nil {
-			lines = append(lines, finDto.JournalLineRequest{
-				ChartOfAccountID: vatAcct.ID,
-				Debit:            si.TaxAmount,
-				Credit:           0,
-				Memo:             fmt.Sprintf("VAT Input %s", si.InvoiceNumber),
-			})
-		} else {
-			// Fallback? Fail? Put to suspense?
-			// For now, fail or skip tax line (will cause imbalance)
-			// Returning error to alert misc config missing
-			return err
-		}
-	}
-
-	// Debit Delivery/Other (Expense)
-	extraCost := si.DeliveryCost + si.OtherCost
-	if extraCost > 0 {
-		expAcct, err := uc.coaUC.GetByCode(ctx, "61000")
-		if err == nil {
-			lines = append(lines, finDto.JournalLineRequest{
-				ChartOfAccountID: expAcct.ID,
-				Debit:            extraCost,
-				Credit:           0,
-				Memo:             "Delivery/Other Costs",
-			})
-		} else {
-			// Try to put to GR/IR if expense account missing? Or just fail.
-			// Imbalance if we don't add this line.
-			// Let's return error.
-			return err
-		}
-	}
-
-	refID := si.ID
-	refType := "SUPPLIER_INVOICE"
-	traceKey := refType + ":" + refID
-	actorID, _ := ctx.Value("user_id").(string)
-	actorID = strings.TrimSpace(actorID)
-
-	req := &finDto.CreateJournalEntryRequest{
+	data := accounting.TransactionData{
+		ReferenceType: reference.RefTypeSupplierInvoice,
+		ReferenceID:   si.ID,
 		EntryDate:     si.InvoiceDate,
 		Description:   fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
-		ReferenceID:   &refID,
-		ReferenceType: &refType,
-		Lines:         lines,
+		TotalAmount:   si.Amount,
+		SubTotal:      si.SubTotal,
+		TaxTotal:      si.TaxAmount,
+		DepositTotal:  si.DownPaymentAmount,
+		OtherTotal:    si.DeliveryCost + si.OtherCost,
+		DescriptionArgs: []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
 	}
 
-	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
-		"trace_key":      traceKey,
-		"module":         "purchase_supplier_invoice",
-		"reference_type": refType,
-		"reference_id":   refID,
-		"line_count":     len(lines),
-		"actor_id":       actorID,
-	})
+	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate supplier invoice journal: %w", err)
+	}
+
+	// Double-check balance
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated supplier invoice journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
+	}
 
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
-		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
-			"trace_key": traceKey,
-			"module":    "purchase_supplier_invoice",
-			"error":     err.Error(),
-		})
-		return err
+		return fmt.Errorf("failed to post supplier invoice journal: %w", err)
 	}
 
-	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
-		"trace_key": traceKey,
-		"module":    "purchase_supplier_invoice",
+	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSupplierInvoice, si.ID)
+	return nil
+}
+
+func (uc *supplierInvoiceUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.SupplierInvoiceDetailResponse, error) {
+	return uc.reverse(ctx, id, reason)
+}
+
+func (uc *supplierInvoiceUsecase) Reverse(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	return uc.reverse(ctx, id, "Manual reversal")
+}
+
+func (uc *supplierInvoiceUsecase) reverse(ctx context.Context, id string, reason string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	var revertedID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var si models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&si, "id = ?", id).Error; err != nil {
+			return err
+		}
+
+		if si.Type != models.SupplierInvoiceTypeNormal {
+			return ErrSupplierInvoiceNotFound
+		}
+
+		// Only Unpaid, Partial, or Paid (recognized) invoices can be reversed.
+		// Pending/WaitingPayment too.
+		isRecognized := si.Status == models.SupplierInvoiceStatusUnpaid ||
+			si.Status == models.SupplierInvoiceStatusPartial ||
+			si.Status == models.SupplierInvoiceStatusPaid ||
+			si.Status == models.SupplierInvoiceStatusWaitingPayment
+
+		if !isRecognized {
+			return fmt.Errorf("only recognized invoices can be reversed (current status: %s)", si.Status)
+		}
+
+		now := apptime.Now()
+		if err := tx.Model(&si).Updates(map[string]interface{}{
+			"status":       models.SupplierInvoiceStatusReversed,
+			"cancelled_at": &now, // Keep CancelledAt for generic time tracking or we could add ReversedAt
+			"updated_at":   now,
+		}).Error; err != nil {
+			return err
+		}
+
+		// Find the journal for this invoice
+		var journal financeModels.JournalEntry
+		refType := reference.RefTypeSupplierInvoice
+		err := tx.Where("reference_type = ? AND reference_id = ?", refType, si.ID).
+			Where("status = ?", financeModels.JournalStatusPosted).
+			First(&journal).Error
+
+		if err == nil {
+			// Trigger journal reversal
+			txCtx := database.WithTx(ctx, tx)
+			// Exempt from closing guard if we are doing a reversal
+			revCtx := finUsecase.WithReversalFlag(txCtx)
+
+			if _, err := uc.journalUC.ReverseWithReason(revCtx, journal.ID, reason); err != nil {
+				return fmt.Errorf("failed to reverse journal: %w", err)
+			}
+		} else if err != gorm.ErrRecordNotFound {
+			return err
+		}
+
+		// Sync Goods Receipt status (to release the quantity for new invoicing)
+		if si.GoodsReceiptID != nil {
+			if err := uc.syncGoodsReceiptStatus(tx, *si.GoodsReceiptID); err != nil {
+				return err
+			}
+		}
+
+		revertedID = si.ID
+		return nil
 	})
 
-	return nil
+	if err != nil {
+		return nil, err
+	}
+
+	out, _ := uc.repo.GetByID(ctx, revertedID)
+	uc.auditService.Log(ctx, "supplier_invoice.reverse", id, map[string]interface{}{"after": out})
+	return uc.mapper.ToDetailResponse(out), nil
 }
 
 func (uc *supplierInvoiceUsecase) TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error {

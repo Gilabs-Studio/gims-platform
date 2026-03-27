@@ -6,6 +6,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -18,8 +19,8 @@ import (
 
 // SalesDeps holds exported Sales usecases for cross-module consumption
 type SalesDeps struct {
-	QuotationUC usecase.SalesQuotationUsecase
-	OrderUC     usecase.SalesOrderUsecase
+	QuotationUC    usecase.SalesQuotationUsecase
+	OrderUC        usecase.SalesOrderUsecase
 	YearlyTargetUC usecase.YearlyTargetUsecase
 }
 
@@ -32,6 +33,7 @@ type SalesRouteDeps struct {
 	InventoryUC inventoryUsecase.InventoryUsecase
 	JournalUC   finUsecase.JournalEntryUsecase
 	CoaUC       finUsecase.ChartOfAccountUsecase
+	Engine      accounting.AccountingEngine
 }
 
 // RegisterRoutes registers all sales routes and returns shared dependencies
@@ -59,15 +61,15 @@ func RegisterRoutes(
 	quotationUC := usecase.NewSalesQuotationUsecase(db, quotationRepo, productRepo, auditService)
 	orderUC := usecase.NewSalesOrderUsecase(db, orderRepo, deliveryRepo, quotationRepo, productRepo, deps.InventoryUC, employeeRepo)
 	deliveryUC := usecase.NewDeliveryOrderUsecase(db, deliveryRepo, orderRepo, productRepo, deps.InventoryUC, auditService)
-	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, deps.JournalUC, deps.CoaUC, auditService)
-	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService, deps.JournalUC, deps.CoaUC)
+	invoiceUC := usecase.NewCustomerInvoiceUsecase(db, invoiceRepo, productRepo, orderRepo, deps.JournalUC, deps.CoaUC, auditService, deps.Engine)
+	invoiceDpUC := usecase.NewCustomerInvoiceDownPaymentUsecase(db, invoiceRepo, orderRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine)
 	visitUC := usecase.NewSalesVisitUsecase(visitRepo)
 	yearlyTargetUC := usecase.NewYearlyTargetUsecase(db, yearlyTargetRepo, auditService)
-	salesReturnUC := usecase.NewSalesReturnUsecase(db, salesReturnRepo, deps.InventoryUC, auditService)
+	salesReturnUC := usecase.NewSalesReturnUsecase(db, salesReturnRepo, deps.InventoryUC, deps.JournalUC, deps.CoaUC, auditService, deps.Engine)
 
 	// Sales Payment
 	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
-	salesPaymentUC := usecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditService, deps.JournalUC, deps.CoaUC)
+	salesPaymentUC := usecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine)
 
 	// Receivables Recap
 	recapRepo := salesRepos.NewReceivablesRecapRepository(db)
@@ -108,8 +110,8 @@ func RegisterRoutes(
 	router.RegisterReceivablesRecapRoutes(salesGroup, recapHandler)
 
 	return &SalesDeps{
-		QuotationUC: quotationUC,
-		OrderUC:     orderUC,
+		QuotationUC:    quotationUC,
+		OrderUC:        orderUC,
 		YearlyTargetUC: yearlyTargetUC,
 	}
 }

@@ -21,6 +21,8 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "sales-list", params] as const,
   purchaseList: (params?: ListJournalEntriesParams) =>
     [...financeJournalKeys.all, "purchase-list", params] as const,
+  inventoryList: (params?: ListJournalEntriesParams) =>
+    [...financeJournalKeys.all, "inventory-list", params] as const,
   adjustmentList: (params?: ListJournalEntriesParams) =>
     [...financeJournalKeys.all, "adjustment-list", params] as const,
   valuationList: (params?: ListJournalEntriesParams) =>
@@ -56,6 +58,13 @@ export function useFinancePurchaseJournals(params?: ListJournalEntriesParams) {
   return useQuery({
     queryKey: financeJournalKeys.purchaseList(params),
     queryFn: () => financeJournalsService.listPurchase(params),
+  });
+}
+
+export function useFinanceInventoryJournals(params?: ListJournalEntriesParams) {
+  return useQuery({
+    queryKey: financeJournalKeys.inventoryList(params),
+    queryFn: () => financeJournalsService.listInventory(params),
   });
 }
 

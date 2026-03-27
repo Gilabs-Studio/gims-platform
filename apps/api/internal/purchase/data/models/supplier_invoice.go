@@ -29,6 +29,7 @@ const (
 	SupplierInvoiceStatusWaitingPayment SupplierInvoiceStatus = "WAITING_PAYMENT"
 	SupplierInvoiceStatusPartial        SupplierInvoiceStatus = "PARTIAL"
 	SupplierInvoiceStatusPaid           SupplierInvoiceStatus = "PAID"
+	SupplierInvoiceStatusReversed       SupplierInvoiceStatus = "REVERSED"
 )
 
 type SupplierInvoice struct {

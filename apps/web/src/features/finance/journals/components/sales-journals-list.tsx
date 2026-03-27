@@ -8,12 +8,14 @@ import type { UnifiedJournalRow } from "./journal-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import { useFinanceSalesJournals } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { toLocalDateString } from "@/lib/utils";
 
 export function SalesJournalsList() {
   const t = useTranslations("financeJournals");
@@ -30,8 +32,8 @@ export function SalesJournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
-  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
+  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
 
   const canExport = useUserPermission("sales_journal.export");
 
@@ -51,7 +53,7 @@ export function SalesJournalsList() {
   const mappedItems = items.map(mapJournalToUnifiedRow);
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (

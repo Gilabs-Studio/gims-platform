@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
@@ -37,6 +38,10 @@ func NewPurchasePaymentRepository(db *gorm.DB) PurchasePaymentRepository {
 	return &purchasePaymentRepository{db: db}
 }
 
+func (r *purchasePaymentRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 var purchasePaymentAllowedSort = map[string]string{
 	"created_at":     "purchase_payments.created_at",
 	"updated_at":     "purchase_payments.updated_at",
@@ -51,7 +56,7 @@ func (r *purchasePaymentRepository) List(ctx context.Context, params PurchasePay
 	var items []*models.PurchasePayment
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.PurchasePayment{}).
+	q := r.getDB(ctx).Model(&models.PurchasePayment{}).
 		Preload("SupplierInvoice").
 		Preload("BankAccount")
 
@@ -110,7 +115,7 @@ func (r *purchasePaymentRepository) List(ctx context.Context, params PurchasePay
 
 func (r *purchasePaymentRepository) GetByID(ctx context.Context, id string) (*models.PurchasePayment, error) {
 	var p models.PurchasePayment
-	if err := r.db.WithContext(ctx).
+	if err := r.getDB(ctx).
 		Preload("SupplierInvoice").
 		Preload("BankAccount").
 		First(&p, "id = ?", id).Error; err != nil {
@@ -120,9 +125,9 @@ func (r *purchasePaymentRepository) GetByID(ctx context.Context, id string) (*mo
 }
 
 func (r *purchasePaymentRepository) Create(ctx context.Context, p *models.PurchasePayment) error {
-	return r.db.WithContext(ctx).Create(p).Error
+	return r.getDB(ctx).Create(p).Error
 }
 
 func (r *purchasePaymentRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.PurchasePayment{}, "id = ?", id).Error
+	return r.getDB(ctx).Delete(&models.PurchasePayment{}, "id = ?", id).Error
 }

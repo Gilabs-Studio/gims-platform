@@ -8,12 +8,14 @@ import type { UnifiedJournalRow } from "./journal-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
-import { useFinancePurchaseJournals } from "../hooks/use-finance-journals";
+import { useFinanceInventoryJournals } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { toLocalDateString } from "@/lib/utils";
 
 export function InventoryJournalsList() {
   const t = useTranslations("financeJournals");
@@ -30,12 +32,12 @@ export function InventoryJournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
-  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
+  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
 
-  const canExport = useUserPermission("purchase_journal.export");
+  const canExport = useUserPermission("journal.export");
 
-  const { data, isLoading, isError } = useFinancePurchaseJournals({
+  const { data, isLoading, isError } = useFinanceInventoryJournals({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
@@ -51,15 +53,15 @@ export function InventoryJournalsList() {
   const mappedItems = items.map(mapJournalToUnifiedRow);
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("purchaseTitle")}</h1>
-          <p className="text-sm text-muted-foreground">{t("purchaseDescription")}</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("inventoryTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("inventoryDescription")}</p>
         </div>
 
         {canExport && (

@@ -70,7 +70,7 @@ export const invoiceEn = {
     // Status
     status: {
       draft: "Draft",
-      sent: "Submitted",
+      submitted: "Submitted",
       pending: "Submitted",
       approved: "Approved",
       rejected: "Rejected",

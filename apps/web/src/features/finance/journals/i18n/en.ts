@@ -7,6 +7,9 @@ export const financeJournalsEn = {
   purchaseTitle: "Purchase Journal",
   purchaseDescription:
     "Read-only journals generated from purchase transactions (Goods Receipt, Supplier Invoice, Purchase Payment).",
+  inventoryTitle: "Inventory Journal",
+  inventoryDescription:
+    "Inventory impact journals from stock movement, goods receipt, and valuation adjustments.",
   adjustmentTitle: "Adjustment Journal",
   adjustmentDescription:
     "Manual correction journals controlled by Finance. Supports create, post, and reverse.",
@@ -69,6 +72,7 @@ export const financeJournalsEn = {
     select: "Select...",
   },
   runValuation: "Run Valuation",
+  openJournal: "Open Journal",
   runValuationConfirm:
     "Are you sure you want to run the valuation process? This will generate and post adjustment journals automatically.",
   runValuationFormTitle: "Configure Valuation Run",

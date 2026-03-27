@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -43,8 +44,8 @@ type CustomerInvoiceDownPaymentUsecase interface {
 	Delete(ctx context.Context, id string) error
 	Pending(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
 	Approve(ctx context.Context, id string) (*dto.CustomerInvoiceDownPaymentDetailResponse, error)
-	// Note: Submit/Reject/Cancel not exposed for down payment flow
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
+	TriggerJournalForInvoiceDP(ctx context.Context, invoice *models.CustomerInvoice) error
 }
 
 type customerInvoiceDownPaymentUsecase struct {
@@ -54,10 +55,11 @@ type customerInvoiceDownPaymentUsecase struct {
 	auditService audit.AuditService
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
+	engine       accounting.AccountingEngine
 }
 
-func NewCustomerInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.CustomerInvoiceRepository, soRepo repositories.SalesOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) CustomerInvoiceDownPaymentUsecase {
-	return &customerInvoiceDownPaymentUsecase{db: db, repo: repo, soRepo: soRepo, auditService: auditService, journalUC: journalUC, coaUC: coaUC}
+func NewCustomerInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.CustomerInvoiceRepository, soRepo repositories.SalesOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine) CustomerInvoiceDownPaymentUsecase {
+	return &customerInvoiceDownPaymentUsecase{db: db, repo: repo, soRepo: soRepo, auditService: auditService, journalUC: journalUC, coaUC: coaUC, engine: engine}
 }
 
 func (uc *customerInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.CustomerInvoiceDownPaymentAddResponse, error) {
@@ -387,8 +389,12 @@ func shouldTriggerSalesInvoiceDPJournal(previousStatus, currentStatus models.Cus
 	return previousStatus != models.CustomerInvoiceStatusUnpaid
 }
 
+func (uc *customerInvoiceDownPaymentUsecase) TriggerJournalForInvoiceDP(ctx context.Context, invoice *models.CustomerInvoice) error {
+	return uc.triggerSalesInvoiceDPJournal(ctx, invoice)
+}
+
 func (uc *customerInvoiceDownPaymentUsecase) triggerSalesInvoiceDPJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
-	if invoice == nil || uc.journalUC == nil || uc.coaUC == nil {
+	if invoice == nil || uc.journalUC == nil || uc.engine == nil {
 		return nil
 	}
 
@@ -396,69 +402,36 @@ func (uc *customerInvoiceDownPaymentUsecase) triggerSalesInvoiceDPJournal(ctx co
 		return nil
 	}
 
-	receivableAccount, err := uc.coaUC.GetByCode(ctx, "11300")
+	data := accounting.TransactionData{
+		ReferenceType:   "SALES_INVOICE_DP",
+		ReferenceID:     invoice.ID,
+		EntryDate:       invoice.InvoiceDate.Format(customerInvoiceDPDateFormat),
+		Description:     fmt.Sprintf("Customer DP Invoice %s (%s)", safeInvoiceNumber(invoice.InvoiceNumber), invoice.Code),
+		TotalAmount:     invoice.Amount,
+		DescriptionArgs: []interface{}{safeInvoiceNumber(invoice.InvoiceNumber), invoice.Code},
+	}
+
+	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoiceDP, data)
 	if err != nil {
-		return fmt.Errorf("trade receivables account lookup failed: %w", err)
-	}
-	salesAdvanceAccount, err := uc.coaUC.GetByCode(ctx, "21200")
-	if err != nil {
-		return fmt.Errorf("sales advance account lookup failed: %w", err)
+		return fmt.Errorf("failed to generate customer invoice DP journal: %w", err)
 	}
 
-	lines := []finDto.JournalLineRequest{
-		{
-			ChartOfAccountID: receivableAccount.ID,
-			Debit:            invoice.Amount,
-			Credit:           0,
-			Memo:             fmt.Sprintf("Trade receivable DP %s", invoice.Code),
-		},
-		{
-			ChartOfAccountID: salesAdvanceAccount.ID,
-			Debit:            0,
-			Credit:           invoice.Amount,
-			Memo:             fmt.Sprintf("Sales advance DP %s", invoice.Code),
-		},
+	// Balance check
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
 	}
-
-	refType := "SALES_INVOICE_DP"
-	refID := invoice.ID
-	traceKey := refType + ":" + refID
-	actorID, _ := ctx.Value("user_id").(string)
-	actorID = strings.TrimSpace(actorID)
-
-	req := &finDto.CreateJournalEntryRequest{
-		EntryDate:         invoice.InvoiceDate.Format(customerInvoiceDPDateFormat),
-		Description:       fmt.Sprintf("Customer Down Payment Invoice %s (%s)", safeInvoiceNumber(invoice.InvoiceNumber), invoice.Code),
-		ReferenceType:     &refType,
-		ReferenceID:       &refID,
-		Lines:             lines,
-		IsSystemGenerated: true,
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated customer invoice DP journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
 	}
-
-	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
-		"trace_key":      traceKey,
-		"module":         "sales_customer_invoice_dp",
-		"reference_type": refType,
-		"reference_id":   refID,
-		"line_count":     len(lines),
-		"actor_id":       actorID,
-	})
 
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
-		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
-			"trace_key": traceKey,
-			"module":    "sales_customer_invoice_dp",
-			"error":     err.Error(),
-		})
-		return err
+		return fmt.Errorf("failed to post customer invoice DP journal: %w", err)
 	}
 
-	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
-		"trace_key": traceKey,
-		"module":    "sales_customer_invoice_dp",
-	})
-
+	log.Printf("journal_observability event=trigger.success module=sales_customer_invoice_dp reference_id=%s", invoice.ID)
 	return nil
 }
 

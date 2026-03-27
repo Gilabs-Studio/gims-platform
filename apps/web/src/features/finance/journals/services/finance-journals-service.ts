@@ -48,6 +48,16 @@ export const financeJournalsService = {
     return response.data;
   },
 
+  listInventory: async (
+    params?: ListJournalEntriesParams,
+  ): Promise<ApiResponse<JournalEntry[]>> => {
+    const response = await apiClient.get<ApiResponse<JournalEntry[]>>(
+      `${BASE_URL}/inventory`,
+      { params },
+    );
+    return response.data;
+  },
+
   listAdjustment: async (
     params?: ListJournalEntriesParams,
   ): Promise<ApiResponse<JournalEntry[]>> => {

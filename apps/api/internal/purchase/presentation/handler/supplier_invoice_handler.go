@@ -364,6 +364,29 @@ func (h *SupplierInvoiceHandler) Pending(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Reverse handles POST /purchase/supplier-invoices/:id/reverse
+func (h *SupplierInvoiceHandler) Reverse(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reverse(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /purchase/supplier-invoices/:id/audit-trail
 func (h *SupplierInvoiceHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")

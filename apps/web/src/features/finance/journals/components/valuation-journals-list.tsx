@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
+import { Link } from "@/i18n/routing";
 
 import { Badge } from "@/components/ui/badge";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -48,8 +49,11 @@ import {
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { toLocalDateString } from "@/lib/utils";
 import type { RunValuationInput, ValuationType } from "../types";
 import type { UnifiedJournalRow } from "./journal-table";
+
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 function RunStatusBadge({ status }: { readonly status: string }) {
   const variants: Record<string, "success" | "secondary" | "destructive" | "outline"> = {
     completed: "success",
@@ -95,11 +99,12 @@ export function ValuationJournalsList() {
   });
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
-  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
+  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
 
   const canRun = useUserPermission("journal_valuation.run");
   const canExport = useUserPermission("journal_valuation.export");
+  const canOpenJournal = useUserPermission("journal.read");
   const runValuation = useRunFinanceValuationJournal();
 
   // Journal entries for the valuation domain
@@ -162,11 +167,7 @@ export function ValuationJournalsList() {
   };
 
   if (isError) {
-    return (
-      <div className="text-center py-8 text-destructive">
-        {t("toast.failed")}
-      </div>
-    );
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (
@@ -199,6 +200,7 @@ export function ValuationJournalsList() {
           )}
         </div>
       </div>
+
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
@@ -269,6 +271,14 @@ export function ValuationJournalsList() {
                       {formatCurrency(run.total_debit)}
                     </span>
                   )}
+                  {canOpenJournal && run.journal_entry_id ? (
+                    <Link
+                      href={`/finance/journals?open_journal=${run.journal_entry_id}`}
+                      className="text-primary hover:underline cursor-pointer"
+                    >
+                      {t("openJournal")}
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             ))}

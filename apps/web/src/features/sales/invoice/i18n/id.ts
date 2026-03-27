@@ -70,7 +70,7 @@ export const invoiceId = {
     // Status
     status: {
       draft: "Draft",
-      sent: "Diajukan",
+      submitted: "Diajukan",
       pending: "Diajukan",
       approved: "Disetujui",
       rejected: "Ditolak",

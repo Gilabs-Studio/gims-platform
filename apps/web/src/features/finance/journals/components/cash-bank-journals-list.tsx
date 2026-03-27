@@ -17,9 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toLocalDateString } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { UnifiedJournalRow } from "./journal-table";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import { useFinanceCashBankSubLedger } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
@@ -44,8 +45,8 @@ export function CashBankJournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
-  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
+  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
+  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
 
   const canExport = useUserPermission("cash_bank_journal.export");
 
@@ -67,7 +68,7 @@ export function CashBankJournalsList() {
   const mappedItems = items.map((item) => mapCashBankToUnifiedRow(item));
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (

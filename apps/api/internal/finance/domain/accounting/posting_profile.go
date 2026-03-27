@@ -34,6 +34,9 @@ type PostingRule struct {
 	// Possible values: "total", "line_amount", "item_total"
 	AmountSource string
 
+	// UseTransactionCOA if true, uses the COA ID provided in TransactionData.TransactionCOAID.
+	UseTransactionCOA bool
+
 	// MemoTemplate is the memo text template for this line.
 	MemoTemplate string
 }
@@ -182,6 +185,285 @@ var (
 				Side:          "dynamic", // determined at runtime based on net income sign
 				AmountSource:  "calculated",
 				MemoTemplate:  "Year-end closing transfer",
+			},
+		},
+	}
+
+	// ProfileSalesInvoice generates journal for customer invoices.
+	// Debit: Trade Receivables (coa.sales_receivable)
+	// Credit: Sales Revenue (coa.sales_revenue)
+	// Credit: VAT Out (coa.sales_vat_out) if applicable
+	ProfileSalesInvoice = PostingProfile{
+		ReferenceType:       reference.RefTypeSalesInvoice,
+		DescriptionTemplate: "Invoice %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.sales_receivable",
+				Side:          "debit",
+				AmountSource:  "net_total",
+				MemoTemplate:  "Trade Receivables from customer (net of DP)",
+			},
+			{
+				COASettingKey: "coa.sales_advance",
+				Side:          "debit",
+				AmountSource:  "deposit_total",
+				MemoTemplate:  "Applied Down Payment Settlement",
+			},
+			{
+				COASettingKey: "coa.sales_revenue",
+				Side:          "credit",
+				AmountSource:  "sub_total", // requires engine support for sub_total source
+				MemoTemplate:  "Sales Revenue from invoice items",
+			},
+			{
+				COASettingKey: "coa.sales_vat_out",
+				Side:          "credit",
+				AmountSource:  "tax_total",
+				MemoTemplate:  "VAT Output",
+			},
+			{
+				COASettingKey: "coa.sales_cogs",
+				Side:          "debit",
+				AmountSource:  "cogs_total",
+				MemoTemplate:  "COGS Recognition",
+			},
+			{
+				COASettingKey: "coa.sales_inventory",
+				Side:          "credit",
+				AmountSource:  "cogs_total",
+				MemoTemplate:  "Inventory Release",
+			},
+		},
+	}
+
+	// ProfileSupplierInvoice generates journal for supplier invoices.
+	// Debit: GR/IR (coa.gr_ir)
+	// Credit: Trade Payables (coa.purchase_payable)
+	ProfileSupplierInvoice = PostingProfile{
+		ReferenceType:       reference.RefTypeSupplierInvoice,
+		DescriptionTemplate: "Supplier Invoice %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.purchase_payable",
+				Side:          "credit",
+				AmountSource:  "net_total",
+				MemoTemplate:  "Trade Payables to supplier (net of DP)",
+			},
+			{
+				COASettingKey: "coa.purchase_advance",
+				Side:          "credit",
+				AmountSource:  "deposit_total",
+				MemoTemplate:  "Applied Supplier Advance Settlement",
+			},
+			{
+				COASettingKey: "coa.gr_ir",
+				Side:          "debit",
+				AmountSource:  "sub_total",
+				MemoTemplate:  "Clearing GR/IR for received goods",
+			},
+			{
+				COASettingKey: "coa.purchase_vat_in",
+				Side:          "debit",
+				AmountSource:  "tax_total",
+				MemoTemplate:  "VAT Input",
+			},
+			{
+				COASettingKey: "coa.purchase_expense",
+				Side:          "debit",
+				AmountSource:  "other_total",
+				MemoTemplate:  "Delivery/Other Costs",
+			},
+		},
+	}
+
+	// ProfileSalesPayment generates journal for regular customer payments.
+	ProfileSalesPayment = PostingProfile{
+		ReferenceType:       reference.RefTypeSalesPayment,
+		DescriptionTemplate: "Customer Payment %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.sales_receivable",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Payment for Regular Invoice",
+			},
+			{
+				UseTransactionCOA: true,
+				Side:              "debit",
+				AmountSource:      "total",
+				MemoTemplate:      "Inbound Payment to Bank/Cash",
+			},
+		},
+	}
+
+	// ProfileSalesPaymentDP generates journal for down payment payments.
+	ProfileSalesPaymentDP = PostingProfile{
+		ReferenceType:       reference.RefTypeSalesPayment,
+		DescriptionTemplate: "Customer Down Payment %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.sales_advance",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Customer Advance Payment",
+			},
+			{
+				UseTransactionCOA: true,
+				Side:              "debit",
+				AmountSource:      "total",
+				MemoTemplate:      "Inbound Payment to Bank/Cash",
+			},
+		},
+	}
+
+	// ProfileSalesInvoiceDP generates journal for customer down payment invoice approval.
+	ProfileSalesInvoiceDP = PostingProfile{
+		ReferenceType:       "SALES_INVOICE_DP",
+		DescriptionTemplate: "Customer DP Invoice %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.sales_receivable",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Trade Receivable DP",
+			},
+			{
+				COASettingKey: "coa.sales_advance",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Customer Advance Liability",
+			},
+		},
+	}
+
+	// ProfileSupplierInvoiceDP generates journal for supplier down payment invoice approval.
+	ProfileSupplierInvoiceDP = PostingProfile{
+		ReferenceType:       "SUPPLIER_INVOICE_DP",
+		DescriptionTemplate: "Supplier DP Invoice %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.purchase_payable",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Trade Payable DP",
+			},
+			{
+				COASettingKey: "coa.purchase_advance",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Supplier Advance Asset",
+			},
+		},
+	}
+
+	// ProfileSalesReturn generates journal for sales return processing.
+	ProfileSalesReturn = PostingProfile{
+		ReferenceType:       "SALES_RETURN",
+		DescriptionTemplate: "Sales Return %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.sales_receivable",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "A/R Adjustment for Return",
+			},
+			{
+				COASettingKey: "coa.sales_return",
+				Side:          "debit",
+				AmountSource:  "sub_total",
+				MemoTemplate:  "Sales Return Recognition",
+			},
+			{
+				COASettingKey: "coa.sales_vat_out",
+				Side:          "debit",
+				AmountSource:  "tax_total",
+				MemoTemplate:  "VAT Out Reversal for Return",
+			},
+		},
+	}
+
+	// ProfilePurchaseReturn generates journal for purchase return processing.
+	ProfilePurchaseReturn = PostingProfile{
+		ReferenceType:       "PURCHASE_RETURN",
+		DescriptionTemplate: "Purchase Return %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.purchase_payable",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "A/P Adjustment for Return",
+			},
+			{
+				COASettingKey: "coa.purchase_return",
+				Side:          "credit",
+				AmountSource:  "sub_total",
+				MemoTemplate:  "Purchase Return Recognition",
+			},
+			{
+				COASettingKey: "coa.purchase_vat_in",
+				Side:          "credit",
+				AmountSource:  "tax_total",
+				MemoTemplate:  "VAT In Reversal for Return",
+			},
+		},
+	}
+
+	// ProfilePurchasePayment generates journal for regular supplier payments.
+	ProfilePurchasePayment = PostingProfile{
+		ReferenceType:       "PURCHASE_PAYMENT",
+		DescriptionTemplate: "Supplier Payment %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.purchase_payable",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Payment for Regular Invoice",
+			},
+			{
+				COASource:    "bank_account",
+				Side:         "credit",
+				AmountSource: "total",
+				MemoTemplate: "Outbound Payment from Bank/Cash",
+			},
+		},
+	}
+
+	// ProfilePurchasePaymentDP generates journal for supplier down payments.
+	ProfilePurchasePaymentDP = PostingProfile{
+		ReferenceType:       "PURCHASE_PAYMENT_DP",
+		DescriptionTemplate: "Supplier Down Payment %s: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.purchase_advance",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Supplier Advance Payment",
+			},
+			{
+				COASource:    "bank_account",
+				Side:         "credit",
+				AmountSource: "total",
+				MemoTemplate: "Outbound Payment from Bank/Cash",
+			},
+		},
+	}
+
+	// ProfileGoodsReceipt generates accrual journal when goods are received.
+	ProfileGoodsReceipt = PostingProfile{
+		ReferenceType:       "GOODS_RECEIPT",
+		DescriptionTemplate: "Stock Accrual for GR %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.inventory",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory Increase from GR",
+			},
+			{
+				COASettingKey: "coa.gr_ir",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Accrued Liability (GR/IR)",
 			},
 		},
 	}

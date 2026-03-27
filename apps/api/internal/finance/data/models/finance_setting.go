@@ -65,4 +65,46 @@ const (
 
 	// SettingCOAOtherExpense maps to the general other expense account for extra costs.
 	SettingCOAOtherExpense = "coa.other_expense"
+
+	// SettingCOASalesReceivable maps to the trade receivables account (Piutang Usaha).
+	SettingCOASalesReceivable = "coa.sales_receivable"
+
+	// SettingCOASalesRevenue maps to the main sales revenue account (Pendapatan Penjualan).
+	SettingCOASalesRevenue = "coa.sales_revenue"
+
+	// SettingCOASalesVATOut maps to the VAT Output liability account (PPN Keluaran).
+	SettingCOASalesVATOut = "coa.sales_vat_out"
+
+	// SettingCOASalesAdvance maps to the customer advance liability account (Uang Muka Penjualan).
+	SettingCOASalesAdvance = "coa.sales_advance"
+
+	// SettingCOAPurchasePayable maps to the trade payables liability account (Hutang Usaha).
+	SettingCOAPurchasePayable = "coa.purchase_payable"
+
+	// SettingCOAPurchaseGRIR maps to the goods received not invoiced clearing account (Hutang Belum Difakturkan).
+	SettingCOAPurchaseGRIR = "coa.purchase_gr_ir"
+
+	// SettingCOAPurchaseVATIn maps to the VAT Input asset account (PPN Masukan).
+	SettingCOAPurchaseVATIn = "coa.purchase_vat_in"
+
+	// SettingCOASalesCOGS maps to the cost of goods sold expense account.
+	SettingCOASalesCOGS = "coa.sales_cogs"
+
+	// SettingCOASalesInventory maps to the merchandise inventory asset account.
+	SettingCOASalesInventory = "coa.sales_inventory"
+
+	// SettingCOAPurchaseExpense maps to the general purchase expense account (delivery/misc).
+	SettingCOAPurchaseExpense = "coa.purchase_expense"
+
+	// SettingCOAPurchaseAdvance maps to the supplier advance asset account (Prepaid).
+	SettingCOAPurchaseAdvance = "coa.purchase_advance"
+
+	// SettingCOASalesReturn maps to the sales return account.
+	SettingCOASalesReturn = "coa.sales_return"
+
+	// SettingCOAPurchaseReturn maps to the purchase return account.
+	SettingCOAPurchaseReturn = "coa.purchase_return"
+
+	// SettingCOAInventory maps to the general inventory asset account.
+	SettingCOAInventory = "coa.inventory"
 )

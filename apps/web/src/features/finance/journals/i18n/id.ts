@@ -7,6 +7,9 @@ export const financeJournalsId = {
   purchaseTitle: "Jurnal Pembelian",
   purchaseDescription:
     "Jurnal read-only dari transaksi pembelian (Penerimaan Barang, Faktur Supplier, Pembayaran Pembelian).",
+  inventoryTitle: "Jurnal Inventory",
+  inventoryDescription:
+    "Jurnal dampak inventory dari pergerakan stok, penerimaan barang, dan penyesuaian valuasi.",
   adjustmentTitle: "Jurnal Penyesuaian",
   adjustmentDescription:
     "Jurnal koreksi manual yang dikontrol oleh Finance. Mendukung buat, posting, dan pembalikan.",
@@ -69,6 +72,7 @@ export const financeJournalsId = {
     select: "Pilih...",
   },
   runValuation: "Jalankan Valuasi",
+  openJournal: "Buka Jurnal",
   runValuationConfirm:
     "Apakah Anda yakin ingin menjalankan proses valuasi? Ini akan membuat dan memposting jurnal penyesuaian secara otomatis.",
   common: {

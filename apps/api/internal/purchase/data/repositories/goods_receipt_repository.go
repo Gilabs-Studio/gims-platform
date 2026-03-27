@@ -38,11 +38,15 @@ func NewGoodsReceiptRepository(db *gorm.DB) GoodsReceiptRepository {
 	return &goodsReceiptRepository{db: db}
 }
 
+func (r *goodsReceiptRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptListParams) ([]*models.GoodsReceipt, int64, error) {
 	var results []*models.GoodsReceipt
 	var total int64
 
-	base := r.db.WithContext(ctx).Model(&models.GoodsReceipt{})
+	base := r.getDB(ctx).Model(&models.GoodsReceipt{})
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
@@ -58,7 +62,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 		return nil, 0, err
 	}
 
-	query := r.db.WithContext(ctx).Model(&models.GoodsReceipt{})
+	query := r.getDB(ctx).Model(&models.GoodsReceipt{})
 
 	// Apply scope-based data filtering (must match count query scope)
 	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
@@ -98,7 +102,7 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 
 func (r *goodsReceiptRepository) GetByID(ctx context.Context, id string) (*models.GoodsReceipt, error) {
 	var gr models.GoodsReceipt
-	err := r.db.WithContext(ctx).
+	err := r.getDB(ctx).
 		Model(&models.GoodsReceipt{}).
 		Preload("Supplier").
 		Preload("Warehouse").
@@ -119,7 +123,7 @@ func (r *goodsReceiptRepository) Create(ctx context.Context, gr *models.GoodsRec
 		return nil, fmt.Errorf("goods receipt is nil")
 	}
 
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		code, err := r.getNextCodeLocked(ctx, tx, "GR")
 		if err != nil {
 			return err
@@ -152,7 +156,7 @@ func (r *goodsReceiptRepository) Update(ctx context.Context, gr *models.GoodsRec
 		return nil, fmt.Errorf("goods receipt is nil")
 	}
 
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing models.GoodsReceipt
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -191,7 +195,7 @@ func (r *goodsReceiptRepository) Update(ctx context.Context, gr *models.GoodsRec
 }
 
 func (r *goodsReceiptRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("goods_receipt_id = ?", id).Delete(&models.GoodsReceiptItem{}).Error; err != nil {
 			return err
 		}

@@ -97,6 +97,14 @@ func SeedAll() error {
 		return err
 	}
 
+	if err := SeedFinanceSettings(); err != nil {
+		return err
+	}
+
+	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
 	// Purchase Requisition seeder (Sprint 8)
 	if err := SeedPurchaseRequisition(); err != nil {
 		return err
@@ -154,12 +162,6 @@ func SeedAll() error {
 	if err := SeedIntegrationFlow(); err != nil {
 		return err
 	}
-
-	// Reconciliate journal entries after transactional seeders
-	if err := SeedJournalReconciliation(); err != nil {
-		return err
-	}
-
 	// Sales/Purchase Returns seeder (depends on invoices and goods receipts)
 	if err := SeedReturns(); err != nil {
 		return err
@@ -285,6 +287,12 @@ func SeedAll() error {
 		return err
 	}
 
+	// Final Journal Reconciliation: ensures all transactional data (Sales, Purchase, Inventory, Returns)
+	// has corresponding journal entries.
+	if err := SeedJournalReconciliation(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -368,6 +376,14 @@ func seedMasterData() error {
 	}
 
 	if err := SeedCustomers(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceSettings(); err != nil {
+		return err
+	}
+
+	if err := SeedSystemAccountMappings(); err != nil {
 		return err
 	}
 

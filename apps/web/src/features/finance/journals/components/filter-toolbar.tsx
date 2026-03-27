@@ -1,37 +1,32 @@
 import type { ReactNode } from "react";
 import { Search } from "lucide-react";
+import { DateRange } from "react-day-picker";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 type FilterToolbarProps = {
   readonly search?: string;
-  readonly startDate?: string;
-  readonly endDate?: string;
+  readonly dateRange?: DateRange;
+  readonly dateRangeLabel?: string;
   readonly searchPlaceholder?: string;
-  readonly startDateLabel?: string;
-  readonly endDateLabel?: string;
   readonly onSearchChange?: (value: string) => void;
-  readonly onStartDateChange?: (value: string) => void;
-  readonly onEndDateChange?: (value: string) => void;
+  readonly onDateRangeChange?: (value: DateRange | undefined) => void;
   readonly children?: ReactNode;
 };
 
 export function FilterToolbar({
   search,
-  startDate,
-  endDate,
+  dateRange,
+  dateRangeLabel,
   searchPlaceholder,
-  startDateLabel,
-  endDateLabel,
   onSearchChange,
-  onStartDateChange,
-  onEndDateChange,
+  onDateRangeChange,
   children,
 }: FilterToolbarProps) {
   const hasSearch = typeof search === "string" && !!searchPlaceholder && !!onSearchChange;
-  const hasStartDate = typeof startDate === "string" && !!startDateLabel && !!onStartDateChange;
-  const hasEndDate = typeof endDate === "string" && !!endDateLabel && !!onEndDateChange;
+  const hasDateRange = !!dateRangeLabel && !!onDateRangeChange;
 
   return (
     <div className="flex flex-col sm:flex-row items-end gap-4">
@@ -48,24 +43,12 @@ export function FilterToolbar({
         </div>
       ) : null}
 
-      {hasStartDate ? (
+      {hasDateRange ? (
         <div className="w-full sm:w-auto space-y-2">
-          <Label>{startDateLabel}</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-          />
-        </div>
-      ) : null}
-
-      {hasEndDate ? (
-        <div className="w-full sm:w-auto space-y-2">
-          <Label>{endDateLabel}</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+          <Label>{dateRangeLabel}</Label>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateChange={onDateRangeChange}
           />
         </div>
       ) : null}

@@ -361,21 +361,13 @@ func (uc *cashBankJournalUsecase) List(ctx context.Context, req *dto.ListCashBan
 		perPage = 100
 	}
 
-	var startDate *time.Time
-	if req.StartDate != nil && strings.TrimSpace(*req.StartDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.StartDate))
-		if err != nil {
-			return nil, 0, errors.New("invalid start_date")
-		}
-		startDate = &parsed
+	startDate, err := parseDateOptional(req.StartDate)
+	if err != nil {
+		return nil, 0, err
 	}
-	var endDate *time.Time
-	if req.EndDate != nil && strings.TrimSpace(*req.EndDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.EndDate))
-		if err != nil {
-			return nil, 0, errors.New("invalid end_date")
-		}
-		endDate = &parsed
+	endDate, err := parseEndDateOptional(req.EndDate)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	items, total, err := uc.repo.List(ctx, repositories.CashBankJournalListParams{

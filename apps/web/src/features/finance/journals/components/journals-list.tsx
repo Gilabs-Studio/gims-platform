@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -16,6 +16,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import type { JournalEntry } from "../types";
 import {
@@ -30,9 +31,19 @@ import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journ
 import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
+import { toLocalDateString } from "@/lib/utils";
 
 function toApiDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return toLocalDateString(date);
+}
+
+function getInitialOpenJournalFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_journal");
 }
 
 export function JournalsList() {
@@ -62,7 +73,7 @@ export function JournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(getInitialOpenJournalFromURL);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
@@ -88,8 +99,26 @@ export function JournalsList() {
   const postMutation = usePostFinanceJournal();
   const reverseMutation = useReverseFinanceJournal();
 
+  useEffect(() => {
+    if (selectedId) {
+      setViewOpen(true);
+    }
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_journal")) return;
+
+    searchParams.delete("open_journal");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
+
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return <FinanceListErrorState message={tCommon("error")} />;
   }
 
   return (
@@ -127,6 +156,7 @@ export function JournalsList() {
           </div>
         )}
       </div>
+
 
       <div className="flex flex-col sm:flex-row items-end gap-4">
         <div className="relative flex-1 max-w-sm">

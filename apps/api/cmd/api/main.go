@@ -341,7 +341,7 @@ func main() {
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Finance module (Sprint 10 - COA & Journals)
-		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, auditService, permissionService)
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
@@ -352,6 +352,7 @@ func main() {
 			InventoryUC: invUC,
 			JournalUC:   financeDeps.JournalUC,
 			CoaUC:       financeDeps.CoaUC,
+			Engine:      financeDeps.Engine,
 		})
 
 		// HRD module (Sprint 13 - Attendance)
@@ -378,7 +379,7 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
+		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
 
 		// AI Assistant module
 		cerebrasClient := cerebras.NewClient(

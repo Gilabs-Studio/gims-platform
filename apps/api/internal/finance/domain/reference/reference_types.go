@@ -9,12 +9,14 @@ const (
 	RefTypeSalesInvoice   = "SALES_INVOICE"
 	RefTypeSalesInvoiceDP = "SALES_INVOICE_DP"
 	RefTypeSalesPayment   = "SALES_PAYMENT"
+	RefTypeSalesReturn    = "SALES_RETURN"
 
 	// ---- Purchase ----
 	RefTypeGoodsReceipt      = "GOODS_RECEIPT"
 	RefTypeSupplierInvoice   = "SUPPLIER_INVOICE"
 	RefTypeSupplierInvoiceDP = "SUPPLIER_INVOICE_DP"
 	RefTypePurchasePayment   = "PURCHASE_PAYMENT"
+	RefTypePurchaseReturn    = "PURCHASE_RETURN"
 
 	// ---- Inventory ----
 	RefTypeStockOpname          = "STOCK_OPNAME"
@@ -66,9 +68,11 @@ var legacyAliases = map[string]string{
 	"SALES_INVOICE":         RefTypeSalesInvoice,
 	"SALES_INVOICE_DP":      RefTypeSalesInvoiceDP,
 	"SALES_PAYMENT":         RefTypeSalesPayment,
+	"SALES_RETURN":          RefTypeSalesReturn,
 	"SUPPLIER_INVOICE":      RefTypeSupplierInvoice,
 	"SUPPLIER_INVOICE_DP":   RefTypeSupplierInvoiceDP,
 	"PURCHASE_PAYMENT":      RefTypePurchasePayment,
+	"PURCHASE_RETURN":       RefTypePurchaseReturn,
 	"GOODS_RECEIPT":         RefTypeGoodsReceipt,
 	"DELIVERY_ORDER":        "DELIVERY_ORDER",
 	"SALES_ORDER":           "SALES_ORDER",

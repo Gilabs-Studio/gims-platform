@@ -20,20 +20,13 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
           {t("draft")}
         </Badge>
       );
-    case "sent":
+    case "submitted":
       return (
         <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
-            {t("sent")}
+          {t("submitted")}
         </Badge>
       );
-      case "submitted":
-        return (
-          <Badge variant="info" className={className}>
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("sent")}
-          </Badge>
-        );
       case "pending":
         return (
           <Badge variant="info" className={className}>

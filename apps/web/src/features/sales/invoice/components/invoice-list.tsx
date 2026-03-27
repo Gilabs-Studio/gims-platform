@@ -426,14 +426,14 @@ export function InvoiceList() {
                   )}
                   {canUpdate && status === "draft" && (
                     <DropdownMenuItem
-                      onClick={() => handleStatusChange(invoice.id, "sent")}
+                      onClick={() => handleStatusChange(invoice.id, "submitted")}
                       className="cursor-pointer text-primary focus:text-primary"
                     >
                       <Send className="h-4 w-4 mr-2" />
                       {t("actions.submit")}
                     </DropdownMenuItem>
                   )}
-                  {status === "sent" && (
+                  {status === "submitted" && (
                     <>
                       {canApprove && (
                         <DropdownMenuItem
@@ -541,7 +541,7 @@ export function InvoiceList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.pending")}</SelectItem>
+            <SelectItem value="submitted">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>

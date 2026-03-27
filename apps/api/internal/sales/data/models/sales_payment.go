@@ -16,6 +16,7 @@ type SalesPaymentMethod string
 const (
 	SalesPaymentStatusPending   SalesPaymentStatus = "PENDING"
 	SalesPaymentStatusConfirmed SalesPaymentStatus = "CONFIRMED"
+	SalesPaymentStatusReversed  SalesPaymentStatus = "REVERSED"
 )
 
 const (

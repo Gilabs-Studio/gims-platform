@@ -13,8 +13,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
-	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -45,6 +46,8 @@ type CustomerInvoiceUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceRequest) (*dto.CustomerInvoiceResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error)
+	Reverse(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error)
+	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error)
 	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
@@ -56,6 +59,8 @@ type customerInvoiceUsecase struct {
 	salesOrderRepo repositories.SalesOrderRepository
 	journalUC      finUsecase.JournalEntryUsecase
 	coaUC          finUsecase.ChartOfAccountUsecase
+	mappingUC      finUsecase.SystemAccountMappingUsecase // Deprecated: use engine instead
+	engine         accounting.AccountingEngine
 	auditService   audit.AuditService
 }
 
@@ -68,6 +73,7 @@ func NewCustomerInvoiceUsecase(
 	journalUC finUsecase.JournalEntryUsecase,
 	coaUC finUsecase.ChartOfAccountUsecase,
 	auditService audit.AuditService,
+	engine accounting.AccountingEngine,
 ) CustomerInvoiceUsecase {
 	return &customerInvoiceUsecase{
 		db:             db,
@@ -77,6 +83,7 @@ func NewCustomerInvoiceUsecase(
 		journalUC:      journalUC,
 		coaUC:          coaUC,
 		auditService:   auditService,
+		engine:         engine,
 	}
 }
 
@@ -611,6 +618,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 
 	// Validate status transition
 	if !isValidStatusTransition(invoice.Status, newStatus) {
+		log.Printf("[UpdateStatus] Invalid transition for invoice %s: %s -> %s", id, invoice.Status, newStatus)
 		return nil, ErrInvalidStatusTransition
 	}
 
@@ -622,27 +630,37 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		}
 	}
 
-	if err := uc.invoiceRepo.UpdateStatus(ctx, id, newStatus, req.PaidAmount, paymentAt, userID); err != nil {
-		return nil, err
-	}
+	var updatedInvoice *models.CustomerInvoice
+	err = uc.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	updatedInvoice, err := uc.invoiceRepo.FindByID(ctx, id)
+		if err := uc.invoiceRepo.UpdateStatus(txCtx, id, newStatus, req.PaidAmount, paymentAt, userID); err != nil {
+			return err
+		}
+
+		loaded, err := uc.invoiceRepo.FindByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+		updatedInvoice = loaded
+
+		if shouldTriggerSalesInvoiceJournal(previousStatus, newStatus, updatedInvoice.Type) {
+			triggerCtx := withActorContext(txCtx, userID, updatedInvoice.CreatedBy)
+			if err := uc.triggerSalesInvoiceJournal(triggerCtx, updatedInvoice); err != nil {
+				return fmt.Errorf("failed to trigger sales invoice journal: %w", err)
+			}
+		}
+
+		if shouldTriggerSalesInvoiceReversal(previousStatus, newStatus, updatedInvoice.Type) {
+			triggerCtx := withActorContext(txCtx, userID, updatedInvoice.CreatedBy)
+			if err := uc.triggerSalesInvoiceJournalReversal(triggerCtx, updatedInvoice); err != nil {
+				return fmt.Errorf("failed to reverse sales invoice journal: %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	if shouldTriggerSalesInvoiceJournal(invoice.Status, newStatus, updatedInvoice.Type) {
-		triggerCtx := withActorContext(ctx, userID, updatedInvoice.CreatedBy)
-		if err := uc.triggerSalesInvoiceJournal(triggerCtx, updatedInvoice); err != nil {
-			return nil, fmt.Errorf("failed to trigger sales invoice journal: %w", err)
-		}
-	}
-
-	if shouldTriggerSalesInvoiceReversal(invoice.Status, newStatus, updatedInvoice.Type) {
-		triggerCtx := withActorContext(ctx, userID, updatedInvoice.CreatedBy)
-		if err := uc.triggerSalesInvoiceJournalReversal(triggerCtx, updatedInvoice); err != nil {
-			return nil, fmt.Errorf("failed to reverse sales invoice journal: %w", err)
-		}
 	}
 
 	logSalesAudit(uc.auditService, ctx, "customer_invoice.status_change", id, map[string]interface{}{
@@ -669,6 +687,69 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
 }
 
+func (uc *customerInvoiceUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error) {
+	return uc.reverse(ctx, id, reason)
+}
+
+func (uc *customerInvoiceUsecase) Reverse(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error) {
+	return uc.reverse(ctx, id, "Manual reversal")
+}
+
+func (uc *customerInvoiceUsecase) reverse(ctx context.Context, id string, reason string) (*dto.CustomerInvoiceResponse, error) {
+	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, ErrCustomerInvoiceNotFound
+	}
+
+	previousStatus := invoice.Status
+	newStatus := models.CustomerInvoiceStatusReversed
+
+	if !isValidStatusTransition(previousStatus, newStatus) {
+		return nil, ErrInvalidStatusTransition
+	}
+
+	var updatedInvoice *models.CustomerInvoice
+	err = uc.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		now := time.Now()
+		if err := tx.Model(invoice).Updates(map[string]interface{}{
+			"status":       newStatus,
+			"cancelled_at": &now,
+			"updated_at":   now,
+		}).Error; err != nil {
+			return err
+		}
+
+		loaded, err := uc.invoiceRepo.FindByID(txCtx, id)
+		if err != nil {
+			return err
+		}
+		updatedInvoice = loaded
+
+		// Trigger journal reversal
+		if shouldTriggerSalesInvoiceReversal(previousStatus, newStatus, updatedInvoice.Type) {
+			if err := uc.triggerSalesInvoiceJournalReversed(txCtx, updatedInvoice, reason); err != nil {
+				return fmt.Errorf("failed to reverse sales invoice journal: %w", err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	logSalesAudit(uc.auditService, ctx, "customer_invoice.reverse", id, map[string]interface{}{
+		"before_status": previousStatus,
+		"after_status":  newStatus,
+		"reason":        reason,
+	})
+
+	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
+}
+
 func (uc *customerInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error) {
 	if uc.db == nil {
 		return nil, 0, errors.New("db is nil")
@@ -682,11 +763,19 @@ func shouldTriggerSalesInvoiceJournal(previousStatus, currentStatus models.Custo
 		return false
 	}
 
-	if currentStatus != models.CustomerInvoiceStatusUnpaid {
-		return false
-	}
+	isCurrentPostApproved := currentStatus == models.CustomerInvoiceStatusApproved ||
+		currentStatus == models.CustomerInvoiceStatusUnpaid ||
+		currentStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		currentStatus == models.CustomerInvoiceStatusPartial ||
+		currentStatus == models.CustomerInvoiceStatusPaid
 
-	return previousStatus != models.CustomerInvoiceStatusUnpaid
+	isPreviousPostApproved := previousStatus == models.CustomerInvoiceStatusApproved ||
+		previousStatus == models.CustomerInvoiceStatusUnpaid ||
+		previousStatus == models.CustomerInvoiceStatusWaitingPayment ||
+		previousStatus == models.CustomerInvoiceStatusPartial ||
+		previousStatus == models.CustomerInvoiceStatusPaid
+
+	return isCurrentPostApproved && !isPreviousPostApproved
 }
 
 func customerInvoiceAuditSnapshot(invoice *models.CustomerInvoice) map[string]interface{} {
@@ -748,11 +837,12 @@ func shouldTriggerSalesInvoiceReversal(previousStatus, currentStatus models.Cust
 		return false
 	}
 
-	if currentStatus != models.CustomerInvoiceStatusCancelled {
+	if currentStatus != models.CustomerInvoiceStatusCancelled && currentStatus != models.CustomerInvoiceStatusReversed {
 		return false
 	}
 
-	return previousStatus == models.CustomerInvoiceStatusUnpaid ||
+	return previousStatus == models.CustomerInvoiceStatusApproved ||
+		previousStatus == models.CustomerInvoiceStatusUnpaid ||
 		previousStatus == models.CustomerInvoiceStatusWaitingPayment ||
 		previousStatus == models.CustomerInvoiceStatusPartial ||
 		previousStatus == models.CustomerInvoiceStatusPaid
@@ -779,173 +869,54 @@ func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, 
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
-	if invoice == nil || uc.journalUC == nil || uc.coaUC == nil {
-		return nil
+	if invoice == nil {
+		return errors.New("cannot trigger journal for nil invoice")
+	}
+	if uc.journalUC == nil {
+		return errors.New("journal usecase not initialized")
+	}
+	if uc.engine == nil {
+		return errors.New("accounting engine not initialized")
 	}
 
-	accountIDs, err := uc.resolveSalesInvoiceJournalAccountIDs(ctx)
+	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
+	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
+
+	data := accounting.TransactionData{
+		ReferenceType: reference.RefTypeSalesInvoice,
+		ReferenceID:   invoice.ID,
+		EntryDate:     invoice.InvoiceDate.Format(dateFormat),
+		Description:   fmt.Sprintf("Sales Invoice %s", invoice.Code),
+		TotalAmount:   invoice.Amount,
+		SubTotal:      revenueBase,
+		TaxTotal:      invoice.TaxAmount,
+		DepositTotal:  invoice.DownPaymentAmount,
+		COGSTotal:     cogsTotal,
+		DescriptionArgs: []interface{}{invoice.Code, invoice.InvoiceDate.Format("2006-01-02")},
+	}
+
+	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoice, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to generate sales invoice journal: %w", err)
 	}
 
-	lines := buildSalesInvoiceJournalLines(invoice, accountIDs)
-
-	debitTotal := 0.0
-	creditTotal := 0.0
-	for _, line := range lines {
-		debitTotal += line.Debit
-		creditTotal += line.Credit
+	// Double-check balance (redundant but safe)
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
 	}
-	if math.Abs(debitTotal-creditTotal) > 0.0001 {
-		return fmt.Errorf("generated journal is not balanced: debit %.2f credit %.2f", debitTotal, creditTotal)
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
 	}
-
-	refType := "SALES_INVOICE"
-	refID := invoice.ID
-	traceKey := refType + ":" + refID
-	actorID, _ := ctx.Value("user_id").(string)
-	actorID = strings.TrimSpace(actorID)
-	req := &finDto.CreateJournalEntryRequest{
-		EntryDate:         invoice.InvoiceDate.Format(dateFormat),
-		Description:       fmt.Sprintf("Sales Invoice %s", invoice.Code),
-		ReferenceType:     &refType,
-		ReferenceID:       &refID,
-		Lines:             lines,
-		IsSystemGenerated: true,
-	}
-
-	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
-		"trace_key":      traceKey,
-		"module":         "sales_customer_invoice",
-		"reference_type": refType,
-		"reference_id":   refID,
-		"line_count":     len(lines),
-		"actor_id":       actorID,
-	})
 
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
-		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
-			"trace_key": traceKey,
-			"module":    "sales_customer_invoice",
-			"error":     err.Error(),
-		})
-		return err
+		return fmt.Errorf("failed to post sales invoice journal: %w", err)
 	}
 
-	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
-		"trace_key": traceKey,
-		"module":    "sales_customer_invoice",
-	})
-
+	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSalesInvoice, invoice.ID)
 	return nil
-}
-
-type salesInvoiceJournalAccountIDs struct {
-	receivableID   string
-	revenueID      string
-	taxOutputID    string
-	salesAdvanceID string
-	cogsID         string
-	inventoryID    string
-}
-
-func (uc *customerInvoiceUsecase) resolveSalesInvoiceJournalAccountIDs(ctx context.Context) (salesInvoiceJournalAccountIDs, error) {
-	receivable, err := uc.coaUC.GetByCode(ctx, "11300")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("trade receivables account lookup failed: %w", err)
-	}
-
-	revenue, err := uc.coaUC.GetByCode(ctx, "4100")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("sales revenue account lookup failed: %w", err)
-	}
-
-	taxOutput, err := uc.coaUC.GetByCode(ctx, "21500")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("vat output account lookup failed: %w", err)
-	}
-
-	salesAdvance, err := uc.coaUC.GetByCode(ctx, "21200")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("sales advance account lookup failed: %w", err)
-	}
-
-	cogs, err := uc.coaUC.GetByCode(ctx, "5100")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("cogs account lookup failed: %w", err)
-	}
-
-	inventory, err := uc.coaUC.GetByCode(ctx, "11400")
-	if err != nil {
-		return salesInvoiceJournalAccountIDs{}, fmt.Errorf("inventory account lookup failed: %w", err)
-	}
-
-	return salesInvoiceJournalAccountIDs{
-		receivableID:   receivable.ID,
-		revenueID:      revenue.ID,
-		taxOutputID:    taxOutput.ID,
-		salesAdvanceID: salesAdvance.ID,
-		cogsID:         cogs.ID,
-		inventoryID:    inventory.ID,
-	}, nil
-}
-
-func buildSalesInvoiceJournalLines(invoice *models.CustomerInvoice, accountIDs salesInvoiceJournalAccountIDs) []finDto.JournalLineRequest {
-	revenueBase := invoice.Subtotal + invoice.DeliveryCost + invoice.OtherCost
-	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
-
-	lines := make([]finDto.JournalLineRequest, 0, 6)
-	lines = append(lines, finDto.JournalLineRequest{
-		ChartOfAccountID: accountIDs.receivableID,
-		Debit:            invoice.Amount,
-		Credit:           0,
-		Memo:             fmt.Sprintf("Trade receivable %s", invoice.Code),
-	})
-
-	if invoice.DownPaymentAmount > 0 {
-		lines = append(lines, finDto.JournalLineRequest{
-			ChartOfAccountID: accountIDs.salesAdvanceID,
-			Debit:            invoice.DownPaymentAmount,
-			Credit:           0,
-			Memo:             fmt.Sprintf("Apply down payment %s", invoice.Code),
-		})
-	}
-
-	lines = append(lines, finDto.JournalLineRequest{
-		ChartOfAccountID: accountIDs.revenueID,
-		Debit:            0,
-		Credit:           revenueBase,
-		Memo:             fmt.Sprintf("Revenue recognition %s", invoice.Code),
-	})
-
-	if invoice.TaxAmount > 0 {
-		lines = append(lines, finDto.JournalLineRequest{
-			ChartOfAccountID: accountIDs.taxOutputID,
-			Debit:            0,
-			Credit:           invoice.TaxAmount,
-			Memo:             fmt.Sprintf("VAT Output %s", invoice.Code),
-		})
-	}
-
-	if cogsTotal > 0 {
-		lines = append(lines,
-			finDto.JournalLineRequest{
-				ChartOfAccountID: accountIDs.cogsID,
-				Debit:            cogsTotal,
-				Credit:           0,
-				Memo:             fmt.Sprintf("COGS recognition %s", invoice.Code),
-			},
-			finDto.JournalLineRequest{
-				ChartOfAccountID: accountIDs.inventoryID,
-				Debit:            0,
-				Credit:           cogsTotal,
-				Memo:             fmt.Sprintf("Inventory release %s", invoice.Code),
-			},
-		)
-	}
-
-	return lines
 }
 
 func calculateInvoiceCOGSTotal(items []models.CustomerInvoiceItem) float64 {
@@ -960,14 +931,14 @@ func calculateInvoiceCOGSTotal(items []models.CustomerInvoiceItem) float64 {
 	return total
 }
 
-func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
+func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversed(ctx context.Context, invoice *models.CustomerInvoice, reason string) error {
 	if invoice == nil || uc.journalUC == nil {
 		return nil
 	}
 
-	refType := "SALES_INVOICE"
+	refType := reference.RefTypeSalesInvoice
 	var existing financeModels.JournalEntry
-	err := uc.db.WithContext(ctx).
+	err := database.GetDB(ctx, uc.db).
 		Where("reference_type = ? AND reference_id = ?", refType, invoice.ID).
 		Where("status = ?", financeModels.JournalStatusPosted).
 		First(&existing).Error
@@ -978,20 +949,25 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context
 		return err
 	}
 
-	_, err = uc.journalUC.Reverse(ctx, existing.ID)
+	_, err = uc.journalUC.ReverseWithReason(ctx, existing.ID, reason)
 	return err
+}
+
+func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournalReversal(ctx context.Context, invoice *models.CustomerInvoice) error {
+	return uc.triggerSalesInvoiceJournalReversed(ctx, invoice, "Manual reversal via status change")
 }
 
 // isValidStatusTransition checks if the status transition is valid
 func isValidStatusTransition(from, to models.CustomerInvoiceStatus) bool {
 	validTransitions := map[models.CustomerInvoiceStatus][]models.CustomerInvoiceStatus{
-		models.CustomerInvoiceStatusDraft:          {models.CustomerInvoiceStatusSubmitted, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusSubmitted:      {models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusRejected},
-		models.CustomerInvoiceStatusApproved:       {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusDraft:          {models.CustomerInvoiceStatusSubmitted, models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusSubmitted:      {models.CustomerInvoiceStatusApproved, models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusRejected},
+		models.CustomerInvoiceStatusApproved:       {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled, models.CustomerInvoiceStatusReversed},
 		models.CustomerInvoiceStatusRejected:       {models.CustomerInvoiceStatusDraft},
-		models.CustomerInvoiceStatusUnpaid:         {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusWaitingPayment: {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
-		models.CustomerInvoiceStatusPartial:        {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled},
+		models.CustomerInvoiceStatusUnpaid:         {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled, models.CustomerInvoiceStatusReversed},
+		models.CustomerInvoiceStatusWaitingPayment: {models.CustomerInvoiceStatusUnpaid, models.CustomerInvoiceStatusPartial, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled, models.CustomerInvoiceStatusReversed},
+		models.CustomerInvoiceStatusPartial:        {models.CustomerInvoiceStatusWaitingPayment, models.CustomerInvoiceStatusPaid, models.CustomerInvoiceStatusCancelled, models.CustomerInvoiceStatusReversed},
+		models.CustomerInvoiceStatusPaid:           {models.CustomerInvoiceStatusReversed},
 	}
 
 	allowed, ok := validTransitions[from]

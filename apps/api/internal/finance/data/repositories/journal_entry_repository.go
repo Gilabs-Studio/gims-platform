@@ -77,16 +77,20 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 		q = q.Where("journal_entries.status = ?", *params.Status)
 	}
 	if params.StartDate != nil {
-		q = q.Where("journal_entries.entry_date >= ?", *params.StartDate)
+		q = q.Where("journal_entries.entry_date >= ?", params.StartDate.Format("2006-01-02"))
 	}
 	if params.EndDate != nil {
-		q = q.Where("journal_entries.entry_date <= ?", *params.EndDate)
+		q = q.Where("journal_entries.entry_date <= ?", params.EndDate.Format("2006-01-02"))
 	}
 	if params.ReferenceType != nil {
-		q = q.Where("journal_entries.reference_type = ?", *params.ReferenceType)
+		q = q.Where("UPPER(journal_entries.reference_type) = UPPER(?)", *params.ReferenceType)
 	}
 	if len(params.ReferenceTypes) > 0 {
-		q = q.Where("journal_entries.reference_type IN ?", params.ReferenceTypes)
+		types := make([]string, len(params.ReferenceTypes))
+		for i, t := range params.ReferenceTypes {
+			types[i] = strings.ToUpper(t)
+		}
+		q = q.Where("UPPER(journal_entries.reference_type) IN ?", types)
 	}
 
 	if err := q.Count(&total).Error; err != nil {

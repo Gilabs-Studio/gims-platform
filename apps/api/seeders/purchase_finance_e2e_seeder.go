@@ -7,6 +7,7 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -78,8 +79,13 @@ func SeedPurchaseFinanceE2E() error {
 			vatCOA := getCOAID(tx, "11800")
 			bankCOA := getCOAID(tx, "11100")
 
+			now := time.Now()
 			return seedMinimalPurchaseFlow(tx, purchaseFlowInput{
+				year:        now.Year(),
+				month:       int(now.Month()),
 				tag:         "001",
+				qty:         10,
+				price:       50000,
 				product:     product,
 				supplier:    supplier,
 				warehouse:   warehouse,
@@ -967,7 +973,8 @@ func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *str
 	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
 	coaMapper := financeMapper.NewChartOfAccountMapper()
 	journalMapper := financeMapper.NewJournalEntryMapper(coaMapper)
-	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper)
+	auditSvc := audit.NewAuditService(tx)
+	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper, auditSvc)
 
 	reqLines := make([]financeDto.JournalLineRequest, 0, len(lines))
 	for _, l := range lines {

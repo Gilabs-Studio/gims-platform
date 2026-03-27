@@ -53,8 +53,14 @@ type JournalEntry struct {
 	ReferenceID   *string `gorm:"type:varchar(255);index;uniqueIndex:idx_journal_entry_reference" json:"reference_id"`
 
 	Status   JournalStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	PostedAt *time.Time    `json:"posted_at"`
 	PostedBy *string       `gorm:"type:uuid" json:"posted_by"`
+	PostedAt *time.Time    `json:"posted_at"`
+
+	ReversedBy *string    `gorm:"type:uuid" json:"reversed_by,omitempty"`
+	ReversedAt *time.Time `json:"reversed_at,omitempty"`
+
+	OriginalJournalID *string `gorm:"type:uuid;index" json:"original_journal_id,omitempty"`
+	ReversalReason    string  `gorm:"type:text" json:"reversal_reason,omitempty"`
 
 	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
 
