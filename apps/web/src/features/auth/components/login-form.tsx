@@ -119,10 +119,13 @@ export default function LoginForm() {
       // rememberMe value is available here if needed later
     } catch (err) {
       const errorValue = err as AuthError;
+      const isServerError = (errorValue.response?.status ?? 0) >= 500;
       const errorMessage =
-        errorValue.response?.data?.error?.message ||
-        errorValue.message ||
-        "Login failed. Please try again.";
+        isServerError
+          ? "Login failed. Please try again."
+          : errorValue.response?.data?.error?.message ||
+            errorValue.message ||
+            "Login failed. Please try again.";
       setError("root", {
         message: errorMessage,
       });
