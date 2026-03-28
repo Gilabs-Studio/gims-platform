@@ -48,6 +48,8 @@ export const userManagementId: UserManagementTranslations = {
     resetPasswordSuccessWithName: "Password untuk {name} berhasil diganti",
     resetPasswordFailed: "Gagal mengganti password. Cek token lalu coba lagi.",
     cancelResetPassword: "Batal",
+    showPassword: "Tampilkan password",
+    hidePassword: "Sembunyikan password",
   },
   detailModal: {
     title: "Detail Pengguna",

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, SlidersHorizontal, KeyRound } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, SlidersHorizontal, KeyRound, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,9 +89,12 @@ export function UserList() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmittingReset, setIsSubmittingReset] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const isMobile = useIsMobile();
   const t = useTranslations("userManagement.list");
+  const queryClient = useQueryClient();
 
   // Check if any filters are active
   const hasActiveFilters = status !== "" || roleId !== "";
@@ -134,6 +138,8 @@ export function UserList() {
     setResetToken(payload?.userId === resetUserId ? payload.token : "");
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     clearPasswordResetTokenPrefill();
 
     searchParams.delete("open_change_password");
@@ -171,6 +177,8 @@ export function UserList() {
     setResetToken("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
   };
 
   const closeResetPasswordDialog = () => {
@@ -178,6 +186,8 @@ export function UserList() {
     setResetToken("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setIsSubmittingReset(false);
   };
 
@@ -208,6 +218,7 @@ export function UserList() {
         new_password: newPassword,
         confirm_password: confirmPassword,
       });
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
       toast.success(t("resetPasswordSuccessWithName", { name: resetPasswordTarget.name }));
       closeResetPasswordDialog();
     } catch {
@@ -539,27 +550,55 @@ export function UserList() {
               <label htmlFor="new-password" className="text-sm font-medium">
                 {t("resetPasswordNewLabel")}
               </label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder={t("resetPasswordNewPlaceholder")}
-                disabled={isSubmittingReset}
-              />
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={t("resetPasswordNewPlaceholder")}
+                  disabled={isSubmittingReset}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 cursor-pointer"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  disabled={isSubmittingReset}
+                  aria-label={showNewPassword ? t("hidePassword") : t("showPassword")}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-sm font-medium">
                 {t("resetPasswordConfirmLabel")}
               </label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t("resetPasswordConfirmPlaceholder")}
-                disabled={isSubmittingReset}
-              />
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t("resetPasswordConfirmPlaceholder")}
+                  disabled={isSubmittingReset}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 cursor-pointer"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  disabled={isSubmittingReset}
+                  aria-label={showConfirmPassword ? t("hidePassword") : t("showPassword")}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={closeResetPasswordDialog} disabled={isSubmittingReset} className="cursor-pointer">

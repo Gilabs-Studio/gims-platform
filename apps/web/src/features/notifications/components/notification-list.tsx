@@ -18,6 +18,11 @@ import {
 } from "../hooks/use-notifications";
 import type { Notification } from "../types";
 
+function extractResetToken(message: string): string | null {
+  const match = message.match(/token\s*:\s*([A-Za-z0-9._-]+)/i);
+  return match?.[1] ?? null;
+}
+
 export function NotificationList() {
   const t = useTranslations("notifications");
   const router = useRouter();
@@ -118,6 +123,19 @@ export function NotificationList() {
   const handleOpenNotification = async (notification: Notification) => {
     if (!notification.is_read) {
       await markAsRead.mutateAsync(notification.id);
+    }
+
+    if (notification.entity_type === "password_reset_request") {
+      const token = extractResetToken(notification.message);
+      if (token) {
+        setPasswordResetTokenPrefill({
+          userId: notification.entity_id,
+          token,
+          createdAt: Date.now(),
+        });
+      }
+      router.push(`/master-data/users?reset_user=${notification.entity_id}&open_change_password=1`);
+      return;
     }
 
     const path = resolveEntityLink(notification);
@@ -238,12 +256,7 @@ function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationIt
 
   const isPasswordResetRequest = notification.entity_type === "password_reset_request";
 
-  const extractToken = (message: string): string | null => {
-    const match = message.match(/token\s*:\s*([A-Za-z0-9._-]+)/i);
-    return match?.[1] ?? null;
-  };
-
-  const rawToken = isPasswordResetRequest ? extractToken(notification.message) : null;
+  const rawToken = isPasswordResetRequest ? extractResetToken(notification.message) : null;
 
   const formatTokenPreview = (token: string) => {
     if (token.length <= 20) return token;

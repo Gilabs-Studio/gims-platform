@@ -46,6 +46,8 @@ export const userManagementEn = {
     resetPasswordSuccessWithName: "Password for {name} was changed successfully",
     resetPasswordFailed: "Failed to change password. Check token and try again.",
     cancelResetPassword: "Cancel",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
   },
   detailModal: {
     title: "User Details",
