@@ -15,10 +15,15 @@ import (
 )
 
 type FinanceDeps struct {
-	JournalUC  usecase.JournalEntryUsecase
-	CoaUC      usecase.ChartOfAccountUsecase
-	AssetUC    usecase.AssetUsecase
-	SettingsUC financesettings.SettingsService
+	JournalUC    usecase.JournalEntryUsecase
+	CoaUC        usecase.ChartOfAccountUsecase
+	AssetUC      usecase.AssetUsecase
+	PaymentUC    usecase.PaymentUsecase
+	BudgetUC     usecase.BudgetUsecase
+	CashBankUC   usecase.CashBankJournalUsecase
+	TaxInvoiceUC usecase.TaxInvoiceUsecase
+	SalaryUC     usecase.SalaryStructureUsecase
+	SettingsUC   financesettings.SettingsService
 }
 
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
@@ -149,9 +154,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
 
 	return &FinanceDeps{
-		JournalUC:  journalUC,
-		CoaUC:      coaUC,
-		AssetUC:    assetUC,
-		SettingsUC: settingsService,
+		JournalUC:    journalUC,
+		CoaUC:        coaUC,
+		AssetUC:      assetUC,
+		PaymentUC:    paymentUC,
+		BudgetUC:     budgetUC,
+		CashBankUC:   cashBankUC,
+		TaxInvoiceUC: taxInvoiceUC,
+		SalaryUC:     salaryUC,
+		SettingsUC:   settingsService,
 	}
 }

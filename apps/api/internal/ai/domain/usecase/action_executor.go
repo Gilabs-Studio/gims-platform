@@ -13,10 +13,17 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreUsecase "github.com/gilabs/gims/api/internal/core/domain/usecase"
+	financeDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	hrdDTO "github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	hrdUsecase "github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	purchaseRepos "github.com/gilabs/gims/api/internal/purchase/data/repositories"
+	purchaseDTO "github.com/gilabs/gims/api/internal/purchase/domain/dto"
+	purchaseUsecase "github.com/gilabs/gims/api/internal/purchase/domain/usecase"
 	salesDTO "github.com/gilabs/gims/api/internal/sales/domain/dto"
 	salesUsecase "github.com/gilabs/gims/api/internal/sales/domain/usecase"
 )
@@ -36,13 +43,28 @@ type ActionResult struct {
 
 // ActionExecutorDeps holds the domain usecase dependencies for the executor
 type ActionExecutorDeps struct {
-	HolidayUsecase        hrdUsecase.HolidayUsecase
-	LeaveRequestUsecase   hrdUsecase.LeaveRequestUsecase
-	AttendanceUsecase     hrdUsecase.AttendanceRecordUsecase
-	SalesQuotationUsecase salesUsecase.SalesQuotationUsecase
-	SalesOrderUsecase     salesUsecase.SalesOrderUsecase
-	YearlyTargetUsecase   salesUsecase.YearlyTargetUsecase
-	InventoryUsecase      inventoryUsecase.InventoryUsecase
+	HolidayUsecase             hrdUsecase.HolidayUsecase
+	LeaveRequestUsecase        hrdUsecase.LeaveRequestUsecase
+	AttendanceUsecase          hrdUsecase.AttendanceRecordUsecase
+	SalesQuotationUsecase      salesUsecase.SalesQuotationUsecase
+	SalesOrderUsecase          salesUsecase.SalesOrderUsecase
+	DeliveryOrderUsecase       salesUsecase.DeliveryOrderUsecase
+	CustomerInvoiceUsecase     salesUsecase.CustomerInvoiceUsecase
+	YearlyTargetUsecase        salesUsecase.YearlyTargetUsecase
+	InventoryUsecase           inventoryUsecase.InventoryUsecase
+	PurchaseOrderUsecase       purchaseUsecase.PurchaseOrderUsecase
+	PurchaseRequisitionUsecase purchaseUsecase.PurchaseRequisitionUsecase
+	GoodsReceiptUsecase        purchaseUsecase.GoodsReceiptUsecase
+	SupplierInvoiceUsecase     purchaseUsecase.SupplierInvoiceUsecase
+	CoaUsecase                 financeUsecase.ChartOfAccountUsecase
+	JournalUsecase             financeUsecase.JournalEntryUsecase
+	FinancePaymentUsecase      financeUsecase.PaymentUsecase
+	BudgetUsecase              financeUsecase.BudgetUsecase
+	CashBankUsecase            financeUsecase.CashBankJournalUsecase
+	TaxInvoiceUsecase          financeUsecase.TaxInvoiceUsecase
+	AssetUsecase               financeUsecase.AssetUsecase
+	SalaryUsecase              financeUsecase.SalaryStructureUsecase
+	BankAccountUsecase         coreUsecase.BankAccountUsecase
 }
 
 // ActionExecutor dispatches resolved intents to the appropriate domain usecases
@@ -80,8 +102,10 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 		result = e.executeCreateLeaveRequest(ctx, intent.Parameters, currentUserID)
 	case "LIST_LEAVE_REQUESTS":
 		result = e.executeListLeaveRequests(ctx, intent.Parameters, currentUserID)
-	case "APPROVE_LEAVE_REQUEST", "REJECT_LEAVE_REQUEST":
-		result = e.notImplementedResult(intent, "Leave approval/rejection via AI is coming soon. Please use the HRD module in the sidebar.")
+	case "APPROVE_LEAVE_REQUEST":
+		result = e.executeApproveLeaveRequest(ctx, intent.Parameters, currentUserID)
+	case "REJECT_LEAVE_REQUEST":
+		result = e.executeRejectLeaveRequest(ctx, intent.Parameters, currentUserID)
 
 	// ==========================================
 	//  HRD Module — Attendance
@@ -93,25 +117,41 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 	//  HRD Module — Employees, Contracts, etc.
 	// ==========================================
 	case "LIST_EMPLOYEES", "QUERY_EMPLOYEE":
-		result = e.notImplementedResult(intent, "Employee query via AI is coming soon. You can browse employees in the HRD > Employees section.")
-	case "LIST_CONTRACTS", "QUERY_CONTRACT", "CREATE_CONTRACT":
-		result = e.notImplementedResult(intent, "Employee contract management via AI is coming soon. Please use HRD > Employee Contracts.")
-	case "LIST_OVERTIME", "CREATE_OVERTIME", "APPROVE_OVERTIME":
-		result = e.notImplementedResult(intent, "Overtime management via AI is coming soon. Please use HRD > Overtime.")
-	case "LIST_WORK_SCHEDULES", "CREATE_WORK_SCHEDULE":
-		result = e.notImplementedResult(intent, "Work schedule management via AI is coming soon. Please use HRD > Work Schedules.")
-	case "LIST_RECRUITMENTS", "CREATE_RECRUITMENT":
-		result = e.notImplementedResult(intent, "Recruitment management via AI is coming soon. Please use HRD > Recruitment.")
+		if intent.IntentCode == "LIST_EMPLOYEES" {
+			result = e.executeListEmployees(ctx, intent.Parameters)
+		} else {
+			result = e.executeQueryEmployee(ctx, intent.Parameters)
+		}
+	case "LIST_CONTRACTS":
+		result = e.executeSimpleListByTable(ctx, "employee_contracts", "employee_contract", "contracts", []string{"contract_number", "status", "contract_type"}, intent.Parameters)
+	case "QUERY_CONTRACT":
+		result = e.executeSimpleQueryByTable(ctx, "employee_contracts", "employee_contract", []string{"contract_number", "status", "contract_type"}, intent.Parameters)
+	case "CREATE_CONTRACT":
+		result = e.executeSimpleCreateByTable(ctx, "employee_contracts", "employee_contract", []string{"employee_id", "contract_type", "contract_number", "start_date", "end_date", "status", "salary_amount", "notes", "created_by"}, []string{"employee_id", "contract_type", "contract_number", "start_date", "status"}, intent.Parameters)
+	case "LIST_OVERTIME":
+		result = e.executeSimpleListByTable(ctx, "overtime_requests", "overtime", "overtime_requests", []string{"reason", "request_type", "status"}, intent.Parameters)
+	case "CREATE_OVERTIME":
+		result = e.executeSimpleCreateByTable(ctx, "overtime_requests", "overtime", []string{"employee_id", "date", "request_type", "start_time", "end_time", "reason", "description", "task_details", "status", "approved_by", "approved_minutes"}, []string{"employee_id", "date", "start_time", "end_time", "reason"}, intent.Parameters)
+	case "APPROVE_OVERTIME":
+		result = e.executeSimpleStatusUpdateByTable(ctx, "overtime_requests", "overtime", "id", "status", "APPROVED", intent.Parameters, map[string]interface{}{"approved_by": currentUserID})
+	case "LIST_WORK_SCHEDULES":
+		result = e.executeSimpleListByTable(ctx, "work_schedules", "work_schedule", "work_schedules", []string{"name", "description"}, intent.Parameters)
+	case "CREATE_WORK_SCHEDULE":
+		result = e.executeSimpleCreateByTable(ctx, "work_schedules", "work_schedule", []string{"name", "description", "division_id", "is_default", "is_active", "start_time", "end_time", "is_flexible", "flexible_start_time", "flexible_end_time", "working_days", "working_hours_per_day", "late_tolerance_minutes", "early_leave_tolerance_minutes", "require_gps", "gps_radius_meter", "office_latitude", "office_longitude"}, []string{"name", "start_time", "end_time"}, intent.Parameters)
+	case "LIST_RECRUITMENTS":
+		result = e.executeSimpleListByTable(ctx, "recruitment_requests", "recruitment", "recruitments", []string{"request_code", "status", "priority", "employment_type"}, intent.Parameters)
+	case "CREATE_RECRUITMENT":
+		result = e.executeSimpleCreateByTable(ctx, "recruitment_requests", "recruitment", []string{"request_code", "requested_by_id", "request_date", "division_id", "position_id", "required_count", "employment_type", "expected_start_date", "salary_range_min", "salary_range_max", "job_description", "qualifications", "notes", "priority", "status", "created_by"}, []string{"requested_by_id", "request_date", "division_id", "position_id", "required_count", "expected_start_date", "job_description", "qualifications"}, intent.Parameters)
 	case "LIST_EVALUATIONS":
-		result = e.notImplementedResult(intent, "Evaluation query via AI is coming soon. Please use HRD > Evaluations.")
+		result = e.executeSimpleListByTable(ctx, "employee_evaluations", "employee_evaluation", "evaluations", []string{"status", "evaluation_type"}, intent.Parameters)
 	case "LIST_CERTIFICATIONS":
-		result = e.notImplementedResult(intent, "Certification query via AI is coming soon. Please use HRD > Certifications.")
+		result = e.executeSimpleListByTable(ctx, "employee_certifications", "employee_certification", "certifications", []string{"certificate_name", "issued_by", "certificate_number", "status"}, intent.Parameters)
 	case "LIST_EDUCATION_HISTORY":
-		result = e.notImplementedResult(intent, "Education history query via AI is coming soon. Please use HRD > Education History.")
+		result = e.executeSimpleListByTable(ctx, "employee_education_histories", "employee_education_history", "education_histories", []string{"institution_name", "degree", "field_of_study"}, intent.Parameters)
 	case "LIST_EMPLOYEE_ASSETS":
-		result = e.notImplementedResult(intent, "Employee asset query via AI is coming soon. Please use HRD > Employee Assets.")
+		result = e.executeSimpleListByTable(ctx, "employee_assets", "employee_asset", "employee_assets", []string{"asset_name", "asset_code", "status"}, intent.Parameters)
 	case "LIST_LEAVE_TYPES":
-		result = e.notImplementedResult(intent, "Leave type query via AI is coming soon. Please use HRD > Leave Types.")
+		result = e.executeSimpleListByTable(ctx, "leave_types", "leave_type", "leave_types", []string{"name", "code", "description"}, intent.Parameters)
 
 	// ==========================================
 	//  Sales Module
@@ -121,17 +161,25 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 	case "LIST_SALES_QUOTATIONS":
 		result = e.executeListSalesQuotations(ctx, intent.Parameters)
 	case "APPROVE_SALES_QUOTATION":
-		result = e.notImplementedResult(intent, "Sales quotation approval via AI is coming soon. Please use Sales > Quotations.")
-	case "CREATE_SALES_ORDER", "LIST_SALES_ORDERS", "QUERY_SALES_ORDER":
-		result = e.notImplementedResult(intent, "Sales order management via AI is coming soon. Please use Sales > Orders.")
-	case "LIST_DELIVERY_ORDERS", "CREATE_DELIVERY_ORDER":
-		result = e.notImplementedResult(intent, "Delivery order management via AI is coming soon. Please use Sales > Delivery Orders.")
-	case "LIST_SALES_INVOICES", "CREATE_SALES_INVOICE":
-		result = e.notImplementedResult(intent, "Sales invoice management via AI is coming soon. Please use Sales > Invoices.")
+		result = e.executeApproveSalesQuotation(ctx, intent.Parameters, currentUserID)
+	case "CREATE_SALES_ORDER":
+		result = e.executeCreateSalesOrder(ctx, intent.Parameters, currentUserID)
+	case "LIST_SALES_ORDERS":
+		result = e.executeListSalesOrders(ctx, intent.Parameters)
+	case "QUERY_SALES_ORDER":
+		result = e.executeQuerySalesOrder(ctx, intent.Parameters)
+	case "LIST_DELIVERY_ORDERS":
+		result = e.executeListDeliveryOrders(ctx, intent.Parameters)
+	case "CREATE_DELIVERY_ORDER":
+		result = e.executeCreateDeliveryOrder(ctx, intent.Parameters, currentUserID)
+	case "LIST_SALES_INVOICES":
+		result = e.executeListSalesInvoices(ctx, intent.Parameters)
+	case "CREATE_SALES_INVOICE":
+		result = e.executeCreateSalesInvoice(ctx, intent.Parameters, currentUserID)
 	case "LIST_SALES_VISITS":
-		result = e.notImplementedResult(intent, "Sales visit query via AI is coming soon. Please use Sales > Visits.")
+		result = e.executeSimpleListByTable(ctx, "sales_visits", "sales_visit", "sales_visits", []string{"code", "contact_person", "status", "purpose"}, intent.Parameters)
 	case "LIST_SALES_ESTIMATIONS":
-		result = e.notImplementedResult(intent, "Sales estimation query via AI is coming soon. Please use Sales > Estimations.")
+		result = e.executeListSalesQuotations(ctx, intent.Parameters)
 	case "CREATE_SALES_TARGET":
 		result = e.executeCreateSalesTarget(ctx, intent.Parameters, resolvedEntities)
 	case "LIST_SALES_TARGETS":
@@ -140,14 +188,20 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 	// ==========================================
 	//  Purchase Module
 	// ==========================================
-	case "LIST_PURCHASE_REQUISITIONS", "CREATE_PURCHASE_REQUISITION":
-		result = e.notImplementedResult(intent, "Purchase requisition management via AI is coming soon. Please use Purchase > Requisitions.")
-	case "LIST_PURCHASE_ORDERS", "CREATE_PURCHASE_ORDER", "APPROVE_PURCHASE_ORDER":
-		result = e.notImplementedResult(intent, "Purchase order management via AI is coming soon. Please use Purchase > Orders.")
+	case "LIST_PURCHASE_REQUISITIONS":
+		result = e.executeListPurchaseRequisitions(ctx, intent.Parameters)
+	case "CREATE_PURCHASE_REQUISITION":
+		result = e.executeCreatePurchaseRequisition(ctx, intent.Parameters)
+	case "LIST_PURCHASE_ORDERS":
+		result = e.executeListPurchaseOrders(ctx, intent.Parameters)
+	case "CREATE_PURCHASE_ORDER":
+		result = e.executeCreatePurchaseOrder(ctx, intent.Parameters)
+	case "APPROVE_PURCHASE_ORDER":
+		result = e.executeApprovePurchaseOrder(ctx, intent.Parameters)
 	case "LIST_GOODS_RECEIPTS":
-		result = e.notImplementedResult(intent, "Goods receipt query via AI is coming soon. Please use Purchase > Goods Receipts.")
+		result = e.executeListGoodsReceipts(ctx, intent.Parameters)
 	case "LIST_SUPPLIER_INVOICES":
-		result = e.notImplementedResult(intent, "Supplier invoice query via AI is coming soon. Please use Purchase > Supplier Invoices.")
+		result = e.executeListSupplierInvoices(ctx, intent.Parameters)
 
 	// ==========================================
 	//  Stock / Inventory Module
@@ -155,37 +209,47 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 	case "QUERY_STOCK", "LIST_INVENTORY":
 		result = e.executeQueryStock(ctx, intent.Parameters, resolvedEntities)
 	case "LIST_STOCK_MOVEMENTS":
-		result = e.notImplementedResult(intent, "Stock movement query via AI is coming soon. Please use Inventory > Stock Movements.")
+		result = e.executeSimpleListByTable(ctx, "stock_movements", "stock_movement", "stock_movements", []string{"reference_number", "reference_type", "movement_type", "note"}, intent.Parameters)
 	case "LIST_STOCK_OPNAME", "CREATE_STOCK_OPNAME":
-		result = e.notImplementedResult(intent, "Stock opname management via AI is coming soon. Please use Inventory > Stock Opname.")
+		if intent.IntentCode == "LIST_STOCK_OPNAME" {
+			result = e.executeSimpleListByTable(ctx, "stock_opnames", "stock_opname", "stock_opnames", []string{"opname_number", "status", "notes"}, intent.Parameters)
+		} else {
+			result = e.executeSimpleCreateByTable(ctx, "stock_opnames", "stock_opname", []string{"opname_number", "warehouse_id", "opname_date", "status", "notes", "created_by"}, []string{"warehouse_id", "opname_date"}, intent.Parameters)
+		}
 
 	// ==========================================
 	//  Finance Module
 	// ==========================================
 	case "LIST_COA", "QUERY_COA":
-		result = e.notImplementedResult(intent, "Chart of Accounts query via AI is coming soon. Please use Finance > COA.")
-	case "LIST_JOURNALS", "CREATE_JOURNAL":
-		result = e.notImplementedResult(intent, "Journal entry management via AI is coming soon. Please use Finance > Journals.")
+		result = e.executeListCOA(ctx, intent.Parameters)
+	case "LIST_JOURNALS":
+		result = e.executeListJournals(ctx, intent.Parameters)
+	case "CREATE_JOURNAL":
+		result = e.executeCreateJournal(ctx, intent.Parameters)
 	case "LIST_BANK_ACCOUNTS":
-		result = e.notImplementedResult(intent, "Bank account query via AI is coming soon. Please use Finance > Bank Accounts.")
+		result = e.executeListBankAccounts(ctx, intent.Parameters)
 	case "LIST_PAYMENTS":
-		result = e.notImplementedResult(intent, "Payment query via AI is coming soon. Please use Finance > Payments.")
+		result = e.executeListFinancePayments(ctx, intent.Parameters)
 	case "LIST_TAX_INVOICES":
-		result = e.notImplementedResult(intent, "Tax invoice query via AI is coming soon. Please use Finance > Tax Invoices.")
+		result = e.executeListTaxInvoices(ctx, intent.Parameters)
 	case "LIST_BUDGETS":
-		result = e.notImplementedResult(intent, "Budget query via AI is coming soon. Please use Finance > Budgets.")
+		result = e.executeListBudgets(ctx, intent.Parameters)
 	case "LIST_CASH_BANK":
-		result = e.notImplementedResult(intent, "Cash & Bank query via AI is coming soon. Please use Finance > Cash & Bank.")
+		result = e.executeListCashBank(ctx, intent.Parameters)
 	case "LIST_ASSETS":
-		result = e.notImplementedResult(intent, "Fixed asset query via AI is coming soon. Please use Finance > Assets.")
+		result = e.executeListAssets(ctx, intent.Parameters)
 	case "LIST_SALARY":
-		result = e.notImplementedResult(intent, "Salary query via AI is coming soon. Please use Finance > Salary.")
+		result = e.executeListSalary(ctx, intent.Parameters)
 
 	// ==========================================
 	//  Master Data Module
 	// ==========================================
 	case "LIST_SUPPLIERS", "QUERY_SUPPLIER":
-		result = e.notImplementedResult(intent, "Supplier query via AI is coming soon. Please use Master Data > Suppliers.")
+		if intent.IntentCode == "LIST_SUPPLIERS" {
+			result = e.executeSimpleListByTable(ctx, "suppliers", "supplier", "suppliers", []string{"name", "code"}, intent.Parameters)
+		} else {
+			result = e.executeSimpleQueryByTable(ctx, "suppliers", "supplier", []string{"name", "code"}, intent.Parameters)
+		}
 	case "LIST_PRODUCTS", "QUERY_PRODUCT":
 		// Smart reroute: product queries about stock levels → QUERY_STOCK
 		if lowStock, ok := intent.Parameters["low_stock"].(bool); ok && lowStock {
@@ -194,56 +258,60 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 			intent.Parameters["low_stock"] = true
 			result = e.executeQueryStock(ctx, intent.Parameters, resolvedEntities)
 		} else {
-			result = e.notImplementedResult(intent, "Product management via AI is coming soon. Please use Master Data > Products.")
+			if intent.IntentCode == "LIST_PRODUCTS" {
+				result = e.executeSimpleListByTable(ctx, "products", "product", "products", []string{"name", "code", "sku"}, intent.Parameters)
+			} else {
+				result = e.executeSimpleQueryByTable(ctx, "products", "product", []string{"name", "code", "sku"}, intent.Parameters)
+			}
 		}
 	case "CREATE_PRODUCT":
-		result = e.notImplementedResult(intent, "Product management via AI is coming soon. Please use Master Data > Products.")
+		result = e.executeSimpleCreateByTable(ctx, "products", "product", []string{"code", "sku", "name", "description", "base_unit_id", "purchase_unit_id", "sales_unit_id", "product_category_id", "product_brand_id", "minimum_stock", "maximum_stock", "price", "sale_price", "purchase_price", "is_active", "created_by"}, []string{"name"}, intent.Parameters)
 	case "LIST_WAREHOUSES":
-		result = e.notImplementedResult(intent, "Warehouse query via AI is coming soon. Please use Master Data > Warehouses.")
+		result = e.executeSimpleListByTable(ctx, "warehouses", "warehouse", "warehouses", []string{"name", "code"}, intent.Parameters)
 	case "LIST_PRODUCT_CATEGORIES":
-		result = e.notImplementedResult(intent, "Product category query via AI is coming soon. Please use Master Data > Product Categories.")
+		result = e.executeSimpleListByTable(ctx, "product_categories", "product_category", "categories", []string{"name", "code"}, intent.Parameters)
 	case "LIST_PRODUCT_BRANDS":
-		result = e.notImplementedResult(intent, "Product brand query via AI is coming soon. Please use Master Data > Product Brands.")
+		result = e.executeSimpleListByTable(ctx, "product_brands", "product_brand", "brands", []string{"name", "code"}, intent.Parameters)
 	case "LIST_PAYMENT_TERMS":
-		result = e.notImplementedResult(intent, "Payment term query via AI is coming soon. Please use Master Data > Payment Terms.")
+		result = e.executeSimpleListByTable(ctx, "payment_terms", "payment_term", "payment_terms", []string{"name", "code"}, intent.Parameters)
 	case "LIST_COURIER_AGENCIES":
-		result = e.notImplementedResult(intent, "Courier agency query via AI is coming soon. Please use Master Data > Courier Agencies.")
+		result = e.executeSimpleListByTable(ctx, "courier_agencies", "courier_agency", "courier_agencies", []string{"name", "code"}, intent.Parameters)
 
 	// ==========================================
 	//  Organization Module
 	// ==========================================
 	case "LIST_DIVISIONS":
-		result = e.notImplementedResult(intent, "Division query via AI is coming soon. Please use Organization > Divisions.")
+		result = e.executeSimpleListByTable(ctx, "divisions", "division", "divisions", []string{"name", "code"}, intent.Parameters)
 	case "LIST_JOB_POSITIONS":
-		result = e.notImplementedResult(intent, "Job position query via AI is coming soon. Please use Organization > Job Positions.")
+		result = e.executeSimpleListByTable(ctx, "job_positions", "job_position", "job_positions", []string{"name", "code"}, intent.Parameters)
 	case "LIST_BUSINESS_UNITS":
-		result = e.notImplementedResult(intent, "Business unit query via AI is coming soon. Please use Organization > Business Units.")
+		result = e.executeSimpleListByTable(ctx, "business_units", "business_unit", "business_units", []string{"name", "code"}, intent.Parameters)
 	case "LIST_AREAS":
-		result = e.notImplementedResult(intent, "Area query via AI is coming soon. Please use Organization > Areas.")
+		result = e.executeSimpleListByTable(ctx, "areas", "area", "areas", []string{"name", "code"}, intent.Parameters)
 
 	// ==========================================
 	//  Geographic Module
 	// ==========================================
 	case "LIST_PROVINCES":
-		result = e.notImplementedResult(intent, "Province query via AI is coming soon. Please use Geographic > Provinces.")
+		result = e.executeSimpleListByTable(ctx, "provinces", "province", "provinces", []string{"name", "code"}, intent.Parameters)
 	case "LIST_CITIES":
-		result = e.notImplementedResult(intent, "City query via AI is coming soon. Please use Geographic > Cities.")
+		result = e.executeSimpleListByTable(ctx, "cities", "city", "cities", []string{"name", "code"}, intent.Parameters)
 	case "LIST_DISTRICTS":
-		result = e.notImplementedResult(intent, "District query via AI is coming soon. Please use Geographic > Districts.")
+		result = e.executeSimpleListByTable(ctx, "districts", "district", "districts", []string{"name", "code"}, intent.Parameters)
 
 	// ==========================================
 	//  Reports Module
 	// ==========================================
 	case "GENERATE_REPORT":
-		result = e.notImplementedResult(intent, "Report generation via AI is coming soon. Please use the Reports section in the sidebar.")
+		result = e.executeGenerateReport(ctx, intent.Parameters)
 
 	// ==========================================
 	//  User Management Module
 	// ==========================================
 	case "LIST_USERS":
-		result = e.notImplementedResult(intent, "User query via AI is coming soon. Please use Settings > Users.")
+		result = e.executeSimpleListByTable(ctx, "users", "user", "users", []string{"name", "email"}, intent.Parameters)
 	case "LIST_ROLES":
-		result = e.notImplementedResult(intent, "Role query via AI is coming soon. Please use Settings > Roles.")
+		result = e.executeSimpleListByTable(ctx, "roles", "role", "roles", []string{"name", "code"}, intent.Parameters)
 
 	// ==========================================
 	//  General
@@ -641,6 +709,70 @@ func (e *ActionExecutor) executeListLeaveRequests(ctx context.Context, params ma
 	}
 }
 
+func (e *ActionExecutor) executeApproveLeaveRequest(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.LeaveRequestUsecase == nil {
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+	}
+
+	leaveRequestID := strings.TrimSpace(getStringParam(params, "leave_request_id"))
+	if leaveRequestID == "" {
+		leaveRequestID = strings.TrimSpace(getStringParam(params, "id"))
+	}
+	if leaveRequestID == "" {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "leave_request", ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide leave_request_id or id"}
+	}
+
+	resp, err := e.deps.LeaveRequestUsecase.Approve(ctx, leaveRequestID, &hrdDTO.ApproveLeaveRequestDTO{}, currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "leave_request", ErrorCode: "UPDATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       resp,
+		Message:    "Leave request approved successfully",
+		EntityType: "leave_request",
+		EntityID:   resp.ID,
+		Action:     "UPDATE",
+	}
+}
+
+func (e *ActionExecutor) executeRejectLeaveRequest(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.LeaveRequestUsecase == nil {
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+	}
+
+	leaveRequestID := strings.TrimSpace(getStringParam(params, "leave_request_id"))
+	if leaveRequestID == "" {
+		leaveRequestID = strings.TrimSpace(getStringParam(params, "id"))
+	}
+	if leaveRequestID == "" {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "leave_request", ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide leave_request_id or id"}
+	}
+
+	rejectionNote := strings.TrimSpace(getStringParam(params, "rejection_note"))
+	if rejectionNote == "" {
+		rejectionNote = strings.TrimSpace(getStringParam(params, "reason"))
+	}
+	if len(rejectionNote) < 10 {
+		rejectionNote = "Rejected by AI assistant due to policy or manager decision."
+	}
+
+	resp, err := e.deps.LeaveRequestUsecase.Reject(ctx, leaveRequestID, &hrdDTO.RejectLeaveRequestDTO{RejectionNote: rejectionNote}, currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "leave_request", ErrorCode: "UPDATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       resp,
+		Message:    "Leave request rejected successfully",
+		EntityType: "leave_request",
+		EntityID:   resp.ID,
+		Action:     "UPDATE",
+	}
+}
+
 func (e *ActionExecutor) executeQueryAttendance(ctx context.Context, params map[string]interface{}, resolvedEntities map[string]*ResolvedEntity) *ActionResult {
 	if e.deps.AttendanceUsecase == nil {
 		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Attendance service is not available"}
@@ -985,6 +1117,1295 @@ func (e *ActionExecutor) executeListSalesQuotations(ctx context.Context, params 
 		},
 		Message:    fmt.Sprintf("Found %d sales quotations", len(quotations)),
 		EntityType: "sales_quotation",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeApproveSalesQuotation(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.SalesQuotationUsecase == nil {
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales quotation service is not available"}
+	}
+
+	quotationID := strings.TrimSpace(getStringParam(params, "quotation_id"))
+	if quotationID == "" {
+		quotationID = strings.TrimSpace(getStringParam(params, "id"))
+	}
+	if quotationID == "" {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "sales_quotation", ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide quotation_id or id"}
+	}
+
+	status := strings.ToLower(strings.TrimSpace(getStringParam(params, "status")))
+	if status == "" {
+		status = "approved"
+	}
+
+	req := &salesDTO.UpdateSalesQuotationStatusRequest{Status: status}
+	if status == "rejected" {
+		reason := strings.TrimSpace(getStringParam(params, "rejection_reason"))
+		if reason == "" {
+			reason = strings.TrimSpace(getStringParam(params, "reason"))
+		}
+		if reason != "" {
+			req.RejectionReason = &reason
+		}
+	}
+
+	resp, err := e.deps.SalesQuotationUsecase.UpdateStatus(ctx, quotationID, req, &currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "sales_quotation", ErrorCode: "UPDATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       resp,
+		Message:    fmt.Sprintf("Sales quotation %s updated to %s", resp.Code, strings.ToUpper(status)),
+		EntityType: "sales_quotation",
+		EntityID:   resp.ID,
+		Action:     "UPDATE",
+	}
+}
+
+func (e *ActionExecutor) executeCreateSalesOrder(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.SalesOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+	}
+
+	today := apptime.Now().Format("2006-01-02")
+	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
+		params["order_date"] = today
+	}
+
+	if _, hasSR := params["sales_rep_id"]; !hasSR || strings.TrimSpace(getStringParam(params, "sales_rep_id")) == "" {
+		empID, err := e.entityResolver.ResolveUserToEmployeeID(ctx, currentUserID)
+		if err == nil && empID != "" {
+			params["sales_rep_id"] = empID
+		}
+	}
+
+	if _, hasID := params["payment_terms_id"]; !hasID {
+		for _, key := range []string{"payment_terms_name", "payment_terms", "syarat_pembayaran"} {
+			if name, ok := params[key].(string); ok && strings.TrimSpace(name) != "" {
+				ptID, err := e.entityResolver.ResolvePaymentTerms(ctx, name)
+				if err == nil {
+					params["payment_terms_id"] = ptID
+				}
+				break
+			}
+		}
+	}
+
+	if _, hasID := params["business_unit_id"]; !hasID {
+		for _, key := range []string{"business_unit_name", "business_unit", "unit_bisnis"} {
+			if name, ok := params[key].(string); ok && strings.TrimSpace(name) != "" {
+				buID, err := e.entityResolver.ResolveBusinessUnit(ctx, name)
+				if err == nil {
+					params["business_unit_id"] = buID
+				}
+				break
+			}
+		}
+	}
+
+	if items, ok := params["items"].([]interface{}); ok {
+		for i, item := range items {
+			itemMap, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if _, hasProductID := itemMap["product_id"]; !hasProductID {
+				if productName, ok := itemMap["product_name"].(string); ok && strings.TrimSpace(productName) != "" {
+					prodID, prodPrice, err := e.entityResolver.ResolveProductByName(ctx, productName)
+					if err == nil {
+						itemMap["product_id"] = prodID
+						if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
+							itemMap["price"] = prodPrice
+						}
+					}
+				}
+			}
+			if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
+				itemMap["quantity"] = float64(1)
+			}
+			if _, hasDiscount := itemMap["discount"]; !hasDiscount {
+				itemMap["discount"] = float64(0)
+			}
+			items[i] = itemMap
+		}
+		params["items"] = items
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req salesDTO.CreateSalesOrderRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse sales order parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.SalesOrderUsecase.Create(ctx, &req, &currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_order", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Sales order %s created successfully", resp.Code), EntityType: "sales_order", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeCreateDeliveryOrder(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.DeliveryOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Delivery order service is not available"}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "delivery_date")) == "" {
+		params["delivery_date"] = apptime.Now().Format("2006-01-02")
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req salesDTO.CreateDeliveryOrderRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse delivery order parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.DeliveryOrderUsecase.Create(ctx, &req, &currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "delivery_order", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Delivery order %s created successfully", resp.Code), EntityType: "delivery_order", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeCreateSalesInvoice(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
+	if e.deps.CustomerInvoiceUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Customer invoice service is not available"}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "invoice_date")) == "" {
+		params["invoice_date"] = apptime.Now().Format("2006-01-02")
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req salesDTO.CreateCustomerInvoiceRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse sales invoice parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.CustomerInvoiceUsecase.Create(ctx, &req, &currentUserID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "customer_invoice", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Sales invoice %s created successfully", resp.Code), EntityType: "customer_invoice", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeListSalesOrders(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.SalesOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+	}
+
+	req := &salesDTO.ListSalesOrdersRequest{
+		Page:    1,
+		PerPage: 20,
+	}
+
+	if search := getStringParam(params, "search"); search != "" {
+		req.Search = search
+	} else if orderNumber := getStringParam(params, "order_number"); orderNumber != "" {
+		req.Search = orderNumber
+	} else if customerName := getStringParam(params, "customer_name"); customerName != "" {
+		req.Search = customerName
+	}
+
+	if status := getStringParam(params, "status"); status != "" {
+		req.Status = status
+	}
+
+	if period := getStringParam(params, "period"); period != "" {
+		now := apptime.Now()
+		switch period {
+		case "current_month":
+			req.DateFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		case "last_month":
+			lastMonth := now.AddDate(0, -1, 0)
+			req.DateFrom = time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+		case "current_year":
+			req.DateFrom = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		}
+	}
+
+	if page := getIntParam(params, "page"); page > 0 {
+		req.Page = page
+	}
+	if perPage := getIntParam(params, "per_page"); perPage > 0 {
+		req.PerPage = perPage
+	}
+	if unfulfilledOnly, ok := params["unfulfilled_only"].(bool); ok {
+		req.UnfulfilledOnly = unfulfilledOnly
+	}
+
+	orders, pagination, err := e.deps.SalesOrderUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "QUERY_FAILED",
+			ErrorMessage: err.Error(),
+		}
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"orders":     orders,
+			"pagination": pagination,
+		},
+		Message:    fmt.Sprintf("Found %d sales orders", len(orders)),
+		EntityType: "sales_order",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeQuerySalesOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.SalesOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+	}
+
+	if orderID := getStringParam(params, "order_id"); orderID != "" {
+		order, err := e.deps.SalesOrderUsecase.GetByID(ctx, orderID)
+		if err != nil {
+			return &ActionResult{
+				Success:      false,
+				Action:       "QUERY",
+				EntityType:   "sales_order",
+				ErrorCode:    "QUERY_FAILED",
+				ErrorMessage: err.Error(),
+			}
+		}
+
+		return &ActionResult{
+			Success:    true,
+			Data:       order,
+			Message:    fmt.Sprintf("Sales order %s found", order.Code),
+			EntityType: "sales_order",
+			EntityID:   order.ID,
+			Action:     "QUERY",
+		}
+	}
+
+	// Fallback for natural language queries that mention order number/customer
+	listParams := map[string]interface{}{}
+	if orderNumber := getStringParam(params, "order_number"); orderNumber != "" {
+		listParams["search"] = orderNumber
+	}
+	if search := getStringParam(params, "search"); search != "" {
+		listParams["search"] = search
+	}
+	if customerName := getStringParam(params, "customer_name"); customerName != "" {
+		if _, exists := listParams["search"]; !exists {
+			listParams["search"] = customerName
+		}
+	}
+	if status := getStringParam(params, "status"); status != "" {
+		listParams["status"] = status
+	}
+	if period := getStringParam(params, "period"); period != "" {
+		listParams["period"] = period
+	}
+	if len(listParams) == 0 {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "MISSING_PARAMS",
+			ErrorMessage: "Please specify order_id, order_number, search, or customer_name",
+		}
+	}
+
+	result := e.executeListSalesOrders(ctx, listParams)
+	if !result.Success {
+		return result
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "INVALID_RESPONSE",
+			ErrorMessage: "Unexpected sales order response format",
+		}
+	}
+
+	ordersRaw, ok := data["orders"]
+	if !ok {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "INVALID_RESPONSE",
+			ErrorMessage: "Sales order list is missing in response",
+		}
+	}
+
+	orders, ok := ordersRaw.([]salesDTO.SalesOrderResponse)
+	if !ok {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "INVALID_RESPONSE",
+			ErrorMessage: "Sales order list response has invalid type",
+		}
+	}
+
+	if len(orders) == 0 {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "sales_order",
+			ErrorCode:    "NOT_FOUND",
+			ErrorMessage: "Sales order not found",
+		}
+	}
+
+	order := orders[0]
+	return &ActionResult{
+		Success:    true,
+		Data:       order,
+		Message:    fmt.Sprintf("Sales order %s found", order.Code),
+		EntityType: "sales_order",
+		EntityID:   order.ID,
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeListPurchaseOrders(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.PurchaseOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+	}
+
+	page := 1
+	perPage := 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	listParams := purchaseRepos.PurchaseOrderListParams{
+		Search: strings.TrimSpace(getStringParam(params, "search")),
+		Status: strings.TrimSpace(getStringParam(params, "status")),
+		Limit:  perPage,
+		Offset: (page - 1) * perPage,
+	}
+
+	// Fallback for extractor schemas that may provide supplier_name or order_number.
+	if listParams.Search == "" {
+		if orderNumber := strings.TrimSpace(getStringParam(params, "order_number")); orderNumber != "" {
+			listParams.Search = orderNumber
+		} else if supplierName := strings.TrimSpace(getStringParam(params, "supplier_name")); supplierName != "" {
+			listParams.Search = supplierName
+		}
+	}
+
+	orders, total, err := e.deps.PurchaseOrderUsecase.List(ctx, listParams)
+	if err != nil {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "purchase_order",
+			ErrorCode:    "QUERY_FAILED",
+			ErrorMessage: err.Error(),
+		}
+	}
+
+	totalPages := 0
+	if perPage > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(perPage)))
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"orders": orders,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"per_page":    perPage,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+		Message:    fmt.Sprintf("Found %d purchase orders", len(orders)),
+		EntityType: "purchase_order",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeListDeliveryOrders(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.DeliveryOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Delivery order service is not available"}
+	}
+
+	req := &salesDTO.ListDeliveryOrdersRequest{
+		Page:    1,
+		PerPage: 20,
+	}
+
+	if search := getStringParam(params, "search"); search != "" {
+		req.Search = search
+	}
+	if status := getStringParam(params, "status"); status != "" {
+		req.Status = status
+	}
+	if page := getIntParam(params, "page"); page > 0 {
+		req.Page = page
+	}
+	if perPage := getIntParam(params, "per_page"); perPage > 0 {
+		req.PerPage = perPage
+	}
+
+	if period := getStringParam(params, "period"); period != "" {
+		now := apptime.Now()
+		switch period {
+		case "current_month":
+			req.DateFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		case "last_month":
+			lastMonth := now.AddDate(0, -1, 0)
+			req.DateFrom = time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+		case "current_year":
+			req.DateFrom = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		}
+	}
+
+	items, pagination, err := e.deps.DeliveryOrderUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "delivery_order",
+			ErrorCode:    "QUERY_FAILED",
+			ErrorMessage: err.Error(),
+		}
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"delivery_orders": items,
+			"pagination":      pagination,
+		},
+		Message:    fmt.Sprintf("Found %d delivery orders", len(items)),
+		EntityType: "delivery_order",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeListSalesInvoices(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.CustomerInvoiceUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Customer invoice service is not available"}
+	}
+
+	req := &salesDTO.ListCustomerInvoicesRequest{
+		Page:    1,
+		PerPage: 20,
+	}
+
+	if search := getStringParam(params, "search"); search != "" {
+		req.Search = search
+	}
+	if status := getStringParam(params, "status"); status != "" {
+		req.Status = status
+	}
+	if page := getIntParam(params, "page"); page > 0 {
+		req.Page = page
+	}
+	if perPage := getIntParam(params, "per_page"); perPage > 0 {
+		req.PerPage = perPage
+	}
+
+	if period := getStringParam(params, "period"); period != "" {
+		now := apptime.Now()
+		switch period {
+		case "current_month":
+			req.DateFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		case "last_month":
+			lastMonth := now.AddDate(0, -1, 0)
+			req.DateFrom = time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+		case "current_year":
+			req.DateFrom = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+			req.DateTo = now.Format("2006-01-02")
+		}
+	}
+
+	invoices, pagination, err := e.deps.CustomerInvoiceUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{
+			Success:      false,
+			Action:       "QUERY",
+			EntityType:   "customer_invoice",
+			ErrorCode:    "QUERY_FAILED",
+			ErrorMessage: err.Error(),
+		}
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"invoices":   invoices,
+			"pagination": pagination,
+		},
+		Message:    fmt.Sprintf("Found %d sales invoices", len(invoices)),
+		EntityType: "customer_invoice",
+		Action:     "QUERY",
+	}
+}
+
+func resolvePeriodDateRange(period string) (string, string) {
+	now := apptime.Now()
+	switch period {
+	case "current_month":
+		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02"), now.Format("2006-01-02")
+	case "last_month":
+		lastMonth := now.AddDate(0, -1, 0)
+		return time.Date(lastMonth.Year(), lastMonth.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02"), time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+	case "current_year":
+		return time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02"), now.Format("2006-01-02")
+	default:
+		return "", ""
+	}
+}
+
+func (e *ActionExecutor) executeListPurchaseRequisitions(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.PurchaseRequisitionUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase requisition service is not available"}
+	}
+
+	page, perPage := 1, 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	req := purchaseRepos.PurchaseRequisitionListParams{
+		Search: strings.TrimSpace(getStringParam(params, "search")),
+		Status: strings.TrimSpace(getStringParam(params, "status")),
+		Limit:  perPage,
+		Offset: (page - 1) * perPage,
+	}
+
+	items, total, err := e.deps.PurchaseRequisitionUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "purchase_requisition", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := 0
+	if perPage > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(perPage)))
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"requisitions": items,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"per_page":    perPage,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+		Message:    fmt.Sprintf("Found %d purchase requisitions", len(items)),
+		EntityType: "purchase_requisition",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeListGoodsReceipts(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.GoodsReceiptUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Goods receipt service is not available"}
+	}
+
+	page, perPage := 1, 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	req := purchaseRepos.GoodsReceiptListParams{
+		Search: strings.TrimSpace(getStringParam(params, "search")),
+		Status: strings.TrimSpace(getStringParam(params, "status")),
+		Limit:  perPage,
+		Offset: (page - 1) * perPage,
+	}
+
+	items, total, err := e.deps.GoodsReceiptUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "goods_receipt", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := 0
+	if perPage > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(perPage)))
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"goods_receipts": items,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"per_page":    perPage,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+		Message:    fmt.Sprintf("Found %d goods receipts", len(items)),
+		EntityType: "goods_receipt",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeListSupplierInvoices(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.SupplierInvoiceUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Supplier invoice service is not available"}
+	}
+
+	page, perPage := 1, 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	req := purchaseRepos.SupplierInvoiceListParams{
+		Search: strings.TrimSpace(getStringParam(params, "search")),
+		Status: strings.TrimSpace(getStringParam(params, "status")),
+		Limit:  perPage,
+		Offset: (page - 1) * perPage,
+	}
+
+	items, total, err := e.deps.SupplierInvoiceUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "supplier_invoice", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := 0
+	if perPage > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(perPage)))
+	}
+
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			"supplier_invoices": items,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"per_page":    perPage,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+		Message:    fmt.Sprintf("Found %d supplier invoices", len(items)),
+		EntityType: "supplier_invoice",
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeCreatePurchaseRequisition(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.PurchaseRequisitionUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase requisition service is not available"}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "request_date")) == "" {
+		params["request_date"] = apptime.Now().Format("2006-01-02")
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req purchaseDTO.CreatePurchaseRequisitionRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse purchase requisition parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.PurchaseRequisitionUsecase.Create(ctx, &req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "purchase_requisition", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Purchase requisition %s created successfully", resp.Code), EntityType: "purchase_requisition", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeCreatePurchaseOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.PurchaseOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
+		params["order_date"] = apptime.Now().Format("2006-01-02")
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req purchaseDTO.CreatePurchaseOrderRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse purchase order parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.PurchaseOrderUsecase.Create(ctx, &req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "purchase_order", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Purchase order %s created successfully", resp.Code), EntityType: "purchase_order", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeApprovePurchaseOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.PurchaseOrderUsecase == nil {
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+	}
+
+	purchaseOrderID := strings.TrimSpace(getStringParam(params, "purchase_order_id"))
+	if purchaseOrderID == "" {
+		purchaseOrderID = strings.TrimSpace(getStringParam(params, "id"))
+	}
+	if purchaseOrderID == "" {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "purchase_order", ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide purchase_order_id or id"}
+	}
+
+	resp, err := e.deps.PurchaseOrderUsecase.Approve(ctx, purchaseOrderID)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: "purchase_order", ErrorCode: "UPDATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Purchase order %s approved successfully", resp.Code), EntityType: "purchase_order", EntityID: resp.ID, Action: "UPDATE"}
+}
+
+func (e *ActionExecutor) executeCreateJournal(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.JournalUsecase == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Journal service is not available"}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "entry_date")) == "" {
+		params["entry_date"] = apptime.Now().Format("2006-01-02")
+	}
+
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+	}
+
+	var req financeDTO.CreateJournalEntryRequest
+	if err := json.Unmarshal(paramJSON, &req); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse journal parameters: %s", err.Error())}
+	}
+
+	resp, err := e.deps.JournalUsecase.Create(ctx, &req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: "journal", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	return &ActionResult{Success: true, Data: resp, Message: "Journal entry created successfully", EntityType: "journal", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) executeGenerateReport(ctx context.Context, params map[string]interface{}) *ActionResult {
+	reportType := strings.TrimSpace(getStringParam(params, "report_type"))
+	if reportType == "" {
+		reportType = strings.TrimSpace(getStringParam(params, "type"))
+	}
+	if reportType == "" {
+		reportType = "summary"
+	}
+
+	tables := []string{"sales_orders", "purchase_orders", "customer_invoices", "supplier_invoices", "journal_entries", "products"}
+	summary := make(map[string]interface{})
+
+	for _, table := range tables {
+		var count int64
+		if err := e.entityResolver.db.WithContext(ctx).Table(table).Count(&count).Error; err == nil {
+			summary[table] = count
+		}
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Action:     "QUERY",
+		EntityType: "report",
+		Message:    fmt.Sprintf("Generated %s report summary", reportType),
+		Data: map[string]interface{}{
+			"report_type": reportType,
+			"generated_at": apptime.Now().Format(time.RFC3339),
+			"summary": summary,
+		},
+	}
+}
+
+func (e *ActionExecutor) executeListCOA(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.CoaUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Chart of accounts service is not available"}
+	}
+
+	req := &financeDTO.ListChartOfAccountsRequest{Page: 1, PerPage: 20}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	req.Search = getStringParam(params, "search")
+
+	items, total, err := e.deps.CoaUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "coa", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"accounts": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d chart of accounts", len(items)), EntityType: "coa", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListJournals(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.JournalUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Journal service is not available"}
+	}
+
+	req := &financeDTO.ListJournalEntriesRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.JournalUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "journal", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"journals": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d journals", len(items)), EntityType: "journal", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListFinancePayments(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.FinancePaymentUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Finance payment service is not available"}
+	}
+
+	req := &financeDTO.ListPaymentsRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.FinancePaymentUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "payment", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"payments": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d payments", len(items)), EntityType: "payment", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListTaxInvoices(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.TaxInvoiceUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Tax invoice service is not available"}
+	}
+
+	req := &financeDTO.ListTaxInvoicesRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.TaxInvoiceUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "tax_invoice", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"tax_invoices": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d tax invoices", len(items)), EntityType: "tax_invoice", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListBudgets(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.BudgetUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Budget service is not available"}
+	}
+
+	req := &financeDTO.ListBudgetsRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.BudgetUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "budget", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"budgets": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d budgets", len(items)), EntityType: "budget", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListCashBank(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.CashBankUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Cash bank service is not available"}
+	}
+
+	req := &financeDTO.ListCashBankJournalsRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.CashBankUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "cash_bank", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"cash_bank_journals": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d cash bank journals", len(items)), EntityType: "cash_bank", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListAssets(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.AssetUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Asset service is not available"}
+	}
+
+	req := &financeDTO.ListAssetsRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+	if startDate, endDate := resolvePeriodDateRange(getStringParam(params, "period")); startDate != "" && endDate != "" {
+		req.StartDate = &startDate
+		req.EndDate = &endDate
+	}
+
+	items, total, err := e.deps.AssetUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "asset", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"assets": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d assets", len(items)), EntityType: "asset", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListSalary(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.SalaryUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Salary service is not available"}
+	}
+
+	req := &financeDTO.ListSalaryStructuresRequest{Page: 1, PerPage: 20, Search: getStringParam(params, "search")}
+	if p := getIntParam(params, "page"); p > 0 {
+		req.Page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		req.PerPage = pp
+	}
+
+	items, total, err := e.deps.SalaryUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "salary", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PerPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"salary_structures": items, "pagination": map[string]interface{}{"page": req.Page, "per_page": req.PerPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d salary records", len(items)), EntityType: "salary", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListBankAccounts(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if e.deps.BankAccountUsecase == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Bank account service is not available"}
+	}
+
+	page, perPage := 1, 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	req := coreRepos.BankAccountListParams{
+		Search: strings.TrimSpace(getStringParam(params, "search")),
+		Limit:  perPage,
+		Offset: (page - 1) * perPage,
+	}
+
+	items, total, err := e.deps.BankAccountUsecase.List(ctx, req)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: "bank_account", ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
+	return &ActionResult{Success: true, Data: map[string]interface{}{"bank_accounts": items, "pagination": map[string]interface{}{"page": page, "per_page": perPage, "total": total, "total_pages": totalPages}}, Message: fmt.Sprintf("Found %d bank accounts", len(items)), EntityType: "bank_account", Action: "QUERY"}
+}
+
+func (e *ActionExecutor) executeListEmployees(ctx context.Context, params map[string]interface{}) *ActionResult {
+	return e.executeSimpleListByTable(ctx, "employees", "employee", "employees", []string{"name", "employee_code", "employee_number"}, params)
+}
+
+func (e *ActionExecutor) executeQueryEmployee(ctx context.Context, params map[string]interface{}) *ActionResult {
+	return e.executeSimpleQueryByTable(ctx, "employees", "employee", []string{"name", "employee_code", "employee_number"}, params)
+}
+
+func (e *ActionExecutor) executeSimpleListByTable(ctx context.Context, table, entityType, dataKey string, searchableColumns []string, params map[string]interface{}) *ActionResult {
+	if e.entityResolver == nil || e.entityResolver.db == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+	}
+
+	page, perPage := 1, 20
+	if p := getIntParam(params, "page"); p > 0 {
+		page = p
+	}
+	if pp := getIntParam(params, "per_page"); pp > 0 {
+		perPage = pp
+	}
+
+	query := e.entityResolver.db.WithContext(ctx).Table(table)
+	countQuery := e.entityResolver.db.WithContext(ctx).Table(table)
+
+	search := strings.TrimSpace(getStringParam(params, "search"))
+	if search != "" && len(searchableColumns) > 0 {
+		like := "%" + search + "%"
+		conds := make([]string, 0, len(searchableColumns))
+		args := make([]interface{}, 0, len(searchableColumns))
+		for _, col := range searchableColumns {
+			conds = append(conds, fmt.Sprintf("LOWER(%s) LIKE LOWER(?)", col))
+			args = append(args, like)
+		}
+		condition := strings.Join(conds, " OR ")
+		query = query.Where(condition, args...)
+		countQuery = countQuery.Where(condition, args...)
+	}
+
+	query = query.Select("*").Limit(perPage).Offset((page - 1) * perPage)
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	rows := make([]map[string]interface{}, 0)
+	if err := query.Scan(&rows).Error; err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(perPage)))
+	return &ActionResult{
+		Success: true,
+		Data: map[string]interface{}{
+			dataKey: rows,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"per_page":    perPage,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		},
+		Message:    fmt.Sprintf("Found %d %s records", len(rows), strings.ReplaceAll(entityType, "_", " ")),
+		EntityType: entityType,
+		Action:     "QUERY",
+	}
+}
+
+func (e *ActionExecutor) executeSimpleCreateByTable(ctx context.Context, table, entityType string, allowedFields []string, requiredFields []string, params map[string]interface{}) *ActionResult {
+	if e.entityResolver == nil || e.entityResolver.db == nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+	}
+
+	record := make(map[string]interface{})
+	allowed := make(map[string]struct{}, len(allowedFields))
+	for _, field := range allowedFields {
+		allowed[field] = struct{}{}
+		if val, exists := params[field]; exists {
+			record[field] = val
+		}
+	}
+
+	missing := make([]string, 0)
+	for _, field := range requiredFields {
+		val, exists := record[field]
+		if !exists || val == nil || strings.TrimSpace(fmt.Sprint(val)) == "" {
+			missing = append(missing, field)
+		}
+	}
+
+	if len(missing) > 0 {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: fmt.Sprintf("Missing required fields: %s", strings.Join(missing, ", "))}
+	}
+
+	if _, hasCreatedAt := allowed["created_at"]; hasCreatedAt {
+		if _, exists := record["created_at"]; !exists {
+			record["created_at"] = apptime.Now()
+		}
+	}
+	if _, hasUpdatedAt := allowed["updated_at"]; hasUpdatedAt {
+		if _, exists := record["updated_at"]; !exists {
+			record["updated_at"] = apptime.Now()
+		}
+	}
+
+	if err := e.entityResolver.db.WithContext(ctx).Table(table).Create(&record).Error; err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", EntityType: entityType, ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
+	}
+
+	entityID := ""
+	if idVal, ok := record["id"]; ok {
+		entityID = fmt.Sprint(idVal)
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       record,
+		Message:    fmt.Sprintf("%s created successfully", strings.ReplaceAll(entityType, "_", " ")),
+		EntityType: entityType,
+		EntityID:   entityID,
+		Action:     "CREATE",
+	}
+}
+
+func (e *ActionExecutor) executeSimpleStatusUpdateByTable(ctx context.Context, table, entityType, idField, statusField, statusValue string, params map[string]interface{}, extraUpdates map[string]interface{}) *ActionResult {
+	if e.entityResolver == nil || e.entityResolver.db == nil {
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+	}
+
+	entityID := strings.TrimSpace(getStringParam(params, idField))
+	if entityID == "" {
+		entityID = strings.TrimSpace(getStringParam(params, "id"))
+	}
+	if entityID == "" {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: fmt.Sprintf("Please provide %s or id", idField)}
+	}
+
+	updates := map[string]interface{}{statusField: statusValue}
+	for k, v := range extraUpdates {
+		updates[k] = v
+	}
+
+	res := e.entityResolver.db.WithContext(ctx).Table(table).Where(fmt.Sprintf("%s = ?", idField), entityID).Updates(updates)
+	if res.Error != nil {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "UPDATE_FAILED", ErrorMessage: res.Error.Error()}
+	}
+	if res.RowsAffected == 0 {
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "NOT_FOUND", ErrorMessage: fmt.Sprintf("%s not found", strings.ReplaceAll(entityType, "_", " "))}
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       map[string]interface{}{"id": entityID, statusField: statusValue},
+		Message:    fmt.Sprintf("%s updated to %s", strings.ReplaceAll(entityType, "_", " "), statusValue),
+		EntityType: entityType,
+		EntityID:   entityID,
+		Action:     "UPDATE",
+	}
+}
+
+func (e *ActionExecutor) executeSimpleQueryByTable(ctx context.Context, table, entityType string, searchableColumns []string, params map[string]interface{}) *ActionResult {
+	if e.entityResolver == nil || e.entityResolver.db == nil {
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+	}
+
+	query := e.entityResolver.db.WithContext(ctx).Table(table)
+
+	if id := strings.TrimSpace(getStringParam(params, "id")); id != "" {
+		query = query.Where("id = ?", id)
+	} else {
+		search := strings.TrimSpace(getStringParam(params, "search"))
+		if search == "" {
+			search = strings.TrimSpace(getStringParam(params, "name"))
+		}
+		if search == "" {
+			return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide id, search, or name parameter"}
+		}
+		if len(searchableColumns) > 0 {
+			like := "%" + search + "%"
+			conds := make([]string, 0, len(searchableColumns))
+			args := make([]interface{}, 0, len(searchableColumns))
+			for _, col := range searchableColumns {
+				conds = append(conds, fmt.Sprintf("LOWER(%s) LIKE LOWER(?)", col))
+				args = append(args, like)
+			}
+			query = query.Where(strings.Join(conds, " OR "), args...)
+		}
+	}
+
+	row := map[string]interface{}{}
+	if err := query.Select("*").Limit(1).Scan(&row).Error; err != nil {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "QUERY_FAILED", ErrorMessage: err.Error()}
+	}
+	if len(row) == 0 {
+		return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "NOT_FOUND", ErrorMessage: fmt.Sprintf("%s not found", strings.ReplaceAll(entityType, "_", " "))}
+	}
+
+	entityID := ""
+	if idVal, ok := row["id"]; ok {
+		entityID = fmt.Sprint(idVal)
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Data:       row,
+		Message:    fmt.Sprintf("%s found", strings.ReplaceAll(entityType, "_", " ")),
+		EntityType: entityType,
+		EntityID:   entityID,
 		Action:     "QUERY",
 	}
 }

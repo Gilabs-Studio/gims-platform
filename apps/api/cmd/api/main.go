@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreUsecase "github.com/gilabs/gims/api/internal/core/domain/usecase"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -390,22 +392,41 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
 
 		// AI Assistant module
+		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)
+		bankAccountRepo := coreRepos.NewBankAccountRepository(database.DB)
+		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+
 		cerebrasClient := cerebras.NewClient(
 			config.AppConfig.Cerebras.BaseURL,
 			config.AppConfig.Cerebras.APIKey,
 			config.AppConfig.Cerebras.Model,
 		)
 		aiPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, cerebrasClient, &aiPresentation.AIDeps{
-			HolidayUC:        hrdDeps.HolidayUC,
-			LeaveRequestUC:   hrdDeps.LeaveRequestUC,
-			AttendanceUC:     hrdDeps.AttendanceUC,
-			SalesQuotationUC: salesDeps.QuotationUC,
-			SalesOrderUC:     salesDeps.OrderUC,
-			YearlyTargetUC:   salesDeps.YearlyTargetUC,
-			InventoryUC:      invUC,
+			HolidayUC:         hrdDeps.HolidayUC,
+			LeaveRequestUC:    hrdDeps.LeaveRequestUC,
+			AttendanceUC:      hrdDeps.AttendanceUC,
+			SalesQuotationUC:  salesDeps.QuotationUC,
+			SalesOrderUC:      salesDeps.OrderUC,
+			DeliveryOrderUC:   salesDeps.DeliveryOrderUC,
+			CustomerInvoiceUC: salesDeps.CustomerInvoiceUC,
+			YearlyTargetUC:    salesDeps.YearlyTargetUC,
+			InventoryUC:       invUC,
+			PurchaseOrderUC:   purchaseDeps.OrderUC,
+			PurchaseReqUC:     purchaseDeps.RequisitionUC,
+			GoodsReceiptUC:    purchaseDeps.GoodsReceiptUC,
+			SupplierInvoiceUC: purchaseDeps.SupplierInvoiceUC,
+			CoaUC:             financeDeps.CoaUC,
+			JournalUC:         financeDeps.JournalUC,
+			FinancePaymentUC:  financeDeps.PaymentUC,
+			BudgetUC:          financeDeps.BudgetUC,
+			CashBankUC:        financeDeps.CashBankUC,
+			TaxInvoiceUC:      financeDeps.TaxInvoiceUC,
+			AssetUC:           financeDeps.AssetUC,
+			SalaryUC:          financeDeps.SalaryUC,
+			BankAccountUC:     bankAccountUC,
 		})
 	}
 
