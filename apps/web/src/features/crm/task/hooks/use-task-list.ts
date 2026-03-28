@@ -51,7 +51,7 @@ export function useTaskList() {
   const canViewDeal = useUserPermission("crm_deal.read");
   const canViewCustomer = useUserPermission("customer.read");
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
   const handleCreate = () => {

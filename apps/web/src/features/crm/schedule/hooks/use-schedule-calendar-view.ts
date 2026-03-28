@@ -18,7 +18,7 @@ export function useScheduleCalendarView(statusFilter: string) {
     status: statusFilter || undefined,
   });
 
-  const allItems: Schedule[] = allSchedulesRes?.data ?? [];
+  const allItems: Schedule[] = useMemo(() => allSchedulesRes?.data ?? [], [allSchedulesRes?.data]);
 
   const scheduleDatesMap: Map<string, Schedule[]> = useMemo(
     () => groupItemsByDayKey(allItems, (item) => item.scheduled_at),

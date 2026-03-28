@@ -132,7 +132,7 @@ export function ActivityList() {
               <TableHead>{t("table.customer")}</TableHead>
               <TableHead>{t("table.contact")}</TableHead>
               <TableHead>{t("table.timestamp")}</TableHead>
-              <TableHead className="w-[80px]">{tCommon("actions")}</TableHead>
+              <TableHead className="w-20">{tCommon("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

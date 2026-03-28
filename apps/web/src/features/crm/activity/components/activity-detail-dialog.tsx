@@ -36,7 +36,7 @@ function InfoRow({
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium break-words">{value}</p>
+        <p className="text-sm font-medium wrap-break-word">{value}</p>
       </div>
     </div>
   );

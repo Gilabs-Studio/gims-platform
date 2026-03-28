@@ -39,7 +39,7 @@ export function ModelSelector() {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 max-w-[160px] cursor-pointer gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+          className="h-6 max-w-40 cursor-pointer gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Cpu className="h-3 w-3 shrink-0" />
           <span className="truncate">{displayName}</span>

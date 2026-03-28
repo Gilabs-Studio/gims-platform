@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
-import { DynamicIcon } from "@/lib/icon-utils";
 import { useActivityTypeForm } from "../hooks/use-activity-type-form";
 import { LucideIconSelector } from "./lucide-icon-selector";
 import type { ActivityType } from "../types";

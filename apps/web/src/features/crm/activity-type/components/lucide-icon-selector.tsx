@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,17 +23,13 @@ export function LucideIconSelector({ value, onChange, disabled = false }: Lucide
   const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
   const { data, isLoading, isError } = useLucideIcons({
     page,
     per_page: 20,
     search: debouncedSearch || undefined,
   });
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
   const selectedLabel = useMemo(() => {
@@ -53,7 +49,10 @@ export function LucideIconSelector({ value, onChange, disabled = false }: Lucide
         <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder={t("form.iconSearchPlaceholder")}
           className="pl-8"
           disabled={disabled}

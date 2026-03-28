@@ -47,7 +47,7 @@ export function useVisitReportList() {
   const checkOutMutation = useCheckOutVisitReport();
   const submitMutation = useSubmitVisitReport();
 
-  const items = data?.data ?? [];
+  const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
 
   // Compute summary metrics from loaded items for scope-aware dashboards

@@ -89,7 +89,6 @@ export function LogVisitDialog({
   dealId,
   customerId,
   contactId,
-  defaultEmployeeId,
   defaultContactPerson,
   defaultContactPhone,
   contacts,
