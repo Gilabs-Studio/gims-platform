@@ -41,6 +41,15 @@ type ActionResult struct {
 	ErrorMessage string      `json:"error_message,omitempty"`
 }
 
+const (
+	dbServiceUnavailableMessage             = "Database service is not available"
+	leaveRequestServiceUnavailableMessage   = "Leave request service is not available"
+	salesQuotationServiceUnavailableMessage = "Sales quotation service is not available"
+	salesOrderServiceUnavailableMessage     = "Sales order service is not available"
+	purchaseOrderServiceUnavailableMessage  = "Purchase order service is not available"
+	invalidParamsMessage                    = "Invalid parameters"
+)
+
 // ActionExecutorDeps holds the domain usecase dependencies for the executor
 type ActionExecutorDeps struct {
 	HolidayUsecase             hrdUsecase.HolidayUsecase
@@ -133,7 +142,15 @@ func (e *ActionExecutor) Execute(ctx context.Context, intent *IntentResult, reso
 	case "CREATE_OVERTIME":
 		result = e.executeSimpleCreateByTable(ctx, "overtime_requests", "overtime", []string{"employee_id", "date", "request_type", "start_time", "end_time", "reason", "description", "task_details", "status", "approved_by", "approved_minutes"}, []string{"employee_id", "date", "start_time", "end_time", "reason"}, intent.Parameters)
 	case "APPROVE_OVERTIME":
-		result = e.executeSimpleStatusUpdateByTable(ctx, "overtime_requests", "overtime", "id", "status", "APPROVED", intent.Parameters, map[string]interface{}{"approved_by": currentUserID})
+		result = e.executeSimpleStatusUpdateByTable(ctx, simpleStatusUpdateRequest{
+			table:        "overtime_requests",
+			entityType:   "overtime",
+			idField:      "id",
+			statusField:  "status",
+			statusValue:  "APPROVED",
+			params:       intent.Parameters,
+			extraUpdates: map[string]interface{}{"approved_by": currentUserID},
+		})
 	case "LIST_WORK_SCHEDULES":
 		result = e.executeSimpleListByTable(ctx, "work_schedules", "work_schedule", "work_schedules", []string{"name", "description"}, intent.Parameters)
 	case "CREATE_WORK_SCHEDULE":
@@ -637,13 +654,13 @@ func (e *ActionExecutor) executeListHolidays(ctx context.Context, params map[str
 
 func (e *ActionExecutor) executeCreateLeaveRequest(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.LeaveRequestUsecase == nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: leaveRequestServiceUnavailableMessage}
 	}
 
 	// Convert params to JSON then unmarshal to the DTO for flexibility
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req hrdDTO.CreateLeaveRequestDTO
@@ -674,7 +691,7 @@ func (e *ActionExecutor) executeCreateLeaveRequest(ctx context.Context, params m
 
 func (e *ActionExecutor) executeListLeaveRequests(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.LeaveRequestUsecase == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: leaveRequestServiceUnavailableMessage}
 	}
 
 	filters := &hrdDTO.LeaveRequestListFilterDTO{
@@ -711,7 +728,7 @@ func (e *ActionExecutor) executeListLeaveRequests(ctx context.Context, params ma
 
 func (e *ActionExecutor) executeApproveLeaveRequest(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.LeaveRequestUsecase == nil {
-		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: leaveRequestServiceUnavailableMessage}
 	}
 
 	leaveRequestID := strings.TrimSpace(getStringParam(params, "leave_request_id"))
@@ -739,7 +756,7 @@ func (e *ActionExecutor) executeApproveLeaveRequest(ctx context.Context, params 
 
 func (e *ActionExecutor) executeRejectLeaveRequest(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.LeaveRequestUsecase == nil {
-		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Leave request service is not available"}
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: leaveRequestServiceUnavailableMessage}
 	}
 
 	leaveRequestID := strings.TrimSpace(getStringParam(params, "leave_request_id"))
@@ -923,129 +940,15 @@ func (e *ActionExecutor) executeListSalesTargets(ctx context.Context, params map
 
 func (e *ActionExecutor) executeCreateSalesQuotation(ctx context.Context, params map[string]interface{}, currentUserID string, resolvedEntities map[string]*ResolvedEntity) *ActionResult {
 	if e.deps.SalesQuotationUsecase == nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales quotation service is not available"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesQuotationServiceUnavailableMessage}
 	}
 
-	// Resolve human-readable names to database UUIDs before building the DTO.
-	// The LLM extracts names (payment_terms_name, business_unit_name, items[].product_name)
-	// but the DTO requires UUIDs (payment_terms_id, business_unit_id, items[].product_id).
-
-	// Resolve payment_terms_name → payment_terms_id
-	if _, hasID := params["payment_terms_id"]; !hasID {
-		for _, key := range []string{"payment_terms_name", "payment_terms", "syarat_pembayaran"} {
-			if name, ok := params[key].(string); ok && name != "" {
-				ptID, err := e.entityResolver.ResolvePaymentTerms(ctx, name)
-				if err != nil {
-					return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_quotation", ErrorCode: "ENTITY_NOT_FOUND", ErrorMessage: fmt.Sprintf("Syarat pembayaran '%s' tidak ditemukan di database", name)}
-				}
-				params["payment_terms_id"] = ptID
-				break
-			}
-		}
+	req, errResult := e.buildSalesQuotationRequest(ctx, params, currentUserID, resolvedEntities)
+	if errResult != nil {
+		return errResult
 	}
 
-	// Resolve business_unit_name → business_unit_id
-	if _, hasID := params["business_unit_id"]; !hasID {
-		for _, key := range []string{"business_unit_name", "business_unit", "unit_bisnis"} {
-			if name, ok := params[key].(string); ok && name != "" {
-				buID, err := e.entityResolver.ResolveBusinessUnit(ctx, name)
-				if err != nil {
-					return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_quotation", ErrorCode: "ENTITY_NOT_FOUND", ErrorMessage: fmt.Sprintf("Unit bisnis '%s' tidak ditemukan di database", name)}
-				}
-				params["business_unit_id"] = buID
-				break
-			}
-		}
-	}
-
-	// Resolve items: product_name → product_id, fill default price/quantity
-	if items, ok := params["items"].([]interface{}); ok {
-		for i, item := range items {
-			itemMap, ok := item.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			// Resolve product_name → product_id if not already set
-			if _, hasProductID := itemMap["product_id"]; !hasProductID {
-				if pName, ok := itemMap["product_name"].(string); ok && pName != "" {
-					prodID, prodPrice, err := e.entityResolver.ResolveProductByName(ctx, pName)
-					if err != nil {
-						return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_quotation", ErrorCode: "ENTITY_NOT_FOUND", ErrorMessage: fmt.Sprintf("Produk '%s' tidak dapat di-resolve: %s", pName, err.Error())}
-					}
-					itemMap["product_id"] = prodID
-					// Use DB price if LLM didn't extract one or extracted 0
-					if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
-						itemMap["price"] = prodPrice
-					}
-				}
-			}
-			// Default quantity to 1 if missing
-			if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
-				itemMap["quantity"] = float64(1)
-			}
-			// Default discount to 0
-			if _, hasDiscount := itemMap["discount"]; !hasDiscount {
-				itemMap["discount"] = float64(0)
-			}
-			items[i] = itemMap
-		}
-		params["items"] = items
-	}
-
-	// Ensure quotation_date is today (prevent LLM hallucination of past dates)
-	today := apptime.Now().Format("2006-01-02")
-	if qd, ok := params["quotation_date"].(string); !ok || qd == "" {
-		params["quotation_date"] = today
-	} else {
-		// Validate the date is reasonable — override if year is in the past
-		if parsed, err := time.Parse("2006-01-02", qd); err != nil || parsed.Year() < apptime.Now().Year() {
-			params["quotation_date"] = today
-		}
-	}
-
-	// Auto-fill sales_rep_id: resolve current user ID → employee ID
-	// The FK points to employees.id, not users.id
-	if _, hasSR := params["sales_rep_id"]; !hasSR || getStringParam(params, "sales_rep_id") == "" {
-		empID, err := e.entityResolver.ResolveUserToEmployeeID(ctx, currentUserID)
-		if err != nil {
-			return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_quotation", ErrorCode: "ENTITY_NOT_FOUND", ErrorMessage: "Tidak dapat menemukan data karyawan untuk user saat ini. Pastikan akun Anda terhubung dengan data karyawan."}
-		}
-		params["sales_rep_id"] = empID
-	}
-
-	// Apply resolved customer name from entity resolution
-	if customer, ok := resolvedEntities["customer"]; ok && getStringParam(params, "customer_name") == "" {
-		params["customer_name"] = customer.DisplayName
-	}
-
-	// Strip extra LLM-generated fields that don't belong to the DTO
-	// to prevent JSON unmarshal issues
-	allowedFields := map[string]bool{
-		"quotation_date": true, "valid_until": true, "payment_terms_id": true,
-		"sales_rep_id": true, "business_unit_id": true, "business_type_id": true,
-		"customer_name": true, "customer_contact": true, "customer_phone": true,
-		"customer_email": true, "tax_rate": true, "delivery_cost": true,
-		"other_cost": true, "discount_amount": true, "notes": true, "items": true,
-	}
-	cleanParams := make(map[string]interface{})
-	for k, v := range params {
-		if allowedFields[k] {
-			cleanParams[k] = v
-		}
-	}
-
-	// Convert cleaned params to JSON then unmarshal to DTO
-	paramJSON, err := json.Marshal(cleanParams)
-	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
-	}
-
-	var req salesDTO.CreateSalesQuotationRequest
-	if err := json.Unmarshal(paramJSON, &req); err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse sales quotation parameters: %s", err.Error())}
-	}
-
-	resp, err := e.deps.SalesQuotationUsecase.Create(ctx, &req, &currentUserID)
+	resp, err := e.deps.SalesQuotationUsecase.Create(ctx, req, &currentUserID)
 	if err != nil {
 		return &ActionResult{
 			Success:      false,
@@ -1066,9 +969,149 @@ func (e *ActionExecutor) executeCreateSalesQuotation(ctx context.Context, params
 	}
 }
 
+func (e *ActionExecutor) buildSalesQuotationRequest(ctx context.Context, params map[string]interface{}, currentUserID string, resolvedEntities map[string]*ResolvedEntity) (*salesDTO.CreateSalesQuotationRequest, *ActionResult) {
+	if errResult := e.resolveSalesQuotationReferences(ctx, params); errResult != nil {
+		return nil, errResult
+	}
+
+	applySalesQuotationDefaults(ctx, e.entityResolver, params, currentUserID, resolvedEntities)
+	cleanParams := filterMapByAllowedKeys(params, map[string]bool{
+		"quotation_date":   true,
+		"valid_until":      true,
+		"payment_terms_id": true,
+		"sales_rep_id":     true,
+		"business_unit_id": true,
+		"business_type_id": true,
+		"customer_name":    true,
+		"customer_contact": true,
+		"customer_phone":   true,
+		"customer_email":   true,
+		"tax_rate":         true,
+		"delivery_cost":    true,
+		"other_cost":       true,
+		"discount_amount":  true,
+		"notes":            true,
+		"items":            true,
+	})
+
+	var req salesDTO.CreateSalesQuotationRequest
+	if errResult := marshalParamsToRequest(cleanParams, &req, "sales quotation"); errResult != nil {
+		return nil, errResult
+	}
+
+	return &req, nil
+}
+
+func (e *ActionExecutor) resolveSalesQuotationReferences(ctx context.Context, params map[string]interface{}) *ActionResult {
+	if _, hasID := params["payment_terms_id"]; !hasID {
+		for _, key := range []string{"payment_terms_name", "payment_terms", "syarat_pembayaran"} {
+			name := strings.TrimSpace(getStringParam(params, key))
+			if name == "" {
+				continue
+			}
+			ptID, err := e.entityResolver.ResolvePaymentTerms(ctx, name)
+			if err != nil {
+				return newEntityNotFoundResult("sales_quotation", fmt.Sprintf("Syarat pembayaran '%s' tidak ditemukan di database", name))
+			}
+			params["payment_terms_id"] = ptID
+			break
+		}
+	}
+
+	if _, hasID := params["business_unit_id"]; !hasID {
+		for _, key := range []string{"business_unit_name", "business_unit", "unit_bisnis"} {
+			name := strings.TrimSpace(getStringParam(params, key))
+			if name == "" {
+				continue
+			}
+			buID, err := e.entityResolver.ResolveBusinessUnit(ctx, name)
+			if err != nil {
+				return newEntityNotFoundResult("sales_quotation", fmt.Sprintf("Unit bisnis '%s' tidak ditemukan di database", name))
+			}
+			params["business_unit_id"] = buID
+			break
+		}
+	}
+
+	if items, ok := params["items"].([]interface{}); ok {
+		if errResult := e.normalizeSalesQuotationItems(ctx, items); errResult != nil {
+			return errResult
+		}
+		params["items"] = items
+	}
+
+	return nil
+}
+
+func (e *ActionExecutor) normalizeSalesQuotationItems(ctx context.Context, items []interface{}) *ActionResult {
+	for i, item := range items {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, hasProductID := itemMap["product_id"]; !hasProductID {
+			productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
+			if productName != "" {
+				prodID, prodPrice, err := e.entityResolver.ResolveProductByName(ctx, productName)
+				if err != nil {
+					return newEntityNotFoundResult("sales_quotation", fmt.Sprintf("Produk '%s' tidak dapat di-resolve: %s", productName, err.Error()))
+				}
+				itemMap["product_id"] = prodID
+				if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
+					itemMap["price"] = prodPrice
+				}
+			}
+		}
+		if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
+			itemMap["quantity"] = float64(1)
+		}
+		if _, hasDiscount := itemMap["discount"]; !hasDiscount {
+			itemMap["discount"] = float64(0)
+		}
+		items[i] = itemMap
+	}
+	return nil
+}
+
+func applySalesQuotationDefaults(ctx context.Context, resolver *EntityResolver, params map[string]interface{}, currentUserID string, resolvedEntities map[string]*ResolvedEntity) {
+	applyQuotationDateDefault(params)
+	applySalesRepDefault(ctx, resolver, params, currentUserID)
+	applyResolvedCustomerName(params, resolvedEntities)
+}
+
+func applyQuotationDateDefault(params map[string]interface{}) {
+	today := apptime.Now().Format("2006-01-02")
+	qd, ok := params["quotation_date"].(string)
+	if !ok || strings.TrimSpace(qd) == "" {
+		params["quotation_date"] = today
+		return
+	}
+	parsed, err := time.Parse("2006-01-02", qd)
+	if err != nil || parsed.Year() < apptime.Now().Year() {
+		params["quotation_date"] = today
+	}
+}
+
+func applySalesRepDefault(ctx context.Context, resolver *EntityResolver, params map[string]interface{}, currentUserID string) {
+	if strings.TrimSpace(getStringParam(params, "sales_rep_id")) != "" {
+		return
+	}
+	empID, err := resolver.ResolveUserToEmployeeID(ctx, currentUserID)
+	if err != nil {
+		return
+	}
+	params["sales_rep_id"] = empID
+}
+
+func applyResolvedCustomerName(params map[string]interface{}, resolvedEntities map[string]*ResolvedEntity) {
+	if customer, ok := resolvedEntities["customer"]; ok && strings.TrimSpace(getStringParam(params, "customer_name")) == "" {
+		params["customer_name"] = customer.DisplayName
+	}
+}
+
 func (e *ActionExecutor) executeListSalesQuotations(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.SalesQuotationUsecase == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales quotation service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesQuotationServiceUnavailableMessage}
 	}
 
 	req := &salesDTO.ListSalesQuotationsRequest{
@@ -1123,7 +1166,7 @@ func (e *ActionExecutor) executeListSalesQuotations(ctx context.Context, params 
 
 func (e *ActionExecutor) executeApproveSalesQuotation(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.SalesQuotationUsecase == nil {
-		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales quotation service is not available"}
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesQuotationServiceUnavailableMessage}
 	}
 
 	quotationID := strings.TrimSpace(getStringParam(params, "quotation_id"))
@@ -1167,89 +1210,108 @@ func (e *ActionExecutor) executeApproveSalesQuotation(ctx context.Context, param
 
 func (e *ActionExecutor) executeCreateSalesOrder(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
 	if e.deps.SalesOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesOrderServiceUnavailableMessage}
 	}
 
-	today := apptime.Now().Format("2006-01-02")
-	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
-		params["order_date"] = today
+	req, errResult := e.buildSalesOrderRequest(ctx, params, currentUserID)
+	if errResult != nil {
+		return errResult
 	}
 
-	if _, hasSR := params["sales_rep_id"]; !hasSR || strings.TrimSpace(getStringParam(params, "sales_rep_id")) == "" {
-		empID, err := e.entityResolver.ResolveUserToEmployeeID(ctx, currentUserID)
-		if err == nil && empID != "" {
-			params["sales_rep_id"] = empID
-		}
-	}
-
-	if _, hasID := params["payment_terms_id"]; !hasID {
-		for _, key := range []string{"payment_terms_name", "payment_terms", "syarat_pembayaran"} {
-			if name, ok := params[key].(string); ok && strings.TrimSpace(name) != "" {
-				ptID, err := e.entityResolver.ResolvePaymentTerms(ctx, name)
-				if err == nil {
-					params["payment_terms_id"] = ptID
-				}
-				break
-			}
-		}
-	}
-
-	if _, hasID := params["business_unit_id"]; !hasID {
-		for _, key := range []string{"business_unit_name", "business_unit", "unit_bisnis"} {
-			if name, ok := params[key].(string); ok && strings.TrimSpace(name) != "" {
-				buID, err := e.entityResolver.ResolveBusinessUnit(ctx, name)
-				if err == nil {
-					params["business_unit_id"] = buID
-				}
-				break
-			}
-		}
-	}
-
-	if items, ok := params["items"].([]interface{}); ok {
-		for i, item := range items {
-			itemMap, ok := item.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			if _, hasProductID := itemMap["product_id"]; !hasProductID {
-				if productName, ok := itemMap["product_name"].(string); ok && strings.TrimSpace(productName) != "" {
-					prodID, prodPrice, err := e.entityResolver.ResolveProductByName(ctx, productName)
-					if err == nil {
-						itemMap["product_id"] = prodID
-						if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
-							itemMap["price"] = prodPrice
-						}
-					}
-				}
-			}
-			if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
-				itemMap["quantity"] = float64(1)
-			}
-			if _, hasDiscount := itemMap["discount"]; !hasDiscount {
-				itemMap["discount"] = float64(0)
-			}
-			items[i] = itemMap
-		}
-		params["items"] = items
-	}
-
-	paramJSON, err := json.Marshal(params)
-	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
-	}
-
-	var req salesDTO.CreateSalesOrderRequest
-	if err := json.Unmarshal(paramJSON, &req); err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse sales order parameters: %s", err.Error())}
-	}
-
-	resp, err := e.deps.SalesOrderUsecase.Create(ctx, &req, &currentUserID)
+	resp, err := e.deps.SalesOrderUsecase.Create(ctx, req, &currentUserID)
 	if err != nil {
 		return &ActionResult{Success: false, Action: "CREATE", EntityType: "sales_order", ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
 	}
 
 	return &ActionResult{Success: true, Data: resp, Message: fmt.Sprintf("Sales order %s created successfully", resp.Code), EntityType: "sales_order", EntityID: resp.ID, Action: "CREATE"}
+}
+
+func (e *ActionExecutor) buildSalesOrderRequest(ctx context.Context, params map[string]interface{}, currentUserID string) (*salesDTO.CreateSalesOrderRequest, *ActionResult) {
+	applySalesOrderDefaults(ctx, e.entityResolver, params, currentUserID)
+
+	var req salesDTO.CreateSalesOrderRequest
+	if errResult := marshalParamsToRequest(params, &req, "sales order"); errResult != nil {
+		return nil, errResult
+	}
+
+	return &req, nil
+}
+
+func applySalesOrderDefaults(ctx context.Context, resolver *EntityResolver, params map[string]interface{}, currentUserID string) {
+	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
+		params["order_date"] = apptime.Now().Format("2006-01-02")
+	}
+	applySalesRepDefault(ctx, resolver, params, currentUserID)
+	resolvePaymentTermsID(ctx, resolver, params)
+	resolveBusinessUnitID(ctx, resolver, params)
+	normalizeSalesOrderItems(ctx, resolver, params)
+}
+
+func resolvePaymentTermsID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+	if _, hasID := params["payment_terms_id"]; hasID {
+		return
+	}
+	for _, key := range []string{"payment_terms_name", "payment_terms", "syarat_pembayaran"} {
+		name := strings.TrimSpace(getStringParam(params, key))
+		if name == "" {
+			continue
+		}
+		ptID, err := resolver.ResolvePaymentTerms(ctx, name)
+		if err == nil {
+			params["payment_terms_id"] = ptID
+		}
+		return
+	}
+}
+
+func resolveBusinessUnitID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+	if _, hasID := params["business_unit_id"]; hasID {
+		return
+	}
+	for _, key := range []string{"business_unit_name", "business_unit", "unit_bisnis"} {
+		name := strings.TrimSpace(getStringParam(params, key))
+		if name == "" {
+			continue
+		}
+		buID, err := resolver.ResolveBusinessUnit(ctx, name)
+		if err == nil {
+			params["business_unit_id"] = buID
+		}
+		return
+	}
+}
+
+func normalizeSalesOrderItems(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+	items, ok := params["items"].([]interface{})
+	if !ok {
+		return
+	}
+	for i, item := range items {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, hasProductID := itemMap["product_id"]; !hasProductID {
+			productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
+			if productName != "" {
+				prodID, prodPrice, err := resolver.ResolveProductByName(ctx, productName)
+				if err == nil {
+					itemMap["product_id"] = prodID
+					if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
+						itemMap["price"] = prodPrice
+					}
+				}
+			}
+		}
+		if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
+			itemMap["quantity"] = float64(1)
+		}
+		if _, hasDiscount := itemMap["discount"]; !hasDiscount {
+			itemMap["discount"] = float64(0)
+		}
+		items[i] = itemMap
+	}
+	params["items"] = items
 }
 
 func (e *ActionExecutor) executeCreateDeliveryOrder(ctx context.Context, params map[string]interface{}, currentUserID string) *ActionResult {
@@ -1263,7 +1325,7 @@ func (e *ActionExecutor) executeCreateDeliveryOrder(ctx context.Context, params 
 
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req salesDTO.CreateDeliveryOrderRequest
@@ -1290,7 +1352,7 @@ func (e *ActionExecutor) executeCreateSalesInvoice(ctx context.Context, params m
 
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req salesDTO.CreateCustomerInvoiceRequest
@@ -1308,7 +1370,7 @@ func (e *ActionExecutor) executeCreateSalesInvoice(ctx context.Context, params m
 
 func (e *ActionExecutor) executeListSalesOrders(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.SalesOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesOrderServiceUnavailableMessage}
 	}
 
 	req := &salesDTO.ListSalesOrdersRequest{
@@ -1379,7 +1441,7 @@ func (e *ActionExecutor) executeListSalesOrders(ctx context.Context, params map[
 
 func (e *ActionExecutor) executeQuerySalesOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.SalesOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Sales order service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: salesOrderServiceUnavailableMessage}
 	}
 
 	if orderID := getStringParam(params, "order_id"); orderID != "" {
@@ -1494,7 +1556,7 @@ func (e *ActionExecutor) executeQuerySalesOrder(ctx context.Context, params map[
 
 func (e *ActionExecutor) executeListPurchaseOrders(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.PurchaseOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: purchaseOrderServiceUnavailableMessage}
 	}
 
 	page := 1
@@ -1846,7 +1908,7 @@ func (e *ActionExecutor) executeCreatePurchaseRequisition(ctx context.Context, p
 
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req purchaseDTO.CreatePurchaseRequisitionRequest
@@ -1864,7 +1926,7 @@ func (e *ActionExecutor) executeCreatePurchaseRequisition(ctx context.Context, p
 
 func (e *ActionExecutor) executeCreatePurchaseOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.PurchaseOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: purchaseOrderServiceUnavailableMessage}
 	}
 
 	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
@@ -1873,7 +1935,7 @@ func (e *ActionExecutor) executeCreatePurchaseOrder(ctx context.Context, params 
 
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req purchaseDTO.CreatePurchaseOrderRequest
@@ -1891,7 +1953,7 @@ func (e *ActionExecutor) executeCreatePurchaseOrder(ctx context.Context, params 
 
 func (e *ActionExecutor) executeApprovePurchaseOrder(ctx context.Context, params map[string]interface{}) *ActionResult {
 	if e.deps.PurchaseOrderUsecase == nil {
-		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Purchase order service is not available"}
+		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: purchaseOrderServiceUnavailableMessage}
 	}
 
 	purchaseOrderID := strings.TrimSpace(getStringParam(params, "purchase_order_id"))
@@ -1921,7 +1983,7 @@ func (e *ActionExecutor) executeCreateJournal(ctx context.Context, params map[st
 
 	paramJSON, err := json.Marshal(params)
 	if err != nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: "Invalid parameters"}
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
 	}
 
 	var req financeDTO.CreateJournalEntryRequest
@@ -1962,9 +2024,9 @@ func (e *ActionExecutor) executeGenerateReport(ctx context.Context, params map[s
 		EntityType: "report",
 		Message:    fmt.Sprintf("Generated %s report summary", reportType),
 		Data: map[string]interface{}{
-			"report_type": reportType,
+			"report_type":  reportType,
 			"generated_at": apptime.Now().Format(time.RFC3339),
-			"summary": summary,
+			"summary":      summary,
 		},
 	}
 }
@@ -2208,7 +2270,7 @@ func (e *ActionExecutor) executeQueryEmployee(ctx context.Context, params map[st
 
 func (e *ActionExecutor) executeSimpleListByTable(ctx context.Context, table, entityType, dataKey string, searchableColumns []string, params map[string]interface{}) *ActionResult {
 	if e.entityResolver == nil || e.entityResolver.db == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: dbServiceUnavailableMessage}
 	}
 
 	page, perPage := 1, 20
@@ -2268,103 +2330,70 @@ func (e *ActionExecutor) executeSimpleListByTable(ctx context.Context, table, en
 
 func (e *ActionExecutor) executeSimpleCreateByTable(ctx context.Context, table, entityType string, allowedFields []string, requiredFields []string, params map[string]interface{}) *ActionResult {
 	if e.entityResolver == nil || e.entityResolver.db == nil {
-		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+		return unavailableActionResult("CREATE", dbServiceUnavailableMessage)
 	}
 
-	record := make(map[string]interface{})
-	allowed := make(map[string]struct{}, len(allowedFields))
-	for _, field := range allowedFields {
-		allowed[field] = struct{}{}
-		if val, exists := params[field]; exists {
-			record[field] = val
-		}
-	}
-
-	missing := make([]string, 0)
-	for _, field := range requiredFields {
-		val, exists := record[field]
-		if !exists || val == nil || strings.TrimSpace(fmt.Sprint(val)) == "" {
-			missing = append(missing, field)
-		}
-	}
-
-	if len(missing) > 0 {
+	allowed := sliceToSet(allowedFields)
+	record := filterMapByAllowedKeys(params, allowed)
+	if missing := missingRequiredFields(record, requiredFields); len(missing) > 0 {
 		return &ActionResult{Success: false, Action: "CREATE", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: fmt.Sprintf("Missing required fields: %s", strings.Join(missing, ", "))}
 	}
 
-	if _, hasCreatedAt := allowed["created_at"]; hasCreatedAt {
-		if _, exists := record["created_at"]; !exists {
-			record["created_at"] = apptime.Now()
-		}
-	}
-	if _, hasUpdatedAt := allowed["updated_at"]; hasUpdatedAt {
-		if _, exists := record["updated_at"]; !exists {
-			record["updated_at"] = apptime.Now()
-		}
-	}
+	applyAuditTimestamps(record, allowed)
 
 	if err := e.entityResolver.db.WithContext(ctx).Table(table).Create(&record).Error; err != nil {
 		return &ActionResult{Success: false, Action: "CREATE", EntityType: entityType, ErrorCode: "CREATE_FAILED", ErrorMessage: err.Error()}
 	}
 
-	entityID := ""
-	if idVal, ok := record["id"]; ok {
-		entityID = fmt.Sprint(idVal)
-	}
-
-	return &ActionResult{
-		Success:    true,
-		Data:       record,
-		Message:    fmt.Sprintf("%s created successfully", strings.ReplaceAll(entityType, "_", " ")),
-		EntityType: entityType,
-		EntityID:   entityID,
-		Action:     "CREATE",
-	}
+	return successTableActionResult("CREATE", entityType, record, fmt.Sprintf("%s created successfully", strings.ReplaceAll(entityType, "_", " ")), fmt.Sprint(record["id"]))
 }
 
-func (e *ActionExecutor) executeSimpleStatusUpdateByTable(ctx context.Context, table, entityType, idField, statusField, statusValue string, params map[string]interface{}, extraUpdates map[string]interface{}) *ActionResult {
+type simpleStatusUpdateRequest struct {
+	table        string
+	entityType   string
+	idField      string
+	statusField  string
+	statusValue  string
+	params       map[string]interface{}
+	extraUpdates map[string]interface{}
+}
+
+func (e *ActionExecutor) executeSimpleStatusUpdateByTable(ctx context.Context, req simpleStatusUpdateRequest) *ActionResult {
 	if e.entityResolver == nil || e.entityResolver.db == nil {
-		return &ActionResult{Success: false, Action: "UPDATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+		return unavailableActionResult("UPDATE", dbServiceUnavailableMessage)
 	}
 
-	entityID := strings.TrimSpace(getStringParam(params, idField))
+	entityID := strings.TrimSpace(getStringParam(req.params, req.idField))
 	if entityID == "" {
-		entityID = strings.TrimSpace(getStringParam(params, "id"))
+		entityID = strings.TrimSpace(getStringParam(req.params, "id"))
 	}
 	if entityID == "" {
-		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: fmt.Sprintf("Please provide %s or id", idField)}
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: req.entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: fmt.Sprintf("Please provide %s or id", req.idField)}
 	}
 
-	updates := map[string]interface{}{statusField: statusValue}
-	for k, v := range extraUpdates {
+	updates := map[string]interface{}{req.statusField: req.statusValue}
+	for k, v := range req.extraUpdates {
 		updates[k] = v
 	}
 
-	res := e.entityResolver.db.WithContext(ctx).Table(table).Where(fmt.Sprintf("%s = ?", idField), entityID).Updates(updates)
+	res := e.entityResolver.db.WithContext(ctx).Table(req.table).Where(fmt.Sprintf("%s = ?", req.idField), entityID).Updates(updates)
 	if res.Error != nil {
-		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "UPDATE_FAILED", ErrorMessage: res.Error.Error()}
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: req.entityType, ErrorCode: "UPDATE_FAILED", ErrorMessage: res.Error.Error()}
 	}
 	if res.RowsAffected == 0 {
-		return &ActionResult{Success: false, Action: "UPDATE", EntityType: entityType, ErrorCode: "NOT_FOUND", ErrorMessage: fmt.Sprintf("%s not found", strings.ReplaceAll(entityType, "_", " "))}
+		return &ActionResult{Success: false, Action: "UPDATE", EntityType: req.entityType, ErrorCode: "NOT_FOUND", ErrorMessage: fmt.Sprintf("%s not found", strings.ReplaceAll(req.entityType, "_", " "))}
 	}
 
-	return &ActionResult{
-		Success:    true,
-		Data:       map[string]interface{}{"id": entityID, statusField: statusValue},
-		Message:    fmt.Sprintf("%s updated to %s", strings.ReplaceAll(entityType, "_", " "), statusValue),
-		EntityType: entityType,
-		EntityID:   entityID,
-		Action:     "UPDATE",
-	}
+	data := map[string]interface{}{"id": entityID, req.statusField: req.statusValue}
+	return successTableActionResult("UPDATE", req.entityType, data, fmt.Sprintf("%s updated to %s", strings.ReplaceAll(req.entityType, "_", " "), req.statusValue), entityID)
 }
 
 func (e *ActionExecutor) executeSimpleQueryByTable(ctx context.Context, table, entityType string, searchableColumns []string, params map[string]interface{}) *ActionResult {
 	if e.entityResolver == nil || e.entityResolver.db == nil {
-		return &ActionResult{Success: false, Action: "QUERY", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Database service is not available"}
+		return unavailableActionResult("QUERY", dbServiceUnavailableMessage)
 	}
 
 	query := e.entityResolver.db.WithContext(ctx).Table(table)
-
 	if id := strings.TrimSpace(getStringParam(params, "id")); id != "" {
 		query = query.Where("id = ?", id)
 	} else {
@@ -2375,15 +2404,8 @@ func (e *ActionExecutor) executeSimpleQueryByTable(ctx context.Context, table, e
 		if search == "" {
 			return &ActionResult{Success: false, Action: "QUERY", EntityType: entityType, ErrorCode: "MISSING_PARAMS", ErrorMessage: "Please provide id, search, or name parameter"}
 		}
-		if len(searchableColumns) > 0 {
-			like := "%" + search + "%"
-			conds := make([]string, 0, len(searchableColumns))
-			args := make([]interface{}, 0, len(searchableColumns))
-			for _, col := range searchableColumns {
-				conds = append(conds, fmt.Sprintf("LOWER(%s) LIKE LOWER(?)", col))
-				args = append(args, like)
-			}
-			query = query.Where(strings.Join(conds, " OR "), args...)
+		if condition, args := buildSearchCondition(search, searchableColumns); condition != "" {
+			query = query.Where(condition, args...)
 		}
 	}
 
@@ -2400,14 +2422,92 @@ func (e *ActionExecutor) executeSimpleQueryByTable(ctx context.Context, table, e
 		entityID = fmt.Sprint(idVal)
 	}
 
-	return &ActionResult{
-		Success:    true,
-		Data:       row,
-		Message:    fmt.Sprintf("%s found", strings.ReplaceAll(entityType, "_", " ")),
-		EntityType: entityType,
-		EntityID:   entityID,
-		Action:     "QUERY",
+	return successTableActionResult("QUERY", entityType, row, fmt.Sprintf("%s found", strings.ReplaceAll(entityType, "_", " ")), entityID)
+}
+
+func unavailableActionResult(action, message string) *ActionResult {
+	return &ActionResult{Success: false, Action: action, ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: message}
+}
+
+func successTableActionResult(action, entityType string, data interface{}, message string, entityID ...string) *ActionResult {
+	result := &ActionResult{Success: true, Data: data, Message: message, EntityType: entityType, Action: action}
+	if len(entityID) > 0 && strings.TrimSpace(entityID[0]) != "" {
+		result.EntityID = entityID[0]
 	}
+	return result
+}
+
+func filterMapByAllowedKeys(source map[string]interface{}, allowed map[string]bool) map[string]interface{} {
+	filtered := make(map[string]interface{}, len(source))
+	for key, value := range source {
+		if allowed[key] {
+			filtered[key] = value
+		}
+	}
+	return filtered
+}
+
+func sliceToSet(values []string) map[string]bool {
+	set := make(map[string]bool, len(values))
+	for _, value := range values {
+		set[value] = true
+	}
+	return set
+}
+
+func missingRequiredFields(record map[string]interface{}, requiredFields []string) []string {
+	missing := make([]string, 0)
+	for _, field := range requiredFields {
+		val, exists := record[field]
+		if !exists || val == nil || strings.TrimSpace(fmt.Sprint(val)) == "" {
+			missing = append(missing, field)
+		}
+	}
+	return missing
+}
+
+func applyAuditTimestamps(record map[string]interface{}, allowed map[string]bool) {
+	if allowed["created_at"] {
+		if _, exists := record["created_at"]; !exists {
+			record["created_at"] = apptime.Now()
+		}
+	}
+	if allowed["updated_at"] {
+		if _, exists := record["updated_at"]; !exists {
+			record["updated_at"] = apptime.Now()
+		}
+	}
+}
+
+func buildSearchCondition(search string, searchableColumns []string) (string, []interface{}) {
+	if len(searchableColumns) == 0 {
+		return "", nil
+	}
+	like := "%" + search + "%"
+	conds := make([]string, 0, len(searchableColumns))
+	args := make([]interface{}, 0, len(searchableColumns))
+	for _, col := range searchableColumns {
+		conds = append(conds, fmt.Sprintf("LOWER(%s) LIKE LOWER(?)", col))
+		args = append(args, like)
+	}
+	return strings.Join(conds, " OR "), args
+}
+
+func marshalParamsToRequest(params map[string]interface{}, target interface{}, entityLabel string) *ActionResult {
+	paramJSON, err := json.Marshal(params)
+	if err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: invalidParamsMessage}
+	}
+
+	if err := json.Unmarshal(paramJSON, target); err != nil {
+		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "INVALID_PARAMS", ErrorMessage: fmt.Sprintf("Failed to parse %s parameters: %s", entityLabel, err.Error())}
+	}
+
+	return nil
+}
+
+func newEntityNotFoundResult(entityType, message string) *ActionResult {
+	return &ActionResult{Success: false, Action: "CREATE", EntityType: entityType, ErrorCode: "ENTITY_NOT_FOUND", ErrorMessage: message}
 }
 
 // stockFilterKeywords maps natural language stock-level terms to the low_stock filter.
@@ -2628,35 +2728,9 @@ func inferAnnualSalesTarget(params map[string]interface{}) float64 {
 }
 
 func buildMonthlySalesTargets(params map[string]interface{}, annualTotal float64) []salesDTO.CreateMonthlyTargetRequest {
-	monthMap := make(map[int]float64)
-	if rawMonths, ok := params["months"].([]interface{}); ok {
-		for _, raw := range rawMonths {
-			item, ok := raw.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			month := getIntParam(item, "month")
-			if month < 1 || month > 12 {
-				continue
-			}
-			amount := getFloatParam(item, "target_amount")
-			if amount < 0 {
-				continue
-			}
-			monthMap[month] = amount
-		}
-	}
-
+	monthMap := extractMonthlyTargetOverrides(params)
 	if len(monthMap) == 12 {
-		result := make([]salesDTO.CreateMonthlyTargetRequest, 0, 12)
-		for month := 1; month <= 12; month++ {
-			result = append(result, salesDTO.CreateMonthlyTargetRequest{
-				Month:        month,
-				TargetAmount: monthMap[month],
-				Notes:        "",
-			})
-		}
-		return result
+		return buildExplicitMonthlyTargets(monthMap)
 	}
 
 	totalRounded := math.Round(annualTotal)
@@ -2673,12 +2747,39 @@ func buildMonthlySalesTargets(params map[string]interface{}, annualTotal float64
 				remainder--
 			}
 		}
-		result = append(result, salesDTO.CreateMonthlyTargetRequest{
-			Month:        month,
-			TargetAmount: amount,
-			Notes:        "",
-		})
+		result = append(result, salesDTO.CreateMonthlyTargetRequest{Month: month, TargetAmount: amount, Notes: ""})
 	}
 
+	return result
+}
+
+func extractMonthlyTargetOverrides(params map[string]interface{}) map[int]float64 {
+	monthMap := make(map[int]float64)
+	rawMonths, ok := params["months"].([]interface{})
+	if !ok {
+		return monthMap
+	}
+
+	for _, raw := range rawMonths {
+		item, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		month := getIntParam(item, "month")
+		amount := getFloatParam(item, "target_amount")
+		if month < 1 || month > 12 || amount < 0 {
+			continue
+		}
+		monthMap[month] = amount
+	}
+
+	return monthMap
+}
+
+func buildExplicitMonthlyTargets(monthMap map[int]float64) []salesDTO.CreateMonthlyTargetRequest {
+	result := make([]salesDTO.CreateMonthlyTargetRequest, 0, 12)
+	for month := 1; month <= 12; month++ {
+		result = append(result, salesDTO.CreateMonthlyTargetRequest{Month: month, TargetAmount: monthMap[month], Notes: ""})
+	}
 	return result
 }

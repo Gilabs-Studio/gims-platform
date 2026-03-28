@@ -131,11 +131,59 @@ func (v *PermissionValidator) NeedsConfirmation(ctx context.Context, intentCode 
 }
 
 func fallbackPermissionForIntent(intentCode string) (string, bool) {
-	fallback := map[string]string{
-		"CREATE_HOLIDAY": "holiday.create",
-		"LIST_HOLIDAYS":  "holiday.read",
+	// Explicit rules for intents with non-standard or empty permissions.
+	explicit := map[string]string{
+		"CREATE_HOLIDAY":       "holiday.create",
+		"LIST_HOLIDAYS":        "holiday.read",
+		"CREATE_LEAVE_REQUEST": "",
+		"LIST_LEAVE_REQUESTS":  "",
+		"GENERATE_REPORT":      "report.generate",
 	}
 
-	perm, ok := fallback[intentCode]
-	return perm, ok
+	if perm, ok := explicit[intentCode]; ok {
+		return perm, true
+	}
+
+	return inferPermissionFromIntentCode(intentCode)
+}
+
+func inferPermissionFromIntentCode(intentCode string) (string, bool) {
+	intentCode = strings.ToUpper(strings.TrimSpace(intentCode))
+	if intentCode == "" {
+		return "", false
+	}
+
+	infer := func(rawEntity, actionSuffix string) (string, bool) {
+		entity := strings.TrimSpace(rawEntity)
+		if entity == "" {
+			return "", false
+		}
+
+		// LIST/QUERY intents are usually plural; normalize to singular permission resource.
+		if strings.HasSuffix(entity, "S") {
+			entity = strings.TrimSuffix(entity, "S")
+		}
+
+		entity = strings.ToLower(entity)
+		if entity == "" {
+			return "", false
+		}
+
+		return entity + "." + actionSuffix, true
+	}
+
+	switch {
+	case strings.HasPrefix(intentCode, "CREATE_"):
+		return infer(strings.TrimPrefix(intentCode, "CREATE_"), "create")
+	case strings.HasPrefix(intentCode, "LIST_"):
+		return infer(strings.TrimPrefix(intentCode, "LIST_"), "read")
+	case strings.HasPrefix(intentCode, "QUERY_"):
+		return infer(strings.TrimPrefix(intentCode, "QUERY_"), "read")
+	case strings.HasPrefix(intentCode, "APPROVE_"):
+		return infer(strings.TrimPrefix(intentCode, "APPROVE_"), "approve")
+	case strings.HasPrefix(intentCode, "REJECT_"):
+		return infer(strings.TrimPrefix(intentCode, "REJECT_"), "approve")
+	default:
+		return "", false
+	}
 }
