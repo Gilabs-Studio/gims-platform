@@ -19,28 +19,10 @@ export function ReactQueryProvider({
             refetchOnWindowFocus: false,
             refetchOnMount: true, // Refetch on mount if data is stale
             refetchOnReconnect: true,
-            retry: (failureCount, error) => {
-              // Don't retry on network errors
-              if (error && typeof error === "object" && "code" in error) {
-                const code = (error as { code?: string }).code;
-                if (code === "ERR_NETWORK" || code === "ECONNABORTED") {
-                  return false;
-                }
-              }
-              return failureCount < 1;
-            },
+            retry: false,
           },
           mutations: {
-            retry: (failureCount, error) => {
-              // Don't retry on network errors
-              if (error && typeof error === "object" && "code" in error) {
-                const code = (error as { code?: string }).code;
-                if (code === "ERR_NETWORK" || code === "ECONNABORTED") {
-                  return false;
-                }
-              }
-              return failureCount < 1;
-            },
+            retry: false,
           },
         },
       }),
