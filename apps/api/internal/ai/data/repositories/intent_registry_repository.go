@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/ai/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -47,7 +48,7 @@ func (r *intentRegistryRepository) FindActive(ctx context.Context) ([]models.AII
 func (r *intentRegistryRepository) FindByIntentCode(ctx context.Context, code string) (*models.AIIntentRegistry, error) {
 	db := database.GetDB(ctx, r.db)
 	var intent models.AIIntentRegistry
-	if err := db.Where("intent_code = ? AND is_active = ?", code, true).First(&intent).Error; err != nil {
+	if err := db.Where("UPPER(intent_code) = ? AND is_active = ?", strings.ToUpper(strings.TrimSpace(code)), true).First(&intent).Error; err != nil {
 		return nil, err
 	}
 	return &intent, nil

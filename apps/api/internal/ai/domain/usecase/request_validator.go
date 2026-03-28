@@ -14,10 +14,10 @@ import (
 
 // ValidationResult holds the outcome of server-side parameter validation
 type ValidationResult struct {
-	Valid            bool                   `json:"valid"`
-	Errors           []ValidationError      `json:"errors,omitempty"`
+	Valid            bool                       `json:"valid"`
+	Errors           []ValidationError          `json:"errors,omitempty"`
 	ResolvedEntities map[string]*ResolvedEntity `json:"resolved_entities,omitempty"`
-	SanitizedParams  map[string]interface{} `json:"sanitized_params,omitempty"`
+	SanitizedParams  map[string]interface{}     `json:"sanitized_params,omitempty"`
 }
 
 // ValidationError represents a single field-level validation error
@@ -58,8 +58,19 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 	switch {
 	// Holiday creation
 	case intent.IntentCode == "CREATE_HOLIDAY":
-		v.validateRequired(result, params, "name", "date")
-		v.validateDateFormat(result, params, "date")
+		if isIndonesiaBulkHolidayMode(params) {
+			if year := getIntParam(params, "year"); year < 2000 || year > 2100 {
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Field:   "year",
+					Code:    "INVALID_RANGE",
+					Message: "Field 'year' harus di antara 2000-2100 untuk create holiday otomatis",
+				})
+			}
+		} else {
+			v.validateRequired(result, params, "name", "date")
+			v.validateDateFormat(result, params, "date")
+		}
 
 	// Leave request
 	case intent.IntentCode == "CREATE_LEAVE_REQUEST":
@@ -103,6 +114,15 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 	v.resolveEntities(ctx, result, params)
 
 	return result
+}
+
+func isIndonesiaBulkHolidayMode(params map[string]interface{}) bool {
+	if strings.EqualFold(getStringParam(params, "holiday_source"), "PUBLIC_API") && strings.EqualFold(getStringParam(params, "country_code"), "ID") {
+		return true
+	}
+
+	lowerCountry := strings.ToLower(getStringParam(params, "country"))
+	return lowerCountry == "id" || lowerCountry == "indonesia"
 }
 
 // validateRequired checks that required string fields are present and non-empty

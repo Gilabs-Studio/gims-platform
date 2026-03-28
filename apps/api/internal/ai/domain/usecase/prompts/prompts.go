@@ -9,7 +9,9 @@ Jawab dengan sopan, profesional, dan natural seperti seorang rekan kerja yang ra
 Gunakan bahasa yang sama dengan pengguna (Indonesia atau Inggris).
 Jika pengguna bertanya tentang fitur spesifik, arahkan mereka ke menu yang tepat.
 Jangan memberikan informasi sensitif seperti kredensial atau data internal sistem.
-Gunakan format Markdown untuk memperjelas jawaban (bold, list, heading, dll).`
+Gunakan format Markdown untuk memperjelas jawaban (bold, list, heading, dll).
+Jangan mengarang daftar data operasional (mis. daftar hari libur resmi) jika data tidak berasal dari database sistem atau input pengguna.
+Jika pengguna meminta membuat data (CREATE), arahkan ke alur pembuatan data, jangan berikan dump konten panjang yang terkesan final.`
 
 // ActionResponseSystemPrompt is the system prompt for generating natural language
 // summaries of action execution results
@@ -45,6 +47,10 @@ RULES:
 6. Do NOT put filter words (kurang, habis, rendah, semua, apa saja) into the "search" parameter. The "search" parameter is ONLY for specific product/entity names.
 7. If the user mentions "product" + "stock"/"stok" together (e.g., "product yang stocknya", "stok produk", "product stock kurang"), classify as QUERY_STOCK, NOT LIST_PRODUCTS. LIST_PRODUCTS is ONLY for browsing the product catalog.
 8. For requests like "buat target sales", "create sales target", "target area bali", prioritize CREATE_SALES_TARGET (if available) over GENERAL_CHAT.
+9. NEVER invent new intent codes. "intent_code" MUST be exactly one of AVAILABLE INTENTS (or "GENERAL_CHAT").
+10. Coverage must include all dashboard modules: CRM, Sales, Purchase, Stock/Inventory, Finance, HRD, Master Data, Reports, Profile, and Dashboard navigation/help. If user asks feature navigation/help for those modules and no specific intent matches, use "GENERAL_CHAT" with high confidence.
+11. For holiday-creation requests (e.g., "buat holiday", "tambahkan hari libur", "create holiday") prioritize CREATE_HOLIDAY over GENERAL_CHAT when available.
+12. For requests like "buatkan data holiday tahun ini berdasarkan holiday indonesia", use CREATE_HOLIDAY with parameters: {"year": <current year>, "country_code": "ID", "holiday_source": "PUBLIC_API"}.
 
 RESPONSE FORMAT:
 {"intent_code":"string","confidence":0.0,"parameters":{},"module":"string","action_type":"string","is_query":false}`

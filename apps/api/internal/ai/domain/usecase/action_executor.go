@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -309,6 +311,10 @@ func (e *ActionExecutor) executeCreateHoliday(ctx context.Context, params map[st
 		return &ActionResult{Success: false, Action: "CREATE", ErrorCode: "SERVICE_UNAVAILABLE", ErrorMessage: "Holiday service is not available"}
 	}
 
+	if shouldAutoCreateIndonesiaHolidays(params) {
+		return e.executeCreateIndonesiaHolidayBatch(ctx, params)
+	}
+
 	req := &hrdDTO.CreateHolidayRequest{
 		Name:     getStringParam(params, "name"),
 		Date:     getStringParam(params, "date"),
@@ -350,6 +356,172 @@ func (e *ActionExecutor) executeCreateHoliday(ctx context.Context, params map[st
 		EntityID:   resp.ID,
 		Action:     "CREATE",
 	}
+}
+
+type indonesiaHolidayAPIItem struct {
+	Date      string `json:"date"`
+	LocalName string `json:"localName"`
+	Name      string `json:"name"`
+}
+
+func shouldAutoCreateIndonesiaHolidays(params map[string]interface{}) bool {
+	source := strings.ToUpper(strings.TrimSpace(getStringParam(params, "holiday_source")))
+	countryCode := strings.ToUpper(strings.TrimSpace(getStringParam(params, "country_code")))
+	if source == "PUBLIC_API" && countryCode == "ID" {
+		return true
+	}
+
+	country := strings.ToLower(strings.TrimSpace(getStringParam(params, "country")))
+	return country == "id" || country == "indonesia"
+}
+
+func (e *ActionExecutor) executeCreateIndonesiaHolidayBatch(ctx context.Context, params map[string]interface{}) *ActionResult {
+	year := getIntParam(params, "year")
+	if year < 2000 || year > 2100 {
+		year = apptime.Now().Year()
+	}
+
+	apiItems, err := fetchIndonesiaPublicHolidays(ctx, year)
+	if err != nil {
+		return holidayCreateErrorResult(fmt.Sprintf("failed to fetch Indonesia holidays for %d: %v", year, err))
+	}
+
+	if len(apiItems) == 0 {
+		return holidayCreateErrorResult(fmt.Sprintf("no Indonesia public holidays found for %d", year))
+	}
+
+	existing, err := e.deps.HolidayUsecase.GetByYear(ctx, year)
+	if err != nil {
+		return holidayCreateErrorResult(fmt.Sprintf("failed to check existing holidays: %v", err))
+	}
+
+	createReqs := buildIndonesiaHolidayCreateRequests(apiItems, existing)
+
+	if len(createReqs) == 0 {
+		return holidayNoopResult(year, len(apiItems))
+	}
+
+	created, err := e.deps.HolidayUsecase.CreateBatch(ctx, createReqs)
+	if err != nil {
+		return holidayCreateErrorResult(err.Error())
+	}
+
+	return &ActionResult{
+		Success:    true,
+		Action:     "CREATE",
+		EntityType: "holiday",
+		Message:    fmt.Sprintf("Created %d Indonesia holidays for year %d.", len(created), year),
+		Data: map[string]interface{}{
+			"year":          year,
+			"created_count": len(created),
+			"created":       created,
+		},
+	}
+}
+
+func holidayCreateErrorResult(errMsg string) *ActionResult {
+	return &ActionResult{
+		Success:      false,
+		Action:       "CREATE",
+		EntityType:   "holiday",
+		ErrorCode:    "CREATE_FAILED",
+		ErrorMessage: errMsg,
+	}
+}
+
+func holidayNoopResult(year int, sourceCount int) *ActionResult {
+	return &ActionResult{
+		Success:    true,
+		Action:     "CREATE",
+		EntityType: "holiday",
+		Message:    fmt.Sprintf("No new holidays to create. All Indonesia public holidays for %d already exist.", year),
+		Data: map[string]interface{}{
+			"year":          year,
+			"created_count": 0,
+			"skipped_count": sourceCount,
+		},
+	}
+}
+
+func buildIndonesiaHolidayCreateRequests(apiItems []indonesiaHolidayAPIItem, existing []hrdDTO.HolidayResponse) []hrdDTO.CreateHolidayRequest {
+	existingByDate := make(map[string]struct{}, len(existing))
+	for _, h := range existing {
+		existingByDate[h.Date] = struct{}{}
+	}
+
+	createReqs := make([]hrdDTO.CreateHolidayRequest, 0, len(apiItems))
+	for _, item := range apiItems {
+		if req, ok := buildHolidayCreateRequestFromAPIItem(item, existingByDate); ok {
+			createReqs = append(createReqs, req)
+		}
+	}
+
+	return createReqs
+}
+
+func buildHolidayCreateRequestFromAPIItem(item indonesiaHolidayAPIItem, existingByDate map[string]struct{}) (hrdDTO.CreateHolidayRequest, bool) {
+	date := strings.TrimSpace(item.Date)
+	if date == "" {
+		return hrdDTO.CreateHolidayRequest{}, false
+	}
+	if _, exists := existingByDate[date]; exists {
+		return hrdDTO.CreateHolidayRequest{}, false
+	}
+
+	name := strings.TrimSpace(item.LocalName)
+	if name == "" {
+		name = strings.TrimSpace(item.Name)
+	}
+	if name == "" {
+		return hrdDTO.CreateHolidayRequest{}, false
+	}
+
+	description := "Imported from Indonesia public holiday dataset"
+	if item.Name != "" && item.Name != name {
+		description = fmt.Sprintf("%s (%s)", description, item.Name)
+	}
+
+	return hrdDTO.CreateHolidayRequest{
+		Date:              date,
+		Name:              name,
+		Description:       description,
+		Type:              "NATIONAL",
+		IsCollectiveLeave: false,
+		CutsAnnualLeave:   false,
+		IsRecurring:       false,
+		IsActive:          true,
+	}, true
+}
+
+func fetchIndonesiaPublicHolidays(ctx context.Context, year int) ([]indonesiaHolidayAPIItem, error) {
+	url := fmt.Sprintf("https://date.nager.at/api/v3/PublicHolidays/%d/ID", year)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("holiday source API returned status %d", resp.StatusCode)
+	}
+
+	var out []indonesiaHolidayAPIItem
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func (e *ActionExecutor) executeListHolidays(ctx context.Context, params map[string]interface{}) *ActionResult {
@@ -925,16 +1097,16 @@ func (e *ActionExecutor) buildStockSummary(resp *inventoryDTO.GetInventoryListRe
 	items := make([]map[string]interface{}, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		items = append(items, map[string]interface{}{
-			"product_name":  item.ProductName,
-			"product_code":  item.ProductCode,
-			"warehouse":     item.WarehouseName,
-			"available":     item.Available,
-			"on_hand":       item.OnHand,
-			"reserved":      item.Reserved,
-			"min_stock":     item.MinStock,
-			"max_stock":     item.MaxStock,
-			"unit":          item.UomName,
-			"status":        item.Status,
+			"product_name": item.ProductName,
+			"product_code": item.ProductCode,
+			"warehouse":    item.WarehouseName,
+			"available":    item.Available,
+			"on_hand":      item.OnHand,
+			"reserved":     item.Reserved,
+			"min_stock":    item.MinStock,
+			"max_stock":    item.MaxStock,
+			"unit":         item.UomName,
+			"status":       item.Status,
 		})
 	}
 

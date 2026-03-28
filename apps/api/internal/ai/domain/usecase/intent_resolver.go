@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/usecase/prompts"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 )
 
@@ -34,6 +34,7 @@ type IntentResolver struct {
 	intentRepo     repositories.IntentRegistryRepository
 	// Cached intent list to avoid DB query every message
 	cachedIntentPrompt string
+	cachedIntentCodes  map[string]struct{}
 	cacheMu            sync.RWMutex
 	cacheExpiry        time.Time
 }
@@ -48,7 +49,7 @@ func NewIntentResolver(client *cerebras.Client, intentRepo repositories.IntentRe
 
 // Resolve classifies user intent using a lightweight model (Layer 1)
 func (r *IntentResolver) Resolve(ctx context.Context, userMessage string, conversationHistory []cerebras.ChatMessage) (*IntentResult, error) {
-	systemPrompt, err := r.getOrRefreshIntentPrompt(ctx)
+	systemPrompt, intentCodes, err := r.getOrRefreshIntentPrompt(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("AI_INTENT_RESOLUTION_FAILED: failed to build intent context: %w", err)
 	}
@@ -57,6 +58,10 @@ func (r *IntentResolver) Resolve(ctx context.Context, userMessage string, conver
 	messages = append(messages, cerebras.ChatMessage{
 		Role:    "system",
 		Content: systemPrompt,
+	})
+	messages = append(messages, cerebras.ChatMessage{
+		Role:    "system",
+		Content: fmt.Sprintf("CURRENT_DATETIME_WIB: %s (year=%d). Use this when user says 'today', 'sekarang', 'tahun ini'.", apptime.Now().Format(time.RFC3339), apptime.Now().Year()),
 	})
 
 	// Include recent conversation history for context (max 4 messages for speed)
@@ -89,33 +94,38 @@ func (r *IntentResolver) Resolve(ctx context.Context, userMessage string, conver
 		return nil, fmt.Errorf("AI_INTENT_RESOLUTION_FAILED: failed to parse intent: %w", err)
 	}
 
+	result = sanitizeIntentResult(result, intentCodes)
+
 	return result, nil
 }
 
 // getOrRefreshIntentPrompt returns cached prompt or builds a fresh one
-func (r *IntentResolver) getOrRefreshIntentPrompt(ctx context.Context) (string, error) {
+func (r *IntentResolver) getOrRefreshIntentPrompt(ctx context.Context) (string, map[string]struct{}, error) {
 	r.cacheMu.RLock()
-	if r.cachedIntentPrompt != "" && apptime.Now().Before(r.cacheExpiry) {
+	if r.cachedIntentPrompt != "" && len(r.cachedIntentCodes) > 0 && apptime.Now().Before(r.cacheExpiry) {
 		prompt := r.cachedIntentPrompt
+		codes := cloneIntentCodeSet(r.cachedIntentCodes)
 		r.cacheMu.RUnlock()
-		return prompt, nil
+		return prompt, codes, nil
 	}
 	r.cacheMu.RUnlock()
 
 	// Fetch and rebuild
 	activeIntents, err := r.intentRepo.FindActive(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch active intents: %w", err)
+		return "", nil, fmt.Errorf("failed to fetch active intents: %w", err)
 	}
 
 	prompt := r.buildSystemPrompt(activeIntents)
+	intentCodes := r.buildIntentCodeSet(activeIntents)
 
 	r.cacheMu.Lock()
 	r.cachedIntentPrompt = prompt
+	r.cachedIntentCodes = cloneIntentCodeSet(intentCodes)
 	r.cacheExpiry = apptime.Now().Add(5 * time.Minute)
 	r.cacheMu.Unlock()
 
-	return prompt, nil
+	return prompt, intentCodes, nil
 }
 
 // buildSystemPrompt constructs a concise classification prompt (Layer 1 only classifies, no param extraction)
@@ -175,6 +185,32 @@ func (r *IntentResolver) formatIntentList(intents interface{}) string {
 	return sb.String()
 }
 
+func (r *IntentResolver) buildIntentCodeSet(intents interface{}) map[string]struct{} {
+	codes := map[string]struct{}{
+		"GENERAL_CHAT": {},
+	}
+
+	data, err := json.Marshal(intents)
+	if err != nil {
+		return codes
+	}
+
+	var rawIntents []map[string]interface{}
+	if err := json.Unmarshal(data, &rawIntents); err != nil {
+		return codes
+	}
+
+	for _, ri := range rawIntents {
+		code := strings.ToUpper(strings.TrimSpace(fmt.Sprintf("%v", ri["intent_code"])))
+		if code == "" || code == "<NIL>" {
+			continue
+		}
+		codes[code] = struct{}{}
+	}
+
+	return codes
+}
+
 // parseIntentResponse parses the LLM JSON response into a structured IntentResult
 func (r *IntentResolver) parseIntentResponse(llmResponse string, originalMessage string) (*IntentResult, error) {
 	cleaned := strings.TrimSpace(llmResponse)
@@ -225,4 +261,72 @@ func (r *IntentResolver) parseIntentResponse(llmResponse string, originalMessage
 	}
 
 	return &result, nil
+}
+
+func sanitizeIntentResult(result *IntentResult, intentCodes map[string]struct{}) *IntentResult {
+	if result == nil {
+		return fallbackGeneralIntent("")
+	}
+
+	if result.Parameters == nil {
+		result.Parameters = map[string]interface{}{}
+	}
+
+	normalized := strings.ToUpper(strings.TrimSpace(result.IntentCode))
+	if normalized == "" {
+		fallback := fallbackGeneralIntent(result.RawMessage)
+		fallback.Parameters = result.Parameters
+		return fallback
+	}
+
+	if _, ok := intentCodes[normalized]; ok {
+		result.IntentCode = normalized
+		return result
+	}
+
+	if recovered, ok := recoverIntentCode(normalized, intentCodes); ok {
+		result.IntentCode = recovered
+		if result.Confidence > 0.55 {
+			result.Confidence = 0.55
+		}
+		return result
+	}
+
+	fallback := fallbackGeneralIntent(result.RawMessage)
+	fallback.Parameters = result.Parameters
+	if result.Confidence > 0 && result.Confidence < 0.4 {
+		fallback.Confidence = result.Confidence
+	}
+	return fallback
+}
+
+func recoverIntentCode(intentCode string, intentCodes map[string]struct{}) (string, bool) {
+	parts := strings.Split(intentCode, "_")
+	for i := len(parts) - 1; i >= 2; i-- {
+		candidate := strings.Join(parts[:i], "_")
+		if _, ok := intentCodes[candidate]; ok {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
+func fallbackGeneralIntent(message string) *IntentResult {
+	return &IntentResult{
+		IntentCode: "GENERAL_CHAT",
+		Confidence: 0.4,
+		Parameters: map[string]interface{}{},
+		Module:     "general",
+		ActionType: "QUERY",
+		IsQuery:    true,
+		RawMessage: message,
+	}
+}
+
+func cloneIntentCodeSet(in map[string]struct{}) map[string]struct{} {
+	out := make(map[string]struct{}, len(in))
+	for k := range in {
+		out[k] = struct{}{}
+	}
+	return out
 }

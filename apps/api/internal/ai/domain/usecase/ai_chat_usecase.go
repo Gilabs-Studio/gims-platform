@@ -213,6 +213,40 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 	// Build conversation context for LLM
 	conversationHistory := u.buildConversationHistory(history)
 
+	if intent := buildAutonomousHolidayCreateIntent(req.Message, history); intent != nil {
+		permResult, permErr := u.permValidator.Validate(ctx, intent.IntentCode, userPermissions, isAdmin)
+		if permErr != nil {
+			assistantContent := fmt.Sprintf("Gagal mengeksekusi aksi holiday otomatis: %v", permErr)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+		if !permResult.Allowed {
+			assistantContent := fmt.Sprintf("Maaf, Anda tidak memiliki izin untuk tindakan ini. %s", permResult.Reason)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+
+		validation := u.requestValidator.Validate(ctx, intent, intent.Parameters)
+		if !validation.Valid {
+			assistantContent := u.buildMissingFieldsMessage(ctx, intent, validation)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+
+		return u.executeAndRespond(ctx, session, intent, validation.ResolvedEntities, userID, permResult.RequiredPermission, conversationHistory, start)
+	}
+
+	if isCurrentTimeQuestion(req.Message) {
+		now := apptime.Now()
+		assistantContent := fmt.Sprintf("Waktu saat ini: **%s** (WIB). Tahun sekarang: **%d**.", now.Format("02 Jan 2006 15:04:05"), now.Year())
+		return u.saveAssistantResponse(ctx, session, assistantContent, &IntentResult{
+			IntentCode: "GENERAL_CHAT",
+			Confidence: 1,
+			Parameters: map[string]interface{}{"source": "apptime_now"},
+			Module:     "general",
+			ActionType: "QUERY",
+			IsQuery:    true,
+			RawMessage: req.Message,
+		}, start)
+	}
+
 	// Step 1: Extract intent from user message (uses cheap model for classification)
 	intent, err := u.intentResolver.Resolve(ctx, req.Message, conversationHistory)
 	if err != nil {
@@ -231,7 +265,8 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 	// Step 3: Validate permissions
 	permResult, err := u.permValidator.Validate(ctx, intent.IntentCode, userPermissions, isAdmin)
 	if err != nil {
-		return u.handleGeneralChat(ctx, session, req.Message, conversationHistory, req.Model, start)
+		assistantContent := fmt.Sprintf("Aksi tidak bisa diproses saat ini: %v", err)
+		return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
 	}
 
 	if !permResult.Allowed {
@@ -267,6 +302,9 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Step 6: Check if action requires confirmation
 	needsConfirmation, _ := u.permValidator.NeedsConfirmation(ctx, intent.IntentCode)
+	if intent.IntentCode == "CREATE_HOLIDAY" && isIndonesiaBulkHolidayMode(intent.Parameters) {
+		needsConfirmation = false
+	}
 
 	if needsConfirmation && !intent.IsQuery {
 		// Create pending action log for confirmation
@@ -501,10 +539,14 @@ func (u *aiChatUsecase) buildConversationHistory(messages []models.AIChatMessage
 }
 
 func (u *aiChatUsecase) handleGeneralChat(ctx context.Context, session *models.AIChatSession, userMessage string, conversationHistory []cerebras.ChatMessage, model string, start time.Time) (*dto.ChatResponse, error) {
-	messages := make([]cerebras.ChatMessage, 0, len(conversationHistory)+2)
+	messages := make([]cerebras.ChatMessage, 0, len(conversationHistory)+3)
 	messages = append(messages, cerebras.ChatMessage{
 		Role:    "system",
 		Content: prompts.GeneralChatSystemPrompt,
+	})
+	messages = append(messages, cerebras.ChatMessage{
+		Role:    "system",
+		Content: currentDatetimeContextMessage(),
 	})
 	messages = append(messages, conversationHistory...)
 	messages = append(messages, cerebras.ChatMessage{
@@ -678,6 +720,11 @@ func (u *aiChatUsecase) executeAndRespond(ctx context.Context, session *models.A
 
 	_ = u.actionRepo.Create(ctx, actionLog)
 
+	if intent.IntentCode == "CREATE_HOLIDAY" && isIndonesiaBulkHolidayMode(intent.Parameters) {
+		assistantContent := formatHolidayAutoCreateResult(result)
+		return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+	}
+
 	// Generate natural language response using LLM
 	assistantContent, err := u.generateActionResponse(result, intent)
 	if err != nil {
@@ -690,6 +737,71 @@ func (u *aiChatUsecase) executeAndRespond(ctx context.Context, session *models.A
 	}
 
 	return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+}
+
+func formatHolidayAutoCreateResult(result *ActionResult) string {
+	if result == nil {
+		return "Terjadi kesalahan saat membuat holiday otomatis."
+	}
+
+	if !result.Success {
+		if result.ErrorMessage != "" {
+			return fmt.Sprintf("Gagal membuat holiday otomatis: %s", result.ErrorMessage)
+		}
+		return "Gagal membuat holiday otomatis."
+	}
+
+	createdCount := 0
+	year := apptime.Now().Year()
+	createdCount, year = readHolidayResultMetrics(result.Data, year)
+
+	if createdCount == 0 {
+		return fmt.Sprintf("Tidak ada data holiday baru yang perlu dibuat untuk tahun %d. Semua data sudah ada.", year)
+	}
+
+	return fmt.Sprintf("Berhasil membuat %d data holiday Indonesia untuk tahun %d ke modul Holiday.", createdCount, year)
+}
+
+func readHolidayResultMetrics(data interface{}, defaultYear int) (int, int) {
+	createdCount := 0
+	year := defaultYear
+
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return createdCount, year
+	}
+
+	if n, ok := toInt(dataMap["created_count"]); ok {
+		createdCount = n
+	}
+	if n, ok := toInt(dataMap["year"]); ok {
+		year = n
+	}
+
+	return createdCount, year
+}
+
+func toInt(v interface{}) (int, bool) {
+	switch val := v.(type) {
+	case int:
+		return val, true
+	case int32:
+		return int(val), true
+	case int64:
+		return int(val), true
+	case float64:
+		return int(val), true
+	case float32:
+		return int(val), true
+	case json.Number:
+		n, err := val.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(n), true
+	default:
+		return 0, false
+	}
 }
 
 func (u *aiChatUsecase) generateActionResponse(result *ActionResult, intent *IntentResult) (string, error) {
@@ -1092,7 +1204,9 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 	}
 
 	lower := strings.ToLower(strings.TrimSpace(message))
-	if !isLikelySalesTargetCreateMessage(lower) {
+	isSalesTarget := isLikelySalesTargetCreateMessage(lower)
+	isHoliday := isLikelyHolidayCreateMessage(lower)
+	if !isSalesTarget && !isHoliday {
 		return intent
 	}
 
@@ -1100,30 +1214,47 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 		return intent
 	}
 
+	if isHoliday {
+		return buildHolidayFallbackIntent(message)
+	}
+
+	return buildSalesTargetFallbackIntent(message, lower)
+}
+
+func buildHolidayFallbackIntent(message string) *IntentResult {
 	params := make(map[string]interface{})
-
-	areaRegex := regexp.MustCompile(`(?i)area\s+([a-zA-Z\s]+)`)
-	if matches := areaRegex.FindStringSubmatch(message); len(matches) > 1 {
-		areaRaw := strings.TrimSpace(matches[1])
-		areaRaw = strings.TrimSpace(strings.ReplaceAll(strings.ToLower(areaRaw), " full", ""))
-		for _, stop := range []string{" untuk", " dengan", " target", " normal", " sales", " farmasi"} {
-			if idx := strings.Index(areaRaw, stop); idx > 0 {
-				areaRaw = strings.TrimSpace(areaRaw[:idx])
-			}
-		}
-		if areaRaw != "" {
-			params["area_name"] = areaRaw
-		}
+	if year, ok := extractYearOrCurrent(message); ok {
+		params["year"] = year
 	}
 
-	yearRegex := regexp.MustCompile(`\b(20[2-9][0-9]|2100)\b`)
-	if year := yearRegex.FindString(message); year != "" {
-		if parsed, err := strconv.Atoi(year); err == nil {
-			params["year"] = parsed
-		}
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "indonesia") || strings.Contains(lower, "nasional") {
+		params["country_code"] = "ID"
+		params["holiday_source"] = "PUBLIC_API"
 	}
 
-	if strings.Contains(lower, "normal") || strings.Contains(lower, "farmasi") {
+	return &IntentResult{
+		IntentCode: "CREATE_HOLIDAY",
+		Confidence: 0.8,
+		Parameters: params,
+		Module:     "hrd",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildSalesTargetFallbackIntent(message, lowerMessage string) *IntentResult {
+	params := make(map[string]interface{})
+	if area := extractAreaName(message); area != "" {
+		params["area_name"] = area
+	}
+
+	if year, ok := extractYearOrCurrent(message); ok {
+		params["year"] = year
+	}
+
+	if strings.Contains(lowerMessage, "normal") || strings.Contains(lowerMessage, "farmasi") {
 		params["target_profile"] = "normal_sales_farmasi"
 		params["total_target"] = 180000000
 	}
@@ -1139,12 +1270,152 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 	}
 }
 
+func extractAreaName(message string) string {
+	areaRegex := regexp.MustCompile(`(?i)area\s+([a-zA-Z\s]+)`)
+	matches := areaRegex.FindStringSubmatch(message)
+	if len(matches) <= 1 {
+		return ""
+	}
+
+	areaRaw := strings.TrimSpace(matches[1])
+	areaRaw = strings.TrimSpace(strings.ReplaceAll(strings.ToLower(areaRaw), " full", ""))
+	for _, stop := range []string{" untuk", " dengan", " target", " normal", " sales", " farmasi"} {
+		if idx := strings.Index(areaRaw, stop); idx > 0 {
+			areaRaw = strings.TrimSpace(areaRaw[:idx])
+		}
+	}
+
+	return areaRaw
+}
+
+func currentDatetimeContextMessage() string {
+	now := apptime.Now()
+	return fmt.Sprintf("CURRENT_DATETIME_WIB: %s (year=%d). Gunakan konteks ini saat pengguna bertanya 'sekarang', 'today', atau 'tahun ini'.", now.Format(time.RFC3339), now.Year())
+}
+
 func isLikelySalesTargetCreateMessage(lowerMessage string) bool {
 	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
 	hasTarget := strings.Contains(lowerMessage, "target") && (strings.Contains(lowerMessage, "sales") || strings.Contains(lowerMessage, "penjualan"))
 	hasSalesTargetPhrase := strings.Contains(lowerMessage, "sales target") || strings.Contains(lowerMessage, "target sales")
 
 	return (hasCreateVerb && hasTarget) || hasSalesTargetPhrase
+}
+
+func isLikelyHolidayCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan") || strings.Contains(lowerMessage, "generate")
+	hasHolidayTerm := strings.Contains(lowerMessage, "holiday") || strings.Contains(lowerMessage, "hari libur") || strings.Contains(lowerMessage, "libur")
+	return hasCreateVerb && hasHolidayTerm
+}
+
+func extractYearOrCurrent(message string) (int, bool) {
+	yearRegex := regexp.MustCompile(`\b(20[2-9][0-9]|2100)\b`)
+	if year := yearRegex.FindString(message); year != "" {
+		if parsed, err := strconv.Atoi(year); err == nil {
+			return parsed, true
+		}
+	}
+
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "tahun ini") || strings.Contains(lower, "this year") {
+		return apptime.Now().Year(), true
+	}
+
+	return 0, false
+}
+
+func isCurrentTimeQuestion(message string) bool {
+	lower := strings.ToLower(strings.TrimSpace(message))
+	if lower == "" {
+		return false
+	}
+
+	actionKeywords := []string{
+		"buat", "buatkan", "create", "tambahkan", "generate", "input", "simpan", "insert", "tambah",
+	}
+	for _, kw := range actionKeywords {
+		if strings.Contains(lower, kw) {
+			return false
+		}
+	}
+
+	keywords := []string{
+		"jam berapa", "waktu sekarang", "waktu saat ini", "sekarang jam", "tanggal hari ini", "hari ini tanggal",
+		"tahun berapa", "tahun sekarang", "tahun ini", "what time", "current time", "current date", "what year",
+	}
+
+	for _, kw := range keywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func buildAutonomousHolidayCreateIntent(message string, history []models.AIChatMessage) *IntentResult {
+	lower := strings.ToLower(strings.TrimSpace(message))
+	if lower == "" {
+		return nil
+	}
+
+	directCreateCommand := isLikelyHolidayCreateMessage(lower)
+	followUpCreateCommand := isCreateFollowUpCommand(lower) && hasRecentHolidayContext(history)
+	if !directCreateCommand && !followUpCreateCommand {
+		return nil
+	}
+
+	year := apptime.Now().Year()
+	if parsedYear, ok := extractYearOrCurrent(message); ok {
+		year = parsedYear
+	}
+
+	params := map[string]interface{}{
+		"year":           year,
+		"country_code":   "ID",
+		"holiday_source": "PUBLIC_API",
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_HOLIDAY",
+		Confidence: 1,
+		Parameters: params,
+		Module:     "hrd",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func isCreateFollowUpCommand(lowerMessage string) bool {
+	followUps := []string{
+		"ya buat", "ya lanjut", "lanjutkan", "buat untuk saya", "buatkan untuk saya", "ok buat", "oke buat", "proceed",
+	}
+	for _, phrase := range followUps {
+		if strings.Contains(lowerMessage, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRecentHolidayContext(history []models.AIChatMessage) bool {
+	if len(history) == 0 {
+		return false
+	}
+
+	start := len(history) - 6
+	if start < 0 {
+		start = 0
+	}
+
+	for i := len(history) - 1; i >= start; i-- {
+		content := strings.ToLower(history[i].Content)
+		if strings.Contains(content, "holiday") || strings.Contains(content, "hari libur") || strings.Contains(content, "indonesia") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func extractTargetAmountFromText(message string) (float64, bool) {
