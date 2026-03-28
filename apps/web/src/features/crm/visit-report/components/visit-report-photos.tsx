@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Camera, X, Upload, Loader2, ImageIcon } from "lucide-react";
+import { Camera, X, Upload, Loader2, ImageIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { resolveImageUrl } from "@/lib/utils";
 import { useUploadVisitPhotos, useUploadVisitImage } from "../hooks/use-visit-reports";
@@ -127,7 +127,9 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
                 className="object-cover transition-transform group-hover:scale-105"
                 unoptimized
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
+                <Search className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
             </div>
             );
           })}
