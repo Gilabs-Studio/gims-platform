@@ -1049,6 +1049,17 @@ func (e *ActionExecutor) normalizeSalesQuotationItems(ctx context.Context, items
 		if !ok {
 			continue
 		}
+
+		if price := getFloatParam(itemMap, "price"); price > 0 {
+			itemMap["price"] = price
+		}
+		if discount := getFloatParam(itemMap, "discount"); discount > 0 {
+			itemMap["discount"] = discount
+		}
+		if qty := getFloatParam(itemMap, "quantity"); qty > 0 {
+			itemMap["quantity"] = qty
+		}
+
 		if _, hasProductID := itemMap["product_id"]; !hasProductID {
 			productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
 			if productName != "" {
@@ -1241,10 +1252,56 @@ func applySalesOrderDefaults(ctx context.Context, resolver *EntityResolver, para
 	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
 		params["order_date"] = apptime.Now().Format("2006-01-02")
 	}
-	applySalesRepDefault(ctx, resolver, params, currentUserID)
+	resolveCustomerIdentity(ctx, resolver, params)
+	resolveSalesRepID(ctx, resolver, params)
 	resolvePaymentTermsID(ctx, resolver, params)
 	resolveBusinessUnitID(ctx, resolver, params)
 	normalizeSalesOrderItems(ctx, resolver, params)
+}
+
+func resolveSalesRepID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+	if strings.TrimSpace(getStringParam(params, "sales_rep_id")) != "" {
+		return
+	}
+
+	for _, key := range []string{"sales_rep_name", "sales_rep", "sales_name", "employee_name"} {
+		salesRepName := strings.TrimSpace(getStringParam(params, key))
+		if salesRepName == "" {
+			continue
+		}
+
+		entity, err := resolver.ResolveEmployee(ctx, salesRepName)
+		if err == nil && entity != nil && strings.TrimSpace(entity.ID) != "" {
+			params["sales_rep_id"] = entity.ID
+			if strings.TrimSpace(getStringParam(params, "sales_rep_name")) == "" && strings.TrimSpace(entity.DisplayName) != "" {
+				params["sales_rep_name"] = entity.DisplayName
+			}
+		}
+		return
+	}
+}
+
+func resolveCustomerIdentity(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+	if strings.TrimSpace(getStringParam(params, "customer_id")) != "" {
+		return
+	}
+
+	customerName := strings.TrimSpace(getStringParam(params, "customer_name"))
+	if customerName == "" {
+		return
+	}
+
+	entity, err := resolver.ResolveCustomer(ctx, customerName)
+	if err != nil || entity == nil {
+		return
+	}
+
+	if strings.TrimSpace(entity.ID) != "" {
+		params["customer_id"] = entity.ID
+	}
+	if strings.TrimSpace(entity.DisplayName) != "" {
+		params["customer_name"] = entity.DisplayName
+	}
 }
 
 func resolvePaymentTermsID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
@@ -1291,6 +1348,17 @@ func normalizeSalesOrderItems(ctx context.Context, resolver *EntityResolver, par
 		if !ok {
 			continue
 		}
+
+		if price := getFloatParam(itemMap, "price"); price > 0 {
+			itemMap["price"] = price
+		}
+		if discount := getFloatParam(itemMap, "discount"); discount > 0 {
+			itemMap["discount"] = discount
+		}
+		if qty := getFloatParam(itemMap, "quantity"); qty > 0 {
+			itemMap["quantity"] = qty
+		}
+
 		if _, hasProductID := itemMap["product_id"]; !hasProductID {
 			productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
 			if productName != "" {
@@ -2688,6 +2756,18 @@ func parseAmountString(raw string) (float64, bool) {
 
 	multiplier := 1.0
 	switch {
+	case strings.HasSuffix(text, "miliar"):
+		multiplier = 1_000_000_000
+		text = strings.TrimSuffix(text, "miliar")
+	case strings.HasSuffix(text, "milyar"):
+		multiplier = 1_000_000_000
+		text = strings.TrimSuffix(text, "milyar")
+	case strings.HasSuffix(text, "bio"):
+		multiplier = 1_000_000_000
+		text = strings.TrimSuffix(text, "bio")
+	case strings.HasSuffix(text, "b"):
+		multiplier = 1_000_000_000
+		text = strings.TrimSuffix(text, "b")
 	case strings.HasSuffix(text, "juta"):
 		multiplier = 1_000_000
 		text = strings.TrimSuffix(text, "juta")
@@ -2697,14 +2777,53 @@ func parseAmountString(raw string) (float64, bool) {
 	case strings.HasSuffix(text, "m"):
 		multiplier = 1_000_000
 		text = strings.TrimSuffix(text, "m")
+	case strings.HasSuffix(text, "ribu"):
+		multiplier = 1_000
+		text = strings.TrimSuffix(text, "ribu")
+	case strings.HasSuffix(text, "rb"):
+		multiplier = 1_000
+		text = strings.TrimSuffix(text, "rb")
+	case strings.HasSuffix(text, "k"):
+		multiplier = 1_000
+		text = strings.TrimSuffix(text, "k")
 	}
 
-	text = strings.ReplaceAll(text, ".", "")
-	text = strings.ReplaceAll(text, ",", ".")
-
-	cleaned := regexp.MustCompile(`[^0-9.]`).ReplaceAllString(text, "")
+	cleaned := regexp.MustCompile(`[^0-9\.,]`).ReplaceAllString(text, "")
 	if cleaned == "" {
 		return 0, false
+	}
+
+	if strings.Contains(cleaned, ".") && strings.Contains(cleaned, ",") {
+		lastDot := strings.LastIndex(cleaned, ".")
+		lastComma := strings.LastIndex(cleaned, ",")
+		if lastDot > lastComma {
+			cleaned = strings.ReplaceAll(cleaned, ",", "")
+		} else {
+			cleaned = strings.ReplaceAll(cleaned, ".", "")
+			cleaned = strings.ReplaceAll(cleaned, ",", ".")
+		}
+	} else if strings.Count(cleaned, ",") > 0 {
+		if strings.Count(cleaned, ",") > 1 {
+			cleaned = strings.ReplaceAll(cleaned, ",", "")
+		} else {
+			idx := strings.LastIndex(cleaned, ",")
+			digitsAfter := len(cleaned) - idx - 1
+			if digitsAfter == 3 && multiplier == 1 {
+				cleaned = strings.ReplaceAll(cleaned, ",", "")
+			} else {
+				cleaned = strings.ReplaceAll(cleaned, ",", ".")
+			}
+		}
+	} else if strings.Count(cleaned, ".") > 0 {
+		if strings.Count(cleaned, ".") > 1 {
+			cleaned = strings.ReplaceAll(cleaned, ".", "")
+		} else {
+			idx := strings.LastIndex(cleaned, ".")
+			digitsAfter := len(cleaned) - idx - 1
+			if digitsAfter == 3 && multiplier == 1 {
+				cleaned = strings.ReplaceAll(cleaned, ".", "")
+			}
+		}
 	}
 
 	value, err := strconv.ParseFloat(cleaned, 64)

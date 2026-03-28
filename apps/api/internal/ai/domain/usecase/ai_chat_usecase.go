@@ -256,6 +256,7 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Deterministic fallback for critical business actions when classifier confidence is low.
 	intent = u.applyDeterministicIntentFallback(req.Message, intent)
+	intent = u.applyContextualCreateContinuationFallback(req.Message, history, intent)
 
 	// Step 2: Handle general chat directly without agentic flow
 	if intent.IntentCode == "GENERAL_CHAT" || intent.Confidence < 0.6 {
@@ -314,6 +315,62 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Step 7: Execute action directly (queries or actions not requiring confirmation)
 	return u.executeAndRespond(ctx, session, intent, resolvedEntities, userID, permResult.RequiredPermission, conversationHistory, start)
+}
+
+func (u *aiChatUsecase) applyContextualCreateContinuationFallback(message string, history []models.AIChatMessage, intent *IntentResult) *IntentResult {
+	if intent == nil {
+		return intent
+	}
+
+	if intent.IntentCode != "GENERAL_CHAT" && intent.Confidence >= 0.6 {
+		return intent
+	}
+
+	previous := u.findLatestAssistantCreateIntent(history)
+	if previous == nil {
+		return intent
+	}
+
+	lower := strings.ToLower(strings.TrimSpace(message))
+	isDetailFollowUp := strings.Contains(lower, ":") || strings.Contains(lower, "payment") || strings.Contains(lower, "terms") || strings.Contains(lower, "bisnis unit") || strings.Contains(lower, "business unit") || strings.Contains(lower, "items") || strings.Contains(lower, "qty") || strings.Contains(lower, "harga") || strings.Contains(lower, "price")
+	if !isDetailFollowUp && !isAffirmativeMessage(message) {
+		return intent
+	}
+
+	return &IntentResult{
+		IntentCode: previous.IntentCode,
+		Confidence: 0.82,
+		Parameters: map[string]interface{}{},
+		Module:     previous.Module,
+		ActionType: previous.ActionType,
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func (u *aiChatUsecase) findLatestAssistantCreateIntent(history []models.AIChatMessage) *IntentResult {
+	for i := len(history) - 1; i >= 0; i-- {
+		msg := history[i]
+		if msg.Role != models.MessageRoleAssistant || msg.Intent == nil {
+			continue
+		}
+
+		var prev IntentResult
+		if err := json.Unmarshal([]byte(*msg.Intent), &prev); err != nil {
+			continue
+		}
+
+		if strings.ToUpper(strings.TrimSpace(prev.ActionType)) != "CREATE" {
+			continue
+		}
+
+		switch prev.IntentCode {
+		case "CREATE_SALES_ORDER", "CREATE_SALES_QUOTATION", "CREATE_PURCHASE_ORDER", "CREATE_LEAVE_REQUEST":
+			return &prev
+		}
+	}
+
+	return nil
 }
 
 // ConfirmAction processes a user's confirmation of a pending action
@@ -896,9 +953,15 @@ func collectConfirmationDetails(params map[string]interface{}, resolvedEntities 
 	appendIf("Customer", getStringParam(params, "customer_name"))
 	appendIf("Supplier", getStringParam(params, "supplier_name"))
 	appendIf("Karyawan", getStringParam(params, "employee_name"))
+	appendIf("Company", getStringParam(params, "company_name"))
+	appendIf("Division", getStringParam(params, "division_name"))
+	appendIf("Bank", getStringParam(params, "bank_name"))
 	appendIf("Area", getStringParam(params, "area_name"))
 	appendIf("Produk", getStringParam(params, "product_name"))
 	appendIf("Gudang", getStringParam(params, "warehouse_name"))
+	appendIf("Business Type", getStringParam(params, "business_type_name"))
+	appendIf("Supplier Type", getStringParam(params, "supplier_type_name"))
+	appendIf("Customer Type", getStringParam(params, "customer_type_name"))
 	appendIf("Tanggal", firstNonEmptyString(getStringParam(params, "quotation_date"), getStringParam(params, "order_date"), getStringParam(params, "date")))
 	appendIf("Mulai", firstNonEmptyString(getStringParam(params, "start_date"), getStringParam(params, "date_from")))
 	appendIf("Selesai", firstNonEmptyString(getStringParam(params, "end_date"), getStringParam(params, "date_to")))
@@ -921,9 +984,15 @@ func collectConfirmationDetails(params map[string]interface{}, resolvedEntities 
 		"customer":  "Customer (resolved)",
 		"supplier":  "Supplier (resolved)",
 		"employee":  "Karyawan (resolved)",
+		"company":   "Company (resolved)",
+		"division":  "Division (resolved)",
+		"bank":      "Bank (resolved)",
 		"area":      "Area (resolved)",
 		"product":   "Produk (resolved)",
 		"warehouse": "Gudang (resolved)",
+		"business_type": "Business Type (resolved)",
+		"supplier_type": "Supplier Type (resolved)",
+		"customer_type": "Customer Type (resolved)",
 	}
 	for key, label := range resolvedLabels {
 		if entity, ok := resolvedEntities[key]; ok && entity != nil {
@@ -994,6 +1063,13 @@ func (u *aiChatUsecase) buildSalesOrderConfirmationMessage(intent *IntentResult,
 	}
 	if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
 		details = append(details, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
+	}
+	if sr := firstNonEmptyString(
+		getStringParam(intent.Parameters, "sales_rep_name"),
+		getStringParam(intent.Parameters, "sales_rep"),
+		getStringParam(intent.Parameters, "sales_name"),
+	); sr != "" {
+		details = append(details, fmt.Sprintf("- **Sales Rep**: %s", sr))
 	}
 	if items, ok := intent.Parameters["items"].([]interface{}); ok && len(items) > 0 {
 		details = append(details, fmt.Sprintf("- **Jumlah Item**: %d produk", len(items)))
@@ -1108,6 +1184,9 @@ func (u *aiChatUsecase) buildKnownParamsSummary(intent *IntentResult) string {
 		}
 		if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
 			parts = append(parts, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
+		}
+		if sr := getStringParam(intent.Parameters, "sales_rep_name"); sr != "" {
+			parts = append(parts, fmt.Sprintf("- **Sales Rep**: %s", sr))
 		}
 		if qd := getStringParam(intent.Parameters, "quotation_date"); qd != "" {
 			parts = append(parts, fmt.Sprintf("- **Tanggal**: %s", qd))
@@ -1255,6 +1334,12 @@ func (u *aiChatUsecase) formatValidationGuidance(ve ValidationError, formOpts *F
 		}
 		return guidance
 
+	case ve.Field == "sales_rep" && ve.Code == "REQUIRED":
+		return "**Sales Rep** - Siapa sales representative untuk transaksi ini? Contoh: 'sales rep: Andi Saputra'."
+
+	case ve.Field == "sales_rep_name" && ve.Code == "ENTITY_NOT_FOUND":
+		return fmt.Sprintf("**Sales Rep** - %s", ve.Message)
+
 	case ve.Field == "area_name" && ve.Code == "REQUIRED":
 		return "**Area** - Mohon sebutkan area target (contoh: Bali, Jakarta, Surabaya)."
 
@@ -1385,6 +1470,86 @@ func (u *aiChatUsecase) normalizeParamNames(intent *IntentResult) {
 				break
 			}
 		}
+	}
+
+	if _, has := params["sales_rep_name"]; !has {
+		for _, key := range []string{"sales_rep", "sales", "sales_name", "salesperson", "employee_name"} {
+			if val, ok := params[key].(string); ok && strings.TrimSpace(val) != "" {
+				params["sales_rep_name"] = strings.TrimSpace(val)
+				delete(params, key)
+				break
+			}
+		}
+	}
+
+	if intent.IntentCode == "CREATE_SALES_ORDER" {
+		u.hydrateSalesOrderParamsFromRawMessage(intent)
+	}
+}
+
+func (u *aiChatUsecase) hydrateSalesOrderParamsFromRawMessage(intent *IntentResult) {
+	if intent == nil || intent.Parameters == nil {
+		return
+	}
+
+	message := strings.TrimSpace(intent.RawMessage)
+	if message == "" {
+		return
+	}
+
+	params := intent.Parameters
+
+	if strings.TrimSpace(getStringParam(params, "payment_terms_name")) == "" {
+		re := regexp.MustCompile(`(?i)(payment\s*terms?|syarat\s*pembayaran)\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["payment_terms_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "business_unit_name")) == "" {
+		re := regexp.MustCompile(`(?i)(business|bisnis)\s*unit\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["business_unit_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "sales_rep_name")) == "" {
+		re := regexp.MustCompile(`(?i)(sales\s*rep|salesperson|sales|nama\s*sales)\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["sales_rep_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if _, hasItems := params["items"]; !hasItems {
+		if item := parseSingleSalesOrderItemFromMessage(message); item != nil {
+			params["items"] = []interface{}{item}
+		}
+	}
+}
+
+func parseSingleSalesOrderItemFromMessage(message string) map[string]interface{} {
+	reItem := regexp.MustCompile(`(?i)items?\s*[:=-]\s*([a-zA-Z0-9\s\-/\.]+?)\s+(\d+)\s+(?:dengan\s+)?harga\s+([\w\.,]+)`)
+	matches := reItem.FindStringSubmatch(message)
+	if len(matches) < 4 {
+		return nil
+	}
+
+	productName := strings.TrimSpace(matches[1])
+	quantity, err := strconv.Atoi(strings.TrimSpace(matches[2]))
+	if err != nil || quantity <= 0 {
+		return nil
+	}
+
+	price, ok := parseAmountString(strings.TrimSpace(matches[3]))
+	if !ok || price <= 0 {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"product_name": productName,
+		"quantity":     float64(quantity),
+		"price":        price,
+		"discount":     float64(0),
 	}
 }
 
