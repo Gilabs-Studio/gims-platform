@@ -48,6 +48,8 @@ export const userManagementEn = {
     cancelResetPassword: "Cancel",
     showPassword: "Show password",
     hidePassword: "Hide password",
+    changePasswordRequestSent: "Change password request sent to admin",
+    changePasswordRequestFailed: "Failed to send change password request",
   },
   detailModal: {
     title: "User Details",

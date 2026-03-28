@@ -21,6 +21,7 @@ import (
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	userRepo "github.com/gilabs/gims/api/internal/user/data/repositories"
 	userDto "github.com/gilabs/gims/api/internal/user/domain/dto"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -45,6 +46,7 @@ type passwordResetUsecase struct {
 	notificationRepo  notificationRepo.NotificationRepository
 	auditService      audit.AuditService
 	eventPublisher    infraEvents.EventPublisher
+	redis             *redis.Client
 }
 
 func NewPasswordResetUsecase(
@@ -54,6 +56,7 @@ func NewPasswordResetUsecase(
 	notificationRepo notificationRepo.NotificationRepository,
 	auditService audit.AuditService,
 	eventPublisher infraEvents.EventPublisher,
+	redisClient *redis.Client,
 ) PasswordResetUsecase {
 	return &passwordResetUsecase{
 		passwordResetRepo: passwordResetRepo,
@@ -62,6 +65,7 @@ func NewPasswordResetUsecase(
 		notificationRepo:  notificationRepo,
 		auditService:      auditService,
 		eventPublisher:    eventPublisher,
+		redis:             redisClient,
 	}
 }
 
@@ -96,6 +100,7 @@ func (u *passwordResetUsecase) ForgotPassword(ctx context.Context, req *resetDto
 	if err := u.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
+	u.invalidateUserCaches(ctx, user.ID)
 
 	if err := u.notifyAdminPasswordResetRequest(ctx, user, token); err != nil {
 		u.auditService.Log(ctx, "password_reset.notify_admin_failed", user.ID, map[string]interface{}{
@@ -145,6 +150,7 @@ func (u *passwordResetUsecase) ResetPassword(ctx context.Context, req *resetDto.
 	if err := u.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
+	u.invalidateUserCaches(ctx, user.ID)
 
 	usedAt := apptime.Now()
 	resetReq.Status = passwordResetModels.PasswordResetStatusUsed
@@ -220,4 +226,17 @@ func generateSecureToken(length int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func (u *passwordResetUsecase) invalidateUserCaches(ctx context.Context, userID string) {
+	if u.redis == nil {
+		return
+	}
+
+	u.redis.Del(ctx, fmt.Sprintf("users:id:%s", userID))
+
+	iter := u.redis.Scan(ctx, 0, "users:list:*", 0).Iterator()
+	for iter.Next(ctx) {
+		u.redis.Del(ctx, iter.Val())
+	}
 }

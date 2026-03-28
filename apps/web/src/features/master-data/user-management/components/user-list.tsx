@@ -36,6 +36,7 @@ import { UserForm } from "./user-form";
 import { UserListMobileFilters } from "./user-list-mobile-filters";
 import type { CreateUserFormData, UpdateUserFormData } from "../schemas/user.schema";
 import { passwordResetService } from "@/features/auth/password-reset/services/password-reset-service";
+import type { ListUsersResponse } from "../types";
 import {
   clearPasswordResetTokenPrefill,
   getPasswordResetTokenPrefill,
@@ -211,18 +212,76 @@ export function UserList() {
       return;
     }
 
+    const cacheEntries = queryClient.getQueriesData<ListUsersResponse>({
+      queryKey: ["users"],
+    });
+    const previousDataMap = new Map();
+
     try {
       setIsSubmittingReset(true);
+
+      await queryClient.cancelQueries({ queryKey: ["users"] });
+
+      // Optimistic update: remove password_reset_pending from all cache variants
+      // Update semua cache entries
+      cacheEntries.forEach(([key, cachedData]) => {
+        if (cachedData) {
+          previousDataMap.set(key, cachedData);
+
+          const updatedData: ListUsersResponse = {
+            ...cachedData,
+            data: cachedData.data.map((user: User) =>
+              user.id === resetPasswordTarget.id
+                ? { ...user, password_reset_pending: false }
+                : user
+            ),
+          };
+
+          queryClient.setQueryData(key, updatedData);
+        }
+      });
+
       await passwordResetService.resetPassword({
         token: resetToken.trim(),
         new_password: newPassword,
         confirm_password: confirmPassword,
       });
+
+      // Keep cache in sync after success before background refetch.
+      queryClient.setQueriesData<ListUsersResponse>(
+        { queryKey: ["users"] },
+        (current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            data: current.data.map((user: User) =>
+              user.id === resetPasswordTarget.id
+                ? { ...user, password_reset_pending: false }
+                : user
+            ),
+          };
+        }
+      );
+
+      // Invalidate all user queries to ensure fresh data
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      
       toast.success(t("resetPasswordSuccessWithName", { name: resetPasswordTarget.name }));
       closeResetPasswordDialog();
     } catch {
+      cacheEntries.forEach(([key]) => {
+        const previousData = previousDataMap.get(key);
+        if (previousData) {
+          queryClient.setQueryData(key, previousData);
+        }
+      });
+
       toast.error(t("resetPasswordFailed"));
+      // Refetch to restore cache if API call failed
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
     } finally {
       setIsSubmittingReset(false);
     }

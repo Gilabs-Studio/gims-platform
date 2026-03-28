@@ -50,6 +50,8 @@ export const userManagementId: UserManagementTranslations = {
     cancelResetPassword: "Batal",
     showPassword: "Tampilkan password",
     hidePassword: "Sembunyikan password",
+    changePasswordRequestSent: "Permintaan ganti password telah dikirim ke admin",
+    changePasswordRequestFailed: "Gagal mengirim permintaan ganti password",
   },
   detailModal: {
     title: "Detail Pengguna",

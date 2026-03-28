@@ -54,8 +54,14 @@ func (h *PasswordResetHandler) ResetPassword(c *gin.Context) {
 	result, err := h.usecase.ResetPassword(c.Request.Context(), &req)
 	if err != nil {
 		switch err {
-		case usecase.ErrInvalidResetToken, usecase.ErrResetTokenExpired, usecase.ErrResetTokenAlreadyUsed:
+		case usecase.ErrInvalidResetToken:
 			errors.ErrorResponse(c, "INVALID_RESET_TOKEN", map[string]interface{}{"reason": err.Error()}, nil)
+			return
+		case usecase.ErrResetTokenExpired:
+			errors.ErrorResponse(c, "RESET_TOKEN_EXPIRED", map[string]interface{}{"reason": err.Error()}, nil)
+			return
+		case usecase.ErrResetTokenAlreadyUsed:
+			errors.ErrorResponse(c, "RESET_TOKEN_ALREADY_USED", map[string]interface{}{"reason": err.Error()}, nil)
 			return
 		case usecase.ErrUserNotFound:
 			errors.ErrorResponse(c, "USER_NOT_FOUND", nil, nil)
@@ -79,8 +85,14 @@ func (h *PasswordResetHandler) ValidateResetToken(c *gin.Context) {
 	err := h.usecase.ValidateResetToken(c.Request.Context(), token)
 	if err != nil {
 		switch err {
-		case usecase.ErrInvalidResetToken, usecase.ErrResetTokenExpired, usecase.ErrResetTokenAlreadyUsed:
+		case usecase.ErrInvalidResetToken:
 			errors.ErrorResponse(c, "INVALID_RESET_TOKEN", map[string]interface{}{"reason": err.Error()}, nil)
+			return
+		case usecase.ErrResetTokenExpired:
+			errors.ErrorResponse(c, "RESET_TOKEN_EXPIRED", map[string]interface{}{"reason": err.Error()}, nil)
+			return
+		case usecase.ErrResetTokenAlreadyUsed:
+			errors.ErrorResponse(c, "RESET_TOKEN_ALREADY_USED", map[string]interface{}{"reason": err.Error()}, nil)
 			return
 		default:
 			errors.InternalServerErrorResponse(c, err.Error())
