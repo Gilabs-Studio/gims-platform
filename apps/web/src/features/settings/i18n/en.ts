@@ -31,7 +31,57 @@ export const settingsEn = {
     saveChanges: "Save Changes",
     saving: "Saving...",
     name: "Name",
-    email: "Email"
+    email: "Email",
+    
+    // Dashboard Metrics
+    metrics: {
+      title: "Dashboard Metrics",
+      description: "Your Sales Performance Summary",
+      subtitle: "Key metrics from your sales activities and customer interactions",
+      checkInLocations: "Check-in Locations",
+      productsSold: "Products Sold",
+      customers: "Customers",
+      totalLocations: "Total Locations",
+      totalVisits: "Total Visits",
+      totalProducts: "Total Products",
+      totalRevenue: "Total Revenue",
+      averageRevenue: "Average Revenue",
+      totalCustomers: "Total Customers",
+      totalOrders: "Total Orders",
+      averageOrderValue: "Average Order Value",
+      metricsLoadError: "Failed to load metrics. Please try again later.",
+    },
+    
+    // Assigned Tasks
+    tasks: {
+      title: "Assigned Tasks",
+      description: "Your Assigned Tasks",
+      subtitle: "Tasks from CRM, Sales Orders, and Purchase Orders",
+      dueDate: "Due",
+      noTasksAssigned: "No tasks assigned to you",
+      tasksLoadError: "Failed to load tasks. Please try again later.",
+      status: "Status",
+      priority: "Priority",
+      source: "Source",
+      createdDate: "Created",
+    }
+    ,
+    // Page specific labels
+    overview: "Overview",
+    about: "About",
+    addEmployee: "Add employee",
+    jobInformation: "Job information",
+    addInfo: "+ Add Info",
+    department: "Department",
+    manager: "Manager",
+    hireDate: "Hire Date",
+    locationLabel: "Location",
+    addressLabel: "Address:",
+    cityState: "City state:",
+    employeeDetails: "Employee details",
+    dateOfBirth: "Date of birth:",
+    titleLabel: "Title:",
+    hireDateLabel: "Hire date:",
   }
 };
 

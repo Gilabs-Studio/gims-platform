@@ -202,3 +202,43 @@ type SalesRepCustomerResponse struct {
 	TotalOrders           int     `json:"total_orders"`
 	Status                string  `json:"status,omitempty"`
 }
+
+// EmployeeDashboardMetricsRequest filters dashboard metrics for current employee
+type EmployeeDashboardMetricsRequest struct {
+	StartDate string `form:"start_date"`
+	EndDate   string `form:"end_date"`
+}
+
+// CheckInLocationsSummary represents aggregated check-in locations data
+type CheckInLocationsSummary struct {
+	TotalLocations int    `json:"total_locations"`
+	TotalVisits    int    `json:"total_visits"`
+	Period         *PeriodData `json:"period,omitempty"`
+}
+
+// ProductsSoldSummary represents aggregated products sold data
+type ProductsSoldSummary struct {
+	TotalProducts      int     `json:"total_products"`
+	TotalQuantity      float64 `json:"total_quantity"`
+	TotalRevenue       float64 `json:"total_revenue"`
+	TotalRevenueFormatted string `json:"total_revenue_formatted"`
+	AverageRevenue     float64 `json:"average_revenue"`
+	AverageRevenueFormatted string `json:"average_revenue_formatted"`
+}
+
+// CustomersSummary represents aggregated customers data
+type CustomersSummary struct {
+	TotalCustomers     int     `json:"total_customers"`
+	TotalRevenue       float64 `json:"total_revenue"`
+	TotalRevenueFormatted string `json:"total_revenue_formatted"`
+	AverageOrderValue  float64 `json:"average_order_value"`
+	AverageOrderValueFormatted string `json:"average_order_value_formatted"`
+	TotalOrders        int     `json:"total_orders"`
+}
+
+// EmployeeDashboardMetricsResponse contains aggregated metrics for employee dashboard/profile
+type EmployeeDashboardMetricsResponse struct {
+	CheckInLocations *CheckInLocationsSummary `json:"check_in_locations,omitempty"`
+	ProductsSold     *ProductsSoldSummary     `json:"products_sold,omitempty"`
+	Customers        *CustomersSummary        `json:"customers,omitempty"`
+}

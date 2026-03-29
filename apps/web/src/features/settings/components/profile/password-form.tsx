@@ -51,7 +51,7 @@ export function PasswordForm() {
         <CardDescription>{t("changePasswordDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-xl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Controller
             control={control}
             name="old_password"

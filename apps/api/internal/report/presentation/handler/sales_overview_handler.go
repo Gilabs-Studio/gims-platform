@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/report/domain/dto"
 	"github.com/gilabs/gims/api/internal/report/domain/usecase"
@@ -225,4 +226,44 @@ func (h *SalesOverviewHandler) GetCustomers(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, results, meta)
+}
+
+// GetEmployeeDashboardMetrics returns aggregated metrics for current employee's dashboard
+func (h *SalesOverviewHandler) GetEmployeeDashboardMetrics(c *gin.Context) {
+	employeeID := c.GetString("employee_id")
+	if employeeID == "" {
+		if scopedEmployeeID, ok := c.Request.Context().Value("scope_employee_id").(string); ok {
+			employeeID = scopedEmployeeID
+		}
+	}
+	if employeeID == "" {
+		if scopeCtx := middleware.GetScopeContext(c); scopeCtx != nil {
+			employeeID = scopeCtx.EmployeeID
+		}
+	}
+
+	// Some authenticated users may not be linked to an employee record yet.
+	// Return empty metrics payload instead of a validation error to keep profile page usable.
+	if employeeID == "" {
+		response.SuccessResponse(c, &dto.EmployeeDashboardMetricsResponse{}, nil)
+		return
+	}
+
+	var req dto.EmployeeDashboardMetricsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	result, err := h.uc.GetEmployeeDashboardMetrics(c.Request.Context(), employeeID, req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
 }
