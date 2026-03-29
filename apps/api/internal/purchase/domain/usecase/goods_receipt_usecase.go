@@ -478,8 +478,8 @@ func (uc *goodsReceiptUsecase) Confirm(ctx context.Context, id string) (*dto.Goo
 			return fmt.Errorf("failed to update stock: %w", err)
 		}
 
-		// Trigger Journal Entry (Inside Transaction)
-		if err := uc.triggerJournalEntry(txCtx, out); err != nil {
+		// Trigger Journal Entry via Inventory Module (Consolidated)
+		if err := uc.inventoryUC.TriggerDocumentJournal(txCtx, tx, reference.RefTypeGoodsReceipt, out.ID); err != nil {
 			return fmt.Errorf("failed to create journal: %w", err)
 		}
 
@@ -578,77 +578,6 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 	return uc.inventoryUC.ReceiveStockFromGR(ctx, req)
 }
 
-func (uc *goodsReceiptUsecase) triggerJournalEntry(ctx context.Context, gr *models.GoodsReceipt) error {
-	if gr == nil {
-		return errors.New("cannot trigger journal for nil goods receipt")
-	}
-	if uc.journalUC == nil {
-		return errors.New("journal usecase not initialized")
-	}
-	if uc.engine == nil {
-		return errors.New("accounting engine not initialized")
-	}
-
-	// 1. Calculate Total Value
-	var poItems []models.PurchaseOrderItem
-	if err := database.GetDB(ctx, uc.db).Where("purchase_order_id = ?", gr.PurchaseOrderID).Find(&poItems).Error; err != nil {
-		return err
-	}
-	priceMap := make(map[string]float64)
-	for _, pid := range poItems {
-		priceMap[pid.ID] = pid.Price
-	}
-
-	totalValue := 0.0
-	for _, it := range gr.Items {
-		cost := priceMap[it.PurchaseOrderItemID]
-		totalValue += (it.QuantityReceived * cost)
-	}
-
-	if totalValue <= 0.001 {
-		return nil
-	}
-
-	// 2. Prepare Transaction Data
-	data := accounting.TransactionData{
-		ReferenceType: reference.RefTypeGoodsReceipt,
-		ReferenceID:   gr.ID,
-		EntryDate: func() string {
-			if gr.ReceiptDate != nil {
-				return gr.ReceiptDate.Format("2006-01-02")
-			}
-			return apptime.Now().Format("2006-01-02")
-		}(),
-		Description:     fmt.Sprintf("Accrual for %s", gr.Code),
-		TotalAmount:     totalValue,
-		DescriptionArgs: []interface{}{gr.Code},
-	}
-
-	// 3. Generate Journal
-	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileGoodsReceipt, data)
-	if err != nil {
-		return fmt.Errorf("failed to generate goods receipt journal: %w", err)
-	}
-
-	// Double-check balance
-	var debitTotal, creditTotal float64
-	for _, l := range req.Lines {
-		debitTotal += l.Debit
-		creditTotal += l.Credit
-	}
-	if math.Abs(debitTotal-creditTotal) > 0.001 {
-		return fmt.Errorf("generated goods receipt journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
-	}
-
-	// 4. Post Journal
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to post goods receipt journal: %w", err)
-	}
-
-	log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeGoodsReceipt, gr.ID)
-	return nil
-}
 
 func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error) {
 	// Eligible: purchase orders in APPROVED status
@@ -809,24 +738,52 @@ func (uc *goodsReceiptUsecase) Approve(ctx context.Context, id string) (*dto.Goo
 	before := grAuditSnapshot(existing)
 
 	now := apptime.Now()
-	if err := uc.db.WithContext(ctx).Model(&models.GoodsReceipt{}).
-		Where("id = ?", id).
-		Updates(map[string]interface{}{
-			"status":      models.GoodsReceiptStatusApproved,
-			"approved_at": now,
-		}).Error; err != nil {
+	var out *models.GoodsReceipt
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Update status to Approved
+		if err := tx.Model(&models.GoodsReceipt{}).
+			Where("id = ?", id).
+			Updates(map[string]interface{}{
+				"status":      models.GoodsReceiptStatusApproved,
+				"approved_at": now,
+			}).Error; err != nil {
+			return err
+		}
+
+		// 2. Fetch loaded GR for side effects
+		loaded, err := uc.repo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		out = loaded
+
+		// 3. Trigger Stock & Financials (Atomic)
+		txCtx := database.WithTx(ctx, tx)
+		if err := uc.triggerStockUpdate(txCtx, out); err != nil {
+			return fmt.Errorf("failed to update stock: %w", err)
+		}
+		if err := uc.inventoryUC.TriggerDocumentJournal(txCtx, tx, reference.RefTypeGoodsReceipt, out.ID); err != nil {
+			return fmt.Errorf("failed to create journal: %w", err)
+		}
+		if err := uc.triggerAssetCreation(txCtx, out); err != nil {
+			return fmt.Errorf("failed to create asset: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrGoodsReceiptNotFound
+		}
 		return nil, err
 	}
 
-	updated, err := uc.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
 	uc.auditService.Log(ctx, "goods_receipt.approve", id, map[string]interface{}{
 		"before": before,
-		"after":  grAuditSnapshot(updated),
+		"after":  grAuditSnapshot(out),
 	})
-	return uc.mapper.ToDetailResponse(updated), nil
+	return uc.mapper.ToDetailResponse(out), nil
 }
 
 // Reject transitions a GR from SUBMITTED to REJECTED.
@@ -972,16 +929,8 @@ func (uc *goodsReceiptUsecase) Close(ctx context.Context, id string) (*dto.Goods
 		}
 		out = loaded
 
-		txCtx := database.WithTx(ctx, tx)
-		if err := uc.triggerStockUpdate(txCtx, out); err != nil {
-			return fmt.Errorf("failed to update stock: %w", err)
-		}
-		if err := uc.triggerJournalEntry(txCtx, out); err != nil {
-			return fmt.Errorf("failed to create journal: %w", err)
-		}
-		if err := uc.triggerAssetCreation(txCtx, out); err != nil {
-			return fmt.Errorf("failed to create asset: %w", err)
-		}
+		// Note: Stock & Journal are now triggered at APPROVE status per UI workflow.
+		// Close just marks the document as terminal.
 
 		return nil
 	})
@@ -1439,5 +1388,5 @@ func (uc *goodsReceiptUsecase) triggerAssetCreation(ctx context.Context, gr *mod
 	return nil
 }
 func (uc *goodsReceiptUsecase) TriggerJournalForReconciliation(ctx context.Context, gr *models.GoodsReceipt) error {
-	return uc.triggerJournalEntry(ctx, gr)
+	return uc.inventoryUC.TriggerDocumentJournal(ctx, uc.db, reference.RefTypeGoodsReceipt, gr.ID)
 }

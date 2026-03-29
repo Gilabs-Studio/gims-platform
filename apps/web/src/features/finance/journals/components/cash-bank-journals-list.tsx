@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency, toLocalDateString } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { UnifiedJournalRow } from "./journal-table";
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
@@ -45,8 +45,8 @@ export function CashBankJournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
-  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const canExport = useUserPermission("cash_bank_journal.export");
 

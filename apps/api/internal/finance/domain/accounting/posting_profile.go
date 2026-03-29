@@ -467,4 +467,184 @@ var (
 			},
 		},
 	}
+
+	// ProfileInventoryGain generates journal for inventory increase (Stock Opname Gain / Adjustment IN).
+	// Debit: Inventory Asset
+	// Credit: Inventory Gain (Other Income)
+	ProfileInventoryValuation = PostingProfile{
+		ReferenceType:       reference.RefTypeInventoryValuation,
+		DescriptionTemplate: "Inventory Valuation Gain: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.inventory_asset",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory valuation uplift",
+			},
+			{
+				COASettingKey: "coa.inventory_gain",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory valuation gain",
+			},
+		},
+	}
+
+	ProfileInventoryValuationLoss = PostingProfile{
+		ReferenceType:       reference.RefTypeInventoryValuation,
+		DescriptionTemplate: "Inventory Valuation Loss: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.inventory_loss",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory valuation loss",
+			},
+			{
+				COASettingKey: "coa.inventory_asset",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory valuation write-down",
+			},
+		},
+	}
+
+	ProfileInventoryGain = PostingProfile{
+		ReferenceType:       "INVENTORY_MOVEMENT",
+		DescriptionTemplate: "Inventory Gain: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.inventory_asset",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory increase adjustment",
+			},
+			{
+				COASettingKey: "coa.inventory_gain",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Revenue recognition for inventory gain",
+			},
+		},
+	}
+
+	// ProfileInventoryLoss generates journal for inventory decrease (Stock Opname Loss / Adjustment OUT).
+	// Debit: Inventory Loss (Other Expense)
+	// Credit: Inventory Asset
+	ProfileInventoryLoss = PostingProfile{
+		ReferenceType:       "INVENTORY_MOVEMENT",
+		DescriptionTemplate: "Inventory Loss: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.inventory_loss",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Expense recognition for inventory loss",
+			},
+			{
+				COASettingKey: "coa.inventory_asset",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory decrease adjustment",
+			},
+		},
+	}
+
+	ProfileFXValuation = PostingProfile{
+		ReferenceType:       reference.RefTypeCurrencyRevaluation,
+		DescriptionTemplate: "FX Valuation Gain: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.fx_remeasurement",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "FX remeasurement adjustment",
+			},
+			{
+				COASettingKey: "coa.fx_gain",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "FX valuation gain",
+			},
+		},
+	}
+
+	ProfileFXValuationLoss = PostingProfile{
+		ReferenceType:       reference.RefTypeCurrencyRevaluation,
+		DescriptionTemplate: "FX Valuation Loss: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.fx_loss",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "FX valuation loss",
+			},
+			{
+				COASettingKey: "coa.fx_remeasurement",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "FX remeasurement adjustment",
+			},
+		},
+	}
+
+	ProfileDepreciation = PostingProfile{
+		ReferenceType:       reference.RefTypeDepreciationValuation,
+		DescriptionTemplate: "Depreciation Valuation Loss: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.depreciation_expense",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Depreciation expense adjustment",
+			},
+			{
+				COASettingKey: "coa.depreciation_accumulated",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Accumulated depreciation",
+			},
+		},
+	}
+
+	ProfileDepreciationGain = PostingProfile{
+		ReferenceType:       reference.RefTypeDepreciationValuation,
+		DescriptionTemplate: "Depreciation Valuation Gain: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.depreciation_accumulated",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Depreciation reversal",
+			},
+			{
+				COASettingKey: "coa.depreciation_gain",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Other income from depreciation reversal",
+			},
+		},
+	}
+
+	// ProfileCOGS generates journal when goods are shipped to customer (COGS recognition).
+	// Debit: Cost of Goods Sold
+	// Credit: Inventory Asset
+	ProfileCOGS = PostingProfile{
+		ReferenceType:       "DELIVERY_ORDER",
+		DescriptionTemplate: "COGS recognition for DO: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.cogs",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Cost of goods sold",
+			},
+			{
+				COASettingKey: "coa.inventory_asset",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Inventory decrease from shipment",
+			},
+		},
+	}
 )

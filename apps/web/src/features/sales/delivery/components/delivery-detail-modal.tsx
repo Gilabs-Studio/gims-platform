@@ -41,6 +41,8 @@ import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { CreateSalesReturnDialog } from "../../returns/components/create-sales-return-dialog";
 import { useSalesReturns } from "../../returns/hooks/use-sales-returns";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
+import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
+import { AlertTriangle } from "lucide-react";
 
 interface DeliveryDetailModalProps {
   readonly open: boolean;
@@ -98,6 +100,9 @@ export function DeliveryDetailModal({
     },
     { enabled: open && !!delivery?.id },
   );
+
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const {
     canViewProduct,
@@ -462,6 +467,18 @@ export function DeliveryDetailModal({
                             getStatusBadge(displayDelivery.status)
                           )}
                         </TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("warehouse")}</TableCell>
+                        <TableCell>
+                          {displayDelivery.warehouse ? (
+                            <span className="font-medium">
+                              {displayDelivery.warehouse.code ? `${displayDelivery.warehouse.code} - ${displayDelivery.warehouse.name}` : displayDelivery.warehouse.name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic text-xs">No warehouse assigned</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("salesOrder")}</TableCell>
                         <TableCell>
                           {canViewSalesOrder && displayDelivery.sales_order_id ? (
@@ -473,6 +490,22 @@ export function DeliveryDetailModal({
                             </button>
                           ) : (
                             <span>{displayDelivery.sales_order?.code ?? displayDelivery.sales_order_id ?? "-"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium bg-muted/50">Related Journal</TableCell>
+                        <TableCell>
+                          {displayDelivery.journal_entry_id ? (
+                            <button
+                              onClick={() => {
+                                setSelectedJournalId(displayDelivery.journal_entry_id!);
+                                setIsJournalOpen(true);
+                              }}
+                              className="text-primary hover:underline cursor-pointer text-left"
+                            >
+                              View Journal Entry
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground italic text-xs">Not generated yet</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -795,6 +828,12 @@ export function DeliveryDetailModal({
         open={isCreateReturnOpen}
         onOpenChange={setIsCreateReturnOpen}
         deliveryId={displayDelivery?.id}
+      />
+
+      <JournalDetailModal
+        open={isJournalOpen}
+        onOpenChange={setIsJournalOpen}
+        id={selectedJournalId}
       />
     </>
   );

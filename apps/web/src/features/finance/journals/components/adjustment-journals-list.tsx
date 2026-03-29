@@ -39,7 +39,6 @@ import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
-import { toLocalDateString } from "@/lib/utils";
 import type { UnifiedJournalRow } from "./journal-table";
 
 
@@ -64,8 +63,8 @@ export function AdjustmentJournalsList() {
     to: now,
   });
 
-  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
-  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");

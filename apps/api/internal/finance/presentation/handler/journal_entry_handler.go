@@ -238,6 +238,20 @@ func (h *JournalEntryHandler) ListCashBankSubLedger(c *gin.Context) {
 
 // RunValuation handles POST /finance/journal-entries/valuation/run
 // Enhanced: accepts RunValuationRequest with type, period, and optional reference_id.
+func (h *JournalEntryHandler) PreviewValuation(c *gin.Context) {
+	var req dto.RunValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Preview(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALUATION_PREVIEW_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *JournalEntryHandler) RunValuation(c *gin.Context) {
 	var req dto.RunValuationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -254,6 +268,21 @@ func (h *JournalEntryHandler) RunValuation(c *gin.Context) {
 		return
 	}
 	response.SuccessResponseCreated(c, res, nil)
+}
+
+func (h *JournalEntryHandler) ApproveValuation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.ApproveValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err.Error() != "EOF" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Approve(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALUATION_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
 }
 
 // ListValuationRuns handles GET /finance/journal-entries/valuation/runs

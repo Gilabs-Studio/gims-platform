@@ -19,7 +19,7 @@ import {
     useSaveStockOpnameItems
 } from "../hooks/use-stock-opnames";
 import { StockOpnameStatusBadge } from "./stock-opname-status-badge";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const [pageSize, setPageSize] = useState(10);
   const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
   const totalItems = items.length;
+  const totalImpact = items.reduce((sum, item) => sum + (item.variance_qty * (item.unit_cost || 0)), 0);
 
   // Handlers
   const handleStatusChange = async (newStatus: StockOpnameStatus) => {
@@ -280,7 +281,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-5 gap-4">
                         <div className="p-3 border rounded-lg text-center space-y-1">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.totalItems")}</p>
                             <p className="text-2xl font-bold">{opname.total_items}</p>
@@ -301,6 +302,12 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.totalVariance")}</p>
                             <p className="text-2xl font-bold" style={{ color: opname.total_variance_qty < 0 ? 'hsl(var(--chart-4))' : 'hsl(var(--chart-2))' }}>
                                 {opname.total_variance_qty > 0 ? '+' : ''}{opname.total_variance_qty}
+                            </p>
+                        </div>
+                        <div className="p-3 border rounded-lg text-center space-y-1 bg-primary/5">
+                            <p className="text-xs text-muted-foreground uppercase font-semibold">Value Impact</p>
+                            <p className={`text-xl font-bold ${totalImpact > 0 ? "text-success" : totalImpact < 0 ? "text-destructive" : ""}`}>
+                                {formatCurrency(totalImpact)}
                             </p>
                         </div>
                     </div>
@@ -351,6 +358,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                     <TableHead className="text-right">System Qty</TableHead>
                                                     <TableHead className="text-right">Counted Qty</TableHead>
                                                     <TableHead className="text-center">Variance</TableHead>
+                                                    <TableHead className="text-right">Value Impact</TableHead>
                                                     <TableHead>Notes</TableHead>
                                                     {opname.status === 'draft' && canUpdate && (
                                                         <TableHead className="w-[100px] text-right">Actions</TableHead>
@@ -360,7 +368,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                             <TableBody>
                                                 {items.length === 0 ? (
                                                      <TableRow>
-                                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                                             No items. Add one to start.
                                                         </TableCell>
                                                     </TableRow>
@@ -390,6 +398,9 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                                                 ) : (
                                                                     <span className="font-medium" style={{ color: 'hsl(var(--chart-4))' }}>{item.variance_qty}</span>
                                                                 )}
+                                                            </TableCell>
+                                                            <TableCell className={`text-right font-mono font-bold ${item.variance_qty > 0 ? "text-success" : item.variance_qty < 0 ? "text-destructive" : ""}`}>
+                                                                {formatCurrency(item.variance_qty * (item.unit_cost || 0))}
                                                             </TableCell>
                                                             <TableCell className="text-sm text-muted-foreground italic">
                                                                 {item.notes || "-"}

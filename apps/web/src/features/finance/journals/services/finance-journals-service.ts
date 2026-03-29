@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
+  ApproveValuationInput,
   CreateJournalEntryInput,
   JournalEntry,
   ListJournalEntriesParams,
@@ -8,6 +9,7 @@ import type {
   RunValuationInput,
   TrialBalanceResponse,
   UpdateJournalEntryInput,
+  ValuationPreview,
   ValuationApiResponse,
   ValuationRun,
   CashBankSubLedgerEntry,
@@ -178,6 +180,27 @@ export const financeJournalsService = {
     const response = await apiClient.post<ApiResponse<ValuationRun>>(
       `${BASE_URL}/valuation/run`,
       data,
+    );
+    return response.data;
+  },
+
+  previewValuation: async (
+    data: RunValuationInput,
+  ): Promise<ApiResponse<ValuationPreview>> => {
+    const response = await apiClient.post<ApiResponse<ValuationPreview>>(
+      `${BASE_URL}/valuation/preview`,
+      data,
+    );
+    return response.data;
+  },
+
+  approveValuation: async (
+    id: string,
+    data?: ApproveValuationInput,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.post<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/runs/${id}/approve`,
+      data ?? {},
     );
     return response.data;
   },

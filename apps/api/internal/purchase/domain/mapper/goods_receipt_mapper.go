@@ -46,6 +46,7 @@ func (m *GoodsReceiptMapper) ToListResponse(gr *models.GoodsReceipt) *dto.GoodsR
 		RejectedAt:                   gr.RejectedAt,
 		ConvertedAt:                  gr.ConvertedAt,
 		ConvertedToSupplierInvoiceID: gr.ConvertedToSupplierInvoiceID,
+		JournalEntryID:               gr.JournalEntryID,
 	}
 
 	if gr.PurchaseOrder != nil {
@@ -98,6 +99,7 @@ func (m *GoodsReceiptMapper) ToDetailResponse(gr *models.GoodsReceipt) *dto.Good
 		RejectedAt:                   gr.RejectedAt,
 		ConvertedAt:                  gr.ConvertedAt,
 		ConvertedToSupplierInvoiceID: gr.ConvertedToSupplierInvoiceID,
+		JournalEntryID:               gr.JournalEntryID,
 	}
 
 	if gr.PurchaseOrder != nil {

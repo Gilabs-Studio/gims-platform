@@ -32,9 +32,10 @@ func SeedInventory() error {
 			BatchNumber:     "BATCH-MIN-001",
 			ProductID:       product.ID,
 			WarehouseID:     warehouse.ID,
-			InitialQuantity: 100,
-			CurrentQuantity: 100,
+			InitialQuantity:  100,
+			CurrentQuantity:  100,
 			ReservedQuantity: 0,
+			CostPrice:        product.CostPrice,
 		}
 
 		var existing inventoryModels.InventoryBatch
@@ -106,6 +107,7 @@ func SeedInventory() error {
 				InitialQuantity:  qty,
 				CurrentQuantity:  qty,
 				ReservedQuantity: 0,
+				CostPrice:        product.CostPrice,
 				ExpiryDate:       &expDate,
 			}
 		}
@@ -163,6 +165,7 @@ func SeedInventory() error {
 		InitialQuantity:  50,
 		CurrentQuantity:  50,
 		ReservedQuantity: 0,
+		CostPrice:        firstProduct.CostPrice,
 		ExpiryDate:       &expiringAt,
 		IsActive:         true,
 	}
@@ -176,6 +179,7 @@ func SeedInventory() error {
 		InitialQuantity:  30,
 		CurrentQuantity:  30,
 		ReservedQuantity: 0,
+		CostPrice:        firstProduct.CostPrice,
 		ExpiryDate:       &expiredAt,
 		IsActive:         true,
 	}
@@ -187,5 +191,23 @@ func SeedInventory() error {
 	}
 
 	log.Println("Inventory batches seeded successfully!")
+	
+	// --- Sync Product Stock ---
+	// After seeding batches, we must update current_stock on products table 
+	// so it matches the sum of its batches.
+	for _, product := range products {
+		var totalQty float64
+		db.Model(&inventoryModels.InventoryBatch{}).
+			Where("product_id = ? AND deleted_at IS NULL", product.ID).
+			Select("SUM(current_quantity)").
+			Scan(&totalQty)
+		
+		if err := db.Model(&productModels.Product{}).
+			Where("id = ?", product.ID).
+			Update("current_stock", totalQty).Error; err != nil {
+			log.Printf("Warning: Failed to sync product stock for %s: %v", product.Code, err)
+		}
+	}
+
 	return nil
 }

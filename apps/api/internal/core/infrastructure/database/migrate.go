@@ -149,6 +149,7 @@ func AutoMigrate() error {
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
 		&finance.ValuationRun{},
+		&finance.ValuationRunDetail{},
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
@@ -386,7 +387,6 @@ func createJournalEntryPeriodLockTrigger() error {
 	}
 	return nil
 }
-
 
 // tables no longer exist the function silently returns nil.
 func migrateAreaSupervisorsToEmployeeAreas() error {

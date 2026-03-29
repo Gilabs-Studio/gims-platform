@@ -86,7 +86,7 @@ func main() {
 
 	// Init Inventory Deps
 	invRepo := invRepos.NewInventoryRepository(db)
-	inventoryUC := invUC.NewInventoryUsecase(invRepo)
+	inventoryUC := invUC.NewInventoryUsecase(db, invRepo, journalUC, engine)
 
 	switch *targetType {
 	case "si": // Supplier Invoice

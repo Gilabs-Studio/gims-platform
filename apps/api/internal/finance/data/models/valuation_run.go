@@ -11,11 +11,12 @@ import (
 type ValuationRunStatus string
 
 const (
-	ValuationRunStatusRequested    ValuationRunStatus = "requested"
-	ValuationRunStatusProcessing   ValuationRunStatus = "processing"
-	ValuationRunStatusCompleted    ValuationRunStatus = "completed"
-	ValuationRunStatusNoDifference ValuationRunStatus = "no_difference"
-	ValuationRunStatusFailed       ValuationRunStatus = "failed"
+	ValuationRunStatusDraft           ValuationRunStatus = "draft"
+	ValuationRunStatusPendingApproval ValuationRunStatus = "pending_approval"
+	ValuationRunStatusApproved        ValuationRunStatus = "approved"
+	ValuationRunStatusPosted          ValuationRunStatus = "posted"
+	ValuationRunStatusNoDifference    ValuationRunStatus = "no_difference"
+	ValuationRunStatusFailed          ValuationRunStatus = "failed"
 )
 
 // ValuationType represents the kind of valuation being run.
@@ -23,9 +24,8 @@ type ValuationType string
 
 const (
 	ValuationTypeInventory    ValuationType = "inventory"
-	ValuationTypeCurrency     ValuationType = "currency"
+	ValuationTypeFX           ValuationType = "fx"
 	ValuationTypeDepreciation ValuationType = "depreciation"
-	ValuationTypeCost         ValuationType = "cost"
 )
 
 // ValuationRun tracks each valuation run with lifecycle status, totals, and link to generated journal.
@@ -36,10 +36,11 @@ type ValuationRun struct {
 	ValuationType ValuationType      `gorm:"type:varchar(50);not null;index" json:"valuation_type"`
 	PeriodStart   time.Time          `gorm:"type:date;not null" json:"period_start"`
 	PeriodEnd     time.Time          `gorm:"type:date;not null" json:"period_end"`
-	Status        ValuationRunStatus `gorm:"type:varchar(20);not null;default:'requested';index" json:"status"`
+	Status        ValuationRunStatus `gorm:"type:varchar(30);not null;default:'draft';index" json:"status"`
 
 	TotalDebit  float64 `gorm:"type:decimal(18,2);default:0" json:"total_debit"`
 	TotalCredit float64 `gorm:"type:decimal(18,2);default:0" json:"total_credit"`
+	TotalDelta  float64 `gorm:"type:decimal(18,2);default:0" json:"total_delta"`
 
 	JournalEntryID *string       `gorm:"type:uuid" json:"journal_entry_id"`
 	JournalEntry   *JournalEntry `gorm:"foreignKey:JournalEntryID" json:"journal_entry,omitempty"`
@@ -52,6 +53,8 @@ type ValuationRun struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Details []ValuationRunDetail `gorm:"foreignKey:ValuationRunID;constraint:OnDelete:CASCADE" json:"details,omitempty"`
 }
 
 func (ValuationRun) TableName() string {

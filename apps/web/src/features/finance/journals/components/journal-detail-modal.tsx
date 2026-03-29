@@ -128,19 +128,17 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               </div>
             </div>
 
-            <div className="rounded-md border p-3 space-y-2 bg-muted/10">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Audit Trail</div>
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="text-xs text-muted-foreground">Audit Trail</div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">Draft</Badge>
-                <span className="text-muted-foreground">
-                  created by <span className="font-medium text-foreground">{journal.created_by_name ?? "System"}</span>
-                </span>
+                <span className="text-muted-foreground">created by {journal.created_by ?? "system"}</span>
                 {journal.status === "posted" || journal.status === "reversed" ? (
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="success">Posted</Badge>
                     <span className="text-muted-foreground">
-                      at {safeDate(journal.posted_at ?? null)} by <span className="font-medium text-foreground">{journal.posted_by_name ?? "System"}</span>
+                      at {safeDate(journal.posted_at ?? null)} by {journal.posted_by ?? "system"}
                     </span>
                   </>
                 ) : null}
@@ -148,22 +146,11 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="destructive">Reversed</Badge>
-                    <span className="text-muted-foreground">
-                      at {safeDate(journal.reversed_at ?? null)} by <span className="font-medium text-foreground">{journal.reversed_by_name ?? "System"}</span>
-                    </span>
+                    <span className="text-muted-foreground">after posting</span>
                   </>
                 ) : null}
               </div>
             </div>
-
-            {journal.status === "reversed" && journal.reversal_reason && (
-              <div className="rounded-md border border-destructive/20 p-3 space-y-1 bg-destructive/5">
-                <div className="text-xs font-semibold text-destructive uppercase tracking-wider">Reversal Reason</div>
-                <div className="text-sm italic text-muted-foreground">
-                  &quot;{journal.reversal_reason}&quot;
-                </div>
-              </div>
-            )}
 
             {canOpenSource && referenceRow ? (
               <div className="flex justify-end">

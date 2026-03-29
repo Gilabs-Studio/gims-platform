@@ -46,7 +46,7 @@ func SeedJournalReconciliation() error {
 
 	// Shared Infrastructure usecases
 	inventoryRepo := inventoryRepos.NewInventoryRepository(db)
-	inventoryUC := inventoryUsecase.NewInventoryUsecase(inventoryRepo)
+	inventoryUC := inventoryUsecase.NewInventoryUsecase(db, inventoryRepo, journalUC, engine)
 	auditSvc := audit.NewAuditService(db)
 
 	// Sales usecases
@@ -237,6 +237,25 @@ func SeedJournalReconciliation() error {
 		}
 	}
 
+
+	// Sync Delivery Orders (COGS recognition)
+	var deliveryOrders []salesModels.DeliveryOrder
+	if err := db.Where("status IN ?", []salesModels.DeliveryOrderStatus{salesModels.DeliveryOrderStatusShipped, salesModels.DeliveryOrderStatusDelivered}).
+		Find(&deliveryOrders).Error; err == nil {
+		for _, do := range deliveryOrders {
+			var count int64
+			db.Model(&financeModels.JournalEntry{}).
+				Where("reference_type = ? AND reference_id = ?", "DELIVERY_ORDER", do.ID).
+				Count(&count)
+			if count > 0 {
+				continue
+			}
+			if err := inventoryUC.TriggerDocumentJournal(ctx, db, "DELIVERY_ORDER", do.ID); err != nil {
+				log.Printf("warning: failed to reconcile delivery order journal (%s): %v", do.ID, err)
+			}
+		}
+	}
+	
 	// Sync Sales Returns
 	var salesReturns []salesModels.SalesReturn
 	if err := db.Where("status = ?", salesModels.SalesReturnStatusProcessed).Find(&salesReturns).Error; err == nil {

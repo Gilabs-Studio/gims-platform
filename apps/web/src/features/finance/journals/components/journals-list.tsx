@@ -31,10 +31,9 @@ import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journ
 import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
-import { toLocalDateString } from "@/lib/utils";
 
 function toApiDate(date: Date): string {
-  return toLocalDateString(date);
+  return date.toISOString().slice(0, 10);
 }
 
 function getInitialOpenJournalFromURL(): string | null {

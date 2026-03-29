@@ -102,6 +102,8 @@ var legacyAliases = map[string]string{
 	"STOCKOPNAME":       RefTypeStockOpname,
 	"OPNAME":            RefTypeStockOpname,
 	"INVENTORYADJUSTMENT": RefTypeInventoryAdjustment,
+	"DO":                  RefTypeDeliveryOrder,
+	"GR":                  RefTypeGoodsReceipt,
 }
 
 // Additional constant for backward compatibility in alias maps.

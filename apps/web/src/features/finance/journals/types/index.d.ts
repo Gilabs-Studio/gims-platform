@@ -109,13 +109,43 @@ export interface TrialBalanceResponse {
 // ===== Valuation Run Types =====
 
 export type ValuationRunStatus =
-  | "requested"
-  | "processing"
-  | "completed"
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "posted"
   | "no_difference"
   | "failed";
 
-export type ValuationType = "inventory" | "currency" | "depreciation" | "cost";
+export type ValuationType = "inventory" | "fx" | "depreciation";
+
+export interface ValuationItem {
+  reference_id: string;
+  product_id?: string | null;
+  qty: number;
+  book_value: number;
+  actual_value: number;
+  delta: number;
+  direction: "gain" | "loss";
+}
+
+export interface ValuationPreviewJournalLine {
+  chart_of_account_id: string;
+  debit: number;
+  credit: number;
+  memo: string;
+}
+
+export interface ValuationPreview {
+  valuation_type: ValuationType;
+  period_start: string;
+  period_end: string;
+  items: ValuationItem[];
+  total_delta: number;
+  total_gain: number;
+  total_loss: number;
+  journal_lines: ValuationPreviewJournalLine[];
+  is_balanced: boolean;
+}
 
 export interface ValuationRun {
   id: string;
@@ -126,10 +156,12 @@ export interface ValuationRun {
   status: ValuationRunStatus;
   total_debit: number;
   total_credit: number;
+  total_delta: number;
   journal_entry_id?: string | null;
   error_message?: string | null;
   created_by?: string | null;
   completed_at?: string | null;
+  items?: ValuationItem[];
   created_at: string;
   updated_at: string;
 }
@@ -139,6 +171,10 @@ export interface RunValuationInput {
   period_start: string;
   period_end: string;
   reference_id?: string;
+}
+
+export interface ApproveValuationInput {
+  notes?: string;
 }
 
 export interface ValuationKPIMeta {

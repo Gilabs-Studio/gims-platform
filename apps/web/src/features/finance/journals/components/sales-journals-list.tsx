@@ -15,7 +15,6 @@ import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
-import { toLocalDateString } from "@/lib/utils";
 
 export function SalesJournalsList() {
   const t = useTranslations("financeJournals");
@@ -32,8 +31,8 @@ export function SalesJournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const startDate = dateRange?.from ? toLocalDateString(dateRange.from) : undefined;
-  const endDate = dateRange?.to ? toLocalDateString(dateRange.to) : undefined;
+  const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
+  const endDate = dateRange?.to ? dateRange.to.toISOString().slice(0, 10) : undefined;
 
   const canExport = useUserPermission("sales_journal.export");
 

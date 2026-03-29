@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,245 +13,267 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
+	purchaseModels "github.com/gilabs/gims/api/internal/purchase/data/models"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
 )
 
-// ---- Errors ----
-
 var (
-	ErrValuationConflict    = errors.New("a valuation run is already processing for this type and period")
+	ErrValuationConflict    = errors.New("a valuation run is already pending for this type and period")
 	ErrValuationPeriod      = errors.New("invalid valuation period: start must be before or equal to end")
 	ErrValuationTypeUnknown = errors.New("unknown valuation type")
+	ErrValuationStatus      = errors.New("valuation run is not in approvable status")
+	ErrReconciliationFailed = errors.New("inventory reconciliation mismatch: inventory GL is not equal to subledger")
 )
 
-// ---- Valuation Strategy Interface ----
-
-// ValuationLine represents a single debit/credit pair produced by a valuation strategy.
-type ValuationLine struct {
-	AccountDebitID  string
-	AccountCreditID string
-	Amount          float64
-	Memo            string
+type ValuationItem struct {
+	ReferenceID string
+	ProductID   *string
+	Qty         float64
+	BookValue   float64
+	ActualValue float64
+	Delta       float64
+	Direction   string
 }
 
-// ValuationResult is the output of a valuation strategy calculation.
 type ValuationResult struct {
-	Lines       []ValuationLine
-	TotalDebit  float64
-	TotalCredit float64
-	Description string
+	Items      []ValuationItem
+	TotalDelta float64
 }
 
-// ValuationStrategy defines the interface for different valuation calculation engines.
 type ValuationStrategy interface {
 	Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error)
 }
 
-// ---- Valuation Run Usecase ----
-
-// ValuationRunUsecase encapsulates the valuation run lifecycle.
 type ValuationRunUsecase interface {
+	Preview(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationPreviewResponse, error)
 	Run(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationRunResponse, error)
+	Approve(ctx context.Context, id string, req *dto.ApproveValuationRequest) (*dto.ValuationRunResponse, error)
 	GetByID(ctx context.Context, id string) (*dto.ValuationRunResponse, error)
 	List(ctx context.Context, req *dto.ListValuationRunsRequest) ([]dto.ValuationRunResponse, int64, *dto.ValuationKPIMeta, error)
 }
 
 type valuationRunUsecase struct {
-	db         *gorm.DB
-	repo       repositories.ValuationRunRepository
-	coaRepo    repositories.ChartOfAccountRepository
-	journalUC  JournalEntryUsecase
-	strategies map[string]ValuationStrategy
+	db               *gorm.DB
+	repo             repositories.ValuationRunRepository
+	journalUC        JournalEntryUsecase
+	accountingEngine accounting.AccountingEngine
+	settings         financesettings.SettingsService
+	strategies       map[string]ValuationStrategy
 }
 
-// NewValuationRunUsecase creates a new valuation run usecase.
 func NewValuationRunUsecase(
 	db *gorm.DB,
 	repo repositories.ValuationRunRepository,
-	coaRepo repositories.ChartOfAccountRepository,
 	journalUC JournalEntryUsecase,
+	settings financesettings.SettingsService,
+	accountingEngine accounting.AccountingEngine,
 ) ValuationRunUsecase {
 	uc := &valuationRunUsecase{
-		db:         db,
-		repo:       repo,
-		coaRepo:    coaRepo,
-		journalUC:  journalUC,
-		strategies: make(map[string]ValuationStrategy),
+		db:               db,
+		repo:             repo,
+		journalUC:        journalUC,
+		settings:         settings,
+		accountingEngine: accountingEngine,
+		strategies:       make(map[string]ValuationStrategy),
 	}
 
-	// Register default strategies
-	uc.strategies["inventory"] = &inventoryValuationStrategy{db: db, coaRepo: coaRepo}
-	uc.strategies["currency"] = &currencyRevaluationStrategy{db: db, coaRepo: coaRepo}
-	uc.strategies["depreciation"] = &depreciationStrategy{db: db, coaRepo: coaRepo}
-	uc.strategies["cost"] = &costAdjustmentStrategy{db: db, coaRepo: coaRepo}
+	uc.strategies["inventory"] = &inventoryValuationStrategy{db: db}
+	uc.strategies["fx"] = &fxValuationStrategy{db: db}
+	uc.strategies["depreciation"] = &depreciationValuationStrategy{db: db}
 
 	return uc
 }
 
-// Run executes the full valuation lifecycle.
+func (uc *valuationRunUsecase) Preview(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationPreviewResponse, error) {
+	valType, periodStart, periodEnd, _, strategy, err := uc.resolveRunRequest(ctx, req, true)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := strategy.Calculate(ctx, periodStart, periodEnd)
+	if err != nil {
+		return nil, fmt.Errorf("valuation calculation failed: %w", err)
+	}
+
+	previewLines, _, _, err := uc.buildJournalPreview(ctx, valType, result, "VAL-PREVIEW", periodEnd)
+	if err != nil {
+		return nil, err
+	}
+
+	debit, credit := 0.0, 0.0
+	for _, line := range previewLines {
+		debit += line.Debit
+		credit += line.Credit
+	}
+
+	return &dto.ValuationPreviewResponse{
+		ValuationType: valType,
+		PeriodStart:   periodStart.Format("2006-01-02"),
+		PeriodEnd:     periodEnd.Format("2006-01-02"),
+		Items:         mapValuationItems(result.Items),
+		TotalDelta:    result.TotalDelta,
+		TotalGain:     totalGain(result.Items),
+		TotalLoss:     totalLoss(result.Items),
+		JournalLines:  previewLines,
+		IsBalanced:    math.Abs(debit-credit) < 0.0001,
+	}, nil
+}
+
 func (uc *valuationRunUsecase) Run(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationRunResponse, error) {
-	if req == nil {
-		return nil, errors.New("request is required")
-	}
-
-	actorID, _ := ctx.Value("user_id").(string)
-	actorID = strings.TrimSpace(actorID)
-
-	// 1. Parse and validate dates
-	periodStart, err := time.Parse("2006-01-02", req.PeriodStart)
+	valType, periodStart, periodEnd, refID, strategy, err := uc.resolveRunRequest(ctx, req, false)
 	if err != nil {
-		return nil, fmt.Errorf("invalid period_start: %w", err)
-	}
-	periodEnd, err := time.Parse("2006-01-02", req.PeriodEnd)
-	if err != nil {
-		return nil, fmt.Errorf("invalid period_end: %w", err)
-	}
-	if periodStart.After(periodEnd) {
-		return nil, ErrValuationPeriod
+		return nil, err
 	}
 
-	valType := strings.ToLower(strings.TrimSpace(req.ValuationType))
-	strategy, ok := uc.strategies[valType]
-	if !ok {
-		return nil, ErrValuationTypeUnknown
-	}
-
-	// 2. Generate reference ID (idempotency key)
-	refID := strings.TrimSpace(req.ReferenceID)
-	if refID == "" {
-		refID = fmt.Sprintf("VAL-RUN-%s-%s-%d",
-			strings.ToUpper(valType),
-			periodEnd.Format("20060102"),
-			time.Now().Unix(),
-		)
-	}
-
-	// 2b. Check idempotency: if reference_id already exists, return existing
 	existing, err := uc.repo.FindByReferenceID(ctx, refID)
 	if err == nil && existing != nil {
-		log.Printf("valuation_run event=idempotent_hit reference_id=%s status=%s", refID, existing.Status)
 		return uc.toResponse(existing), nil
 	}
 
-	// 3. Concurrency lock: only one processing run per type+period
-	hasProcessing, err := uc.repo.HasProcessingRun(ctx, valType, periodStart, periodEnd)
+	hasPending, err := uc.repo.HasPendingRun(ctx, valType, periodStart, periodEnd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check concurrency lock: %w", err)
+		return nil, fmt.Errorf("failed to check valuation lock: %w", err)
 	}
-	if hasProcessing {
+	if hasPending {
 		return nil, ErrValuationConflict
 	}
 
-	// 4. Create run record with status=processing
+	result, err := strategy.Calculate(ctx, periodStart, periodEnd)
+	if err != nil {
+		return nil, fmt.Errorf("valuation calculation failed: %w", err)
+	}
+
+	actorID := strings.TrimSpace(getActorID(ctx))
 	run := &financeModels.ValuationRun{
 		ReferenceID:   refID,
 		ValuationType: financeModels.ValuationType(valType),
 		PeriodStart:   periodStart,
 		PeriodEnd:     periodEnd,
-		Status:        financeModels.ValuationRunStatusProcessing,
-		CreatedBy:     &actorID,
-	}
-	if err := uc.repo.Create(ctx, run); err != nil {
-		return nil, fmt.Errorf("failed to create valuation run: %w", err)
+		Status:        financeModels.ValuationRunStatusDraft,
+		TotalDelta:    result.TotalDelta,
+		CreatedBy:     nullableString(actorID),
 	}
 
-	log.Printf("valuation_run event=started run_id=%s reference_id=%s type=%s period=%s..%s actor=%s",
-		run.ID, refID, valType, req.PeriodStart, req.PeriodEnd, actorID)
-
-	// 5. Execute strategy
-	result, err := strategy.Calculate(ctx, periodStart, periodEnd)
-	if err != nil {
-		errMsg := err.Error()
-		run.Status = financeModels.ValuationRunStatusFailed
-		run.ErrorMessage = &errMsg
-		_ = uc.repo.Update(ctx, run)
-		log.Printf("valuation_run event=failed run_id=%s error=%s", run.ID, errMsg)
-		return nil, fmt.Errorf("valuation calculation failed: %w", err)
-	}
-
-	// 6. If no differences, mark as no_difference
-	if len(result.Lines) == 0 || (result.TotalDebit == 0 && result.TotalCredit == 0) {
-		now := apptime.Now()
-		run.Status = financeModels.ValuationRunStatusNoDifference
-		run.CompletedAt = &now
-		_ = uc.repo.Update(ctx, run)
-		log.Printf("valuation_run event=no_difference run_id=%s reference_id=%s", run.ID, refID)
-		return uc.toResponse(run), nil
-	}
-
-	// 7. Build journal lines from valuation result
-	journalLines := make([]dto.JournalLineRequest, 0, len(result.Lines)*2)
-	for _, vl := range result.Lines {
-		journalLines = append(journalLines,
-			dto.JournalLineRequest{
-				ChartOfAccountID: vl.AccountDebitID,
-				Debit:            vl.Amount,
-				Credit:           0,
-				Memo:             vl.Memo,
-			},
-			dto.JournalLineRequest{
-				ChartOfAccountID: vl.AccountCreditID,
-				Debit:            0,
-				Credit:           vl.Amount,
-				Memo:             vl.Memo,
-			},
-		)
-	}
-
-	// Map valuation type → reference type
-	refTypeMap := map[string]string{
-		"inventory":    "INVENTORY_VALUATION",
-		"currency":     "CURRENCY_REVALUATION",
-		"depreciation": "DEPRECIATION_VALUATION",
-		"cost":         "COST_ADJUSTMENT",
-	}
-	refType := refTypeMap[valType]
-
-	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:         periodEnd.Format("2006-01-02"),
-		Description:       result.Description,
-		ReferenceType:     &refType,
-		ReferenceID:       &refID,
-		IsSystemGenerated: true,
-		Lines:             journalLines,
-	}
-
-	// 8. Create & post journal
-	journalResp, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
-	if err != nil {
-		errMsg := err.Error()
-		run.Status = financeModels.ValuationRunStatusFailed
-		run.ErrorMessage = &errMsg
-		_ = uc.repo.Update(ctx, run)
-		log.Printf("valuation_run event=journal_failed run_id=%s error=%s", run.ID, errMsg)
-		return nil, fmt.Errorf("failed to create valuation journal: %w", err)
-	}
-
-	// 9. Update the journal entry with valuation metadata
-	uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
-		Where("id = ?", journalResp.ID).
-		Updates(map[string]interface{}{
-			"is_valuation":     true,
-			"valuation_run_id": run.ID,
-			"source":           string(financeModels.JournalSourceValuation),
+	details := make([]financeModels.ValuationRunDetail, 0, len(result.Items))
+	for _, item := range result.Items {
+		details = append(details, financeModels.ValuationRunDetail{
+			ValuationRunID: "",
+			ReferenceID:    item.ReferenceID,
+			ProductID:      item.ProductID,
+			Qty:            item.Qty,
+			BookValue:      item.BookValue,
+			ActualValue:    item.ActualValue,
+			Delta:          item.Delta,
+			Direction:      financeModels.ValuationDirection(item.Direction),
 		})
-
-	// 10. Complete the run
-	now := apptime.Now()
-	run.Status = financeModels.ValuationRunStatusCompleted
-	run.TotalDebit = result.TotalDebit
-	run.TotalCredit = result.TotalCredit
-	run.JournalEntryID = &journalResp.ID
-	run.CompletedAt = &now
-	if err := uc.repo.Update(ctx, run); err != nil {
-		log.Printf("valuation_run event=update_failed run_id=%s error=%s", run.ID, err.Error())
 	}
 
-	log.Printf("valuation_run event=completed run_id=%s reference_id=%s total_debit=%.2f total_credit=%.2f journal_id=%s",
-		run.ID, refID, result.TotalDebit, result.TotalCredit, journalResp.ID)
+	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(run).Error; err != nil {
+			return err
+		}
+		for i := range details {
+			details[i].ValuationRunID = run.ID
+		}
+		if err := uc.repo.CreateDetails(ctx, tx, details); err != nil {
+			return err
+		}
+		if len(details) == 0 || math.Abs(result.TotalDelta) < 0.0001 {
+			run.Status = financeModels.ValuationRunStatusNoDifference
+			now := apptime.Now()
+			run.CompletedAt = &now
+		} else {
+			run.Status = financeModels.ValuationRunStatusPendingApproval
+		}
+		if err := tx.Save(run).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to persist valuation run: %w", err)
+	}
 
+	run.Details = details
 	return uc.toResponse(run), nil
+}
+
+func (uc *valuationRunUsecase) Approve(ctx context.Context, id string, _ *dto.ApproveValuationRequest) (*dto.ValuationRunResponse, error) {
+	actorID := strings.TrimSpace(getActorID(ctx))
+	if actorID == "" {
+		return nil, errors.New("user context is required")
+	}
+
+	var outRun *financeModels.ValuationRun
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		run, err := uc.repo.FindByIDForUpdate(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+
+		if run.Status == financeModels.ValuationRunStatusPosted {
+			outRun = run
+			return nil
+		}
+		if run.Status != financeModels.ValuationRunStatusPendingApproval && run.Status != financeModels.ValuationRunStatusApproved {
+			return ErrValuationStatus
+		}
+
+		if err := uc.validateReconciliation(ctx, tx, run); err != nil {
+			return err
+		}
+
+		result := detailsToResult(run.Details)
+		previewLines, totalDebit, totalCredit, err := uc.buildJournalPreview(ctx, string(run.ValuationType), result, run.ReferenceID, run.PeriodEnd)
+		if err != nil {
+			return err
+		}
+
+		if len(previewLines) == 0 {
+			run.Status = financeModels.ValuationRunStatusNoDifference
+			now := apptime.Now()
+			run.CompletedAt = &now
+			if err := tx.Save(run).Error; err != nil {
+				return err
+			}
+			outRun = run
+			return nil
+		}
+
+		run.Status = financeModels.ValuationRunStatusApproved
+		if err := tx.Save(run).Error; err != nil {
+			return err
+		}
+
+		journalID, err := uc.createPostedJournalInTx(ctx, tx, run, previewLines, totalDebit, totalCredit, actorID)
+		if err != nil {
+			return err
+		}
+
+		run.Status = financeModels.ValuationRunStatusPosted
+		run.TotalDebit = totalDebit
+		run.TotalCredit = totalCredit
+		run.JournalEntryID = &journalID
+		now := apptime.Now()
+		run.CompletedAt = &now
+		if err := tx.Save(run).Error; err != nil {
+			return err
+		}
+
+		outRun = run
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return uc.toResponse(outRun), nil
 }
 
 func (uc *valuationRunUsecase) GetByID(ctx context.Context, id string) (*dto.ValuationRunResponse, error) {
@@ -261,8 +284,7 @@ func (uc *valuationRunUsecase) GetByID(ctx context.Context, id string) (*dto.Val
 	if err != nil {
 		return nil, err
 	}
-	resp := uc.toResponse(run)
-	return resp, nil
+	return uc.toResponse(run), nil
 }
 
 func (uc *valuationRunUsecase) List(ctx context.Context, req *dto.ListValuationRunsRequest) ([]dto.ValuationRunResponse, int64, *dto.ValuationKPIMeta, error) {
@@ -272,7 +294,7 @@ func (uc *valuationRunUsecase) List(ctx context.Context, req *dto.ListValuationR
 		page = 1
 	}
 	if perPage < 1 {
-		perPage = 10
+		perPage = 20
 	}
 	if perPage > 100 {
 		perPage = 100
@@ -288,7 +310,7 @@ func (uc *valuationRunUsecase) List(ctx context.Context, req *dto.ListValuationR
 		endDate = &t
 	}
 
-	params := repositories.ValuationRunListParams{
+	items, total, err := uc.repo.List(ctx, repositories.ValuationRunListParams{
 		ValuationType: req.ValuationType,
 		Status:        req.Status,
 		StartDate:     startDate,
@@ -297,29 +319,22 @@ func (uc *valuationRunUsecase) List(ctx context.Context, req *dto.ListValuationR
 		SortDir:       req.SortDir,
 		Limit:         perPage,
 		Offset:        (page - 1) * perPage,
-	}
-
-	items, total, err := uc.repo.List(ctx, params)
+	})
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
 	responses := make([]dto.ValuationRunResponse, 0, len(items))
+	kpi := &dto.ValuationKPIMeta{TotalEntries: total}
+
 	for i := range items {
 		responses = append(responses, *uc.toResponse(&items[i]))
-	}
-
-	// Build KPI meta
-	kpi := &dto.ValuationKPIMeta{
-		TotalEntries: total,
-	}
-	for _, item := range items {
-		kpi.TotalDebitSum += item.TotalDebit
-		kpi.TotalCreditSum += item.TotalCredit
-		switch item.Status {
-		case financeModels.ValuationRunStatusCompleted:
+		kpi.TotalDebitSum += items[i].TotalDebit
+		kpi.TotalCreditSum += items[i].TotalCredit
+		switch items[i].Status {
+		case financeModels.ValuationRunStatusPosted:
 			kpi.CompletedRuns++
-		case financeModels.ValuationRunStatusProcessing:
+		case financeModels.ValuationRunStatusPendingApproval, financeModels.ValuationRunStatusApproved:
 			kpi.ProcessingRuns++
 		case financeModels.ValuationRunStatusFailed:
 			kpi.FailedRuns++
@@ -327,6 +342,214 @@ func (uc *valuationRunUsecase) List(ctx context.Context, req *dto.ListValuationR
 	}
 
 	return responses, total, kpi, nil
+}
+
+func (uc *valuationRunUsecase) resolveRunRequest(ctx context.Context, req *dto.RunValuationRequest, allowEmptyRef bool) (string, time.Time, time.Time, string, ValuationStrategy, error) {
+	if req == nil {
+		return "", time.Time{}, time.Time{}, "", nil, errors.New("request is required")
+	}
+
+	periodStart, err := time.Parse("2006-01-02", req.PeriodStart)
+	if err != nil {
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("invalid period_start: %w", err)
+	}
+	periodEnd, err := time.Parse("2006-01-02", req.PeriodEnd)
+	if err != nil {
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("invalid period_end: %w", err)
+	}
+	if periodStart.After(periodEnd) {
+		return "", time.Time{}, time.Time{}, "", nil, ErrValuationPeriod
+	}
+
+	valType := strings.ToLower(strings.TrimSpace(req.ValuationType))
+	strategy, ok := uc.strategies[valType]
+	if !ok {
+		return "", time.Time{}, time.Time{}, "", nil, ErrValuationTypeUnknown
+	}
+
+	refID := strings.TrimSpace(req.ReferenceID)
+	if refID == "" && !allowEmptyRef {
+		refID = fmt.Sprintf("VAL-%s-%s", strings.ToUpper(valType), apptime.Now().Format("20060102150405"))
+	}
+
+	_ = ctx
+	return valType, periodStart, periodEnd, refID, strategy, nil
+}
+
+func (uc *valuationRunUsecase) buildJournalPreview(
+	ctx context.Context,
+	valuationType string,
+	result *ValuationResult,
+	referenceID string,
+	periodEnd time.Time,
+) ([]dto.ValuationPreviewJournalLine, float64, float64, error) {
+	if result == nil {
+		return nil, 0, 0, nil
+	}
+
+	gain := totalGain(result.Items)
+	loss := totalLoss(result.Items)
+	preview := make([]dto.ValuationPreviewJournalLine, 0)
+	totalDebit := 0.0
+	totalCredit := 0.0
+
+	appendLines := func(profile accounting.PostingProfile, amount float64, desc string) error {
+		if amount <= 0 {
+			return nil
+		}
+		req, err := uc.accountingEngine.GenerateJournal(ctx, profile, accounting.TransactionData{
+			ReferenceType: profile.ReferenceType,
+			ReferenceID:   referenceID,
+			EntryDate:     periodEnd.Format("2006-01-02"),
+			Description:   desc,
+			TotalAmount:   amount,
+		})
+		if err != nil {
+			return err
+		}
+		for _, l := range req.Lines {
+			preview = append(preview, dto.ValuationPreviewJournalLine{
+				ChartOfAccountID: l.ChartOfAccountID,
+				Debit:            l.Debit,
+				Credit:           l.Credit,
+				Memo:             l.Memo,
+			})
+			totalDebit += l.Debit
+			totalCredit += l.Credit
+		}
+		return nil
+	}
+
+	switch valuationType {
+	case "inventory":
+		if err := appendLines(accounting.ProfileInventoryValuation, gain, "Inventory valuation gain"); err != nil {
+			return nil, 0, 0, err
+		}
+		if err := appendLines(accounting.ProfileInventoryValuationLoss, loss, "Inventory valuation loss"); err != nil {
+			return nil, 0, 0, err
+		}
+	case "fx":
+		if err := appendLines(accounting.ProfileFXValuation, gain, "FX valuation gain"); err != nil {
+			return nil, 0, 0, err
+		}
+		if err := appendLines(accounting.ProfileFXValuationLoss, loss, "FX valuation loss"); err != nil {
+			return nil, 0, 0, err
+		}
+	case "depreciation":
+		if err := appendLines(accounting.ProfileDepreciationGain, gain, "Depreciation valuation gain"); err != nil {
+			return nil, 0, 0, err
+		}
+		if err := appendLines(accounting.ProfileDepreciation, loss, "Depreciation valuation loss"); err != nil {
+			return nil, 0, 0, err
+		}
+	default:
+		return nil, 0, 0, ErrValuationTypeUnknown
+	}
+
+	return preview, totalDebit, totalCredit, nil
+}
+
+func (uc *valuationRunUsecase) createPostedJournalInTx(
+	ctx context.Context,
+	tx *gorm.DB,
+	run *financeModels.ValuationRun,
+	lines []dto.ValuationPreviewJournalLine,
+	totalDebit float64,
+	totalCredit float64,
+	actorID string,
+) (string, error) {
+	entryDate, err := time.Parse("2006-01-02", run.PeriodEnd.Format("2006-01-02"))
+	if err != nil {
+		return "", err
+	}
+
+	refType := mapValuationToRefType(string(run.ValuationType))
+	journal := &financeModels.JournalEntry{
+		EntryDate:         entryDate,
+		Description:       fmt.Sprintf("Valuation run %s", run.ReferenceID),
+		ReferenceType:     &refType,
+		ReferenceID:       &run.ReferenceID,
+		Status:            financeModels.JournalStatusPosted,
+		PostedBy:          &actorID,
+		PostedAt:          timePtr(apptime.Now()),
+		CreatedBy:         &actorID,
+		IsSystemGenerated: true,
+		IsValuation:       true,
+		Source:            financeModels.JournalSourceValuation,
+		ValuationRunID:    &run.ID,
+		DebitTotal:        totalDebit,
+		CreditTotal:       totalCredit,
+	}
+	if err := tx.WithContext(ctx).Create(journal).Error; err != nil {
+		return "", err
+	}
+
+	journalLines := make([]financeModels.JournalLine, 0, len(lines))
+	for _, line := range lines {
+		journalLines = append(journalLines, financeModels.JournalLine{
+			JournalEntryID:   journal.ID,
+			ChartOfAccountID: line.ChartOfAccountID,
+			Debit:            line.Debit,
+			Credit:           line.Credit,
+			Memo:             line.Memo,
+		})
+	}
+	if len(journalLines) > 0 {
+		if err := tx.WithContext(ctx).Create(&journalLines).Error; err != nil {
+			return "", err
+		}
+	}
+
+	return journal.ID, nil
+}
+
+func (uc *valuationRunUsecase) validateReconciliation(ctx context.Context, tx *gorm.DB, run *financeModels.ValuationRun) error {
+	if run.ValuationType != financeModels.ValuationTypeInventory {
+		return nil
+	}
+
+	coaID, err := uc.accountingEngine.ResolveCOAID(ctx, financeModels.SettingCOAInventoryAsset)
+	if err != nil {
+		return err
+	}
+
+	var glBalance float64
+	if err := tx.WithContext(ctx).
+		Table("journal_lines jl").
+		Select("COALESCE(SUM(jl.debit - jl.credit), 0)").
+		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
+		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date <= ?", financeModels.JournalStatusPosted, coaID, run.PeriodEnd).
+		Scan(&glBalance).Error; err != nil {
+		return err
+	}
+
+	var subledger float64
+	if err := tx.WithContext(ctx).
+		Model(&inventoryModels.InventoryBatch{}).
+		Select("COALESCE(SUM(current_quantity * cost_price), 0)").
+		Where("is_active = ?", true).
+		Scan(&subledger).Error; err != nil {
+		return err
+	}
+
+	tolerance := uc.reconciliationTolerance(ctx)
+	if math.Abs(glBalance-subledger) > tolerance {
+		return fmt.Errorf("%w (gl=%.2f subledger=%.2f tolerance=%.2f)", ErrReconciliationFailed, glBalance, subledger, tolerance)
+	}
+
+	return nil
+}
+
+func (uc *valuationRunUsecase) reconciliationTolerance(ctx context.Context) float64 {
+	value, err := uc.settings.GetValue(ctx, "valuation.reconciliation_tolerance")
+	if err != nil || strings.TrimSpace(value) == "" {
+		return 0.01
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || parsed < 0 {
+		return 0.01
+	}
+	return parsed
 }
 
 func (uc *valuationRunUsecase) toResponse(run *financeModels.ValuationRun) *dto.ValuationRunResponse {
@@ -339,9 +562,11 @@ func (uc *valuationRunUsecase) toResponse(run *financeModels.ValuationRun) *dto.
 		Status:         string(run.Status),
 		TotalDebit:     run.TotalDebit,
 		TotalCredit:    run.TotalCredit,
+		TotalDelta:     run.TotalDelta,
 		JournalEntryID: run.JournalEntryID,
 		ErrorMessage:   run.ErrorMessage,
 		CreatedBy:      run.CreatedBy,
+		Items:          mapValuationDetails(run.Details),
 		CreatedAt:      run.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      run.UpdatedAt.Format(time.RFC3339),
 	}
@@ -352,93 +577,341 @@ func (uc *valuationRunUsecase) toResponse(run *financeModels.ValuationRun) *dto.
 	return resp
 }
 
-// ================================================================
-// Valuation Strategies (skeleton implementations)
-// In production, each strategy would query real data sources
-// (inventory batches, currency rates, depreciation schedules).
-// ================================================================
+func mapValuationItems(items []ValuationItem) []dto.ValuationItemResponse {
+	out := make([]dto.ValuationItemResponse, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.ValuationItemResponse{
+			ReferenceID: item.ReferenceID,
+			ProductID:   item.ProductID,
+			Qty:         item.Qty,
+			BookValue:   item.BookValue,
+			ActualValue: item.ActualValue,
+			Delta:       item.Delta,
+			Direction:   item.Direction,
+		})
+	}
+	return out
+}
 
+func mapValuationDetails(items []financeModels.ValuationRunDetail) []dto.ValuationItemResponse {
+	out := make([]dto.ValuationItemResponse, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.ValuationItemResponse{
+			ReferenceID: item.ReferenceID,
+			ProductID:   item.ProductID,
+			Qty:         item.Qty,
+			BookValue:   item.BookValue,
+			ActualValue: item.ActualValue,
+			Delta:       item.Delta,
+			Direction:   string(item.Direction),
+		})
+	}
+	return out
+}
+
+func detailsToResult(items []financeModels.ValuationRunDetail) *ValuationResult {
+	res := &ValuationResult{Items: make([]ValuationItem, 0, len(items))}
+	for _, item := range items {
+		res.Items = append(res.Items, ValuationItem{
+			ReferenceID: item.ReferenceID,
+			ProductID:   item.ProductID,
+			Qty:         item.Qty,
+			BookValue:   item.BookValue,
+			ActualValue: item.ActualValue,
+			Delta:       item.Delta,
+			Direction:   string(item.Direction),
+		})
+		res.TotalDelta += item.Delta
+	}
+	return res
+}
+
+func totalGain(items []ValuationItem) float64 {
+	sum := 0.0
+	for _, item := range items {
+		if item.Delta > 0 {
+			sum += item.Delta
+		}
+	}
+	return sum
+}
+
+func totalLoss(items []ValuationItem) float64 {
+	sum := 0.0
+	for _, item := range items {
+		if item.Delta < 0 {
+			sum += math.Abs(item.Delta)
+		}
+	}
+	return sum
+}
+
+func mapValuationToRefType(valuationType string) string {
+	switch valuationType {
+	case "inventory":
+		return reference.RefTypeInventoryValuation
+	case "fx":
+		return reference.RefTypeCurrencyRevaluation
+	case "depreciation":
+		return reference.RefTypeDepreciationValuation
+	default:
+		return reference.RefTypeInventoryValuation
+	}
+}
+
+func getActorID(ctx context.Context) string {
+	if v, ok := ctx.Value("user_id").(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
+func nullableString(s string) *string {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	return &s
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
+// inventoryValuationStrategy computes itemized inventory valuation from inventory_batches and stock_movements.
 type inventoryValuationStrategy struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
+	db *gorm.DB
 }
 
 func (s *inventoryValuationStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
-	// Skeleton: find first 2 COAs and produce a sample adjustment
-	coas, err := s.coaRepo.FindAll(ctx, false)
-	if err != nil || len(coas) < 2 {
-		return &ValuationResult{
-			Lines:       nil,
-			TotalDebit:  0,
-			TotalCredit: 0,
-			Description: "Inventory Valuation - No accounts available",
-		}, nil
+	type row struct {
+		ProductID string
+		Qty       float64
+		BookValue float64
+		AvgCost   float64
 	}
 
-	// In real implementation:
-	// 1. Query inventory_batches for products in period
-	// 2. Calculate book_value vs real_value per product+warehouse
-	// 3. Aggregate differences above threshold
-	amount := 100.00 // Skeleton amount
+	rows := make([]row, 0)
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT
+			ib.product_id,
+			COALESCE(SUM(ib.current_quantity), 0) AS qty,
+			COALESCE(SUM(ib.current_quantity * ib.cost_price), 0) AS book_value,
+			COALESCE((
+				SELECT AVG(sm.cost)
+				FROM stock_movements sm
+				WHERE sm.product_id = ib.product_id
+					AND DATE(sm.date) BETWEEN DATE(?) AND DATE(?)
+					AND sm.cost > 0
+			), 0) AS avg_cost
+		FROM inventory_batches ib
+		WHERE ib.is_active = true
+			AND ib.current_quantity > 0
+		GROUP BY ib.product_id
+	`, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
 
-	return &ValuationResult{
-		Lines: []ValuationLine{
-			{
-				AccountDebitID:  coas[0].ID,
-				AccountCreditID: coas[1].ID,
-				Amount:          amount,
-				Memo: fmt.Sprintf("Inventory valuation adjustment %s to %s",
-					periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")),
-			},
-		},
-		TotalDebit:  amount,
-		TotalCredit: amount,
-		Description: fmt.Sprintf("Inventory Valuation Run — Period %s to %s",
-			periodStart.Format("2006-01-02"), periodEnd.Format("2006-01-02")),
-	}, nil
+	items := make([]ValuationItem, 0, len(rows))
+	totalDelta := 0.0
+	for _, r := range rows {
+		actualValue := r.BookValue
+		if r.AvgCost > 0 {
+			actualValue = r.Qty * r.AvgCost
+		}
+		delta := actualValue - r.BookValue
+		if math.Abs(delta) < 0.0001 {
+			continue
+		}
+
+		pid := r.ProductID
+		direction := "loss"
+		if delta > 0 {
+			direction = "gain"
+		}
+
+		items = append(items, ValuationItem{
+			ReferenceID: r.ProductID,
+			ProductID:   &pid,
+			Qty:         r.Qty,
+			BookValue:   r.BookValue,
+			ActualValue: actualValue,
+			Delta:       delta,
+			Direction:   direction,
+		})
+		totalDelta += delta
+	}
+
+	return &ValuationResult{Items: items, TotalDelta: totalDelta}, nil
 }
 
-type currencyRevaluationStrategy struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
+// fxValuationStrategy computes FX valuation if exchange_rate support exists.
+type fxValuationStrategy struct {
+	db *gorm.DB
 }
 
-func (s *currencyRevaluationStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
-	// Skeleton: no differences for now
-	return &ValuationResult{
-		Lines:       nil,
-		TotalDebit:  0,
-		TotalCredit: 0,
-		Description: "Currency Revaluation - No foreign currency exposure detected",
-	}, nil
+func (s *fxValuationStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
+	_ = periodStart
+	_ = periodEnd
+
+	if !s.db.Migrator().HasTable("exchange_rates") {
+		return &ValuationResult{Items: nil, TotalDelta: 0}, nil
+	}
+
+	items := make([]ValuationItem, 0)
+	totalDelta := 0.0
+
+	if s.db.Migrator().HasColumn(&salesModels.CustomerInvoice{}, "exchange_rate") {
+		type arRow struct {
+			ID           string
+			Remaining    float64
+			ExchangeRate float64
+			CurrentRate  float64
+		}
+		arRows := make([]arRow, 0)
+		_ = s.db.WithContext(ctx).Raw(`
+			SELECT
+				ci.id,
+				COALESCE(ci.remaining_amount, 0) AS remaining,
+				COALESCE(ci.exchange_rate, 0) AS exchange_rate,
+				COALESCE((
+					SELECT er.rate FROM exchange_rates er
+					WHERE er.currency_code = ci.currency_code
+					ORDER BY er.rate_date DESC
+					LIMIT 1
+				), 0) AS current_rate
+			FROM customer_invoices ci
+			WHERE ci.status IN (?, ?, ?)
+				AND COALESCE(ci.remaining_amount, 0) > 0
+		`, salesModels.CustomerInvoiceStatusUnpaid, salesModels.CustomerInvoiceStatusPartial, salesModels.CustomerInvoiceStatusWaitingPayment).Scan(&arRows).Error
+
+		for _, row := range arRows {
+			if row.ExchangeRate <= 0 || row.CurrentRate <= 0 {
+				continue
+			}
+			book := row.Remaining * row.ExchangeRate
+			actual := row.Remaining * row.CurrentRate
+			delta := actual - book
+			if math.Abs(delta) < 0.0001 {
+				continue
+			}
+			direction := "loss"
+			if delta > 0 {
+				direction = "gain"
+			}
+			items = append(items, ValuationItem{
+				ReferenceID: row.ID,
+				Qty:         row.Remaining,
+				BookValue:   book,
+				ActualValue: actual,
+				Delta:       delta,
+				Direction:   direction,
+			})
+			totalDelta += delta
+		}
+	}
+
+	if s.db.Migrator().HasColumn(&purchaseModels.SupplierInvoice{}, "exchange_rate") {
+		type apRow struct {
+			ID           string
+			Remaining    float64
+			ExchangeRate float64
+			CurrentRate  float64
+		}
+		apRows := make([]apRow, 0)
+		_ = s.db.WithContext(ctx).Raw(`
+			SELECT
+				si.id,
+				COALESCE(si.remaining_amount, 0) AS remaining,
+				COALESCE(si.exchange_rate, 0) AS exchange_rate,
+				COALESCE((
+					SELECT er.rate FROM exchange_rates er
+					WHERE er.currency_code = si.currency_code
+					ORDER BY er.rate_date DESC
+					LIMIT 1
+				), 0) AS current_rate
+			FROM supplier_invoices si
+			WHERE si.status IN (?, ?, ?)
+				AND COALESCE(si.remaining_amount, 0) > 0
+		`, purchaseModels.SupplierInvoiceStatusUnpaid, purchaseModels.SupplierInvoiceStatusPartial, purchaseModels.SupplierInvoiceStatusWaitingPayment).Scan(&apRows).Error
+
+		for _, row := range apRows {
+			if row.ExchangeRate <= 0 || row.CurrentRate <= 0 {
+				continue
+			}
+			book := row.Remaining * row.ExchangeRate
+			actual := row.Remaining * row.CurrentRate
+			delta := book - actual
+			if math.Abs(delta) < 0.0001 {
+				continue
+			}
+			direction := "loss"
+			if delta > 0 {
+				direction = "gain"
+			}
+			items = append(items, ValuationItem{
+				ReferenceID: row.ID,
+				Qty:         row.Remaining,
+				BookValue:   book,
+				ActualValue: actual,
+				Delta:       delta,
+				Direction:   direction,
+			})
+			totalDelta += delta
+		}
+	}
+
+	return &ValuationResult{Items: items, TotalDelta: totalDelta}, nil
 }
 
-type depreciationStrategy struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
+// depreciationValuationStrategy computes depreciation deltas from approved depreciation schedules.
+type depreciationValuationStrategy struct {
+	db *gorm.DB
 }
 
-func (s *depreciationStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
-	// Skeleton: no depreciation entries for now
-	return &ValuationResult{
-		Lines:       nil,
-		TotalDebit:  0,
-		TotalCredit: 0,
-		Description: "Depreciation Valuation - No depreciable assets found for period",
-	}, nil
-}
+func (s *depreciationValuationStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
+	type row struct {
+		ID        string
+		AssetID   string
+		Amount    float64
+		BookValue float64
+	}
+	rows := make([]row, 0)
+	err := s.db.WithContext(ctx).Raw(`
+		SELECT ad.id, ad.asset_id, COALESCE(ad.amount, 0) AS amount, COALESCE(ad.book_value, 0) AS book_value
+		FROM asset_depreciations ad
+		WHERE ad.status = ?
+			AND DATE(ad.depreciation_date) BETWEEN DATE(?) AND DATE(?)
+	`, financeModels.AssetDepreciationStatusApproved, periodStart, periodEnd).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
 
-type costAdjustmentStrategy struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
-}
+	items := make([]ValuationItem, 0, len(rows))
+	totalDelta := 0.0
+	for _, r := range rows {
+		book := r.BookValue + r.Amount
+		actual := r.BookValue
+		delta := actual - book
+		if math.Abs(delta) < 0.0001 {
+			continue
+		}
+		assetID := r.AssetID
+		direction := "loss"
+		if delta > 0 {
+			direction = "gain"
+		}
+		items = append(items, ValuationItem{
+			ReferenceID: r.ID,
+			ProductID:   &assetID,
+			Qty:         1,
+			BookValue:   book,
+			ActualValue: actual,
+			Delta:       delta,
+			Direction:   direction,
+		})
+		totalDelta += delta
+	}
 
-func (s *costAdjustmentStrategy) Calculate(ctx context.Context, periodStart, periodEnd time.Time) (*ValuationResult, error) {
-	// Skeleton: no cost adjustments for now
-	return &ValuationResult{
-		Lines:       nil,
-		TotalDebit:  0,
-		TotalCredit: 0,
-		Description: "Cost Adjustment - No variance detected",
-	}, nil
+	return &ValuationResult{Items: items, TotalDelta: totalDelta}, nil
 }

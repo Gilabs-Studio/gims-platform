@@ -465,7 +465,7 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 
 		// ✅ ATOMIC: Trigger journal INSIDE transaction — if journal fails, payment rolls back
 		txCtx := database.WithTx(ctx, tx)
-		loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
+		loadedPay, loadErr := uc.repo.GetByID(txCtx, confirmedID)
 		if loadErr != nil {
 			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
 		}
@@ -604,36 +604,27 @@ func (uc *purchasePaymentUsecase) triggerJournalReversed(ctx context.Context, pa
 }
 
 func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
-	if pay == nil {
-		return errors.New("cannot trigger journal for nil payment")
-	}
-	if uc.journalUC == nil {
-		return errors.New("journal usecase not initialized")
-	}
-	if uc.engine == nil {
-		return errors.New("accounting engine not initialized")
+	if pay == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
 	}
 
 	// Fetch BankAccount COA ID
-	var transactionCOAID string
+	var baCOAID string
 	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
-		transactionCOAID = *pay.BankAccount.ChartOfAccountID
+		baCOAID = *pay.BankAccount.ChartOfAccountID
 	} else {
 		var ba coreModels.BankAccount
-		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err == nil {
-			if ba.ChartOfAccountID != nil {
-				transactionCOAID = *ba.ChartOfAccountID
-			}
+		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err == nil && ba.ChartOfAccountID != nil {
+			baCOAID = *ba.ChartOfAccountID
 		}
 	}
 
-	// Fallback to default cash from settings if bank account has no COA
-	if transactionCOAID == "" {
-		id, err := uc.engine.ResolveCOAID(ctx, "coa.cash")
-		if err != nil {
-			return fmt.Errorf("bank account has no linked COA and fallback setting 'coa.cash' is missing or invalid: %w", err)
+	// Default to cash if bank account has no COA
+	if baCOAID == "" {
+		def, err := uc.coaUC.GetByCode(ctx, "11100")
+		if err == nil {
+			baCOAID = def.ID
 		}
-		transactionCOAID = id
 	}
 
 	reqRefNum := ""
@@ -659,7 +650,7 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		EntryDate:        pay.PaymentDate,
 		Description:      fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, reqRefNum),
 		TotalAmount:      pay.Amount,
-		BankAccountCOAID: transactionCOAID,
+		BankAccountCOAID: baCOAID,
 		DescriptionArgs:  []interface{}{invoiceCode, reqRefNum},
 	}
 

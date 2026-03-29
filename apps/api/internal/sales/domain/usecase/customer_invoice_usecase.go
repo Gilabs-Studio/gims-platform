@@ -869,14 +869,8 @@ func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, 
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {
-	if invoice == nil {
-		return errors.New("cannot trigger journal for nil invoice")
-	}
-	if uc.journalUC == nil {
-		return errors.New("journal usecase not initialized")
-	}
-	if uc.engine == nil {
-		return errors.New("accounting engine not initialized")
+	if invoice == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
 	}
 
 	cogsTotal := calculateInvoiceCOGSTotal(invoice.Items)
@@ -892,7 +886,7 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 		TaxTotal:      invoice.TaxAmount,
 		DepositTotal:  invoice.DownPaymentAmount,
 		COGSTotal:     cogsTotal,
-		DescriptionArgs: []interface{}{invoice.Code, invoice.InvoiceDate.Format("2006-01-02")},
+		DescriptionArgs: []interface{}{invoice.Code},
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoice, data)

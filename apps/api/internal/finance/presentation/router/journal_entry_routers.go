@@ -17,6 +17,7 @@ const (
 	adjustmentJournalReverse = "adjustment_journal.reverse"
 	valuationJournalRead     = "journal_valuation.read"
 	valuationJournalRun      = "journal_valuation.run"
+	valuationJournalApprove  = "journal_valuation.approve"
 	cashBankJournalRead      = "cash_bank_journal.read"
 	journalCreate            = "journal.create"
 	journalUpdate            = "journal.update"
@@ -47,7 +48,9 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 
 	// Valuation journal endpoints
 	g.GET("/valuation", middleware.RequirePermission(valuationJournalRead), h.ListValuationJournals)
+	g.POST("/valuation/preview", middleware.RequirePermission(valuationJournalRun), h.PreviewValuation)
 	g.POST("/valuation/run", middleware.RequirePermission(valuationJournalRun), h.RunValuation)
+	g.POST("/valuation/runs/:id/approve", middleware.RequirePermission(valuationJournalApprove), h.ApproveValuation)
 	g.GET("/valuation/runs", middleware.RequirePermission(valuationJournalRead), h.ListValuationRuns)
 	g.GET("/valuation/runs/:id", middleware.RequirePermission(valuationJournalRead), h.GetValuationRun)
 
@@ -59,4 +62,3 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	g.POST("/:id/post", middleware.RequirePermission(journalPost), h.Post)
 	g.POST("/:id/reverse", middleware.RequirePermission(journalReverse), h.Reverse)
 }
-

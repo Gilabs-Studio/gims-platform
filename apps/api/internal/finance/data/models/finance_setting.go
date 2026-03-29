@@ -107,4 +107,37 @@ const (
 
 	// SettingCOAInventory maps to the general inventory asset account.
 	SettingCOAInventory = "coa.inventory"
+
+	// SettingCOAInventoryAsset maps to the inventory asset account (for gain/loss adjustments).
+	SettingCOAInventoryAsset = "coa.inventory_asset"
+
+	// SettingCOAInventoryGain maps to the other income account for inventory gains (opname).
+	SettingCOAInventoryGain = "coa.inventory_gain"
+
+	// SettingCOAInventoryLoss maps to the expense account for inventory losses (opname/waste).
+	SettingCOAInventoryLoss = "coa.inventory_loss"
+
+	// SettingCOAFXGain maps to the other income account for FX valuation gains.
+	SettingCOAFXGain = "coa.fx_gain"
+
+	// SettingCOAFXLoss maps to the expense account for FX valuation losses.
+	SettingCOAFXLoss = "coa.fx_loss"
+
+	// SettingCOAFXRemeasurement maps to the balancing account for FX remeasurement.
+	SettingCOAFXRemeasurement = "coa.fx_remeasurement"
+
+	// SettingCOADepreciationExpense maps to depreciation expense account.
+	SettingCOADepreciationExpense = "coa.depreciation_expense"
+
+	// SettingCOADepreciationAccumulated maps to accumulated depreciation contra-asset account.
+	SettingCOADepreciationAccumulated = "coa.depreciation_accumulated"
+
+	// SettingCOADepreciationGain maps to other income account for depreciation reversal gains.
+	SettingCOADepreciationGain = "coa.depreciation_gain"
+
+	// SettingCOAInventoryAdjustment maps to the fallback inventory adjustment account.
+	SettingCOAInventoryAdjustment = "coa.inventory_adjustment"
+
+	// SettingCOACOGS maps to the cost of goods sold account.
+	SettingCOACOGS = "coa.cogs"
 )

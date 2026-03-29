@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { financeJournalsService } from "../services/finance-journals-service";
 import type {
+  ApproveValuationInput,
   CreateJournalEntryInput,
   ListJournalEntriesParams,
   ListValuationRunsParams,
@@ -233,6 +234,27 @@ export function useRunFinanceValuationJournal() {
       queryClient.invalidateQueries({
         queryKey: financeJournalKeys.valuationRuns(),
       });
+    },
+  });
+}
+
+export function usePreviewFinanceValuationJournal() {
+  return useMutation({
+    mutationFn: (data: RunValuationInput) =>
+      financeJournalsService.previewValuation(data),
+  });
+}
+
+export function useApproveFinanceValuationRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: ApproveValuationInput }) =>
+      financeJournalsService.approveValuation(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRunDetail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationList() });
     },
   });
 }

@@ -59,6 +59,7 @@ type StockOpnameItemResponse struct {
 	SystemQty     float64  `json:"system_qty"`
 	PhysicalQty   *float64 `json:"physical_qty"`
 	VarianceQty   float64  `json:"variance_qty"`
+	UnitCost      float64  `json:"unit_cost"`
 	Notes         string   `json:"notes"`
 }
 

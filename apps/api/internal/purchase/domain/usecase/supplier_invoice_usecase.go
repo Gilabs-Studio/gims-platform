@@ -994,11 +994,10 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		// --- Budget Guard ---
 		extraCost := si.DeliveryCost + si.OtherCost
 		if extraCost > 0 {
-			// Resolve Expense Account via engine instead of hardcoding
-			expAcctID, err := uc.engine.ResolveCOAID(ctx, "coa.expense")
-			if err == nil && expAcctID != "" {
+			expAcct, err := uc.coaUC.GetByCode(ctx, "61000") // Expense Account
+			if err == nil {
 				parsedDate, _ := time.Parse("2006-01-02", si.InvoiceDate)
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcctID, parsedDate, extraCost); err != nil {
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcct.ID, parsedDate, extraCost); err != nil {
 					return err
 				}
 			}
@@ -1079,14 +1078,8 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 }
 
 func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
-	if si == nil {
-		return errors.New("cannot trigger journal for nil invoice")
-	}
-	if uc.journalUC == nil {
-		return errors.New("journal usecase not initialized")
-	}
-	if uc.engine == nil {
-		return errors.New("accounting engine not initialized")
+	if si == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
 	}
 
 	data := accounting.TransactionData{

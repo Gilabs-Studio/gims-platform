@@ -41,6 +41,7 @@ func ToStockOpnameItemResponse(m *models.StockOpnameItem) dto.StockOpnameItemRes
 		SystemQty:     m.SystemQty,
 		PhysicalQty:   m.PhysicalQty,
 		VarianceQty:   m.VarianceQty,
+		UnitCost:      m.Product.CurrentHpp,
 		Notes:         m.Notes,
 	}
 }

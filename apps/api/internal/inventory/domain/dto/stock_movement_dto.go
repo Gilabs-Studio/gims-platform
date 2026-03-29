@@ -18,11 +18,13 @@ type StockMovementRequest struct {
 	WarehouseID      string  `json:"warehouse_id" binding:"required,uuid"`
 	Type             string  `json:"type" binding:"required,oneof=IN OUT ADJUST TRANSFER"`
 	Quantity         float64 `json:"quantity" binding:"required,gt=0"`
-	ReferenceType    string  `json:"reference_type" binding:"required,oneof=PO DO OPNAME TRANSFER"`
+	ReferenceType     string  `json:"reference_type" binding:"required,oneof=PO DO OPNAME TRANSFER GOODS_RECEIPT DELIVERY_ORDER STOCK_OPNAME INVENTORY_ADJUSTMENT"`
 	ReferenceID      string  `json:"reference_id" binding:"required,uuid"`
 	ReferenceNumber  string  `json:"reference_number" binding:"required"`
-	Description      string  `json:"description"`
-	CreatedBy        *string `json:"created_by"`
+	Description       string  `json:"description"`
+	Cost              float64 `json:"cost"`
+	CreatedBy         *string `json:"created_by"`
+	SkipJournaling    bool    `json:"-"`
 	MovementDirection string  `json:"-"`
 }
 

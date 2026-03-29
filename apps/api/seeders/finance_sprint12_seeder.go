@@ -26,21 +26,27 @@ func SeedFinanceSprint12() error {
 		{Code: "1200", Name: "Purchase Advances (Prepaid)", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1500", Name: "Fixed Assets", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1590", Name: "Accumulated Depreciation", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "17100", Name: "Accumulated Depreciation (General)", Type: financeModels.AccountTypeAsset, IsActive: true}, // Matching setting
 		{Code: "21000", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "21100", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "21200", Name: "Non-Trade Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "21300", Name: "Accrued Expenses", Type: financeModels.AccountTypeLiability, IsActive: true}, // Added for consistency
 		{Code: "21400", Name: "Customer Advances (DP)", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "21500", Name: "VAT Output", Type: financeModels.AccountTypeLiability, IsActive: true},
 		{Code: "31000", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
 		{Code: "32000", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
 		{Code: "4100", Name: "Sales Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
 		{Code: "4200", Name: "Sales Returns", Type: financeModels.AccountTypeRevenue, IsActive: true},
+		{Code: "49000", Name: "Inventory Gain", Type: financeModels.AccountTypeRevenue, IsActive: true}, // Matching setting
 		{Code: "5100", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "5200", Name: "Purchase Returns", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "59000", Name: "Inventory Adjustment", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
 		{Code: "6100", Name: "Depreciation Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "61000", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "6200", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 		{Code: "62000", Name: "Travel Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "62050", Name: "Depreciation Expense (General)", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
+		{Code: "69000", Name: "Inventory Loss", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
 	}
 
 	for i := range coaSeeds {

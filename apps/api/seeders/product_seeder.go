@@ -17,6 +17,7 @@ func SeedProduct() error {
 			Code:         "PROD-MIN-001",
 			Name:         "Sample Product (Minimal)",
 			CostPrice:    50000,
+			CurrentHpp:   50000,
 			SellingPrice: 100000,
 			TaxType:      "VAT",
 			IsActive:     true,
@@ -512,6 +513,7 @@ func SeedProduct() error {
 		}
 
 		for i := range products {
+			products[i].CurrentHpp = products[i].CostPrice
 			if err := db.Create(&products[i]).Error; err != nil {
 				log.Printf("Warning: Failed to create product %s: %v", products[i].Name, err)
 			}

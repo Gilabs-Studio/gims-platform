@@ -102,7 +102,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper, settingsService, accountingEngine)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
-	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
+	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
 
 	// Asset Maintenance
 	maintenanceUC := usecase.NewAssetMaintenanceUsecase(db, maintenanceRepo)

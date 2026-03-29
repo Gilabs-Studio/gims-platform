@@ -70,6 +70,8 @@ type DeliveryOrder struct {
 	CancelledAt    *time.Time `json:"cancelled_at"`
 	CancellationReason *string   `gorm:"type:text" json:"cancellation_reason"`
 	
+	JournalEntryID *string    `gorm:"type:uuid;index" json:"journal_entry_id"`
+	
 	// Timestamps
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"index" json:"updated_at"`

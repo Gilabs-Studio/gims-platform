@@ -31,6 +31,7 @@ export interface StockOpnameItem {
   system_qty: number;
   physical_qty: number | null;
   variance_qty: number;
+  unit_cost: number;
   
   notes?: string;
 }

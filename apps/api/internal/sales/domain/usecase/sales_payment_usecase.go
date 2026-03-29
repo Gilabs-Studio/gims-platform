@@ -764,14 +764,8 @@ func (uc *salesPaymentUsecase) triggerJournalReversed(ctx context.Context, pay *
 }
 
 func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.SalesPayment) error {
-	if pay == nil {
-		return errors.New("cannot trigger journal for nil payment")
-	}
-	if uc.journalUC == nil {
-		return errors.New("journal usecase not initialized")
-	}
-	if uc.engine == nil {
-		return errors.New("accounting engine not initialized")
+	if pay == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
 	}
 
 	// Resolve Bank Account COA for the DEBIT side
@@ -788,12 +782,12 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	if ba.ChartOfAccountID != nil {
 		transactionCOAID = *ba.ChartOfAccountID
 	} else {
-		// Fallback to default cash from settings — No more hardcoded "11100"
-		id, err := uc.engine.ResolveCOAID(ctx, "coa.cash")
+		// Fallback to default cash (11100)
+		def, err := uc.coaUC.GetByCode(ctx, "11100")
 		if err != nil {
-			return fmt.Errorf("bank account has no linked COA and fallback setting 'coa.cash' is missing or invalid: %w", err)
+			return errors.New("bank account has no linked COA and default cash account 11100 not found")
 		}
-		transactionCOAID = id
+		transactionCOAID = def.ID
 	}
 
 	// Choose profile based on invoice type

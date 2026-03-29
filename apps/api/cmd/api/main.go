@@ -345,7 +345,7 @@ func main() {
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
-		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
+		invUC := inventoryUsecase.NewInventoryUsecase(database.DB, invRepo, financeDeps.JournalUC, financeDeps.Engine)
 
 		// Sales module (Sprint 5 - Sales Quotation)
 		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, salesPresentation.SalesRouteDeps{
