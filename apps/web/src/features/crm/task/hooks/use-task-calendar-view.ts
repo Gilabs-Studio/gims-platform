@@ -41,8 +41,8 @@ export function useTaskCalendarView() {
     per_page: 50,
   });
 
-  const allItems: Schedule[] = allSchedulesRes?.data ?? [];
-  const overdueItems: Task[] = overdueTasksRes?.data ?? [];
+  const allItems: Schedule[] = useMemo(() => allSchedulesRes?.data ?? [], [allSchedulesRes?.data]);
+  const overdueItems: Task[] = useMemo(() => overdueTasksRes?.data ?? [], [overdueTasksRes?.data]);
 
   const scheduleDatesMap: Map<string, Schedule[]> = useMemo(
     () => groupItemsByDayKey(allItems, (item) => item.scheduled_at),

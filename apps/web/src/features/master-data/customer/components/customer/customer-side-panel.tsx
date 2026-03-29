@@ -38,6 +38,7 @@ interface CustomerSidePanelProps {
   readonly onClose: () => void;
   readonly mode: PanelMode;
   readonly customer?: Customer | null;
+  readonly initialData?: { name?: string };
   readonly onSuccess?: () => void;
   readonly onCreated?: (item: { id: string; name: string }) => void;
   readonly closeOnSuccess?: boolean; // false: keep drawer open after create/update
@@ -48,6 +49,7 @@ export function CustomerSidePanel({
   onClose,
   mode,
   customer,
+  initialData,
   onSuccess,
   onCreated,
   closeOnSuccess = false,
@@ -181,7 +183,7 @@ export function CustomerSidePanel({
       });
     } else if (mode === "create") {
       reset({
-        name: "",
+        name: initialData?.name ?? "",
         customer_type_id: "",
         address: "",
         email: "",
@@ -202,7 +204,7 @@ export function CustomerSidePanel({
       });
     }
     return () => clearTimeout(_timer);
-  }, [isOpen, mode, customer?.id, refetchDetail, reset]);
+  }, [isOpen, mode, customer?.id, refetchDetail, reset, initialData?.name]);
 
   const handleAddBank = (bank: CreateCustomerBankData) => {
     setValue("bank_accounts", [...formBanks, bank]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
@@ -61,13 +61,21 @@ import {
 } from "../hooks/use-goods-receipts";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
-import { GoodsReceiptAuditTrail } from "./goods-receipt-audit-trail";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
 import { GoodsReceiptStatusBadge } from "./goods-receipt-status-badge";
 import { GoodsReceiptPrintDialog } from "./goods-receipt-print-dialog";
 import { SILinkedDialog } from "./si-linked-dialog";
 import { CreatePurchaseReturnDialog } from "@/features/purchase/returns/components/create-purchase-return-dialog";
+
+function getInitialOpenGoodsReceiptFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_goods_receipt");
+}
 
 export function GoodsReceiptsList() {
   const t = useTranslations("goodsReceipt");
@@ -82,9 +90,7 @@ export function GoodsReceiptsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [auditId, setAuditId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenGoodsReceiptFromURL);
   const [deletingItem, setDeletingItem] = useState<GoodsReceiptListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -100,7 +106,6 @@ export function GoodsReceiptsList() {
   const canCreate = useUserPermission("goods_receipt.create");
   const canExport = useUserPermission("goods_receipt.export");
   const canView = useUserPermission("goods_receipt.read");
-  const canAuditTrail = useUserPermission("goods_receipt.read");
   const canUpdate = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
   const canPrint = useUserPermission("goods_receipt.print");
@@ -128,6 +133,24 @@ export function GoodsReceiptsList() {
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_goods_receipt")) return;
+
+    searchParams.delete("open_goods_receipt");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   if (isError) {
     return (
@@ -162,7 +185,7 @@ export function GoodsReceiptsList() {
   };
 
   const canShowActions =
-    canView || canAuditTrail || canUpdate || canDelete ||
+    canView || canUpdate || canDelete ||
     canSubmit || canApprove || canReject || canClose;
 
   return (
@@ -486,15 +509,6 @@ export function GoodsReceiptsList() {
         onClose={() => {
           setDetailOpen(false);
           setDetailId(null);
-        }}
-      />
-
-      <GoodsReceiptAuditTrail
-        open={auditOpen}
-        goodsReceiptId={detailId || auditId}
-        onClose={() => {
-          setAuditOpen(false);
-          setAuditId(null);
         }}
       />
 

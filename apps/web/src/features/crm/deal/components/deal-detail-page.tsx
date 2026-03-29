@@ -46,8 +46,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
 import { useLeadById, useUpdateLead, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
-import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
@@ -91,6 +90,7 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
 export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const t = useTranslations("crmDeal");
   const tCommon = useTranslations("common");
+  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
@@ -134,10 +134,6 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", {
     enabled: isItemsTabVisited && !!deal?.lead_id,
   });
-  const { data: visitFormDataRes } = useVisitReportFormData({
-    enabled: isItemsTabVisited && !!deal?.lead_id,
-  });
-  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
 
   const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);
   const leadInterestMap = new Map<string, number>(leadItems.map((p) => [p.product_id!, p.interest_level]));
@@ -145,18 +141,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const leadItemByProductId = new Map<string, LeadProductItem>(leadItems.map((p) => [p.product_id!, p]));
 
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    if (!raw) return [];
-    try {
-      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
-      return parsed.flatMap((ans) => {
-        const q = interestQuestions.find((q) => q.id === ans.question_id);
-        const opt = q?.options.find((o) => o.id === ans.option_id);
-        if (!q || !opt) return [];
-        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
-      });
-    } catch {
-      return [];
-    }
+    return resolveVisitSurveyAnswers(raw, (key) => tVisit(key));
   }
 
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });

@@ -53,7 +53,7 @@ export function useCustomerTypeForm({ open, onClose, editingItem }: UseCustomerT
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -73,7 +73,7 @@ export function useCustomerTypeForm({ open, onClose, editingItem }: UseCustomerT
           data: {
             name: data.name,
             description: data.description || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updateSuccess"));
@@ -81,7 +81,7 @@ export function useCustomerTypeForm({ open, onClose, editingItem }: UseCustomerT
         await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("createSuccess"));
       }

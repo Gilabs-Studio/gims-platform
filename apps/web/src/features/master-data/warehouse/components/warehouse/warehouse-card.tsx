@@ -20,7 +20,6 @@ export function WarehouseCard({
   warehouse,
   isSelected,
   onClick,
-  t,
   onDetail,
   onEdit,
   onDelete,

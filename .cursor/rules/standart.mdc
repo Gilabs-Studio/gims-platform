@@ -56,6 +56,15 @@ Services (`services/`)
 - Centralize endpoints/constants. Handle errors close to the edge; throw typed errors.
 - Services should match API response format (with `success`, `data`, `error` wrapper).
 
+Error Toast Ownership (CRITICAL)
+- Only one layer may show user-facing error toast per failure event.
+- Preferred ownership:
+  - Global interceptor: network/auth/rate-limit/system-level errors.
+  - Feature hook/component: contextual business/action errors (create/update/delete validation, domain rules).
+- Do not show toast in both interceptor and component/hook for the same request.
+- Keep TanStack Query retries disabled by default to prevent duplicated failed calls and repeated toasts.
+- If retry is explicitly needed for a feature, add strict caps and only retry idempotent reads.
+
 Components (`components/`)
 - **CRITICAL**: Components must be separated by concern:
   - **UI Components** (`ui/`): Pure presentation, no business logic, no state management.

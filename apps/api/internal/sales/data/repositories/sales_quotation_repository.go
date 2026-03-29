@@ -185,8 +185,35 @@ func (r *salesQuotationRepository) Create(ctx context.Context, sq *models.SalesQ
 
 func (r *salesQuotationRepository) Update(ctx context.Context, sq *models.SalesQuotation) error {
 	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
-		// Update quotation WITHOUT associations (Omit Items to handle them separately)
-		if err := tx.Omit("Items").Save(sq).Error; err != nil {
+		// Update scalar columns explicitly to avoid stale preloaded associations
+		// overriding foreign keys (e.g. customer_id, sales_rep_id, business_type_id).
+		quotationUpdates := map[string]interface{}{
+			"quotation_date":   sq.QuotationDate,
+			"valid_until":      sq.ValidUntil,
+			"payment_terms_id": sq.PaymentTermsID,
+			"sales_rep_id":     sq.SalesRepID,
+			"business_unit_id": sq.BusinessUnitID,
+			"business_type_id": sq.BusinessTypeID,
+			"customer_id":      sq.CustomerID,
+			"customer_contact_id": sq.CustomerContactID,
+			"customer_name":    sq.CustomerName,
+			"customer_contact": sq.CustomerContact,
+			"customer_phone":   sq.CustomerPhone,
+			"customer_email":   sq.CustomerEmail,
+			"subtotal":         sq.Subtotal,
+			"discount_amount":  sq.DiscountAmount,
+			"tax_rate":         sq.TaxRate,
+			"tax_amount":       sq.TaxAmount,
+			"delivery_cost":    sq.DeliveryCost,
+			"other_cost":       sq.OtherCost,
+			"total_amount":     sq.TotalAmount,
+			"notes":            sq.Notes,
+			"updated_at":       sq.UpdatedAt,
+		}
+
+		if err := tx.Model(&models.SalesQuotation{}).
+			Where("id = ?", sq.ID).
+			Updates(quotationUpdates).Error; err != nil {
 			return err
 		}
 

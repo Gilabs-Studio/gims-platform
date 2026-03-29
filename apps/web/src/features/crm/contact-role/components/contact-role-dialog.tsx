@@ -9,8 +9,8 @@ import { ButtonLoading } from "@/components/loading";
 import { useContactRoleForm } from "../hooks/use-contact-role-form";
 import type { ContactRole } from "../types";
 
-export function ContactRoleDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: ContactRole | null }) {
-  const { form, t, tCommon, isLoading, onSubmit } = useContactRoleForm({ open, onOpenChange, editingItem });
+export function ContactRoleDialog({ open, onOpenChange, editingItem, onCreated, initialName }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: ContactRole | null; readonly onCreated?: (item: { id: string; name: string }) => void; readonly initialName?: string }) {
+  const { form, t, tCommon, isLoading, onSubmit } = useContactRoleForm({ open, onOpenChange, editingItem, onCreated, initialName });
   const { register, formState: { errors } } = form;
 
   return (

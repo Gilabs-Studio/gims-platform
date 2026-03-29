@@ -13,6 +13,8 @@ interface DrawerProps {
   readonly title?: string;
   readonly description?: string;
   readonly headerExtra?: React.ReactNode;
+  readonly headerAction?: React.ReactNode;
+  readonly showCloseButton?: boolean;
   readonly side?: "left" | "right" | "top" | "bottom";
   readonly className?: string;
   readonly defaultWidth?: number;
@@ -28,6 +30,8 @@ export function Drawer({
   title,
   description,
   headerExtra,
+  headerAction,
+  showCloseButton = true,
   side = "right",
   className,
   defaultWidth = 672, // max-w-2xl = 672px
@@ -208,15 +212,18 @@ export function Drawer({
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onOpenChange(false)}
-                      className="h-8 w-8"
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Close</span>
-                    </Button>
+                    {headerAction ??
+                      (showCloseButton ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onOpenChange(false)}
+                          className="h-8 w-8"
+                        >
+                          <X className="h-4 w-4" />
+                          <span className="sr-only">Close</span>
+                        </Button>
+                      ) : null)}
                   </div>
                   {headerExtra && (
                     <div className="px-4 pb-3">{headerExtra}</div>

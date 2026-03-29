@@ -10,7 +10,6 @@ import {
   CreditCard,
   Printer,
   Send,
-  Trash2,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -699,7 +698,6 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                 {detail?.invoice_number ?? t("detail.title")}
               </DialogTitle>
               <div className="flex items-center gap-3">
-                {detail && <SupplierInvoiceStatusBadge status={detail.status} />}
                 {detail?.invoice_date && (
                   <span className="text-sm text-muted-foreground">
                     {formatDate(detail.invoice_date)}
@@ -835,17 +833,6 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                   </Button>
                 )}
 
-                {canDelete && st === "draft" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                    title={tCommon("delete")}
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             )}
           </div>

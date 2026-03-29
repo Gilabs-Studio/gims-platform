@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -73,6 +74,7 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	q := r.db.WithContext(ctx).Model(&financeModels.Asset{}).
 		Preload("Category").
 		Preload("Location")
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

@@ -6,6 +6,7 @@ export interface User {
   role_id: string;
   role?: Role;
   status: "active" | "inactive";
+  password_reset_pending?: boolean;
   created_at: string;
   updated_at: string;
 }

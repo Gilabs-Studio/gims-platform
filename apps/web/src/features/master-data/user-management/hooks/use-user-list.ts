@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useUsers, useDeleteUser, useUser, useCreateUser, useUpdateUser } from "./use-users";
 import { useRoles } from "./use-users";
@@ -40,7 +40,7 @@ export function useUserList() {
       await createUser.mutateAsync(formData);
       setIsCreateDialogOpen(false);
       toast.success("User created successfully");
-    } catch (error) {
+    } catch {
       // Error already handled in api-client interceptor
     }
   };
@@ -51,7 +51,7 @@ export function useUserList() {
         await updateUser.mutateAsync({ id: editingUser, data: formData });
         setEditingUser(null);
         toast.success("User updated successfully");
-      } catch (error) {
+      } catch {
         // Error already handled in api-client interceptor
       }
     }
@@ -67,21 +67,21 @@ export function useUserList() {
         await deleteUser.mutateAsync(deletingUserId);
         toast.success("User deleted successfully");
         setDeletingUserId(null);
-      } catch (error) {
+      } catch {
         // Error already handled in api-client interceptor
       }
     }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
   };
 
   const handlePerPageChange = (newPerPage: number) => {
     setPerPage(newPerPage);
     setPage(1); // Reset to first page when changing per page
   };
-  
-  // Reset page when search changes
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
 
   return {
     // State
@@ -90,7 +90,7 @@ export function useUserList() {
     perPage,
     setPerPage: handlePerPageChange,
     search,
-    setSearch,
+    setSearch: handleSearchChange,
     status,
     setStatus,
     roleId,

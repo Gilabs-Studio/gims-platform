@@ -279,7 +279,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
-	reportUC := NewFinanceReportUsecase(coaRepo, reportRepo)
+	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 	openingRefType := "SALES_INVOICE"
@@ -349,7 +349,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	require.NotNil(t, cashAccount.Transactions[0].ReferenceID)
 	require.Equal(t, postedRefID, *cashAccount.Transactions[0].ReferenceID)
 
-	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil)
+	bs, err := reportUC.GetBalanceSheet(ctx, startDate, endDate, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, bs.AssetTotal)
 
@@ -391,7 +391,7 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
 	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
-	reportUC := NewFinanceReportUsecase(coaRepo, reportRepo)
+	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 

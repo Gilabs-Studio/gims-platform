@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Controller, useWatch } from "react-hook-form";
 import type { Control, UseFormSetValue } from "react-hook-form";
 import { MapPin, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
@@ -15,9 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
-import { useProvinces } from "../hooks/use-provinces";
-import { useCities } from "../hooks/use-cities";
-import { useDistricts } from "../hooks/use-districts";
+import { useProvince, useProvinces } from "../hooks/use-provinces";
+import { useCities, useCity } from "../hooks/use-cities";
+import { useDistricts, useDistrict } from "../hooks/use-districts";
 import { useReverseGeocode } from "../hooks/use-reverse-geocode";
 import type { ReverseGeocodeResult } from "../types";
 
@@ -32,6 +32,7 @@ interface LocationFieldNames {
 
 interface LocationPickerLabels {
   pickFromMap?: string;
+  useCurrentLocation?: string;
   resolvedLocation?: string;
   advancedMode?: string;
   province?: string;
@@ -46,6 +47,9 @@ interface LocationPickerLabels {
   mapPickerDescription?: string;
   noLocation?: string;
   resolving?: string;
+  locationPermissionDenied?: string;
+  locationNotSupported?: string;
+  locationFailed?: string;
 }
 
 interface LocationPickerProps {
@@ -73,6 +77,7 @@ const DEFAULT_FIELD_NAMES: LocationFieldNames = {
 
 const DEFAULT_LABELS: Required<LocationPickerLabels> = {
   pickFromMap: "Pick from Map",
+  useCurrentLocation: "Use Current Location",
   resolvedLocation: "Location",
   advancedMode: "Manual Selection",
   province: "Province",
@@ -87,6 +92,9 @@ const DEFAULT_LABELS: Required<LocationPickerLabels> = {
   mapPickerDescription: "Click on the map or drag the marker to set location",
   noLocation: "No location selected",
   resolving: "Resolving location...",
+  locationPermissionDenied: "Location permission denied. Please enable location access.",
+  locationNotSupported: "Geolocation is not supported by your browser",
+  locationFailed: "Unable to get your location. Please try again.",
 };
 
 // Default map center: Jakarta, Indonesia
@@ -117,6 +125,7 @@ export function LocationPicker({
 
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Watch form fields reactively
   const provinceId = useWatch({ control, name: fields.province_id });
@@ -124,6 +133,9 @@ export function LocationPicker({
   const districtId = useWatch({ control, name: fields.district_id });
   const latitude = useWatch({ control, name: fields.latitude });
   const longitude = useWatch({ control, name: fields.longitude });
+  const selectedProvinceId = typeof provinceId === "string" ? provinceId : "";
+  const selectedCityId = typeof cityId === "string" ? cityId : "";
+  const selectedDistrictId = typeof districtId === "string" ? districtId : "";
 
   // Reverse geocode mutation
   const reverseGeocode = useReverseGeocode();
@@ -140,18 +152,53 @@ export function LocationPicker({
     { per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && (showAdvanced || !!provinceId) }
   );
+  const { data: selectedProvinceData } = useProvince(selectedProvinceId);
   const { data: citiesData } = useCities(
     { province_id: String(provinceId ?? ""), per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!provinceId && (showAdvanced || !!cityId) }
   );
+  const { data: selectedCityData } = useCity(selectedCityId);
   const { data: districtsData } = useDistricts(
     { city_id: String(cityId ?? ""), per_page: 20, sort_by: "name", sort_dir: "asc" },
     { enabled: enabled && !!cityId && (showAdvanced || !!districtId) }
   );
+  const { data: selectedDistrictData } = useDistrict(selectedDistrictId);
 
-  const provinces = provincesData?.data ?? [];
-  const cities = citiesData?.data ?? [];
-  const districts = districtsData?.data ?? [];
+  const provinces = useMemo(() => {
+    const baseProvinces = provincesData?.data ?? [];
+    const map = new Map(baseProvinces.map((province) => [province.id, province] as const));
+
+    const selectedProvince = selectedProvinceData?.data;
+    if (selectedProvince?.id && !map.has(selectedProvince.id)) {
+      map.set(selectedProvince.id, selectedProvince);
+    }
+
+    return Array.from(map.values());
+  }, [provincesData?.data, selectedProvinceData?.data]);
+
+  const cities = useMemo(() => {
+    const baseCities = citiesData?.data ?? [];
+    const map = new Map(baseCities.map((city) => [city.id, city] as const));
+
+    const selectedCity = selectedCityData?.data;
+    if (selectedCity?.id && !map.has(selectedCity.id)) {
+      map.set(selectedCity.id, selectedCity);
+    }
+
+    return Array.from(map.values());
+  }, [citiesData?.data, selectedCityData?.data]);
+
+  const districts = useMemo(() => {
+    const baseDistricts = districtsData?.data ?? [];
+    const map = new Map(baseDistricts.map((district) => [district.id, district] as const));
+
+    const selectedDistrict = selectedDistrictData?.data;
+    if (selectedDistrict?.id && !map.has(selectedDistrict.id)) {
+      map.set(selectedDistrict.id, selectedDistrict);
+    }
+
+    return Array.from(map.values());
+  }, [districtsData?.data, selectedDistrictData?.data]);
 
   // Build human-readable location summary
   const [resolvedNames, setResolvedNames] = useState<{
@@ -173,6 +220,7 @@ export function LocationPicker({
   // always reflect the latest resolved location.
   const applyGeocodeResult = useCallback(
     (result: ReverseGeocodeResult) => {
+      setLocationError(null);
       // Prevent Province / City onValueChange cascade-clear from wiping fields
       // that we are about to set atomically right below.
       isProgrammaticChange.current = true;
@@ -220,6 +268,28 @@ export function LocationPicker({
     [setValue, fields.latitude, fields.longitude, fields.province_id, fields.city_id, fields.district_id, reverseGeocode, applyGeocodeResult]
   );
 
+  const handleUseCurrentLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError(labels.locationNotSupported);
+      return;
+    }
+
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleCoordinateSelect(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationError(labels.locationPermissionDenied);
+          return;
+        }
+        setLocationError(labels.locationFailed);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [handleCoordinateSelect, labels.locationFailed, labels.locationNotSupported, labels.locationPermissionDenied]);
+
   // Auto-resolve location summary when coordinates are present (edit mode / form reset).
   // Tracks the last resolved coordinate pair so re-opening with a different record
   // (while the component stays mounted) correctly re-fires rather than being blocked
@@ -256,15 +326,31 @@ export function LocationPicker({
     <div className={className ?? "space-y-4"}>
       {/* Primary: Pick from Map button */}
       {!disabled && (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full cursor-pointer justify-center gap-2"
-          onClick={() => setIsMapPickerOpen(true)}
-        >
-          <MapPin className="h-4 w-4" />
-          {labels.pickFromMap}
-        </Button>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full cursor-pointer justify-center gap-2"
+            onClick={() => setIsMapPickerOpen(true)}
+          >
+            <MapPin className="h-4 w-4" />
+            {labels.pickFromMap}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full cursor-pointer justify-center gap-2"
+            onClick={handleUseCurrentLocation}
+            disabled={reverseGeocode.isPending}
+          >
+            {reverseGeocode.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MapPin className="h-4 w-4" />
+            )}
+            {labels.useCurrentLocation}
+          </Button>
+        </div>
       )}
 
       {/* Resolved location summary */}
@@ -292,6 +378,8 @@ export function LocationPicker({
           {labels.noLocation}
         </p>
       )}
+
+      {locationError && <p className="text-sm text-destructive px-1">{locationError}</p>}
 
       {/* Village (always visible) */}
       <Field orientation="vertical">

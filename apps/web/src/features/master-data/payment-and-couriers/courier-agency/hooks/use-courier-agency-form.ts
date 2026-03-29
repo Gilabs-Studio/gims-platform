@@ -54,7 +54,7 @@ export function useCourierAgencyForm({ open, onOpenChange, editingItem, onCreate
           phone: editingItem.phone ?? "",
           address: editingItem.address ?? "",
           tracking_url: editingItem.tracking_url ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({

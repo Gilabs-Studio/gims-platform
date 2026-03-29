@@ -69,7 +69,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
           name: editingItem.name,
           description: editingItem.description ?? "",
           parent_id: editingItem.parent_id,
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -91,7 +91,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
             name: data.name,
             description: data.description || undefined,
             parent_id: data.parent_id || null,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updated", { fallback: "Product Category updated successfully" }));
@@ -100,7 +100,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
           name: data.name,
           description: data.description || undefined,
           parent_id: data.parent_id || null,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("created", { fallback: "Product Category created successfully" }));
         if (onCreated && result?.data?.id) {

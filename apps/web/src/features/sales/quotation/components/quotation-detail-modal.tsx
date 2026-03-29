@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, Trash2, CheckCircle2, XCircle, FileText, Clock, Send, Printer, ExternalLink } from "lucide-react";
+import { Edit, CheckCircle2, XCircle, FileText, Clock, Send, Printer, ExternalLink } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -233,6 +233,20 @@ export function QuotationDetailModal({
     }
   };
 
+  const handleSubmit = async () => {
+    if (!quotation?.id) return;
+    try {
+      await updateStatus.mutateAsync({
+        id: quotation.id,
+        data: { status: "sent" },
+      });
+      toast.success(t("statusUpdated"));
+    } catch (error) {
+      console.error("Failed to submit quotation:", error);
+      toast.error(t("common.error"));
+    }
+  };
+
   const handleReject = async () => {
     if (!quotation?.id) return;
     try {
@@ -278,7 +292,6 @@ export function QuotationDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayQuotation?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {quotation && getStatusBadge(quotation.status)}
                   <span className="text-sm text-muted-foreground">
                     {displayQuotation?.quotation_date && formatDate(displayQuotation.quotation_date)}
                   </span>
@@ -307,15 +320,16 @@ export function QuotationDetailModal({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && quotation?.status === "draft" && (
+                {canEdit && quotation?.status === "draft" && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("common.delete")}
+                    onClick={handleSubmit}
+                    disabled={updateStatus.isPending}
+                    className="cursor-pointer text-primary hover:text-primary hover:bg-blue-50"
+                    title={t("actions.submit")}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Send className="h-4 w-4" />
                   </Button>
                 )}
                 {displayQuotation?.status === "sent" && canApprove && (
@@ -478,6 +492,12 @@ export function QuotationDetailModal({
                               </TableCell>
                               <TableCell className="font-medium bg-muted/50 w-48">{t("customerContact")}</TableCell>
                               <TableCell>{displayQuotation.customer_contact ?? "-"}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerEmail")}</TableCell>
+                              <TableCell>{displayQuotation.customer_contact_ref?.email ?? displayQuotation.customer_email ?? "-"}</TableCell>
+                              <TableCell className="font-medium bg-muted/50 w-48">{t("customerPhone")}</TableCell>
+                              <TableCell>{displayQuotation.customer_contact_ref?.phone ?? displayQuotation.customer_phone ?? "-"}</TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -706,14 +726,16 @@ export function QuotationDetailModal({
         />
       )}
 
-      <DeleteDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
-        title={t("delete")}
-        description={t("deleteDesc")}
-        isLoading={deleteQuotation.isPending}
-      />
+      {canDelete && (
+        <DeleteDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleDelete}
+          title={t("delete")}
+          description={t("deleteDesc")}
+          isLoading={deleteQuotation.isPending}
+        />
+      )}
 
       {quotation?.id && (
         <QuotationPrintDialog

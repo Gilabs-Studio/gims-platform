@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/product/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
@@ -8,12 +9,12 @@ import (
 func RegisterProductRoutes(rg *gin.RouterGroup, h *handler.ProductHandler) {
 	g := rg.Group("/products")
 	{
-		g.POST("", h.Create)
-		g.GET("", h.List)
-		g.GET("/:id", h.GetByID)
-		g.PUT("/:id", h.Update)
-		g.DELETE("/:id", h.Delete)
-		g.POST("/:id/submit", h.Submit)
-		g.POST("/:id/approve", h.Approve)
+		g.POST("", middleware.RequirePermission("product.create"), h.Create)
+		g.GET("", middleware.RequirePermission("product.read"), h.List)
+		g.GET("/:id", middleware.RequirePermission("product.read"), h.GetByID)
+		g.PUT("/:id", middleware.RequirePermission("product.update"), h.Update)
+		g.DELETE("/:id", middleware.RequirePermission("product.delete"), h.Delete)
+		g.POST("/:id/submit", middleware.RequirePermission("product.update"), h.Submit)
+		g.POST("/:id/approve", middleware.RequirePermission("product.approve"), h.Approve)
 	}
 }

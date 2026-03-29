@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -24,7 +23,6 @@ export function useCustomerMapView() {
   const canCreate = useUserPermission("customer.create");
   const canUpdate = useUserPermission("customer.update");
   const canDelete = useUserPermission("customer.delete");
-  const canApprove = useUserPermission("customer.approve");
 
   // State
   const [search, setSearch] = useState("");
@@ -52,7 +50,7 @@ export function useCustomerMapView() {
 
   const deleteCustomer = useDeleteCustomer();
 
-  const customers = data?.data ?? [];
+  const customers = useMemo(() => data?.data ?? [], [data?.data]);
 
   // Filter customers with valid coordinates for map markers
   const markers: MapMarker<Customer>[] = useMemo(() => {

@@ -4,9 +4,18 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
+
+type chartOfAccountRepository struct {
+	db *gorm.DB
+}
+
+func NewChartOfAccountRepository(db *gorm.DB) ChartOfAccountRepository {
+	return &chartOfAccountRepository{db: db}
+}
 
 type ChartOfAccountListParams struct {
 	Search   string
@@ -30,21 +39,17 @@ type ChartOfAccountRepository interface {
 	FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
 }
 
-type chartOfAccountRepository struct {
-	db *gorm.DB
-}
-
-func NewChartOfAccountRepository(db *gorm.DB) ChartOfAccountRepository {
-	return &chartOfAccountRepository{db: db}
+func (r *chartOfAccountRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
 }
 
 func (r *chartOfAccountRepository) Create(ctx context.Context, item *financeModels.ChartOfAccount) error {
-	return r.db.WithContext(ctx).Create(item).Error
+	return r.getDB(ctx).Create(item).Error
 }
 
 func (r *chartOfAccountRepository) FindByID(ctx context.Context, id string) (*financeModels.ChartOfAccount, error) {
 	var item financeModels.ChartOfAccount
-	if err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error; err != nil {
+	if err := r.getDB(ctx).First(&item, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -52,7 +57,7 @@ func (r *chartOfAccountRepository) FindByID(ctx context.Context, id string) (*fi
 
 func (r *chartOfAccountRepository) FindAll(ctx context.Context, onlyActive bool) ([]financeModels.ChartOfAccount, error) {
 	var items []financeModels.ChartOfAccount
-	q := r.db.WithContext(ctx).Model(&financeModels.ChartOfAccount{})
+	q := r.getDB(ctx).Model(&financeModels.ChartOfAccount{})
 	if onlyActive {
 		q = q.Where("is_active = ?", true)
 	}
@@ -74,7 +79,7 @@ func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccou
 	var items []financeModels.ChartOfAccount
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&financeModels.ChartOfAccount{})
+	q := r.getDB(ctx).Model(&financeModels.ChartOfAccount{})
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
@@ -118,11 +123,11 @@ func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccou
 }
 
 func (r *chartOfAccountRepository) Update(ctx context.Context, item *financeModels.ChartOfAccount) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	return r.getDB(ctx).Save(item).Error
 }
 
 func (r *chartOfAccountRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&financeModels.ChartOfAccount{}, "id = ?", id).Error
+	return r.getDB(ctx).Delete(&financeModels.ChartOfAccount{}, "id = ?", id).Error
 }
 
 func (r *chartOfAccountRepository) ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error) {
@@ -131,7 +136,7 @@ func (r *chartOfAccountRepository) ExistsByCode(ctx context.Context, code string
 		return false, nil
 	}
 
-	q := r.db.WithContext(ctx).Model(&financeModels.ChartOfAccount{}).Where("code = ?", code)
+	q := r.getDB(ctx).Model(&financeModels.ChartOfAccount{}).Where("code = ?", code)
 	if excludeID != nil && strings.TrimSpace(*excludeID) != "" {
 		q = q.Where("id <> ?", strings.TrimSpace(*excludeID))
 	}
@@ -144,7 +149,7 @@ func (r *chartOfAccountRepository) ExistsByCode(ctx context.Context, code string
 
 func (r *chartOfAccountRepository) FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
 	var item financeModels.ChartOfAccount
-	if err := r.db.WithContext(ctx).Where("code = ?", code).First(&item).Error; err != nil {
+	if err := r.getDB(ctx).Where("code = ?", code).First(&item).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil

@@ -16,6 +16,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -44,6 +45,7 @@ type CustomerInvoiceUsecase interface {
 	Update(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceRequest) (*dto.CustomerInvoiceResponse, error)
 	Delete(ctx context.Context, id string) error
 	UpdateStatus(ctx context.Context, id string, req *dto.UpdateCustomerInvoiceStatusRequest, userID *string) (*dto.CustomerInvoiceResponse, error)
+	TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
 }
 
@@ -127,13 +129,11 @@ func normalizeCustomerInvoiceListStatus(status string) string {
 }
 
 func (uc *customerInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.CustomerInvoiceResponse, error) {
-	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
-	if err != nil {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
 		return nil, ErrCustomerInvoiceNotFound
 	}
-
-	// Scope-based access control: consistent with List filtering
-	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.CustomerInvoice{}, id, security.DefaultScopeQueryOptions()) {
+	invoice, err := uc.invoiceRepo.FindByID(ctx, id)
+	if err != nil {
 		return nil, ErrCustomerInvoiceNotFound
 	}
 
@@ -606,7 +606,7 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		return nil, ErrCustomerInvoiceNotFound
 	}
 
-	newStatus := models.CustomerInvoiceStatus(req.Status)
+	newStatus := models.CustomerInvoiceStatus(strings.ToUpper(strings.TrimSpace(req.Status)))
 	previousStatus := invoice.Status
 
 	// Validate status transition
@@ -651,6 +651,20 @@ func (uc *customerInvoiceUsecase) UpdateStatus(ctx context.Context, id string, r
 		"paid_amount":   req.PaidAmount,
 		"payment_at":    req.PaymentAt,
 	})
+
+	if newStatus == models.CustomerInvoiceStatusSubmitted {
+		actorUserID, _ := ctx.Value("user_id").(string)
+		if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "customer_invoice.approve",
+			EntityType:     "customer_invoice",
+			EntityID:       updatedInvoice.ID,
+			Title:          "Customer Invoice Approval",
+			Message:        "A customer invoice has been submitted and requires your approval.",
+			ActorUserID:    actorUserID,
+		}); err != nil {
+			log.Printf("warning: failed to create customer invoice notification: %v", err)
+		}
+	}
 
 	return mapper.MapCustomerInvoiceToResponse(updatedInvoice), nil
 }
@@ -758,6 +772,10 @@ func withActorContext(ctx context.Context, preferredUserID, fallbackUserID *stri
 	}
 
 	return ctx
+}
+
+func (uc *customerInvoiceUsecase) TriggerJournalForInvoice(ctx context.Context, invoice *models.CustomerInvoice) error {
+	return uc.triggerSalesInvoiceJournal(ctx, invoice)
 }
 
 func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context, invoice *models.CustomerInvoice) error {

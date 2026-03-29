@@ -11,6 +11,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -359,6 +360,9 @@ func (uc *journalEntryUsecase) GetByID(ctx context.Context, id string) (*dto.Jou
 	if id == "" {
 		return nil, errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.JournalEntry{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrJournalNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -367,6 +371,12 @@ func (uc *journalEntryUsecase) GetByID(ctx context.Context, id string) (*dto.Jou
 		return nil, err
 	}
 	resp := uc.mapper.ToResponse(item)
+	if codes := repositories.BatchResolveJournalReferenceCodes(ctx, uc.db, []financeModels.JournalEntry{*item}); len(codes) > 0 {
+		if c, ok := codes[item.ID]; ok && strings.TrimSpace(c) != "" {
+			cc := strings.TrimSpace(c)
+			resp.ReferenceCode = &cc
+		}
+	}
 	return &resp, nil
 }
 
@@ -403,9 +413,15 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 		return nil, 0, err
 	}
 
+	codes := repositories.BatchResolveJournalReferenceCodes(ctx, uc.db, items)
+
 	resp := make([]dto.JournalEntryResponse, 0, len(items))
 	for i := range items {
 		v := uc.mapper.ToSummaryResponse(&items[i])
+		if c, ok := codes[items[i].ID]; ok && strings.TrimSpace(c) != "" {
+			cc := strings.TrimSpace(c)
+			v.ReferenceCode = &cc
+		}
 		resp = append(resp, v)
 	}
 	return resp, total, nil
@@ -443,12 +459,12 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 	if math.Abs(debitTotal-creditTotal) > 0.000001 {
 		return nil, ErrJournalUnbalanced
 	}
-	if err := ensureNotClosed(ctx, uc.db, entry.EntryDate); err != nil {
+	if err := ensureNotClosed(ctx, database.GetDB(ctx, uc.db), entry.EntryDate); err != nil {
 		return nil, err
 	}
 
 	now := apptime.Now()
-	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+	if err := database.GetDB(ctx, uc.db).Model(&financeModels.JournalEntry{}).
 		Where("id = ? AND status = ?", id, financeModels.JournalStatusDraft).
 		Updates(map[string]interface{}{
 			"status":    financeModels.JournalStatusPosted,

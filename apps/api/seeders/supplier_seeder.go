@@ -12,6 +12,22 @@ import (
 
 // SeedSupplier seeds sample supplier master data
 func SeedSupplier() error {
+	if isMinimalSeedMode() {
+		db := database.DB
+		supplier := models.Supplier{
+			Code:          "SUP-001",
+			Name:          "PT. Minimal Supplier",
+			Address:       "Jl. Example No. 1, Jakarta",
+			Email:         "supplier@example.com",
+			ContactPerson: "John Doe",
+			IsActive:      true,
+		}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "address", "email", "contact_person", "is_active", "updated_at"})}).Create(&supplier).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 	var currencies []coreModels.Currency
 	if err := db.Where("is_active = ?", true).Find(&currencies).Error; err != nil {

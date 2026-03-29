@@ -9,10 +9,14 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
@@ -36,15 +40,33 @@ type CashBankJournalUsecase interface {
 }
 
 type cashBankJournalUsecase struct {
-	db        *gorm.DB
-	coaRepo   repositories.ChartOfAccountRepository
-	repo      repositories.CashBankJournalRepository
-	journalUC JournalEntryUsecase
-	mapper    *mapper.CashBankJournalMapper
+	db               *gorm.DB
+	coaRepo          repositories.ChartOfAccountRepository
+	repo             repositories.CashBankJournalRepository
+	journalUC        JournalEntryUsecase
+	mapper           *mapper.CashBankJournalMapper
+	settingsService  financesettings.SettingsService
+	accountingEngine accounting.AccountingEngine
 }
 
-func NewCashBankJournalUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.CashBankJournalRepository, journalUC JournalEntryUsecase, mapper *mapper.CashBankJournalMapper) CashBankJournalUsecase {
-	return &cashBankJournalUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
+func NewCashBankJournalUsecase(
+	db *gorm.DB,
+	coaRepo repositories.ChartOfAccountRepository,
+	repo repositories.CashBankJournalRepository,
+	journalUC JournalEntryUsecase,
+	mapper *mapper.CashBankJournalMapper,
+	settingsService financesettings.SettingsService,
+	accountingEngine accounting.AccountingEngine,
+) CashBankJournalUsecase {
+	return &cashBankJournalUsecase{
+		db:               db,
+		coaRepo:          coaRepo,
+		repo:             repo,
+		journalUC:        journalUC,
+		mapper:           mapper,
+		settingsService:  settingsService,
+		accountingEngine: accountingEngine,
+	}
 }
 
 func validateCashBankLines(lines []dto.CashBankJournalLineRequest) (float64, error) {
@@ -118,10 +140,6 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 			Type:                        req.Type,
 			Description:                 strings.TrimSpace(req.Description),
 			BankAccountID:               bankAccountID,
-			BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
-			BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
-			BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
-			BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
 			TotalAmount:                 sum,
 			Status:                      financeModels.CashBankStatusDraft,
 			CreatedBy:                   &actorID,
@@ -313,6 +331,9 @@ func (uc *cashBankJournalUsecase) GetByID(ctx context.Context, id string) (*dto.
 	if id == "" {
 		return nil, errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.CashBankJournal{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrCashBankNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -487,65 +508,36 @@ func (uc *cashBankJournalUsecase) Post(ctx context.Context, id string) (*dto.Cas
 	}
 	bankCOAID := strings.TrimSpace(*bank.ChartOfAccountID)
 
-	var lines []dto.JournalLineRequest
-	switch cb.Type {
-	case financeModels.CashBankTypeCashIn:
-		lines = append(lines, dto.JournalLineRequest{
-			ChartOfAccountID: bankCOAID,
-			Debit:            cb.TotalAmount,
-			Credit:           0,
-			Memo:             "Cash/Bank inflow",
+	var txData accounting.TransactionData
+	txData.ReferenceType = reference.RefTypeCashBank
+	txData.ReferenceID = cb.ID
+	txData.EntryDate = cb.TransactionDate.Format("2006-01-02")
+	txData.Description = strings.TrimSpace(cb.Description)
+	txData.TotalAmount = cb.TotalAmount
+	txData.BankAccountCOAID = bankCOAID
+	txData.DescriptionArgs = []interface{}{txData.Description}
+
+	for _, ln := range cb.Lines {
+		txData.LineItems = append(txData.LineItems, accounting.TransactionLineItem{
+			ChartOfAccountID: ln.ChartOfAccountID,
+			Amount:           ln.Amount,
+			Memo:             ln.Memo,
 		})
-		for _, ln := range cb.Lines {
-			lines = append(lines, dto.JournalLineRequest{
-				ChartOfAccountID: ln.ChartOfAccountID,
-				Debit:            0,
-				Credit:           ln.Amount,
-				Memo:             strings.TrimSpace(ln.Memo),
-			})
-		}
-	case financeModels.CashBankTypeTransfer:
-		// Inter-bank transfer: credit source bank, debit destination bank(s)
-		lines = append(lines, dto.JournalLineRequest{
-			ChartOfAccountID: bankCOAID,
-			Debit:            0,
-			Credit:           cb.TotalAmount,
-			Memo:             "Inter-bank transfer out",
-		})
-		for _, ln := range cb.Lines {
-			lines = append(lines, dto.JournalLineRequest{
-				ChartOfAccountID: ln.ChartOfAccountID,
-				Debit:            ln.Amount,
-				Credit:           0,
-				Memo:             strings.TrimSpace(ln.Memo),
-			})
-		}
-	default: // cash_out
-		lines = append(lines, dto.JournalLineRequest{
-			ChartOfAccountID: bankCOAID,
-			Debit:            0,
-			Credit:           cb.TotalAmount,
-			Memo:             "Cash/Bank outflow",
-		})
-		for _, ln := range cb.Lines {
-			lines = append(lines, dto.JournalLineRequest{
-				ChartOfAccountID: ln.ChartOfAccountID,
-				Debit:            ln.Amount,
-				Credit:           0,
-				Memo:             strings.TrimSpace(ln.Memo),
-			})
-		}
 	}
 
-	dateStr := cb.TransactionDate.Format("2006-01-02")
-	refType := "cash_bank"
+	var profile accounting.PostingProfile
+	switch cb.Type {
+	case financeModels.CashBankTypeCashIn:
+		profile = accounting.ProfileCashBankCashIn
+	case financeModels.CashBankTypeTransfer:
+		profile = accounting.ProfileCashBankTransfer
+	default:
+		profile = accounting.ProfileCashBankCashOut
+	}
 
-	journalReq := &dto.CreateJournalEntryRequest{
-		EntryDate:     dateStr,
-		Description:   strings.TrimSpace(cb.Description),
-		ReferenceType: &refType,
-		ReferenceID:   &cb.ID,
-		Lines:         lines,
+	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, profile, txData)
+	if err != nil {
+		return nil, err
 	}
 
 	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)

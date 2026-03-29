@@ -213,6 +213,40 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 	// Build conversation context for LLM
 	conversationHistory := u.buildConversationHistory(history)
 
+	if intent := buildAutonomousHolidayCreateIntent(req.Message, history); intent != nil {
+		permResult, permErr := u.permValidator.Validate(ctx, intent.IntentCode, userPermissions, isAdmin)
+		if permErr != nil {
+			assistantContent := fmt.Sprintf("Gagal mengeksekusi aksi holiday otomatis: %v", permErr)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+		if !permResult.Allowed {
+			assistantContent := fmt.Sprintf("Maaf, Anda tidak memiliki izin untuk tindakan ini. %s", permResult.Reason)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+
+		validation := u.requestValidator.Validate(ctx, intent, intent.Parameters)
+		if !validation.Valid {
+			assistantContent := u.buildMissingFieldsMessage(ctx, intent, validation)
+			return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+		}
+
+		return u.executeAndRespond(ctx, session, intent, validation.ResolvedEntities, userID, permResult.RequiredPermission, conversationHistory, start)
+	}
+
+	if isCurrentTimeQuestion(req.Message) {
+		now := apptime.Now()
+		assistantContent := fmt.Sprintf("Waktu saat ini: **%s** (WIB). Tahun sekarang: **%d**.", now.Format("02 Jan 2006 15:04:05"), now.Year())
+		return u.saveAssistantResponse(ctx, session, assistantContent, &IntentResult{
+			IntentCode: "GENERAL_CHAT",
+			Confidence: 1,
+			Parameters: map[string]interface{}{"source": "apptime_now"},
+			Module:     "general",
+			ActionType: "QUERY",
+			IsQuery:    true,
+			RawMessage: req.Message,
+		}, start)
+	}
+
 	// Step 1: Extract intent from user message (uses cheap model for classification)
 	intent, err := u.intentResolver.Resolve(ctx, req.Message, conversationHistory)
 	if err != nil {
@@ -222,6 +256,7 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Deterministic fallback for critical business actions when classifier confidence is low.
 	intent = u.applyDeterministicIntentFallback(req.Message, intent)
+	intent = u.applyContextualCreateContinuationFallback(req.Message, history, intent)
 
 	// Step 2: Handle general chat directly without agentic flow
 	if intent.IntentCode == "GENERAL_CHAT" || intent.Confidence < 0.6 {
@@ -231,7 +266,8 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 	// Step 3: Validate permissions
 	permResult, err := u.permValidator.Validate(ctx, intent.IntentCode, userPermissions, isAdmin)
 	if err != nil {
-		return u.handleGeneralChat(ctx, session, req.Message, conversationHistory, req.Model, start)
+		assistantContent := fmt.Sprintf("Aksi tidak bisa diproses saat ini: %v", err)
+		return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
 	}
 
 	if !permResult.Allowed {
@@ -267,6 +303,9 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Step 6: Check if action requires confirmation
 	needsConfirmation, _ := u.permValidator.NeedsConfirmation(ctx, intent.IntentCode)
+	if intent.IntentCode == "CREATE_HOLIDAY" && isIndonesiaBulkHolidayMode(intent.Parameters) {
+		needsConfirmation = false
+	}
 
 	if needsConfirmation && !intent.IsQuery {
 		// Create pending action log for confirmation
@@ -276,6 +315,62 @@ func (u *aiChatUsecase) SendMessage(ctx context.Context, req *dto.SendMessageReq
 
 	// Step 7: Execute action directly (queries or actions not requiring confirmation)
 	return u.executeAndRespond(ctx, session, intent, resolvedEntities, userID, permResult.RequiredPermission, conversationHistory, start)
+}
+
+func (u *aiChatUsecase) applyContextualCreateContinuationFallback(message string, history []models.AIChatMessage, intent *IntentResult) *IntentResult {
+	if intent == nil {
+		return intent
+	}
+
+	if intent.IntentCode != "GENERAL_CHAT" && intent.Confidence >= 0.6 {
+		return intent
+	}
+
+	previous := u.findLatestAssistantCreateIntent(history)
+	if previous == nil {
+		return intent
+	}
+
+	lower := strings.ToLower(strings.TrimSpace(message))
+	isDetailFollowUp := strings.Contains(lower, ":") || strings.Contains(lower, "payment") || strings.Contains(lower, "terms") || strings.Contains(lower, "bisnis unit") || strings.Contains(lower, "business unit") || strings.Contains(lower, "items") || strings.Contains(lower, "qty") || strings.Contains(lower, "harga") || strings.Contains(lower, "price")
+	if !isDetailFollowUp && !isAffirmativeMessage(message) {
+		return intent
+	}
+
+	return &IntentResult{
+		IntentCode: previous.IntentCode,
+		Confidence: 0.82,
+		Parameters: map[string]interface{}{},
+		Module:     previous.Module,
+		ActionType: previous.ActionType,
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func (u *aiChatUsecase) findLatestAssistantCreateIntent(history []models.AIChatMessage) *IntentResult {
+	for i := len(history) - 1; i >= 0; i-- {
+		msg := history[i]
+		if msg.Role != models.MessageRoleAssistant || msg.Intent == nil {
+			continue
+		}
+
+		var prev IntentResult
+		if err := json.Unmarshal([]byte(*msg.Intent), &prev); err != nil {
+			continue
+		}
+
+		if strings.ToUpper(strings.TrimSpace(prev.ActionType)) != "CREATE" {
+			continue
+		}
+
+		switch prev.IntentCode {
+		case "CREATE_SALES_ORDER", "CREATE_SALES_QUOTATION", "CREATE_PURCHASE_ORDER", "CREATE_LEAVE_REQUEST":
+			return &prev
+		}
+	}
+
+	return nil
 }
 
 // ConfirmAction processes a user's confirmation of a pending action
@@ -501,10 +596,14 @@ func (u *aiChatUsecase) buildConversationHistory(messages []models.AIChatMessage
 }
 
 func (u *aiChatUsecase) handleGeneralChat(ctx context.Context, session *models.AIChatSession, userMessage string, conversationHistory []cerebras.ChatMessage, model string, start time.Time) (*dto.ChatResponse, error) {
-	messages := make([]cerebras.ChatMessage, 0, len(conversationHistory)+2)
+	messages := make([]cerebras.ChatMessage, 0, len(conversationHistory)+3)
 	messages = append(messages, cerebras.ChatMessage{
 		Role:    "system",
 		Content: prompts.GeneralChatSystemPrompt,
+	})
+	messages = append(messages, cerebras.ChatMessage{
+		Role:    "system",
+		Content: currentDatetimeContextMessage(),
 	})
 	messages = append(messages, conversationHistory...)
 	messages = append(messages, cerebras.ChatMessage{
@@ -678,6 +777,11 @@ func (u *aiChatUsecase) executeAndRespond(ctx context.Context, session *models.A
 
 	_ = u.actionRepo.Create(ctx, actionLog)
 
+	if intent.IntentCode == "CREATE_HOLIDAY" && isIndonesiaBulkHolidayMode(intent.Parameters) {
+		assistantContent := formatHolidayAutoCreateResult(result)
+		return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+	}
+
 	// Generate natural language response using LLM
 	assistantContent, err := u.generateActionResponse(result, intent)
 	if err != nil {
@@ -690,6 +794,71 @@ func (u *aiChatUsecase) executeAndRespond(ctx context.Context, session *models.A
 	}
 
 	return u.saveAssistantResponse(ctx, session, assistantContent, intent, start)
+}
+
+func formatHolidayAutoCreateResult(result *ActionResult) string {
+	if result == nil {
+		return "Terjadi kesalahan saat membuat holiday otomatis."
+	}
+
+	if !result.Success {
+		if result.ErrorMessage != "" {
+			return fmt.Sprintf("Gagal membuat holiday otomatis: %s", result.ErrorMessage)
+		}
+		return "Gagal membuat holiday otomatis."
+	}
+
+	createdCount := 0
+	year := apptime.Now().Year()
+	createdCount, year = readHolidayResultMetrics(result.Data, year)
+
+	if createdCount == 0 {
+		return fmt.Sprintf("Tidak ada data holiday baru yang perlu dibuat untuk tahun %d. Semua data sudah ada.", year)
+	}
+
+	return fmt.Sprintf("Berhasil membuat %d data holiday Indonesia untuk tahun %d ke modul Holiday.", createdCount, year)
+}
+
+func readHolidayResultMetrics(data interface{}, defaultYear int) (int, int) {
+	createdCount := 0
+	year := defaultYear
+
+	dataMap, ok := data.(map[string]interface{})
+	if !ok {
+		return createdCount, year
+	}
+
+	if n, ok := toInt(dataMap["created_count"]); ok {
+		createdCount = n
+	}
+	if n, ok := toInt(dataMap["year"]); ok {
+		year = n
+	}
+
+	return createdCount, year
+}
+
+func toInt(v interface{}) (int, bool) {
+	switch val := v.(type) {
+	case int:
+		return val, true
+	case int32:
+		return int(val), true
+	case int64:
+		return int(val), true
+	case float64:
+		return int(val), true
+	case float32:
+		return int(val), true
+	case json.Number:
+		n, err := val.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(n), true
+	default:
+		return 0, false
+	}
 }
 
 func (u *aiChatUsecase) generateActionResponse(result *ActionResult, intent *IntentResult) (string, error) {
@@ -727,65 +896,256 @@ func (u *aiChatUsecase) generateActionResponse(result *ActionResult, intent *Int
 }
 
 func (u *aiChatUsecase) buildConfirmationMessage(intent *IntentResult, resolvedEntities map[string]*ResolvedEntity) string {
-	var msg string
 	switch intent.IntentCode {
 	case "CREATE_HOLIDAY":
-		name := getStringParam(intent.Parameters, "name")
-		date := getStringParam(intent.Parameters, "date")
-		msg = fmt.Sprintf("Saya akan membuat hari libur:\n- **Nama**: %s\n- **Tanggal**: %s\n- **Tipe**: %s\n\nApakah Anda setuju?",
-			name, date, getStringParam(intent.Parameters, "type"))
-
+		return u.buildHolidayConfirmationMessage(intent)
 	case "CREATE_SALES_QUOTATION":
-		customer := getStringParam(intent.Parameters, "customer_name")
-		if c, ok := resolvedEntities["customer"]; ok {
-			customer = c.DisplayName
-		}
-		date := getStringParam(intent.Parameters, "quotation_date")
-		if date == "" {
-			date = apptime.Now().Format("2006-01-02")
-		}
-		var details []string
-		details = append(details, fmt.Sprintf("- **Customer**: %s", customer))
-		details = append(details, fmt.Sprintf("- **Tanggal**: %s", date))
-		if pt := getStringParam(intent.Parameters, "payment_terms_name"); pt != "" {
-			details = append(details, fmt.Sprintf("- **Syarat Pembayaran**: %s", pt))
-		}
-		if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
-			details = append(details, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
-		}
-		if items, ok := intent.Parameters["items"]; ok && items != nil {
-			if itemsList, ok := items.([]interface{}); ok {
-				details = append(details, fmt.Sprintf("- **Jumlah Item**: %d produk", len(itemsList)))
-			}
-		}
-		msg = fmt.Sprintf("Saya akan membuat Sales Quotation:\n%s\n\nApakah Anda setuju?", strings.Join(details, "\n"))
-
+		return u.buildSalesQuotationConfirmationMessage(intent, resolvedEntities)
+	case "CREATE_SALES_ORDER":
+		return u.buildSalesOrderConfirmationMessage(intent, resolvedEntities)
 	case "CREATE_SALES_TARGET":
-		year := getIntParam(intent.Parameters, "year")
-		if year == 0 {
-			year = apptime.Now().Year()
-		}
-		area := getStringParam(intent.Parameters, "area_name")
-		if a, ok := resolvedEntities["area"]; ok && a.DisplayName != "" {
-			area = a.DisplayName
-		}
-		if area == "" {
-			area = "Semua Area"
-		}
-		total := getFloatParam(intent.Parameters, "total_target")
-		if total <= 0 {
-			total = inferAnnualSalesTarget(intent.Parameters)
-		}
-		msg = fmt.Sprintf("Saya akan membuat Sales Target tahunan dengan detail:\n- **Area**: %s\n- **Tahun**: %d\n- **Total Target**: %.0f\n\nApakah Anda setuju?", area, year, total)
-
+		return u.buildSalesTargetConfirmationMessage(intent, resolvedEntities)
 	case "CREATE_LEAVE_REQUEST":
-		msg = "Saya akan membuat pengajuan cuti dengan detail yang Anda berikan.\n\nApakah Anda setuju?"
-
+		return u.buildLeaveRequestConfirmationMessage(intent)
 	default:
-		msg = fmt.Sprintf("Saya akan melakukan tindakan **%s** pada modul **%s**.\n\nApakah Anda setuju?", intent.ActionType, intent.Module)
+		return u.buildGenericConfirmationMessage(intent, resolvedEntities)
+	}
+}
+
+func (u *aiChatUsecase) buildGenericConfirmationMessage(intent *IntentResult, resolvedEntities map[string]*ResolvedEntity) string {
+	displayName := u.getIntentDisplayName(intent.IntentCode)
+	actionLabel := confirmationActionLabel(intent.ActionType)
+	details := collectConfirmationDetails(intent.Parameters, resolvedEntities)
+
+	if len(details) == 0 {
+		return fmt.Sprintf("Saya akan %s **%s**.\n\nApakah Anda setuju?", actionLabel, displayName)
 	}
 
-	return msg
+	return fmt.Sprintf("Saya akan %s **%s** dengan detail:\n%s\n\nApakah Anda setuju?", actionLabel, displayName, strings.Join(details, "\n"))
+}
+
+func confirmationActionLabel(actionType string) string {
+	switch strings.ToUpper(strings.TrimSpace(actionType)) {
+	case "CREATE":
+		return "membuat"
+	case "UPDATE":
+		return "memperbarui"
+	case "DELETE":
+		return "menghapus"
+	default:
+		return "menjalankan"
+	}
+}
+
+func collectConfirmationDetails(params map[string]interface{}, resolvedEntities map[string]*ResolvedEntity) []string {
+	if params == nil {
+		params = map[string]interface{}{}
+	}
+
+	var details []string
+	appendIf := func(label, val string) {
+		value := strings.TrimSpace(val)
+		if value != "" {
+			details = append(details, fmt.Sprintf("- **%s**: %s", label, value))
+		}
+	}
+
+	appendIf("Customer", getStringParam(params, "customer_name"))
+	appendIf("Supplier", getStringParam(params, "supplier_name"))
+	appendIf("Karyawan", getStringParam(params, "employee_name"))
+	appendIf("Company", getStringParam(params, "company_name"))
+	appendIf("Division", getStringParam(params, "division_name"))
+	appendIf("Bank", getStringParam(params, "bank_name"))
+	appendIf("Area", getStringParam(params, "area_name"))
+	appendIf("Produk", getStringParam(params, "product_name"))
+	appendIf("Gudang", getStringParam(params, "warehouse_name"))
+	appendIf("Business Type", getStringParam(params, "business_type_name"))
+	appendIf("Supplier Type", getStringParam(params, "supplier_type_name"))
+	appendIf("Customer Type", getStringParam(params, "customer_type_name"))
+	appendIf("Tanggal", firstNonEmptyString(getStringParam(params, "quotation_date"), getStringParam(params, "order_date"), getStringParam(params, "date")))
+	appendIf("Mulai", firstNonEmptyString(getStringParam(params, "start_date"), getStringParam(params, "date_from")))
+	appendIf("Selesai", firstNonEmptyString(getStringParam(params, "end_date"), getStringParam(params, "date_to")))
+	appendIf("Status", getStringParam(params, "status"))
+	appendIf("Pencarian", getStringParam(params, "search"))
+
+	if year := getIntParam(params, "year"); year != 0 {
+		details = append(details, fmt.Sprintf("- **Tahun**: %d", year))
+	}
+
+	if amount := firstPositiveAmount(params, "total_target", "amount", "total"); amount > 0 {
+		details = append(details, fmt.Sprintf("- **Nilai**: %.0f", amount))
+	}
+
+	if items, ok := params["items"].([]interface{}); ok && len(items) > 0 {
+		details = append(details, fmt.Sprintf("- **Jumlah Item**: %d", len(items)))
+	}
+
+	resolvedLabels := map[string]string{
+		"customer":  "Customer (resolved)",
+		"supplier":  "Supplier (resolved)",
+		"employee":  "Karyawan (resolved)",
+		"company":   "Company (resolved)",
+		"division":  "Division (resolved)",
+		"bank":      "Bank (resolved)",
+		"area":      "Area (resolved)",
+		"product":   "Produk (resolved)",
+		"warehouse": "Gudang (resolved)",
+		"business_type": "Business Type (resolved)",
+		"supplier_type": "Supplier Type (resolved)",
+		"customer_type": "Customer Type (resolved)",
+	}
+	for key, label := range resolvedLabels {
+		if entity, ok := resolvedEntities[key]; ok && entity != nil {
+			if name := strings.TrimSpace(entity.DisplayName); name != "" {
+				details = append(details, fmt.Sprintf("- **%s**: %s", label, name))
+			}
+		}
+	}
+
+	return uniqueStrings(details)
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		v := strings.TrimSpace(value)
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func firstPositiveAmount(params map[string]interface{}, keys ...string) float64 {
+	for _, key := range keys {
+		if value := getFloatParam(params, key); value > 0 {
+			return value
+		}
+	}
+	return 0
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func (u *aiChatUsecase) buildHolidayConfirmationMessage(intent *IntentResult) string {
+	name := getStringParam(intent.Parameters, "name")
+	date := getStringParam(intent.Parameters, "date")
+	return fmt.Sprintf("Saya akan membuat hari libur:\n- **Nama**: %s\n- **Tanggal**: %s\n- **Tipe**: %s\n\nApakah Anda setuju?",
+		name, date, getStringParam(intent.Parameters, "type"))
+}
+
+func (u *aiChatUsecase) buildSalesOrderConfirmationMessage(intent *IntentResult, resolvedEntities map[string]*ResolvedEntity) string {
+	customer := getStringParam(intent.Parameters, "customer_name")
+	if c, ok := resolvedEntities["customer"]; ok && c.DisplayName != "" {
+		customer = c.DisplayName
+	}
+	date := getStringParam(intent.Parameters, "order_date")
+	if date == "" {
+		date = apptime.Now().Format("2006-01-02")
+	}
+
+	details := []string{
+		fmt.Sprintf("- **Customer**: %s", customer),
+		fmt.Sprintf("- **Tanggal**: %s", date),
+	}
+	if pt := getStringParam(intent.Parameters, "payment_terms_name"); pt != "" {
+		details = append(details, fmt.Sprintf("- **Syarat Pembayaran**: %s", pt))
+	}
+	if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
+		details = append(details, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
+	}
+	if sr := firstNonEmptyString(
+		getStringParam(intent.Parameters, "sales_rep_name"),
+		getStringParam(intent.Parameters, "sales_rep"),
+		getStringParam(intent.Parameters, "sales_name"),
+	); sr != "" {
+		details = append(details, fmt.Sprintf("- **Sales Rep**: %s", sr))
+	}
+	if items, ok := intent.Parameters["items"].([]interface{}); ok && len(items) > 0 {
+		details = append(details, fmt.Sprintf("- **Jumlah Item**: %d produk", len(items)))
+	}
+
+	return fmt.Sprintf("Saya akan membuat Sales Order:\n%s\n\nApakah Anda setuju?", strings.Join(details, "\n"))
+}
+
+func (u *aiChatUsecase) buildLeaveRequestConfirmationMessage(intent *IntentResult) string {
+	startDate := getStringParam(intent.Parameters, "start_date")
+	endDate := getStringParam(intent.Parameters, "end_date")
+	reason := getStringParam(intent.Parameters, "reason")
+
+	details := make([]string, 0, 3)
+	if startDate != "" {
+		details = append(details, fmt.Sprintf("- **Mulai**: %s", startDate))
+	}
+	if endDate != "" {
+		details = append(details, fmt.Sprintf("- **Selesai**: %s", endDate))
+	}
+	if reason != "" {
+		details = append(details, fmt.Sprintf("- **Alasan**: %s", reason))
+	}
+
+	if len(details) == 0 {
+		return "Saya akan membuat pengajuan cuti dengan detail yang Anda berikan.\n\nApakah Anda setuju?"
+	}
+
+	return fmt.Sprintf("Saya akan membuat pengajuan cuti dengan detail:\n%s\n\nApakah Anda setuju?", strings.Join(details, "\n"))
+}
+
+func (u *aiChatUsecase) buildSalesQuotationConfirmationMessage(intent *IntentResult, resolvedEntities map[string]*ResolvedEntity) string {
+	customer := getStringParam(intent.Parameters, "customer_name")
+	if c, ok := resolvedEntities["customer"]; ok && c.DisplayName != "" {
+		customer = c.DisplayName
+	}
+	date := getStringParam(intent.Parameters, "quotation_date")
+	if date == "" {
+		date = apptime.Now().Format("2006-01-02")
+	}
+
+	details := []string{
+		fmt.Sprintf("- **Customer**: %s", customer),
+		fmt.Sprintf("- **Tanggal**: %s", date),
+	}
+	if pt := getStringParam(intent.Parameters, "payment_terms_name"); pt != "" {
+		details = append(details, fmt.Sprintf("- **Syarat Pembayaran**: %s", pt))
+	}
+	if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
+		details = append(details, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
+	}
+	if items, ok := intent.Parameters["items"].([]interface{}); ok && len(items) > 0 {
+		details = append(details, fmt.Sprintf("- **Jumlah Item**: %d produk", len(items)))
+	}
+
+	return fmt.Sprintf("Saya akan membuat Sales Quotation:\n%s\n\nApakah Anda setuju?", strings.Join(details, "\n"))
+}
+
+func (u *aiChatUsecase) buildSalesTargetConfirmationMessage(intent *IntentResult, resolvedEntities map[string]*ResolvedEntity) string {
+	year := getIntParam(intent.Parameters, "year")
+	if year == 0 {
+		year = apptime.Now().Year()
+	}
+	area := getStringParam(intent.Parameters, "area_name")
+	if a, ok := resolvedEntities["area"]; ok && a.DisplayName != "" {
+		area = a.DisplayName
+	}
+	if area == "" {
+		area = "Semua Area"
+	}
+	total := getFloatParam(intent.Parameters, "total_target")
+	if total <= 0 {
+		total = inferAnnualSalesTarget(intent.Parameters)
+	}
+
+	return fmt.Sprintf("Saya akan membuat Sales Target tahunan dengan detail:\n- **Area**: %s\n- **Tahun**: %d\n- **Total Target**: %.0f\n\nApakah Anda setuju?", area, year, total)
 }
 
 // buildMissingFieldsMessage generates a natural conversational follow-up
@@ -824,6 +1184,9 @@ func (u *aiChatUsecase) buildKnownParamsSummary(intent *IntentResult) string {
 		}
 		if bu := getStringParam(intent.Parameters, "business_unit_name"); bu != "" {
 			parts = append(parts, fmt.Sprintf("- **Unit Bisnis**: %s", bu))
+		}
+		if sr := getStringParam(intent.Parameters, "sales_rep_name"); sr != "" {
+			parts = append(parts, fmt.Sprintf("- **Sales Rep**: %s", sr))
 		}
 		if qd := getStringParam(intent.Parameters, "quotation_date"); qd != "" {
 			parts = append(parts, fmt.Sprintf("- **Tanggal**: %s", qd))
@@ -867,6 +1230,20 @@ func (u *aiChatUsecase) buildKnownParamsSummary(intent *IntentResult) string {
 // getIntentDisplayName returns a human-readable name for an intent code
 func (u *aiChatUsecase) getIntentDisplayName(intentCode string) string {
 	names := map[string]string{
+		"LIST_HOLIDAYS":                "Daftar Hari Libur",
+		"LIST_LEAVE_REQUESTS":          "Daftar Pengajuan Cuti",
+		"LIST_SALES_ORDERS":            "Daftar Sales Order",
+		"LIST_SALES_QUOTATIONS":        "Daftar Sales Quotation",
+		"LIST_PURCHASE_ORDERS":         "Daftar Purchase Order",
+		"LIST_PURCHASE_REQUISITIONS":   "Daftar Purchase Requisition",
+		"LIST_INVENTORY":               "Daftar Inventory",
+		"LIST_STOCK_MOVEMENTS":         "Daftar Pergerakan Stok",
+		"LIST_BANK_ACCOUNTS":           "Daftar Bank Account",
+		"LIST_PAYMENTS":                "Daftar Payment",
+		"LIST_SUPPLIERS":               "Daftar Supplier",
+		"LIST_PRODUCTS":                "Daftar Produk",
+		"LIST_WAREHOUSES":              "Daftar Gudang",
+		"QUERY_STOCK":                  "Cek Stok",
 		"CREATE_SALES_QUOTATION":      "Sales Quotation",
 		"CREATE_SALES_ORDER":          "Sales Order",
 		"CREATE_SALES_TARGET":         "Sales Target",
@@ -884,6 +1261,10 @@ func (u *aiChatUsecase) getIntentDisplayName(intentCode string) string {
 	}
 	// Fallback: clean up the intent code
 	clean := strings.TrimPrefix(intentCode, "CREATE_")
+	clean = strings.TrimPrefix(clean, "LIST_")
+	clean = strings.TrimPrefix(clean, "QUERY_")
+	clean = strings.TrimPrefix(clean, "APPROVE_")
+	clean = strings.TrimPrefix(clean, "REJECT_")
 	clean = strings.ReplaceAll(clean, "_", " ")
 	return clean
 }
@@ -952,6 +1333,12 @@ func (u *aiChatUsecase) formatValidationGuidance(ve ValidationError, formOpts *F
 			}
 		}
 		return guidance
+
+	case ve.Field == "sales_rep" && ve.Code == "REQUIRED":
+		return "**Sales Rep** - Siapa sales representative untuk transaksi ini? Contoh: 'sales rep: Andi Saputra'."
+
+	case ve.Field == "sales_rep_name" && ve.Code == "ENTITY_NOT_FOUND":
+		return fmt.Sprintf("**Sales Rep** - %s", ve.Message)
 
 	case ve.Field == "area_name" && ve.Code == "REQUIRED":
 		return "**Area** - Mohon sebutkan area target (contoh: Bali, Jakarta, Surabaya)."
@@ -1084,6 +1471,86 @@ func (u *aiChatUsecase) normalizeParamNames(intent *IntentResult) {
 			}
 		}
 	}
+
+	if _, has := params["sales_rep_name"]; !has {
+		for _, key := range []string{"sales_rep", "sales", "sales_name", "salesperson", "employee_name"} {
+			if val, ok := params[key].(string); ok && strings.TrimSpace(val) != "" {
+				params["sales_rep_name"] = strings.TrimSpace(val)
+				delete(params, key)
+				break
+			}
+		}
+	}
+
+	if intent.IntentCode == "CREATE_SALES_ORDER" {
+		u.hydrateSalesOrderParamsFromRawMessage(intent)
+	}
+}
+
+func (u *aiChatUsecase) hydrateSalesOrderParamsFromRawMessage(intent *IntentResult) {
+	if intent == nil || intent.Parameters == nil {
+		return
+	}
+
+	message := strings.TrimSpace(intent.RawMessage)
+	if message == "" {
+		return
+	}
+
+	params := intent.Parameters
+
+	if strings.TrimSpace(getStringParam(params, "payment_terms_name")) == "" {
+		re := regexp.MustCompile(`(?i)(payment\s*terms?|syarat\s*pembayaran)\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["payment_terms_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "business_unit_name")) == "" {
+		re := regexp.MustCompile(`(?i)(business|bisnis)\s*unit\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["business_unit_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if strings.TrimSpace(getStringParam(params, "sales_rep_name")) == "" {
+		re := regexp.MustCompile(`(?i)(sales\s*rep|salesperson|sales|nama\s*sales)\s*[:=-]\s*([^\n,;]+)`)
+		if m := re.FindStringSubmatch(message); len(m) > 2 {
+			params["sales_rep_name"] = strings.TrimSpace(m[2])
+		}
+	}
+
+	if _, hasItems := params["items"]; !hasItems {
+		if item := parseSingleSalesOrderItemFromMessage(message); item != nil {
+			params["items"] = []interface{}{item}
+		}
+	}
+}
+
+func parseSingleSalesOrderItemFromMessage(message string) map[string]interface{} {
+	reItem := regexp.MustCompile(`(?i)items?\s*[:=-]\s*([a-zA-Z0-9\s\-/\.]+?)\s+(\d+)\s+(?:dengan\s+)?harga\s+([\w\.,]+)`)
+	matches := reItem.FindStringSubmatch(message)
+	if len(matches) < 4 {
+		return nil
+	}
+
+	productName := strings.TrimSpace(matches[1])
+	quantity, err := strconv.Atoi(strings.TrimSpace(matches[2]))
+	if err != nil || quantity <= 0 {
+		return nil
+	}
+
+	price, ok := parseAmountString(strings.TrimSpace(matches[3]))
+	if !ok || price <= 0 {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"product_name": productName,
+		"quantity":     float64(quantity),
+		"price":        price,
+		"discount":     float64(0),
+	}
 }
 
 func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent *IntentResult) *IntentResult {
@@ -1092,7 +1559,13 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 	}
 
 	lower := strings.ToLower(strings.TrimSpace(message))
-	if !isLikelySalesTargetCreateMessage(lower) {
+	isSalesOrder := isLikelySalesOrderCreateMessage(lower)
+	isSalesQuotation := isLikelySalesQuotationCreateMessage(lower)
+	isPurchaseOrder := isLikelyPurchaseOrderCreateMessage(lower)
+	isLeaveRequest := isLikelyLeaveRequestCreateMessage(lower)
+	isSalesTarget := isLikelySalesTargetCreateMessage(lower)
+	isHoliday := isLikelyHolidayCreateMessage(lower)
+	if !isSalesOrder && !isSalesQuotation && !isPurchaseOrder && !isLeaveRequest && !isSalesTarget && !isHoliday {
 		return intent
 	}
 
@@ -1100,30 +1573,126 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 		return intent
 	}
 
+	if isHoliday {
+		return buildHolidayFallbackIntent(message)
+	}
+
+	if isSalesOrder {
+		return buildSalesOrderFallbackIntent(message)
+	}
+
+	if isSalesQuotation {
+		return buildSalesQuotationFallbackIntent(message)
+	}
+
+	if isPurchaseOrder {
+		return buildPurchaseOrderFallbackIntent(message)
+	}
+
+	if isLeaveRequest {
+		return buildLeaveRequestFallbackIntent(message)
+	}
+
+	return buildSalesTargetFallbackIntent(message, lower)
+}
+
+func buildSalesOrderFallbackIntent(message string) *IntentResult {
+	params := map[string]interface{}{}
+	if customer := extractEntityNameAfterKeyword(message, "customer"); customer != "" {
+		params["customer_name"] = customer
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_SALES_ORDER",
+		Confidence: 0.85,
+		Parameters: params,
+		Module:     "sales",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildSalesQuotationFallbackIntent(message string) *IntentResult {
+	params := map[string]interface{}{}
+	if customer := extractEntityNameAfterKeyword(message, "customer"); customer != "" {
+		params["customer_name"] = customer
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_SALES_QUOTATION",
+		Confidence: 0.85,
+		Parameters: params,
+		Module:     "sales",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildPurchaseOrderFallbackIntent(message string) *IntentResult {
+	params := map[string]interface{}{}
+	if supplier := extractEntityNameAfterKeyword(message, "supplier"); supplier != "" {
+		params["supplier_name"] = supplier
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_PURCHASE_ORDER",
+		Confidence: 0.85,
+		Parameters: params,
+		Module:     "purchase",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildLeaveRequestFallbackIntent(message string) *IntentResult {
+	return &IntentResult{
+		IntentCode: "CREATE_LEAVE_REQUEST",
+		Confidence: 0.8,
+		Parameters: map[string]interface{}{},
+		Module:     "hrd",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildHolidayFallbackIntent(message string) *IntentResult {
 	params := make(map[string]interface{})
-
-	areaRegex := regexp.MustCompile(`(?i)area\s+([a-zA-Z\s]+)`)
-	if matches := areaRegex.FindStringSubmatch(message); len(matches) > 1 {
-		areaRaw := strings.TrimSpace(matches[1])
-		areaRaw = strings.TrimSpace(strings.ReplaceAll(strings.ToLower(areaRaw), " full", ""))
-		for _, stop := range []string{" untuk", " dengan", " target", " normal", " sales", " farmasi"} {
-			if idx := strings.Index(areaRaw, stop); idx > 0 {
-				areaRaw = strings.TrimSpace(areaRaw[:idx])
-			}
-		}
-		if areaRaw != "" {
-			params["area_name"] = areaRaw
-		}
+	if year, ok := extractYearOrCurrent(message); ok {
+		params["year"] = year
 	}
 
-	yearRegex := regexp.MustCompile(`\b(20[2-9][0-9]|2100)\b`)
-	if year := yearRegex.FindString(message); year != "" {
-		if parsed, err := strconv.Atoi(year); err == nil {
-			params["year"] = parsed
-		}
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "indonesia") || strings.Contains(lower, "nasional") {
+		params["country_code"] = "ID"
+		params["holiday_source"] = "PUBLIC_API"
 	}
 
-	if strings.Contains(lower, "normal") || strings.Contains(lower, "farmasi") {
+	return &IntentResult{
+		IntentCode: "CREATE_HOLIDAY",
+		Confidence: 0.8,
+		Parameters: params,
+		Module:     "hrd",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func buildSalesTargetFallbackIntent(message, lowerMessage string) *IntentResult {
+	params := make(map[string]interface{})
+	if area := extractAreaName(message); area != "" {
+		params["area_name"] = area
+	}
+
+	if year, ok := extractYearOrCurrent(message); ok {
+		params["year"] = year
+	}
+
+	if strings.Contains(lowerMessage, "normal") || strings.Contains(lowerMessage, "farmasi") {
 		params["target_profile"] = "normal_sales_farmasi"
 		params["total_target"] = 180000000
 	}
@@ -1139,12 +1708,195 @@ func (u *aiChatUsecase) applyDeterministicIntentFallback(message string, intent 
 	}
 }
 
+func extractAreaName(message string) string {
+	areaRegex := regexp.MustCompile(`(?i)area\s+([a-zA-Z\s]+)`)
+	matches := areaRegex.FindStringSubmatch(message)
+	if len(matches) <= 1 {
+		return ""
+	}
+
+	areaRaw := strings.TrimSpace(matches[1])
+	areaRaw = strings.TrimSpace(strings.ReplaceAll(strings.ToLower(areaRaw), " full", ""))
+	for _, stop := range []string{" untuk", " dengan", " target", " normal", " sales", " farmasi"} {
+		if idx := strings.Index(areaRaw, stop); idx > 0 {
+			areaRaw = strings.TrimSpace(areaRaw[:idx])
+		}
+	}
+
+	return areaRaw
+}
+
+func currentDatetimeContextMessage() string {
+	now := apptime.Now()
+	return fmt.Sprintf("CURRENT_DATETIME_WIB: %s (year=%d). Gunakan konteks ini saat pengguna bertanya 'sekarang', 'today', atau 'tahun ini'.", now.Format(time.RFC3339), now.Year())
+}
+
 func isLikelySalesTargetCreateMessage(lowerMessage string) bool {
 	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
 	hasTarget := strings.Contains(lowerMessage, "target") && (strings.Contains(lowerMessage, "sales") || strings.Contains(lowerMessage, "penjualan"))
 	hasSalesTargetPhrase := strings.Contains(lowerMessage, "sales target") || strings.Contains(lowerMessage, "target sales")
 
 	return (hasCreateVerb && hasTarget) || hasSalesTargetPhrase
+}
+
+func isLikelySalesOrderCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
+	hasSalesOrderPhrase := strings.Contains(lowerMessage, "sales order") || strings.Contains(lowerMessage, "order penjualan") || strings.Contains(lowerMessage, "so ") || strings.HasSuffix(lowerMessage, " so")
+	return hasCreateVerb && hasSalesOrderPhrase
+}
+
+func isLikelySalesQuotationCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
+	hasQuotationPhrase := strings.Contains(lowerMessage, "sales quotation") || strings.Contains(lowerMessage, "quotation") || strings.Contains(lowerMessage, "penawaran")
+	return hasCreateVerb && hasQuotationPhrase
+}
+
+func isLikelyPurchaseOrderCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan")
+	hasPurchaseOrderPhrase := strings.Contains(lowerMessage, "purchase order") || strings.Contains(lowerMessage, "order pembelian") || strings.Contains(lowerMessage, "po ") || strings.HasSuffix(lowerMessage, " po")
+	return hasCreateVerb && hasPurchaseOrderPhrase
+}
+
+func isLikelyLeaveRequestCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "ajukan") || strings.Contains(lowerMessage, "submit")
+	hasLeavePhrase := strings.Contains(lowerMessage, "cuti") || strings.Contains(lowerMessage, "leave request")
+	return hasCreateVerb && hasLeavePhrase
+}
+
+func extractEntityNameAfterKeyword(message, keyword string) string {
+	pattern := regexp.MustCompile(`(?i)` + regexp.QuoteMeta(keyword) + `\s+([a-zA-Z0-9\s\.-]+)`)
+	matches := pattern.FindStringSubmatch(message)
+	if len(matches) <= 1 {
+		return ""
+	}
+
+	name := strings.TrimSpace(matches[1])
+	lower := strings.ToLower(name)
+	for _, stop := range []string{" dengan", " untuk", " tanggal", " pada", " dan", " yg", " yang"} {
+		if idx := strings.Index(lower, stop); idx > 0 {
+			name = strings.TrimSpace(name[:idx])
+			break
+		}
+	}
+
+	return strings.TrimSpace(name)
+}
+
+func isLikelyHolidayCreateMessage(lowerMessage string) bool {
+	hasCreateVerb := strings.Contains(lowerMessage, "buat") || strings.Contains(lowerMessage, "create") || strings.Contains(lowerMessage, "tambahkan") || strings.Contains(lowerMessage, "generate")
+	hasHolidayTerm := strings.Contains(lowerMessage, "holiday") || strings.Contains(lowerMessage, "hari libur") || strings.Contains(lowerMessage, "libur")
+	return hasCreateVerb && hasHolidayTerm
+}
+
+func extractYearOrCurrent(message string) (int, bool) {
+	yearRegex := regexp.MustCompile(`\b(20[2-9][0-9]|2100)\b`)
+	if year := yearRegex.FindString(message); year != "" {
+		if parsed, err := strconv.Atoi(year); err == nil {
+			return parsed, true
+		}
+	}
+
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "tahun ini") || strings.Contains(lower, "this year") {
+		return apptime.Now().Year(), true
+	}
+
+	return 0, false
+}
+
+func isCurrentTimeQuestion(message string) bool {
+	lower := strings.ToLower(strings.TrimSpace(message))
+	if lower == "" {
+		return false
+	}
+
+	actionKeywords := []string{
+		"buat", "buatkan", "create", "tambahkan", "generate", "input", "simpan", "insert", "tambah",
+	}
+	for _, kw := range actionKeywords {
+		if strings.Contains(lower, kw) {
+			return false
+		}
+	}
+
+	keywords := []string{
+		"jam berapa", "waktu sekarang", "waktu saat ini", "sekarang jam", "tanggal hari ini", "hari ini tanggal",
+		"tahun berapa", "tahun sekarang", "tahun ini", "what time", "current time", "current date", "what year",
+	}
+
+	for _, kw := range keywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func buildAutonomousHolidayCreateIntent(message string, history []models.AIChatMessage) *IntentResult {
+	lower := strings.ToLower(strings.TrimSpace(message))
+	if lower == "" {
+		return nil
+	}
+
+	directCreateCommand := isLikelyHolidayCreateMessage(lower)
+	followUpCreateCommand := isCreateFollowUpCommand(lower) && hasRecentHolidayContext(history)
+	if !directCreateCommand && !followUpCreateCommand {
+		return nil
+	}
+
+	year := apptime.Now().Year()
+	if parsedYear, ok := extractYearOrCurrent(message); ok {
+		year = parsedYear
+	}
+
+	params := map[string]interface{}{
+		"year":           year,
+		"country_code":   "ID",
+		"holiday_source": "PUBLIC_API",
+	}
+
+	return &IntentResult{
+		IntentCode: "CREATE_HOLIDAY",
+		Confidence: 1,
+		Parameters: params,
+		Module:     "hrd",
+		ActionType: "CREATE",
+		IsQuery:    false,
+		RawMessage: message,
+	}
+}
+
+func isCreateFollowUpCommand(lowerMessage string) bool {
+	followUps := []string{
+		"ya buat", "ya lanjut", "lanjutkan", "buat untuk saya", "buatkan untuk saya", "ok buat", "oke buat", "proceed",
+	}
+	for _, phrase := range followUps {
+		if strings.Contains(lowerMessage, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRecentHolidayContext(history []models.AIChatMessage) bool {
+	if len(history) == 0 {
+		return false
+	}
+
+	start := len(history) - 6
+	if start < 0 {
+		start = 0
+	}
+
+	for i := len(history) - 1; i >= start; i-- {
+		content := strings.ToLower(history[i].Content)
+		if strings.Contains(content, "holiday") || strings.Contains(content, "hari libur") || strings.Contains(content, "indonesia") {
+			return true
+		}
+	}
+
+	return false
 }
 
 func extractTargetAmountFromText(message string) (float64, bool) {

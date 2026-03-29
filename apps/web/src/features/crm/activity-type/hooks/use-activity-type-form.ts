@@ -20,9 +20,17 @@ export interface UseActivityTypeFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingItem?: ActivityType | null;
+  initialData?: { name?: string };
+  onCreated?: (item: ActivityType) => void;
 }
 
-export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActivityTypeFormProps) {
+export function useActivityTypeForm({
+  open,
+  onOpenChange,
+  editingItem,
+  initialData,
+  onCreated,
+}: UseActivityTypeFormProps) {
   const t = useTranslations("activityType");
   const tCommon = useTranslations("common");
 
@@ -44,10 +52,15 @@ export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActi
           badge_color: editingItem.badge_color ?? "#3B82F6",
         });
       } else {
-        form.reset({ name: "", description: "", icon: "", badge_color: "#3B82F6" });
+        form.reset({
+          name: initialData?.name ?? "",
+          description: "",
+          icon: "",
+          badge_color: "#3B82F6",
+        });
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, initialData?.name, open]);
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
@@ -55,7 +68,8 @@ export function useActivityTypeForm({ open, onOpenChange, editingItem }: UseActi
         await updateMutation.mutateAsync({ id: editingItem.id, data });
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(data);
+        const result = await createMutation.mutateAsync(data);
+        onCreated?.(result.data);
         toast.success(t("created"));
       }
       onOpenChange(false);

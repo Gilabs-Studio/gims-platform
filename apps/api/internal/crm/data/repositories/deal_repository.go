@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -129,6 +130,7 @@ func (r *dealRepository) FindByID(ctx context.Context, id string) (*models.Deal,
 
 func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]models.Deal, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Deal{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
 	if params.Search != "" {
@@ -196,6 +198,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 
 func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStageParams) ([]models.Deal, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Deal{}).Where("pipeline_stage_id = ?", params.StageID)
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
 		searchTerm := params.Search + "%"

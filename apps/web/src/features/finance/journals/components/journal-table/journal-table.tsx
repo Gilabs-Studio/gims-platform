@@ -13,14 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/utils";
+import { resolveSourceRoute } from "@/features/finance/shared/reference-source-matrix";
 
+import { ReferenceBadge } from "./reference-badge";
+import { ReferenceCodeLink } from "./reference-code-link";
 import type {
   JournalReferenceTypeBadgeMeta,
   JournalTableColumn,
@@ -44,8 +41,8 @@ const DEFAULT_COLUMNS: JournalTableColumn[] = [
   { key: "number", label: "No" },
   { key: "journalType", label: "Journal Type" },
   { key: "description", label: "Description" },
-  { key: "referenceType", label: "Reference Type" },
-  { key: "reference", label: "Reference Code" },
+  { key: "referenceType", label: "Ref Type" },
+  { key: "reference", label: "Ref Code" },
   { key: "entryDate", label: "Entry Date" },
   { key: "debit", label: "Debit" },
   { key: "credit", label: "Credit" },
@@ -199,18 +196,7 @@ export function getSourceHref(
   referenceType?: string | null,
   referenceID?: string | null,
 ): string | undefined {
-  if (!referenceType || !referenceID) return undefined;
-  const value = referenceType.toUpperCase();
-  const compact = value.replace(/[^A-Z0-9]/g, "");
-
-  if (compact === "SALESORDER") return `/sales/orders/${referenceID}`;
-  if (compact === "DELIVERYORDER" || compact === "DO") return `/sales/deliveries/${referenceID}`;
-  if (compact === "GOODSRECEIPT") return `/purchase/receipts/${referenceID}`;
-  if (compact === "SALESINVOICE" || compact === "SALESINVOICEDP") return `/sales/invoices/${referenceID}`;
-  if (compact === "SUPPLIERINVOICE" || compact === "SUPPLIERINVOICEDP" || compact === "PI") {
-    return `/purchase/invoices/${referenceID}`;
-  }
-  return undefined;
+  return resolveSourceRoute(referenceType, referenceID);
 }
 
 export function mapJournalToUnifiedRow<
@@ -379,32 +365,14 @@ function renderCell<T>(
   }
 
   if (key === "reference") {
-    const isReferenceClickable = canReferenceClick ? canReferenceClick(row) : true;
-
     return (
       <TableCell>
-        {onReferenceClick && row.referenceCode && isReferenceClickable ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="font-mono text-xs text-primary hover:underline cursor-pointer"
-                  onClick={() => onReferenceClick(row)}
-                >
-                  {row.referenceCode}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{referenceTooltipText}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : row.sourceHref && row.referenceCode ? (
-          <Link href={row.sourceHref} className="font-mono text-xs text-primary hover:underline cursor-pointer">
-            {row.referenceCode}
-          </Link>
-        ) : (
-          <span className="font-mono text-xs">{row.referenceCode ?? "-"}</span>
-        )}
+        <ReferenceCodeLink
+          row={row}
+          referenceTooltipText={referenceTooltipText}
+          onReferenceClick={onReferenceClick}
+          canReferenceClick={canReferenceClick}
+        />
       </TableCell>
     );
   }

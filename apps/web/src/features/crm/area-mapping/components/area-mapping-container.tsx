@@ -29,7 +29,7 @@ export function AreaMappingContainer() {
   const { data: coverageData } = useAreaCoverage();
 
   const areas = areasData?.data ?? [];
-  const coverageList: AreaCoverage[] = coverageData?.data?.areas ?? [];
+  const coverageList: AreaCoverage[] = useMemo(() => coverageData?.data?.areas ?? [], [coverageData?.data?.areas]);
 
   // Create lookup map for coverage data by area_id
   const coverageMap = useMemo(() => {

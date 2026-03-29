@@ -9,6 +9,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -131,6 +132,9 @@ func (u *salesReturnUsecase) List(ctx context.Context, params repositories.Sales
 }
 
 func (u *salesReturnUsecase) GetByID(ctx context.Context, id string) (*dto.SalesReturnResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesReturn{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesReturnNotFound
+	}
 	row, err := u.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

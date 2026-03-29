@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -52,6 +53,7 @@ func (r *taxInvoiceRepository) List(ctx context.Context, params TaxInvoiceListPa
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.TaxInvoice{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("tax_invoices.tax_invoice_number ILIKE ? OR tax_invoices.notes ILIKE ?", like, like)

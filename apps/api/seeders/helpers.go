@@ -2,6 +2,7 @@ package seeders
 
 import (
 	"os"
+	"strings"
 
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	"gorm.io/gorm"
@@ -15,6 +16,10 @@ func stringPtr(s string) *string {
 // int64Ptr creates a pointer to an int64
 func int64Ptr(i int64) *int64 {
 	return &i
+}
+
+func isMinimalSeedMode() bool {
+	return os.Getenv("SEED_MINIMAL_DATA") == "true"
 }
 
 func getAdminID(tx *gorm.DB) string {
@@ -32,4 +37,12 @@ func getAdminID(tx *gorm.DB) string {
 		return "00000000-0000-0000-0000-000000000000"
 	}
 	return user.ID
+}
+
+// nilIfEmpty returns nil if the string is empty, otherwise a pointer to the string.
+func nilIfEmpty(s string) *string {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	return &s
 }

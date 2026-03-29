@@ -8,15 +8,16 @@ import (
 
 // UserResponse represents user response DTO (without sensitive data)
 type UserResponse struct {
-	ID        string                `json:"id"`
-	Email     string                `json:"email"`
-	Name      string                `json:"name"`
-	AvatarURL string                `json:"avatar_url"`
-	RoleID    string                `json:"role_id"`
-	Role      *roleDto.RoleResponse `json:"role,omitempty"`
-	Status    string                `json:"status"`
-	CreatedAt time.Time             `json:"created_at"`
-	UpdatedAt time.Time             `json:"updated_at"`
+	ID                   string                `json:"id"`
+	Email                string                `json:"email"`
+	Name                 string                `json:"name"`
+	AvatarURL            string                `json:"avatar_url"`
+	RoleID               string                `json:"role_id"`
+	Role                 *roleDto.RoleResponse `json:"role,omitempty"`
+	Status               string                `json:"status"`
+	PasswordResetPending bool                  `json:"password_reset_pending"`
+	CreatedAt            time.Time             `json:"created_at"`
+	UpdatedAt            time.Time             `json:"updated_at"`
 }
 
 // CreateUserRequest represents create user request DTO

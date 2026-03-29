@@ -59,7 +59,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
   const [shouldLoadProductOptions, setShouldLoadProductOptions] = useState(true);
 
-  type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "employee" | null;
+  type QuickCreateType = "paymentTerm" | "businessUnit" | "businessType" | "customer" | "contact" | "employee" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType; itemIndex?: number }>({ type: null });
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
@@ -301,6 +301,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           business_unit_id: order.business_unit_id ?? "",
           business_type_id: order.business_type_id ?? undefined,
           customer_id: order.customer_id ?? "",
+          customer_contact_id: order.customer_contact_id ?? "",
           customer_name: order.customer_name ?? "",
           customer_contact: order.customer_contact ?? "",
           customer_phone: order.customer_phone ?? "",
@@ -325,6 +326,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
           customer_phone: "",
@@ -387,6 +389,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   } | null) => {
     if (!customer) {
       setValue("customer_name", "", { shouldValidate: true, shouldDirty: true });
+      setValue("customer_contact_id", "", { shouldValidate: true, shouldDirty: true });
       setValue("customer_contact", "", { shouldValidate: true, shouldDirty: true });
       setValue("customer_email", "", { shouldValidate: true, shouldDirty: true });
       setValue("customer_phone", "", { shouldValidate: true, shouldDirty: true });
@@ -426,6 +429,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     }
 
     setSelectedContactId(selectedMainContact.id);
+    setValue("customer_contact_id", selectedMainContact.id, { shouldValidate: true, shouldDirty: true });
     setValue("customer_contact", selectedMainContact.name, { shouldValidate: true, shouldDirty: true });
     setValue("customer_phone", selectedMainContact.phone ?? "", { shouldValidate: true, shouldDirty: true });
     setValue("customer_email", selectedMainContact.email ?? "", { shouldValidate: true, shouldDirty: true });
@@ -499,11 +503,12 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
       // --- Customer information ---
       setValue("customer_id", q.customer_id ?? "", { shouldValidate: true });
+      setValue("customer_contact_id", q.customer_contact_id ?? "", { shouldValidate: true });
       setValue("customer_name", q.customer_name ?? "", { shouldValidate: true });
       setValue("customer_contact", q.customer_contact ?? "", { shouldValidate: true });
       setValue("customer_phone", q.customer_phone ?? "", { shouldValidate: true });
       setValue("customer_email", q.customer_email ?? "", { shouldValidate: true });
-      setSelectedContactId("");
+      setSelectedContactId(q.customer_contact_id ?? "");
 
       // --- Financial summary ---
       setValue("tax_rate", q.tax_rate ?? 11, { shouldValidate: true });
@@ -571,12 +576,13 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     if (isEdit) {
       if (fullOrderData?.data) {
         const orderData = fullOrderData.data;
-        setSelectedContactId("");
+        setSelectedContactId(orderData.customer_contact_id ?? "");
         
         setTimeout(() => {
           reset({
             order_date: orderData.order_date,
             customer_id: orderData.customer_id ?? "",
+            customer_contact_id: orderData.customer_contact_id ?? "",
             payment_terms_id: orderData.payment_terms_id ?? "",
             sales_rep_id: orderData.sales_rep_id ?? "",
             business_unit_id: orderData.business_unit_id ?? "",
@@ -618,6 +624,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
           sales_rep_id: "",
           business_unit_id: "",
           business_type_id: "",
+          customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
           customer_phone: "",
@@ -639,6 +646,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         sales_rep_id: "",
         business_unit_id: "",
         business_type_id: "",
+        customer_contact_id: "",
         customer_name: "",
         customer_contact: "",
         customer_phone: "",
@@ -733,6 +741,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
         ...data,
         sales_quotation_id: toOptionalString(data.sales_quotation_id),
         customer_id: toOptionalString(data.customer_id),
+        customer_contact_id: toOptionalString((data as { customer_contact_id?: string }).customer_contact_id ?? selectedContactId),
         payment_terms_id: toOptionalString(data.payment_terms_id),
         sales_rep_id: toOptionalString(data.sales_rep_id),
         business_unit_id: toOptionalString(data.business_unit_id),
@@ -790,6 +799,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
       area: null,
       salesRep: null,
     });
+    setValue("customer_contact_id", "", { shouldValidate: true, shouldDirty: true });
     setSelectedContactId("");
     const customer = customers.find((c) => c.id === customerId);
     applyCustomerDefaults(customer ?? null);
@@ -798,11 +808,17 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   const handleContactChange = (contactId: string) => {
     setSelectedContactId(contactId);
 
+    if (!contactId) {
+      setValue("customer_contact_id", "", { shouldValidate: true });
+      return;
+    }
+
     const contact = contacts.find((item) => item.id === contactId);
     if (!contact) {
       return;
     }
 
+    setValue("customer_contact_id", contact.id, { shouldValidate: true });
     setValue("customer_contact", contact.name, { shouldValidate: true });
     setValue("customer_phone", contact.phone ?? "", { shouldValidate: true });
     setValue("customer_email", contact.email ?? "", { shouldValidate: true });
@@ -825,11 +841,21 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
 
   const handleCustomerCreated = useCallback((item: { id: string; name: string }) => {
     setValue("customer_id", item.id, { shouldValidate: true });
+    setValue("customer_contact_id", "", { shouldValidate: true });
     setValue("customer_name", item.name, { shouldValidate: true });
     setValue("customer_contact", "", { shouldValidate: true });
     setValue("customer_phone", "", { shouldValidate: true });
     setValue("customer_email", "", { shouldValidate: true });
     setSelectedContactId("");
+    closeQuickCreate();
+  }, [closeQuickCreate, setValue]);
+
+  const handleContactCreated = useCallback((item: { id: string; name: string; phone?: string; email?: string }) => {
+    setSelectedContactId(item.id);
+    setValue("customer_contact_id", item.id, { shouldValidate: true });
+    setValue("customer_contact", item.name, { shouldValidate: true });
+    setValue("customer_phone", item.phone ?? "", { shouldValidate: true });
+    setValue("customer_email", item.email ?? "", { shouldValidate: true });
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
@@ -917,6 +943,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleSalesRepCreated,
     customerCombobox,
     paymentTermsCombobox,

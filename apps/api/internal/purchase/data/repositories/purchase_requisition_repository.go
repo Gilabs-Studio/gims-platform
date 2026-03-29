@@ -70,6 +70,7 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	}
 
 	query := r.db.WithContext(ctx).Model(&models.PurchaseRequisition{})
+	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
 	if params.Status != "" {
 		query = query.Where("status = ?", params.Status)
 	}

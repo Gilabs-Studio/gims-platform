@@ -11,10 +11,12 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
@@ -348,6 +350,9 @@ func (uc *paymentUsecase) GetByID(ctx context.Context, id string) (*dto.PaymentR
 	if id == "" {
 		return nil, errors.New("id is required")
 	}
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &financeModels.Payment{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrPaymentNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -457,7 +462,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		je := &financeModels.JournalEntry{
 			EntryDate:     p.PaymentDate,
 			Description:   strings.TrimSpace(p.Description),
-			ReferenceType: func() *string { v := "payment"; return &v }(),
+			ReferenceType: func() *string { v := reference.RefTypePayment; return &v }(),
 			ReferenceID:   &p.ID,
 			Status:        financeModels.JournalStatusPosted,
 			PostedAt:      &now,

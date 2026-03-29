@@ -59,7 +59,6 @@ interface VisitReportEmployeeCardProps {
 /** Expandable card showing an employee's visit report summary with lazy-loaded report rows. */
 export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProps) {
   const t = useTranslations("crmVisitReport");
-  const tCommon = useTranslations("common");
   const router = useRouter();
   const { user } = useAuthStore();
   const [expanded, setExpanded] = useState(false);
@@ -207,7 +206,7 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                   </button>
 
                   {/* Fixed width container for trailing elements so they don't break flex alignment */}
-                  <div className="flex items-center justify-end gap-3 shrink-0 w-[160px]">
+                  <div className="flex items-center justify-end gap-3 shrink-0 w-40">
                     {/* Check-in indicator */}
                     <div className="flex justify-end w-[60px]">
                       {visit.check_in_at && (

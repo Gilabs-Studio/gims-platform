@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -49,6 +50,7 @@ func (r *financialClosingRepository) List(ctx context.Context, params FinancialC
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&financeModels.FinancialClosing{})
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

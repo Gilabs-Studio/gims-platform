@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -216,6 +217,10 @@ func (u *dealUsecase) Create(ctx context.Context, req dto.CreateDealRequest, cre
 }
 
 func (u *dealUsecase) GetByID(ctx context.Context, id string) (dto.DealResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.Deal{}, id, security.MixedOwnershipScopeQueryOptions("assigned_to")) {
+		return dto.DealResponse{}, errors.New("deal not found")
+	}
+
 	deal, err := u.dealRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.DealResponse{}, errors.New("deal not found")

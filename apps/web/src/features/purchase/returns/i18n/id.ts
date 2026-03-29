@@ -30,6 +30,20 @@ export const purchaseReturnsId = {
       approved: "Disetujui",
       rejected: "Ditolak",
     },
+    tabs: {
+      general: "Umum",
+      auditTrail: "Audit Trail",
+    },
+    auditTrail: {
+      title: "Audit Trail",
+      empty: "Belum ada audit trail",
+      columns: {
+        action: "Aksi",
+        user: "User",
+        time: "Waktu",
+        details: "Detail",
+      },
+    },
     actions: {
       view: "Lihat",
       submit: "Ajukan",

@@ -14,19 +14,25 @@ export interface UseContactFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem?: Contact | null;
   customerId?: string;
+  initialName?: string;
+  onSaved?: (contact: Contact) => void;
 }
 
-export function useContactForm({ open, onOpenChange, editingItem, customerId }: UseContactFormProps) {
+export function useContactForm({
+  open,
+  onOpenChange,
+  editingItem,
+  customerId,
+  initialName,
+  onSaved,
+}: UseContactFormProps) {
   const t = useTranslations("crmContact");
   const tCommon = useTranslations("common");
 
-  // Build schema with translated validation messages
   const schema = useMemo(
     () =>
       z.object({
-        // Not user-editable — skip strict UUID format to avoid silent blocking
         customer_id: z.string().min(1),
-        // Optional FK — only needs to be a non-empty string when provided
         contact_role_id: z.string().optional().or(z.literal("")),
         name: z
           .string()
@@ -55,7 +61,7 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
     defaultValues: {
       customer_id: customerId ?? "",
       contact_role_id: "",
-      name: "",
+      name: initialName ?? "",
       phone: "",
       email: "",
       notes: "",
@@ -79,7 +85,7 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
         form.reset({
           customer_id: customerId ?? "",
           contact_role_id: "",
-          name: "",
+          name: initialName ?? "",
           phone: "",
           email: "",
           notes: "",
@@ -87,7 +93,7 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
         });
       }
     }
-  }, [editingItem, form, open, customerId]);
+  }, [editingItem, form, open, customerId, initialName]);
 
   const onSubmit: SubmitHandler<z.infer<typeof schema>> = async (data) => {
     try {
@@ -97,13 +103,22 @@ export function useContactForm({ open, onOpenChange, editingItem, customerId }: 
         phone: data.phone || undefined,
         email: data.email || undefined,
         notes: data.notes || undefined,
+        is_active: true,
       };
 
       if (editingItem) {
-        await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        const response = await updateMutation.mutateAsync({ id: editingItem.id, data: payload });
+        if (response.data) {
+          onSaved?.(response.data);
+        }
         toast.success(t("updated"));
       } else {
-        await createMutation.mutateAsync(payload as Parameters<typeof createMutation.mutateAsync>[0]);
+        const response = await createMutation.mutateAsync(
+          payload as Parameters<typeof createMutation.mutateAsync>[0],
+        );
+        if (response.data) {
+          onSaved?.(response.data);
+        }
         toast.success(t("created"));
       }
       onOpenChange(false);

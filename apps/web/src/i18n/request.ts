@@ -67,6 +67,9 @@ import { evaluationId } from "@/features/hrd/evaluation/i18n/id";
 import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
 import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 
+import { passwordResetEn } from "@/features/auth/password-reset/i18n/en";
+import { passwordResetId } from "@/features/auth/password-reset/i18n/id";
+
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
 
@@ -213,6 +216,11 @@ const messages = {
     ...settingsEn,
     ...evaluationEn,
     ...recruitmentEn,
+    ...passwordResetEn,
+    auth: {
+      ...globalEnMessages.auth,
+      ...passwordResetEn.auth,
+    },
     purchaseRequisition: purchaseRequisitionEn,
     purchaseOrder: purchaseOrderEn,
     goodsReceipt: goodsReceiptEn,
@@ -296,6 +304,11 @@ const messages = {
     ...settingsId,
     ...evaluationId,
     ...recruitmentId,
+    ...passwordResetId,
+    auth: {
+      ...globalIdMessages.auth,
+      ...passwordResetId.auth,
+    },
     purchaseRequisition: purchaseRequisitionId,
     purchaseOrder: purchaseOrderId,
     goodsReceipt: goodsReceiptId,

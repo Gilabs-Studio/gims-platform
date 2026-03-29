@@ -19,6 +19,13 @@ export interface CustomerBrief {
   contact_person?: string;
 }
 
+export interface CustomerContactBrief {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface SalesOrderSummary {
   id: string;
   code: string;
@@ -89,6 +96,8 @@ export interface SalesOrder {
   sales_quotation?: SalesQuotation;
   customer_id?: string;
   customer?: CustomerBrief;
+  customer_contact_id?: string;
+  customer_contact_ref?: CustomerContactBrief;
   payment_terms_id?: string;
   payment_terms?: {
     id: string;
@@ -216,6 +225,7 @@ export interface CreateSalesOrderData {
   order_date: string;
   sales_quotation_id?: string;
   customer_id?: string;
+  customer_contact_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
@@ -242,6 +252,7 @@ export interface CreateSalesOrderItemData {
 export interface UpdateSalesOrderData {
   order_date?: string;
   customer_id?: string;
+  customer_contact_id?: string;
   payment_terms_id?: string;
   sales_rep_id?: string;
   business_unit_id?: string;
@@ -266,6 +277,7 @@ export interface UpdateSalesOrderStatusData {
 export interface ConvertQuotationToOrderData {
   quotation_id: string;
   customer_id?: string;
+  customer_contact_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;

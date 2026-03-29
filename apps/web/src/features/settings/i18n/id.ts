@@ -33,6 +33,56 @@ export const settingsId: SettingsTranslations = {
     saveChanges: "Simpan Perubahan",
     saving: "Menyimpan...",
     name: "Nama",
-    email: "Email"
+    email: "Email",
+    
+    // Dashboard Metrics
+    metrics: {
+      title: "Metrik Dashboard",
+      description: "Ringkasan Performa Penjualan Anda",
+      subtitle: "Metrik kunci dari aktivitas penjualan dan interaksi pelanggan Anda",
+      checkInLocations: "Lokasi Check-in",
+      productsSold: "Produk Terjual",
+      customers: "Pelanggan",
+      totalLocations: "Total Lokasi",
+      totalVisits: "Total Kunjungan",
+      totalProducts: "Total Produk",
+      totalRevenue: "Total Pendapatan",
+      averageRevenue: "Rata-rata Pendapatan",
+      totalCustomers: "Total Pelanggan",
+      totalOrders: "Total Pesanan",
+      averageOrderValue: "Nilai Rata-rata Pesanan",
+      metricsLoadError: "Gagal memuat metrik. Silakan coba lagi nanti.",
+    },
+    
+    // Assigned Tasks
+    tasks: {
+      title: "Tugas yang Ditugaskan",
+      description: "Tugas Anda yang Ditugaskan",
+      subtitle: "Tugas dari CRM, Pesanan Penjualan, dan Pesanan Pembelian",
+      dueDate: "Jatuh Tempo",
+      noTasksAssigned: "Tidak ada tugas yang ditugaskan untuk Anda",
+      tasksLoadError: "Gagal memuat tugas. Silakan coba lagi nanti.",
+      status: "Status",
+      priority: "Prioritas",
+      source: "Sumber",
+      createdDate: "Dibuat",
+    }
+    ,
+    // Page specific labels
+    overview: "Ringkasan",
+    about: "Tentang",
+    addEmployee: "Tambah karyawan",
+    jobInformation: "Informasi pekerjaan",
+    addInfo: "+ Tambah Info",
+    department: "Departemen",
+    manager: "Manajer",
+    hireDate: "Tanggal Bergabung",
+    locationLabel: "Lokasi",
+    addressLabel: "Alamat:",
+    cityState: "Kota:",
+    employeeDetails: "Detail karyawan",
+    dateOfBirth: "Tanggal lahir:",
+    titleLabel: "Jabatan:",
+    hireDateLabel: "Tanggal bergabung:",
   }
 };

@@ -1,7 +1,6 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { User, AuthState } from "../types";
 
 interface AuthStore extends AuthState {
@@ -26,55 +25,36 @@ interface AuthStore extends AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set) => ({
+export const useAuthStore = create<AuthStore>()((set) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  error: null,
+  isSessionVerified: false,
+
+  setUser: (user: User | null) => {
+    set({
+      user,
+      isAuthenticated: !!user,
+      // Reset session verification when user changes
+      isSessionVerified: !!user,
+    });
+  },
+
+  clearError: () => {
+    set({ error: null });
+  },
+
+  setSessionVerified: (verified: boolean) => {
+    set({ isSessionVerified: verified });
+  },
+
+  logout: () => {
+    set({
       user: null,
       isAuthenticated: false,
-      isLoading: false,
-      error: null,
       isSessionVerified: false,
-
-      setUser: (user: User | null) => {
-        set({
-          user,
-          isAuthenticated: !!user,
-          // Reset session verification when user changes
-          isSessionVerified: !!user,
-        });
-      },
-
-      clearError: () => {
-        set({ error: null });
-      },
-
-      setSessionVerified: (verified: boolean) => {
-        set({ isSessionVerified: verified });
-      },
-
-      logout: () => {
-        set({
-          user: null,
-          isAuthenticated: false,
-          isSessionVerified: false,
-          error: null,
-        });
-      },
-    }),
-    {
-      name: "auth-storage",
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-        // NOTE: isSessionVerified is NOT persisted intentionally
-        // It must be re-validated on every page load
-      }),
-      // On rehydration, ensure isSessionVerified is always false
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.isSessionVerified = false;
-        }
-      },
-    },
-  ),
-);
+      error: null,
+    });
+  },
+}));

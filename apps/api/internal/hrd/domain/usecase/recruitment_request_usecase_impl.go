@@ -4,14 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	orgDTO "github.com/gilabs/gims/api/internal/organization/domain/dto"
@@ -106,6 +110,9 @@ func (u *recruitmentRequestUsecase) GetAll(ctx context.Context, page, perPage in
 }
 
 func (u *recruitmentRequestUsecase) GetByID(ctx context.Context, id string) (*dto.RecruitmentRequestResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.RecruitmentRequest{}, id, security.HRDScopeQueryOptions()) {
+		return nil, errors.New("recruitment request not found")
+	}
 	req, err := u.recruitmentRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -276,6 +283,19 @@ func (u *recruitmentRequestUsecase) UpdateStatus(ctx context.Context, id string,
 
 	if err := u.recruitmentRepo.Update(ctx, existing); err != nil {
 		return nil, fmt.Errorf("failed to update recruitment status: %w", err)
+	}
+
+	if newStatus == models.RecruitmentStatusPending {
+		if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+			PermissionCode: "recruitment.approve",
+			EntityType:     "recruitment",
+			EntityID:       existing.ID,
+			Title:          "Recruitment Request Approval",
+			Message:        "A recruitment request has been submitted and requires your approval.",
+			ActorUserID:    userID,
+		}); err != nil {
+			log.Printf("warning: failed to create recruitment notification: %v", err)
+		}
 	}
 
 	return u.GetByID(ctx, id)

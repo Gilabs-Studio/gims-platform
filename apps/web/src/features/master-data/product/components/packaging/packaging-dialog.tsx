@@ -9,7 +9,6 @@ import {
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ButtonLoading } from "@/components/loading";
 import { usePackagingForm } from "../../hooks/use-packaging-form";
@@ -31,7 +30,6 @@ export function PackagingDialog({
   const {
     form,
     t,
-    tCommon,
     tValidation,
     isEditing,
     isSubmitting,
@@ -40,15 +38,8 @@ export function PackagingDialog({
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
-
-
-
-  const isActive = watch("is_active");
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -72,20 +63,6 @@ export function PackagingDialog({
               {...register("description")}
             />
             {errors.description && <FieldError>{tValidation("maxLength")}</FieldError>}
-          </Field>
-
-          <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <FieldLabel>{t("form.isActive")}</FieldLabel>
-              <p className="text-sm text-muted-foreground">
-                {tCommon("active")} / {tCommon("inactive")} status
-              </p>
-            </div>
-            <Switch
-              checked={isActive}
-              onCheckedChange={(val) => setValue("is_active", val)}
-              className="cursor-pointer"
-            />
           </Field>
 
           <div className="flex justify-end gap-2 pt-4">

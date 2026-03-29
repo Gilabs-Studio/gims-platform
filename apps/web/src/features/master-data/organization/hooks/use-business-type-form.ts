@@ -11,11 +11,18 @@ export interface UseBusinessTypeFormProps {
   open: boolean;
   onClose: () => void;
   businessType?: BusinessType | null;
+  initialData?: { name?: string };
   /** Called after a successful create with the newly created item's id and name */
   onCreated?: (item: { id: string; name: string }) => void;
 }
 
-export function useBusinessTypeForm({ open, onClose, businessType, onCreated }: UseBusinessTypeFormProps) {
+export function useBusinessTypeForm({
+  open,
+  onClose,
+  businessType,
+  initialData,
+  onCreated,
+}: UseBusinessTypeFormProps) {
   const t = useTranslations("organization");
   const isEditing = !!businessType;
 
@@ -37,17 +44,17 @@ export function useBusinessTypeForm({ open, onClose, businessType, onCreated }: 
         form.reset({
           name: businessType.name,
           description: businessType.description ?? "",
-          is_active: businessType.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
-          name: "",
+          name: initialData?.name ?? "",
           description: "",
           is_active: true,
         });
       }
     }
-  }, [open, businessType, form]);
+  }, [open, businessType, form, initialData?.name]);
 
   const onSubmit: SubmitHandler<BusinessTypeFormData> = async (data) => {
     try {

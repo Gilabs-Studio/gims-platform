@@ -41,6 +41,26 @@ func SeedCustomerTypes() error {
 func SeedCustomers() error {
 	log.Println("Seeding customers...")
 
+	// Minimal mode: seed only one customer for traceable sales flows.
+	if isMinimalSeedMode() {
+		db := database.DB
+		adminID := AdminEmployeeID
+		customer := models.Customer{
+			ID:        Customer1ID,
+			Code:      "CUST-MIN-001",
+			Name:      "PT. Minimal Customer",
+			CreatedBy: &adminID,
+			IsActive:  true,
+		}
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"code", "name", "created_by", "is_active", "updated_at"}),
+		}).Create(&customer).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 	adminID := AdminEmployeeID
 

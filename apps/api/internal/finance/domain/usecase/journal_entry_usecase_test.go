@@ -169,8 +169,10 @@ func (s stubChartOfAccountRepository) FindByCode(context.Context, string) (*fina
 }
 
 type stubFinanceReportRepository struct {
-	balances []repositories.GLAccountBalance
-	lines    []financeModels.JournalLine
+	balances       []repositories.GLAccountBalance
+	lines          []financeModels.JournalLine
+	netProfit      float64
+	getNetProfitFn func(startDate, endDate time.Time) float64
 }
 
 func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Time, time.Time, *string) ([]repositories.GLAccountBalance, error) {
@@ -179,6 +181,13 @@ func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Ti
 
 func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string) ([]financeModels.JournalLine, error) {
 	return s.lines, nil
+}
+
+func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string) (float64, error) {
+	if s.getNetProfitFn != nil {
+		return s.getNetProfitFn(startDate, endDate), nil
+	}
+	return s.netProfit, nil
 }
 
 func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t *testing.T) {
@@ -197,8 +206,8 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 		{ChartOfAccountID: "zero-1", ClosingBalance: 0},
 	}}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
+	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
 
 	require.NoError(t, err)
 	require.Len(t, res.Assets, 1)
@@ -207,6 +216,8 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 	require.Equal(t, 1500.0, res.AssetTotal)
 	require.Equal(t, 500.0, res.LiabilityTotal)
 	require.Equal(t, 1000.0, res.EquityTotal)
+	require.Equal(t, 0.0, res.CurrentYearProfit)
+	require.Equal(t, 1000.0, res.EquityTotalFinal)
 	require.Equal(t, 1500.0, res.LiabilityEquity)
 }
 
@@ -224,13 +235,77 @@ func TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements(t *test
 		{ChartOfAccountID: "asset-1", DebitTotal: 1500, CreditTotal: 300},
 	}}
 
-	uc := NewFinanceReportUsecase(coaRepo, reportRepo)
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
 	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil)
 
 	require.NoError(t, err)
 	require.Len(t, res.Revenues, 1)
 	require.Len(t, res.Expenses, 1)
 	require.Equal(t, 1500.0, res.RevenueTotal)
+	require.Equal(t, 0.0, res.COGSTotal)
 	require.Equal(t, 300.0, res.ExpenseTotal)
+	require.Equal(t, 1500.0, res.GrossProfit)
 	require.Equal(t, 1200.0, res.NetProfit)
+	require.Equal(t, 100.0, res.GrossMargin)
+	require.Equal(t, 80.0, res.NetMargin)
+	require.Equal(t, 20.0, res.ExpenseRatio)
+}
+
+func TestFinanceReportUsecase_ShouldRespectIncludeZeroFlag_InBalanceSheet(t *testing.T) {
+	t.Parallel()
+
+	coaRepo := stubChartOfAccountRepository{items: []financeModels.ChartOfAccount{
+		{ID: "asset-1", Code: "11100", Name: "Cash", Type: financeModels.AccountTypeAsset},
+		{ID: "asset-2", Code: "11200", Name: "Inventory", Type: financeModels.AccountTypeAsset},
+	}}
+	reportRepo := stubFinanceReportRepository{balances: []repositories.GLAccountBalance{
+		{ChartOfAccountID: "asset-1", ClosingBalance: 100},
+		{ChartOfAccountID: "asset-2", ClosingBalance: 0},
+	}}
+
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
+	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
+	require.NoError(t, err)
+	require.Len(t, hideZero.Assets, 1)
+
+	showZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, true)
+	require.NoError(t, err)
+	require.Len(t, showZero.Assets, 2)
+}
+
+func TestFinanceReportUsecase_ShouldComposeFinalEquity_FromRetainedAndCurrentProfit(t *testing.T) {
+	t.Parallel()
+
+	endDate := time.Date(2026, time.March, 31, 0, 0, 0, 0, time.UTC)
+	yearStart := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	coaRepo := stubChartOfAccountRepository{items: []financeModels.ChartOfAccount{
+		{ID: "asset-1", Code: "11100", Name: "Cash", Type: financeModels.AccountTypeAsset},
+		{ID: "liab-1", Code: "21100", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability},
+		{ID: "equity-1", Code: "31100", Name: "Capital", Type: financeModels.AccountTypeEquity},
+	}}
+	reportRepo := stubFinanceReportRepository{
+		balances: []repositories.GLAccountBalance{
+			{ChartOfAccountID: "asset-1", ClosingBalance: 1800},
+			{ChartOfAccountID: "liab-1", ClosingBalance: 500},
+			{ChartOfAccountID: "equity-1", ClosingBalance: 700},
+		},
+		getNetProfitFn: func(startDate, _ time.Time) float64 {
+			if startDate.Equal(yearStart) {
+				return 400 // current-year profit
+			}
+			return 200 // retained earnings
+		},
+	}
+
+	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
+	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, false)
+	require.NoError(t, err)
+	require.Equal(t, 700.0, res.EquityTotal)
+	require.Equal(t, 200.0, res.RetainedEarnings)
+	require.Equal(t, 400.0, res.CurrentYearProfit)
+	require.Equal(t, 1300.0, res.EquityTotalFinal)
+	require.Equal(t, 1800.0, res.AssetTotal)
+	require.Equal(t, 1800.0, res.LiabilityEquity)
+	require.True(t, res.IsBalanced)
 }

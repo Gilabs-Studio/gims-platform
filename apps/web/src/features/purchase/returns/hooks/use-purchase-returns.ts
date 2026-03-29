@@ -11,6 +11,8 @@ export const purchaseReturnsKeys = {
   list: (params?: PurchaseReturnListParams) => [...purchaseReturnsKeys.lists(), params] as const,
   details: () => [...purchaseReturnsKeys.all, "detail"] as const,
   detail: (id: string) => [...purchaseReturnsKeys.details(), id] as const,
+  auditTrail: (id: string, params?: { page?: number; per_page?: number }) =>
+    [...purchaseReturnsKeys.all, "audit-trail", id, params] as const,
   formData: () => [...purchaseReturnsKeys.all, "form-data"] as const,
   warehouseAvailability: (warehouseId?: string) => [...purchaseReturnsKeys.all, "warehouse-availability", warehouseId] as const,
 };
@@ -95,5 +97,17 @@ export function useDeletePurchaseReturn() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
     },
+  });
+}
+
+export function usePurchaseReturnAuditTrail(
+  id: string,
+  params?: { page?: number; per_page?: number },
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: purchaseReturnsKeys.auditTrail(id, params),
+    queryFn: () => purchaseReturnsService.auditTrail(id, params),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }

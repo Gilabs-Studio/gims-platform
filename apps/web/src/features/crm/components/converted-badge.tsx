@@ -79,7 +79,7 @@ export function ConvertedBadge({
                   config.compactClassName,
                 )}
               >
-                <ExternalLink className="!size-2.5" />
+                <ExternalLink className="size-2.5!" />
                 {t(config.labelKey)}
               </Badge>
             </Link>
@@ -106,7 +106,7 @@ export function ConvertedBadge({
                 config.className,
               )}
             >
-              <ExternalLink className="!size-3" />
+              <ExternalLink className="size-3!" />
               {t(config.labelKey)}: {targetLabel}
             </Badge>
           </Link>

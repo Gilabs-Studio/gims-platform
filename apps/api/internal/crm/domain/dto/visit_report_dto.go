@@ -289,7 +289,6 @@ type VisitReportFormDataResponse struct {
 	Deals             []VisitFormDataDeal              `json:"deals"`
 	Leads             []VisitFormDataLead              `json:"leads"`
 	Products          []VisitFormDataProduct           `json:"products"`
-	InterestQuestions []VisitInterestQuestionResponse  `json:"interest_questions"`
 	Outcomes          []VisitFormDataOption             `json:"outcomes"`
 	Statuses          []VisitFormDataOption             `json:"statuses"`
 }

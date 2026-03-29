@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -15,7 +16,10 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+const maxEmployeeCodeGenerationAttempts = 5
 
 var (
 	ErrEmployeeNotFound          = errors.New("employee not found")
@@ -143,24 +147,14 @@ func NewEmployeeUsecase(
 
 func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequest, createdBy string) (dto.EmployeeResponse, error) {
 	// Generate EmployeeCode if not provided
-	employeeCode := req.EmployeeCode
-	if employeeCode == "" {
-		lastCode, err := u.employeeRepo.GetLastEmployeeCode(ctx)
-		if err != nil {
-			return dto.EmployeeResponse{}, fmt.Errorf("failed to get last employee code: %w", err)
-		}
+	employeeCode := strings.TrimSpace(req.EmployeeCode)
 
-		var lastNumber int
-		if lastCode != "" && len(lastCode) > 4 {
-			fmt.Sscanf(lastCode, "EMP-%d", &lastNumber)
+	// Check if user-provided employee code already exists
+	if employeeCode != "" {
+		existing, _ := u.employeeRepo.FindByCode(ctx, employeeCode)
+		if existing != nil {
+			return dto.EmployeeResponse{}, ErrEmployeeCodeExists
 		}
-		employeeCode = fmt.Sprintf("EMP-%03d", lastNumber+1)
-	}
-
-	// Check if employee code already exists
-	existing, _ := u.employeeRepo.FindByCode(ctx, employeeCode)
-	if existing != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeCodeExists
 	}
 
 	// Validate replacement employee if specified
@@ -212,8 +206,36 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		IsActive:         isActive,
 	}
 
-	if err := u.employeeRepo.Create(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
+	if employeeCode == "" {
+		created := false
+		for attempt := 0; attempt < maxEmployeeCodeGenerationAttempts; attempt++ {
+			nextCode, err := u.getNextEmployeeCode(ctx)
+			if err != nil {
+				return dto.EmployeeResponse{}, fmt.Errorf("failed to get next employee code: %w", err)
+			}
+
+			employee.EmployeeCode = nextCode
+			if err := u.employeeRepo.Create(ctx, employee); err != nil {
+				if isEmployeeCodeUniqueViolation(err) {
+					continue
+				}
+				return dto.EmployeeResponse{}, err
+			}
+
+			created = true
+			break
+		}
+
+		if !created {
+			return dto.EmployeeResponse{}, fmt.Errorf("failed to generate unique employee code after %d attempts", maxEmployeeCodeGenerationAttempts)
+		}
+	} else {
+		if err := u.employeeRepo.Create(ctx, employee); err != nil {
+			if isEmployeeCodeUniqueViolation(err) {
+				return dto.EmployeeResponse{}, ErrEmployeeCodeExists
+			}
+			return dto.EmployeeResponse{}, err
+		}
 	}
 
 	// Create initial contract if provided
@@ -300,6 +322,29 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 	latestCert, _ := u.GetLatestCertification(ctx, employee.ID)
 
 	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
+}
+
+func (u *employeeUsecase) getNextEmployeeCode(ctx context.Context) (string, error) {
+	lastCode, err := u.employeeRepo.GetLastEmployeeCode(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var lastNumber int
+	if lastCode != "" && len(lastCode) > 4 {
+		_, _ = fmt.Sscanf(lastCode, "EMP-%d", &lastNumber)
+	}
+
+	return fmt.Sprintf("EMP-%03d", lastNumber+1), nil
+}
+
+func isEmployeeCodeUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" && pgErr.ConstraintName == "idx_employees_employee_code"
+	}
+
+	return false
 }
 
 func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error) {

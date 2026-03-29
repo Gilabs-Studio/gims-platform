@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
@@ -69,6 +69,16 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseRequisitionPrintDialog } from "./purchase-requisition-print-dialog";
 
+function getInitialOpenPurchaseRequisitionFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const openRequisitionId = searchParams.get("open_purchase_requisition");
+  return openRequisitionId;
+}
+
 export function PurchaseRequisitionsList() {
   const t = useTranslations("purchaseRequisition");
   const tCommon = useTranslations("common");
@@ -83,7 +93,7 @@ export function PurchaseRequisitionsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseRequisitionFromURL);
   const [printingId, setPrintingId] = useState<string | null>(null);
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<PurchaseRequisitionListItem["supplier"] | null>(null);
@@ -105,6 +115,26 @@ export function PurchaseRequisitionsList() {
   const hasPurchaseOrderRead = useUserPermission("purchase_order.read");
   const purchaseOrderScope = usePermissionScope("purchase_order.read");
   const { user } = useAuthStore();
+
+  // Auto-open detail modal when detailId is set from URL query param
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  // Clear URL query param after modal is opened
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_purchase_requisition")) return;
+
+    searchParams.delete("open_purchase_requisition");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const { data, isLoading, isError } = usePurchaseRequisitions({
     page,

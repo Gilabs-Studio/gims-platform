@@ -94,6 +94,17 @@ export const crmVisitReportId = {
       approvalNotes: "Catatan",
       approvalNotesPlaceholder: "Catatan tambahan (opsional)",
     },
+    surveyQuestions: {
+      need: "Apakah pelanggan memiliki kebutuhan yang jelas untuk produk ini?",
+      budget: "Apakah anggaran sudah dikonfirmasi?",
+      decisionMaker: "Apakah pengambil keputusan terlibat?",
+      timeline: "Apakah timeline pembelian sudah ditentukan?",
+      fit: "Apakah solusi kami cocok dengan kebutuhan mereka?",
+    },
+    surveyAnswers: {
+      yes: "Ya",
+      no: "Tidak",
+    },
     actions: {
       checkIn: "Check In",
       checkOut: "Check Out",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Edit, Trash2, Package, Truck, CheckCircle2, XCircle, Clock, Send, Receipt } from "lucide-react";
+import { Edit, Package, Truck, CheckCircle2, XCircle, Clock, Send, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -256,7 +256,6 @@ export function DeliveryDetailModal({
               <div className="flex-1">
                 <DialogTitle className="text-xl mb-2">{displayDelivery?.code ?? t("common.view")}</DialogTitle>
                 <div className="flex items-center gap-3">
-                  {delivery && getStatusBadge(delivery.status)}
                   {hasSalesReturn && (
                     <Badge variant="warning" className="text-xs font-medium">
                       <Receipt className="h-3 w-3 mr-1.5" />
@@ -370,17 +369,6 @@ export function DeliveryDetailModal({
                     disabled={updateStatus.isPending}
                   >
                     <Package className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && delivery?.status === "draft" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("common.delete")}
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
                 {displayDelivery?.status === "prepared" && canShip && (
@@ -734,14 +722,16 @@ export function DeliveryDetailModal({
         />
       )}
 
-      <DeleteDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
-        title={t("delete")}
-        description={t("deleteDesc")}
-        isLoading={deleteDelivery.isPending}
-      />
+      {canDelete && (
+        <DeleteDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleDelete}
+          title={t("delete")}
+          description={t("deleteDesc")}
+          isLoading={deleteDelivery.isPending}
+        />
+      )}
 
       {delivery && (
         <>

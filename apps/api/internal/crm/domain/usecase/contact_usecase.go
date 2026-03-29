@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -96,6 +98,9 @@ func (u *contactUsecase) Create(ctx context.Context, req dto.CreateContactReques
 }
 
 func (u *contactUsecase) GetByID(ctx context.Context, id string) (dto.ContactResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Contact{}, id, security.DefaultScopeQueryOptions()) {
+		return dto.ContactResponse{}, errors.New("contact not found")
+	}
 	contact, err := u.contactRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.ContactResponse{}, err

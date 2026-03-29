@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { LocationPicker } from "../../../geographic/components/location-picker";
 
 import { useCreateWarehouse, useUpdateWarehouse, useWarehouse } from "../../hooks/use-warehouses";
@@ -121,7 +120,7 @@ export function WarehouseSidePanel({
           village_name: entity.village_name ?? "",
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
-          is_active: entity.is_active,
+          is_active: true,
         });
       });
     } else if (mode === "create") {
@@ -157,7 +156,7 @@ export function WarehouseSidePanel({
             village_name: data.village_name || undefined,
             latitude: data.latitude,
             longitude: data.longitude,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("warehouse.updateSuccess"));
@@ -174,7 +173,7 @@ export function WarehouseSidePanel({
           village_name: data.village_name || undefined,
           latitude: data.latitude,
           longitude: data.longitude,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("warehouse.createSuccess"));
       }
@@ -249,24 +248,7 @@ export function WarehouseSidePanel({
               />
             </Field>
 
-            {!isViewing && (
-              <Controller
-                control={control}
-                name="is_active"
-                render={({ field }) => (
-                  <Field
-                    orientation="horizontal"
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <FieldLabel>{t("warehouse.form.isActive")}</FieldLabel>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </Field>
-                )}
-              />
-            )}
+
           </div>
 
           {/* Location Section */}

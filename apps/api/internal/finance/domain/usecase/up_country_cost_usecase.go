@@ -3,15 +3,21 @@ package usecase
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
 )
 
@@ -37,15 +43,33 @@ type UpCountryCostUsecase interface {
 }
 
 type upCountryCostUsecase struct {
-	db        *gorm.DB
-	coaRepo   repositories.ChartOfAccountRepository
-	repo      repositories.UpCountryCostRepository
-	journalUC JournalEntryUsecase
-	mapper    *mapper.UpCountryCostMapper
+	db               *gorm.DB
+	coaRepo          repositories.ChartOfAccountRepository
+	repo             repositories.UpCountryCostRepository
+	journalUC        JournalEntryUsecase
+	mapper           *mapper.UpCountryCostMapper
+	settingsService  financesettings.SettingsService
+	accountingEngine accounting.AccountingEngine
 }
 
-func NewUpCountryCostUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.UpCountryCostRepository, journalUC JournalEntryUsecase, mapper *mapper.UpCountryCostMapper) UpCountryCostUsecase {
-	return &upCountryCostUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
+func NewUpCountryCostUsecase(
+	db *gorm.DB,
+	coaRepo repositories.ChartOfAccountRepository,
+	repo repositories.UpCountryCostRepository,
+	journalUC JournalEntryUsecase,
+	mapper *mapper.UpCountryCostMapper,
+	settingsService financesettings.SettingsService,
+	accountingEngine accounting.AccountingEngine,
+) UpCountryCostUsecase {
+	return &upCountryCostUsecase{
+		db:               db,
+		coaRepo:          coaRepo,
+		repo:             repo,
+		journalUC:        journalUC,
+		mapper:           mapper,
+		settingsService:  settingsService,
+		accountingEngine: accountingEngine,
+	}
 }
 
 func (uc *upCountryCostUsecase) Create(ctx context.Context, req *dto.CreateUpCountryCostRequest) (*dto.UpCountryCostResponse, error) {
@@ -198,6 +222,9 @@ func (uc *upCountryCostUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (uc *upCountryCostUsecase) GetByID(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.UpCountryCost{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+		return nil, ErrUpCountryCostNotFound
+	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		return nil, err
@@ -296,6 +323,16 @@ func (uc *upCountryCostUsecase) Submit(ctx context.Context, id string) (*dto.UpC
 	item.Status = financeModels.UpCountryCostStatusSubmitted
 	item.SubmittedAt = &now
 	item.SubmittedBy = &actorID
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "up_country_cost.approve",
+		EntityType:     "up_country_cost",
+		EntityID:       item.ID,
+		Title:          "Up Country Cost Approval",
+		Message:        "An up country cost request has been submitted and requires your approval.",
+		ActorUserID:    actorID,
+	}); err != nil {
+		log.Printf("warning: failed to create up country cost notification: %v", err)
+	}
 	res := uc.mapper.ToResponse(item)
 	return &res, nil
 }
@@ -314,41 +351,23 @@ func (uc *upCountryCostUsecase) ManagerApprove(ctx context.Context, id string) (
 	actorID = strings.TrimSpace(actorID)
 	now := apptime.Now()
 
-	// Create journal entry on manager approval
-	expCoA, err := uc.coaRepo.FindByCode(ctx, COACodeTravelExpense)
-	if err != nil {
-		return nil, fmt.Errorf("travel expense account (code %s) not found in Chart of Accounts: %w", COACodeTravelExpense, err)
-	}
-	payableCoA, err := uc.coaRepo.FindByCode(ctx, COACodeAccruedExpense)
-	if err != nil {
-		return nil, fmt.Errorf("accrued expense account (code %s) not found in Chart of Accounts: %w", COACodeAccruedExpense, err)
-	}
-
 	var total float64
 	for _, it := range item.Items {
 		total += it.Amount
 	}
 
-	refType := "up_country"
-	journalReq := &dto.CreateJournalEntryRequest{
+	txData := accounting.TransactionData{
+		ReferenceType: reference.RefTypeUpCountryCost,
+		ReferenceID:   item.ID,
 		EntryDate:     now.Format("2006-01-02"),
 		Description:   "Up-Country Cost Approval: " + item.Code + " - " + item.Purpose,
-		ReferenceType: &refType,
-		ReferenceID:   &item.ID,
-		Lines: []dto.JournalLineRequest{
-			{
-				ChartOfAccountID: expCoA.ID,
-				Debit:            total,
-				Credit:           0,
-				Memo:             "Travel Expense",
-			},
-			{
-				ChartOfAccountID: payableCoA.ID,
-				Debit:            0,
-				Credit:           total,
-				Memo:             "Reimbursement payable",
-			},
-		},
+		TotalAmount:   total,
+		MemoArgs:      []interface{}{item.Purpose},
+	}
+
+	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileUpCountryApproval, txData)
+	if err != nil {
+		return nil, err
 	}
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
 	if err != nil {
@@ -356,13 +375,13 @@ func (uc *upCountryCostUsecase) ManagerApprove(ctx context.Context, id string) (
 	}
 
 	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":                financeModels.UpCountryCostStatusManagerApproved,
-		"manager_approved_at":   &now,
-		"manager_approved_by":   &actorID,
-		"manager_comment":       "",
+		"status":              financeModels.UpCountryCostStatusManagerApproved,
+		"manager_approved_at": &now,
+		"manager_approved_by": &actorID,
+		"manager_comment":     "",
 		// legacy fields
-		"approved_at":           &now,
-		"approved_by":           &actorID,
+		"approved_at": &now,
+		"approved_by": &actorID,
 	}).Error; err != nil {
 		return nil, err
 	}

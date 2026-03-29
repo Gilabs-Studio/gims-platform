@@ -48,7 +48,7 @@ export function useAreaForm({ open, onClose, area }: UseAreaFormProps) {
         form.reset({
           name: area.name,
           description: area.description ?? "",
-          is_active: area.is_active,
+          is_active: true,
           code: area.code ?? "",
           color: area.color ?? DEFAULT_COLOR,
           manager_id: area.manager_id ?? "",

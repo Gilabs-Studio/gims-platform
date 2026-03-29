@@ -23,6 +23,10 @@ export const purchasePaymentEn = {
     invoiceInfo: "Invoice Information",
     paymentDetails: "Payment Details",
   },
+  tabs: {
+    general: "General",
+    auditTrail: "Audit Trail",
+  },
   status: {
     pending: "Pending",
     confirmed: "Confirmed",

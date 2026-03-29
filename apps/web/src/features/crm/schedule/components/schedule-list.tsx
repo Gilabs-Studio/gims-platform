@@ -44,7 +44,7 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 
 export function ScheduleList() {
   const { state, actions, permissions, translations } = useScheduleList();
-  const { t, tCommon } = translations;
+  const { t } = translations;
   const { state: calendarState, data: calendarData, actions: calendarActions } = useScheduleCalendarView(
     state.statusFilter,
   );

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
 )
@@ -49,6 +50,7 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&models.SalesReturn{}).Preload("Items")
+	q = security.ApplyScopeFilter(q, ctx, security.SalesScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"

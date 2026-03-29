@@ -5,6 +5,19 @@ import type { LoginFormData } from "../schemas/login.schema";
 import type { AuthError } from "../types/errors";
 import { useState } from "react";
 
+function getSafeLoginErrorMessage(error: AuthError): string {
+  const status = error.response?.status;
+  if (status && status >= 500) {
+    return "Login failed. Please try again.";
+  }
+
+  return (
+    error.response?.data?.error?.message ||
+    error.message ||
+    "Login failed"
+  );
+}
+
 export function useLogin() {
   const router = useRouter();
   const {
@@ -57,10 +70,7 @@ export function useLogin() {
       }
     } catch (err) {
       const authError = err as AuthError;
-      const errorMessage =
-        authError.response?.data?.error?.message ||
-        authError.message ||
-        "Login failed";
+      const errorMessage = getSafeLoginErrorMessage(authError);
       setError(errorMessage);
       useAuthStore.setState({ isAuthenticated: false, error: errorMessage });
       setIsLoading(false);

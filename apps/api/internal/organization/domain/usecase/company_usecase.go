@@ -3,9 +3,12 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
@@ -193,6 +196,17 @@ func (u *companyUsecase) SubmitForApproval(ctx context.Context, id string) (*dto
 	company.Status = models.CompanyStatusPending
 	if err := u.companyRepo.Update(ctx, company); err != nil {
 		return nil, err
+	}
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+		PermissionCode: "company.approve",
+		EntityType:     "company",
+		EntityID:       company.ID,
+		Title:          "Company Approval",
+		Message:        "A company record has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create company notification: %v", err)
 	}
 
 	// Reload with village
