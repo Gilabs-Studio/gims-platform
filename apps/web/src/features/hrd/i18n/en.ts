@@ -84,24 +84,11 @@ export const hrdEn = {
 
       // Status
       status: {
-        present: "Present",
-        absent: "Absent",
-        late: "Late",
-        early_leave: "Early Leave",
-        half_day: "Half Day",
-        holiday: "Holiday",
-        leave: "On Leave",
-        wfh: "Work From Home",
-        off_day: "Off Day",
-        PRESENT: "Present",
-        ABSENT: "Absent",
-        LATE: "Late",
-        EARLY_LEAVE: "Early Leave",
-        HALF_DAY: "Half Day",
+        PENDING: "Pending",
+        APPROVED: "Approved",
+        REJECTED: "Rejected",
+        CANCELED: "Canceled",
         HOLIDAY: "Holiday",
-        LEAVE: "On Leave",
-        WFH: "Work From Home",
-        OFF_DAY: "Off Day",
       },
 
       // Check-in type
@@ -199,8 +186,10 @@ export const hrdEn = {
         createSuccess: "Attendance record created successfully",
         updateSuccess: "Attendance record updated successfully",
         deleteSuccess: "Attendance record deleted successfully",
-        deleteConfirm: "Are you sure you want to delete this attendance record?",
-        deleteConfirmDesc: "This action cannot be undone. The attendance record will be permanently removed.",
+        deleteConfirm:
+          "Are you sure you want to delete this attendance record?",
+        deleteConfirmDesc:
+          "This action cannot be undone. The attendance record will be permanently removed.",
         locationRequired: "Location access is required for clock in/out",
         outsideRadius: "You are outside the allowed location radius",
         alreadyClockedIn: "You have already clocked in today",
@@ -226,7 +215,8 @@ export const hrdEn = {
       // Stats
       stats: {
         totalRecords: "Total Records",
-        totalRecordsDescription: "Total attendance entries for the current period",
+        totalRecordsDescription:
+          "Total attendance entries for the current period",
         totalWorkingDays: "Working Days",
         presentDays: "Present",
         absentDays: "Absent",
@@ -234,7 +224,8 @@ export const hrdEn = {
         leaveDays: "Leave",
         halfDays: "Half Day",
         totalWorkingHours: "Working Hours",
-        totalWorkingHoursDescription: "Total hours worked across all attendance records",
+        totalWorkingHoursDescription:
+          "Total hours worked across all attendance records",
         totalOvertimeHours: "Overtime Hours",
         totalOvertimeDescription: "Total overtime hours across records",
         totalLateMinutes: "Late Minutes",
@@ -245,7 +236,8 @@ export const hrdEn = {
       // Late clock-in dialog
       lateDialog: {
         title: "Late Clock-In",
-        description: "You are {minutes} minutes late. Please provide a reason for your late arrival.",
+        description:
+          "You are {minutes} minutes late. Please provide a reason for your late arrival.",
         reasonLabel: "Reason for being late",
         reasonPlaceholder: "Explain the reason for your late arrival...",
         cancel: "Cancel",
@@ -255,14 +247,17 @@ export const hrdEn = {
       // Camera photo proof dialog
       cameraDialog: {
         title: "Photo Proof Required",
-        description_WFH: "Please take a selfie as proof for your Work From Home attendance.",
-        description_FIELD_WORK: "Please take a selfie as proof for your Field Work attendance.",
+        description_WFH:
+          "Please take a selfie as proof for your Work From Home attendance.",
+        description_FIELD_WORK:
+          "Please take a selfie as proof for your Field Work attendance.",
         capture: "Take Photo",
         retake: "Retake",
         confirm: "Use Photo & Clock In",
         cancel: "Cancel",
         retry: "Try Again",
-        permissionDenied: "Camera permission was denied. Please allow camera access in your browser settings.",
+        permissionDenied:
+          "Camera permission was denied. Please allow camera access in your browser settings.",
         notAvailable: "Camera is not available on this device.",
         uploading: "Uploading...",
         uploadFailed: "Failed to upload photo. Please try again.",
@@ -271,7 +266,8 @@ export const hrdEn = {
       // Geolocation / location permission
       location: {
         permissionDenied: "Location access denied",
-        enableInSettings: "Please enable location access in your browser settings to clock in/out.",
+        enableInSettings:
+          "Please enable location access in your browser settings to clock in/out.",
         permissionPrompt: "Location access is needed for attendance.",
         enable: "Enable",
         denied: "Location denied",
@@ -279,37 +275,40 @@ export const hrdEn = {
         notAtOffice: "Not at office ({distance}m away)",
         requestPermission: "Enable Location Access",
         openSettings: "Location Settings",
-        deniedInstructions: "Location access was blocked. To enable it: click the lock/tune icon in the address bar → Site settings → Location → Allow, then reload the page.",
+        deniedInstructions:
+          "Location access was blocked. To enable it: click the lock/tune icon in the address bar → Site settings → Location → Allow, then reload the page.",
         settingsDialog: {
           title: "Location Access Blocked",
-          description: "Location access has been denied by your browser. Follow the steps below to enable it, then reload the page.",
+          description:
+            "Location access has been denied by your browser. Follow the steps below to enable it, then reload the page.",
           stepsTitle: "Steps for {browser}",
-          addressBarHint: "Look for the lock/tune icon at the left side of the address bar — click it to quickly access site permissions.",
+          addressBarHint:
+            "Look for the lock/tune icon at the left side of the address bar — click it to quickly access site permissions.",
           retryPermission: "Retry Permission",
           reloadPage: "Reload Page",
           steps_chrome: {
             1: "Click the lock/tune icon (🔒) at the left of the address bar",
-            2: "Find \"Location\" in the permissions list and set it to \"Allow\"",
-            3: "Click \"Reload\" or press the button below to apply changes",
+            2: 'Find "Location" in the permissions list and set it to "Allow"',
+            3: 'Click "Reload" or press the button below to apply changes',
           },
           steps_edge: {
             1: "Click the lock icon (🔒) at the left of the address bar",
-            2: "Find \"Location\" and change it to \"Allow\"",
-            3: "Click \"Reload\" or press the button below to apply changes",
+            2: 'Find "Location" and change it to "Allow"',
+            3: 'Click "Reload" or press the button below to apply changes',
           },
           steps_firefox: {
             1: "Click the lock icon (🔒) at the left of the address bar",
-            2: "Click \"Clear cookies and site data\" or go to \"Permissions\" → \"Access Your Location\" → remove the block",
+            2: 'Click "Clear cookies and site data" or go to "Permissions" → "Access Your Location" → remove the block',
             3: "Reload the page using the button below",
           },
           steps_safari: {
             1: "Go to Safari menu → Settings → Websites → Location",
-            2: "Find this website and change permission to \"Allow\"",
+            2: 'Find this website and change permission to "Allow"',
             3: "Close Settings and reload the page using the button below",
           },
           steps_other: {
             1: "Open your browser's site settings or permissions",
-            2: "Find \"Location\" permission and set it to \"Allow\" for this site",
+            2: 'Find "Location" permission and set it to "Allow" for this site',
             3: "Reload the page using the button below",
           },
         },
@@ -365,10 +364,13 @@ export const hrdEn = {
       },
 
       descriptions: {
-        flexible: "Enable flexible working hours with a range of allowed start and end times",
+        flexible:
+          "Enable flexible working hours with a range of allowed start and end times",
         gps: "Require employees to clock in/out within the specified GPS radius of the office",
-        division: "Assign this schedule to a specific division, or leave empty for a general schedule",
-        officeLocation: "Select a company to use its GPS coordinates for attendance verification",
+        division:
+          "Assign this schedule to a specific division, or leave empty for a general schedule",
+        officeLocation:
+          "Select a company to use its GPS coordinates for attendance verification",
       },
 
       placeholders: {
@@ -449,7 +451,8 @@ export const hrdEn = {
         updateSuccess: "Holiday updated successfully",
         deleteSuccess: "Holiday deleted successfully",
         importSuccess: "Holidays imported successfully: {count} entries",
-        importPartial: "Import completed: {imported} imported, {skipped} skipped",
+        importPartial:
+          "Import completed: {imported} imported, {skipped} skipped",
         deleteConfirm: "Are you sure you want to delete this holiday?",
       },
     },
@@ -461,54 +464,38 @@ export const hrdEn = {
       myRequests: "My Overtime Requests",
       pending: "Pending Approval",
       summary: "Overtime Summary",
-
-      types: {
-        AUTO_DETECTED: "Auto-detected",
-        MANUAL_CLAIM: "Manual Claim",
-        PRE_APPROVED: "Pre-approved",
+      calendarView: "Calendar",
+      listView: "List",
+      today: "Today",
+      clear: "Clear",
+      noRecordsForDate: "No overtime requests for this date",
+      backToCalendar: "Back to Calendar",
+      records: "records",
+      calendar: {
+        hasOvertime: "Has Overtime",
+        noOvertime: "No Overtime",
+        more: "more",
       },
 
-      status: {
-        PENDING: "Pending",
-        APPROVED: "Approved",
-        REJECTED: "Rejected",
-        CANCELED: "Canceled",
-      },
-
-      fields: {
-        date: "Date",
-        startTime: "Start Time",
-        endTime: "End Time",
-        requestedMinutes: "Requested (min)",
-        approvedMinutes: "Approved (min)",
-        rateMultiplier: "Rate",
-        reason: "Reason",
-        type: "Type",
-        status: "Status",
-        approvedBy: "Approved By",
-        approvedAt: "Approved At",
-        rejectionReason: "Rejection Reason",
-        employee: "Employee",
-      },
-
-      actions: {
-        create: "Request Overtime",
-        edit: "Edit Request",
-        cancel: "Cancel Request",
-        approve: "Approve",
-        reject: "Reject",
-        viewDetails: "View Details",
+      form: {
+        employeeInfo: "Employee Information",
+        overtimeDetails: "Overtime Details",
+        reasonAndNotes: "Reason & Notes",
+        selectEmployee: "Select employee",
+        submit: "Submit Request",
       },
 
       messages: {
         createSuccess: "Overtime request submitted successfully",
         updateSuccess: "Overtime request updated successfully",
+        deleteSuccess: "Overtime request deleted successfully",
         cancelSuccess: "Overtime request canceled",
         approveSuccess: "Overtime request approved",
         rejectSuccess: "Overtime request rejected",
         cancelConfirm: "Are you sure you want to cancel this overtime request?",
         rejectConfirm: "Please provide a reason for rejection",
-        autoDetectedInfo: "This overtime was automatically detected based on your clock out time",
+        autoDetectedInfo:
+          "This overtime was automatically detected based on your clock out time",
       },
 
       stats: {
@@ -519,6 +506,85 @@ export const hrdEn = {
         rejectedCount: "Rejected",
         autoDetectedCount: "Auto-detected",
         manualClaimCount: "Manual Claims",
+      },
+
+      types: {
+        AUTO_DETECTED: "Auto Detected",
+        MANUAL_CLAIM: "Manual Claim",
+        PRE_APPROVED: "Pre Approved",
+      },
+
+      status: {
+        PENDING: "Pending",
+        APPROVED: "Approved",
+        REJECTED: "Rejected",
+        CANCELED: "Canceled",
+        HOLIDAY: "Holiday",
+      },
+
+      fields: {
+        employee: "Employee",
+        date: "Date",
+        startTime: "Start Time",
+        endTime: "End Time",
+        duration: "Duration",
+        planned: "Planned",
+        actual: "Actual",
+        requestedMinutes: "Requested (minutes)",
+        approvedMinutes: "Approved (minutes)",
+        minutes: "minutes",
+        rateMultiplier: "Rate",
+        reason: "Reason",
+        description: "Description",
+        type: "Type",
+        status: "Status",
+        approvedBy: "Approved By",
+        approvedAt: "Approved At",
+        rejectedBy: "Rejected By",
+        rejectionReason: "Rejection Reason",
+        division: "Division",
+        taskDetails: "Task Details",
+      },
+
+      actions: {
+        add: "Add Overtime",
+        create: "Request Overtime",
+        edit: "Edit Request",
+        cancel: "Cancel Request",
+        approve: "Approve",
+        reject: "Reject",
+        viewDetails: "View Details",
+        submit: "Submit Request",
+      },
+
+      filters: {
+        search: "Search employee or reason...",
+        status: "Status",
+        allStatus: "All Status",
+        month: "Month",
+        year: "Year",
+      },
+
+      empty: {
+        noRecords: "No overtime requests found",
+      },
+
+      detail: {
+        title: "Overtime Request Details",
+      },
+
+      delete: {
+        title: "Delete Overtime Request",
+        description:
+          "Are you sure you want to delete this overtime request? This action cannot be undone.",
+      },
+
+      errors: {
+        loadFailed: "Failed to load overtime requests",
+      },
+
+      validation: {
+        rejectionReasonRequired: "Please provide a reason for rejection",
       },
     },
   },

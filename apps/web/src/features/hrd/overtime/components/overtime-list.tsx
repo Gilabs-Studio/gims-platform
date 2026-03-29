@@ -1,19 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import {
-  MoreHorizontal,
-  Plus,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  Clock,
-  AlertCircle,
-  Filter,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -22,7 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,594 +30,546 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import {
-  useMyOvertimeRequests,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Eye,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Calendar as CalendarIcon,
+  List as ListIcon,
+  Check,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useUserPermission } from "@/hooks/use-user-permission";
+import type { OvertimeRequest, OvertimeStatus, OvertimeType } from "../types";
+import { useLocale, useTranslations } from "next-intl";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   useOvertimeRequests,
-  usePendingOvertimeRequests,
-  useCancelOvertimeRequest,
   useDeleteOvertimeRequest,
 } from "../hooks/use-overtime";
-import type { OvertimeRequest, OvertimeStatus, OvertimeType } from "../types";
+import { useOvertimeCalendar } from "../hooks/use-overtime-calendar";
 import { OvertimeDialog } from "./overtime-dialog";
 import { OvertimeApprovalDialog } from "./overtime-approval-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { OvertimeCalendar } from "./overtime-calendar";
+import { OvertimeDayView } from "./overtime-day-view";
 import { format } from "date-fns";
 
 export function OvertimeList() {
-  const t = useTranslations("hrd.overtime");
-  const tCommon = useTranslations("common");
-
-  const currentDate = new Date();
-  const [activeTab, setActiveTab] = useState("my-requests");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<OvertimeStatus | "all">(
+    "all",
+  );
   const [monthFilter, setMonthFilter] = useState<string>(
-    String(currentDate.getMonth() + 1)
+    String(new Date().getMonth() + 1),
   );
   const [yearFilter, setYearFilter] = useState<string>(
-    String(currentDate.getFullYear())
+    String(new Date().getFullYear()),
   );
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<OvertimeRequest | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [approvalItem, setApprovalItem] = useState<OvertimeRequest | null>(null);
-  const [approvalAction, setApprovalAction] = useState<"approve" | "reject" | null>(null);
 
-  // My Requests data
-  const {
-    data: myData,
-    isLoading: myLoading,
-    isError: myError,
-    refetch: myRefetch,
-  } = useMyOvertimeRequests({
+  // Calendar pagination for Day View
+  const [dayPage, setDayPage] = useState(1);
+  const [dayPerPage, setDayPerPage] = useState(20);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<OvertimeRequest | null>(null);
+  const [detailItem, setDetailItem] = useState<OvertimeRequest | null>(null);
+  const [approvalItem, setApprovalItem] = useState<OvertimeRequest | null>(
+    null,
+  );
+  const [approvalAction, setApprovalAction] = useState<
+    "approve" | "reject" | null
+  >(null);
+
+  const t = useTranslations("hrd.overtime");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
+
+  // Calculate date range based on month/year filters for list view
+  const dateFrom = `${yearFilter}-${String(monthFilter).padStart(2, "0")}-01`;
+  const dateTo = `${yearFilter}-${String(monthFilter).padStart(2, "0")}-${String(new Date(Number(yearFilter), Number(monthFilter), 0).getDate()).padStart(2, "0")}`;
+
+  // List query params
+  const listParams = {
     page,
     per_page: pageSize,
-    month: monthFilter !== "all" ? Number(monthFilter) : undefined,
-    year: Number(yearFilter),
+    search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
-  });
+    date_from: dateFrom,
+    date_to: dateTo,
+  };
 
-  // Pending Approvals data (for managers)
   const {
-    data: pendingData,
-    isLoading: pendingLoading,
-    isError: pendingError,
-    refetch: pendingRefetch,
-  } = usePendingOvertimeRequests();
+    data: listData,
+    isLoading: isListLoading,
+    isError: isListError,
+  } = useOvertimeRequests(viewMode === "list" ? listParams : undefined);
 
-  // All Requests data (for admin)
-  const allParams = (() => {
-    const year = Number(yearFilter);
-    const month = monthFilter !== "all" ? Number(monthFilter) : undefined;
-    let date_from: string | undefined;
-    let date_to: string | undefined;
-    if (month !== undefined) {
-      date_from = `${year}-${String(month).padStart(2, "0")}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      date_to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    } else {
-      date_from = `${year}-01-01`;
-      date_to = `${year}-12-31`;
-    }
-    return {
-      page,
-      per_page: pageSize,
-      date_from,
-      date_to,
-      status: statusFilter !== "all" ? statusFilter as OvertimeStatus : undefined,
-    };
-  })();
-  const {
-    data: allData,
-    isLoading: allLoading,
-    isError: allError,
-    refetch: allRefetch,
-  } = useOvertimeRequests(allParams);
+  // Calendar hook
+  const calendar = useOvertimeCalendar();
 
-  const cancelMutation = useCancelOvertimeRequest();
+  const canCreate = useUserPermission("overtime.create");
+  const canUpdate = useUserPermission("overtime.update");
+  const canDelete = useUserPermission("overtime.delete");
+  const canView = useUserPermission("overtime.read");
+  const canApprove = useUserPermission("overtime.approve");
+
   const deleteMutation = useDeleteOvertimeRequest();
 
-  const getActiveData = () => {
-    switch (activeTab) {
-      case "my-requests":
-        return {
-          items: myData?.data ?? [],
-          pagination: myData?.meta?.pagination,
-          isLoading: myLoading,
-          isError: myError,
-          refetch: myRefetch,
-        };
-      case "pending":
-        return {
-          items: pendingData?.data ?? [],
-          pagination: undefined,
-          isLoading: pendingLoading,
-          isError: pendingError,
-          refetch: pendingRefetch,
-        };
-      case "all":
-        return {
-          items: allData?.data ?? [],
-          pagination: allData?.meta?.pagination,
-          isLoading: allLoading,
-          isError: allError,
-          refetch: allRefetch,
-        };
-      default:
-        return {
-          items: [],
-          pagination: undefined,
-          isLoading: false,
-          isError: false,
-          refetch: () => {},
-        };
+  const records = listData?.data ?? [];
+  const pagination = listData?.meta?.pagination;
+
+  const handleDelete = async () => {
+    if (deletingId) {
+      try {
+        await deleteMutation.mutateAsync(deletingId);
+        toast.success(t("messages.deleteSuccess"));
+        setDeletingId(null);
+        calendar.refetch();
+      } catch {
+        // Error handled by api-client
+      }
     }
   };
 
-  const { items, pagination, isLoading, isError, refetch } = getActiveData();
-
-  const handleCreate = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
+  const handleEdit = (record: OvertimeRequest) => {
+    setEditingItem(record);
+    setIsFormOpen(true);
   };
 
-  const handleEdit = (item: OvertimeRequest) => {
-    setEditingItem(item);
-    setDialogOpen(true);
+  const handleView = (record: OvertimeRequest) => {
+    setDetailItem(record);
   };
 
-  const handleApprove = (item: OvertimeRequest) => {
-    setApprovalItem(item);
+  const handleApprove = (record: OvertimeRequest) => {
+    setApprovalItem(record);
     setApprovalAction("approve");
   };
 
-  const handleReject = (item: OvertimeRequest) => {
-    setApprovalItem(item);
+  const handleReject = (record: OvertimeRequest) => {
+    setApprovalItem(record);
     setApprovalAction("reject");
   };
 
-  const handleCancel = async (id: string) => {
-    try {
-      await cancelMutation.mutateAsync(id);
-      toast.success(t("messages.cancelSuccess"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    try {
-      await deleteMutation.mutateAsync(deleteId);
-      toast.success(t("messages.deleteSuccess"));
-      setDeleteId(null);
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-    setEditingItem(null);
-  };
-
-  const handleApprovalClose = () => {
-    setApprovalItem(null);
-    setApprovalAction(null);
-  };
-
-  const getStatusBadgeVariant = (status: OvertimeStatus) => {
+  const getStatusBadge = (status: OvertimeStatus) => {
     switch (status) {
-      case "APPROVED":
-        return "default";
       case "PENDING":
-        return "secondary";
+        return (
+          <Badge variant="warning">
+            <Clock className="h-3 w-3 mr-1" /> {t("status.PENDING")}
+          </Badge>
+        );
+      case "APPROVED":
+        return (
+          <Badge variant="success">
+            <CheckCircle2 className="h-3 w-3 mr-1" /> {t("status.APPROVED")}
+          </Badge>
+        );
       case "REJECTED":
-        return "destructive";
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" /> {t("status.REJECTED")}
+          </Badge>
+        );
       case "CANCELED":
-        return "outline";
+        return (
+          <Badge variant="secondary">
+            <X className="h-3 w-3 mr-1" /> {t("status.CANCELED")}
+          </Badge>
+        );
       default:
-        return "outline";
+        return <Badge>{status}</Badge>;
     }
   };
 
-  const getTypeBadgeVariant = (type: OvertimeType) => {
+  const getTypeBadge = (type: OvertimeType) => {
     switch (type) {
       case "AUTO_DETECTED":
-        return "default";
+        return (
+          <Badge variant="outline" className="text-blue-600">
+            {t("types.AUTO_DETECTED")}
+          </Badge>
+        );
       case "MANUAL_CLAIM":
-        return "secondary";
+        return (
+          <Badge variant="outline" className="text-orange-600">
+            {t("types.MANUAL_CLAIM")}
+          </Badge>
+        );
       case "PRE_APPROVED":
-        return "outline";
+        return (
+          <Badge variant="outline" className="text-green-600">
+            {t("types.PRE_APPROVED")}
+          </Badge>
+        );
       default:
-        return "outline";
+        return <Badge variant="outline">{type}</Badge>;
     }
   };
 
-  const formatTime = (time: string) => {
-    return time.substring(0, 5); // HH:mm
+  const canEditRecord = (record: OvertimeRequest) => {
+    return record.status === "PENDING" && canUpdate;
   };
 
-  const formatMinutes = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
-    if (hours > 0) return `${hours}h`;
-    return `${mins}m`;
+  const canDeleteRecord = (record: OvertimeRequest) => {
+    return record.status === "PENDING" && canDelete;
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), "EEE, dd MMM yyyy");
-    } catch {
-      return dateStr;
-    }
+  const canApproveRecord = (record: OvertimeRequest) => {
+    return record.status === "PENDING" && canApprove;
   };
 
+  // Generate month options
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: format(new Date(2024, i, 1), "MMMM"),
+  }));
+
+  // Generate year options (current year and 2 years back)
   const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 3 }, (_, i) => currentYear - 1 + i);
-  const monthOptions = [
-    { value: "1", label: "January" },
-    { value: "2", label: "February" },
-    { value: "3", label: "March" },
-    { value: "4", label: "April" },
-    { value: "5", label: "May" },
-    { value: "6", label: "June" },
-    { value: "7", label: "July" },
-    { value: "8", label: "August" },
-    { value: "9", label: "September" },
-    { value: "10", label: "October" },
-    { value: "11", label: "November" },
-    { value: "12", label: "December" },
-  ];
+  const years = Array.from({ length: 3 }, (_, i) => ({
+    value: String(currentYear - i),
+    label: String(currentYear - i),
+  }));
 
-  if (isError) {
+  if (viewMode === "list" && isListError) {
     return (
-      <div className="p-4 text-center text-destructive">
-        {tCommon("noData")}
-        <Button
-          variant="outline"
-          onClick={() => refetch()}
-          className="mt-4 ml-2 cursor-pointer"
-        >
-          {tCommon("retry")}
-        </Button>
-      </div>
+      <Card>
+        <CardContent className="text-center py-8">
+          <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+          <p className="text-destructive">{tCommon("somethingWentWrong")}</p>
+          <Button variant="outline" onClick={() => {}} className="mt-4">
+            {tCommon("retry")}
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
-  const pendingCount = pendingData?.data?.length ?? 0;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t("title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("description")}</p>
+    <div className="space-y-5">
+      {/* Header with title and view toggle */}
+      <div className="rounded-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t("title")}
+            </h1>
+            <p className="text-sm text-muted-foreground">{t("description")}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
+            <Button
+              variant={viewMode === "calendar" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("calendar")}
+              className="cursor-pointer"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {t("calendarView")}
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="cursor-pointer"
+            >
+              <ListIcon className="mr-2 h-4 w-4" />
+              {t("listView")}
+            </Button>
+          </div>
         </div>
-        <Button onClick={handleCreate} className="cursor-pointer">
-          <Plus className="mr-2 h-4 w-4" />
-          {t("actions.create")}
-        </Button>
       </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="my-requests" className="cursor-pointer gap-2">
-            <Clock className="h-4 w-4" />
-            {t("tabs.myRequests")}
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="cursor-pointer gap-2">
-            <AlertCircle className="h-4 w-4" />
-            {t("tabs.pending")}
-            {pendingCount > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 px-1.5">
-                {pendingCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="all" className="cursor-pointer gap-2">
-            <Filter className="h-4 w-4" />
-            {t("tabs.all")}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="mt-4 space-y-4">
-          {/* Filters */}
-          {activeTab !== "pending" && (
-            <div className="flex flex-wrap items-center gap-4">
-              <Select
-                value={monthFilter}
-                onValueChange={(value) => {
-                  setMonthFilter(value);
+      {/* Filters and Actions */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {viewMode === "list" ? (
+          <>
+            <div className="relative flex-1 min-w-[300px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t("filters.search")}
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
                   setPage(1);
                 }}
-              >
-                <SelectTrigger className="w-[140px] cursor-pointer">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="cursor-pointer">
-                    {tCommon("all")}
-                  </SelectItem>
-                  {monthOptions.map((month) => (
-                    <SelectItem
-                      key={month.value}
-                      value={month.value}
-                      className="cursor-pointer"
-                    >
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={yearFilter}
-                onValueChange={(value) => {
-                  setYearFilter(value);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[100px] cursor-pointer">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {yearOptions.map((year) => (
-                    <SelectItem
-                      key={year}
-                      value={String(year)}
-                      className="cursor-pointer"
-                    >
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => {
-                  setStatusFilter(value);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="w-[140px] cursor-pointer">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="cursor-pointer">
-                    {tCommon("all")}
-                  </SelectItem>
-                  <SelectItem value="PENDING" className="cursor-pointer">
-                    {t("status.PENDING")}
-                  </SelectItem>
-                  <SelectItem value="APPROVED" className="cursor-pointer">
-                    {t("status.APPROVED")}
-                  </SelectItem>
-                  <SelectItem value="REJECTED" className="cursor-pointer">
-                    {t("status.REJECTED")}
-                  </SelectItem>
-                  <SelectItem value="CANCELED" className="cursor-pointer">
-                    {t("status.CANCELED")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                className="pl-9"
+              />
             </div>
-          )}
 
-          {/* Table */}
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v as OvertimeStatus | "all");
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder={t("filters.status")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("filters.allStatus")}</SelectItem>
+                <SelectItem value="PENDING">{t("status.PENDING")}</SelectItem>
+                <SelectItem value="APPROVED">{t("status.APPROVED")}</SelectItem>
+                <SelectItem value="REJECTED">{t("status.REJECTED")}</SelectItem>
+                <SelectItem value="CANCELED">{t("status.CANCELED")}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder={t("filters.month")} />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder={t("filters.year")} />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year.value} value={year.value}>
+                    {year.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : (
+          <>
+            {/* Calendar Navigation */}
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-semibold tracking-tight">
+                {format(calendar.currentDate, "MMMM yyyy")}
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={calendar.handleToday}
+                className="h-8 cursor-pointer"
+              >
+                {t("today")}
+              </Button>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={calendar.handlePreviousMonth}
+                className="h-8 w-8 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={calendar.handleNextMonth}
+                className="h-8 w-8 cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </>
+        )}
+
+        <div className="flex-1" />
+
+        {canCreate && (
+          <Button
+            onClick={() => {
+              setEditingItem(null);
+              setIsFormOpen(true);
+            }}
+            className="cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("actions.add")}
+          </Button>
+        )}
+      </div>
+
+      {/* Content: List or Calendar View */}
+      {viewMode === "list" ? (
+        <>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  {activeTab !== "my-requests" && (
-                    <TableHead>{t("fields.employee")}</TableHead>
-                  )}
                   <TableHead>{t("fields.date")}</TableHead>
-                  <TableHead>{t("fields.time")}</TableHead>
+                  <TableHead>{t("fields.employee")}</TableHead>
                   <TableHead>{t("fields.duration")}</TableHead>
                   <TableHead>{t("fields.type")}</TableHead>
                   <TableHead>{t("fields.status")}</TableHead>
-                  <TableHead className="max-w-[200px]">{t("fields.reason")}</TableHead>
-                  <TableHead className="w-[100px]">{tCommon("actions")}</TableHead>
+                  <TableHead>{t("fields.reason")}</TableHead>
+                  <TableHead className="w-[70px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 8 }).map((_, i) => (
+                {isListLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {activeTab !== "my-requests" && (
-                        <TableCell>
-                          <Skeleton className="h-5 w-32" />
-                        </TableCell>
-                      )}
                       <TableCell>
-                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-24" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-4 w-28" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-4 w-20" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-6 w-24" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-6 w-20" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-32" />
                       </TableCell>
                       <TableCell>
                         <Skeleton className="h-8 w-8" />
                       </TableCell>
                     </TableRow>
                   ))
-                ) : items.length === 0 ? (
+                ) : records.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={activeTab !== "my-requests" ? 8 : 7}
-                      className="h-24 text-center text-muted-foreground"
+                      colSpan={7}
+                      className="text-center py-8 text-muted-foreground"
                     >
-                      {tCommon("noData")}
+                      <Clock className="h-8 w-8 mx-auto mb-2" />
+                      <p>{t("empty.noRecords")}</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      {activeTab !== "my-requests" && (
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">
-                              {item.employee_name}
-                            </span>
-                            {item.employee_code && (
-                              <p className="text-xs text-muted-foreground">
-                                {item.employee_code}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
-                      <TableCell className="font-mono text-sm">
-                        {formatDate(item.date)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="text-sm">
-                            {formatMinutes(item.planned_minutes)}
-                          </div>
-                          {item.approved_minutes > 0 &&
-                            item.approved_minutes !== item.planned_minutes && (
-                              <div className="text-xs text-muted-foreground">
-                                Approved: {formatMinutes(item.approved_minutes)}
-                              </div>
-                            )}
+                  records.map((record) => (
+                    <TableRow
+                      key={record.id}
+                      className="group hover:bg-muted/50 transition-colors"
+                    >
+                      <TableCell className="font-medium">
+                        {format(new Date(record.date), "dd MMM yyyy")}
+                        <div className="text-sm text-muted-foreground">
+                          {record.start_time.substring(0, 5)} -{" "}
+                          {record.end_time.substring(0, 5)}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getTypeBadgeVariant(item.request_type)}>
-                          {t(`types.${item.request_type}`)}
-                        </Badge>
+                        <div className="font-medium">
+                          {record.employee_name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {record.employee_code}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(item.status)}>
-                          {t(`status.${item.status}`)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        <span title={item.reason}>{item.reason}</span>
-                        {item.reject_reason && (
-                          <p
-                            className="text-xs text-destructive truncate"
-                            title={item.reject_reason}
-                          >
-                            Reason: {item.reject_reason}
-                          </p>
+                        <div>{record.planned_hours}</div>
+                        {record.actual_hours && (
+                          <div className="text-sm text-muted-foreground">
+                            {t("fields.actual")}: {record.actual_hours}
+                          </div>
                         )}
                       </TableCell>
+                      <TableCell>{getTypeBadge(record.request_type)}</TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
                       <TableCell>
-                        {activeTab === "pending" ? (
-                          <div className="flex gap-1">
+                        <div
+                          className="max-w-[200px] truncate"
+                          title={record.reason}
+                        >
+                          {record.reason}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleApprove(item)}
-                              className="cursor-pointer text-success hover:text-success hover:bg-green-50"
-                              title={t("actions.approve")}
+                              className="cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                             >
-                              <Check className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReject(item)}
-                              className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title={t("actions.reject")}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canView && (
+                              <DropdownMenuItem
+                                onClick={() => handleView(record)}
                                 className="cursor-pointer"
                               >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {item.status === "PENDING" && (
-                                <>
-                                  <DropdownMenuItem
-                                    onClick={() => handleEdit(item)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    {tCommon("edit")}
-                                  </DropdownMenuItem>
-                                  {activeTab !== "my-requests" && (
-                                    <>
-                                      <DropdownMenuItem
-                                        onClick={() => handleApprove(item)}
-                                        className="cursor-pointer text-success"
-                                      >
-                                        <Check className="mr-2 h-4 w-4" />
-                                        {t("actions.approve")}
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() => handleReject(item)}
-                                        className="cursor-pointer text-destructive"
-                                      >
-                                        <X className="mr-2 h-4 w-4" />
-                                        {t("actions.reject")}
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                  {activeTab === "my-requests" && (
-                                    <DropdownMenuItem
-                                      onClick={() => handleCancel(item.id)}
-                                      className="cursor-pointer text-warning"
-                                    >
-                                      <X className="mr-2 h-4 w-4" />
-                                      {t("actions.cancel")}
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuSeparator />
-                                </>
-                              )}
-                              {activeTab !== "my-requests" &&
-                                item.status !== "PENDING" && (
-                                  <DropdownMenuItem
-                                    onClick={() => setDeleteId(item.id)}
-                                    className="cursor-pointer text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    {tCommon("delete")}
-                                  </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                                <Eye className="h-4 w-4 mr-2" />
+                                {tCommon("view")}
+                              </DropdownMenuItem>
+                            )}
+                            {canEditRecord(record) && (
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(record)}
+                                className="cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                {tCommon("edit")}
+                              </DropdownMenuItem>
+                            )}
+                            {canApproveRecord(record) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleApprove(record)}
+                                  className="cursor-pointer"
+                                >
+                                  <Check className="h-4 w-4 mr-2 text-green-600" />
+                                  {t("actions.approve")}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleReject(record)}
+                                  className="cursor-pointer"
+                                >
+                                  <X className="h-4 w-4 mr-2 text-red-600" />
+                                  {t("actions.reject")}
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {canDeleteRecord(record) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeletingId(record.id)}
+                                  className="cursor-pointer text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  {tCommon("delete")}
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -627,11 +578,10 @@ export function OvertimeList() {
             </Table>
           </div>
 
-          {/* Pagination */}
           {pagination && (
             <DataTablePagination
-              pageIndex={pagination.page}
-              pageSize={pagination.per_page}
+              pageIndex={page}
+              pageSize={pageSize}
               rowCount={pagination.total}
               onPageChange={setPage}
               onPageSizeChange={(newSize) => {
@@ -640,28 +590,250 @@ export function OvertimeList() {
               }}
             />
           )}
-        </TabsContent>
-      </Tabs>
+        </>
+      ) : (
+        /* Calendar View */
+        <div>
+          {calendar.selectedDate ? (
+            <OvertimeDayView
+              selectedDate={calendar.selectedDate}
+              events={calendar.selectedDateEvents}
+              onBack={calendar.handleBackToMonth}
+              onView={(event) => {
+                const record = records.find((r) => r.id === event.id);
+                if (record) handleView(record);
+              }}
+              onEdit={(event) => {
+                const record = records.find((r) => r.id === event.id);
+                if (record) handleEdit(record);
+              }}
+              onApprove={(event) => {
+                const record = records.find((r) => r.id === event.id);
+                if (record) handleApprove(record);
+              }}
+              onReject={(event) => {
+                const record = records.find((r) => r.id === event.id);
+                if (record) handleReject(record);
+              }}
+              onDelete={(id) => setDeletingId(id)}
+              page={dayPage}
+              perPage={dayPerPage}
+              onPageChange={setDayPage}
+              onPerPageChange={(value) => {
+                setDayPerPage(value);
+                setDayPage(1);
+              }}
+            />
+          ) : (
+            <OvertimeCalendar
+              currentDate={calendar.currentDate}
+              events={calendar.events}
+              holidays={calendar.holidays}
+              onPreviousMonth={calendar.handlePreviousMonth}
+              onNextMonth={calendar.handleNextMonth}
+              onToday={calendar.handleToday}
+              onDateClick={(date) => {
+                setDayPage(1);
+                calendar.handleDateClick(date);
+              }}
+            />
+          )}
+        </div>
+      )}
 
-      {/* Dialogs */}
+      {/* Form Dialog */}
       <OvertimeDialog
-        open={dialogOpen}
-        onOpenChange={handleDialogClose}
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
         editingItem={editingItem}
+        onSuccess={() => {
+          setIsFormOpen(false);
+          setEditingItem(null);
+          calendar.refetch();
+        }}
       />
 
-      <OvertimeApprovalDialog
-        open={!!approvalItem && !!approvalAction}
-        onOpenChange={handleApprovalClose}
-        item={approvalItem}
-        action={approvalAction}
-      />
+      {/* Approval Dialog */}
+      {approvalItem && (
+        <OvertimeApprovalDialog
+          open={!!approvalItem}
+          onOpenChange={(open) => {
+            if (!open) {
+              setApprovalItem(null);
+              setApprovalAction(null);
+            }
+          }}
+          item={approvalItem}
+          action={approvalAction || "approve"}
+          onSuccess={() => {
+            setApprovalItem(null);
+            setApprovalAction(null);
+            calendar.refetch();
+          }}
+        />
+      )}
 
+      {/* Detail Dialog */}
+      <Dialog
+        open={!!detailItem}
+        onOpenChange={(open) => !open && setDetailItem(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("detail.title")}</DialogTitle>
+          </DialogHeader>
+          {detailItem && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.employee")}
+                  </label>
+                  <p className="font-medium">{detailItem.employee_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {detailItem.employee_code}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.division")}
+                  </label>
+                  <p>{detailItem.division_name || "-"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.date")}
+                  </label>
+                  <p>{format(new Date(detailItem.date), "dd MMMM yyyy")}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.duration")}
+                  </label>
+                  <p>
+                    {detailItem.start_time.substring(0, 5)} -{" "}
+                    {detailItem.end_time.substring(0, 5)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("fields.planned")}: {detailItem.planned_hours}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.type")}
+                  </label>
+                  <div className="mt-1">
+                    {getTypeBadge(detailItem.request_type)}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.status")}
+                  </label>
+                  <div className="mt-1">
+                    {getStatusBadge(detailItem.status)}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  {t("fields.reason")}
+                </label>
+                <p className="mt-1">{detailItem.reason}</p>
+              </div>
+
+              {detailItem.description && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.description")}
+                  </label>
+                  <p className="mt-1">{detailItem.description}</p>
+                </div>
+              )}
+
+              {detailItem.task_details && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {t("fields.taskDetails")}
+                  </label>
+                  <p className="mt-1">{detailItem.task_details}</p>
+                </div>
+              )}
+
+              {detailItem.approved_by && (
+                <div className="pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        {t("fields.approvedBy")}
+                      </label>
+                      <p>
+                        {detailItem.approved_by_name || detailItem.approved_by}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {detailItem.approved_at &&
+                          format(
+                            new Date(detailItem.approved_at),
+                            "dd MMM yyyy HH:mm",
+                          )}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        {t("fields.approvedMinutes")}
+                      </label>
+                      <p>
+                        {detailItem.approved_minutes} {t("fields.minutes")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {detailItem.rejected_by && (
+                <div className="pt-4 border-t">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {t("fields.rejectedBy")}
+                    </label>
+                    <p>{detailItem.rejected_by}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {detailItem.rejected_at &&
+                        format(
+                          new Date(detailItem.rejected_at),
+                          "dd MMM yyyy HH:mm",
+                        )}
+                    </p>
+                  </div>
+                  {detailItem.reject_reason && (
+                    <div className="mt-2">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        {t("fields.rejectReason")}
+                      </label>
+                      <p className="mt-1">{detailItem.reject_reason}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
       <DeleteDialog
-        open={!!deleteId}
-        onOpenChange={(open) => !open && setDeleteId(null)}
+        open={!!deletingId}
+        onOpenChange={(open) => !open && setDeletingId(null)}
         onConfirm={handleDelete}
-        itemName="overtime request"
+        title={t("delete.title")}
+        description={t("delete.description")}
         isLoading={deleteMutation.isPending}
       />
     </div>

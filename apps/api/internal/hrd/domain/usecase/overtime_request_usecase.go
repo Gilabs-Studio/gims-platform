@@ -71,7 +71,15 @@ func (u *overtimeRequestUsecase) List(ctx context.Context, req *dto.ListOvertime
 	employeeIDs := make([]string, 0, len(requests))
 	for _, r := range requests {
 		employeeIDs = append(employeeIDs, r.EmployeeID)
+		// Also add approver/rejecter IDs if present
+		if r.ApprovedBy != nil && *r.ApprovedBy != "" {
+			employeeIDs = append(employeeIDs, *r.ApprovedBy)
+		}
+		if r.RejectedBy != nil && *r.RejectedBy != "" {
+			employeeIDs = append(employeeIDs, *r.RejectedBy)
+		}
 	}
+
 	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
 	u.mapper.EnrichResponseList(responses, employeeMap)
 
@@ -111,8 +119,15 @@ func (u *overtimeRequestUsecase) GetByID(ctx context.Context, id string) (*dto.O
 	}
 
 	resp := u.mapper.ToResponse(or)
-	// Enrich with employee data
-	employeeMap := u.buildEmployeeMap(ctx, []string{or.EmployeeID})
+	// Enrich with employee data (include approver and rejecter if present)
+	employeeIDs := []string{or.EmployeeID}
+	if or.ApprovedBy != nil && *or.ApprovedBy != "" {
+		employeeIDs = append(employeeIDs, *or.ApprovedBy)
+	}
+	if or.RejectedBy != nil && *or.RejectedBy != "" {
+		employeeIDs = append(employeeIDs, *or.RejectedBy)
+	}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
 	u.mapper.EnrichResponse(resp, employeeMap)
 	return resp, nil
 }
@@ -151,6 +166,13 @@ func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOver
 		return nil, err
 	}
 
+<<<<<<< HEAD
+	resp := u.mapper.ToResponse(or)
+	// Enrich with employee data
+	employeeMap := u.buildEmployeeMap(ctx, []string{or.EmployeeID})
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
+=======
 	actorUserID, _ := ctx.Value("user_id").(string)
 	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
 		PermissionCode: "overtime.approve",
@@ -164,6 +186,7 @@ func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOver
 	}
 
 	return u.mapper.ToResponse(or), nil
+>>>>>>> dev
 }
 
 func (u *overtimeRequestUsecase) Update(ctx context.Context, id string, req *dto.UpdateOvertimeRequestDTO) (*dto.OvertimeRequestResponse, error) {
@@ -215,7 +238,12 @@ func (u *overtimeRequestUsecase) Approve(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(or), nil
+	resp := u.mapper.ToResponse(or)
+	// Enrich with employee data (include approver)
+	employeeIDs := []string{or.EmployeeID, approverID}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
 }
 
 func (u *overtimeRequestUsecase) Reject(ctx context.Context, id string, req *dto.RejectOvertimeRequest, rejecterID string) (*dto.OvertimeRequestResponse, error) {
@@ -242,7 +270,12 @@ func (u *overtimeRequestUsecase) Reject(ctx context.Context, id string, req *dto
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(or), nil
+	resp := u.mapper.ToResponse(or)
+	// Enrich with employee data (include rejecter)
+	employeeIDs := []string{or.EmployeeID, rejecterID}
+	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
 }
 
 func (u *overtimeRequestUsecase) Cancel(ctx context.Context, id string, employeeID string) error {
@@ -395,18 +428,24 @@ func (u *overtimeRequestUsecase) buildEmployeeMap(ctx context.Context, ids []str
 	unique := make(map[string]bool)
 	dedupIDs := make([]string, 0)
 	for _, id := range ids {
-		if !unique[id] {
+		if !unique[id] && id != "" {
 			unique[id] = true
 			dedupIDs = append(dedupIDs, id)
 		}
+	}
+
+	if len(dedupIDs) == 0 {
+		return m
 	}
 
 	employees, err := u.employeeRepo.FindByIDs(ctx, dedupIDs)
 	if err != nil {
 		return m
 	}
+
 	for i := range employees {
-		m[employees[i].ID] = &employees[i]
+		emp := employees[i]
+		m[emp.ID] = &emp
 	}
 	return m
 }

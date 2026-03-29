@@ -534,8 +534,9 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Overtime",
+        i18nKey: "overtime",
         url: "/hrd/overtime",
-        icon: "clock",
+        icon: "moon",
         permission: "overtime.read",
       },
       {

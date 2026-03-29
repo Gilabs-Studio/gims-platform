@@ -148,10 +148,18 @@ func (m *OvertimeRequestMapper) ToResponseList(requests []models.OvertimeRequest
 }
 
 // parseTimeWithDate parses a time string and combines it with a date
+// Supports both "HH:MM:SS" and "HH:MM" formats
 func (m *OvertimeRequestMapper) parseTimeWithDate(date time.Time, timeStr string) (time.Time, error) {
-	t, err := time.Parse("15:04", timeStr)
+	// Try parsing with seconds first (HH:MM:SS)
+	t, err := time.Parse("15:04:05", timeStr)
+	if err == nil {
+		return time.Date(date.Year(), date.Month(), date.Day(), t.Hour(), t.Minute(), t.Second(), 0, date.Location()), nil
+	}
+
+	// Fall back to parsing without seconds (HH:MM)
+	t, err = time.Parse("15:04", timeStr)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("invalid time format: %s (expected HH:MM or HH:MM:SS)", timeStr)
 	}
 	return time.Date(date.Year(), date.Month(), date.Day(), t.Hour(), t.Minute(), 0, 0, date.Location()), nil
 }
@@ -161,6 +169,15 @@ func (m *OvertimeRequestMapper) EnrichResponse(resp *dto.OvertimeRequestResponse
 	if emp, ok := employeeMap[resp.EmployeeID]; ok {
 		resp.EmployeeName = emp.Name
 		resp.EmployeeCode = emp.EmployeeCode
+		if emp.Division != nil {
+			resp.DivisionName = emp.Division.Name
+		}
+	}
+	// Enrich approver name if approved
+	if resp.ApprovedBy != nil {
+		if approver, ok := employeeMap[*resp.ApprovedBy]; ok {
+			resp.ApprovedByName = approver.Name
+		}
 	}
 }
 

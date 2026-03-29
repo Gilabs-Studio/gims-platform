@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -28,6 +27,8 @@ import { NumericInput } from "@/components/ui/numeric-input";
 
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 
+import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
+
 import {
   depreciateAssetSchema,
   disposeAssetSchema,
@@ -35,12 +36,16 @@ import {
   revalueAssetSchema,
   adjustAssetSchema,
   sellAssetSchema,
+  assignAssetSchema,
+  returnAssetSchema,
   type DepreciateAssetValues,
   type DisposeAssetValues,
   type TransferAssetValues,
   type RevalueAssetValues,
   type AdjustAssetValues,
   type SellAssetValues,
+  type AssignAssetValues,
+  type ReturnAssetValues,
 } from "../schemas/asset.schema";
 import type { Asset } from "../types";
 import {
@@ -50,6 +55,8 @@ import {
   useRevalueFinanceAsset,
   useAdjustFinanceAsset,
   useSellFinanceAsset,
+  useAssignAsset,
+  useReturnAsset,
 } from "../hooks/use-finance-assets";
 import { DatePicker } from "./date-picker";
 
@@ -59,7 +66,9 @@ type ActionMode =
   | "dispose"
   | "sell"
   | "revalue"
-  | "adjust";
+  | "adjust"
+  | "assign"
+  | "return";
 
 type Props = {
   open: boolean;
@@ -82,6 +91,8 @@ export function AssetActionsDialogs({
   const revalueMutation = useRevalueFinanceAsset();
   const adjustMutation = useAdjustFinanceAsset();
   const sellMutation = useSellFinanceAsset();
+  const assignMutation = useAssignAsset();
+  const returnMutation = useReturnAsset();
 
   const { data: locationsData } = useFinanceAssetLocations({
     page: 1,
@@ -90,6 +101,9 @@ export function AssetActionsDialogs({
     sort_dir: "asc",
   });
   const locationOptions = locationsData?.data ?? [];
+
+  const { data: employeesData } = useEmployees({ page: 1, per_page: 100 });
+  const employeeOptions = employeesData?.data ?? [];
 
   const defaultDepreciate: DepreciateAssetValues = useMemo(
     () => ({ as_of_date: new Date().toISOString().slice(0, 10) }),
@@ -140,6 +154,23 @@ export function AssetActionsDialogs({
     [],
   );
 
+  const defaultAssign: AssignAssetValues = useMemo(
+    () => ({
+      employee_id: "",
+      notes: "",
+    }),
+    [],
+  );
+
+  const defaultReturn: ReturnAssetValues = useMemo(
+    () => ({
+      return_date: new Date().toISOString().slice(0, 10),
+      return_reason: "",
+      notes: "",
+    }),
+    [],
+  );
+
   const depreciateForm = useForm<DepreciateAssetValues>({
     resolver: zodResolver(depreciateAssetSchema),
     defaultValues: defaultDepreciate,
@@ -170,9 +201,24 @@ export function AssetActionsDialogs({
     defaultValues: defaultSell,
   });
 
+  const assignForm = useForm<AssignAssetValues>({
+    resolver: zodResolver(assignAssetSchema),
+    defaultValues: defaultAssign,
+  });
+
+  const returnForm = useForm<ReturnAssetValues>({
+    resolver: zodResolver(returnAssetSchema),
+    defaultValues: defaultReturn,
+  });
+
   const transferLocationId = useWatch({
     control: transferForm.control,
     name: "location_id",
+  });
+
+  const assignEmployeeId = useWatch({
+    control: assignForm.control,
+    name: "employee_id",
   });
 
   useEffect(() => {
@@ -183,6 +229,8 @@ export function AssetActionsDialogs({
     if (mode === "revalue") revalueForm.reset(defaultRevalue);
     if (mode === "adjust") adjustForm.reset(defaultAdjust);
     if (mode === "sell") sellForm.reset(defaultSell);
+    if (mode === "assign") assignForm.reset(defaultAssign);
+    if (mode === "return") returnForm.reset(defaultReturn);
   }, [
     open,
     mode,
@@ -192,12 +240,16 @@ export function AssetActionsDialogs({
     defaultRevalue,
     defaultAdjust,
     defaultSell,
+    defaultAssign,
+    defaultReturn,
     depreciateForm,
     transferForm,
     disposeForm,
     revalueForm,
     adjustForm,
     sellForm,
+    assignForm,
+    returnForm,
   ]);
 
   const isSubmitting =
@@ -206,7 +258,9 @@ export function AssetActionsDialogs({
     disposeMutation.isPending ||
     revalueMutation.isPending ||
     adjustMutation.isPending ||
-    sellMutation.isPending;
+    sellMutation.isPending ||
+    assignMutation.isPending ||
+    returnMutation.isPending;
 
   const submitDepreciate = async (values: DepreciateAssetValues) => {
     const id = asset?.id ?? "";
@@ -303,18 +357,54 @@ export function AssetActionsDialogs({
     }
   };
 
-  const title =
-    mode === "depreciate"
-      ? t("dialogs.depreciateTitle")
-      : mode === "transfer"
-        ? t("dialogs.transferTitle")
-        : mode === "sell"
-          ? t("dialogs.sellTitle")
-          : mode === "revalue"
-            ? t("dialogs.revalueTitle")
-            : mode === "adjust"
-              ? t("dialogs.adjustTitle")
-              : t("dialogs.disposeTitle");
+  const submitAssign = async (values: AssignAssetValues) => {
+    const id = asset?.id ?? "";
+    if (!id) return;
+    try {
+      await assignMutation.mutateAsync({
+        id,
+        data: {
+          employee_id: values.employee_id,
+          notes: values.notes ?? "",
+        },
+      });
+      toast.success(t("toast.assigned"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
+  const submitReturn = async (values: ReturnAssetValues) => {
+    const id = asset?.id ?? "";
+    if (!id) return;
+    try {
+      await returnMutation.mutateAsync({
+        id,
+        data: {
+          return_date: values.return_date,
+          return_reason: values.return_reason ?? "",
+          notes: values.notes ?? "",
+        },
+      });
+      toast.success(t("toast.returned"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("toast.failed"));
+    }
+  };
+
+  const titleMap: Record<ActionMode, string> = {
+    depreciate: t("dialogs.depreciateTitle"),
+    transfer: t("dialogs.transferTitle"),
+    sell: t("dialogs.sellTitle"),
+    revalue: t("dialogs.revalueTitle"),
+    adjust: t("dialogs.adjustTitle"),
+    dispose: t("dialogs.disposeTitle"),
+    assign: t("dialogs.assignTitle"),
+    return: t("dialogs.returnTitle"),
+  };
+  const title = titleMap[mode];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -673,6 +763,135 @@ export function AssetActionsDialogs({
                 id="sell_description"
                 rows={4}
                 {...sellForm.register("description")}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {mode === "assign" && (
+          <form
+            className="space-y-4"
+            onSubmit={assignForm.handleSubmit(submitAssign)}
+          >
+            <div className="space-y-2">
+              <Label>{t("dialogs.employee")}</Label>
+              <Select
+                value={assignEmployeeId || ""}
+                onValueChange={(v) =>
+                  assignForm.setValue("employee_id", v, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue placeholder={t("placeholders.select")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {employeeOptions.map((emp) => (
+                    <SelectItem
+                      key={emp.id}
+                      value={emp.id}
+                      className="cursor-pointer"
+                    >
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assignForm.formState.errors.employee_id && (
+                <p className="text-sm text-destructive">
+                  {assignForm.formState.errors.employee_id.message || "Employee is required"}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="assign_notes">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="assign_notes"
+                rows={4}
+                {...assignForm.register("notes")}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={isSubmitting}
+              >
+                {t("dialogs.submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {mode === "return" && (
+          <form
+            className="space-y-4"
+            onSubmit={returnForm.handleSubmit(submitReturn)}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="return_date">{t("dialogs.returnDate")}</Label>
+              <Controller
+                name="return_date"
+                control={returnForm.control}
+                render={({ field }) => (
+                  <DatePicker
+                    id="return_date"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={t("placeholders.selectDate")}
+                  />
+                )}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="return_reason">
+                {t("dialogs.returnReason")}
+              </Label>
+              <Textarea
+                id="return_reason"
+                rows={3}
+                {...returnForm.register("return_reason")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="return_notes">
+                {t("dialogs.description")}
+              </Label>
+              <Textarea
+                id="return_notes"
+                rows={3}
+                {...returnForm.register("notes")}
               />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">

@@ -4,10 +4,11 @@ package dto
 
 // CreateOvertimeRequestDTO represents the request to create an overtime request
 type CreateOvertimeRequestDTO struct {
-	Date        string `json:"date" binding:"required"`       // YYYY-MM-DD
-	StartTime   string `json:"start_time" binding:"required"` // HH:MM
-	EndTime     string `json:"end_time" binding:"required"`   // HH:MM
-	Reason      string `json:"reason" binding:"required,max=500"`
+	EmployeeID  string `json:"employee_id" binding:"omitempty,uuid"` // Optional, for admin/HR to create for other employees
+	Date        string `json:"date" binding:"required"`              // YYYY-MM-DD
+	StartTime   string `json:"start_time" binding:"required"`        // HH:MM
+	EndTime     string `json:"end_time" binding:"required"`          // HH:MM
+	Reason      string `json:"reason" binding:"omitempty,max=500"`
 	Description string `json:"description"`
 	TaskDetails string `json:"task_details"`
 	RequestType string `json:"request_type" binding:"required,oneof=AUTO_DETECTED MANUAL_CLAIM PRE_APPROVED"`
@@ -51,6 +52,7 @@ type OvertimeRequestResponse struct {
 	EmployeeID         string  `json:"employee_id"`
 	EmployeeName       string  `json:"employee_name"`
 	EmployeeCode       string  `json:"employee_code"`
+	DivisionName       string  `json:"division_name,omitempty"`
 	Date               string  `json:"date"`
 	RequestType        string  `json:"request_type"`
 	StartTime          string  `json:"start_time"`
@@ -65,12 +67,13 @@ type OvertimeRequestResponse struct {
 	Description        string  `json:"description"`
 	TaskDetails        string  `json:"task_details"`
 	Status             string  `json:"status"`
-	ApprovedBy         *string `json:"approved_by"`
-	ApprovedAt         *string `json:"approved_at"`
-	RejectedBy         *string `json:"rejected_by"`
-	RejectedAt         *string `json:"rejected_at"`
+	ApprovedBy         *string `json:"approved_by,omitempty"`
+	ApprovedByName     string  `json:"approved_by_name,omitempty"`
+	ApprovedAt         *string `json:"approved_at,omitempty"`
+	RejectedBy         *string `json:"rejected_by,omitempty"`
+	RejectedAt         *string `json:"rejected_at,omitempty"`
 	RejectReason       string  `json:"reject_reason"`
-	AttendanceRecordID *string `json:"attendance_record_id"`
+	AttendanceRecordID *string `json:"attendance_record_id,omitempty"`
 	OvertimeRate       float64 `json:"overtime_rate"`
 	CompensationAmount float64 `json:"compensation_amount"`
 	CreatedAt          string  `json:"created_at"`

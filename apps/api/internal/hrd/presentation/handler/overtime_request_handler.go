@@ -8,18 +8,80 @@ import (
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
 // OvertimeRequestHandler handles overtime request HTTP requests
 type OvertimeRequestHandler struct {
-	overtimeUC usecase.OvertimeRequestUsecase
+	overtimeUC   usecase.OvertimeRequestUsecase
+	employeeRepo orgRepos.EmployeeRepository
 }
 
 // NewOvertimeRequestHandler creates a new OvertimeRequestHandler
-func NewOvertimeRequestHandler(overtimeUC usecase.OvertimeRequestUsecase) *OvertimeRequestHandler {
-	return &OvertimeRequestHandler{overtimeUC: overtimeUC}
+func NewOvertimeRequestHandler(overtimeUC usecase.OvertimeRequestUsecase, employeeRepo orgRepos.EmployeeRepository) *OvertimeRequestHandler {
+	return &OvertimeRequestHandler{
+		overtimeUC:   overtimeUC,
+		employeeRepo: employeeRepo,
+	}
+}
+
+// GetMyRequests handles get my overtime requests (self-service)
+func (h *OvertimeRequestHandler) GetMyRequests(c *gin.Context) {
+	// Get employee ID from context (set by auth middleware)
+	employeeID, exists := c.Get("employee_id")
+	if !exists {
+		// Fallback to user_id if employee_id not set
+		userID, exists := c.Get("user_id")
+		if !exists {
+			errors.UnauthorizedResponse(c, "User not authenticated")
+			return
+		}
+		employeeID = userID
+	}
+
+	var req dto.ListOvertimeRequestsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	// Force filter by current employee
+	req.EmployeeID = employeeID.(string)
+
+	requests, pagination, err := h.overtimeUC.List(c.Request.Context(), &req)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: &response.PaginationMeta{
+			Page:       pagination.Page,
+			PerPage:    pagination.PerPage,
+			Total:      pagination.Total,
+			TotalPages: pagination.TotalPages,
+			HasNext:    pagination.Page < pagination.TotalPages,
+			HasPrev:    pagination.Page > 1,
+		},
+		Filters: map[string]interface{}{
+			"employee_id": employeeID.(string),
+		},
+	}
+
+	if req.Status != "" {
+		meta.Filters["status"] = req.Status
+	}
+	if req.RequestType != "" {
+		meta.Filters["request_type"] = req.RequestType
+	}
+
+	response.SuccessResponse(c, requests, meta)
 }
 
 // List handles list overtime requests
@@ -104,16 +166,6 @@ func (h *OvertimeRequestHandler) GetPending(c *gin.Context) {
 
 // Create handles create overtime request
 func (h *OvertimeRequestHandler) Create(c *gin.Context) {
-	// Get employee ID from context
-	employeeID, exists := c.Get("employee_id")
-	if !exists {
-		employeeID, exists = c.Get("user_id")
-		if !exists {
-			errors.UnauthorizedResponse(c, "User not authenticated")
-			return
-		}
-	}
-
 	var req dto.CreateOvertimeRequestDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
@@ -124,7 +176,25 @@ func (h *OvertimeRequestHandler) Create(c *gin.Context) {
 		return
 	}
 
-	request, err := h.overtimeUC.Create(c.Request.Context(), &req, employeeID.(string))
+	// Use employee_id from request body if provided (for admin/HR creating for others)
+	// Otherwise use the current user's employee_id from context
+	var targetEmployeeID string
+	if req.EmployeeID != "" {
+		targetEmployeeID = req.EmployeeID
+	} else {
+		// Fallback to current user's employee_id
+		employeeID, exists := c.Get("employee_id")
+		if !exists {
+			employeeID, exists = c.Get("user_id")
+			if !exists {
+				errors.UnauthorizedResponse(c, "User not authenticated")
+				return
+			}
+		}
+		targetEmployeeID = employeeID.(string)
+	}
+
+	request, err := h.overtimeUC.Create(c.Request.Context(), &req, targetEmployeeID)
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
@@ -173,11 +243,26 @@ func (h *OvertimeRequestHandler) Update(c *gin.Context) {
 func (h *OvertimeRequestHandler) Approve(c *gin.Context) {
 	id := c.Param("id")
 
-	// Get approver ID from context
-	approverID, exists := c.Get("user_id")
-	if !exists {
-		errors.UnauthorizedResponse(c, "User not authenticated")
-		return
+	var approverID string
+
+	// Try to get employee_id from context first
+	if empID, exists := c.Get("employee_id"); exists && empID != nil && empID != "" {
+		approverID = empID.(string)
+	} else {
+		// Fallback: lookup employee by user_id
+		userID, exists := c.Get("user_id")
+		if !exists || userID == nil || userID == "" {
+			errors.UnauthorizedResponse(c, "User not authenticated")
+			return
+		}
+
+		// Lookup employee by user_id
+		employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+		if err != nil {
+			errors.UnauthorizedResponse(c, "Employee not found for this user")
+			return
+		}
+		approverID = employee.ID
 	}
 
 	var req dto.ApproveOvertimeRequest
@@ -190,7 +275,7 @@ func (h *OvertimeRequestHandler) Approve(c *gin.Context) {
 		return
 	}
 
-	request, err := h.overtimeUC.Approve(c.Request.Context(), id, &req, approverID.(string))
+	request, err := h.overtimeUC.Approve(c.Request.Context(), id, &req, approverID)
 	if err != nil {
 		if err == usecase.ErrOvertimeRequestNotFound {
 			errors.ErrorResponse(c, "OVERTIME_REQUEST_NOT_FOUND", map[string]interface{}{
@@ -216,11 +301,26 @@ func (h *OvertimeRequestHandler) Approve(c *gin.Context) {
 func (h *OvertimeRequestHandler) Reject(c *gin.Context) {
 	id := c.Param("id")
 
-	// Get rejecter ID from context
-	rejecterID, exists := c.Get("user_id")
-	if !exists {
-		errors.UnauthorizedResponse(c, "User not authenticated")
-		return
+	var rejecterID string
+
+	// Try to get employee_id from context first
+	if empID, exists := c.Get("employee_id"); exists && empID != nil && empID != "" {
+		rejecterID = empID.(string)
+	} else {
+		// Fallback: lookup employee by user_id
+		userID, exists := c.Get("user_id")
+		if !exists || userID == nil || userID == "" {
+			errors.UnauthorizedResponse(c, "User not authenticated")
+			return
+		}
+
+		// Lookup employee by user_id
+		employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+		if err != nil {
+			errors.UnauthorizedResponse(c, "Employee not found for this user")
+			return
+		}
+		rejecterID = employee.ID
 	}
 
 	var req dto.RejectOvertimeRequest
@@ -233,7 +333,7 @@ func (h *OvertimeRequestHandler) Reject(c *gin.Context) {
 		return
 	}
 
-	request, err := h.overtimeUC.Reject(c.Request.Context(), id, &req, rejecterID.(string))
+	request, err := h.overtimeUC.Reject(c.Request.Context(), id, &req, rejecterID)
 	if err != nil {
 		if err == usecase.ErrOvertimeRequestNotFound {
 			errors.ErrorResponse(c, "OVERTIME_REQUEST_NOT_FOUND", map[string]interface{}{

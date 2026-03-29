@@ -15,6 +15,7 @@ type EmployeeAssetRepository interface {
 	FindByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeAsset, error)
 	FindBorrowedByEmployeeID(ctx context.Context, employeeID string) ([]*models.EmployeeAsset, error)
 	FindByAssetCode(ctx context.Context, assetCode string) (*models.EmployeeAsset, error)
+	FindByAssetID(ctx context.Context, assetID string) (*models.EmployeeAsset, error)
 }
 
 type employeeAssetRepository struct {
@@ -74,6 +75,18 @@ func (r *employeeAssetRepository) FindByAssetCode(ctx context.Context, assetCode
 	var asset models.EmployeeAsset
 	err := r.db.WithContext(ctx).
 		Where("asset_code = ? AND return_date IS NULL", assetCode).
+		First(&asset).Error
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
+func (r *employeeAssetRepository) FindByAssetID(ctx context.Context, assetID string) (*models.EmployeeAsset, error) {
+	var asset models.EmployeeAsset
+	err := r.db.WithContext(ctx).
+		Where("asset_id = ?", assetID).
+		Order("borrow_date DESC").
 		First(&asset).Error
 	if err != nil {
 		return nil, err

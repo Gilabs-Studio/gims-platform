@@ -18,6 +18,8 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g := r.Group("/assets")
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
+	// Available assets for employee borrowing
+	g.GET("/available", middleware.RequirePermission(assetRead), h.GetAvailableAssets)
 	g.POST("", middleware.RequirePermission(assetCreate), h.Create)
 	g.POST("/", middleware.RequirePermission(assetCreate), h.Create)
 	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
@@ -33,4 +35,17 @@ func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
 	g.POST("/:id/revalue", middleware.RequirePermission(assetUpdate), h.Revalue)
 	g.POST("/:id/adjust", middleware.RequirePermission(assetUpdate), h.Adjust)
 	g.POST("/transactions/:tx_id/approve", middleware.RequirePermission(assetUpdate), h.ApproveTransaction)
+
+	// Phase 2: Attachments
+	g.GET("/:id/attachments", middleware.RequirePermission(assetRead), h.ListAttachments)
+	g.POST("/:id/attachments", middleware.RequirePermission(assetUpdate), h.CreateAttachment)
+	g.DELETE("/:id/attachments/:attachment_id", middleware.RequirePermission(assetDelete), h.DeleteAttachment)
+
+	// Phase 2: Assignments
+	g.POST("/:id/assign", middleware.RequirePermission(assetUpdate), h.AssignAsset)
+	g.POST("/:id/return", middleware.RequirePermission(assetUpdate), h.ReturnAsset)
+
+	// Phase 2: Audit Logs & Assignment History
+	g.GET("/:id/audit-logs", middleware.RequirePermission(assetRead), h.ListAuditLogs)
+	g.GET("/:id/assignment-history", middleware.RequirePermission(assetRead), h.ListAssignmentHistory)
 }

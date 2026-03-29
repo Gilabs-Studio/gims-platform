@@ -387,9 +387,11 @@ export const employeeEn = {
   },
   asset: {
     fields: {
+      selectAsset: "Select Asset",
       assetName: "Asset Name",
       assetCode: "Asset Code",
       assetCategory: "Category",
+      location: "Location",
       borrowDate: "Borrow Date",
       returnDate: "Return Date",
       borrowCondition: "Borrow Condition",
@@ -429,6 +431,8 @@ export const employeeEn = {
         "Are you sure you want to delete this asset record? This action cannot be undone.",
       returnConfirm:
         "Record the return of this asset. Please provide the return date and condition.",
+      loadingAssets: "Loading available assets...",
+      selectAssetPlaceholder: "Select an asset from company inventory",
       assetNamePlaceholder: "Enter asset name",
       assetCodePlaceholder: "Enter asset code",
       assetCategoryPlaceholder: "Enter category (e.g. Laptop, Phone)",
@@ -438,6 +442,9 @@ export const employeeEn = {
       imageHint: "Upload an image of the asset (optional)",
       borrowedSince: "Borrowed since",
       cannotEditReturned: "Cannot edit a returned asset",
+      hasDefaultImage: "Asset has a default image",
+      willUseDefaultImage:
+        "Will use asset's default image if no custom image uploaded",
     },
     success: {
       created: "Asset created successfully",

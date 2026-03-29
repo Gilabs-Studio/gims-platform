@@ -5,11 +5,7 @@ import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Package,
   CheckCircle,
@@ -151,12 +147,25 @@ export function AssetTimeline({
                 <div className="flex-1 pb-6">
                   <div className="bg-card border rounded-lg p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <div>
-                        <h4 className="font-semibold text-base">
-                          {asset.asset_name}
-                        </h4>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-base">
+                            {asset.asset_name}
+                          </h4>
+                          {asset.asset_id && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-blue-50 text-blue-600 border-blue-200"
+                            >
+                              Linked
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {asset.asset_code} &middot; {asset.asset_category}
+                          {asset.asset?.location && (
+                            <span> &middot; {asset.asset.location.name}</span>
+                          )}
                         </p>
                       </div>
                       <StatusBadge status={asset.status} t={t} />

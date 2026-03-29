@@ -3,7 +3,7 @@ import { OvertimePageClient } from "@/features/hrd/overtime/components/overtime-
 
 export default function OvertimePage() {
   return (
-    <PermissionGuard requiredPermission="hrd:overtime:read">
+    <PermissionGuard requiredPermission="overtime.read">
       <OvertimePageClient />
     </PermissionGuard>
   );

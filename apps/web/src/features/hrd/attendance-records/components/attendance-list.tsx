@@ -77,16 +77,16 @@ export function AttendanceList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">(
-    "all"
+    "all",
   );
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(
-    null
+    null,
   );
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(
-    null
+    null,
   );
 
   const [dayPage, setDayPage] = useState(1);
@@ -103,7 +103,7 @@ export function AttendanceList() {
       status:
         statusFilter !== "all" ? (statusFilter as AttendanceStatus) : undefined,
     }),
-    [page, pageSize, debouncedSearch, statusFilter]
+    [page, pageSize, debouncedSearch, statusFilter],
   );
 
   const {
@@ -240,59 +240,6 @@ export function AttendanceList() {
 
   const tCommon = useTranslations("common");
 
-  const monthOverview = useMemo(() => {
-    return calendar.events.reduce(
-      (acc, event) => {
-        switch (event.status) {
-          case "PRESENT":
-          case "WFH":
-            acc.present += 1;
-            break;
-          case "ABSENT":
-            acc.absent += 1;
-            break;
-          case "LATE":
-            acc.late += 1;
-            break;
-          case "LEAVE":
-            acc.leave += 1;
-            break;
-          default:
-            break;
-        }
-        return acc;
-      },
-      { present: 0, absent: 0, late: 0, leave: 0 }
-    );
-  }, [calendar.events]);
-
-  const selectedDaySummary = useMemo(() => {
-    if (!calendar.selectedDate) {
-      return null;
-    }
-
-    const key = calendar.selectedDate.toISOString().slice(0, 10);
-    const dayEvents = calendar.events.filter(
-      (event) => event.date.toISOString().slice(0, 10) === key
-    );
-
-    const summary = dayEvents.reduce(
-      (acc, event) => {
-        if (event.status === "PRESENT" || event.status === "WFH") {
-          acc.present += 1;
-        } else if (event.status === "ABSENT") {
-          acc.absent += 1;
-        } else if (event.status === "LATE") {
-          acc.late += 1;
-        }
-        return acc;
-      },
-      { total: dayEvents.length, present: 0, absent: 0, late: 0 }
-    );
-
-    return summary;
-  }, [calendar.events, calendar.selectedDate]);
-
   if (viewMode === "list" && isListError) {
     return (
       <Card>
@@ -309,7 +256,9 @@ export function AttendanceList() {
       <div className="rounded-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {t("title")}
+            </h1>
             <p className="text-sm text-muted-foreground">{t("description")}</p>
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-1">
@@ -333,36 +282,6 @@ export function AttendanceList() {
             </Button>
           </div>
         </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-border bg-background px-4 py-3">
-            <p className="text-xs text-muted-foreground">Present / WFH</p>
-            <p className="mt-1 text-xl font-semibold text-success">{monthOverview.present}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-background px-4 py-3">
-            <p className="text-xs text-muted-foreground">Late</p>
-            <p className="mt-1 text-xl font-semibold text-warning">{monthOverview.late}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-background px-4 py-3">
-            <p className="text-xs text-muted-foreground">Absent</p>
-            <p className="mt-1 text-xl font-semibold text-destructive">{monthOverview.absent}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-background px-4 py-3">
-            <p className="text-xs text-muted-foreground">Leave</p>
-            <p className="mt-1 text-xl font-semibold text-primary">{monthOverview.leave}</p>
-          </div>
-        </div>
-
-        {selectedDaySummary && (
-          <div className="mt-3 rounded-lg border border-border bg-background px-4 py-3 text-sm">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
-              <span>Total: <span className="font-semibold text-foreground">{selectedDaySummary.total}</span></span>
-              <span>Present: <span className="font-semibold text-success">{selectedDaySummary.present}</span></span>
-              <span>Late: <span className="font-semibold text-warning">{selectedDaySummary.late}</span></span>
-              <span>Absent: <span className="font-semibold text-destructive">{selectedDaySummary.absent}</span></span>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -512,7 +431,7 @@ export function AttendanceList() {
                           <span>{record.working_hours || "-"}</span>
                           {record.late_minutes > 0 && (
                             <span className="text-destructive text-xs ml-2">
-                                +{record.late_minutes}m {t("status.LATE")}
+                              +{record.late_minutes}m {t("status.LATE")}
                             </span>
                           )}
                         </div>
@@ -630,9 +549,7 @@ export function AttendanceList() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingRecord
-                ? t("actions.edit")
-                : t("actions.manualEntry")}
+              {editingRecord ? t("actions.edit") : t("actions.manualEntry")}
             </DialogTitle>
           </DialogHeader>
           <AttendanceRecordForm
@@ -685,7 +602,11 @@ export function AttendanceList() {
               setIsFormOpen(false);
               setEditingRecord(null);
             }}
-            isLoading={editingRecord ? updateMutation.isPending : createMutation.isPending}
+            isLoading={
+              editingRecord
+                ? updateMutation.isPending
+                : createMutation.isPending
+            }
           />
         </DialogContent>
       </Dialog>

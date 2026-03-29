@@ -13,11 +13,13 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   Trash2,
   TrendingDown,
   TrendingUp,
+  UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,7 +62,9 @@ type ActionMode =
   | "dispose"
   | "sell"
   | "revalue"
-  | "adjust";
+  | "adjust"
+  | "assign"
+  | "return";
 
 function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
   const normalized = status?.toLowerCase() ?? "draft";
@@ -356,6 +360,32 @@ export function AssetsList() {
                           >
                             <DollarSign className="h-4 w-4 mr-2" />
                             {t("actions.sell")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                            onClick={() => {
+                              setActionMode("assign");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            {t("actions.assign")}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && item.status === "active" && item.assigned_to_employee_id && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            onClick={() => {
+                              setActionMode("return");
+                              setActionAsset(item);
+                              setActionOpen(true);
+                            }}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            {t("actions.return")}
                           </DropdownMenuItem>
                         )}
                         {canUpdate && item.status === "active" && (

@@ -1,14 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useMemo } from "react";
 import { Clock, Loader2, MapPin, Home, Briefcase, MapPinOff, Navigation } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import {
-  useTodayAttendance,
-  useClockIn,
-  useClockOut,
-} from "../hooks/use-attendance-records";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,12 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { CheckInType, TodayAttendance } from "../types";
+import type { CheckInType } from "../types";
 import { cn } from "@/lib/utils";
 import { ClockInLateReasonDialog } from "./clock-in-late-reason-dialog";
 import { ClockInCameraDialog } from "./clock-in-camera-dialog";
-import { useLocationPermission } from "../hooks/use-location-permission";
-import { useGeolocation, calculateDistance } from "../hooks/use-geolocation";
+import { useSelfAttendanceActions } from "../hooks/use-self-attendance-actions";
 
 const CHECK_IN_TYPES: { value: CheckInType; icon: typeof Home }[] = [
   { value: "NORMAL", icon: Briefcase },
@@ -35,186 +28,40 @@ function formatTime(value: string | null | undefined): string {
   return part.substring(0, 8);
 }
 
-/** Get user-facing message from API error: prefer error.details.message, then error.message. */
-function getErrorMessage(
-  err: unknown,
-  fallback: string
-): string {
-  const data = err && typeof err === "object" && "response" in err
-    ? (err as { response?: { data?: { error?: { message?: string; details?: { message?: string } } } } }).response?.data
-    : undefined;
-  const error = data?.error;
-  if (!error) return fallback;
-  const detailsMessage = error.details && typeof error.details === "object" && "message" in error.details
-    ? error.details.message
-    : undefined;
-  const msg = typeof detailsMessage === "string" ? detailsMessage : error.message;
-  return typeof msg === "string" && msg.trim() ? msg : fallback;
-}
-
-/** Get success message from API response data if present. */
-function getSuccessMessage(
-  data: unknown,
-  fallback: string
-): string {
-  if (data && typeof data === "object" && "message" in data) {
-    const m = (data as { message?: string }).message;
-    if (typeof m === "string" && m.trim()) return m;
-  }
-  return fallback;
-}
-
 export function UserMenuAttendance() {
-  const t = useTranslations("hrd.attendance");
-  const { data: todayData, isLoading } = useTodayAttendance();
-  const clockInMutation = useClockIn();
-  const clockOutMutation = useClockOut();
-  const { isDenied, isPrompt, requestPermission } = useLocationPermission();
-  const geo = useGeolocation();
+  const {
+    t,
+    today,
+    isLoading,
+    hasCheckedIn,
+    hasCheckedOut,
+    record,
+    isClockInPending,
+    isPending,
+    proximityInfo,
+    isDenied,
+    isPrompt,
+    requestPermission,
+    pendingClockInType,
+    showLateReasonDialog,
+    setShowLateReasonDialog,
+    showCameraDialog,
+    setShowCameraDialog,
+    handleClockIn,
+    handleClockOut,
+    handleLateReasonConfirm,
+    handleCameraConfirm,
+  } = useSelfAttendanceActions();
 
-  const today = todayData?.data as TodayAttendance | undefined;
-  const hasCheckedIn = today?.has_checked_in ?? false;
-  const hasCheckedOut = today?.has_checked_out ?? false;
-  const record = today?.attendance_record;
-  const ws = today?.work_schedule;
-
-  // Proximity calculation
-  const proximityInfo = (() => {
-    if (!ws?.require_gps || !ws.office_latitude || !ws.office_longitude) return null;
-    if (!geo.hasLocation) return null;
-    const distance = calculateDistance(
-      geo.latitude!,
-      geo.longitude!,
-      ws.office_latitude,
-      ws.office_longitude
-    );
-    const isAtOffice = distance <= (ws.gps_radius_meter ?? 100);
-    return { distance: Math.round(distance), isAtOffice };
-  })();
-
-  // Dialog state for late reason and camera
-  const [pendingClockInType, setPendingClockInType] = useState<CheckInType | null>(null);
-  const [showLateReasonDialog, setShowLateReasonDialog] = useState(false);
-  const [showCameraDialog, setShowCameraDialog] = useState(false);
-
-  // WHY: Always send lat/lng for all check-in types
-  const executeClockIn = useCallback(
-    async (checkInType: CheckInType, lateReason?: string, photoUrl?: string) => {
-      let latitude: number | undefined;
-      let longitude: number | undefined;
-
-      try {
-        const pos = await geo.getCurrentPosition();
-        latitude = pos.latitude;
-        longitude = pos.longitude;
-      } catch {
-        // Let backend decide if GPS is required
-      }
-
-      clockInMutation.mutate(
-        {
-          check_in_type: checkInType,
-          ...(latitude !== undefined ? { latitude } : {}),
-          ...(longitude !== undefined ? { longitude } : {}),
-          ...(lateReason ? { late_reason: lateReason } : {}),
-          ...(photoUrl ? { photo_url: photoUrl } : {}),
-        },
-        {
-          onSuccess: (responseData) => {
-            const msg = getSuccessMessage(
-              responseData,
-              t("messages.clockInSuccess")
-            );
-            toast.success(msg);
-            setPendingClockInType(null);
-          },
-          onError: (err) => {
-            const msg = getErrorMessage(err, t("messages.notClockedInYet"));
-            toast.error(msg);
-          },
-        }
-      );
-    },
-    [clockInMutation, geo, t]
+  const statusLine = useMemo(
+    () =>
+      hasCheckedOut
+        ? t("alreadyClockedOut") + " " + formatTime(record?.check_out_time)
+        : hasCheckedIn
+          ? t("clockedIn") + " " + formatTime(record?.check_in_time)
+          : t("notClockedIn"),
+    [hasCheckedIn, hasCheckedOut, record?.check_in_time, record?.check_out_time, t],
   );
-
-  // WHY: Intercept clock-in to check if late (NORMAL → show reason dialog)
-  // or WFH/FIELD_WORK (show camera dialog for photo proof)
-  const handleClockIn = useCallback(
-    (checkInType: CheckInType) => {
-      if (checkInType === "WFH" || checkInType === "FIELD_WORK") {
-        setPendingClockInType(checkInType);
-        setShowCameraDialog(true);
-        return;
-      }
-
-      // NORMAL type: check if late
-      if (checkInType === "NORMAL" && today?.is_late) {
-        setPendingClockInType(checkInType);
-        setShowLateReasonDialog(true);
-        return;
-      }
-
-      // Not late, clock in directly
-      executeClockIn(checkInType);
-    },
-    [today?.is_late, executeClockIn, setPendingClockInType, setShowCameraDialog, setShowLateReasonDialog]
-  );
-
-  const handleLateReasonConfirm = useCallback(
-    (reason: string) => {
-      if (pendingClockInType) {
-        executeClockIn(pendingClockInType, reason);
-      }
-      setShowLateReasonDialog(false);
-    },
-    [pendingClockInType, executeClockIn, setShowLateReasonDialog]
-  );
-
-  const handleCameraConfirm = useCallback(
-    (photoUrl: string) => {
-      if (pendingClockInType) {
-        executeClockIn(pendingClockInType, undefined, photoUrl);
-      }
-      setShowCameraDialog(false);
-    },
-    [pendingClockInType, executeClockIn, setShowCameraDialog]
-  );
-
-  const handleClockOut = useCallback(async () => {
-    let latitude: number | undefined;
-    let longitude: number | undefined;
-
-    try {
-      const pos = await geo.getCurrentPosition();
-      latitude = pos.latitude;
-      longitude = pos.longitude;
-    } catch {
-      // Location unavailable — proceed without, backend decides
-    }
-
-    clockOutMutation.mutate(
-      {
-        ...(latitude !== undefined ? { latitude } : {}),
-        ...(longitude !== undefined ? { longitude } : {}),
-      },
-      {
-        onSuccess: (responseData) => {
-          const msg = getSuccessMessage(
-            responseData,
-            t("messages.clockOutSuccess")
-          );
-          toast.success(msg);
-        },
-        onError: (err) => {
-          const msg = getErrorMessage(err, t("messages.notClockedInYet"));
-          toast.error(msg);
-        },
-      }
-    );
-  }, [clockOutMutation, geo, t]);
-
-  const isPending = clockInMutation.isPending || clockOutMutation.isPending;
 
   if (isLoading) {
     return (
@@ -224,12 +71,6 @@ export function UserMenuAttendance() {
       </div>
     );
   }
-
-  const statusLine = hasCheckedOut
-    ? t("alreadyClockedOut") + " " + formatTime(record?.check_out_time)
-    : hasCheckedIn
-      ? t("clockedIn") + " " + formatTime(record?.check_in_time)
-      : t("notClockedIn");
 
   return (
     <>
@@ -350,7 +191,7 @@ export function UserMenuAttendance() {
       open={showLateReasonDialog}
       onOpenChange={setShowLateReasonDialog}
       lateMinutes={today?.late_minutes ?? 0}
-      isPending={clockInMutation.isPending}
+      isPending={isClockInPending}
       onConfirm={handleLateReasonConfirm}
     />
 
@@ -358,7 +199,7 @@ export function UserMenuAttendance() {
       open={showCameraDialog}
       onOpenChange={setShowCameraDialog}
       checkInType={pendingClockInType ?? "WFH"}
-      isPending={clockInMutation.isPending}
+      isPending={isClockInPending}
       onConfirm={handleCameraConfirm}
     />
     </>

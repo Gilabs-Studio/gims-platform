@@ -3,6 +3,7 @@ package presentation
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/presentation/handler"
@@ -31,6 +32,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetRepo := repositories.NewEmployeeAssetRepository(db)
 	signatureRepo := repositories.NewEmployeeSignatureRepository(db)
 
+	// Finance repositories for asset borrowing integration
+	financeAssetRepo := financeRepositories.NewAssetRepository(db)
+	auditLogRepo := financeRepositories.NewAssetAuditLogRepository(db)
+
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
 	jobPositionUC := usecase.NewJobPositionUsecase(jobPositionRepo)
@@ -40,7 +45,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeRepo for GetFormData endpoint.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
 	companyUC := usecase.NewCompanyUsecase(companyRepo)
-	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo)
+	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers
 	divisionH := handler.NewDivisionHandler(divisionUC)

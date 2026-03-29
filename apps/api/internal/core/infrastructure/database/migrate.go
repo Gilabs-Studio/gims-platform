@@ -146,6 +146,10 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		// NEW: Extended Asset entities
+		&finance.AssetAttachment{},
+		&finance.AssetAuditLog{},
+		&finance.AssetAssignmentHistory{},
 		&finance.AssetBudget{},
 		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
@@ -316,6 +320,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
+<<<<<<< HEAD
+	return nil
+}
+=======
 	// Create triggers to enforce closed accounting periods on journal entries
 	if err := createJournalEntryPeriodLockTrigger(); err != nil {
 		log.Printf("Warning: Failed to create journal entry period lock trigger (this is non-fatal): %v", err)
@@ -356,6 +364,7 @@ func createJournalEntryPeriodLockTrigger() error {
 	return nil
 }
 
+>>>>>>> dev
 
 // tables no longer exist the function silently returns nil.
 func migrateAreaSupervisorsToEmployeeAreas() error {
