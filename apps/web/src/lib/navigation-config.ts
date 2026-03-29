@@ -314,12 +314,6 @@ export const navigationConfig: NavItem[] = [
                 permission: "purchase_journal.read",
               },
               {
-                name: "Inventory Journal",
-                url: "/finance/journals/inventory",
-                icon: "boxes",
-                permission: "journal.read",
-              },
-              {
                 name: "Adjustment Journal",
                 i18nKey: "adjustmentJournal",
                 url: "/finance/journals/adjustment",
