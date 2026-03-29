@@ -1,16 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEmployeeMetrics } from "../../hooks/use-employee-metrics";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useSalesRepCheckInLocations } from "@/features/reports/sales-overview/hooks/use-sales-rep-check-in-locations";
+
+const SalesRepDetailTabs = dynamic(
+  () =>
+    import("@/features/reports/sales-overview/components/sales-rep-detail-tabs").then((mod) => ({
+      default: mod.SalesRepDetailTabs,
+    })),
+  {
+    loading: () => <Skeleton className="h-[500px] w-full" />,
+    ssr: false,
+  }
+);
 
 export function DashboardMetrics() {
   const t = useTranslations("profile");
+  const user = useAuthStore((state) => state.user);
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -20,7 +35,22 @@ export function DashboardMetrics() {
   const startDate = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
   const endDate = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
 
-  const { data, isLoading, error } = useEmployeeMetrics({ startDate, endDate });
+  const employeeId = user?.employee_id ?? "";
+  const {
+    locations,
+    isLoading,
+    error,
+    totalVisits,
+    page,
+    setPage,
+    perPage,
+    setPerPage,
+  } = useSalesRepCheckInLocations(employeeId, {
+    start_date: startDate,
+    end_date: endDate,
+    page: 1,
+    per_page: 50,
+  });
 
   if (isLoading) {
     return (
@@ -46,7 +76,20 @@ export function DashboardMetrics() {
     );
   }
 
-  const metrics = data?.data;
+  if (!employeeId) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {t("metrics.metricsLoadError")}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -58,72 +101,22 @@ export function DashboardMetrics() {
         <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
       </div>
 
-      {(!metrics?.check_in_locations && !metrics?.products_sold && !metrics?.customers) ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {t("metrics.metricsLoadError")}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Check-in Locations */}
-          {metrics?.check_in_locations && (
-            <Card className="h-full border-border/70 shadow-none">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-medium">{t("metrics.checkInLocations")}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalLocations")}</p>
-                  <p className="text-2xl font-bold">{metrics.check_in_locations.total_locations}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalVisits")}</p>
-                  <p className="text-lg font-semibold">{metrics.check_in_locations.total_visits}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Products Sold */}
-          {metrics?.products_sold && (
-            <Card className="h-full border-border/70 shadow-none">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-medium">{t("metrics.productsSold")}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalProducts")}</p>
-                  <p className="text-2xl font-bold">{metrics.products_sold.total_products}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalRevenue")}</p>
-                  <p className="text-lg font-semibold text-primary">{metrics.products_sold.total_revenue_formatted}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Customers */}
-          {metrics?.customers && (
-            <Card className="h-full border-border/70 shadow-none">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-medium">{t("metrics.customers")}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalCustomers")}</p>
-                  <p className="text-2xl font-bold">{metrics.customers.total_customers}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("metrics.totalOrders")}</p>
-                  <p className="text-lg font-semibold">{metrics.customers.total_orders}</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+      <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
+        <SalesRepDetailTabs
+          employeeId={employeeId}
+          startDate={startDate}
+          endDate={endDate}
+          checkInLocationsProps={{
+            locations,
+            isLoading,
+            totalVisits,
+            page,
+            perPage,
+            onPageChange: setPage,
+            onPerPageChange: setPerPage,
+          }}
+        />
+      </Suspense>
     </div>
   );
 }
