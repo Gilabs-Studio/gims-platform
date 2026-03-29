@@ -65,7 +65,8 @@ export const hrdId = {
       clockOut: "Pulang",
       clockedIn: "Sudah Masuk",
       clockedOut: "Sudah Pulang",
-      today: "Absensi Hari Ini",
+      today: "Hari Ini",
+      todayAttendance: "Absensi Hari Ini",
       notClockedIn: "Belum absen masuk",
       alreadyClockedOut: "Sudah absen pulang",
       holiday: "Hari Libur",
@@ -207,6 +208,22 @@ export const hrdId = {
         outsideRadius: "Anda berada di luar radius lokasi yang diizinkan",
         alreadyClockedIn: "Anda sudah absen masuk hari ini",
         notClockedInYet: "Anda belum absen masuk",
+      },
+
+      // Errors
+      errors: {
+        fetchFailed: "Gagal memuat data absensi",
+      },
+
+      // Legend
+      legend: {
+        title: "Legenda",
+      },
+
+      // Accessibility
+      aria: {
+        previousMonth: "Bulan sebelumnya",
+        nextMonth: "Bulan berikutnya",
       },
 
       // Detail modal

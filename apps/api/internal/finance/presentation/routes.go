@@ -86,11 +86,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
-<<<<<<< HEAD
 	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo)
-	financialClosingUC := usecase.NewFinancialClosingUsecase(db, coaRepo, financialClosingRepo, journalUC, financialClosingMapper)
-=======
-	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper)
 	financialClosingUC := usecase.NewFinancialClosingUsecase(
 		db,
 		coaRepo,
@@ -101,7 +97,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		journalUC,
 		financialClosingMapper,
 	)
->>>>>>> dev
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)

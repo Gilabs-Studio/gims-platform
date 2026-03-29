@@ -8,8 +8,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
@@ -166,13 +166,7 @@ func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOver
 		return nil, err
 	}
 
-<<<<<<< HEAD
-	resp := u.mapper.ToResponse(or)
-	// Enrich with employee data
-	employeeMap := u.buildEmployeeMap(ctx, []string{or.EmployeeID})
-	u.mapper.EnrichResponse(resp, employeeMap)
-	return resp, nil
-=======
+	// Create notification for approvers
 	actorUserID, _ := ctx.Value("user_id").(string)
 	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
 		PermissionCode: "overtime.approve",
@@ -185,8 +179,11 @@ func (u *overtimeRequestUsecase) Create(ctx context.Context, req *dto.CreateOver
 		log.Printf("warning: failed to create overtime notification: %v", err)
 	}
 
-	return u.mapper.ToResponse(or), nil
->>>>>>> dev
+	resp := u.mapper.ToResponse(or)
+	// Enrich with employee data
+	employeeMap := u.buildEmployeeMap(ctx, []string{or.EmployeeID})
+	u.mapper.EnrichResponse(resp, employeeMap)
+	return resp, nil
 }
 
 func (u *overtimeRequestUsecase) Update(ctx context.Context, id string, req *dto.UpdateOvertimeRequestDTO) (*dto.OvertimeRequestResponse, error) {

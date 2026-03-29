@@ -65,7 +65,8 @@ export const hrdEn = {
       clockOut: "Clock Out",
       clockedIn: "Clocked In",
       clockedOut: "Clocked Out",
-      today: "Today's Attendance",
+      today: "Today",
+      todayAttendance: "Today's Attendance",
       notClockedIn: "Not clocked in yet",
       alreadyClockedOut: "Already clocked out",
       holiday: "Holiday",
@@ -89,6 +90,11 @@ export const hrdEn = {
         REJECTED: "Rejected",
         CANCELED: "Canceled",
         HOLIDAY: "Holiday",
+        PRESENT: "Present",
+        LATE: "Late",
+        ABSENT: "Absent",
+        HALF_DAY: "Half Day",
+        LEAVE: "Leave",
       },
 
       // Check-in type
@@ -194,6 +200,22 @@ export const hrdEn = {
         outsideRadius: "You are outside the allowed location radius",
         alreadyClockedIn: "You have already clocked in today",
         notClockedInYet: "You haven't clocked in yet",
+      },
+
+      // Errors
+      errors: {
+        fetchFailed: "Failed to load attendance data",
+      },
+
+      // Legend
+      legend: {
+        title: "Legend",
+      },
+
+      // Accessibility
+      aria: {
+        previousMonth: "Previous month",
+        nextMonth: "Next month",
       },
 
       // Detail modal
