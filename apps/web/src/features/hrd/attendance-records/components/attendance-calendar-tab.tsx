@@ -1,8 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { addMonths, endOfMonth, format, parseISO, startOfMonth, startOfToday } from "date-fns";
-import { CalendarOff, ChevronLeft, ChevronRight, Clock4, TreePalm } from "lucide-react";
+import {
+  addMonths,
+  endOfMonth,
+  format,
+  parseISO,
+  startOfMonth,
+  startOfToday,
+} from "date-fns";
+import {
+  CalendarOff,
+  ChevronLeft,
+  ChevronRight,
+  Clock4,
+  TreePalm,
+  CalendarIcon,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +27,7 @@ import { useHolidaysByYear } from "../../holidays/hooks/use-holidays";
 import type { AttendanceRecord } from "../types";
 
 function getStatusVariant(
-  status: string
+  status: string,
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "PRESENT":
@@ -33,7 +47,10 @@ function formatTime(value: string | null | undefined): string {
   return part.substring(0, 8);
 }
 
-function getCheckInTypeLabel(t: ReturnType<typeof useTranslations>, type?: string): string {
+function getCheckInTypeLabel(
+  t: ReturnType<typeof useTranslations>,
+  type?: string,
+): string {
   if (!type) return t("checkInType.NORMAL");
   return t(`checkInType.${type}`);
 }
@@ -81,7 +98,7 @@ export function AttendanceCalendarTab() {
   const selectedKey = format(selectedDate, "yyyy-MM-dd");
   const dayRecords = useMemo(
     () => records.filter((r) => (r.date ?? "").startsWith(selectedKey)),
-    [records, selectedKey]
+    [records, selectedKey],
   );
   const recordsByDate = useMemo(() => {
     const map = new Map<string, AttendanceRecord>();
@@ -113,12 +130,12 @@ export function AttendanceCalendarTab() {
         }
         return acc;
       },
-      { present: 0, absent: 0, late: 0, halfDay: 0, leave: 0 }
+      { present: 0, absent: 0, late: 0, halfDay: 0, leave: 0 },
     );
 
     // Count holidays for the current month from the holiday map
     const holidayCount = Array.from(holidayMap.entries()).filter(
-      ([dateStr]) => dateStr >= monthFrom && dateStr <= monthTo
+      ([dateStr]) => dateStr >= monthFrom && dateStr <= monthTo,
     ).length;
 
     return { ...stats, holiday: holidayCount };
@@ -128,7 +145,9 @@ export function AttendanceCalendarTab() {
     <div className="space-y-4 p-1">
       <div className="rounded-xl border border-border/80 bg-card p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h4 className="text-lg font-semibold">{format(month, "MMMM yyyy")}</h4>
+          <h4 className="text-lg font-semibold">
+            {format(month, "MMMM yyyy")}
+          </h4>
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -136,7 +155,7 @@ export function AttendanceCalendarTab() {
               size="icon-sm"
               className="cursor-pointer"
               onClick={() => setMonth(addMonths(month, -1))}
-              aria-label="Previous month"
+              aria-label={t("aria.previousMonth")}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -151,7 +170,7 @@ export function AttendanceCalendarTab() {
                 setSelectedDate(today);
               }}
             >
-              Today
+              {t("today")}
             </Button>
             <Button
               type="button"
@@ -159,7 +178,7 @@ export function AttendanceCalendarTab() {
               size="icon-sm"
               className="cursor-pointer"
               onClick={() => setMonth(addMonths(month, 1))}
-              aria-label="Next month"
+              aria-label={t("aria.nextMonth")}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -180,7 +199,8 @@ export function AttendanceCalendarTab() {
             month_grid: "w-full table-fixed border-collapse",
             weeks: "w-full",
             week: "w-full",
-            weekday: "w-full p-0 h-10 text-sm font-semibold text-muted-foreground text-center",
+            weekday:
+              "w-full p-0 h-10 text-sm font-semibold text-muted-foreground text-center",
             day: "h-12 w-full p-0",
             day_button:
               "relative w-full h-10 px-1 items-center justify-center rounded-lg text-sm transition-colors data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground hover:bg-accent",
@@ -210,12 +230,11 @@ export function AttendanceCalendarTab() {
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-success [&>button]:after:content-['']",
             absent:
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-destructive [&>button]:after:content-['']",
-            late:
-              "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-warning [&>button]:after:content-['']",
+            late: "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-warning [&>button]:after:content-['']",
             halfDay:
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-warning [&>button]:after:content-['']",
             holiday:
-              "[&>button]:bg-rose [&>button]:text-accent dark:[&>button]:text-accent [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-rose [&>button]:after:content-['']",
+              "[&>button]:bg-destructive/15 [&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-destructive [&>button]:after:content-['']",
             leave:
               "[&>button]:after:absolute [&>button]:after:bottom-1 [&>button]:after:left-1/2 [&>button]:after:h-1.5 [&>button]:after:w-1.5 [&>button]:after:-translate-x-1/2 [&>button]:after:rounded-full [&>button]:after:bg-primary [&>button]:after:content-['']",
           }}
@@ -230,8 +249,8 @@ export function AttendanceCalendarTab() {
               {t(`status.${selectedRecord.status}`)}
             </Badge>
           ) : selectedHoliday ? (
-            <Badge variant="outline" className="border-rose bg-rose-50 text-accent dark:border-rose dark:bg-rose dark:text-accent">
-              {t("status.HOLIDAY")}
+            <Badge variant="destructive">
+              <CalendarIcon className="h-3 w-3 mr-1" /> {t("status.HOLIDAY")}
             </Badge>
           ) : null}
         </div>
@@ -258,12 +277,18 @@ export function AttendanceCalendarTab() {
               </span>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/60 pt-2">
-              <span className="text-muted-foreground">{t("fields.checkInTime")}</span>
+              <span className="text-muted-foreground">
+                {t("fields.checkInTime")}
+              </span>
               <div className="flex items-center justify-end gap-2">
                 <Clock4 className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-medium">{formatTime(selectedRecord.check_in_time)}</span>
+                <span className="font-medium">
+                  {formatTime(selectedRecord.check_in_time)}
+                </span>
               </div>
-              <span className="text-muted-foreground">{t("fields.checkInType")}</span>
+              <span className="text-muted-foreground">
+                {t("fields.checkInType")}
+              </span>
               <div className="flex justify-end">
                 <Badge variant="outline">
                   {getCheckInTypeLabel(t, selectedRecord.check_in_type)}
@@ -271,10 +296,14 @@ export function AttendanceCalendarTab() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/60 pt-2">
-              <span className="text-muted-foreground">{t("fields.checkOutTime")}</span>
+              <span className="text-muted-foreground">
+                {t("fields.checkOutTime")}
+              </span>
               <div className="flex items-center justify-end gap-2">
                 <Clock4 className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-medium">{formatTime(selectedRecord.check_out_time)}</span>
+                <span className="font-medium">
+                  {formatTime(selectedRecord.check_out_time)}
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/60 pt-2">
@@ -297,10 +326,10 @@ export function AttendanceCalendarTab() {
                 }).format(selectedDate)}
               </span>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border border-rose bg-rose-50/50 p-3 dark:border-rose dark:bg-rose">
-              <CalendarOff className="h-4 w-4 shrink-0 text-accent" />
+            <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+              <CalendarOff className="h-4 w-4 shrink-0 text-destructive" />
               <div className="min-w-0">
-                <p className="text-sm font-medium text-accent dark:text-accent">
+                <p className="text-sm font-medium text-destructive">
                   {selectedHoliday.name}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -318,37 +347,49 @@ export function AttendanceCalendarTab() {
       </div>
 
       <div className="rounded-xl border border-border/80 bg-card p-4">
-        <h4 className="mb-3 text-sm font-semibold">Legend</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("legend.title")}</h4>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-success" />
             <span>{t("status.PRESENT")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.present}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.present}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-warning" />
             <span>{t("status.LATE")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.late}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.late}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
             <span>{t("status.ABSENT")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.absent}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.absent}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-warning" />
             <span>{t("status.HALF_DAY")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.halfDay}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.halfDay}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose" />
+            <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
             <span>{t("status.HOLIDAY")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.holiday}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.holiday}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-primary" />
             <span>{t("status.LEAVE")}</span>
-            <span className="ml-auto text-muted-foreground">{currentMonthStats.leave}</span>
+            <span className="ml-auto text-muted-foreground">
+              {currentMonthStats.leave}
+            </span>
           </div>
         </div>
       </div>
