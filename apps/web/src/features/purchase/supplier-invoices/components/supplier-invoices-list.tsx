@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
@@ -123,6 +123,15 @@ const PurchasePaymentForm = dynamic(
 
 import { PurchasePaymentsLinkedDialog } from "@/features/purchase/payments/components/purchase-payments-linked-dialog";
 
+function getInitialOpenSupplierInvoiceFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_supplier_invoice");
+}
+
 export function SupplierInvoicesList() {
   const t = useTranslations("supplierInvoice");
   const tCommon = useTranslations("common");
@@ -137,7 +146,7 @@ export function SupplierInvoicesList() {
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenSupplierInvoiceFromURL);
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceListItem | null>(null);
 
@@ -183,6 +192,24 @@ export function SupplierInvoicesList() {
   const approveMutation = useApproveSupplierInvoice();
   const rejectMutation = useRejectSupplierInvoice();
   const cancelMutation = useCancelSupplierInvoice();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_supplier_invoice")) return;
+
+    searchParams.delete("open_supplier_invoice");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const canCreate = useUserPermission("supplier_invoice.create");
   const canUpdate = useUserPermission("supplier_invoice.update");

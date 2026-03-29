@@ -38,7 +38,6 @@ export function LeadActivityFeed({
   canCreateVisit,
   onLogActivity,
   onLogVisit,
-  refreshKey,
 }: LeadActivityFeedProps) {
   const t = useTranslations("crmLead");
   const ta = useTranslations("crmActivity");

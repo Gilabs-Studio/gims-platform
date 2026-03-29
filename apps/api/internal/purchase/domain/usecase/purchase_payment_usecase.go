@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -38,6 +39,7 @@ type PurchasePaymentUsecase interface {
 	Confirm(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error)
 	ExportCSV(ctx context.Context, params repositories.PurchasePaymentListParams) ([]byte, error)
+	TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error
 }
 
 type purchasePaymentUsecase struct {
@@ -124,6 +126,10 @@ func (uc *purchasePaymentUsecase) List(ctx context.Context, params repositories.
 }
 
 func (uc *purchasePaymentUsecase) GetByID(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchasePayment{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchasePaymentNotFound
+	}
+
 	p, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -574,6 +580,10 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 	})
 
 	return nil
+}
+
+func (uc *purchasePaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error {
+	return uc.triggerJournalEntry(ctx, pay)
 }
 
 func (uc *purchasePaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error) {

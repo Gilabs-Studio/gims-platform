@@ -33,6 +33,7 @@ export const getOrderSchema = (t?: TranslationFn) => z.object({
     .refine((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value), {
       message: getMsg(t, "validation.invalidCustomer", "Select a valid customer"),
     }),
+  customer_contact_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   sales_quotation_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   payment_terms_id: z.string()
     .min(1, getMsg(t, "validation.required", "Payment terms is required"))
@@ -83,6 +84,7 @@ export const getConvertQuotationToOrderSchema = (t?: TranslationFn) => z.object(
     .min(1, getMsg(t, "validation.required", "Quotation is required")),
   order_date: z.string()
     .min(1, getMsg(t, "validation.required", "Order date is required")),
+  customer_contact_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid contact ID")).optional(),
   customer_name: z.string().optional(),
   customer_contact: z.string().optional(),
   customer_phone: z.string().optional(),

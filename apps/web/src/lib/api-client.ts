@@ -11,6 +11,9 @@ import { useRateLimitStore } from "./stores/useRateLimitStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 const CSRF_BOOTSTRAP_COOLDOWN_MS = 2000;
+const GLOBAL_TOAST_DEDUPE_WINDOW_MS = 2500;
+
+const globalToastLastShownAt = new Map<string, number>();
 
 // Memory cache for CSRF token to support cross-origin API calls
 let memoryCsrfToken: string | null = null;
@@ -51,6 +54,34 @@ const csrfBootstrapClient = axios.create({
   timeout: 10000,
   withCredentials: true,
 });
+
+function isMutationMethod(method?: string): boolean {
+  if (!method) return false;
+  return ["post", "put", "patch", "delete"].includes(method.toLowerCase());
+}
+
+function showGlobalErrorToast(
+  title: string,
+  options?: {
+    description?: string;
+    dedupeKey?: string;
+  },
+): void {
+  const baseKey = options?.dedupeKey ?? `${title}::${options?.description ?? ""}`;
+  const dedupeKey = baseKey.slice(0, 240);
+  const now = Date.now();
+  const lastShownAt = globalToastLastShownAt.get(dedupeKey) ?? 0;
+
+  if (now - lastShownAt < GLOBAL_TOAST_DEDUPE_WINDOW_MS) {
+    return;
+  }
+
+  globalToastLastShownAt.set(dedupeKey, now);
+  toast.error(title, {
+    description: options?.description,
+    id: `global-error:${dedupeKey}`,
+  });
+}
 
 /**
  * Robustly extract CSRF token from an Axios headers object.
@@ -288,6 +319,7 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
     const requestUrl = originalRequest?.url || "";
+    const requestMethod = originalRequest?.method;
 
     // Skip toast for auth endpoints - these handle their own errors silently
     // 401/403 is expected when checking session or after logout
@@ -296,6 +328,23 @@ apiClient.interceptors.response.use(
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/logout");
 
+    // Mutations usually show contextual toasts at feature level.
+    // Suppress generic global toasts for mutation failures to avoid duplicate notifications.
+    const shouldSuppressGlobalToast =
+      isMutationMethod(requestMethod) && !isAuthEndpoint;
+
+    const notifyGlobalError = (
+      title: string,
+      description?: string,
+      dedupeKey?: string,
+    ) => {
+      if (shouldSuppressGlobalToast) {
+        return;
+      }
+
+      showGlobalErrorToast(title, { description, dedupeKey });
+    };
+
     // Network error
     if (!error.response) {
       if (isAuthEndpoint) {
@@ -303,16 +352,16 @@ apiClient.interceptors.response.use(
       }
       if (error.code === "ECONNABORTED") {
         const msg = formatError("network", "timeout");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "network-timeout");
       } else if (
         error.code === "ERR_NETWORK" ||
         error.message === "Network Error"
       ) {
         const msg = formatError("network", "connectionFailed");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "network-connection-failed");
       } else {
         const msg = formatError("network", "generic");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "network-generic");
       }
       return Promise.reject(error);
     }
@@ -331,7 +380,7 @@ apiClient.interceptors.response.use(
 
     if (!errorData || !errorData.error) {
       const msg = formatError("backend", "invalidFormat");
-      toast.error(msg.title, { description: msg.description });
+      notifyGlobalError(msg.title, msg.description, "backend-invalid-format");
       return Promise.reject(error);
     }
 
@@ -343,9 +392,11 @@ apiClient.interceptors.response.use(
     if (errorCode === "CSRF_INVALID") {
       // CSRF token invalid - try to get a new one
       const msg = formatError("backend", "csrfError");
-      toast.error(msg.title || "Session expired", {
-        description: msg.description || "Please try again.",
-      });
+      notifyGlobalError(
+        msg.title || "Session expired",
+        msg.description || "Please try again.",
+        "backend-csrf-invalid",
+      );
       return Promise.reject(error);
     }
 
@@ -358,16 +409,16 @@ apiClient.interceptors.response.use(
         const msg = formatError("backend", "emailExists", {
           email: String(errorDetails.value || ""),
         });
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-email-exists");
       } else if (errorDetails?.field && errorDetails?.resource) {
         const msg = formatError("backend", "resourceExists", {
           field: errorDetails.field,
           value: String(errorDetails.value || ""),
         });
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-resource-exists");
       } else {
         const msg = formatError("backend", "conflict");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-conflict");
       }
       return Promise.reject(error);
     }
@@ -378,7 +429,7 @@ apiClient.interceptors.response.use(
         const msg = formatError("backend", "emailExists", {
           email: String(errorDetails.value || ""),
         });
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-email-exists");
         return Promise.reject(error);
       }
       if (errorDetails.field && errorDetails.resource) {
@@ -386,7 +437,7 @@ apiClient.interceptors.response.use(
           field: errorDetails.field,
           value: String(errorDetails.value || ""),
         });
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-resource-exists");
         return Promise.reject(error);
       }
     }
@@ -402,7 +453,7 @@ apiClient.interceptors.response.use(
         field: firstError.field,
         message: firstError.message,
       });
-      toast.error(msg.title, { description: msg.description });
+      notifyGlobalError(msg.title, msg.description, "backend-field-error");
       return Promise.reject(error);
     }
 
@@ -426,7 +477,10 @@ apiClient.interceptors.response.use(
       if (originalRequest?.skipAuthRedirectOn401) {
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
-          toast.error(msg.title, { description: msg.description });
+          showGlobalErrorToast(msg.title, {
+            description: msg.description,
+            dedupeKey: "backend-unauthorized",
+          });
         }
         return Promise.reject(error);
       }
@@ -436,7 +490,10 @@ apiClient.interceptors.response.use(
         // Refresh failed, logout user
         if (typeof window !== "undefined") {
           const msg = formatError("backend", "unauthorized");
-          toast.error(msg.title, { description: msg.description });
+          showGlobalErrorToast(msg.title, {
+            description: msg.description,
+            dedupeKey: "backend-unauthorized",
+          });
 
           // Clear all auth state and cookies
           import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
@@ -581,7 +638,10 @@ apiClient.interceptors.response.use(
             isRefreshing = false;
             if (typeof window !== "undefined") {
               const msg = formatError("backend", "unauthorized");
-              toast.error(msg.title, { description: msg.description });
+              showGlobalErrorToast(msg.title, {
+                description: msg.description,
+                dedupeKey: "backend-unauthorized",
+              });
 
               // Clear all auth state and cookies
               import("@/features/auth/stores/use-auth-store").then(({ useAuthStore }) => {
@@ -614,7 +674,7 @@ apiClient.interceptors.response.use(
       }
     } else if (status === 403) {
       const msg = formatError("backend", "forbidden");
-      toast.error(msg.title, { description: msg.description });
+      notifyGlobalError(msg.title, msg.description, "backend-forbidden");
     } else if (status === 404) {
       const isMutation =
         error.config?.method &&
@@ -623,18 +683,18 @@ apiClient.interceptors.response.use(
         );
       if (isMutation) {
         const msg = formatError("backend", "notFound");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-not-found");
       }
     } else if (status === 409) {
       const msg = formatError("backend", "conflict");
-      toast.error(msg.title, { description: msg.description });
+      notifyGlobalError(msg.title, msg.description, "backend-conflict");
     } else if (status === 422) {
       // 422 Unprocessable Entity — business rule violation (e.g. WAREHOUSE_HAS_STOCK).
       // Suppress the global toast so each caller can render its own contextual UI.
       return Promise.reject(error);
     } else if (status === 503) {
       const msg = formatError("backend", "serviceUnavailable");
-      toast.error(msg.title, { description: msg.description });
+      notifyGlobalError(msg.title, msg.description, "backend-service-unavailable");
     } else if (status === 429) {
       // Rate limit handling
       const headers = error.response?.headers || {};
@@ -679,18 +739,20 @@ apiClient.interceptors.response.use(
       // Show toast with countdown
       const countdown = useRateLimitStore.getState().getCountdownText();
       const msg = formatError("backend", "rateLimit", { countdown });
-      toast.error(msg.title, { description: msg.description });
+      showGlobalErrorToast(msg.title, {
+        description: msg.description,
+        dedupeKey: "backend-rate-limit",
+      });
 
       return Promise.reject(customError);
     } else if (status >= 500) {
       const msg = formatError("backend", "serverError");
-      const description = (errorData?.error?.details?.message as string) || msg.description;
-      toast.error(msg.title, { description });
+      notifyGlobalError(msg.title, msg.description, "backend-server-error");
     } else {
       const requestUrl = error.config?.url || "";
       if (!requestUrl.includes("/auth/login")) {
         const msg = formatError("backend", "unexpectedError");
-        toast.error(msg.title, { description: msg.description });
+        notifyGlobalError(msg.title, msg.description, "backend-unexpected-error");
       }
     }
 

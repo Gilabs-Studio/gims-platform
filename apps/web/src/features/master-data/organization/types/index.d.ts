@@ -146,6 +146,7 @@ export interface Company {
   district_id?: string | null;
   district?: { id: string; name: string };
   village_id?: string | null;
+  village_name?: string | null;
   village?: {
     id: string;
     name: string;

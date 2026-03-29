@@ -23,7 +23,7 @@ export function useEmployeeList() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const openIdFromUrl = searchParams.get("openId");
+  const openIdFromUrl = searchParams.get("openId") ?? searchParams.get("open_employee");
 
   // Permissions
   const canCreate = useUserPermission("employee.create");

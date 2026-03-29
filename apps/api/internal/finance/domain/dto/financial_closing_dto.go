@@ -38,9 +38,24 @@ type FinancialClosingAnalysisRow struct {
 	Difference     float64 `json:"difference"`
 }
 
+type FinancialClosingValidationResult struct {
+	Name    string `json:"name"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message"`
+}
+
+type FinancialClosingSnapshotResponse struct {
+	NetProfit               float64 `json:"net_profit"`
+	RetainedEarningsBalance float64 `json:"retained_earnings_balance"`
+	PeriodEndDate           string  `json:"period_end_date"`
+	SnapshotJSON            string  `json:"snapshot_json"`
+}
+
 type FinancialClosingAnalysisResponse struct {
-	Closing FinancialClosingResponse      `json:"closing"`
-	Rows    []FinancialClosingAnalysisRow `json:"rows"`
+	Closing     FinancialClosingResponse        `json:"closing"`
+	Rows        []FinancialClosingAnalysisRow  `json:"rows"`
+	Validations []FinancialClosingValidationResult `json:"validations,omitempty"`
+	Snapshot    *FinancialClosingSnapshotResponse   `json:"snapshot,omitempty"`
 }
 
 // YearEndCloseRequest represents the request to perform year-end closing.

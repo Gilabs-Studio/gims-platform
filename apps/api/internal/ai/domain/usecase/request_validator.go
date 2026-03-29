@@ -14,10 +14,10 @@ import (
 
 // ValidationResult holds the outcome of server-side parameter validation
 type ValidationResult struct {
-	Valid            bool                   `json:"valid"`
-	Errors           []ValidationError      `json:"errors,omitempty"`
+	Valid            bool                       `json:"valid"`
+	Errors           []ValidationError          `json:"errors,omitempty"`
 	ResolvedEntities map[string]*ResolvedEntity `json:"resolved_entities,omitempty"`
-	SanitizedParams  map[string]interface{} `json:"sanitized_params,omitempty"`
+	SanitizedParams  map[string]interface{}     `json:"sanitized_params,omitempty"`
 }
 
 // ValidationError represents a single field-level validation error
@@ -58,8 +58,19 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 	switch {
 	// Holiday creation
 	case intent.IntentCode == "CREATE_HOLIDAY":
-		v.validateRequired(result, params, "name", "date")
-		v.validateDateFormat(result, params, "date")
+		if isIndonesiaBulkHolidayMode(params) {
+			if year := getIntParam(params, "year"); year < 2000 || year > 2100 {
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Field:   "year",
+					Code:    "INVALID_RANGE",
+					Message: "Field 'year' harus di antara 2000-2100 untuk create holiday otomatis",
+				})
+			}
+		} else {
+			v.validateRequired(result, params, "name", "date")
+			v.validateDateFormat(result, params, "date")
+		}
 
 	// Leave request
 	case intent.IntentCode == "CREATE_LEAVE_REQUEST":
@@ -72,6 +83,11 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 	case intent.IntentCode == "CREATE_SALES_QUOTATION":
 		v.validateRequired(result, params, "customer_name")
 		v.validateSalesQuotationFields(result, params)
+
+	// Sales order — if no sales_quotation_id, require customer and core form fields.
+	// sales_rep must be explicitly provided by user to avoid wrong assignment.
+	case intent.IntentCode == "CREATE_SALES_ORDER":
+		v.validateSalesOrderFields(result, params)
 
 	// Sales target creation — area is required while year/total can be defaulted
 	case intent.IntentCode == "CREATE_SALES_TARGET":
@@ -100,9 +116,18 @@ func (v *RequestValidator) Validate(ctx context.Context, intent *IntentResult, p
 	}
 
 	// Resolve entity references (customer, employee, product, warehouse)
-	v.resolveEntities(ctx, result, params)
+	v.resolveEntities(ctx, result, params, intent.IntentCode)
 
 	return result
+}
+
+func isIndonesiaBulkHolidayMode(params map[string]interface{}) bool {
+	if strings.EqualFold(getStringParam(params, "holiday_source"), "PUBLIC_API") && strings.EqualFold(getStringParam(params, "country_code"), "ID") {
+		return true
+	}
+
+	lowerCountry := strings.ToLower(getStringParam(params, "country"))
+	return lowerCountry == "id" || lowerCountry == "indonesia"
 }
 
 // validateRequired checks that required string fields are present and non-empty
@@ -220,6 +245,74 @@ func (v *RequestValidator) validateSalesQuotationFields(result *ValidationResult
 	}
 }
 
+// validateSalesOrderFields validates required fields for CREATE_SALES_ORDER.
+// If sales_quotation_id is provided, downstream logic can derive most values from quotation.
+func (v *RequestValidator) validateSalesOrderFields(result *ValidationResult, params map[string]interface{}) {
+	quotationID := strings.TrimSpace(getStringParam(params, "sales_quotation_id"))
+	if quotationID != "" {
+		return
+	}
+
+	customerName := strings.TrimSpace(getStringParam(params, "customer_name"))
+	customerID := strings.TrimSpace(getStringParam(params, "customer_id"))
+	if customerName == "" && customerID == "" {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "customer_name",
+			Code:    "REQUIRED",
+			Message: "Field 'customer_name' atau 'customer_id' diperlukan untuk membuat Sales Order",
+		})
+	}
+
+	if strings.TrimSpace(getStringParam(params, "payment_terms_id")) == "" && strings.TrimSpace(getStringParam(params, "payment_terms_name")) == "" {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "payment_terms",
+			Code:    "REQUIRED",
+			Message: "Field 'payment_terms_id' atau 'payment_terms_name' diperlukan untuk membuat Sales Order",
+		})
+	}
+
+	if strings.TrimSpace(getStringParam(params, "business_unit_id")) == "" && strings.TrimSpace(getStringParam(params, "business_unit_name")) == "" {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "business_unit",
+			Code:    "REQUIRED",
+			Message: "Field 'business_unit_id' atau 'business_unit_name' diperlukan untuk membuat Sales Order",
+		})
+	}
+
+	if strings.TrimSpace(getStringParam(params, "sales_rep_id")) == "" && strings.TrimSpace(getStringParam(params, "sales_rep_name")) == "" {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "sales_rep",
+			Code:    "REQUIRED",
+			Message: "Field 'sales_rep_id' atau 'sales_rep_name' diperlukan untuk membuat Sales Order",
+		})
+	}
+
+	itemsRaw, hasItems := params["items"]
+	if !hasItems || itemsRaw == nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "items",
+			Code:    "REQUIRED",
+			Message: "Field 'items' diperlukan untuk membuat Sales Order (minimal 1 item)",
+		})
+		return
+	}
+
+	items, ok := itemsRaw.([]interface{})
+	if !ok || len(items) == 0 {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "items",
+			Code:    "REQUIRED",
+			Message: "Field 'items' diperlukan untuk membuat Sales Order (minimal 1 item)",
+		})
+	}
+}
+
 // validateSalesTargetFields validates required fields for CREATE_SALES_TARGET.
 // We require area for operational clarity, while year/total_target can be defaulted in executor.
 func (v *RequestValidator) validateSalesTargetFields(result *ValidationResult, params map[string]interface{}) {
@@ -236,7 +329,7 @@ func (v *RequestValidator) validateSalesTargetFields(result *ValidationResult, p
 }
 
 // resolveEntities resolves natural language entity names to DB IDs
-func (v *RequestValidator) resolveEntities(ctx context.Context, result *ValidationResult, params map[string]interface{}) {
+func (v *RequestValidator) resolveEntities(ctx context.Context, result *ValidationResult, params map[string]interface{}, intentCode string) {
 	// Resolve employee
 	if empName, ok := params["employee_name"].(string); ok && empName != "" {
 		entity, err := v.entityResolver.ResolveEmployee(ctx, empName)
@@ -249,6 +342,21 @@ func (v *RequestValidator) resolveEntities(ctx context.Context, result *Validati
 			// Non-blocking: still valid for queries, but log the warning
 		} else {
 			result.ResolvedEntities["employee"] = entity
+		}
+	}
+
+	// Resolve sales representative by name
+	if salesRepName, ok := params["sales_rep_name"].(string); ok && strings.TrimSpace(salesRepName) != "" {
+		entity, err := v.entityResolver.ResolveEmployee(ctx, salesRepName)
+		if err != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "sales_rep_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Sales rep '%s' not found", salesRepName),
+			})
+		} else {
+			result.ResolvedEntities["sales_rep"] = entity
 		}
 	}
 
@@ -284,10 +392,19 @@ func (v *RequestValidator) resolveEntities(ctx context.Context, result *Validati
 	if custName, ok := params["customer_name"].(string); ok && custName != "" {
 		entity, err := v.entityResolver.ResolveCustomer(ctx, custName)
 		if err != nil {
-			// Customer not found is acceptable — user may be creating a new quotation with a new name
-			result.ResolvedEntities["customer"] = &ResolvedEntity{
-				DisplayName: custName,
-				EntityType:  "customer",
+			if shouldRequireExistingCustomerForIntent(intentCode) || strings.Contains(err.Error(), "ENTITY_AMBIGUOUS") {
+				result.Valid = false
+				result.Errors = append(result.Errors, ValidationError{
+					Field:   "customer_name",
+					Code:    "ENTITY_NOT_FOUND",
+					Message: err.Error(),
+				})
+			} else {
+				// For non-strict intents, allow free-text customer name.
+				result.ResolvedEntities["customer"] = &ResolvedEntity{
+					DisplayName: custName,
+					EntityType:  "customer",
+				}
 			}
 		} else {
 			result.ResolvedEntities["customer"] = entity
@@ -308,6 +425,90 @@ func (v *RequestValidator) resolveEntities(ctx context.Context, result *Validati
 		}
 	}
 
+	// Resolve bank
+	if bankName, ok := params["bank_name"].(string); ok && strings.TrimSpace(bankName) != "" {
+		entity, err := v.entityResolver.ResolveBank(ctx, bankName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "bank_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Bank '%s' not found", bankName),
+			})
+		} else {
+			result.ResolvedEntities["bank"] = entity
+		}
+	}
+
+	// Resolve company
+	if companyName, ok := params["company_name"].(string); ok && strings.TrimSpace(companyName) != "" {
+		entity, err := v.entityResolver.ResolveCompany(ctx, companyName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "company_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Company '%s' not found", companyName),
+			})
+		} else {
+			result.ResolvedEntities["company"] = entity
+		}
+	}
+
+	// Resolve division
+	if divisionName, ok := params["division_name"].(string); ok && strings.TrimSpace(divisionName) != "" {
+		entity, err := v.entityResolver.ResolveDivision(ctx, divisionName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "division_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Division '%s' not found", divisionName),
+			})
+		} else {
+			result.ResolvedEntities["division"] = entity
+		}
+	}
+
+	// Resolve business type
+	if businessTypeName, ok := params["business_type_name"].(string); ok && strings.TrimSpace(businessTypeName) != "" {
+		entity, err := v.entityResolver.ResolveBusinessType(ctx, businessTypeName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "business_type_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Business type '%s' not found", businessTypeName),
+			})
+		} else {
+			result.ResolvedEntities["business_type"] = entity
+		}
+	}
+
+	// Resolve supplier type
+	if supplierTypeName, ok := params["supplier_type_name"].(string); ok && strings.TrimSpace(supplierTypeName) != "" {
+		entity, err := v.entityResolver.ResolveSupplierType(ctx, supplierTypeName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "supplier_type_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Supplier type '%s' not found", supplierTypeName),
+			})
+		} else {
+			result.ResolvedEntities["supplier_type"] = entity
+		}
+	}
+
+	// Resolve customer type
+	if customerTypeName, ok := params["customer_type_name"].(string); ok && strings.TrimSpace(customerTypeName) != "" {
+		entity, err := v.entityResolver.ResolveCustomerType(ctx, customerTypeName)
+		if err != nil {
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "customer_type_name",
+				Code:    "ENTITY_NOT_FOUND",
+				Message: fmt.Sprintf("Customer type '%s' not found", customerTypeName),
+			})
+		} else {
+			result.ResolvedEntities["customer_type"] = entity
+		}
+	}
+
 	// Resolve area
 	if areaName, ok := params["area_name"].(string); ok && strings.TrimSpace(areaName) != "" {
 		entity, err := v.entityResolver.ResolveArea(ctx, areaName)
@@ -322,4 +523,13 @@ func (v *RequestValidator) resolveEntities(ctx context.Context, result *Validati
 			result.ResolvedEntities["area"] = entity
 		}
 	}
+}
+
+func shouldRequireExistingCustomerForIntent(intentCode string) bool {
+	intentCode = strings.ToUpper(strings.TrimSpace(intentCode))
+	strictIntents := map[string]bool{
+		"CREATE_SALES_ORDER":   true,
+		"CREATE_SALES_INVOICE": true,
+	}
+	return strictIntents[intentCode]
 }

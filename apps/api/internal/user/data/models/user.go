@@ -10,17 +10,18 @@ import (
 
 // User represents a user entity
 type User struct {
-	ID        string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Email     string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
-	Password  string           `gorm:"type:varchar(255);not null" json:"-"` // Hidden from JSON
-	Name      string           `gorm:"type:varchar(255);not null;index" json:"name"`
-	AvatarURL string           `gorm:"type:text" json:"avatar_url"`
-	RoleID    string           `gorm:"type:uuid;not null;index" json:"role_id"`
-	Role      *roleModels.Role `gorm:"foreignKey:RoleID" json:"role,omitempty"`
-	Status    string           `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
-	CreatedAt time.Time        `json:"created_at"`
-	UpdatedAt time.Time        `gorm:"index" json:"updated_at"`
-	DeletedAt gorm.DeletedAt   `gorm:"index" json:"-"`
+	ID                    string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Email                 string           `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+	Password              string           `gorm:"type:varchar(255);not null" json:"-"` // Hidden from JSON
+	Name                  string           `gorm:"type:varchar(255);not null;index" json:"name"`
+	AvatarURL             string           `gorm:"type:text" json:"avatar_url"`
+	RoleID                string           `gorm:"type:uuid;not null;index" json:"role_id"`
+	Role                  *roleModels.Role `gorm:"foreignKey:RoleID" json:"role,omitempty"`
+	Status                string           `gorm:"type:varchar(20);not null;default:'active';index" json:"status"`
+	PasswordResetPending  bool             `gorm:"type:boolean;not null;default:false;index" json:"password_reset_pending"`
+	CreatedAt             time.Time        `json:"created_at"`
+	UpdatedAt             time.Time        `gorm:"index" json:"updated_at"`
+	DeletedAt             gorm.DeletedAt   `gorm:"index" json:"-"`
 }
 
 // TableName specifies the table name for User

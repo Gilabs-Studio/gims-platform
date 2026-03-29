@@ -51,7 +51,7 @@ export function useProcurementTypeForm({ open, onOpenChange, editingItem, onCrea
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -71,7 +71,7 @@ export function useProcurementTypeForm({ open, onOpenChange, editingItem, onCrea
           data: {
             name: data.name,
             description: data.description || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updated", { fallback: "Procurement Type updated successfully" }));
@@ -79,7 +79,7 @@ export function useProcurementTypeForm({ open, onOpenChange, editingItem, onCrea
         const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("created", { fallback: "Procurement Type created successfully" }));
         if (onCreated && result?.data?.id) {

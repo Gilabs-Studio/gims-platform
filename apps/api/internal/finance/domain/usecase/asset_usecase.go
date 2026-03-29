@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -276,6 +278,9 @@ func (uc *assetUsecase) GetByID(ctx context.Context, id string) (*dto.AssetRespo
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
+	}
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &financeModels.Asset{}, id, security.FinanceScopeQueryOptions()) {
+		return nil, ErrAssetNotFound
 	}
 	item, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
@@ -878,7 +883,30 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 		ReferenceID:     &req.ReferenceID,
 	}
 
-	return tx.Create(&tLog).Error
+	if err := tx.Create(&tLog).Error; err != nil {
+		return err
+	}
+
+	// Update Asset Budget Usage
+	var budgetCat financeModels.AssetBudgetCategory
+	fiscalYear := parsedDate.Year()
+	err := tx.Table("asset_budget_categories bc").
+		Joins("JOIN asset_budgets b ON b.id = bc.budget_id").
+		Where("bc.category_id = ? AND b.fiscal_year = ? AND b.status = ?", catID, fiscalYear, financeModels.AssetBudgetStatusActive).
+		First(&budgetCat).Error
+
+	if err == nil {
+		// Category budget found, update usage
+		if err := tx.Model(&financeModels.AssetBudgetCategory{}).
+			Where("id = ?", budgetCat.ID).
+			Updates(map[string]interface{}{
+				"used_amount": gorm.Expr("used_amount + ?", req.AcquisitionCost),
+			}).Error; err != nil {
+			log.Printf("Warning: failed to update asset budget usage: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (uc *assetUsecase) Revalue(ctx context.Context, id string, req *dto.RevalueAssetRequest) (*dto.AssetResponse, error) {

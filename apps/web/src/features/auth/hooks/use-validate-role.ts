@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { useAuthStore } from "../stores/use-auth-store";
@@ -8,67 +8,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { getLocaleFromPathname } from "@/lib/i18n/get-locale";
 
-const ROLE_VALIDATION_CACHE_PREFIX = "role_validation_cache";
 const ROLE_VALIDATION_CACHE_TTL_MS = 5 * 60 * 1000;
-
-interface RoleValidationCache {
-  is_valid: boolean;
-  checked_at: number;
-  role_code?: string;
-}
-
-function getRoleValidationCache(userId?: string, roleCode?: string): { is_valid: boolean } | null {
-  if (!userId || typeof globalThis.window === "undefined") {
-    return null;
-  }
-
-  const cacheKey = `${ROLE_VALIDATION_CACHE_PREFIX}:${userId}`;
-  const raw = localStorage.getItem(cacheKey);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as RoleValidationCache;
-    const isExpired = Date.now() - parsed.checked_at > ROLE_VALIDATION_CACHE_TTL_MS;
-    const roleChanged = Boolean(roleCode && parsed.role_code && parsed.role_code !== roleCode);
-
-    // Only trust short-lived positive cache to avoid stale block redirects.
-    if (parsed.is_valid !== true || isExpired || roleChanged) {
-      localStorage.removeItem(cacheKey);
-      return null;
-    }
-
-    return { is_valid: true };
-  } catch {
-    localStorage.removeItem(cacheKey);
-    return null;
-  }
-}
-
-function setRoleValidationCache(userId?: string, roleCode?: string): void {
-  if (!userId || typeof globalThis.window === "undefined") {
-    return;
-  }
-
-  const cacheKey = `${ROLE_VALIDATION_CACHE_PREFIX}:${userId}`;
-  const payload: RoleValidationCache = {
-    is_valid: true,
-    checked_at: Date.now(),
-    role_code: roleCode,
-  };
-
-  localStorage.setItem(cacheKey, JSON.stringify(payload));
-}
-
-function clearRoleValidationCache(userId?: string): void {
-  if (!userId || typeof globalThis.window === "undefined") {
-    return;
-  }
-
-  const cacheKey = `${ROLE_VALIDATION_CACHE_PREFIX}:${userId}`;
-  localStorage.removeItem(cacheKey);
-}
 
 /**
  * Hook untuk real-time validation role user
@@ -82,10 +22,6 @@ export function useValidateRole() {
   const { user } = useAuthStore();
   const t = useTranslations("auth");
   const lastValidatedRef = useRef<boolean | null>(null); // null = not yet validated, true = was valid, false = was invalid
-  const cachedValidation = useMemo(
-    () => getRoleValidationCache(user?.id, user?.role?.code),
-    [user?.id, user?.role?.code]
-  );
 
   const { data: validationData } = useQuery({
     queryKey: ["validate-role", user?.id],
@@ -126,13 +62,12 @@ export function useValidateRole() {
         return { is_valid: true };
       }
     },
-    enabled: !!user?.id && !!user?.role && !cachedValidation,
-    initialData: cachedValidation ?? undefined,
+    enabled: !!user?.id && !!user?.role,
     staleTime: ROLE_VALIDATION_CACHE_TTL_MS,
     gcTime: ROLE_VALIDATION_CACHE_TTL_MS * 2,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchOnMount: !cachedValidation,
+    refetchOnMount: true,
     retry: (failureCount, error) => {
       // Don't retry on auth errors
       const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
@@ -161,7 +96,6 @@ export function useValidateRole() {
       user?.role
     ) {
       lastValidatedRef.current = false;
-      clearRoleValidationCache(user?.id);
 
       toast.error(
         t("roleInvalid.title", { defaultValue: "Access Revoked" }),
@@ -187,9 +121,8 @@ export function useValidateRole() {
 
     if (validationData?.is_valid) {
       lastValidatedRef.current = true;
-      setRoleValidationCache(user?.id, user?.role?.code);
     }
-  }, [validationData, pathname, router, t, user?.id, user?.role]);
+  }, [validationData, pathname, router, t, user?.role]);
 
   // Return isValid based on validationData
   // If validationData is undefined (still loading), return true to prevent false positives

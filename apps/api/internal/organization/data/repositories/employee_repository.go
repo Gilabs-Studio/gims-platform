@@ -206,7 +206,7 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 
 func (r *employeeRepository) GetLastEmployeeCode(ctx context.Context) (string, error) {
 	var lastCode string
-	err := r.db.WithContext(ctx).Model(&models.Employee{}).
+	err := r.db.WithContext(ctx).Unscoped().Model(&models.Employee{}).
 		Select("employee_code").
 		Where("employee_code ~ '^EMP-[0-9]+$'").
 		Order("CAST(SUBSTRING(employee_code FROM 5) AS INTEGER) DESC").

@@ -58,6 +58,7 @@ export function useCreateEmployee() {
     mutationFn: (data: CreateEmployeeData) => employeeService.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["available-users"] });
     },
   });
 }
@@ -71,6 +72,7 @@ export function useUpdateEmployee() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: employeeKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: ["available-users"] });
     },
   });
 }
@@ -82,6 +84,7 @@ export function useDeleteEmployee() {
     mutationFn: (id: string) => employeeService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["available-users"] });
     },
   });
 }
@@ -149,6 +152,7 @@ export function useAvailableUsers(
         search,
         exclude_employee_id: excludeEmployeeId,
       }),
+    staleTime: 0,
     ...options,
   });
 }

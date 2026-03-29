@@ -1,54 +1,72 @@
 import type { ReactNode } from "react";
 import { Search } from "lucide-react";
-import type { DateRange } from "react-day-picker";
 
-import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type FilterToolbarProps = {
   readonly search?: string;
-  readonly dateRange?: DateRange | undefined;
+  readonly startDate?: string;
+  readonly endDate?: string;
   readonly searchPlaceholder?: string;
-  readonly dateRangeLabel?: string;
+  readonly startDateLabel?: string;
+  readonly endDateLabel?: string;
   readonly onSearchChange?: (value: string) => void;
-  readonly onDateRangeChange?: (value: DateRange | undefined) => void;
+  readonly onStartDateChange?: (value: string) => void;
+  readonly onEndDateChange?: (value: string) => void;
   readonly children?: ReactNode;
 };
 
 export function FilterToolbar({
   search,
-  dateRange,
+  startDate,
+  endDate,
   searchPlaceholder,
-  dateRangeLabel,
+  startDateLabel,
+  endDateLabel,
   onSearchChange,
-  onDateRangeChange,
+  onStartDateChange,
+  onEndDateChange,
   children,
 }: FilterToolbarProps) {
   const hasSearch = typeof search === "string" && !!searchPlaceholder && !!onSearchChange;
-  const hasDateRange = !!dateRangeLabel && !!onDateRangeChange;
+  const hasStartDate = typeof startDate === "string" && !!startDateLabel && !!onStartDateChange;
+  const hasEndDate = typeof endDate === "string" && !!endDateLabel && !!onEndDateChange;
 
   return (
     <div className="flex flex-col sm:flex-row items-end gap-4">
       {hasSearch ? (
-        <div className="flex-1 max-w-sm space-y-2">
+        <div className="relative flex-1 max-w-sm">
           <Label className="mb-2 block">{searchPlaceholder}</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input
-              placeholder={searchPlaceholder}
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="h-10 pl-9"
-            />
-          </div>
+          <Search className="absolute left-3 top-[34px] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9"
+          />
         </div>
       ) : null}
 
-      {hasDateRange ? (
+      {hasStartDate ? (
         <div className="w-full sm:w-auto space-y-2">
-          <Label>{dateRangeLabel}</Label>
-          <DateRangePicker dateRange={dateRange} onDateChange={onDateRangeChange} />
+          <Label>{startDateLabel}</Label>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+          />
+        </div>
+      ) : null}
+
+      {hasEndDate ? (
+        <div className="w-full sm:w-auto space-y-2">
+          <Label>{endDateLabel}</Label>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+          />
         </div>
       ) : null}
 

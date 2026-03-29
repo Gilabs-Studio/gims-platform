@@ -1,6 +1,7 @@
 package seeders
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -8,6 +9,10 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	financeDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -31,6 +36,66 @@ func SeedPurchaseFinanceE2E() error {
 	db := database.DB
 
 	// Idempotency: skip if already seeded
+	if isMinimalSeedMode() {
+		var checkPO purchaseModels.PurchaseOrder
+		if err := db.Where("code = ?", "PO-001").First(&checkPO).Error; err == nil {
+			log.Println("Minimal Purchase-Finance data already seeded, skipping...")
+			return nil
+		}
+		log.Println("Seeding minimal Purchase → Finance flow (PO → GR → SI → PAY)...")
+		return db.Transaction(func(tx *gorm.DB) error {
+			adminID := getAdminID(tx)
+
+			var supplier supplierModels.Supplier
+			if err := tx.Where("is_active = ?", true).First(&supplier).Error; err != nil {
+				return err
+			}
+
+			var product productModels.Product
+			if err := tx.Where("is_active = ?", true).First(&product).Error; err != nil {
+				return err
+			}
+
+			var warehouse warehouseModels.Warehouse
+			if err := tx.Where("is_active = ?", true).First(&warehouse).Error; err != nil {
+				return err
+			}
+
+			var bankAccount coreModels.BankAccount
+			if err := tx.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
+				return err
+			}
+
+			var pt coreModels.PaymentTerms
+			if err := tx.Where("is_active = ?", true).First(&pt).Error; err != nil {
+				return err
+			}
+
+			// COA mapping
+			invCOA := getCOAID(tx, "11400")
+			grirCOA := getCOAID(tx, "21100")
+			apCOA := getCOAID(tx, "21000")
+			vatCOA := getCOAID(tx, "11800")
+			bankCOA := getCOAID(tx, "11100")
+
+			return seedMinimalPurchaseFlow(tx, purchaseFlowInput{
+				tag:         "001",
+				product:     product,
+				supplier:    supplier,
+				warehouse:   warehouse,
+				bankAccount: bankAccount,
+				pt:          pt,
+				adminID:     adminID,
+				invCOA:      invCOA,
+				grirCOA:     grirCOA,
+				apCOA:       apCOA,
+				vatCOA:      vatCOA,
+				bankCOA:     bankCOA,
+			})
+		})
+	}
+
+	// Full E2E data
 	var checkPO purchaseModels.PurchaseOrder
 	if err := db.Where("code = ?", "PO-E2E-2025-001").First(&checkPO).Error; err == nil {
 		log.Println("E2E Purchase-Finance data already seeded, skipping...")
@@ -473,8 +538,8 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		SupplierID:           &in.supplier.ID,
 		SupplierCodeSnapshot: in.supplier.Code,
 		SupplierNameSnapshot: in.supplier.Name,
-		PaymentTermsID:       &in.pt.ID,
-		BusinessUnitID:       &in.bu.ID,
+		PaymentTermsID:       nilIfEmpty(in.pt.ID),
+		BusinessUnitID:       nilIfEmpty(in.bu.ID),
 		CreatedBy:      in.adminID,
 		OrderDate:      orderDate.Format("2006-01-02"),
 		Status:         func() purchaseModels.PurchaseOrderStatus {
@@ -559,11 +624,13 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	// 2b. Journal: Dr Inventory / Cr GR-IR
 	if in.invCOA != "" && in.grirCOA != "" {
 		createJournal(tx, receiptDate, fmt.Sprintf("GR Accrual %s", gr.Code),
-			stringPtr("GoodsReceipt"), stringPtr(gr.ID), in.adminID,
+			stringPtr("GOODS_RECEIPT"), stringPtr(gr.ID), in.adminID,
 			[]journalLineInput{
 				{in.invCOA, subtotal, 0, "Inventory stock in"},
 				{in.grirCOA, 0, subtotal, "GR/IR clearing"},
 			})
+	} else {
+		log.Printf("Warning: Failed to create GR Journal for %s due to missing COAs", gr.Code)
 	}
 
 	// 3. Supplier Invoice Down Payment (if applicable)
@@ -694,12 +761,14 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	// 4a. Journal: Dr GR/IR + Dr VAT / Cr AP
 	if in.apCOA != "" && in.grirCOA != "" && in.vatCOA != "" {
 		createJournal(tx, invoiceDate, fmt.Sprintf("AP Invoice %s", si.Code),
-			stringPtr("SupplierInvoice"), stringPtr(si.ID), in.adminID,
+			stringPtr("SUPPLIER_INVOICE"), stringPtr(si.ID), in.adminID,
 			[]journalLineInput{
 				{in.grirCOA, subtotal, 0, "Clear GR/IR"},
 				{in.vatCOA, tax, 0, "VAT Input"},
 				{in.apCOA, 0, total, "Accounts Payable"},
 			})
+	} else {
+		log.Printf("Warning: Failed to create AP Journal for %s due to missing COAs", si.Code)
 	}
 
 	// 5. Purchase Payment (if there is cash payment)
@@ -738,6 +807,152 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 	return nil
 }
 
+func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
+	orderDate := time.Now().AddDate(0, 0, -10)
+	receiptDate := orderDate.AddDate(0, 0, 5)
+	invoiceDate := receiptDate.AddDate(0, 0, 3)
+	payDate := invoiceDate.AddDate(0, 0, 5)
+
+	prefix := in.tag
+
+	// 1. Purchase Order
+	po := purchaseModels.PurchaseOrder{
+		Code:                 fmt.Sprintf("PO-%s", prefix),
+		SupplierID:           nilIfEmpty(in.supplier.ID),
+		SupplierCodeSnapshot: in.supplier.Code,
+		SupplierNameSnapshot: in.supplier.Name,
+		PaymentTermsID:       nilIfEmpty(in.pt.ID),
+		BusinessUnitID:       nilIfEmpty(in.bu.ID),
+		CreatedBy:            in.adminID,
+		OrderDate:            orderDate.Format("2006-01-02"),
+		Status:               purchaseModels.PurchaseOrderStatusApproved,
+		TaxRate:              11.0,
+		TaxAmount:            0,
+		SubTotal:             in.qty * in.price,
+		TotalAmount:          in.qty * in.price,
+		Notes:                "Minimal purchase flow",
+		Items: []purchaseModels.PurchaseOrderItem{{
+			ProductID: in.product.ID,
+			Quantity:  in.qty,
+			Price:     in.price,
+			Subtotal:  in.qty * in.price,
+		}},
+	}
+	if err := tx.Create(&po).Error; err != nil {
+		return fmt.Errorf("create PO %s: %w", po.Code, err)
+	}
+
+	// 2. Goods Receipt
+	gr := purchaseModels.GoodsReceipt{
+		Code:            fmt.Sprintf("GR-%s", prefix),
+		PurchaseOrderID: po.ID,
+		SupplierID:      in.supplier.ID,
+		ReceiptDate:     &receiptDate,
+		Status:          purchaseModels.GoodsReceiptStatusClosed,
+		CreatedBy:       in.adminID,
+		ClosedAt:        &receiptDate,
+		Items: []purchaseModels.GoodsReceiptItem{{
+			PurchaseOrderItemID: po.Items[0].ID,
+			ProductID:           in.product.ID,
+			QuantityReceived:    in.qty,
+		}},
+	}
+	if err := tx.Create(&gr).Error; err != nil {
+		return fmt.Errorf("create GR %s: %w", gr.Code, err)
+	}
+
+	// Stock movement (minimal)
+	_ = tx.Create(&inventoryModels.StockMovement{
+		ProductID:   in.product.ID,
+		WarehouseID: in.warehouse.ID,
+		RefType:     "GoodsReceipt",
+		RefID:       gr.ID,
+		RefNumber:   gr.Code,
+		QtyIn:       in.qty,
+		Cost:        in.price,
+		Date:        receiptDate,
+		CreatedAt:   receiptDate,
+	})
+
+	// 3. Supplier Invoice
+	total := in.qty * in.price
+	si := purchaseModels.SupplierInvoice{
+		Type:            purchaseModels.SupplierInvoiceTypeNormal,
+		PurchaseOrderID: po.ID,
+		GoodsReceiptID:  &gr.ID,
+		SupplierID:      in.supplier.ID,
+		PaymentTermsID:  &in.pt.ID,
+		Code:            fmt.Sprintf("SI-%s", prefix),
+		InvoiceNumber:   fmt.Sprintf("INV-%s", prefix),
+		InvoiceDate:     invoiceDate.Format("2006-01-02"),
+		DueDate:         invoiceDate.AddDate(0, 0, 30).Format("2006-01-02"),
+		TaxRate:         11.0,
+		TaxAmount:       total * 0.11,
+		SubTotal:        total,
+		Amount:          total,
+		PaidAmount:      total,
+		RemainingAmount: 0,
+		Status:          purchaseModels.SupplierInvoiceStatusPaid,
+		CreatedBy:       in.adminID,
+		Items: []purchaseModels.SupplierInvoiceItem{{
+			PurchaseOrderItemID: &po.Items[0].ID,
+			ProductID:           in.product.ID,
+			Quantity:            in.qty,
+			Price:               in.price,
+			SubTotal:            total,
+		}},
+	}
+	if err := tx.Create(&si).Error; err != nil {
+		return fmt.Errorf("create SI %s: %w", si.Code, err)
+	}
+
+	// 4. Purchase Payment
+	pp := purchaseModels.PurchasePayment{
+		SupplierInvoiceID: si.ID,
+		BankAccountID:     in.bankAccount.ID,
+		PaymentDate:       payDate.Format("2006-01-02"),
+		Amount:            total,
+		Method:            purchaseModels.PurchasePaymentMethodBank,
+		Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+		ReferenceNumber:   stringPtr(fmt.Sprintf("PAY-%s", prefix)),
+		CreatedBy:         in.adminID,
+	}
+	if err := tx.Create(&pp).Error; err != nil {
+		return fmt.Errorf("create payment %s: %w", *pp.ReferenceNumber, err)
+	}
+
+	// Journals
+	if in.invCOA != "" && in.grirCOA != "" {
+		createJournal(tx, receiptDate, fmt.Sprintf("GR Accrual %s", gr.Code), stringPtr("GOODS_RECEIPT"), stringPtr(gr.ID), in.adminID, []journalLineInput{
+			{in.invCOA, total, 0, "Inventory"},
+			{in.grirCOA, 0, total, "GR/IR"},
+		})
+	} else {
+		log.Printf("Warning: Failed to create GR Journal for %s due to missing COAs", gr.Code)
+	}
+	if in.apCOA != "" && in.grirCOA != "" && in.vatCOA != "" {
+		createJournal(tx, invoiceDate, fmt.Sprintf("AP Invoice %s", si.Code), stringPtr("SUPPLIER_INVOICE"), stringPtr(si.ID), in.adminID, []journalLineInput{
+			{in.grirCOA, total, 0, "Clear GR/IR"},
+			{in.vatCOA, total * 0.11, 0, "VAT Input"},
+			{in.apCOA, 0, total + total*0.11, "Accounts Payable"},
+		})
+	} else {
+		log.Printf("Warning: Failed to create AP Journal for %s due to missing COAs", si.Code)
+	}
+	if in.apCOA != "" && in.bankCOA != "" {
+		refCode := ""
+		if pp.ReferenceNumber != nil {
+			refCode = *pp.ReferenceNumber
+		}
+		createJournal(tx, payDate, fmt.Sprintf("Payment %s", refCode), stringPtr("PURCHASE_PAYMENT"), stringPtr(pp.ID), in.adminID, []journalLineInput{
+			{in.apCOA, total + total*0.11, 0, "Debit AP"},
+			{in.bankCOA, 0, total + total*0.11, "Credit Bank"},
+		})
+	}
+
+	return nil
+}
+
 type journalLineInput struct {
 	coaID  string
 	debit  float64
@@ -746,12 +961,32 @@ type journalLineInput struct {
 }
 
 func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *string, adminID string, lines []journalLineInput) {
-	jLines := make([]financeModels.JournalLine, 0, len(lines))
+	refTypeValue := ""
+	if refType != nil {
+		refTypeValue = *refType
+	}
+	refIDValue := ""
+	if refID != nil {
+		refIDValue = *refID
+	}
+	log.Printf("Triggering journal entry creation for %v (%v)", refTypeValue, refIDValue)
+
+	coaRepo := financeRepositories.NewChartOfAccountRepository(tx)
+	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
+	coaMapper := financeMapper.NewChartOfAccountMapper()
+	journalMapper := financeMapper.NewJournalEntryMapper(coaMapper)
+	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper)
+
+	reqLines := make([]financeDto.JournalLineRequest, 0, len(lines))
 	for _, l := range lines {
 		if l.coaID == "" {
-			return // Skip if any COA is missing
+			log.Printf("ERROR: Skipped journal %v - missing COA %s", *refType, l.memo)
+			return
 		}
-		jLines = append(jLines, financeModels.JournalLine{
+		if l.debit == 0 && l.credit == 0 {
+			continue // skip zero lines
+		}
+		reqLines = append(reqLines, financeDto.JournalLineRequest{
 			ChartOfAccountID: l.coaID,
 			Debit:            l.debit,
 			Credit:           l.credit,
@@ -759,16 +994,22 @@ func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *str
 		})
 	}
 
-	je := financeModels.JournalEntry{
-		EntryDate:     date,
-		Description:   desc,
-		ReferenceType: refType,
-		ReferenceID:   refID,
-		Status:        financeModels.JournalStatusPosted,
-		CreatedBy:     stringPtr(adminID),
-		Lines:         jLines,
+	ctx := context.WithValue(context.Background(), "user_id", adminID)
+	txCtx := database.WithTx(ctx, tx)
+
+	req := &financeDto.CreateJournalEntryRequest{
+		EntryDate:         date.Format("2006-01-02"),
+		Description:       desc,
+		ReferenceType:     refType,
+		ReferenceID:       refID,
+		Lines:             reqLines,
+		IsSystemGenerated: true,
 	}
-	if err := tx.Create(&je).Error; err != nil {
-		log.Printf("Warning: Failed to create journal '%s': %v", desc, err)
+
+	_, err := journalUC.PostOrUpdateJournal(txCtx, req)
+	if err != nil {
+		log.Printf("ERROR: Failed to create journal entry via usecase for %v (%v): %v", refTypeValue, refIDValue, err)
+	} else {
+		log.Printf("SUCCESS: Created journal entry via usecase for %v (%v)", refTypeValue, refIDValue)
 	}
 }

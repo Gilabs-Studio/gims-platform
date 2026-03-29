@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/mapper"
@@ -38,6 +41,7 @@ type StockOpnameUsecase interface {
 	Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error)
 	Reject(ctx context.Context, id string, rejectedBy *string) (*dto.StockOpnameResponse, error)
 	Post(ctx context.Context, id string, postedBy *string) (*dto.StockOpnameResponse, error)
+	TriggerJournalForStockOpname(ctx context.Context, opname *models.StockOpname) error
 }
 
 type stockOpnameUsecase struct {
@@ -134,6 +138,10 @@ func (u *stockOpnameUsecase) Delete(ctx context.Context, id string) error {
 }
 
 func (u *stockOpnameUsecase) GetByID(ctx context.Context, id string) (*dto.StockOpnameResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.StockOpname{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrStockOpnameNotFound
+	}
+
 	opname, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -223,7 +231,24 @@ func (u *stockOpnameUsecase) ListItems(ctx context.Context, opnameID string) ([]
 }
 
 func (u *stockOpnameUsecase) Submit(ctx context.Context, id string) (*dto.StockOpnameResponse, error) {
-	return u.updateStatus(ctx, id, models.StockOpnameStatusPending, nil)
+	updated, err := u.updateStatus(ctx, id, models.StockOpnameStatusPending, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, database.DB, notificationService.ApprovalNotificationParams{
+		PermissionCode: "stock_opname.approve",
+		EntityType:     "stock_opname",
+		EntityID:       updated.ID,
+		Title:          "Stock Opname Approval",
+		Message:        "A stock opname has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		logDebug(fmt.Sprintf("warning: failed to create stock opname notification: %v", err))
+	}
+
+	return updated, nil
 }
 
 func (u *stockOpnameUsecase) Approve(ctx context.Context, id string, approvedBy *string) (*dto.StockOpnameResponse, error) {
@@ -300,6 +325,18 @@ func (u *stockOpnameUsecase) updateStatus(ctx context.Context, id string, status
 		return nil, err
 	}
 	return u.GetByID(ctx, id)
+}
+
+func (u *stockOpnameUsecase) TriggerJournalForStockOpname(ctx context.Context, opname *models.StockOpname) error {
+	if opname == nil {
+		return nil
+	}
+
+	items, err := u.repo.ListItems(ctx, opname.ID)
+	if err != nil {
+		return err
+	}
+	return u.triggerStockOpnameJournal(ctx, opname, items)
 }
 
 func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opname *models.StockOpname, items []models.StockOpnameItem) error {

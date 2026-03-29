@@ -44,21 +44,8 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// Admin bypass — no scope resolution needed
-		if roleCode, exists := c.Get("user_role"); exists {
-			if roleCode == "admin" {
-				sc := &ScopeContext{UserID: userIDStr}
-				c.Set("scope_context", sc)
-				reqCtx := c.Request.Context()
-				reqCtx = context.WithValue(reqCtx, "scope_user_id", sc.UserID)
-				reqCtx = context.WithValue(reqCtx, "scope_employee_id", "")
-				reqCtx = context.WithValue(reqCtx, "scope_division_id", "")
-				reqCtx = context.WithValue(reqCtx, "scope_area_ids", []string{})
-				c.Request = c.Request.WithContext(reqCtx)
-				c.Next()
-				return
-			}
-		}
+		// Admin also gets their employee data resolved, but their scoping checks 
+		// are bypassed downstream in permission.go. We just need their ID.
 
 		// Resolve employee data for the current user
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)

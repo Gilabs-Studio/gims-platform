@@ -21,6 +21,7 @@ type GLAccountBalance struct {
 type FinanceReportRepository interface {
 	GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error)
 	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID *string) ([]financeModels.JournalLine, error)
+	GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID *string) (float64, error)
 }
 
 type financeReportRepository struct {
@@ -77,7 +78,7 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
 		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
-		WHERE je.status = 'posted'
+		WHERE je.status IN ('posted', 'reversed')
 			AND je.entry_date < ?
 			AND je.deleted_at IS NULL
 			AND jl.deleted_at IS NULL
@@ -115,7 +116,7 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 			SUM(jl.credit) as credit
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
-		WHERE je.status = 'posted'
+		WHERE je.status IN ('posted', 'reversed')
 			AND je.entry_date >= ?
 			AND je.entry_date <= ?
 			AND je.deleted_at IS NULL
@@ -183,7 +184,7 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
-		Where("journal_entries.status = 'posted'").
+		Where("journal_entries.status IN ('posted', 'reversed')").
 		Where("journal_entries.deleted_at IS NULL").
 		Where("journal_lines.deleted_at IS NULL").
 		Where("journal_entries.entry_date >= ?", startDate).
@@ -195,4 +196,46 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 		Order("journal_entries.entry_date asc, journal_entries.id asc, journal_lines.id asc").
 		Find(&lines).Error
 	return lines, err
+}
+
+func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID *string) (float64, error) {
+	companyID = normalizeCompanyID(companyID)
+	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
+		return 0, err
+	}
+
+	type result struct {
+		NetProfit float64 `gorm:"column:net_profit"`
+	}
+
+	query := `
+		SELECT COALESCE(SUM(
+			CASE
+				WHEN coa.type = 'REVENUE' THEN jl.credit - jl.debit
+				WHEN coa.type IN ('EXPENSE', 'COST_OF_GOODS_SOLD', 'SALARY_WAGES', 'OPERATIONAL') THEN jl.credit - jl.debit
+				ELSE 0
+			END
+		), 0) AS net_profit
+		FROM journal_lines jl
+		JOIN journal_entries je ON je.id = jl.journal_entry_id
+		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
+		WHERE je.status IN ('posted', 'reversed')
+			AND je.entry_date >= ?
+			AND je.entry_date <= ?
+			AND je.deleted_at IS NULL
+			AND jl.deleted_at IS NULL
+			AND coa.deleted_at IS NULL
+	`
+	args := []interface{}{startDate, endDate}
+	if companyID != nil {
+		query += ` AND je.company_id = ?`
+		args = append(args, *companyID)
+	}
+
+	var row result
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&row).Error; err != nil {
+		return 0, err
+	}
+
+	return row.NetProfit, nil
 }

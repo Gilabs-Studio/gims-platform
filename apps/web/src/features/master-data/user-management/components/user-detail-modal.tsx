@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Trash2, Mail, User, Shield, Calendar, X } from "lucide-react";
+import { Edit, Trash2, Mail, User, Shield, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +45,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
       toast.success(t("toastDeleted"));
       onOpenChange(false);
       onUserUpdated?.();
-    } catch (error) {
+    } catch {
       // Error already handled in api-client interceptor
     }
   };
@@ -297,7 +297,7 @@ export function UserDetailModal({ userId, open, onOpenChange, onUserUpdated }: U
                   setIsEditDialogOpen(false);
                   toast.success(t("toastUpdated"));
                   onUserUpdated?.();
-                } catch (error) {
+                } catch {
                   // Error already handled in api-client interceptor
                 }
               }}

@@ -63,10 +63,6 @@ import {
 } from "./assets";
 import { EmployeeSignatureSection } from "./signature";
 
-interface EmployeePermission {
-  permissions?: string[];
-}
-
 interface EmployeeDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

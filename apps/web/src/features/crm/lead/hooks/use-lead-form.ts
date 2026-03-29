@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { isAxiosError } from "axios";
 import { useCreateLead, useUpdateLead } from "./use-leads";
 import type { Lead } from "../types";
 import { provinceService, cityService } from "@/features/master-data/geographic/services/geographic-service";
@@ -229,7 +228,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
               // If original editingItem had empty district_id but district name exists, attempt resolve
               // (editingItem may not include district name; skip unless necessary)
             }
-          } catch (err) {
+          } catch {
             // swallow resolution errors silently (no-op)
           }
         })();
@@ -272,7 +271,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
         
       }
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, open, isConvertedLead]);
 
   const onSubmit: SubmitHandler<LeadFormValues> = async (data) => {
     try {
@@ -315,7 +314,7 @@ export function useLeadForm({ open, onOpenChange, editingItem, onSuccess }: UseL
       onOpenChange(false);
       form.reset();
       onSuccess?.();
-    } catch (error: unknown) {
+    } catch {
       toast.error(tCommon("error"));
     }
   };

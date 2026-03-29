@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	"github.com/gilabs/gims/api/internal/hrd/domain/mapper"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"gorm.io/gorm"
@@ -304,6 +308,18 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("failed to create leave request: %w", err)
 	}
 
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "leave_request.approve",
+		EntityType:     "leave_request",
+		EntityID:       leaveRequest.ID,
+		Title:          "Leave Request Approval",
+		Message:        "A leave request has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create leave request notification: %v", err)
+	}
+
 	// 10. Return response DTO with full details
 	return u.mapper.ToDetailResponseDTO(leaveRequest, employee, leaveType), nil
 }
@@ -311,6 +327,10 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 // GetByID retrieves a leave request by ID
 // WHY: Only approvers/HR can view leave request details (business rule change)
 func (u *leaveRequestUsecase) GetByID(ctx context.Context, id string, currentUserID string) (*dto.LeaveRequestDetailResponseDTO, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.LeaveRequest{}, id, security.HRDScopeQueryOptions()) {
+		return nil, fmt.Errorf("leave request not found")
+	}
+
 	leaveRequest, err := u.leaveRequestRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err

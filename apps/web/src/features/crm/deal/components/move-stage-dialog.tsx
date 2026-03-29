@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import {
@@ -55,7 +55,6 @@ export function MoveStageDialog({
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm<MoveDealStageFormData>({
     resolver: zodResolver(moveDealStageSchema),
@@ -87,7 +86,7 @@ export function MoveStageDialog({
     }
   }, [open, reset]);
 
-  const selectedStageId = watch("to_stage_id");
+  const selectedStageId = useWatch({ control, name: "to_stage_id" });
 
   // Determine if selected stage is a terminal (Closed Won/Lost) stage
   const selectedStage = formData?.pipeline_stages?.find(

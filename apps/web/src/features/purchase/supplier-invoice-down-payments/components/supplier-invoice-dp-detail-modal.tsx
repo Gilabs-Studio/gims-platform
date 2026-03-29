@@ -484,7 +484,6 @@ export function SupplierInvoiceDPDetailModal({
               </DialogTitle>
               {detail && (
                 <div className="flex items-center gap-2 flex-wrap mt-1">
-                  <SupplierInvoiceDownPaymentStatusBadge status={detail.status} />
                   {detail.invoice_date && (
                     <span className="text-sm text-muted-foreground">{formatDate(detail.invoice_date)}</span>
                   )}

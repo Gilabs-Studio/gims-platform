@@ -12,6 +12,9 @@ func RegisterSalesOverviewRoutes(rg *gin.RouterGroup, h *handler.SalesOverviewHa
 
 	g.GET("/performance", middleware.RequirePermission("report_sales_overview.read"), h.ListPerformance)
 	g.GET("/monthly-overview", middleware.RequirePermission("report_sales_overview.read"), h.GetMonthlyOverview)
+	// Profile metrics endpoint - for current logged-in user's dashboard/profile
+	g.GET("/profile-metrics", h.GetEmployeeDashboardMetrics)
+	
 	g.GET("/sales-rep/:employeeId", middleware.RequirePermission("report_sales_overview.read"), h.GetSalesRepDetail)
 	g.GET("/sales-rep/:employeeId/check-in-locations", middleware.RequirePermission("report_sales_overview.read"), h.GetCheckInLocations)
 	g.GET("/sales-rep/:employeeId/products", middleware.RequirePermission("report_sales_overview.read"), h.GetProducts)

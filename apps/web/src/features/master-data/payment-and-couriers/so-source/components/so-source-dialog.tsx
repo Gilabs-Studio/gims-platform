@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { useSOSourceForm } from "../hooks/use-so-source-form";
@@ -17,10 +16,7 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
     editingItem,
   });
 
-  const { register, setValue, watch, formState: { errors } } = form;
-
-  const isActive = watch("is_active");
-
+  const { register, formState: { errors } } = form;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -35,10 +31,6 @@ export function SOSourceDialog({ open, onOpenChange, editingItem }: { readonly o
             <FieldLabel>{t("form.description")}</FieldLabel>
             <Textarea placeholder={t("form.descriptionPlaceholder")} {...register("description")} />
             {errors.description && <FieldError>{errors.description.message}</FieldError>}
-          </Field>
-          <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5"><FieldLabel>{t("form.isActive")}</FieldLabel><p className="text-sm text-muted-foreground">{isActive ? tCommon("active") : tCommon("inactive")} status</p></div>
-            <Switch checked={isActive} onCheckedChange={(val) => setValue("is_active", val)} className="cursor-pointer" />
           </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">

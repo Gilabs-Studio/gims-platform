@@ -23,6 +23,10 @@ export const purchasePaymentId = {
     invoiceInfo: "Informasi Invoice",
     paymentDetails: "Detail Pembayaran",
   },
+  tabs: {
+    general: "Umum",
+    auditTrail: "Audit Trail",
+  },
   status: {
     pending: "Menunggu",
     confirmed: "Terkonfirmasi",

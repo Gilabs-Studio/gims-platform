@@ -14,10 +14,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// PurchaseDeps holds exported Purchase usecases for cross-module consumption.
+type PurchaseDeps struct {
+	OrderUC           usecase.PurchaseOrderUsecase
+	RequisitionUC     usecase.PurchaseRequisitionUsecase
+	GoodsReceiptUC    usecase.GoodsReceiptUsecase
+	SupplierInvoiceUC usecase.SupplierInvoiceUsecase
+}
+
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase) {
+}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase) *PurchaseDeps {
 	_ = r
 
 	prRepo := repositories.NewPurchaseRequisitionRepository(db)
@@ -71,4 +79,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPurchasePaymentRoutes(group, payH, payPrintH)
 	router.RegisterPurchaseReturnRoutes(group, returnH)
 	router.RegisterPayableRecapRoutes(group, recapH)
+
+	return &PurchaseDeps{
+		OrderUC:           poUc,
+		RequisitionUC:     prUc,
+		GoodsReceiptUC:    grUc,
+		SupplierInvoiceUC: siUc,
+	}
 }

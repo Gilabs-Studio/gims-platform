@@ -1,22 +1,29 @@
 package seeders
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	financeDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // SeedSalesIntegrationFlow creates a coherent dataset that demonstrates cross-module
@@ -26,7 +33,8 @@ func SeedSalesIntegrationFlow() error {
 
 	// Guard: skip if already seeded
 	var count int64
-	db.Model(&salesModels.SalesQuotation{}).Where("code LIKE ?", "SQ-INT-%").Count(&count)
+	// Cover both INT and MIN prefixes
+	db.Model(&salesModels.SalesQuotation{}).Where("code LIKE ?", "SQ-%").Count(&count)
 	if count > 0 {
 		log.Println("Sales Integration Flow already seeded, skipping...")
 		return nil
@@ -37,6 +45,22 @@ func SeedSalesIntegrationFlow() error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Resolve common dependencies
 		adminID := getAdminID(tx)
+
+		// Minimal seed mode: just one fully traced sales flow
+		if isMinimalSeedMode() {
+			return seedSalesMinimalFlow(tx, adminID)
+		}
+
+		// Ensure 21500 (VAT Output) exists
+		extraCOA := []financeModels.ChartOfAccount{
+			{Code: "21500", Name: "VAT Output", Type: financeModels.AccountTypeLiability, IsActive: true},
+		}
+		for i := range extraCOA {
+			tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "code"}},
+				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
+			}).Create(&extraCOA[i])
+		}
 
 		var customer customerModels.Customer
 		if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
@@ -65,7 +89,7 @@ func SeedSalesIntegrationFlow() error {
 
 		// COAs
 		cashCOA := getCOAID(tx, "11100")
-		receivableCOA := getCOAID(tx, "11300")
+		receivableCOA := getCOAID(tx, "1100") // Mapped to 1100 in sprint 12
 		revenueCOA := getCOAID(tx, "4100")
 		taxCOA := getCOAID(tx, "21500") // VAT Output
 		dpAdvanceCOA := getCOAID(tx, "21200")
@@ -119,6 +143,7 @@ func SeedSalesIntegrationFlow() error {
 
 type salesFlowInput struct {
 	tag                                                      string
+	codePrefix                                               string
 	customer                                                 customerModels.Customer
 	products                                                 []productModels.Product
 	pt                                                       coreModels.PaymentTerms
@@ -128,6 +153,14 @@ type salesFlowInput struct {
 	baseDate                                                 time.Time
 	taxRate                                                  float64
 	cashCOA, receivableCOA, revenueCOA, taxCOA, dpAdvanceCOA string
+}
+
+func (s *salesFlowInput) formatCode(entity, tag string) string {
+	prefix := strings.TrimSpace(s.codePrefix)
+	if prefix == "" {
+		return fmt.Sprintf("%s-%s", entity, tag)
+	}
+	return fmt.Sprintf("%s-%s-%s", entity, prefix, tag)
 }
 
 func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
@@ -141,7 +174,7 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 	// 1. Sales Quotation
 	sq := salesModels.SalesQuotation{
 		ID:             uuid.New().String(),
-		Code:           fmt.Sprintf("SQ-INT-%s", in.tag),
+		Code:           in.formatCode("SQ", in.tag),
 		QuotationDate:  sqDate,
 		CustomerID:     &in.customer.ID,
 		CustomerName:   in.customer.Name,
@@ -170,7 +203,7 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 	// 2. Sales Order
 	so := salesModels.SalesOrder{
 		ID:               uuid.New().String(),
-		Code:             fmt.Sprintf("SO-INT-%s", in.tag),
+		Code:             in.formatCode("SO", in.tag),
 		OrderDate:        soDate,
 		SalesQuotationID: &sq.ID,
 		CustomerID:       &in.customer.ID,
@@ -197,7 +230,7 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 	dpDueDate := dpDate.AddDate(0, 0, 30)
 	dpInv := salesModels.CustomerInvoice{
 		ID:           uuid.New().String(),
-		Code:         fmt.Sprintf("CIDP-INT-%s", in.tag),
+		Code:         in.formatCode("CIDP", in.tag),
 		InvoiceDate:  dpDate,
 		DueDate:      &dpDueDate,
 		Type:         salesModels.CustomerInvoiceTypeDownPayment,
@@ -231,12 +264,14 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 			{in.cashCOA, dpAmount, 0, "Cash In"},
 			{in.dpAdvanceCOA, 0, dpAmount, "Customer Deposit"},
 		})
+	} else {
+		log.Printf("Warning: Failed to create DP Journal for %s due to missing COAs", so.Code)
 	}
 
 	// 4. Delivery Order (Fully delivered)
 	do := salesModels.DeliveryOrder{
 		ID:           uuid.New().String(),
-		Code:         fmt.Sprintf("DO-INT-%s", in.tag),
+		Code:         in.formatCode("DO", in.tag),
 		SalesOrderID: so.ID,
 		WarehouseID:  &in.warehouse.ID,
 		DeliveryDate: doDate,
@@ -258,7 +293,7 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 	netAmount := so.TotalAmount - dpAmount
 	regInv := salesModels.CustomerInvoice{
 		ID:                   uuid.New().String(),
-		Code:                 fmt.Sprintf("INV-INT-%s", in.tag),
+		Code:                 in.formatCode("INV", in.tag),
 		InvoiceDate:          invDate,
 		Type:                 salesModels.CustomerInvoiceTypeRegular,
 		SalesOrderID:         &so.ID,
@@ -276,12 +311,14 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 
 	// Journal for Invoice (Dr Receivable, Dr DP / Cr Sales, Cr Tax)
 	if in.receivableCOA != "" && in.revenueCOA != "" {
-		createJournalEntry(tx, invDate, fmt.Sprintf("Sales Invoice - %s", regInv.Code), "CustomerInvoice", regInv.ID, in.adminID, []journalLineInput{
+		createJournalEntry(tx, invDate, fmt.Sprintf("Sales Invoice - %s", regInv.Code), "SALES_INVOICE", regInv.ID, in.adminID, []journalLineInput{
 			{in.receivableCOA, netAmount, 0, "Account Receivable"},
 			{in.dpAdvanceCOA, dpAmount, 0, "Deduct DP"},
 			{in.revenueCOA, 0, so.Subtotal, "Sales Revenue"},
 			{in.taxCOA, 0, so.TaxAmount, "VAT Output"},
 		})
+	} else {
+		log.Printf("Warning: Failed to create SI Journal for %s due to missing COAs", regInv.Code)
 	}
 
 	// 6. Final Payment
@@ -309,6 +346,8 @@ func seedSalesFullFlowDP(tx *gorm.DB, in salesFlowInput) error {
 			{in.cashCOA, netAmount, 0, "Cash In"},
 			{in.receivableCOA, 0, netAmount, "Clear Receivable"},
 		})
+	} else {
+		log.Printf("Warning: Failed to create Final Payment Journal for %s due to missing COAs", regInv.Code)
 	}
 
 	return nil
@@ -322,7 +361,7 @@ func seedSalesPartialFlow(tx *gorm.DB, in salesFlowInput) error {
 	// Just SO -> INV (Partial) -> PAY
 	so := salesModels.SalesOrder{
 		ID:           uuid.New().String(),
-		Code:         fmt.Sprintf("SO-INT-%s", in.tag),
+		Code:         in.formatCode("SO", in.tag),
 		OrderDate:    soDate,
 		CustomerID:   &in.customer.ID,
 		CustomerName: in.customer.Name,
@@ -334,7 +373,7 @@ func seedSalesPartialFlow(tx *gorm.DB, in salesFlowInput) error {
 
 	inv := salesModels.CustomerInvoice{
 		ID:              uuid.New().String(),
-		Code:            fmt.Sprintf("INV-INT-%s", in.tag),
+		Code:            in.formatCode("INV", in.tag),
 		InvoiceDate:     invDate,
 		Type:            salesModels.CustomerInvoiceTypeRegular,
 		SalesOrderID:    &so.ID,
@@ -368,9 +407,65 @@ func seedSalesPartialFlow(tx *gorm.DB, in salesFlowInput) error {
 			{in.cashCOA, payAmount, 0, "Partial Cash In"},
 			{in.receivableCOA, 0, payAmount, "Partial AR Reduction"},
 		})
+	} else {
+		log.Printf("Warning: Failed to create Partial Payment Journal for %s due to missing COAs", inv.Code)
 	}
 
 	return nil
+}
+
+func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
+	// Minimal sales flow: 1x SQ → 1x SO → 1x DO → 1x INV → 1x PAY
+	// Uses deterministic codes for easy tracing.
+	var customer customerModels.Customer
+	if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
+		return err
+	}
+
+	var pt coreModels.PaymentTerms
+	if err := tx.Where("is_active = ?", true).First(&pt).Error; err != nil {
+		return err
+	}
+
+	var bankAccount coreModels.BankAccount
+	if err := tx.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
+		return err
+	}
+
+	var warehouse warehouseModels.Warehouse
+	if err := tx.Where("is_active = ?", true).First(&warehouse).Error; err != nil {
+		return err
+	}
+
+	var product productModels.Product
+	if err := tx.Where("is_active = ?", true).First(&product).Error; err != nil {
+		return err
+	}
+
+	cashCOA := getCOAID(tx, "11100")
+	receivableCOA := getCOAID(tx, "1100")
+	revenueCOA := getCOAID(tx, "4100")
+	taxCOA := getCOAID(tx, "21500")
+	dpAdvanceCOA := getCOAID(tx, "21200")
+
+	now := time.Now()
+	return seedSalesFullFlowDP(tx, salesFlowInput{
+		tag:           "001",
+		codePrefix:    "",
+		customer:      customer,
+		products:      []productModels.Product{product},
+		pt:            pt,
+		bankAccount:   bankAccount,
+		warehouse:     warehouse,
+		adminID:       adminID,
+		baseDate:      now.AddDate(0, 0, -5),
+		taxRate:       11.0,
+		cashCOA:       cashCOA,
+		receivableCOA: receivableCOA,
+		revenueCOA:    revenueCOA,
+		taxCOA:        taxCOA,
+		dpAdvanceCOA:  dpAdvanceCOA,
+	})
 }
 
 // Helpers
@@ -381,23 +476,48 @@ func getCOAID(tx *gorm.DB, code string) string {
 }
 
 func createJournalEntry(tx *gorm.DB, date time.Time, desc, refType, refID, adminID string, lines []journalLineInput) {
-	je := financeModels.JournalEntry{
-		ID:            uuid.New().String(),
-		EntryDate:     date,
-		Description:   desc,
-		ReferenceType: &refType,
-		ReferenceID:   &refID,
-		Status:        financeModels.JournalStatusPosted,
-		CreatedBy:     &adminID,
-	}
+	log.Printf("Triggering journal entry creation for %s (%s)", refType, refID)
+
+	coaRepo := financeRepositories.NewChartOfAccountRepository(tx)
+	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
+	coaMapper := financeMapper.NewChartOfAccountMapper()
+	journalMapper := financeMapper.NewJournalEntryMapper(coaMapper)
+	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper)
+
+	reqLines := make([]financeDto.JournalLineRequest, 0, len(lines))
 	for _, l := range lines {
-		je.Lines = append(je.Lines, financeModels.JournalLine{
-			ID:               uuid.New().String(),
+		if l.coaID == "" {
+			log.Printf("ERROR: Skipped journal %s - missing COA %s", refType, l.memo)
+			return
+		}
+		// Skip zero lines
+		if l.debit == 0 && l.credit == 0 {
+			continue
+		}
+		reqLines = append(reqLines, financeDto.JournalLineRequest{
 			ChartOfAccountID: l.coaID,
 			Debit:            l.debit,
 			Credit:           l.credit,
 			Memo:             l.memo,
 		})
 	}
-	tx.Create(&je)
+
+	ctx := context.WithValue(context.Background(), "user_id", adminID)
+	txCtx := database.WithTx(ctx, tx)
+
+	req := &financeDto.CreateJournalEntryRequest{
+		EntryDate:         date.Format("2006-01-02"),
+		Description:       desc,
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             reqLines,
+		IsSystemGenerated: true,
+	}
+
+	_, err := journalUC.PostOrUpdateJournal(txCtx, req)
+	if err != nil {
+		log.Printf("ERROR: Failed to create journal entry via usecase for %s (%s): %v", refType, refID, err)
+	} else {
+		log.Printf("SUCCESS: Created journal entry via usecase for %s (%s)", refType, refID)
+	}
 }

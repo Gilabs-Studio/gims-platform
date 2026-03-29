@@ -18,14 +18,15 @@ func ToAvailableUserResponse(u *models.User) dto.AvailableUserResponse {
 // ToUserResponse converts User to UserResponse
 func ToUserResponse(u *models.User) *dto.UserResponse {
 	resp := &dto.UserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		Name:      u.Name,
-		AvatarURL: u.AvatarURL,
-		RoleID:    u.RoleID,
-		Status:    u.Status,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
+		ID:                   u.ID,
+		Email:                u.Email,
+		Name:                 u.Name,
+		AvatarURL:            u.AvatarURL,
+		RoleID:               u.RoleID,
+		Status:               u.Status,
+		PasswordResetPending: u.PasswordResetPending,
+		CreatedAt:            u.CreatedAt,
+		UpdatedAt:            u.UpdatedAt,
 	}
 	if u.Role != nil {
 		resp.Role = roleMapper.ToRoleResponse(u.Role)

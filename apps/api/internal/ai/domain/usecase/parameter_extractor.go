@@ -8,6 +8,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/usecase/prompts"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 )
 
@@ -40,10 +41,14 @@ func (p *ParameterExtractor) Extract(ctx context.Context, intent *IntentResult, 
 	// Build a focused extraction prompt
 	systemPrompt := fmt.Sprintf(prompts.ParameterExtractionTemplate, intent.IntentCode, schema)
 
-	messages := make([]cerebras.ChatMessage, 0, 4)
+	messages := make([]cerebras.ChatMessage, 0, 5)
 	messages = append(messages, cerebras.ChatMessage{
 		Role:    "system",
 		Content: systemPrompt,
+	})
+	messages = append(messages, cerebras.ChatMessage{
+		Role:    "system",
+		Content: fmt.Sprintf("CURRENT_DATETIME_WIB: %s (year=%d). Use this when user says 'today', 'sekarang', 'tahun ini'.", apptime.Now().Format("2006-01-02T15:04:05-07:00"), apptime.Now().Year()),
 	})
 
 	// Include last 6 conversation messages for better multi-turn context

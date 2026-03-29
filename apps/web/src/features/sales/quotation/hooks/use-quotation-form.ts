@@ -266,6 +266,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           business_unit_id: quotation.business_unit_id ?? "",
           business_type_id: quotation.business_type_id ?? undefined,
           customer_id: quotation.customer_id ?? "",
+          customer_contact_id: quotation.customer_contact_id ?? undefined,
           customer_name: quotation.customer_name ?? "",
           customer_contact: quotation.customer_contact ?? "",
           customer_phone: quotation.customer_phone ?? "",
@@ -289,6 +290,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
           customer_phone: "",
@@ -343,21 +345,46 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   } | null) => {
     if (!customer) {
       setValue("customer_name", "", { shouldValidate: true });
+      setValue("customer_contact_id", "", { shouldValidate: true });
       setValue("customer_contact", "", { shouldValidate: true });
       setValue("customer_email", "", { shouldValidate: true });
       setValue("customer_phone", "", { shouldValidate: true });
       return;
     }
 
-    setValue("customer_name", customer.name ?? "", { shouldValidate: true });
-    setValue("customer_contact", customer.contact_person ?? "");
-    setValue("customer_email", customer.email ?? "");
-    setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "");
-    if (customer.default_business_type_id) setValue("business_type_id", customer.default_business_type_id);
-    if (customer.default_payment_terms_id) setValue("payment_terms_id", customer.default_payment_terms_id);
-    if (customer.default_sales_rep_id) setValue("sales_rep_id", customer.default_sales_rep_id);
-    if (customer.default_tax_rate != null) setValue("tax_rate", customer.default_tax_rate);
-  }, [setValue]);
+    // Do not overwrite values already chosen by user (e.g. contact selected from combobox).
+    // Only populate defaults for empty fields.
+    const currentCustomerName = (getValues("customer_name") ?? "").trim();
+    const currentCustomerContact = (getValues("customer_contact") ?? "").trim();
+    const currentCustomerEmail = (getValues("customer_email") ?? "").trim();
+    const currentCustomerPhone = (getValues("customer_phone") ?? "").trim();
+
+    if (!currentCustomerName) {
+      setValue("customer_name", customer.name ?? "", { shouldValidate: true });
+    }
+    if (!currentCustomerContact) {
+      setValue("customer_contact", customer.contact_person ?? "", { shouldValidate: true });
+    }
+    if (!currentCustomerEmail) {
+      setValue("customer_email", customer.email ?? "", { shouldValidate: true });
+    }
+    if (!currentCustomerPhone) {
+      setValue("customer_phone", customer.phone_numbers?.[0]?.phone_number ?? "", { shouldValidate: true });
+    }
+
+    if (!(getValues("business_type_id") ?? "") && customer.default_business_type_id) {
+      setValue("business_type_id", customer.default_business_type_id, { shouldValidate: true });
+    }
+    if (!(getValues("payment_terms_id") ?? "") && customer.default_payment_terms_id) {
+      setValue("payment_terms_id", customer.default_payment_terms_id, { shouldValidate: true });
+    }
+    if (!(getValues("sales_rep_id") ?? "") && customer.default_sales_rep_id) {
+      setValue("sales_rep_id", customer.default_sales_rep_id, { shouldValidate: true });
+    }
+    if (getValues("tax_rate") == null && customer.default_tax_rate != null) {
+      setValue("tax_rate", customer.default_tax_rate, { shouldValidate: true });
+    }
+  }, [getValues, setValue]);
 
   useEffect(() => {
     if (!watchedCustomerId) {
@@ -436,7 +463,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     if (isEdit) {
       if (fullQuotationData?.data) {
         const quotationData = fullQuotationData.data;
-        setSelectedContactId("");
+        setSelectedContactId(quotationData.customer_contact_id ?? "");
         
         // Small delay to ensure form is mounted
         setTimeout(() => {
@@ -449,6 +476,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
             business_unit_id: quotationData.business_unit_id ?? "",
             business_type_id: quotationData.business_type_id ?? undefined,
             customer_name: quotationData.customer_name ?? "",
+            customer_contact_id: quotationData.customer_contact_id ?? undefined,
             customer_contact: quotationData.customer_contact ?? "",
             customer_phone: quotationData.customer_phone ?? "",
             customer_email: quotationData.customer_email ?? "",
@@ -485,6 +513,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           delivery_cost: 0,
           other_cost: 0,
           discount_amount: 0,
+          customer_contact_id: "",
           customer_name: "",
           customer_contact: "",
           customer_phone: "",
@@ -500,6 +529,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
         delivery_cost: 0,
         other_cost: 0,
         discount_amount: 0,
+        customer_contact_id: "",
         customer_name: "",
         customer_contact: "",
         customer_phone: "",
@@ -595,6 +625,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
             sales_rep_id: toOptionalString(data.sales_rep_id),
             business_unit_id: toOptionalString(data.business_unit_id),
             business_type_id: toOptionalString(data.business_type_id),
+            customer_contact_id: toOptionalString(data.customer_contact_id),
             customer_name: toOptionalString(data.customer_name),
             customer_contact: toOptionalString(data.customer_contact),
             customer_phone: toOptionalString(data.customer_phone),
@@ -613,6 +644,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
           sales_rep_id: toOptionalString(data.sales_rep_id) || "",
           business_unit_id: toOptionalString(data.business_unit_id) || "",
           business_type_id: toOptionalString(data.business_type_id),
+          customer_contact_id: toOptionalString(data.customer_contact_id),
           customer_name: toOptionalString(data.customer_name),
           customer_contact: toOptionalString(data.customer_contact),
           customer_phone: toOptionalString(data.customer_phone),
@@ -647,12 +679,22 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     setValue("customer_id", customerId, { shouldValidate: true });
     setCustomerDefaultPins({ paymentTerm: null, businessType: null, salesRep: null });
     setSelectedContactId("");
+
+    // Customer changed manually by user: reset snapshot fields first so
+    // defaults from the newly selected customer can be applied.
+    setValue("customer_contact_id", "", { shouldValidate: true });
+    setValue("customer_name", "", { shouldValidate: true });
+    setValue("customer_contact", "", { shouldValidate: true });
+    setValue("customer_phone", "", { shouldValidate: true });
+    setValue("customer_email", "", { shouldValidate: true });
+
     const customer = customers.find((c) => c.id === customerId);
     applyCustomerDefaults(customer ?? null);
   };
 
   const handleContactChange = (contactId: string) => {
     setSelectedContactId(contactId);
+    setValue("customer_contact_id", contactId, { shouldValidate: true });
 
     const contact = contacts.find((item) => item.id === contactId);
     if (!contact) {
@@ -673,23 +715,25 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     | "businessUnit"
     | "businessType"
     | "customer"
+    | "contact"
     | "product"
     | "employee"
     | null;
 
   const [quickCreate, setQuickCreate] = useState<{
     type: QuickCreateType;
+    query: string;
     itemIndex?: number;
-  }>({ type: null });
+  }>({ type: null, query: "" });
 
   const openQuickCreate = useCallback(
-    (type: QuickCreateType, _initialName?: string, itemIndex?: number) =>
-      setQuickCreate({ type, itemIndex }),
+    (type: QuickCreateType, initialName?: string, itemIndex?: number) =>
+      setQuickCreate({ type, query: initialName?.trim() ?? "", itemIndex }),
     [],
   );
 
   const closeQuickCreate = useCallback(
-    () => setQuickCreate({ type: null }),
+    () => setQuickCreate({ type: null, query: "" }),
     [],
   );
 
@@ -721,10 +765,23 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     (item: { id: string; name: string }) => {
       setValue("customer_id", item.id, { shouldValidate: true });
       setValue("customer_name", item.name, { shouldValidate: true });
+      setValue("customer_contact_id", "", { shouldValidate: true });
       setValue("customer_contact", "", { shouldValidate: true });
       setValue("customer_phone", "", { shouldValidate: true });
       setValue("customer_email", "", { shouldValidate: true });
       setSelectedContactId("");
+      closeQuickCreate();
+    },
+    [setValue, closeQuickCreate],
+  );
+
+  const handleContactCreated = useCallback(
+    (item: { id: string; name: string; phone?: string; email?: string }) => {
+      setSelectedContactId(item.id);
+      setValue("customer_contact_id", item.id, { shouldValidate: true });
+      setValue("customer_contact", item.name, { shouldValidate: true });
+      setValue("customer_phone", item.phone ?? "", { shouldValidate: true });
+      setValue("customer_email", item.email ?? "", { shouldValidate: true });
       closeQuickCreate();
     },
     [setValue, closeQuickCreate],
@@ -837,6 +894,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleProductCreated,
     handleEmployeeCreated,
     customerCombobox,

@@ -40,6 +40,7 @@ import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { LocationPicker } from "@/features/master-data/geographic/components/location-picker";
 import { LeadSourceDialog } from "../../lead-source/components/lead-source-dialog";
 import { LeadStatusDialog } from "../../lead-status/components/lead-status-dialog";
+import { ContactRoleDialog } from "../../contact-role/components/contact-role-dialog";
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
 import { PaymentTermsDialog } from "@/features/master-data/payment-and-couriers/payment-terms/components/payment-terms-dialog";
 import { useLeadSources } from "../../lead-source/hooks/use-lead-source";
@@ -79,14 +80,14 @@ export function LeadFormDialog({
   const [shouldLoadAreas, setShouldLoadAreas] = useState(false);
   const [shouldLoadPaymentTerms, setShouldLoadPaymentTerms] = useState(false);
   const [quickCreate, setQuickCreate] = useState<{
-    type: "source" | "status" | "businessType" | "paymentTerm" | null;
+    type: "source" | "status" | "contactRole" | "businessType" | "paymentTerm" | null;
     query: string;
   }>({ type: null, query: "" });
   const [pendingAreaProvinceName, setPendingAreaProvinceName] = useState("");
   const [activeTab, setActiveTab] = useState<"basic" | "bant">("basic");
   const appliedAreaProvinceNameRef = useRef("");
 
-  const openQuickCreate = (type: "source" | "status" | "businessType" | "paymentTerm", query: string) => {
+  const openQuickCreate = (type: "source" | "status" | "contactRole" | "businessType" | "paymentTerm", query: string) => {
     setQuickCreate({ type, query });
   };
 
@@ -105,6 +106,13 @@ export function LeadFormDialog({
     queryClient.invalidateQueries({ queryKey: ["lead-statuses"] });
     setShouldLoadLeadStatuses(true);
     form.setValue("lead_status_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    closeQuickCreate();
+  };
+
+  const handleContactRoleCreated = (item: { id: string; name: string }) => {
+    queryClient.invalidateQueries({ queryKey: ["contact-roles"] });
+    setShouldLoadContactRoles(true);
+    form.setValue("contact_role_id", item.id, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     closeQuickCreate();
   };
 
@@ -271,7 +279,7 @@ export function LeadFormDialog({
                         control={control}
                         name="contact_role_id"
                         render={({ field }) => (
-                          <Select
+                          <CreatableCombobox
                             value={field.value ?? ""}
                             onOpenChange={(isOpen) => {
                               if (isOpen) {
@@ -279,23 +287,17 @@ export function LeadFormDialog({
                               }
                             }}
                             onValueChange={field.onChange}
-                          >
-                            <SelectTrigger aria-invalid={!!errors.contact_role_id} className="cursor-pointer">
-                              <SelectValue placeholder={t("form.contactRolePlaceholder") || "Select Contact Role"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {isContactRolesLoading && (
-                                <SelectItem value="__loading__" disabled>
-                                  Loading...
-                                </SelectItem>
-                              )}
-                              {contactRoles.map((role) => (
-                                <SelectItem key={role.id} value={role.id} className="cursor-pointer">
-                                  {role.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            ariaInvalid={!!errors.contact_role_id}
+                            isLoading={isContactRolesLoading}
+                            options={contactRoles.map((role) => ({
+                              value: role.id,
+                              label: role.name,
+                            }))}
+                            placeholder={t("form.contactRolePlaceholder") || "Select Contact Role"}
+                            createPermission="crm_contact_role.create"
+                            createLabel={`${tCommon("create")} "{query}"`}
+                            onCreateClick={(query) => openQuickCreate("contactRole", query)}
+                          />
                         )}
                       />
                       {errors.contact_role_id && <FieldError>{errors.contact_role_id.message}</FieldError>}
@@ -826,6 +828,7 @@ export function LeadFormDialog({
         open={quickCreate.type === "source"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handleSourceCreated}
       />
 
@@ -833,11 +836,13 @@ export function LeadFormDialog({
         open={quickCreate.type === "status"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handleStatusCreated}
       />
 
       <BusinessTypeForm
         open={quickCreate.type === "businessType"}
+        initialData={{ name: quickCreate.query }}
         onClose={handleBusinessTypeCreated}
       />
 
@@ -845,7 +850,20 @@ export function LeadFormDialog({
         open={quickCreate.type === "paymentTerm"}
         onOpenChange={(o) => !o && closeQuickCreate()}
         editingItem={null}
+        initialData={{ name: quickCreate.query }}
         onCreated={handlePaymentTermCreated}
+      />
+
+      <ContactRoleDialog
+        open={quickCreate.type === "contactRole"}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            closeQuickCreate();
+          }
+        }}
+        editingItem={null}
+        initialName={quickCreate.query}
+        onCreated={handleContactRoleCreated}
       />
     </>
   );

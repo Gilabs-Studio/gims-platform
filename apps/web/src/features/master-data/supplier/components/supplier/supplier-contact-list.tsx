@@ -38,7 +38,6 @@ const contactSchema = z.object({
   phone: z.string().min(3, "Phone number is required"),
   notes: z.string().optional(),
   is_primary: z.boolean().default(false),
-  is_active: z.boolean().default(true),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -98,7 +97,6 @@ export function SupplierContactList({
       phone: "",
       notes: "",
       is_primary: false,
-      is_active: true,
     },
   });
 
@@ -135,7 +133,6 @@ export function SupplierContactList({
       phone: "",
       notes: "",
       is_primary: false,
-      is_active: true,
     });
     setDialogOpen(true);
   };
@@ -150,7 +147,6 @@ export function SupplierContactList({
       phone: item.phone,
       notes: item.notes || "",
       is_primary: item.is_primary ?? false,
-      is_active: item.is_active ?? true,
     });
     setDialogOpen(true);
   };
@@ -178,6 +174,7 @@ export function SupplierContactList({
     const payload: CreateContactData = {
       ...data,
       contact_role_id: data.contact_role_id?.trim() ? data.contact_role_id : undefined,
+      is_active: true,
     };
 
     try {
@@ -423,21 +420,6 @@ export function SupplierContactList({
                 )}
               />
 
-              <Controller
-                control={control}
-                name="is_active"
-                render={({ field }) => (
-                  <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FieldLabel>{t("form.isActive") || "Active Status"}</FieldLabel>
-                      <p className="text-xs text-muted-foreground">
-                        {t("form.activeDescription") || "Toggle to disable this contact."}
-                      </p>
-                    </div>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </Field>
-                )}
-              />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

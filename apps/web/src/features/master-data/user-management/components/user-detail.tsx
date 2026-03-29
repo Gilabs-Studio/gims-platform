@@ -49,7 +49,7 @@ export function UserDetail({ userId }: UserDetailProps) {
         await deleteUser.mutateAsync(userId);
         toast.success(t("toastDeleted"));
         router.push("/master-data/users");
-      } catch (error) {
+      } catch {
         // Error already handled in api-client interceptor
       }
     }
@@ -266,7 +266,7 @@ export function UserDetail({ userId }: UserDetailProps) {
                   toast.success(t("toastUpdated"));
                   // Refresh the page to show updated data
                   window.location.reload();
-                } catch (error) {
+                } catch {
                   // Error already handled in api-client interceptor
                 }
               }}

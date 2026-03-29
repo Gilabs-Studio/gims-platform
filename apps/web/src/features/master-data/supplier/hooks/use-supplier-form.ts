@@ -132,7 +132,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
           npwp: activeItem.npwp ?? "",
           contact_person: activeItem.contact_person ?? "",
           notes: activeItem.notes ?? "",
-          is_active: activeItem.is_active,
+          is_active: true,
           contacts: [],
           bank_accounts: [],
         });
@@ -182,7 +182,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
         npwp: data.npwp || undefined,
         contact_person: data.contact_person || undefined,
         notes: data.notes || undefined,
-        is_active: data.is_active,
+        is_active: true,
         contacts: !isEditing ? data.contacts : undefined,
         bank_accounts: !isEditing ? data.bank_accounts : undefined,
       };

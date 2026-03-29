@@ -124,11 +124,11 @@ func SeedIntegrationFlow() error {
 
 		po := purchaseModels.PurchaseOrder{
 			Code:                 poCode,
-			SupplierID:           &supplier.ID,
+			SupplierID:           nilIfEmpty(supplier.ID),
 			SupplierCodeSnapshot: supplier.Code,
 			SupplierNameSnapshot: supplier.Name,
-			PaymentTermsID:       &pt.ID,
-			BusinessUnitID:       &bu.ID,
+			PaymentTermsID:       nilIfEmpty(pt.ID),
+			BusinessUnitID:       nilIfEmpty(bu.ID),
 			CreatedBy:            adminID,
 			OrderDate:            now.AddDate(0, 0, -i*2).Format("2006-01-02"),
 			Status:               poStatus,

@@ -2,24 +2,25 @@ package dto
 
 // CreateSalesOrderRequest represents the request to create a sales order
 type CreateSalesOrderRequest struct {
-	OrderDate        string                        `json:"order_date" binding:"required"`
-	SalesQuotationID *string                       `json:"sales_quotation_id"`
-	PaymentTermsID   *string                       `json:"payment_terms_id" binding:"required"`
-	SalesRepID       *string                       `json:"sales_rep_id" binding:"required"`
-	BusinessUnitID   *string                       `json:"business_unit_id" binding:"required"`
-	BusinessTypeID   *string                       `json:"business_type_id"`
-	DeliveryAreaID   *string                       `json:"delivery_area_id"`
-	CustomerID       *string                       `json:"customer_id"`
-	CustomerName     string                        `json:"customer_name"`
-	CustomerContact  string                        `json:"customer_contact"`
-	CustomerPhone    string                        `json:"customer_phone"`
-	CustomerEmail    string                        `json:"customer_email"`
-	TaxRate          float64                       `json:"tax_rate" binding:"gte=0,lte=100"`
-	DeliveryCost     float64                       `json:"delivery_cost" binding:"gte=0"`
-	OtherCost        float64                       `json:"other_cost" binding:"gte=0"`
-	DiscountAmount   float64                       `json:"discount_amount" binding:"gte=0"`
-	Notes            string                        `json:"notes"`
-	Items            []CreateSalesOrderItemRequest `json:"items" binding:"required,min=1,dive"`
+	OrderDate         string                        `json:"order_date" binding:"required"`
+	SalesQuotationID  *string                       `json:"sales_quotation_id"`
+	PaymentTermsID    *string                       `json:"payment_terms_id" binding:"required"`
+	SalesRepID        *string                       `json:"sales_rep_id" binding:"required"`
+	BusinessUnitID    *string                       `json:"business_unit_id" binding:"required"`
+	BusinessTypeID    *string                       `json:"business_type_id"`
+	DeliveryAreaID    *string                       `json:"delivery_area_id"`
+	CustomerID        *string                       `json:"customer_id"`
+	CustomerContactID *string                       `json:"customer_contact_id"`
+	CustomerName      string                        `json:"customer_name"`
+	CustomerContact   string                        `json:"customer_contact"`
+	CustomerPhone     string                        `json:"customer_phone"`
+	CustomerEmail     string                        `json:"customer_email"`
+	TaxRate           float64                       `json:"tax_rate" binding:"gte=0,lte=100"`
+	DeliveryCost      float64                       `json:"delivery_cost" binding:"gte=0"`
+	OtherCost         float64                       `json:"other_cost" binding:"gte=0"`
+	DiscountAmount    float64                       `json:"discount_amount" binding:"gte=0"`
+	Notes             string                        `json:"notes"`
+	Items             []CreateSalesOrderItemRequest `json:"items" binding:"required,min=1,dive"`
 }
 
 // CreateSalesOrderItemRequest represents an item in the order
@@ -32,23 +33,24 @@ type CreateSalesOrderItemRequest struct {
 
 // UpdateSalesOrderRequest represents the request to update a sales order
 type UpdateSalesOrderRequest struct {
-	OrderDate       *string                       `json:"order_date"`
-	PaymentTermsID  *string                       `json:"payment_terms_id"`
-	SalesRepID      *string                       `json:"sales_rep_id"`
-	BusinessUnitID  *string                       `json:"business_unit_id"`
-	BusinessTypeID  *string                       `json:"business_type_id"`
-	DeliveryAreaID  *string                       `json:"delivery_area_id"`
-	CustomerID      *string                       `json:"customer_id"`
-	CustomerName    *string                       `json:"customer_name"`
-	CustomerContact *string                       `json:"customer_contact"`
-	CustomerPhone   *string                       `json:"customer_phone"`
-	CustomerEmail   *string                       `json:"customer_email"`
-	TaxRate         *float64                      `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
-	DeliveryCost    *float64                      `json:"delivery_cost" binding:"omitempty,gte=0"`
-	OtherCost       *float64                      `json:"other_cost" binding:"omitempty,gte=0"`
-	DiscountAmount  *float64                      `json:"discount_amount" binding:"omitempty,gte=0"`
-	Notes           *string                       `json:"notes"`
-	Items           []CreateSalesOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
+	OrderDate         *string                       `json:"order_date"`
+	PaymentTermsID    *string                       `json:"payment_terms_id"`
+	SalesRepID        *string                       `json:"sales_rep_id"`
+	BusinessUnitID    *string                       `json:"business_unit_id"`
+	BusinessTypeID    *string                       `json:"business_type_id"`
+	DeliveryAreaID    *string                       `json:"delivery_area_id"`
+	CustomerID        *string                       `json:"customer_id"`
+	CustomerContactID *string                       `json:"customer_contact_id"`
+	CustomerName      *string                       `json:"customer_name"`
+	CustomerContact   *string                       `json:"customer_contact"`
+	CustomerPhone     *string                       `json:"customer_phone"`
+	CustomerEmail     *string                       `json:"customer_email"`
+	TaxRate           *float64                      `json:"tax_rate" binding:"omitempty,gte=0,lte=100"`
+	DeliveryCost      *float64                      `json:"delivery_cost" binding:"omitempty,gte=0"`
+	OtherCost         *float64                      `json:"other_cost" binding:"omitempty,gte=0"`
+	DiscountAmount    *float64                      `json:"discount_amount" binding:"omitempty,gte=0"`
+	Notes             *string                       `json:"notes"`
+	Items             []CreateSalesOrderItemRequest `json:"items" binding:"omitempty,min=1,dive"`
 }
 
 // ListSalesOrdersRequest represents the request to list sales orders
@@ -82,14 +84,15 @@ type UpdateSalesOrderStatusRequest struct {
 
 // ConvertFromQuotationRequest represents the request to convert quotation to order
 type ConvertFromQuotationRequest struct {
-	QuotationID     string  `json:"quotation_id" binding:"required,uuid"`
-	DeliveryAreaID  *string `json:"delivery_area_id"`
-	CustomerID      *string `json:"customer_id"`
-	CustomerName    string  `json:"customer_name"`
-	CustomerContact string  `json:"customer_contact"`
-	CustomerPhone   string  `json:"customer_phone"`
-	CustomerEmail   string  `json:"customer_email"`
-	Notes           string  `json:"notes"`
+	QuotationID       string  `json:"quotation_id" binding:"required,uuid"`
+	DeliveryAreaID    *string `json:"delivery_area_id"`
+	CustomerID        *string `json:"customer_id"`
+	CustomerContactID *string `json:"customer_contact_id"`
+	CustomerName      string  `json:"customer_name"`
+	CustomerContact   string  `json:"customer_contact"`
+	CustomerPhone     string  `json:"customer_phone"`
+	CustomerEmail     string  `json:"customer_email"`
+	Notes             string  `json:"notes"`
 }
 
 // FulfillmentSummary represents the delivery fulfillment progress of a sales order
@@ -118,6 +121,8 @@ type SalesOrderResponse struct {
 	DeliveryAreaID     *string                  `json:"delivery_area_id"`
 	DeliveryArea       *AreaResponse            `json:"delivery_area,omitempty"`
 	CustomerID         *string                  `json:"customer_id"`
+	CustomerContactID  *string                  `json:"customer_contact_id"`
+	CustomerContactRef *CustomerContactResponse `json:"customer_contact_ref,omitempty"`
 	Customer           *CustomerResponse        `json:"customer,omitempty"`
 	CustomerName       string                   `json:"customer_name"`
 	CustomerContact    string                   `json:"customer_contact"`

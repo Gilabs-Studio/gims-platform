@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -10,6 +11,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -71,6 +74,10 @@ func (uc *purchaseOrderUsecase) List(ctx context.Context, params repositories.Pu
 }
 
 func (uc *purchaseOrderUsecase) GetByID(ctx context.Context, id string) (*dto.PurchaseOrderDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseOrder{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchaseOrderNotFound
+	}
+
 	po, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -492,6 +499,17 @@ func (uc *purchaseOrderUsecase) Submit(ctx context.Context, id string) (*dto.Pur
 		"before": before,
 		"after":  poAuditSnapshot(updated),
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "purchase_order.approve",
+		EntityType:     "purchase_order",
+		EntityID:       updated.ID,
+		Title:          "Purchase Order Approval",
+		Message:        "A purchase order has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create purchase order notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(updated), nil
 }
 
@@ -728,7 +746,7 @@ func (uc *purchaseOrderUsecase) AddData(ctx context.Context) (*dto.PurchaseOrder
 			Name:           s.Name,
 			PaymentTermsID: s.PaymentTermsID,
 			BusinessUnitID: s.BusinessUnitID,
-			Contacts: respPhones,
+			Contacts:       respPhones,
 			Products:       respProducts,
 		})
 	}

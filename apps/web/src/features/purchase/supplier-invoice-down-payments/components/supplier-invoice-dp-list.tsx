@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
@@ -65,6 +65,15 @@ const SupplierInvoiceDPFormDialog = dynamic(
   { ssr: false },
 );
 
+function getInitialOpenSupplierInvoiceDPFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_supplier_invoice_dp");
+}
+
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
 function DueDateCell({ dueDate, status }: { dueDate: string; status: string }) {
@@ -124,7 +133,7 @@ export function SupplierInvoiceDPList() {
   const [editId, setEditId] = useState<string | undefined>(undefined);
 
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenSupplierInvoiceDPFromURL);
 
   const [deletingRow, setDeletingRow] = useState<SupplierInvoiceDPListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
@@ -161,6 +170,24 @@ export function SupplierInvoiceDPList() {
   const approveMutation = useApproveSupplierInvoiceDP();
   const rejectMutation = useRejectSupplierInvoiceDP();
   const cancelMutation = useCancelSupplierInvoiceDP();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_supplier_invoice_dp")) return;
+
+    searchParams.delete("open_supplier_invoice_dp");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const canCreate = useUserPermission("supplier_invoice_dp.create");
   const canUpdate = useUserPermission("supplier_invoice_dp.update");

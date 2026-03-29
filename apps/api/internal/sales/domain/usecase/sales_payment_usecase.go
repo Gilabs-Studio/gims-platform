@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -47,6 +48,7 @@ type SalesPaymentUsecase interface {
 	Confirm(ctx context.Context, id string) (*dto.SalesPaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesPaymentAuditTrailEntry, int64, error)
 	ExportCSV(ctx context.Context, params repositories.SalesPaymentListParams) ([]byte, error)
+	TriggerJournalForPayment(ctx context.Context, pay *models.SalesPayment) error
 }
 
 type salesPaymentUsecase struct {
@@ -162,6 +164,9 @@ func (uc *salesPaymentUsecase) List(ctx context.Context, params repositories.Sal
 }
 
 func (uc *salesPaymentUsecase) GetByID(ctx context.Context, id string) (*dto.SalesPaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SalesPayment{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesPaymentNotFound
+	}
 	p, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -752,6 +757,10 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	})
 
 	return nil
+}
+
+func (uc *salesPaymentUsecase) TriggerJournalForPayment(ctx context.Context, pay *models.SalesPayment) error {
+	return uc.triggerJournalEntry(ctx, pay)
 }
 
 func (uc *salesPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SalesPaymentAuditTrailEntry, int64, error) {

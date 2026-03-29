@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreUsecase "github.com/gilabs/gims/api/internal/core/domain/usecase"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -48,6 +50,13 @@ import (
 	userHandler "github.com/gilabs/gims/api/internal/user/presentation/handler"
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
+	passwordResetRepo "github.com/gilabs/gims/api/internal/password_reset/data/repositories"
+	passwordResetUsecase "github.com/gilabs/gims/api/internal/password_reset/domain/usecase"
+	passwordResetHandler "github.com/gilabs/gims/api/internal/password_reset/presentation/handler"
+	passwordResetRouter "github.com/gilabs/gims/api/internal/password_reset/presentation/router"
+
+	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
+
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
 	customerPresentation "github.com/gilabs/gims/api/internal/customer/presentation"
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
@@ -57,6 +66,7 @@ import (
 	inventoryRepo "github.com/gilabs/gims/api/internal/inventory/data/repositories" // Import repo
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase" // Import usecase
 	inventoryPresentation "github.com/gilabs/gims/api/internal/inventory/presentation"
+	notificationPresentation "github.com/gilabs/gims/api/internal/notification/presentation"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	organizationPresentation "github.com/gilabs/gims/api/internal/organization/presentation"
 	productPresentation "github.com/gilabs/gims/api/internal/product/presentation"
@@ -102,19 +112,53 @@ func initInfrastructure() {
 	}
 	// Defer redis.Close() also needs to be in main
 
-	// Run migrations
+	// Run migrations (optionally only once)
+	migrateOnce := os.Getenv("MIGRATE_ONCE") == "true"
+	migrateFlagFile := os.Getenv("MIGRATE_FLAG_FILE")
+	if migrateFlagFile == "" {
+		migrateFlagFile = "/app/.migrated"
+	}
+
 	if config.AppConfig.Startup.RunMigrations {
-		if err := database.AutoMigrate(); err != nil {
-			log.Fatal("Failed to run migrations:", err)
+		if migrateOnce {
+			if _, err := os.Stat(migrateFlagFile); err == nil {
+				log.Println("Skipping migrations (already migrated)")
+			} else {
+				if err := database.AutoMigrate(); err != nil {
+					log.Fatal("Failed to run migrations:", err)
+				}
+				_ = os.WriteFile(migrateFlagFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+			}
+		} else {
+			if err := database.AutoMigrate(); err != nil {
+				log.Fatal("Failed to run migrations:", err)
+			}
 		}
 	} else {
 		log.Println("Skipping migrations (RUN_MIGRATIONS=false)")
 	}
 
-	// Seed data
+	// Seed data (optionally only once)
+	seedOnce := os.Getenv("SEED_ONCE") == "true"
+	seedFlagFile := os.Getenv("SEED_FLAG_FILE")
+	if seedFlagFile == "" {
+		seedFlagFile = "/app/.seeded"
+	}
+
 	if config.AppConfig.Startup.RunSeeders {
-		if err := seeders.SeedAll(); err != nil {
-			log.Fatal("Failed to seed data:", err)
+		if seedOnce {
+			if _, err := os.Stat(seedFlagFile); err == nil {
+				log.Println("Skipping seeders (already seeded)")
+			} else {
+				if err := seeders.SeedAll(); err != nil {
+					log.Fatal("Failed to seed data:", err)
+				}
+				_ = os.WriteFile(seedFlagFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+			}
+		} else {
+			if err := seeders.SeedAll(); err != nil {
+				log.Fatal("Failed to seed data:", err)
+			}
 		}
 	} else {
 		log.Println("Skipping seeders (RUN_SEEDERS=false)")
@@ -184,6 +228,8 @@ func main() {
 	roleRepository := roleRepo.NewRoleRepository(database.DB)
 	permissionRepository := permissionRepo.NewPermissionRepository(database.DB)
 	menuRepository := permissionRepo.NewMenuRepository(database.DB)
+	passwordResetRepository := passwordResetRepo.NewPasswordResetRequestRepository(database.DB)
+	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
 
 	// Setup Services
@@ -199,12 +245,14 @@ func main() {
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
+	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -263,35 +311,8 @@ func main() {
 		})
 	})
 
-	// Serve static files from uploads directory with CORS support
-	uploadsGroup := r.Group("/uploads")
-	{
-		uploadsGroup.Use(func(c *gin.Context) {
-			origin := c.Request.Header.Get("Origin")
-			// Allow common development origins
-			allowedOrigins := []string{
-				"http://localhost:3000",
-				"http://127.0.0.1:3000",
-				"http://localhost:3001",
-				"http://127.0.0.1:3001",
-			}
-			for _, allowed := range allowedOrigins {
-				if origin == allowed {
-					c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-					break
-				}
-			}
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization")
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-			if c.Request.Method == "OPTIONS" {
-				c.AbortWithStatus(http.StatusNoContent)
-				return
-			}
-			c.Next()
-		})
-		uploadsGroup.Static("", config.AppConfig.Storage.UploadDir)
-	}
+	// Serve static files from uploads directory
+	r.Static("/uploads", config.AppConfig.Storage.UploadDir)
 
 	// API v1 routes
 	var autoAbsentWorker *hrdWorker.AutoAbsentWorker
@@ -305,10 +326,12 @@ func main() {
 		})
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
+		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
 		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)
 		coreRouter.RegisterUploadRoutes(v1, jwtManager, permissionService)
+		notificationPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Geographic module (Sprint 1)
 		geographicPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -369,22 +392,41 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
 
 		// AI Assistant module
+		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)
+		bankAccountRepo := coreRepos.NewBankAccountRepository(database.DB)
+		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+
 		cerebrasClient := cerebras.NewClient(
 			config.AppConfig.Cerebras.BaseURL,
 			config.AppConfig.Cerebras.APIKey,
 			config.AppConfig.Cerebras.Model,
 		)
 		aiPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, cerebrasClient, &aiPresentation.AIDeps{
-			HolidayUC:        hrdDeps.HolidayUC,
-			LeaveRequestUC:   hrdDeps.LeaveRequestUC,
-			AttendanceUC:     hrdDeps.AttendanceUC,
-			SalesQuotationUC: salesDeps.QuotationUC,
-			SalesOrderUC:     salesDeps.OrderUC,
-			YearlyTargetUC:   salesDeps.YearlyTargetUC,
-			InventoryUC:      invUC,
+			HolidayUC:         hrdDeps.HolidayUC,
+			LeaveRequestUC:    hrdDeps.LeaveRequestUC,
+			AttendanceUC:      hrdDeps.AttendanceUC,
+			SalesQuotationUC:  salesDeps.QuotationUC,
+			SalesOrderUC:      salesDeps.OrderUC,
+			DeliveryOrderUC:   salesDeps.DeliveryOrderUC,
+			CustomerInvoiceUC: salesDeps.CustomerInvoiceUC,
+			YearlyTargetUC:    salesDeps.YearlyTargetUC,
+			InventoryUC:       invUC,
+			PurchaseOrderUC:   purchaseDeps.OrderUC,
+			PurchaseReqUC:     purchaseDeps.RequisitionUC,
+			GoodsReceiptUC:    purchaseDeps.GoodsReceiptUC,
+			SupplierInvoiceUC: purchaseDeps.SupplierInvoiceUC,
+			CoaUC:             financeDeps.CoaUC,
+			JournalUC:         financeDeps.JournalUC,
+			FinancePaymentUC:  financeDeps.PaymentUC,
+			BudgetUC:          financeDeps.BudgetUC,
+			CashBankUC:        financeDeps.CashBankUC,
+			TaxInvoiceUC:      financeDeps.TaxInvoiceUC,
+			AssetUC:           financeDeps.AssetUC,
+			SalaryUC:          financeDeps.SalaryUC,
+			BankAccountUC:     bankAccountUC,
 		})
 	}
 

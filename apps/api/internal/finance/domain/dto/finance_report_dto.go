@@ -45,30 +45,69 @@ type GeneralLedgerResponse struct {
 }
 
 type ReportRow struct {
-	Code    string  `json:"code"`
-	Name    string  `json:"name"`
-	Amount  float64 `json:"amount"`
-	IsTotal bool    `json:"is_total"`
+	AccountID      string      `json:"account_id,omitempty"`
+	Code           string      `json:"code"`
+	Name           string      `json:"name"`
+	AccountType    string      `json:"account_type,omitempty"`
+	ParentID       *string     `json:"parent_id,omitempty"`
+	Amount         float64     `json:"amount"`
+	SubtotalAmount float64     `json:"subtotal_amount,omitempty"`
+	Level          int         `json:"level,omitempty"`
+	Children       []ReportRow `json:"children,omitempty"`
+	Drilldown      *Drilldown  `json:"drilldown,omitempty"`
+	IsTotal        bool        `json:"is_total"`
+}
+
+type Drilldown struct {
+	GeneralLedgerURL string `json:"general_ledger_url"`
 }
 
 type BalanceSheetResponse struct {
-	StartDate       time.Time   `json:"start_date"`
-	EndDate         time.Time   `json:"end_date"`
-	Assets          []ReportRow `json:"assets"`
-	AssetTotal      float64     `json:"asset_total"`
-	Liabilities     []ReportRow `json:"liabilities"`
-	LiabilityTotal  float64     `json:"liability_total"`
-	Equities        []ReportRow `json:"equities"`
-	EquityTotal     float64     `json:"equity_total"`
-	LiabilityEquity float64     `json:"liability_equity_total"`
+	StartDate         time.Time   `json:"start_date"`
+	EndDate           time.Time   `json:"end_date"`
+	IncludeZero       bool        `json:"include_zero"`
+	Assets            []ReportRow `json:"assets"`
+	AssetTotal        float64     `json:"asset_total"`
+	Liabilities       []ReportRow `json:"liabilities"`
+	LiabilityTotal    float64     `json:"liability_total"`
+	Equities          []ReportRow `json:"equities"`
+	EquityTotal       float64     `json:"equity_total"`
+	RetainedEarnings  float64     `json:"retained_earnings"`
+	CurrentYearProfit float64     `json:"current_year_profit"`
+	EquityTotalFinal  float64     `json:"equity_total_final"`
+	LiabilityEquity   float64     `json:"liability_equity_total"`
+	ImbalanceAmount   float64     `json:"imbalance_amount"`
+	IsBalanced        bool        `json:"is_balanced"`
+	BalanceTolerance  float64     `json:"balance_tolerance"`
 }
 
+type ProfitAndLossComparison struct {
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	RevenueTotal float64   `json:"revenue_total"`
+	COGSTotal    float64   `json:"cogs_total"`
+	ExpenseTotal float64   `json:"expense_total"`
+	GrossProfit  float64   `json:"gross_profit"`
+	NetProfit    float64   `json:"net_profit"`
+}
+
+// ProfitAndLossResponse is based exclusively on posted journal entries and supports
+// hierarchical account grouping, period comparisons, and margin analysis.
 type ProfitAndLossResponse struct {
-	StartDate    time.Time   `json:"start_date"`
-	EndDate      time.Time   `json:"end_date"`
-	Revenues     []ReportRow `json:"revenues"`
-	RevenueTotal float64     `json:"revenue_total"`
-	Expenses     []ReportRow `json:"expenses"`
-	ExpenseTotal float64     `json:"expense_total"`
-	NetProfit    float64     `json:"net_profit"`
+	StartDate        time.Time               `json:"start_date"`
+	EndDate          time.Time               `json:"end_date"`
+	Revenues         []ReportRow             `json:"revenues"`
+	RevenueTotal     float64                 `json:"revenue_total"`
+	COGS             []ReportRow             `json:"cogs"`
+	COGSTotal        float64                 `json:"cogs_total"`
+	Expenses         []ReportRow             `json:"expenses"`
+	ExpenseTotal     float64                 `json:"expense_total"`
+	GrossProfit      float64                 `json:"gross_profit"`
+	NetProfit        float64                 `json:"net_profit"`
+	RetainedEarnings float64                 `json:"retained_earnings"`
+	GrossMargin      float64                 `json:"gross_margin"`
+	NetMargin        float64                 `json:"net_margin"`
+	ExpenseRatio     float64                 `json:"expense_ratio"`
+	PreviousPeriod   *ProfitAndLossComparison `json:"previous_period,omitempty"`
+	YearToDate       *ProfitAndLossComparison `json:"year_to_date,omitempty"`
 }

@@ -14,6 +14,7 @@ const (
 	balanceSheetReportExport  = "balance_sheet_report.export"
 	profitLossReportRead      = "profit_loss_report.read"
 	profitLossReportExport    = "profit_loss_report.export"
+	trialBalanceReportRead    = "trial_balance_report.read"
 )
 
 func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReportHandler) {
@@ -21,6 +22,7 @@ func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReport
 	g.GET("/general-ledger", middleware.RequirePermission(generalLedgerReportRead), h.GeneralLedger)
 	g.GET("/balance-sheet", middleware.RequirePermission(balanceSheetReportRead), h.BalanceSheet)
 	g.GET("/profit-loss", middleware.RequirePermission(profitLossReportRead), h.ProfitAndLoss)
+	g.GET("/trial-balance", middleware.RequirePermission(trialBalanceReportRead), h.TrialBalance)
 	g.GET("/export/general-ledger", middleware.RequirePermission(generalLedgerReportExport), h.ExportGeneralLedger)
 	g.GET("/export/balance-sheet", middleware.RequirePermission(balanceSheetReportExport), h.ExportBalanceSheet)
 	g.GET("/export/profit-loss", middleware.RequirePermission(profitLossReportExport), h.ExportProfitAndLoss)

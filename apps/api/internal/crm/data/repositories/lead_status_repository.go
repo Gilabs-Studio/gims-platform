@@ -11,6 +11,7 @@ import (
 type LeadStatusRepository interface {
 	Create(ctx context.Context, status *models.LeadStatus) error
 	FindByID(ctx context.Context, id string) (*models.LeadStatus, error)
+	FindByCode(ctx context.Context, code string) (*models.LeadStatus, error)
 	List(ctx context.Context, params ListParams) ([]models.LeadStatus, int64, error)
 	Update(ctx context.Context, status *models.LeadStatus) error
 	Delete(ctx context.Context, id string) error
@@ -35,6 +36,15 @@ func (r *leadStatusRepository) Create(ctx context.Context, status *models.LeadSt
 func (r *leadStatusRepository) FindByID(ctx context.Context, id string) (*models.LeadStatus, error) {
 	var status models.LeadStatus
 	err := r.db.WithContext(ctx).First(&status, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
+func (r *leadStatusRepository) FindByCode(ctx context.Context, code string) (*models.LeadStatus, error) {
+	var status models.LeadStatus
+	err := r.db.WithContext(ctx).Where("code = ?", code).First(&status).Error
 	if err != nil {
 		return nil, err
 	}

@@ -93,7 +93,7 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 			// Prefer RolePermissions (scope-aware) over legacy Permissions
 			if len(user.Role.RolePermissions) > 0 {
 				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission.Code != "" {
+					if rp.Permission != nil && rp.Permission.Code != "" {
 						scope := rp.Scope
 						if scope == "" {
 							scope = "ALL"
@@ -261,7 +261,7 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 			// Prefer RolePermissions (scope-aware) over legacy Permissions
 			if len(user.Role.RolePermissions) > 0 {
 				for _, rp := range user.Role.RolePermissions {
-					if rp.Permission.Code != "" {
+					if rp.Permission != nil && rp.Permission.Code != "" {
 						scope := rp.Scope
 						if scope == "" {
 							scope = "ALL"

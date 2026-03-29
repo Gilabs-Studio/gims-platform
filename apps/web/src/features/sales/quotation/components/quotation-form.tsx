@@ -21,6 +21,7 @@ import { BusinessTypeForm } from "@/features/master-data/organization/components
 import { CustomerSidePanel } from "@/features/master-data/customer/components/customer/customer-side-panel";
 import { ProductDialog } from "@/features/master-data/product/components/product/product-dialog";
 import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
+import { ContactFormDialog } from "@/features/crm/contact/components/contact-form-dialog";
 import type { SalesQuotation } from "../types";
 import { useQuotationForm } from "../hooks/use-quotation-form";
 
@@ -68,6 +69,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleProductCreated,
     handleEmployeeCreated,
     customerCombobox,
@@ -364,7 +366,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                       .filter(Boolean)
                       .join(" - "),
                   }))}
-                  value={selectedContactId || undefined}
+                  value={selectedContactId || ""}
                   onValueChange={handleContactChange}
                   onOpenChange={(isOpen) => {
                     if (isOpen) {
@@ -373,6 +375,9 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                   }}
                   placeholder={t("customerContact")}
                   emptyText={t("notFound")}
+                  createPermission="customer.create"
+                  createLabel={`${t("common.create") || "Create"} "{query}"`}
+                  onCreateClick={(q) => openQuickCreate("contact", q)}
                   disabled={!form.watch("customer_id")}
                 />
                 {errors.customer_contact && (
@@ -753,6 +758,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <PaymentTermsDialog
           open
           onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
+          initialData={{ name: quickCreate.query }}
           onCreated={handlePaymentTermCreated}
         />
       )}
@@ -760,6 +766,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <BusinessUnitForm
           open
           onClose={closeQuickCreate}
+          initialData={{ name: quickCreate.query }}
           onCreated={handleBusinessUnitCreated}
         />
       )}
@@ -767,6 +774,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
         <BusinessTypeForm
           open
           onClose={closeQuickCreate}
+          initialData={{ name: quickCreate.query }}
           onCreated={handleBusinessTypeCreated}
         />
       )}
@@ -775,6 +783,7 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           isOpen
           onClose={closeQuickCreate}
           mode="create"
+          initialData={{ name: quickCreate.query }}
           onCreated={handleCustomerCreated}
         />
       )}
@@ -793,6 +802,19 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
           onCreated={handleEmployeeCreated}
         />
       )}
+      {quickCreate.type === "contact" && (() => {
+        const customerId = form.watch("customer_id");
+        if (!customerId) return null;
+        return (
+          <ContactFormDialog
+            open
+            onClose={closeQuickCreate}
+            customerId={customerId}
+            initialName={quickCreate.query}
+            onCreated={handleContactCreated}
+          />
+        );
+      })()}
     </Dialog>
   );
 }

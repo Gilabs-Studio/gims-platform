@@ -6,13 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
-import { DynamicIcon } from "@/lib/icon-utils";
 import { useActivityTypeForm } from "../hooks/use-activity-type-form";
 import { LucideIconSelector } from "./lucide-icon-selector";
 import type { ActivityType } from "../types";
 
-export function ActivityTypeDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: ActivityType | null }) {
-  const { form, t, tCommon, isLoading, onSubmit } = useActivityTypeForm({ open, onOpenChange, editingItem });
+export function ActivityTypeDialog({
+  open,
+  onOpenChange,
+  editingItem,
+  initialData,
+  onCreated,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly editingItem?: ActivityType | null;
+  readonly initialData?: { name?: string };
+  readonly onCreated?: (item: ActivityType) => void;
+}) {
+  const { form, t, tCommon, isLoading, onSubmit } = useActivityTypeForm({
+    open,
+    onOpenChange,
+    editingItem,
+    initialData,
+    onCreated,
+  });
   const { register, setValue, watch, formState: { errors } } = form;
   const selectedIcon = watch("icon") ?? "";
 
@@ -36,12 +53,6 @@ export function ActivityTypeDialog({ open, onOpenChange, editingItem }: { readon
               <FieldLabel>{t("form.icon")}</FieldLabel>
               <input type="hidden" {...register("icon")} />
               <div className="space-y-2">
-                <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-2 py-2">
-                  <DynamicIcon name={selectedIcon || "circle"} className="h-4 w-4" />
-                  <span className="text-sm text-muted-foreground">
-                    {selectedIcon || t("form.iconNotSelected")}
-                  </span>
-                </div>
                 <LucideIconSelector
                   value={selectedIcon}
                   onChange={(iconName) => setValue("icon", iconName, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}

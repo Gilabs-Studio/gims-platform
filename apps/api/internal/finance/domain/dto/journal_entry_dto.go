@@ -73,6 +73,7 @@ type JournalEntryResponse struct {
 	Status            financeModels.JournalStatus `json:"status"`
 	PostedAt          *time.Time                  `json:"posted_at"`
 	PostedBy          *string                     `json:"posted_by"`
+	CreatedBy         *string                     `json:"created_by,omitempty"`
 	IsSystemGenerated bool                        `json:"is_system_generated"`
 	SourceDocumentURL *string                     `json:"source_document_url,omitempty"`
 	Lines             []JournalLineResponse       `json:"lines"`
@@ -90,6 +91,7 @@ type TrialBalanceRow struct {
 	Code             string                    `json:"code"`
 	Name             string                    `json:"name"`
 	Type             financeModels.AccountType `json:"type"`
+	OpeningBalance   float64                   `json:"opening_balance"`
 	DebitTotal       float64                   `json:"debit_total"`
 	CreditTotal      float64                   `json:"credit_total"`
 	Balance          float64                   `json:"balance"`

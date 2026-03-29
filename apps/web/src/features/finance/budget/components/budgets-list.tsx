@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
@@ -35,6 +35,15 @@ import { useApproveFinanceBudget, useDeleteFinanceBudget, useFinanceBudget, useF
 import { BudgetForm } from "./budget-form";
 import { BudgetOverview } from "./budget-overview";
 import { BudgetDetailModal } from "./budget-detail-modal";
+
+function getInitialOpenBudgetFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_budget");
+}
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
@@ -114,7 +123,7 @@ export function BudgetsList() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState<Budget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenBudgetFromURL);
 
   const { data, isLoading, isError } = useFinanceBudgets({
     page,
@@ -141,6 +150,24 @@ export function BudgetsList() {
 
   const deleteMutation = useDeleteFinanceBudget();
   const approveMutation = useApproveFinanceBudget();
+
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_budget")) return;
+
+    searchParams.delete("open_budget");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const handleOpenDetail = (id: string) => {
     setDetailId(id);

@@ -48,6 +48,7 @@ export interface JournalEntry {
   lines: JournalLine[];
   debit_total: number;
   credit_total: number;
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
 }

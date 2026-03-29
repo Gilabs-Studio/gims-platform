@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +19,11 @@ type Client struct {
 	apiKey     string
 	model      string // Default model name
 	httpClient *http.Client
+
+	modelsMu       sync.RWMutex
+	modelsCache    []ModelInfo
+	modelsCachedAt time.Time
+	modelsCacheTTL time.Duration
 }
 
 // NewClient creates a new Cerebras API client
@@ -34,6 +41,7 @@ func NewClient(baseURL, apiKey, model string) *Client {
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
 		},
+		modelsCacheTTL: 5 * time.Minute,
 	}
 }
 
@@ -52,13 +60,193 @@ type ModelInfo struct {
 
 // AvailableModels returns the list of supported Cerebras models
 func (c *Client) AvailableModels() []ModelInfo {
-	return []ModelInfo{
-		{ID: "qwen-3-32b", DisplayName: "Qwen 3 32B", Description: "High-capability reasoning model", IsDefault: false},
-		{ID: "llama-4-scout-17b-16e-instruct", DisplayName: "Llama 4 Scout 17B", Description: "Meta Llama 4 Scout - balanced performance", IsDefault: true},
-		{ID: "llama3.3-70b", DisplayName: "Llama 3.3 70B", Description: "Large model for complex tasks", IsDefault: false},
-		{ID: "llama3.1-8b", DisplayName: "Llama 3.1 8B", Description: "Fast lightweight model", IsDefault: false},
-		{ID: "deepseek-r1-distill-llama-70b", DisplayName: "DeepSeek R1 70B", Description: "DeepSeek R1 distilled on Llama 70B", IsDefault: false},
+	if models, ok := c.getCachedModels(); ok {
+		return withDefaultModel(models, c.model)
 	}
+
+	if c.IsConfigured() {
+		models, err := c.fetchModelsFromAPI()
+		if err == nil && len(models) > 0 {
+			c.setCachedModels(models)
+			return withDefaultModel(models, c.model)
+		}
+	}
+
+	fallback := defaultModelCatalog()
+	c.setCachedModels(fallback)
+	return withDefaultModel(fallback, c.model)
+}
+
+func (c *Client) getCachedModels() ([]ModelInfo, bool) {
+	c.modelsMu.RLock()
+	defer c.modelsMu.RUnlock()
+
+	if len(c.modelsCache) == 0 {
+		return nil, false
+	}
+
+	if c.modelsCachedAt.IsZero() || time.Since(c.modelsCachedAt) > c.modelsCacheTTL {
+		return nil, false
+	}
+
+	return cloneModelList(c.modelsCache), true
+}
+
+func (c *Client) setCachedModels(models []ModelInfo) {
+	c.modelsMu.Lock()
+	defer c.modelsMu.Unlock()
+
+	c.modelsCache = cloneModelList(models)
+	c.modelsCachedAt = time.Now()
+}
+
+func (c *Client) fetchModelsFromAPI() ([]ModelInfo, error) {
+	url := fmt.Sprintf("%s/v1/models", strings.TrimRight(c.baseURL, "/"))
+
+	httpReq, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create models request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch models: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read models response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("models API error: %s (status: %d)", string(body), resp.StatusCode)
+	}
+
+	models := parseModelListResponse(body)
+	if len(models) == 0 {
+		return nil, fmt.Errorf("models API returned empty model list")
+	}
+
+	return models, nil
+}
+
+type cerebrasAPIModel struct {
+	ID          string `json:"id"`
+	Object      string `json:"object"`
+	Description string `json:"description"`
+}
+
+func parseModelListResponse(body []byte) []ModelInfo {
+	var listResponse struct {
+		Data []cerebrasAPIModel `json:"data"`
+	}
+	if err := json.Unmarshal(body, &listResponse); err == nil && len(listResponse.Data) > 0 {
+		return mapAPIModels(listResponse.Data)
+	}
+
+	var rootModels struct {
+		Models []cerebrasAPIModel `json:"models"`
+	}
+	if err := json.Unmarshal(body, &rootModels); err == nil && len(rootModels.Models) > 0 {
+		return mapAPIModels(rootModels.Models)
+	}
+
+	var direct []cerebrasAPIModel
+	if err := json.Unmarshal(body, &direct); err == nil && len(direct) > 0 {
+		return mapAPIModels(direct)
+	}
+
+	return nil
+}
+
+func mapAPIModels(apiModels []cerebrasAPIModel) []ModelInfo {
+	models := make([]ModelInfo, 0, len(apiModels))
+	for _, m := range apiModels {
+		id := strings.TrimSpace(m.ID)
+		if id == "" {
+			continue
+		}
+
+		description := strings.TrimSpace(m.Description)
+		if description == "" {
+			description = "Cerebras hosted model"
+		}
+
+		models = append(models, ModelInfo{
+			ID:          id,
+			DisplayName: humanizeModelID(id),
+			Description: description,
+		})
+	}
+
+	sort.Slice(models, func(i, j int) bool {
+		return models[i].DisplayName < models[j].DisplayName
+	})
+
+	return models
+}
+
+func humanizeModelID(modelID string) string {
+	replacer := strings.NewReplacer("-", " ", "_", " ")
+	title := strings.TrimSpace(replacer.Replace(modelID))
+	if title == "" {
+		return modelID
+	}
+
+	words := strings.Fields(title)
+	for i, word := range words {
+		if word == strings.ToUpper(word) {
+			continue
+		}
+		words[i] = strings.ToUpper(word[:1]) + strings.ToLower(word[1:])
+	}
+
+	return strings.Join(words, " ")
+}
+
+func defaultModelCatalog() []ModelInfo {
+	return []ModelInfo{
+		{ID: "qwen-3-32b", DisplayName: "Qwen 3 32B", Description: "High-capability reasoning model"},
+		{ID: "llama-4-scout-17b-16e-instruct", DisplayName: "Llama 4 Scout 17B", Description: "Meta Llama 4 Scout - balanced performance"},
+		{ID: "llama3.3-70b", DisplayName: "Llama 3.3 70B", Description: "Large model for complex tasks"},
+		{ID: "llama3.1-8b", DisplayName: "Llama 3.1 8B", Description: "Fast lightweight model"},
+		{ID: "deepseek-r1-distill-llama-70b", DisplayName: "DeepSeek R1 70B", Description: "DeepSeek R1 distilled on Llama 70B"},
+	}
+}
+
+func withDefaultModel(models []ModelInfo, defaultModel string) []ModelInfo {
+	out := cloneModelList(models)
+	if len(out) == 0 {
+		return out
+	}
+
+	defaultIndex := -1
+	for i := range out {
+		out[i].IsDefault = false
+		if out[i].ID == defaultModel {
+			defaultIndex = i
+		}
+	}
+
+	if defaultIndex >= 0 {
+		out[defaultIndex].IsDefault = true
+		return out
+	}
+
+	out[0].IsDefault = true
+	return out
+}
+
+func cloneModelList(models []ModelInfo) []ModelInfo {
+	out := make([]ModelInfo, len(models))
+	copy(out, models)
+	return out
 }
 
 // GetDefaultModel returns the default model ID
@@ -213,7 +401,7 @@ func (c *Client) Chat(req *ChatRequest) (*ChatResponse, error) {
 	}
 
 	url := fmt.Sprintf("%s/v1/chat/completions", c.baseURL)
-	
+
 	// Set default model if not provided
 	model := req.Model
 	if model == "" {
