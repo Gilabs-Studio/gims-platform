@@ -456,7 +456,7 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Up Country Cost", "map", "/travel-planner/up-country-cost", 1},
+		{"Planner Workspace", "map", "/travel-planner", 1},
 	}
 	for _, child := range travelPlannerChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
@@ -703,7 +703,6 @@ func UpdateMenuStructure() error {
 	migrations := []urlMigration{
 		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
 		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
-		{oldURL: "/finance/up-country-cost", newURL: "/travel-planner/up-country-cost"},
 	}
 
 	for _, m := range migrations {

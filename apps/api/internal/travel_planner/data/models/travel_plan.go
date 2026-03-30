@@ -28,19 +28,19 @@ const (
 type TravelStopCategory string
 
 const (
-	TravelStopCategoryPickup    TravelStopCategory = "pickup"
-	TravelStopCategoryDropoff   TravelStopCategory = "dropoff"
-	TravelStopCategoryRefuel    TravelStopCategory = "refuel"
+	TravelStopCategoryPickup     TravelStopCategory = "pickup"
+	TravelStopCategoryDropoff    TravelStopCategory = "dropoff"
+	TravelStopCategoryRefuel     TravelStopCategory = "refuel"
 	TravelStopCategoryCheckpoint TravelStopCategory = "checkpoint"
-	TravelStopCategoryRest      TravelStopCategory = "rest"
-	TravelStopCategoryCustom    TravelStopCategory = "custom"
+	TravelStopCategoryRest       TravelStopCategory = "rest"
+	TravelStopCategoryCustom     TravelStopCategory = "custom"
 )
 
 type TravelStopSource string
 
 const (
-	TravelStopSourceManual       TravelStopSource = "manual"
-	TravelStopSourceGooglePlaces TravelStopSource = "google_places"
+	TravelStopSourceManual        TravelStopSource = "manual"
+	TravelStopSourceGooglePlaces  TravelStopSource = "google_places"
 	TravelStopSourceOpenStreetMap TravelStopSource = "open_street_map"
 )
 
@@ -52,17 +52,31 @@ const (
 	TravelWeatherRiskHigh   TravelWeatherRisk = "high"
 )
 
-type TravelPlan struct {
-	ID        string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Code      string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
-	Title     string           `gorm:"type:varchar(255);not null" json:"title"`
-	Mode      TravelMode       `gorm:"type:varchar(30);index;not null" json:"mode"`
-	StartDate time.Time        `gorm:"type:date;not null" json:"start_date"`
-	EndDate   time.Time        `gorm:"type:date;not null" json:"end_date"`
-	Status    TravelPlanStatus `gorm:"type:varchar(30);default:'draft';index" json:"status"`
-	Notes     string           `gorm:"type:text" json:"notes"`
+type TravelExpenseType string
 
-	Days []TravelPlanDay `gorm:"foreignKey:TravelPlanID;constraint:OnDelete:CASCADE" json:"days,omitempty"`
+const (
+	TravelExpenseTypeTransport     TravelExpenseType = "transport"
+	TravelExpenseTypeAccommodation TravelExpenseType = "accommodation"
+	TravelExpenseTypeMeal          TravelExpenseType = "meal"
+	TravelExpenseTypeFuel          TravelExpenseType = "fuel"
+	TravelExpenseTypeToll          TravelExpenseType = "toll"
+	TravelExpenseTypeParking       TravelExpenseType = "parking"
+	TravelExpenseTypeOther         TravelExpenseType = "other"
+)
+
+type TravelPlan struct {
+	ID           string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Code         string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	Title        string           `gorm:"type:varchar(255);not null" json:"title"`
+	Mode         TravelMode       `gorm:"type:varchar(30);index;not null" json:"mode"`
+	StartDate    time.Time        `gorm:"type:date;not null" json:"start_date"`
+	EndDate      time.Time        `gorm:"type:date;not null" json:"end_date"`
+	Status       TravelPlanStatus `gorm:"type:varchar(30);default:'draft';index" json:"status"`
+	BudgetAmount float64          `gorm:"type:numeric(18,2);default:0" json:"budget_amount"`
+	Notes        string           `gorm:"type:text" json:"notes"`
+
+	Days     []TravelPlanDay     `gorm:"foreignKey:TravelPlanID;constraint:OnDelete:CASCADE" json:"days,omitempty"`
+	Expenses []TravelPlanExpense `gorm:"foreignKey:TravelPlanID;constraint:OnDelete:CASCADE" json:"expenses,omitempty"`
 
 	CreatedBy *string        `gorm:"type:uuid" json:"created_by"`
 	CreatedAt time.Time      `json:"created_at"`
@@ -155,6 +169,32 @@ func (TravelPlanDayNote) TableName() string {
 }
 
 func (t *TravelPlanDayNote) BeforeCreate(tx *gorm.DB) error {
+	if t.ID == "" {
+		t.ID = uuid.New().String()
+	}
+	return nil
+}
+
+type TravelPlanExpense struct {
+	ID           string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TravelPlanID string            `gorm:"type:uuid;not null;index" json:"travel_plan_id"`
+	ExpenseType  TravelExpenseType `gorm:"type:varchar(30);not null;index" json:"expense_type"`
+	Description  string            `gorm:"type:text" json:"description"`
+	Amount       float64           `gorm:"type:numeric(18,2);not null" json:"amount"`
+	ExpenseDate  time.Time         `gorm:"type:date;not null;index" json:"expense_date"`
+	ReceiptURL   string            `gorm:"type:text" json:"receipt_url"`
+	CreatedBy    *string           `gorm:"type:uuid" json:"created_by"`
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (TravelPlanExpense) TableName() string {
+	return "travel_plan_expenses"
+}
+
+func (t *TravelPlanExpense) BeforeCreate(tx *gorm.DB) error {
 	if t.ID == "" {
 		t.ID = uuid.New().String()
 	}

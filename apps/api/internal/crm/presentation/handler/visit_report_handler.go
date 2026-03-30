@@ -30,20 +30,22 @@ func (h *VisitReportHandler) List(c *gin.Context) {
 	}
 
 	req := &dto.ListVisitReportsRequest{
-		Page:       page,
-		PerPage:    perPage,
-		Search:     c.Query("search"),
-		Status:     c.Query("status"),
-		CustomerID: c.Query("customer_id"),
-		EmployeeID: c.Query("employee_id"),
-		ContactID:  c.Query("contact_id"),
-		DealID:     c.Query("deal_id"),
-		LeadID:     c.Query("lead_id"),
-		Outcome:    c.Query("outcome"),
-		DateFrom:   c.Query("date_from"),
-		DateTo:     c.Query("date_to"),
-		SortBy:     c.DefaultQuery("sort_by", "created_at"),
-		SortDir:    c.DefaultQuery("sort_dir", "desc"),
+		Page:              page,
+		PerPage:           perPage,
+		Search:            c.Query("search"),
+		Status:            c.Query("status"),
+		CustomerID:        c.Query("customer_id"),
+		EmployeeID:        c.Query("employee_id"),
+		ContactID:         c.Query("contact_id"),
+		DealID:            c.Query("deal_id"),
+		LeadID:            c.Query("lead_id"),
+		TravelPlanID:      c.Query("travel_plan_id"),
+		WithoutTravelPlan: c.Query("without_travel_plan") == "true",
+		Outcome:           c.Query("outcome"),
+		DateFrom:          c.Query("date_from"),
+		DateTo:            c.Query("date_to"),
+		SortBy:            c.DefaultQuery("sort_by", "created_at"),
+		SortDir:           c.DefaultQuery("sort_dir", "desc"),
 	}
 
 	results, pagination, err := h.uc.List(c.Request.Context(), req)

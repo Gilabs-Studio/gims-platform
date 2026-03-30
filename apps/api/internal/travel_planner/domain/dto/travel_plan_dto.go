@@ -34,22 +34,24 @@ type TravelPlanDayRequest struct {
 }
 
 type CreateTravelPlanRequest struct {
-	Title     string                 `json:"title" binding:"required,max=255"`
-	Mode      string                 `json:"mode" binding:"required"`
-	StartDate string                 `json:"start_date" binding:"required"`
-	EndDate   string                 `json:"end_date" binding:"required"`
-	Notes     string                 `json:"notes"`
-	Days      []TravelPlanDayRequest `json:"days" binding:"required,min=1"`
+	Title        string                 `json:"title" binding:"required,max=255"`
+	Mode         string                 `json:"mode" binding:"required"`
+	StartDate    string                 `json:"start_date" binding:"required"`
+	EndDate      string                 `json:"end_date" binding:"required"`
+	BudgetAmount float64                `json:"budget_amount" binding:"omitempty,min=0"`
+	Notes        string                 `json:"notes"`
+	Days         []TravelPlanDayRequest `json:"days" binding:"required,min=1"`
 }
 
 type UpdateTravelPlanRequest struct {
-	Title     string                 `json:"title" binding:"required,max=255"`
-	Mode      string                 `json:"mode" binding:"required"`
-	StartDate string                 `json:"start_date" binding:"required"`
-	EndDate   string                 `json:"end_date" binding:"required"`
-	Status    string                 `json:"status"`
-	Notes     string                 `json:"notes"`
-	Days      []TravelPlanDayRequest `json:"days" binding:"required,min=1"`
+	Title        string                 `json:"title" binding:"required,max=255"`
+	Mode         string                 `json:"mode" binding:"required"`
+	StartDate    string                 `json:"start_date" binding:"required"`
+	EndDate      string                 `json:"end_date" binding:"required"`
+	Status       string                 `json:"status"`
+	BudgetAmount float64                `json:"budget_amount" binding:"omitempty,min=0"`
+	Notes        string                 `json:"notes"`
+	Days         []TravelPlanDayRequest `json:"days" binding:"required,min=1"`
 }
 
 type ListTravelPlansRequest struct {
@@ -94,18 +96,79 @@ type TravelPlanDayResponse struct {
 }
 
 type TravelPlanResponse struct {
-	ID        string                  `json:"id"`
-	Code      string                  `json:"code"`
-	Title     string                  `json:"title"`
-	Mode      string                  `json:"mode"`
-	StartDate string                  `json:"start_date"`
-	EndDate   string                  `json:"end_date"`
-	Status    string                  `json:"status"`
-	Notes     string                  `json:"notes"`
-	Days      []TravelPlanDayResponse `json:"days"`
-	CreatedBy *string                 `json:"created_by"`
-	CreatedAt string                  `json:"created_at"`
-	UpdatedAt string                  `json:"updated_at"`
+	ID           string                  `json:"id"`
+	Code         string                  `json:"code"`
+	Title        string                  `json:"title"`
+	Mode         string                  `json:"mode"`
+	StartDate    string                  `json:"start_date"`
+	EndDate      string                  `json:"end_date"`
+	Status       string                  `json:"status"`
+	BudgetAmount float64                 `json:"budget_amount"`
+	Notes        string                  `json:"notes"`
+	Days         []TravelPlanDayResponse `json:"days"`
+	CreatedBy    *string                 `json:"created_by"`
+	CreatedAt    string                  `json:"created_at"`
+	UpdatedAt    string                  `json:"updated_at"`
+}
+
+type CreateTravelExpenseRequest struct {
+	ExpenseType string  `json:"expense_type" binding:"required"`
+	Description string  `json:"description"`
+	Amount      float64 `json:"amount" binding:"required,gt=0"`
+	ExpenseDate string  `json:"expense_date" binding:"required"`
+	ReceiptURL  string  `json:"receipt_url"`
+}
+
+type TravelExpenseResponse struct {
+	ID           string  `json:"id"`
+	TravelPlanID string  `json:"travel_plan_id"`
+	ExpenseType  string  `json:"expense_type"`
+	Description  string  `json:"description"`
+	Amount       float64 `json:"amount"`
+	ExpenseDate  string  `json:"expense_date"`
+	ReceiptURL   string  `json:"receipt_url"`
+	CreatedBy    *string `json:"created_by"`
+	CreatedAt    string  `json:"created_at"`
+	UpdatedAt    string  `json:"updated_at"`
+}
+
+type TravelExpenseListResponse struct {
+	Items       []TravelExpenseResponse `json:"items"`
+	TotalAmount float64                 `json:"total_amount"`
+}
+
+type LinkTravelPlanVisitsRequest struct {
+	VisitIDs []string `json:"visit_ids" binding:"required,min=1,dive,uuid"`
+}
+
+type CreateTravelPlanVisitRequest struct {
+	VisitDate     string  `json:"visit_date" binding:"required"`
+	EmployeeID    string  `json:"employee_id" binding:"required,uuid"`
+	CustomerID    *string `json:"customer_id" binding:"omitempty,uuid"`
+	ContactID     *string `json:"contact_id" binding:"omitempty,uuid"`
+	DealID        *string `json:"deal_id" binding:"omitempty,uuid"`
+	LeadID        *string `json:"lead_id" binding:"omitempty,uuid"`
+	VillageID     *string `json:"village_id" binding:"omitempty,uuid"`
+	ContactPerson string  `json:"contact_person" binding:"max=200"`
+	ContactPhone  string  `json:"contact_phone" binding:"max=20"`
+	Address       string  `json:"address"`
+	Purpose       string  `json:"purpose"`
+	Notes         string  `json:"notes"`
+}
+
+type TravelPlanVisitResponse struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	TravelPlanID *string `json:"travel_plan_id"`
+	VisitDate    string  `json:"visit_date"`
+	EmployeeID   string  `json:"employee_id"`
+	EmployeeName string  `json:"employee_name"`
+	CustomerID   *string `json:"customer_id"`
+	CustomerName string  `json:"customer_name"`
+	Status       string  `json:"status"`
+	Purpose      string  `json:"purpose"`
+	Outcome      string  `json:"outcome"`
+	CreatedAt    string  `json:"created_at"`
 }
 
 type PlaceSearchResult struct {
@@ -154,8 +217,9 @@ type DayGoogleMapsLink struct {
 }
 
 type TravelPlannerFormDataResponse struct {
-	Modes       []EnumOption `json:"modes"`
-	Categories  []EnumOption `json:"categories"`
-	Sources     []EnumOption `json:"sources"`
-	WeatherRisk []EnumOption `json:"weather_risk"`
+	Modes        []EnumOption `json:"modes"`
+	Categories   []EnumOption `json:"categories"`
+	Sources      []EnumOption `json:"sources"`
+	WeatherRisk  []EnumOption `json:"weather_risk"`
+	ExpenseTypes []EnumOption `json:"expense_types"`
 }

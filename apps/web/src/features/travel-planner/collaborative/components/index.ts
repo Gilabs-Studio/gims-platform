@@ -1,1 +1,1 @@
-export { TravelPlannerWorkspace } from "./travel-planner-workspace";
+export { TravelPlannerMapWorkspace as TravelPlannerWorkspace } from "./travel-planner-map-workspace";

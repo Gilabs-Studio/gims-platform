@@ -52,7 +52,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceRepo := repositories.NewTaxInvoiceRepository(db)
 	nonTradePayableRepo := repositories.NewNonTradePayableRepository(db)
 	salaryRepo := repositories.NewSalaryStructureRepository(db)
-	upCountryRepo := repositories.NewUpCountryCostRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	valuationRunRepo := repositories.NewValuationRunRepository(db)
 	maintenanceRepo := repositories.NewMaintenanceRepository(db)
@@ -70,7 +69,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceMapper := mapper.NewTaxInvoiceMapper()
 	nonTradePayableMapper := mapper.NewNonTradePayableMapper()
 	salaryMapper := mapper.NewSalaryStructureMapper()
-	upCountryMapper := mapper.NewUpCountryCostMapper()
 
 	// Settings & Accounting Engine
 	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
@@ -100,7 +98,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
-	upCountryUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryRepo, journalUC, upCountryMapper, settingsService, accountingEngine)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
 
@@ -126,7 +123,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxInvoiceH := handler.NewTaxInvoiceHandler(taxInvoiceUC)
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
 	salaryH := handler.NewSalaryStructureHandler(salaryUC)
-	upCountryH := handler.NewUpCountryCostHandler(upCountryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
 	assetBudgetH := handler.NewAssetBudgetHandler(assetBudgetUC)
 
@@ -151,7 +147,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterTaxInvoiceRoutes(group, taxInvoiceH)
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
 	router.RegisterSalaryStructureRoutes(group, salaryH)
-	router.RegisterUpCountryCostRoutes(group, upCountryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)

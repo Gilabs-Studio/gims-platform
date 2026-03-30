@@ -21,20 +21,22 @@ const (
 
 // VisitReportListParams defines filtering/sorting/pagination for visit report queries
 type VisitReportListParams struct {
-	Search     string
-	SortBy     string
-	SortDir    string
-	Limit      int
-	Offset     int
-	Status     string
-	CustomerID string
-	EmployeeID string
-	ContactID  string
-	DealID     string
-	LeadID     string
-	Outcome    string
-	DateFrom   string
-	DateTo     string
+	Search            string
+	SortBy            string
+	SortDir           string
+	Limit             int
+	Offset            int
+	Status            string
+	CustomerID        string
+	EmployeeID        string
+	ContactID         string
+	DealID            string
+	LeadID            string
+	TravelPlanID      string
+	WithoutTravelPlan bool
+	Outcome           string
+	DateFrom          string
+	DateTo            string
 }
 
 // VisitReportRepository defines data access methods for visit reports
@@ -161,6 +163,14 @@ func (r *visitReportRepository) List(ctx context.Context, params *VisitReportLis
 	// Lead filter
 	if params.LeadID != "" {
 		query = query.Where("lead_id = ?", params.LeadID)
+	}
+
+	// Travel plan linkage filter
+	if params.WithoutTravelPlan {
+		query = query.Where("travel_plan_id IS NULL")
+	}
+	if params.TravelPlanID != "" {
+		query = query.Where("travel_plan_id = ?", params.TravelPlanID)
 	}
 
 	// Outcome filter
@@ -457,7 +467,7 @@ func (r *visitReportRepository) GetEmployeeSummary(ctx context.Context, search s
 			scopeClause = "AND vr_scoped.employee_id = ?"
 			scopeArgs = append(scopeArgs, employeeID)
 		}
-	// default (ALL or empty): no restriction
+		// default (ALL or empty): no restriction
 	}
 
 	// Employee name/code search predicate

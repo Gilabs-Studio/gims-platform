@@ -29,6 +29,15 @@ export type TravelStopSource = "manual" | "google_places" | "open_street_map";
 
 export type WeatherRisk = "low" | "medium" | "high";
 
+export type TravelExpenseType =
+  | "transport"
+  | "accommodation"
+  | "meal"
+  | "fuel"
+  | "toll"
+  | "parking"
+  | "other";
+
 export interface TravelPlanStop {
   id: string;
   place_name: string;
@@ -68,11 +77,81 @@ export interface TravelPlan {
   start_date: string;
   end_date: string;
   status: TravelPlanStatus | string;
+  budget_amount: number;
   notes: string;
   days: TravelPlanDay[];
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TravelExpense {
+  id: string;
+  travel_plan_id: string;
+  expense_type: TravelExpenseType | string;
+  description: string;
+  amount: number;
+  expense_date: string;
+  receipt_url: string;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TravelExpenseListResult {
+  items: TravelExpense[];
+  total_amount: number;
+}
+
+export interface CreateTravelExpenseInput {
+  expense_type: TravelExpenseType | string;
+  description?: string;
+  amount: number;
+  expense_date: string;
+  receipt_url?: string;
+}
+
+export interface TravelPlanVisit {
+  id: string;
+  code: string;
+  travel_plan_id?: string | null;
+  visit_date: string;
+  employee_id: string;
+  employee_name: string;
+  customer_id?: string | null;
+  customer_name: string;
+  status: string;
+  purpose: string;
+  outcome: string;
+  created_at: string;
+}
+
+export interface LinkTravelPlanVisitsInput {
+  visit_ids: string[];
+}
+
+export interface LinkTravelPlanVisitsResult {
+  linked_count: number;
+}
+
+export interface CreateTravelPlanVisitInput {
+  visit_date: string;
+  employee_id: string;
+  customer_id?: string | null;
+  contact_id?: string | null;
+  deal_id?: string | null;
+  lead_id?: string | null;
+  village_id?: string | null;
+  contact_person?: string;
+  contact_phone?: string;
+  address?: string;
+  purpose?: string;
+  notes?: string;
+}
+
+export interface UnlinkTravelPlanVisitResult {
+  visit_id: string;
+  travel_plan_id: string;
 }
 
 export interface TravelPlanListParams {
@@ -119,6 +198,7 @@ export interface TravelPlanInput {
   start_date: string;
   end_date: string;
   status?: TravelPlanStatus | string;
+  budget_amount?: number;
   notes?: string;
   days: TravelPlanDayInput[];
 }
@@ -178,4 +258,5 @@ export interface TravelPlannerFormData {
   categories: EnumOption[];
   sources: EnumOption[];
   weather_risk: EnumOption[];
+  expense_types: EnumOption[];
 }

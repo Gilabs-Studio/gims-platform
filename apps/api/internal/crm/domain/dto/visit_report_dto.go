@@ -2,29 +2,30 @@ package dto
 
 // CreateVisitReportRequest defines the request body for creating a visit report
 type CreateVisitReportRequest struct {
-	VisitDate     string  `json:"visit_date" binding:"required"`
-	ScheduledTime *string `json:"scheduled_time"`
-	EmployeeID    string  `json:"employee_id" binding:"required,uuid"`
-	CustomerID    *string `json:"customer_id" binding:"omitempty,uuid"`
-	ContactID     *string `json:"contact_id" binding:"omitempty,uuid"`
-	DealID        *string `json:"deal_id" binding:"omitempty,uuid"`
-	LeadID        *string `json:"lead_id" binding:"omitempty,uuid"`
-	ContactPerson string  `json:"contact_person" binding:"max=200"`
-	ContactPhone  string  `json:"contact_phone" binding:"max=20"`
-	Address       string  `json:"address"`
-	VillageID     *string `json:"village_id" binding:"omitempty,uuid"`
-	Purpose       string  `json:"purpose"`
-	Notes         string  `json:"notes"`
+	VisitDate     string                           `json:"visit_date" binding:"required"`
+	ScheduledTime *string                          `json:"scheduled_time"`
+	EmployeeID    string                           `json:"employee_id" binding:"required,uuid"`
+	CustomerID    *string                          `json:"customer_id" binding:"omitempty,uuid"`
+	ContactID     *string                          `json:"contact_id" binding:"omitempty,uuid"`
+	DealID        *string                          `json:"deal_id" binding:"omitempty,uuid"`
+	LeadID        *string                          `json:"lead_id" binding:"omitempty,uuid"`
+	TravelPlanID  *string                          `json:"travel_plan_id" binding:"omitempty,uuid"`
+	ContactPerson string                           `json:"contact_person" binding:"max=200"`
+	ContactPhone  string                           `json:"contact_phone" binding:"max=20"`
+	Address       string                           `json:"address"`
+	VillageID     *string                          `json:"village_id" binding:"omitempty,uuid"`
+	Purpose       string                           `json:"purpose"`
+	Notes         string                           `json:"notes"`
 	Details       []CreateVisitReportDetailRequest `json:"details"`
 }
 
 // CreateVisitReportDetailRequest defines a product interest item
 type CreateVisitReportDetailRequest struct {
-	ProductID     string   `json:"product_id" binding:"required,uuid"`
-	InterestLevel int      `json:"interest_level" binding:"min=0,max=5"`
-	Notes         string   `json:"notes"`
-	Quantity      *float64 `json:"quantity" binding:"omitempty,gte=0"`
-	Price         *float64 `json:"price" binding:"omitempty,gte=0"`
+	ProductID     string                                   `json:"product_id" binding:"required,uuid"`
+	InterestLevel int                                      `json:"interest_level" binding:"min=0,max=5"`
+	Notes         string                                   `json:"notes"`
+	Quantity      *float64                                 `json:"quantity" binding:"omitempty,gte=0"`
+	Price         *float64                                 `json:"price" binding:"omitempty,gte=0"`
 	Answers       []CreateVisitReportInterestAnswerRequest `json:"answers"`
 }
 
@@ -36,41 +37,44 @@ type CreateVisitReportInterestAnswerRequest struct {
 
 // UpdateVisitReportRequest defines the request body for updating a visit report
 type UpdateVisitReportRequest struct {
-	VisitDate     *string `json:"visit_date"`
-	ScheduledTime *string `json:"scheduled_time"`
-	EmployeeID    *string `json:"employee_id" binding:"omitempty,uuid"`
-	CustomerID    *string `json:"customer_id" binding:"omitempty,uuid"`
-	ContactID     *string `json:"contact_id" binding:"omitempty,uuid"`
-	DealID        *string `json:"deal_id" binding:"omitempty,uuid"`
-	LeadID        *string `json:"lead_id" binding:"omitempty,uuid"`
-	ContactPerson *string `json:"contact_person" binding:"omitempty,max=200"`
-	ContactPhone  *string `json:"contact_phone" binding:"omitempty,max=20"`
-	Address       *string `json:"address"`
-	VillageID     *string `json:"village_id" binding:"omitempty,uuid"`
-	Purpose       *string `json:"purpose"`
-	Notes         *string `json:"notes"`
-	Result        *string `json:"result"`
-	Outcome       *string `json:"outcome" binding:"omitempty,oneof=positive neutral negative very_positive"`
-	NextSteps     *string `json:"next_steps"`
+	VisitDate     *string                           `json:"visit_date"`
+	ScheduledTime *string                           `json:"scheduled_time"`
+	EmployeeID    *string                           `json:"employee_id" binding:"omitempty,uuid"`
+	CustomerID    *string                           `json:"customer_id" binding:"omitempty,uuid"`
+	ContactID     *string                           `json:"contact_id" binding:"omitempty,uuid"`
+	DealID        *string                           `json:"deal_id" binding:"omitempty,uuid"`
+	LeadID        *string                           `json:"lead_id" binding:"omitempty,uuid"`
+	TravelPlanID  *string                           `json:"travel_plan_id" binding:"omitempty,uuid"`
+	ContactPerson *string                           `json:"contact_person" binding:"omitempty,max=200"`
+	ContactPhone  *string                           `json:"contact_phone" binding:"omitempty,max=20"`
+	Address       *string                           `json:"address"`
+	VillageID     *string                           `json:"village_id" binding:"omitempty,uuid"`
+	Purpose       *string                           `json:"purpose"`
+	Notes         *string                           `json:"notes"`
+	Result        *string                           `json:"result"`
+	Outcome       *string                           `json:"outcome" binding:"omitempty,oneof=positive neutral negative very_positive"`
+	NextSteps     *string                           `json:"next_steps"`
 	Details       *[]CreateVisitReportDetailRequest `json:"details"`
 }
 
 // ListVisitReportsRequest defines the query parameters for listing visit reports
 type ListVisitReportsRequest struct {
-	Page       int    `form:"page" binding:"omitempty,min=1"`
-	PerPage    int    `form:"per_page" binding:"omitempty,min=1,max=100"`
-	Search     string `form:"search"`
-	Status     string `form:"status" binding:"omitempty,oneof=draft submitted approved rejected"`
-	CustomerID string `form:"customer_id" binding:"omitempty,uuid"`
-	EmployeeID string `form:"employee_id" binding:"omitempty,uuid"`
-	ContactID  string `form:"contact_id" binding:"omitempty,uuid"`
-	DealID     string `form:"deal_id" binding:"omitempty,uuid"`
-	LeadID     string `form:"lead_id" binding:"omitempty,uuid"`
-	Outcome    string `form:"outcome" binding:"omitempty,oneof=positive neutral negative very_positive"`
-	DateFrom   string `form:"date_from"`
-	DateTo     string `form:"date_to"`
-	SortBy     string `form:"sort_by"`
-	SortDir    string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
+	Page              int    `form:"page" binding:"omitempty,min=1"`
+	PerPage           int    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search            string `form:"search"`
+	Status            string `form:"status" binding:"omitempty,oneof=draft submitted approved rejected"`
+	CustomerID        string `form:"customer_id" binding:"omitempty,uuid"`
+	EmployeeID        string `form:"employee_id" binding:"omitempty,uuid"`
+	ContactID         string `form:"contact_id" binding:"omitempty,uuid"`
+	DealID            string `form:"deal_id" binding:"omitempty,uuid"`
+	LeadID            string `form:"lead_id" binding:"omitempty,uuid"`
+	TravelPlanID      string `form:"travel_plan_id" binding:"omitempty,uuid"`
+	WithoutTravelPlan bool   `form:"without_travel_plan"`
+	Outcome           string `form:"outcome" binding:"omitempty,oneof=positive neutral negative very_positive"`
+	DateFrom          string `form:"date_from"`
+	DateTo            string `form:"date_to"`
+	SortBy            string `form:"sort_by"`
+	SortDir           string `form:"sort_dir" binding:"omitempty,oneof=asc desc"`
 }
 
 // CheckInRequest defines the GPS check-in request
@@ -108,63 +112,64 @@ type RejectVisitReportRequest struct {
 
 // VisitReportResponse defines the response body for a visit report
 type VisitReportResponse struct {
-	ID               string                           `json:"id"`
-	Code             string                           `json:"code"`
-	CustomerID       *string                          `json:"customer_id"`
-	Customer         *VisitCustomerBrief              `json:"customer,omitempty"`
-	ContactID        *string                          `json:"contact_id"`
-	Contact          *VisitContactBrief               `json:"contact,omitempty"`
-	DealID           *string                          `json:"deal_id"`
-	Deal             *VisitDealBrief                  `json:"deal,omitempty"`
-	LeadID           *string                          `json:"lead_id"`
-	Lead             *VisitLeadBrief                  `json:"lead,omitempty"`
-	EmployeeID       string                           `json:"employee_id"`
-	Employee         *VisitEmployeeBrief              `json:"employee,omitempty"`
-	VisitDate        string                           `json:"visit_date"`
-	ScheduledTime    *string                          `json:"scheduled_time"`
-	ActualTime       *string                          `json:"actual_time"`
-	CheckInAt        *string                          `json:"check_in_at"`
-	CheckOutAt       *string                          `json:"check_out_at"`
-	CheckInLocation  *string                          `json:"check_in_location"`
-	CheckOutLocation *string                          `json:"check_out_location"`
-	Address          string                           `json:"address"`
-	VillageID        *string                          `json:"village_id"`
-	Village          *VisitVillageResponse            `json:"village,omitempty"`
-	Latitude         *float64                         `json:"latitude"`
-	Longitude        *float64                         `json:"longitude"`
-	Purpose          string                           `json:"purpose"`
-	Notes            string                           `json:"notes"`
-	Result           string                           `json:"result"`
-	Outcome          string                           `json:"outcome"`
-	NextSteps        string                           `json:"next_steps"`
-	ContactPerson    string                           `json:"contact_person"`
-	ContactPhone     string                           `json:"contact_phone"`
-	Photos           *string                          `json:"photos"`
-	Status           string                           `json:"status"`
-	ApprovedBy       *string                          `json:"approved_by"`
-	ApprovedAt       *string                          `json:"approved_at"`
-	RejectedBy       *string                          `json:"rejected_by"`
-	RejectedAt       *string                          `json:"rejected_at"`
-	RejectionReason  string                           `json:"rejection_reason"`
-	CreatedBy        *string                          `json:"created_by"`
-	Details          []VisitReportDetailResponse       `json:"details,omitempty"`
-	CreatedAt        string                           `json:"created_at"`
-	UpdatedAt        string                           `json:"updated_at"`
+	ID               string                      `json:"id"`
+	Code             string                      `json:"code"`
+	CustomerID       *string                     `json:"customer_id"`
+	Customer         *VisitCustomerBrief         `json:"customer,omitempty"`
+	ContactID        *string                     `json:"contact_id"`
+	Contact          *VisitContactBrief          `json:"contact,omitempty"`
+	DealID           *string                     `json:"deal_id"`
+	Deal             *VisitDealBrief             `json:"deal,omitempty"`
+	LeadID           *string                     `json:"lead_id"`
+	TravelPlanID     *string                     `json:"travel_plan_id"`
+	Lead             *VisitLeadBrief             `json:"lead,omitempty"`
+	EmployeeID       string                      `json:"employee_id"`
+	Employee         *VisitEmployeeBrief         `json:"employee,omitempty"`
+	VisitDate        string                      `json:"visit_date"`
+	ScheduledTime    *string                     `json:"scheduled_time"`
+	ActualTime       *string                     `json:"actual_time"`
+	CheckInAt        *string                     `json:"check_in_at"`
+	CheckOutAt       *string                     `json:"check_out_at"`
+	CheckInLocation  *string                     `json:"check_in_location"`
+	CheckOutLocation *string                     `json:"check_out_location"`
+	Address          string                      `json:"address"`
+	VillageID        *string                     `json:"village_id"`
+	Village          *VisitVillageResponse       `json:"village,omitempty"`
+	Latitude         *float64                    `json:"latitude"`
+	Longitude        *float64                    `json:"longitude"`
+	Purpose          string                      `json:"purpose"`
+	Notes            string                      `json:"notes"`
+	Result           string                      `json:"result"`
+	Outcome          string                      `json:"outcome"`
+	NextSteps        string                      `json:"next_steps"`
+	ContactPerson    string                      `json:"contact_person"`
+	ContactPhone     string                      `json:"contact_phone"`
+	Photos           *string                     `json:"photos"`
+	Status           string                      `json:"status"`
+	ApprovedBy       *string                     `json:"approved_by"`
+	ApprovedAt       *string                     `json:"approved_at"`
+	RejectedBy       *string                     `json:"rejected_by"`
+	RejectedAt       *string                     `json:"rejected_at"`
+	RejectionReason  string                      `json:"rejection_reason"`
+	CreatedBy        *string                     `json:"created_by"`
+	Details          []VisitReportDetailResponse `json:"details,omitempty"`
+	CreatedAt        string                      `json:"created_at"`
+	UpdatedAt        string                      `json:"updated_at"`
 }
 
 // VisitReportDetailResponse defines the response for a visit report detail
 type VisitReportDetailResponse struct {
-	ID            string                           `json:"id"`
-	VisitReportID string                           `json:"visit_report_id"`
-	ProductID     string                           `json:"product_id"`
-	Product       *VisitProductBrief               `json:"product,omitempty"`
-	InterestLevel int                              `json:"interest_level"`
-	Notes         string                           `json:"notes"`
-	Quantity      *float64                         `json:"quantity"`
-	Price         *float64                         `json:"price"`
+	ID            string                              `json:"id"`
+	VisitReportID string                              `json:"visit_report_id"`
+	ProductID     string                              `json:"product_id"`
+	Product       *VisitProductBrief                  `json:"product,omitempty"`
+	InterestLevel int                                 `json:"interest_level"`
+	Notes         string                              `json:"notes"`
+	Quantity      *float64                            `json:"quantity"`
+	Price         *float64                            `json:"price"`
 	Answers       []VisitReportInterestAnswerResponse `json:"answers,omitempty"`
-	CreatedAt     string                           `json:"created_at"`
-	UpdatedAt     string                           `json:"updated_at"`
+	CreatedAt     string                              `json:"created_at"`
+	UpdatedAt     string                              `json:"updated_at"`
 }
 
 // VisitReportInterestAnswerResponse defines the response for an interest answer
@@ -190,9 +195,9 @@ type VisitReportProgressHistoryResponse struct {
 
 // VisitInterestQuestionResponse defines the response for an interest question
 type VisitInterestQuestionResponse struct {
-	ID           string                       `json:"id"`
-	QuestionText string                       `json:"question_text"`
-	Sequence     int                          `json:"sequence"`
+	ID           string                        `json:"id"`
+	QuestionText string                        `json:"question_text"`
+	Sequence     int                           `json:"sequence"`
 	Options      []VisitInterestOptionResponse `json:"options"`
 }
 
@@ -256,22 +261,22 @@ type VisitProductBrief struct {
 
 // VisitVillageResponse is the village with location hierarchy
 type VisitVillageResponse struct {
-	ID       string                `json:"id"`
-	Name     string                `json:"name"`
+	ID       string                 `json:"id"`
+	Name     string                 `json:"name"`
 	District *VisitDistrictResponse `json:"district,omitempty"`
 }
 
 // VisitDistrictResponse is the district representation
 type VisitDistrictResponse struct {
-	ID      string               `json:"id"`
-	Name    string               `json:"name"`
+	ID      string                `json:"id"`
+	Name    string                `json:"name"`
 	Regency *VisitRegencyResponse `json:"regency,omitempty"`
 }
 
 // VisitRegencyResponse is the regency/city representation
 type VisitRegencyResponse struct {
-	ID       string                `json:"id"`
-	Name     string                `json:"name"`
+	ID       string                 `json:"id"`
+	Name     string                 `json:"name"`
 	Province *VisitProvinceResponse `json:"province,omitempty"`
 }
 
@@ -283,14 +288,14 @@ type VisitProvinceResponse struct {
 
 // VisitReportFormDataResponse contains form data for creating/editing visit reports
 type VisitReportFormDataResponse struct {
-	Customers         []VisitFormDataCustomer         `json:"customers"`
-	Contacts          []VisitFormDataContact           `json:"contacts"`
-	Employees         []VisitFormDataEmployee          `json:"employees"`
-	Deals             []VisitFormDataDeal              `json:"deals"`
-	Leads             []VisitFormDataLead              `json:"leads"`
-	Products          []VisitFormDataProduct           `json:"products"`
-	Outcomes          []VisitFormDataOption             `json:"outcomes"`
-	Statuses          []VisitFormDataOption             `json:"statuses"`
+	Customers []VisitFormDataCustomer `json:"customers"`
+	Contacts  []VisitFormDataContact  `json:"contacts"`
+	Employees []VisitFormDataEmployee `json:"employees"`
+	Deals     []VisitFormDataDeal     `json:"deals"`
+	Leads     []VisitFormDataLead     `json:"leads"`
+	Products  []VisitFormDataProduct  `json:"products"`
+	Outcomes  []VisitFormDataOption   `json:"outcomes"`
+	Statuses  []VisitFormDataOption   `json:"statuses"`
 }
 
 // VisitFormDataCustomer is a customer option for forms

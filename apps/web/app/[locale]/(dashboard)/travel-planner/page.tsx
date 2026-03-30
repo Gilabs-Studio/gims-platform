@@ -45,7 +45,7 @@ function TravelPlannerSkeleton() {
 
 export default function TravelPlannerPageRoute() {
   return (
-    <PermissionGuard requiredPermission="up_country_cost.read">
+    <PermissionGuard requiredPermission="travel_planner.read">
       <Suspense fallback={<TravelPlannerSkeleton />}>
         <TravelPlannerContainer />
       </Suspense>

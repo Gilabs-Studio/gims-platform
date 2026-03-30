@@ -195,7 +195,7 @@
     "budgetingCost": "Anggaran & Biaya",
     "budget": "Anggaran",
     "salary": "Gaji",
-    "upCountryCost": "Biaya Perjalanan Dinas",
+    "upCountryCost": "Biaya Perjalanan",
     "assetManagement": "Manajemen Aset",
     "assets": "Aset",
     "assetCategories": "Kategori Aset",
@@ -247,13 +247,13 @@
   "travelPlanner": {
     "badge": "Kolaboratif Lanjutan",
     "title": "Travel Planner",
-    "description": "Modul parent terpadu untuk perencanaan perjalanan logistik, kargo, kapal, dan milestone perjalanan. Up Country Cost tetap tersedia sambil kapabilitas kolaboratif dikembangkan.",
+    "description": "Modul parent terpadu untuk perencanaan trip, kunjungan sales, dan biaya perjalanan pada operasi logistik, kargo, kapal, dan milestone.",
     "modules": {
       "title": "Modul",
-      "description": "Mulai dari workflow biaya perjalanan yang sudah berjalan, lalu lanjut ke workflow perencanaan kolaboratif.",
+      "description": "Kelola perencanaan trip, eksekusi kunjungan, dan pencatatan biaya perjalanan dalam satu workflow.",
       "upCountryCost": {
-        "title": "Up Country Cost",
-        "description": "Workflow existing untuk perencanaan biaya perjalanan, approval, dan pelacakan status pembayaran.",
+        "title": "Trip Visit & Expense",
+        "description": "Workflow terpadu untuk perencanaan rute, linking visit, dan pencatatan biaya perjalanan.",
         "action": "Buka Modul"
       },
       "collaborative": {
@@ -310,11 +310,62 @@
         "optimize": "Optimasi Rute",
         "optimizing": "Mengoptimasi..."
       },
+      "context": {
+        "title": "Konteks Akses Pengguna",
+        "userLabel": "Pengguna aktif",
+        "roleLabel": "Peran",
+        "scopeLabel": "Ruang lingkup izin",
+        "permissionLabel": "travel_planner.read",
+        "permissionGranted": "Diizinkan",
+        "permissionMissing": "Belum diizinkan",
+        "scopeUnknown": "Tidak diketahui",
+        "notAuthenticated": "Belum login"
+      },
       "tabs": {
+        "planner": "Planner",
+        "operations": "Kunjungan & Biaya",
+        "insights": "Cuaca & Ekspor",
         "itinerary": "Itinerary",
         "map": "Peta Interaktif",
+        "visits": "Kunjungan",
+        "expenses": "Biaya",
         "weather": "Cuaca",
         "export": "Ekspor"
+      },
+      "visits": {
+        "createTitle": "Buat Kunjungan dari Trip",
+        "employeePlaceholder": "Pilih karyawan",
+        "customerPlaceholder": "Pilih pelanggan (opsional)",
+        "noCustomer": "Tanpa pelanggan",
+        "contactPersonPlaceholder": "Nama kontak",
+        "contactPhonePlaceholder": "Nomor kontak",
+        "addressPlaceholder": "Alamat",
+        "purposePlaceholder": "Tujuan kunjungan",
+        "notesPlaceholder": "Catatan kunjungan",
+        "createAction": "Buat Kunjungan",
+        "creating": "Membuat kunjungan...",
+        "availableTitle": "Kunjungan Tersedia",
+        "searchPlaceholder": "Cari kunjungan tersedia",
+        "linkSelected": "Tautkan Terpilih ({count})",
+        "linking": "Menautkan...",
+        "availableEmpty": "Tidak ada kunjungan yang bisa ditautkan",
+        "linkedTitle": "Kunjungan Tertaut",
+        "linkedEmpty": "Belum ada kunjungan tertaut ke trip ini",
+        "unlinkAction": "Lepas Taut"
+      },
+      "expenses": {
+        "createTitle": "Catat Biaya Trip",
+        "typePlaceholder": "Tipe biaya",
+        "amountPlaceholder": "Jumlah biaya",
+        "descriptionPlaceholder": "Deskripsi",
+        "receiptPlaceholder": "URL bukti",
+        "createAction": "Tambah Biaya",
+        "creating": "Menambahkan...",
+        "summaryTitle": "Ringkasan Biaya",
+        "listTitle": "Daftar Biaya",
+        "empty": "Belum ada biaya",
+        "noDescription": "Tanpa deskripsi",
+        "deleteAction": "Hapus"
       },
       "placeSearch": {
         "title": "Pencarian Tempat",
@@ -338,7 +389,14 @@
         "failedLoadPlansTitle": "Gagal memuat daftar plan",
         "failedLoadPlansDescription": "Silakan coba ulang setelah memastikan koneksi API.",
         "failedLoadPlanTitle": "Gagal memuat plan terpilih",
-        "failedLoadPlanDescription": "Plan terpilih belum dapat diambil saat ini."
+        "failedLoadPlanDescription": "Plan terpilih belum dapat diambil saat ini.",
+        "selectPlanFirst": "Pilih trip plan terlebih dahulu",
+        "invalidExpenseAmount": "Jumlah biaya harus lebih dari nol",
+        "employeeRequired": "Karyawan wajib dipilih untuk membuat kunjungan",
+        "selectVisitsToLink": "Pilih minimal satu kunjungan untuk ditautkan",
+        "failedLoadAvailableVisits": "Gagal memuat daftar kunjungan tersedia",
+        "failedLoadTripVisits": "Gagal memuat kunjungan yang tertaut",
+        "failedLoadExpenses": "Gagal memuat biaya trip"
       },
       "toasts": {
         "planCreated": "Travel plan berhasil dibuat",
@@ -346,6 +404,11 @@
         "routeOptimized": "Rute berhasil dioptimasi",
         "placeAdded": "Tempat berhasil ditambahkan ke hari terpilih",
         "pdfExported": "PDF berhasil diekspor",
+        "expenseCreated": "Biaya trip berhasil ditambahkan",
+        "expenseDeleted": "Biaya trip berhasil dihapus",
+        "visitsLinked": "{count} kunjungan berhasil ditautkan ke trip",
+        "visitCreated": "Kunjungan berhasil dibuat dari trip",
+        "visitUnlinked": "Kunjungan berhasil dilepas dari trip",
         "genericError": "Terjadi kesalahan"
       }
     }

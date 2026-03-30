@@ -72,18 +72,19 @@ func (m *TravelPlanMapper) ToResponse(plan *models.TravelPlan) dto.TravelPlanRes
 	})
 
 	return dto.TravelPlanResponse{
-		ID:        plan.ID,
-		Code:      plan.Code,
-		Title:     plan.Title,
-		Mode:      string(plan.Mode),
-		StartDate: plan.StartDate.Format("2006-01-02"),
-		EndDate:   plan.EndDate.Format("2006-01-02"),
-		Status:    string(plan.Status),
-		Notes:     plan.Notes,
-		Days:      days,
-		CreatedBy: plan.CreatedBy,
-		CreatedAt: plan.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: plan.UpdatedAt.Format(time.RFC3339),
+		ID:           plan.ID,
+		Code:         plan.Code,
+		Title:        plan.Title,
+		Mode:         string(plan.Mode),
+		StartDate:    plan.StartDate.Format("2006-01-02"),
+		EndDate:      plan.EndDate.Format("2006-01-02"),
+		Status:       string(plan.Status),
+		BudgetAmount: plan.BudgetAmount,
+		Notes:        plan.Notes,
+		Days:         days,
+		CreatedBy:    plan.CreatedBy,
+		CreatedAt:    plan.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    plan.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

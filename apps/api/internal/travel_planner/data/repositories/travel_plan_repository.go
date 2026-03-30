@@ -28,6 +28,9 @@ type TravelPlanRepository interface {
 	FindByID(ctx context.Context, id string, withRelations bool) (*models.TravelPlan, error)
 	List(ctx context.Context, params TravelPlanListParams) ([]models.TravelPlan, int64, error)
 	ReplaceDays(ctx context.Context, planID string, days []models.TravelPlanDay) error
+	ListExpenses(ctx context.Context, planID string) ([]models.TravelPlanExpense, error)
+	CreateExpense(ctx context.Context, expense *models.TravelPlanExpense) error
+	DeleteExpense(ctx context.Context, planID string, expenseID string) error
 }
 
 type travelPlanRepository struct {
@@ -78,6 +81,9 @@ func (r *travelPlanRepository) FindByID(ctx context.Context, id string, withRela
 			}).
 			Preload("Days.Notes", func(db *gorm.DB) *gorm.DB {
 				return db.Order("order_index ASC")
+			}).
+			Preload("Expenses", func(db *gorm.DB) *gorm.DB {
+				return db.Order("expense_date ASC").Order("created_at ASC")
 			})
 	}
 
@@ -141,4 +147,27 @@ func (r *travelPlanRepository) ReplaceDays(ctx context.Context, planID string, d
 
 		return nil
 	})
+}
+
+func (r *travelPlanRepository) ListExpenses(ctx context.Context, planID string) ([]models.TravelPlanExpense, error) {
+	expenses := make([]models.TravelPlanExpense, 0)
+	err := r.db.WithContext(ctx).
+		Where("travel_plan_id = ?", planID).
+		Order("expense_date ASC").
+		Order("created_at ASC").
+		Find(&expenses).Error
+	if err != nil {
+		return nil, err
+	}
+	return expenses, nil
+}
+
+func (r *travelPlanRepository) CreateExpense(ctx context.Context, expense *models.TravelPlanExpense) error {
+	return r.db.WithContext(ctx).Create(expense).Error
+}
+
+func (r *travelPlanRepository) DeleteExpense(ctx context.Context, planID string, expenseID string) error {
+	return r.db.WithContext(ctx).
+		Where("id = ? AND travel_plan_id = ?", expenseID, planID).
+		Delete(&models.TravelPlanExpense{}).Error
 }

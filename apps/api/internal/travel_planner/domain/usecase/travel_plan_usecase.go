@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	crmModels "github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	"github.com/gilabs/gims/api/internal/travel_planner/data/repositories"
 	"github.com/gilabs/gims/api/internal/travel_planner/domain/dto"
@@ -25,14 +26,18 @@ import (
 )
 
 var (
-	ErrTravelPlanNotFound  = errors.New("travel plan not found")
-	ErrInvalidDateRange    = errors.New("invalid date range")
-	ErrInvalidTravelMode   = errors.New("invalid travel mode")
-	ErrInvalidStatus       = errors.New("invalid travel status")
-	ErrInvalidDayDate      = errors.New("invalid day date")
-	ErrInvalidStopCategory = errors.New("invalid stop category")
-	ErrInvalidStopSource   = errors.New("invalid stop source")
-	ErrInvalidSearchQuery  = errors.New("search query must contain at least 2 characters")
+	ErrTravelPlanNotFound    = errors.New("travel plan not found")
+	ErrInvalidDateRange      = errors.New("invalid date range")
+	ErrInvalidTravelMode     = errors.New("invalid travel mode")
+	ErrInvalidStatus         = errors.New("invalid travel status")
+	ErrInvalidDayDate        = errors.New("invalid day date")
+	ErrInvalidStopCategory   = errors.New("invalid stop category")
+	ErrInvalidStopSource     = errors.New("invalid stop source")
+	ErrInvalidExpenseType    = errors.New("invalid expense type")
+	ErrInvalidBudgetAmount   = errors.New("invalid budget amount")
+	ErrTravelExpenseNotFound = errors.New("travel expense not found")
+	ErrVisitNotFound         = errors.New("visit not found")
+	ErrInvalidSearchQuery    = errors.New("search query must contain at least 2 characters")
 )
 
 type TravelPlanUsecase interface {
@@ -47,6 +52,14 @@ type TravelPlanUsecase interface {
 	GetWeather(ctx context.Context, planID string) (*dto.WeatherPlanResponse, error)
 	GetGoogleMapsLinks(ctx context.Context, planID string) ([]dto.DayGoogleMapsLink, error)
 	ExportPDF(ctx context.Context, planID string, dayIndex *int) ([]byte, string, error)
+	ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error)
+	CreateExpense(ctx context.Context, planID string, req *dto.CreateTravelExpenseRequest) (*dto.TravelExpenseResponse, error)
+	DeleteExpense(ctx context.Context, planID string, expenseID string) error
+	ListVisits(ctx context.Context, planID string) ([]dto.TravelPlanVisitResponse, error)
+	ListAvailableVisits(ctx context.Context, search string) ([]dto.TravelPlanVisitResponse, error)
+	LinkVisits(ctx context.Context, planID string, req *dto.LinkTravelPlanVisitsRequest) (int64, error)
+	UnlinkVisit(ctx context.Context, planID string, visitID string) error
+	CreateVisitFromTrip(ctx context.Context, planID string, req *dto.CreateTravelPlanVisitRequest) (*dto.TravelPlanVisitResponse, error)
 }
 
 type travelPlanUsecase struct {
@@ -89,6 +102,11 @@ func (uc *travelPlanUsecase) Create(ctx context.Context, req *dto.CreateTravelPl
 		return nil, ErrInvalidDateRange
 	}
 
+	budgetAmount, err := parseBudgetAmount(req.BudgetAmount)
+	if err != nil {
+		return nil, err
+	}
+
 	days, err := uc.buildDays(req.Days)
 	if err != nil {
 		return nil, err
@@ -106,15 +124,16 @@ func (uc *travelPlanUsecase) Create(ctx context.Context, req *dto.CreateTravelPl
 	}
 
 	plan := &models.TravelPlan{
-		Code:      code,
-		Title:     strings.TrimSpace(req.Title),
-		Mode:      mode,
-		StartDate: startDate,
-		EndDate:   endDate,
-		Status:    models.TravelPlanStatusDraft,
-		Notes:     strings.TrimSpace(req.Notes),
-		Days:      days,
-		CreatedBy: createdByPtr,
+		Code:         code,
+		Title:        strings.TrimSpace(req.Title),
+		Mode:         mode,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		Status:       models.TravelPlanStatusDraft,
+		BudgetAmount: budgetAmount,
+		Notes:        strings.TrimSpace(req.Notes),
+		Days:         days,
+		CreatedBy:    createdByPtr,
 	}
 
 	if err := uc.repo.Create(ctx, plan); err != nil {
@@ -161,6 +180,11 @@ func (uc *travelPlanUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		return nil, ErrInvalidDateRange
 	}
 
+	budgetAmount, err := parseBudgetAmount(req.BudgetAmount)
+	if err != nil {
+		return nil, err
+	}
+
 	status := existing.Status
 	if strings.TrimSpace(req.Status) != "" {
 		status, err = parseTravelStatus(req.Status)
@@ -179,6 +203,7 @@ func (uc *travelPlanUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	existing.StartDate = startDate
 	existing.EndDate = endDate
 	existing.Status = status
+	existing.BudgetAmount = budgetAmount
 	existing.Notes = strings.TrimSpace(req.Notes)
 
 	if err := uc.repo.Update(ctx, existing); err != nil {
@@ -324,6 +349,15 @@ func (uc *travelPlanUsecase) GetFormData(ctx context.Context) (*dto.TravelPlanne
 			{Value: string(models.TravelWeatherRiskLow), Label: "Low"},
 			{Value: string(models.TravelWeatherRiskMedium), Label: "Medium"},
 			{Value: string(models.TravelWeatherRiskHigh), Label: "High"},
+		},
+		ExpenseTypes: []dto.EnumOption{
+			{Value: string(models.TravelExpenseTypeTransport), Label: "Transport"},
+			{Value: string(models.TravelExpenseTypeAccommodation), Label: "Accommodation"},
+			{Value: string(models.TravelExpenseTypeMeal), Label: "Meal"},
+			{Value: string(models.TravelExpenseTypeFuel), Label: "Fuel"},
+			{Value: string(models.TravelExpenseTypeToll), Label: "Toll"},
+			{Value: string(models.TravelExpenseTypeParking), Label: "Parking"},
+			{Value: string(models.TravelExpenseTypeOther), Label: "Other"},
 		},
 	}, nil
 }
@@ -611,6 +645,301 @@ func (uc *travelPlanUsecase) ExportPDF(ctx context.Context, planID string, dayIn
 	return buffer.Bytes(), filename, nil
 }
 
+func (uc *travelPlanUsecase) ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error) {
+	planID = strings.TrimSpace(planID)
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTravelPlanNotFound
+		}
+		return nil, err
+	}
+
+	expenses, err := uc.repo.ListExpenses(ctx, planID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.TravelExpenseResponse, 0, len(expenses))
+	totalAmount := 0.0
+	for i := range expenses {
+		totalAmount += expenses[i].Amount
+		items = append(items, mapTravelExpenseToResponse(&expenses[i]))
+	}
+
+	return &dto.TravelExpenseListResponse{
+		Items:       items,
+		TotalAmount: roundToTwo(totalAmount),
+	}, nil
+}
+
+func (uc *travelPlanUsecase) CreateExpense(ctx context.Context, planID string, req *dto.CreateTravelExpenseRequest) (*dto.TravelExpenseResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	planID = strings.TrimSpace(planID)
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTravelPlanNotFound
+		}
+		return nil, err
+	}
+
+	expenseType, err := parseExpenseType(req.ExpenseType)
+	if err != nil {
+		return nil, err
+	}
+
+	expenseDate, err := parseDate(req.ExpenseDate)
+	if err != nil {
+		return nil, ErrInvalidDayDate
+	}
+
+	actorID := strings.TrimSpace(getActorID(ctx))
+	var createdBy *string
+	if actorID != "" {
+		createdBy = &actorID
+	}
+
+	expense := &models.TravelPlanExpense{
+		TravelPlanID: planID,
+		ExpenseType:  expenseType,
+		Description:  strings.TrimSpace(req.Description),
+		Amount:       req.Amount,
+		ExpenseDate:  expenseDate,
+		ReceiptURL:   strings.TrimSpace(req.ReceiptURL),
+		CreatedBy:    createdBy,
+	}
+
+	if err := uc.repo.CreateExpense(ctx, expense); err != nil {
+		return nil, err
+	}
+
+	response := mapTravelExpenseToResponse(expense)
+	return &response, nil
+}
+
+func (uc *travelPlanUsecase) DeleteExpense(ctx context.Context, planID string, expenseID string) error {
+	planID = strings.TrimSpace(planID)
+	expenseID = strings.TrimSpace(expenseID)
+
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTravelPlanNotFound
+		}
+		return err
+	}
+
+	expenses, err := uc.repo.ListExpenses(ctx, planID)
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, expense := range expenses {
+		if expense.ID == expenseID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrTravelExpenseNotFound
+	}
+
+	return uc.repo.DeleteExpense(ctx, planID, expenseID)
+}
+
+func (uc *travelPlanUsecase) ListVisits(ctx context.Context, planID string) ([]dto.TravelPlanVisitResponse, error) {
+	planID = strings.TrimSpace(planID)
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTravelPlanNotFound
+		}
+		return nil, err
+	}
+
+	visits := make([]crmModels.VisitReport, 0)
+	err := uc.db.WithContext(ctx).
+		Preload("Customer").
+		Preload("Employee").
+		Where("travel_plan_id = ?", planID).
+		Order("visit_date DESC").
+		Order("created_at DESC").
+		Find(&visits).Error
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]dto.TravelPlanVisitResponse, 0, len(visits))
+	for i := range visits {
+		responses = append(responses, mapTravelPlanVisitToResponse(&visits[i]))
+	}
+
+	return responses, nil
+}
+
+func (uc *travelPlanUsecase) ListAvailableVisits(ctx context.Context, search string) ([]dto.TravelPlanVisitResponse, error) {
+	trimmedSearch := strings.TrimSpace(search)
+	if trimmedSearch != "" && len(trimmedSearch) < 2 {
+		return nil, ErrInvalidSearchQuery
+	}
+
+	query := uc.db.WithContext(ctx).
+		Model(&crmModels.VisitReport{}).
+		Preload("Customer").
+		Preload("Employee").
+		Where("travel_plan_id IS NULL").
+		Order("visit_date DESC").
+		Order("created_at DESC").
+		Limit(50)
+
+	if trimmedSearch != "" {
+		like := trimmedSearch + "%"
+		query = query.Where(
+			"code ILIKE ? OR purpose ILIKE ? OR notes ILIKE ? OR contact_person ILIKE ?",
+			like,
+			like,
+			like,
+			like,
+		)
+	}
+
+	visits := make([]crmModels.VisitReport, 0)
+	if err := query.Find(&visits).Error; err != nil {
+		return nil, err
+	}
+
+	responses := make([]dto.TravelPlanVisitResponse, 0, len(visits))
+	for i := range visits {
+		responses = append(responses, mapTravelPlanVisitToResponse(&visits[i]))
+	}
+
+	return responses, nil
+}
+
+func (uc *travelPlanUsecase) LinkVisits(ctx context.Context, planID string, req *dto.LinkTravelPlanVisitsRequest) (int64, error) {
+	if req == nil || len(req.VisitIDs) == 0 {
+		return 0, errors.New("visit_ids is required")
+	}
+
+	planID = strings.TrimSpace(planID)
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrTravelPlanNotFound
+		}
+		return 0, err
+	}
+
+	result := uc.db.WithContext(ctx).
+		Model(&crmModels.VisitReport{}).
+		Where("id IN ? AND (travel_plan_id IS NULL OR travel_plan_id = ?)", req.VisitIDs, planID).
+		Updates(map[string]interface{}{
+			"travel_plan_id": planID,
+			"updated_at":     apptime.Now(),
+		})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return 0, ErrVisitNotFound
+	}
+
+	return result.RowsAffected, nil
+}
+
+func (uc *travelPlanUsecase) UnlinkVisit(ctx context.Context, planID string, visitID string) error {
+	planID = strings.TrimSpace(planID)
+	visitID = strings.TrimSpace(visitID)
+
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTravelPlanNotFound
+		}
+		return err
+	}
+
+	result := uc.db.WithContext(ctx).
+		Model(&crmModels.VisitReport{}).
+		Where("id = ? AND travel_plan_id = ?", visitID, planID).
+		Updates(map[string]interface{}{
+			"travel_plan_id": nil,
+			"updated_at":     apptime.Now(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrVisitNotFound
+	}
+
+	return nil
+}
+
+func (uc *travelPlanUsecase) CreateVisitFromTrip(ctx context.Context, planID string, req *dto.CreateTravelPlanVisitRequest) (*dto.TravelPlanVisitResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	planID = strings.TrimSpace(planID)
+	if _, err := uc.repo.FindByID(ctx, planID, false); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTravelPlanNotFound
+		}
+		return nil, err
+	}
+
+	visitDate, err := parseDate(req.VisitDate)
+	if err != nil {
+		return nil, ErrInvalidDayDate
+	}
+
+	code, err := uc.generateVisitCode(ctx, apptime.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	actorID := strings.TrimSpace(getActorID(ctx))
+	var createdBy *string
+	if actorID != "" {
+		createdBy = &actorID
+	}
+
+	visit := &crmModels.VisitReport{
+		Code:          code,
+		TravelPlanID:  &planID,
+		VisitDate:     visitDate,
+		EmployeeID:    strings.TrimSpace(req.EmployeeID),
+		CustomerID:    req.CustomerID,
+		ContactID:     req.ContactID,
+		DealID:        req.DealID,
+		LeadID:        req.LeadID,
+		VillageID:     req.VillageID,
+		ContactPerson: strings.TrimSpace(req.ContactPerson),
+		ContactPhone:  strings.TrimSpace(req.ContactPhone),
+		Address:       strings.TrimSpace(req.Address),
+		Purpose:       strings.TrimSpace(req.Purpose),
+		Notes:         strings.TrimSpace(req.Notes),
+		Status:        crmModels.VisitReportStatusDraft,
+		CreatedBy:     createdBy,
+	}
+
+	if err := uc.db.WithContext(ctx).Create(visit).Error; err != nil {
+		return nil, err
+	}
+
+	created := crmModels.VisitReport{}
+	if err := uc.db.WithContext(ctx).
+		Preload("Customer").
+		Preload("Employee").
+		Where("id = ?", visit.ID).
+		First(&created).Error; err != nil {
+		return nil, err
+	}
+
+	response := mapTravelPlanVisitToResponse(&created)
+	return &response, nil
+}
+
 func (uc *travelPlanUsecase) buildDays(dayRequests []dto.TravelPlanDayRequest) ([]models.TravelPlanDay, error) {
 	days := make([]models.TravelPlanDay, 0, len(dayRequests))
 	for _, dayRequest := range dayRequests {
@@ -752,6 +1081,29 @@ func parseStopSource(source string) (models.TravelStopSource, error) {
 	default:
 		return "", ErrInvalidStopSource
 	}
+}
+
+func parseExpenseType(expenseType string) (models.TravelExpenseType, error) {
+	normalized := strings.ToLower(strings.TrimSpace(expenseType))
+	switch models.TravelExpenseType(normalized) {
+	case models.TravelExpenseTypeTransport,
+		models.TravelExpenseTypeAccommodation,
+		models.TravelExpenseTypeMeal,
+		models.TravelExpenseTypeFuel,
+		models.TravelExpenseTypeToll,
+		models.TravelExpenseTypeParking,
+		models.TravelExpenseTypeOther:
+		return models.TravelExpenseType(normalized), nil
+	default:
+		return "", ErrInvalidExpenseType
+	}
+}
+
+func parseBudgetAmount(value float64) (float64, error) {
+	if value < 0 {
+		return 0, ErrInvalidBudgetAmount
+	}
+	return roundToTwo(value), nil
 }
 
 func parseWeatherRisk(risk string) (models.TravelWeatherRisk, error) {
@@ -1194,4 +1546,73 @@ func (uc *travelPlanUsecase) searchOpenStreetMap(ctx context.Context, query stri
 	}
 
 	return results, nil
+}
+
+func mapTravelExpenseToResponse(expense *models.TravelPlanExpense) dto.TravelExpenseResponse {
+	return dto.TravelExpenseResponse{
+		ID:           expense.ID,
+		TravelPlanID: expense.TravelPlanID,
+		ExpenseType:  string(expense.ExpenseType),
+		Description:  expense.Description,
+		Amount:       expense.Amount,
+		ExpenseDate:  expense.ExpenseDate.Format("2006-01-02"),
+		ReceiptURL:   expense.ReceiptURL,
+		CreatedBy:    expense.CreatedBy,
+		CreatedAt:    expense.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    expense.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVisitResponse {
+	customerName := ""
+	if visit.Customer != nil {
+		customerName = strings.TrimSpace(visit.Customer.Name)
+	}
+
+	employeeName := ""
+	if visit.Employee != nil {
+		employeeName = strings.TrimSpace(visit.Employee.Name)
+	}
+
+	return dto.TravelPlanVisitResponse{
+		ID:           visit.ID,
+		Code:         visit.Code,
+		TravelPlanID: visit.TravelPlanID,
+		VisitDate:    visit.VisitDate.Format("2006-01-02"),
+		EmployeeID:   visit.EmployeeID,
+		EmployeeName: employeeName,
+		CustomerID:   visit.CustomerID,
+		CustomerName: customerName,
+		Status:       string(visit.Status),
+		Purpose:      visit.Purpose,
+		Outcome:      visit.Outcome,
+		CreatedAt:    visit.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func (uc *travelPlanUsecase) generateVisitCode(ctx context.Context, now time.Time) (string, error) {
+	prefix := fmt.Sprintf("VISIT-%s-", now.Format("200601"))
+
+	latest := struct {
+		Code string `gorm:"column:code"`
+	}{}
+	err := uc.db.WithContext(ctx).
+		Model(&crmModels.VisitReport{}).
+		Select("code").
+		Where("code LIKE ?", prefix+"%").
+		Order("code DESC").
+		Take(&latest).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
+
+	sequence := 1
+	if len(latest.Code) > len(prefix) {
+		suffix := latest.Code[len(prefix):]
+		if parsed, parseErr := strconv.Atoi(suffix); parseErr == nil {
+			sequence = parsed + 1
+		}
+	}
+
+	return fmt.Sprintf("%s%05d", prefix, sequence), nil
 }

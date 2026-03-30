@@ -25,15 +25,16 @@ func SeedTravelPlanner() error {
 
 	plans := []travelPlanner.TravelPlan{
 		{
-			ID:        TravelPlanLogisticsID,
-			Code:      "TPL-SEED-0001",
-			Title:     "Jabodetabek Medical Distribution",
-			Mode:      travelPlanner.TravelModeLogistic,
-			StartDate: time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
-			EndDate:   time.Date(2026, time.March, 3, 0, 0, 0, 0, time.UTC),
-			Status:    travelPlanner.TravelPlanStatusActive,
-			Notes:     "Distribution route linked to master-data customers and warehouse checkpoints.",
-			CreatedBy: &adminID,
+			ID:           TravelPlanLogisticsID,
+			Code:         "TPL-SEED-0001",
+			Title:        "Jabodetabek Medical Distribution",
+			Mode:         travelPlanner.TravelModeLogistic,
+			StartDate:    time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
+			EndDate:      time.Date(2026, time.March, 3, 0, 0, 0, 0, time.UTC),
+			Status:       travelPlanner.TravelPlanStatusActive,
+			BudgetAmount: 18000000,
+			Notes:        "Distribution route linked to master-data customers and warehouse checkpoints.",
+			CreatedBy:    &adminID,
 			Days: []travelPlanner.TravelPlanDay{
 				{
 					ID:          "f1100001-0000-0000-0000-000000000001",
@@ -134,15 +135,16 @@ func SeedTravelPlanner() error {
 			},
 		},
 		{
-			ID:        TravelPlanMilestoneID,
-			Code:      "TPL-SEED-0002",
-			Title:     "Q2 Customer Milestone Visit",
-			Mode:      travelPlanner.TravelModeMilestone,
-			StartDate: time.Date(2026, time.April, 7, 0, 0, 0, 0, time.UTC),
-			EndDate:   time.Date(2026, time.April, 8, 0, 0, 0, 0, time.UTC),
-			Status:    travelPlanner.TravelPlanStatusDraft,
-			Notes:     "Milestone trip for sales-management review across key customer locations.",
-			CreatedBy: &managerID,
+			ID:           TravelPlanMilestoneID,
+			Code:         "TPL-SEED-0002",
+			Title:        "Q2 Customer Milestone Visit",
+			Mode:         travelPlanner.TravelModeMilestone,
+			StartDate:    time.Date(2026, time.April, 7, 0, 0, 0, 0, time.UTC),
+			EndDate:      time.Date(2026, time.April, 8, 0, 0, 0, 0, time.UTC),
+			Status:       travelPlanner.TravelPlanStatusDraft,
+			BudgetAmount: 9500000,
+			Notes:        "Milestone trip for sales-management review across key customer locations.",
+			CreatedBy:    &managerID,
 			Days: []travelPlanner.TravelPlanDay{
 				{
 					ID:          "f1100001-0000-0000-0000-000000000003",

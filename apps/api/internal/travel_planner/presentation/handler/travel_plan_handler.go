@@ -176,16 +176,133 @@ func (h *TravelPlanHandler) ExportPDF(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
+func (h *TravelPlanHandler) ListExpenses(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.ListExpenses(c.Request.Context(), planID)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *TravelPlanHandler) CreateExpense(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+
+	var req dto.CreateTravelExpenseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.CreateExpense(c.Request.Context(), planID, &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+func (h *TravelPlanHandler) DeleteExpense(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+	expenseID := strings.TrimSpace(c.Param("expenseId"))
+
+	if err := h.uc.DeleteExpense(c.Request.Context(), planID, expenseID); err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponseDeleted(c, "travel_expense", expenseID, nil)
+}
+
+func (h *TravelPlanHandler) ListVisits(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.ListVisits(c.Request.Context(), planID)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *TravelPlanHandler) ListAvailableVisits(c *gin.Context) {
+	search := strings.TrimSpace(c.Query("search"))
+	res, err := h.uc.ListAvailableVisits(c.Request.Context(), search)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *TravelPlanHandler) LinkVisits(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+
+	var req dto.LinkTravelPlanVisitsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	linkedCount, err := h.uc.LinkVisits(c.Request.Context(), planID, &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, map[string]interface{}{"linked_count": linkedCount}, nil)
+}
+
+func (h *TravelPlanHandler) UnlinkVisit(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+	visitID := strings.TrimSpace(c.Param("visitId"))
+
+	if err := h.uc.UnlinkVisit(c.Request.Context(), planID, visitID); err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, map[string]interface{}{"visit_id": visitID, "travel_plan_id": planID}, nil)
+}
+
+func (h *TravelPlanHandler) CreateVisitFromTrip(c *gin.Context) {
+	planID := strings.TrimSpace(c.Param("id"))
+
+	var req dto.CreateTravelPlanVisitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.CreateVisitFromTrip(c.Request.Context(), planID, &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponseCreated(c, res, nil)
+}
+
 func handleTravelPlanError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecase.ErrTravelPlanNotFound):
 		response.ErrorResponse(c, http.StatusNotFound, "TRAVEL_PLAN_NOT_FOUND", err.Error(), nil, nil)
+	case errors.Is(err, usecase.ErrTravelExpenseNotFound):
+		response.ErrorResponse(c, http.StatusNotFound, "TRAVEL_EXPENSE_NOT_FOUND", err.Error(), nil, nil)
+	case errors.Is(err, usecase.ErrVisitNotFound):
+		response.ErrorResponse(c, http.StatusNotFound, "VISIT_NOT_FOUND", err.Error(), nil, nil)
 	case errors.Is(err, usecase.ErrInvalidTravelMode),
 		errors.Is(err, usecase.ErrInvalidDateRange),
 		errors.Is(err, usecase.ErrInvalidDayDate),
 		errors.Is(err, usecase.ErrInvalidStatus),
 		errors.Is(err, usecase.ErrInvalidStopCategory),
 		errors.Is(err, usecase.ErrInvalidStopSource),
+		errors.Is(err, usecase.ErrInvalidExpenseType),
+		errors.Is(err, usecase.ErrInvalidBudgetAmount),
 		errors.Is(err, usecase.ErrInvalidSearchQuery):
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
 	default:

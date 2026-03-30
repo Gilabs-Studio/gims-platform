@@ -169,6 +169,7 @@ func AutoMigrate() error {
 		&travelPlanner.TravelPlanDay{},
 		&travelPlanner.TravelPlanStop{},
 		&travelPlanner.TravelPlanDayNote{},
+		&travelPlanner.TravelPlanExpense{},
 		// Asset Maintenance entities
 		&finance.AssetMaintenanceSchedule{},
 		&finance.AssetWorkOrder{},

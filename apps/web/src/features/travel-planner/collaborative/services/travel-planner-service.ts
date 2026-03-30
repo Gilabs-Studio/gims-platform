@@ -1,13 +1,21 @@
 import { apiClient } from "@/lib/api-client";
 import type {
   ApiEnvelope,
+  CreateTravelExpenseInput,
+  CreateTravelPlanVisitInput,
   DayGoogleMapsLink,
+  LinkTravelPlanVisitsInput,
+  LinkTravelPlanVisitsResult,
   PlaceSearchResult,
   RouteOptimizationResult,
+  TravelExpense,
+  TravelExpenseListResult,
   TravelPlan,
   TravelPlanInput,
   TravelPlanListParams,
+  TravelPlanVisit,
   TravelPlannerFormData,
+  UnlinkTravelPlanVisitResult,
   WeatherSummaryResult,
 } from "../types";
 
@@ -80,6 +88,57 @@ export const travelPlannerService = {
       },
       responseType: "blob",
     });
+    return response.data;
+  },
+
+  listExpenses: async (planId: string): Promise<ApiEnvelope<TravelExpenseListResult>> => {
+    const response = await apiClient.get<ApiEnvelope<TravelExpenseListResult>>(`${BASE_URL}/plans/${planId}/expenses`);
+    return response.data;
+  },
+
+  createExpense: async (planId: string, payload: CreateTravelExpenseInput): Promise<ApiEnvelope<TravelExpense>> => {
+    const response = await apiClient.post<ApiEnvelope<TravelExpense>>(`${BASE_URL}/plans/${planId}/expenses`, payload);
+    return response.data;
+  },
+
+  deleteExpense: async (planId: string, expenseId: string): Promise<ApiEnvelope<{ id: string }>> => {
+    const response = await apiClient.delete<ApiEnvelope<{ id: string }>>(
+      `${BASE_URL}/plans/${planId}/expenses/${expenseId}`,
+    );
+    return response.data;
+  },
+
+  listVisits: async (planId: string): Promise<ApiEnvelope<TravelPlanVisit[]>> => {
+    const response = await apiClient.get<ApiEnvelope<TravelPlanVisit[]>>(`${BASE_URL}/plans/${planId}/visits`);
+    return response.data;
+  },
+
+  listAvailableVisits: async (search?: string): Promise<ApiEnvelope<TravelPlanVisit[]>> => {
+    const response = await apiClient.get<ApiEnvelope<TravelPlanVisit[]>>(`${BASE_URL}/visits/available`, {
+      params: {
+        search,
+      },
+    });
+    return response.data;
+  },
+
+  linkVisits: async (planId: string, payload: LinkTravelPlanVisitsInput): Promise<ApiEnvelope<LinkTravelPlanVisitsResult>> => {
+    const response = await apiClient.post<ApiEnvelope<LinkTravelPlanVisitsResult>>(
+      `${BASE_URL}/plans/${planId}/visits/link`,
+      payload,
+    );
+    return response.data;
+  },
+
+  unlinkVisit: async (planId: string, visitId: string): Promise<ApiEnvelope<UnlinkTravelPlanVisitResult>> => {
+    const response = await apiClient.delete<ApiEnvelope<UnlinkTravelPlanVisitResult>>(
+      `${BASE_URL}/plans/${planId}/visits/${visitId}`,
+    );
+    return response.data;
+  },
+
+  createVisit: async (planId: string, payload: CreateTravelPlanVisitInput): Promise<ApiEnvelope<TravelPlanVisit>> => {
+    const response = await apiClient.post<ApiEnvelope<TravelPlanVisit>>(`${BASE_URL}/plans/${planId}/visits`, payload);
     return response.data;
   },
 };

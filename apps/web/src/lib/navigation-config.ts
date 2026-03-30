@@ -510,7 +510,7 @@ export const navigationConfig: NavItem[] = [
     i18nKey: "travelPlanner",
     icon: "route",
     url: "/travel-planner",
-    permission: "up_country_cost.read",
+    permission: "travel_planner.read",
   },
   {
     name: "HRD",

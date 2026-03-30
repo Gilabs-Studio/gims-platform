@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
-	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -147,20 +147,22 @@ func (u *visitReportUsecase) List(ctx context.Context, req *dto.ListVisitReports
 	}
 
 	params := &repositories.VisitReportListParams{
-		Search:     req.Search,
-		SortBy:     req.SortBy,
-		SortDir:    req.SortDir,
-		Limit:      perPage,
-		Offset:     (page - 1) * perPage,
-		Status:     req.Status,
-		CustomerID: req.CustomerID,
-		EmployeeID: req.EmployeeID,
-		ContactID:  req.ContactID,
-		DealID:     req.DealID,
-		LeadID:     req.LeadID,
-		Outcome:    req.Outcome,
-		DateFrom:   req.DateFrom,
-		DateTo:     req.DateTo,
+		Search:            req.Search,
+		SortBy:            req.SortBy,
+		SortDir:           req.SortDir,
+		Limit:             perPage,
+		Offset:            (page - 1) * perPage,
+		Status:            req.Status,
+		CustomerID:        req.CustomerID,
+		EmployeeID:        req.EmployeeID,
+		ContactID:         req.ContactID,
+		DealID:            req.DealID,
+		LeadID:            req.LeadID,
+		TravelPlanID:      req.TravelPlanID,
+		Outcome:           req.Outcome,
+		DateFrom:          req.DateFrom,
+		DateTo:            req.DateTo,
+		WithoutTravelPlan: req.WithoutTravelPlan,
 	}
 
 	reports, total, err := u.visitRepo.List(ctx, params)
@@ -209,6 +211,7 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 		ContactID:     req.ContactID,
 		DealID:        req.DealID,
 		LeadID:        req.LeadID,
+		TravelPlanID:  req.TravelPlanID,
 		ContactPerson: req.ContactPerson,
 		ContactPhone:  req.ContactPhone,
 		Address:       req.Address,
@@ -295,6 +298,9 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	}
 	if req.LeadID != nil {
 		report.LeadID = req.LeadID
+	}
+	if req.TravelPlanID != nil {
+		report.TravelPlanID = req.TravelPlanID
 	}
 	if req.ContactPerson != nil {
 		report.ContactPerson = *req.ContactPerson

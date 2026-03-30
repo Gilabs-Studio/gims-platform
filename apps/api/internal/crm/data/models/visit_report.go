@@ -39,16 +39,17 @@ type VisitReport struct {
 	Code string `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 
 	// Relations
-	CustomerID *string                  `gorm:"type:uuid;index" json:"customer_id"`
-	Customer   *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
-	ContactID  *string                  `gorm:"type:uuid;index" json:"contact_id"`
-	Contact    *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
-	DealID     *string                  `gorm:"type:uuid;index" json:"deal_id"`
-	Deal       *Deal                    `gorm:"foreignKey:DealID" json:"deal,omitempty"`
-	LeadID     *string                  `gorm:"type:uuid;index" json:"lead_id"`
-	Lead       *Lead                    `gorm:"foreignKey:LeadID" json:"lead,omitempty"`
-	EmployeeID string                   `gorm:"type:uuid;not null;index" json:"employee_id"`
-	Employee   *orgModels.Employee      `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
+	CustomerID   *string                  `gorm:"type:uuid;index" json:"customer_id"`
+	Customer     *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	ContactID    *string                  `gorm:"type:uuid;index" json:"contact_id"`
+	Contact      *Contact                 `gorm:"foreignKey:ContactID" json:"contact,omitempty"`
+	DealID       *string                  `gorm:"type:uuid;index" json:"deal_id"`
+	Deal         *Deal                    `gorm:"foreignKey:DealID" json:"deal,omitempty"`
+	LeadID       *string                  `gorm:"type:uuid;index" json:"lead_id"`
+	Lead         *Lead                    `gorm:"foreignKey:LeadID" json:"lead,omitempty"`
+	TravelPlanID *string                  `gorm:"type:uuid;index" json:"travel_plan_id"`
+	EmployeeID   string                   `gorm:"type:uuid;not null;index" json:"employee_id"`
+	Employee     *orgModels.Employee      `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 
 	// Visit timing
 	VisitDate     time.Time  `gorm:"type:date;not null;index" json:"visit_date"`
@@ -62,11 +63,11 @@ type VisitReport struct {
 	CheckOutLocation *string    `gorm:"type:jsonb" json:"check_out_location"`
 
 	// Location
-	Address   string            `gorm:"type:text" json:"address"`
-	VillageID *string           `gorm:"type:uuid;index" json:"village_id"`
+	Address   string             `gorm:"type:text" json:"address"`
+	VillageID *string            `gorm:"type:uuid;index" json:"village_id"`
 	Village   *geoModels.Village `gorm:"foreignKey:VillageID" json:"village,omitempty"`
-	Latitude  *float64          `gorm:"type:decimal(10,8)" json:"latitude"`
-	Longitude *float64          `gorm:"type:decimal(11,8)" json:"longitude"`
+	Latitude  *float64           `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude *float64           `gorm:"type:decimal(11,8)" json:"longitude"`
 
 	// Content
 	Purpose       string `gorm:"type:text" json:"purpose"`
