@@ -279,7 +279,7 @@ func SeedJournalReconciliation() error {
 		for _, ret := range purchaseReturns {
 			var count int64
 			db.Model(&financeModels.JournalEntry{}).
-				Where("reference_type = ? AND reference_id = ?", "PURCHASE_RETURN", ret.ID).
+				Where("reference_type = ? AND reference_id = ?", "PURCHASE_RETURN", ret.ID). 
 				Count(&count)
 			if count > 0 {
 				continue

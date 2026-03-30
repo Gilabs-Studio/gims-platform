@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -22,6 +23,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -243,14 +245,73 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 	}
 
 	if nextStatus == models.PurchaseReturnStatusApproved {
-		actorID, _ := ctx.Value("user_id").(string)
-		actorID = strings.TrimSpace(actorID)
-		if err := u.createStockMovementsFromRows(ctx, row.Items, row.WarehouseID, row.Code, actorID); err != nil {
+		err = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			actorID, _ := ctx.Value("user_id").(string)
+			actorID = strings.TrimSpace(actorID)
+			
+			// 1. Create Stock Movements
+			if err := u.createStockMovementsFromRows(database.WithTx(ctx, tx), row.Items, row.WarehouseID, row.Code, actorID); err != nil {
+				return err
+			}
+
+			// 2. Trigger Journal Entry
+			if err := u.TriggerJournalForReturn(database.WithTx(ctx, tx), row); err != nil {
+				log.Printf("⚠️ Failed to trigger journal for purchase return %s: %v\n", id, err)
+			}
+
+			// 3. Update Related Invoices (The Business Fix)
+			// We look for invoices linked to the same PO or GR
+			var invoices []models.SupplierInvoice
+			query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("purchase_order_id = ? AND status NOT IN ?", row.PurchaseOrderID, []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusPaid, models.SupplierInvoiceStatusCancelled, models.SupplierInvoiceStatusRejected})
+			
+			if row.GoodsReceiptID != "" {
+				query = query.Where("goods_receipt_id = ?", row.GoodsReceiptID)
+			}
+			
+			if err := query.Find(&invoices).Error; err != nil {
+				return err
+			}
+
+			remainingToDeduct := row.TotalAmount
+			for i := range invoices {
+				inv := &invoices[i]
+				if remainingToDeduct <= 0 {
+					break
+				}
+
+				deduction := math.Min(remainingToDeduct, inv.RemainingAmount)
+				newRemaining := round2dp(inv.RemainingAmount - deduction)
+				remainingToDeduct = round2dp(remainingToDeduct - deduction)
+
+				newStatus := inv.Status
+				if newRemaining <= 0.001 {
+					newStatus = models.SupplierInvoiceStatusPaid
+				} else if newRemaining < inv.Amount {
+					newStatus = models.SupplierInvoiceStatusPartial
+				}
+
+				updates := map[string]interface{}{
+					"remaining_amount": newRemaining,
+					"status":           newStatus,
+					"updated_at":       apptime.Now(),
+				}
+				if newStatus == models.SupplierInvoiceStatusPaid && inv.PaymentAt == nil {
+					now := apptime.Now()
+					updates["payment_at"] = &now
+				}
+
+				if err := tx.Model(inv).Updates(updates).Error; err != nil {
+					return err
+				}
+				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f", 
+					inv.Code, row.Code, deduction, newRemaining)
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
-		}
-		// Trigger journal entry
-		if err := u.TriggerJournalForReturn(ctx, row); err != nil {
-			fmt.Printf("⚠️ Failed to trigger journal for purchase return %s: %v\n", id, err)
 		}
 	}
 
