@@ -65,6 +65,24 @@ export const geographicId = {
       selectDistrictFirst: "Pilih kecamatan terlebih dahulu",
     },
 
+    // Place search
+    placeSearch: {
+      searchPlaceholder: "Cari lokasi...",
+      searchPlaceholderAdvanced: "Cari lokasi (mis. restoran, alamat, bisnis)...",
+      searchResults: "Hasil Pencarian",
+      noLocationsFound: "Tidak ada lokasi ditemukan",
+      loadingLocation: "Memuat lokasi...",
+      selectLocation: "Pilih Lokasi",
+      pickFromMap: "Pilih di Peta",
+      useCurrentLocation: "Gunakan Lokasi Saat Ini",
+      confirmLocation: "Konfirmasi Lokasi",
+      mapPickerTitle: "Pilih Lokasi",
+      mapPickerDescription: "Klik pada peta atau seret penanda untuk menetapkan lokasi",
+      searchVia: "Didukung oleh OpenStreetMap (Nominatim)",
+      latitude: "Lintang",
+      longitude: "Bujur",
+    },
+
     // Validation
     validation: {
       nameMin: "Nama minimal 2 karakter",
