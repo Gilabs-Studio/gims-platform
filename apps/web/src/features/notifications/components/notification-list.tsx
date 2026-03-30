@@ -90,7 +90,7 @@ export function NotificationList() {
       case "asset_maintenance":
         return `/finance/asset-maintenance?open_asset_maintenance=${notification.entity_id}`;
       case "up_country_cost":
-        return `/finance/up-country-cost?open_up_country_cost=${notification.entity_id}`;
+        return `/travel-planner/up-country-cost?open_up_country_cost=${notification.entity_id}`;
       case "leave_request":
         return `/hrd/leave-requests?open_leave_request=${notification.entity_id}`;
       case "overtime":

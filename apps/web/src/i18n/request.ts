@@ -133,8 +133,6 @@ import { financeTaxInvoicesEn } from "@/features/finance/tax-invoices/i18n/en";
 import { financeTaxInvoicesId } from "@/features/finance/tax-invoices/i18n/id";
 import { financeNonTradePayablesEn } from "@/features/finance/non-trade-payables/i18n/en";
 import { financeNonTradePayablesId } from "@/features/finance/non-trade-payables/i18n/id";
-import { financeUpCountryCostEn } from "@/features/finance/up-country-cost/i18n/en";
-import { financeUpCountryCostId } from "@/features/finance/up-country-cost/i18n/id";
 import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
 import { financeSalaryId } from "@/features/finance/salary/i18n/id";
 import { aiChatEn } from "@/features/ai-chat/i18n/en";
@@ -247,7 +245,6 @@ const messages = {
     financeClosing: financeClosingEn,
     financeTaxInvoices: financeTaxInvoicesEn,
     financeNonTradePayables: financeNonTradePayablesEn,
-    financeUpCountryCost: financeUpCountryCostEn,
     financeSalary: financeSalaryEn,
     ...aiChatEn,
     pipelineStage: pipelineStageEn,
@@ -335,7 +332,6 @@ const messages = {
     financeClosing: financeClosingId,
     financeTaxInvoices: financeTaxInvoicesId,
     financeNonTradePayables: financeNonTradePayablesId,
-    financeUpCountryCost: financeUpCountryCostId,
     financeSalary: financeSalaryId,
     ...aiChatId,
     pipelineStage: pipelineStageId,

@@ -185,6 +185,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 11. Travel Planner
+	travelPlannerMenu := &permission.Menu{
+		Name:   "Travel Planner",
+		Icon:   "route",
+		URL:    "/travel-planner",
+		Order:  11,
+		Status: "active",
+	}
+	if err := createMenu(travelPlannerMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -426,11 +438,28 @@ func SeedMenus() error {
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
 		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
 		{"Salary", "dollar-sign", "/finance/salary", 15},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// TRAVEL PLANNER SUB-MENUS
+	// ============================================================
+
+	travelPlannerChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Up Country Cost", "map", "/travel-planner/up-country-cost", 1},
+	}
+	for _, child := range travelPlannerChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
@@ -674,6 +703,7 @@ func UpdateMenuStructure() error {
 	migrations := []urlMigration{
 		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
 		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
+		{oldURL: "/finance/up-country-cost", newURL: "/travel-planner/up-country-cost"},
 	}
 
 	for _, m := range migrations {

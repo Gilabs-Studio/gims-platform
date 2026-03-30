@@ -49,6 +49,17 @@ export function GeneralLedgerView() {
   const searchParams = useSearchParams();
 
   const now = useMemo(() => new Date(), []);
+  const initialStart = useMemo(
+    () => parseApiDate(searchParams.get("start_date"), new Date(now.getFullYear(), 0, 1)),
+    [searchParams, now],
+  );
+  const initialEnd = useMemo(
+    () => parseApiDate(searchParams.get("end_date"), now),
+    [searchParams, now],
+  );
+  const initialCompany = useMemo(() => searchParams.get("company_id") ?? "", [searchParams]);
+  const initialAccountID = useMemo(() => searchParams.get("account_id"), [searchParams]);
+
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: initialStart,
     to: initialEnd,

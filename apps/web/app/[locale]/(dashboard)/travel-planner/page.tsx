@@ -6,10 +6,10 @@ import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
-const FinanceUpCountryCostContainer = dynamic(
+const TravelPlannerContainer = dynamic(
   () =>
-    import("@/features/finance/up-country-cost/components").then((mod) => ({
-      default: mod.UpCountryCostPage,
+    import("@/features/travel-planner/components").then((mod) => ({
+      default: mod.TravelPlannerPage,
     })),
   { loading: () => null },
 );
@@ -22,34 +22,32 @@ export async function generateMetadata({
   params,
 }: GenerateMetadataProps): Promise<Metadata> {
   const { locale } = await Promise.resolve(params);
-  const t = await getTranslations({ locale, namespace: "financeUpCountryCost" });
+  const t = await getTranslations({ locale, namespace: "travelPlanner" });
   return {
     title: `${t("title")} | GIMS`,
     description: t("description"),
   };
 }
 
-function UpCountryCostSkeleton() {
+function TravelPlannerSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-10 w-64" />
-      <Skeleton className="h-10 w-80" />
-      <div className="rounded-md border">
-        <div className="p-4 space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
+      <Skeleton className="h-10 w-72" />
+      <Skeleton className="h-5 w-full max-w-3xl" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <Skeleton className="h-44 w-full" />
+        <Skeleton className="h-44 w-full" />
       </div>
+      <Skeleton className="h-56 w-full" />
     </div>
   );
 }
 
-export default function FinanceUpCountryCostPage() {
+export default function TravelPlannerPageRoute() {
   return (
     <PermissionGuard requiredPermission="up_country_cost.read">
-      <Suspense fallback={<UpCountryCostSkeleton />}>
-        <FinanceUpCountryCostContainer />
+      <Suspense fallback={<TravelPlannerSkeleton />}>
+        <TravelPlannerContainer />
       </Suspense>
     </PermissionGuard>
   );

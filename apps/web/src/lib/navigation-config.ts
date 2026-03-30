@@ -430,13 +430,6 @@ export const navigationConfig: NavItem[] = [
             icon: "coins",
             permission: "salary.read",
           },
-          {
-            name: "Up Country Cost",
-            i18nKey: "upCountryCost",
-            url: "/finance/up-country-cost",
-            icon: "map-pin",
-            permission: "up_country_cost.read",
-          },
         ],
       },
       {
@@ -511,6 +504,13 @@ export const navigationConfig: NavItem[] = [
         ],
       },
     ],
+  },
+  {
+    name: "Travel Planner",
+    i18nKey: "travelPlanner",
+    icon: "route",
+    url: "/travel-planner",
+    permission: "up_country_cost.read",
   },
   {
     name: "HRD",

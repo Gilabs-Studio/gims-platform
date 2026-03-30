@@ -72,11 +72,12 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/asset-locations",
   "/finance/asset-budgets",
   "/finance/asset-maintenance",
-  "/finance/up-country-cost",
   "/finance/salary",
   "/finance/reports/general-ledger",
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",
+  // Travel Planner routes
+  "/travel-planner",
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",

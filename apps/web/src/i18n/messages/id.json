@@ -240,7 +240,114 @@
     "supplierResearch": "Riset Pemasok",
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
+    "travelPlanner": "Travel Planner",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
+  },
+  "travelPlanner": {
+    "badge": "Kolaboratif Lanjutan",
+    "title": "Travel Planner",
+    "description": "Modul parent terpadu untuk perencanaan perjalanan logistik, kargo, kapal, dan milestone perjalanan. Up Country Cost tetap tersedia sambil kapabilitas kolaboratif dikembangkan.",
+    "modules": {
+      "title": "Modul",
+      "description": "Mulai dari workflow biaya perjalanan yang sudah berjalan, lalu lanjut ke workflow perencanaan kolaboratif.",
+      "upCountryCost": {
+        "title": "Up Country Cost",
+        "description": "Workflow existing untuk perencanaan biaya perjalanan, approval, dan pelacakan status pembayaran.",
+        "action": "Buka Modul"
+      },
+      "collaborative": {
+        "title": "Workspace Planner Kolaboratif",
+        "description": "Ruang kerja itinerary bersama untuk driver, dispatcher, dan tim operasional.",
+        "status": "Direncanakan"
+      }
+    },
+    "capabilities": {
+      "title": "Kapabilitas Target",
+      "description": "Roadmap bertahap yang akan diimplementasikan di domain parent baru.",
+      "items": {
+        "itinerary": {
+          "title": "Itinerary Per Hari",
+          "description": "Drag and drop tempat, aktivitas, dan catatan harian lintas hari perjalanan."
+        },
+        "interactiveMap": {
+          "title": "Peta Interaktif",
+          "description": "Peta Leaflet dengan marker foto, clustering marker, preview rute, dan penggantian tile source."
+        },
+        "placeSearch": {
+          "title": "Pencarian Tempat",
+          "description": "Cari tempat dari Google Places atau OpenStreetMap untuk memperkaya aktivitas itinerary."
+        },
+        "routeOptimization": {
+          "title": "Optimasi Rute",
+          "description": "Optimasi otomatis urutan kunjungan dan ekspor rute akhir ke navigasi Google Maps."
+        },
+        "weather": {
+          "title": "Prakiraan Cuaca",
+          "description": "Prakiraan hingga 16 hari dari Open-Meteo dengan fallback iklim historis."
+        },
+        "pdfExport": {
+          "title": "Ekspor Trip ke PDF",
+          "description": "Generate dokumen trip ber-branding dengan cover, detail itinerary, dan ekspor PDF per hari."
+        }
+      }
+    },
+    "workspace": {
+      "badge": "Workspace Kolaboratif Lanjutan",
+      "title": "Travel Planner Collaborative Advance",
+      "description": "Rencanakan itinerary harian untuk logistik, kargo, kapal, dan milestone perjalanan dengan kolaborasi drag-drop, peta interaktif, optimasi rute, cuaca, dan ekspor dokumen.",
+      "planBootstrap": {
+        "title": "Inisialisasi Plan",
+        "titlePlaceholder": "Judul plan",
+        "modePlaceholder": "Pilih mode",
+        "pickExisting": "Pilih plan yang sudah ada"
+      },
+      "actions": {
+        "createPlan": "Buat Plan",
+        "creating": "Membuat...",
+        "savePlan": "Simpan Plan",
+        "saving": "Menyimpan...",
+        "optimize": "Optimasi Rute",
+        "optimizing": "Mengoptimasi..."
+      },
+      "tabs": {
+        "itinerary": "Itinerary",
+        "map": "Peta Interaktif",
+        "weather": "Cuaca",
+        "export": "Ekspor"
+      },
+      "placeSearch": {
+        "title": "Pencarian Tempat",
+        "placeholder": "Cari nama tempat atau alamat",
+        "empty": "Tidak ada hasil tempat"
+      },
+      "weather": {
+        "title": "Ringkasan Cuaca 16 Hari",
+        "dayLabel": "Hari {day}",
+        "precipitation": "Curah hujan",
+        "noData": "Belum ada data"
+      },
+      "export": {
+        "title": "Ekspor dan Navigasi",
+        "fullPdf": "Ekspor PDF Penuh",
+        "dayPdf": "Ekspor PDF Hari {day}",
+        "openGoogleMaps": "Buka Rute Hari Ini di Google Maps",
+        "dayRoute": "Rute Hari {day}"
+      },
+      "errors": {
+        "failedLoadPlansTitle": "Gagal memuat daftar plan",
+        "failedLoadPlansDescription": "Silakan coba ulang setelah memastikan koneksi API.",
+        "failedLoadPlanTitle": "Gagal memuat plan terpilih",
+        "failedLoadPlanDescription": "Plan terpilih belum dapat diambil saat ini."
+      },
+      "toasts": {
+        "planCreated": "Travel plan berhasil dibuat",
+        "planSaved": "Travel plan berhasil disimpan",
+        "routeOptimized": "Rute berhasil dioptimasi",
+        "placeAdded": "Tempat berhasil ditambahkan ke hari terpilih",
+        "pdfExported": "PDF berhasil diekspor",
+        "genericError": "Terjadi kesalahan"
+      }
+    }
   }
 }

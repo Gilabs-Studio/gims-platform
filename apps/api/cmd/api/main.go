@@ -74,6 +74,7 @@ import (
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
+	travelPlannerPresentation "github.com/gilabs/gims/api/internal/travel_planner/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
@@ -356,6 +357,9 @@ func main() {
 
 		// Finance module (Sprint 10 - COA & Journals)
 		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Travel Planner module (Collaborative Advance)
+		travelPlannerPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)

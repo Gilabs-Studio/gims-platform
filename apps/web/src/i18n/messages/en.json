@@ -241,7 +241,114 @@
     "supplierResearch": "Supplier Research",
     "aIAssistant": "AI Assistant",
     "aiAssistant": "AI Assistant",
+    "travelPlanner": "Travel Planner",
     "chatbot": "Chatbot",
     "settings": "Settings"
+  },
+  "travelPlanner": {
+    "badge": "Collaborative Advance",
+    "title": "Travel Planner",
+    "description": "Unified parent module for logistics, cargo, vessel, and milestone-based travel planning. Up Country Cost remains available while collaborative planning capabilities are rolled out.",
+    "modules": {
+      "title": "Modules",
+      "description": "Start from existing cost workflows, then expand into collaborative planning workflows.",
+      "upCountryCost": {
+        "title": "Up Country Cost",
+        "description": "Existing workflow for travel expense planning, approval, and payment status tracking.",
+        "action": "Open Module"
+      },
+      "collaborative": {
+        "title": "Collaborative Planner Workspace",
+        "description": "Shared itinerary workspace for drivers, dispatchers, and operation teams.",
+        "status": "Planned"
+      }
+    },
+    "capabilities": {
+      "title": "Target Capabilities",
+      "description": "Phase roadmap that will be implemented in the new parent domain.",
+      "items": {
+        "itinerary": {
+          "title": "Day-by-Day Itinerary",
+          "description": "Drag and drop places, activities, and day notes across multiple travel days."
+        },
+        "interactiveMap": {
+          "title": "Interactive Map",
+          "description": "Leaflet map with photo markers, marker clustering, route preview, and tile source switcher."
+        },
+        "placeSearch": {
+          "title": "Place Search",
+          "description": "Search places from Google Places or OpenStreetMap to enrich itinerary activities."
+        },
+        "routeOptimization": {
+          "title": "Route Optimization",
+          "description": "Auto-optimize visit sequence and export the final path to Google Maps navigation."
+        },
+        "weather": {
+          "title": "Weather Forecast",
+          "description": "Up to 16-day forecast with Open-Meteo plus historical climate fallback."
+        },
+        "pdfExport": {
+          "title": "Trip PDF Export",
+          "description": "Generate branded trip documents with cover, itinerary details, and day-plan PDF export."
+        }
+      }
+    },
+    "workspace": {
+      "badge": "Collaborative Advance Workspace",
+      "title": "Travel Planner Collaborative Advance",
+      "description": "Plan day-by-day itineraries for logistics, cargo, vessel, and milestone travel with drag-drop collaboration, map intelligence, optimization, weather, and exports.",
+      "planBootstrap": {
+        "title": "Plan Bootstrap",
+        "titlePlaceholder": "Plan title",
+        "modePlaceholder": "Select mode",
+        "pickExisting": "Select existing plan"
+      },
+      "actions": {
+        "createPlan": "Create Plan",
+        "creating": "Creating...",
+        "savePlan": "Save Plan",
+        "saving": "Saving...",
+        "optimize": "Optimize Route",
+        "optimizing": "Optimizing..."
+      },
+      "tabs": {
+        "itinerary": "Itinerary",
+        "map": "Interactive Map",
+        "weather": "Weather",
+        "export": "Export"
+      },
+      "placeSearch": {
+        "title": "Place Search",
+        "placeholder": "Search place name or address",
+        "empty": "No place results"
+      },
+      "weather": {
+        "title": "16-Day Weather Summary",
+        "dayLabel": "Day {day}",
+        "precipitation": "Precipitation",
+        "noData": "No data"
+      },
+      "export": {
+        "title": "Export and Navigation",
+        "fullPdf": "Export Full PDF",
+        "dayPdf": "Export Day {day} PDF",
+        "openGoogleMaps": "Open Day Route in Google Maps",
+        "dayRoute": "Day {day} Route"
+      },
+      "errors": {
+        "failedLoadPlansTitle": "Unable to load plans",
+        "failedLoadPlansDescription": "Please retry after checking API connectivity.",
+        "failedLoadPlanTitle": "Unable to load selected plan",
+        "failedLoadPlanDescription": "The selected plan cannot be retrieved at the moment."
+      },
+      "toasts": {
+        "planCreated": "Travel plan created",
+        "planSaved": "Travel plan saved",
+        "routeOptimized": "Route optimized",
+        "placeAdded": "Place added to selected day",
+        "pdfExported": "PDF exported",
+        "genericError": "Something went wrong"
+      }
+    }
   }
 }

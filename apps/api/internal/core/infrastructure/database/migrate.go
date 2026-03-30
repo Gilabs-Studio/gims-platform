@@ -27,6 +27,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -163,6 +164,11 @@ func AutoMigrate() error {
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		// Travel Planner entities
+		&travelPlanner.TravelPlan{},
+		&travelPlanner.TravelPlanDay{},
+		&travelPlanner.TravelPlanStop{},
+		&travelPlanner.TravelPlanDayNote{},
 		// Asset Maintenance entities
 		&finance.AssetMaintenanceSchedule{},
 		&finance.AssetWorkOrder{},

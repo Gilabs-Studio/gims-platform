@@ -57,6 +57,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Travel Planner seeder (depends on employee master data)
+	if err := SeedTravelPlanner(); err != nil {
+		return err
+	}
+
 	// Supplier seeder (Sprint 4)
 	if err := SeedSupplier(); err != nil {
 		return err
