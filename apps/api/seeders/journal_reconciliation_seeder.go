@@ -74,7 +74,7 @@ func SeedJournalReconciliation() error {
 	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine)
 
 	stockOpnameRepo := stockOpnameRepos.NewStockOpnameRepository(db)
-	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, coaUC)
+	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, engine)
 
 	assetRepo := financeRepos.NewAssetRepository(db)
 	assetCatRepo := financeRepos.NewAssetCategoryRepository(db)

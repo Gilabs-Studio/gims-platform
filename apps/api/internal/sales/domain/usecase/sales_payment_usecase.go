@@ -782,12 +782,7 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	if ba.ChartOfAccountID != nil {
 		transactionCOAID = *ba.ChartOfAccountID
 	} else {
-		// Fallback to default cash (11100)
-		def, err := uc.coaUC.GetByCode(ctx, "11100")
-		if err != nil {
-			return errors.New("bank account has no linked COA and default cash account 11100 not found")
-		}
-		transactionCOAID = def.ID
+		return fmt.Errorf("bank account '%s' is not linked to any Chart of Account. Please configure bank account mapping", ba.Name)
 	}
 
 	// Choose profile based on invoice type

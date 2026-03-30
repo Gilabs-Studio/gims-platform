@@ -12,7 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
-	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -48,11 +48,11 @@ type stockOpnameUsecase struct {
 	repo        repository.StockOpnameRepository
 	inventoryUC inventoryUC.InventoryUsecase
 	journalUC   finUC.JournalEntryUsecase
-	coaUC       finUC.ChartOfAccountUsecase
+	engine      accounting.AccountingEngine
 }
 
-func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase, journalUC finUC.JournalEntryUsecase, coaUC finUC.ChartOfAccountUsecase) StockOpnameUsecase {
-	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC, journalUC: journalUC, coaUC: coaUC}
+func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase, journalUC finUC.JournalEntryUsecase, engine accounting.AccountingEngine) StockOpnameUsecase {
+	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC, journalUC: journalUC, engine: engine}
 }
 
 func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpnameRequest, createdBy *string) (*dto.StockOpnameResponse, error) {
@@ -340,21 +340,12 @@ func (u *stockOpnameUsecase) TriggerJournalForStockOpname(ctx context.Context, o
 }
 
 func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opname *models.StockOpname, items []models.StockOpnameItem) error {
-	if u.journalUC == nil || u.coaUC == nil {
+	if u.journalUC == nil || u.engine == nil {
 		return nil
 	}
 
-	inventoryAccount, err := u.coaUC.GetByCode(ctx, "11400")
-	if err != nil {
-		return err
-	}
-	varianceAccount, err := u.coaUC.GetByCode(ctx, "61000")
-	if err != nil {
-		return err
-	}
-
-	lines := make([]finDTO.JournalLineRequest, 0)
 	totalVarianceValue := 0.0
+	isGain := false
 
 	for _, item := range items {
 		if item.VarianceQty == 0 || item.Product == nil {
@@ -375,34 +366,31 @@ func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opna
 		}
 
 		totalVarianceValue += lineValue
-		memo := fmt.Sprintf("Stock opname %s - %s", opname.OpnameNumber, item.Product.Name)
-
 		if item.VarianceQty > 0 {
-			lines = append(lines,
-				finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
-				finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
-			)
-			continue
+			isGain = true
 		}
-
-		lines = append(lines,
-			finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
-			finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
-		)
 	}
 
-	if totalVarianceValue <= 0 || len(lines) == 0 {
+	if totalVarianceValue <= 0 {
 		return nil
 	}
 
-	refType := "STOCK_OPNAME"
-	refID := opname.ID
-	req := &finDTO.CreateJournalEntryRequest{
+	profile := accounting.ProfileInventoryGain
+	if !isGain {
+		profile = accounting.ProfileInventoryLoss
+	}
+
+	data := accounting.TransactionData{
+		ReferenceType: "INVENTORY_MOVEMENT",
+		ReferenceID:   opname.ID,
 		EntryDate:     opname.Date.Format("2006-01-02"),
 		Description:   fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
-		ReferenceType: &refType,
-		ReferenceID:   &refID,
-		Lines:         lines,
+		TotalAmount:   totalVarianceValue,
+	}
+
+	req, err := u.engine.GenerateJournal(ctx, profile, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate stock opname journal: %w", err)
 	}
 
 	_, err = u.journalUC.PostOrUpdateJournal(ctx, req)

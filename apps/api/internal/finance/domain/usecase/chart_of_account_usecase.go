@@ -200,8 +200,8 @@ func (uc *chartOfAccountUsecase) List(ctx context.Context, req *dto.ListChartOfA
 	if perPage < 1 {
 		perPage = 10
 	}
-	if perPage > 100 {
-		perPage = 100
+	if perPage > 1000 {
+		perPage = 1000
 	}
 
 	params := repositories.ChartOfAccountListParams{

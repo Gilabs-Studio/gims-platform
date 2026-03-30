@@ -651,12 +651,8 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		}
 	}
 
-	// Default to cash if bank account has no COA
 	if baCOAID == "" {
-		def, err := uc.coaUC.GetByCode(ctx, "11100")
-		if err == nil {
-			baCOAID = def.ID
-		}
+		return fmt.Errorf("bank account is not linked to any Chart of Account. Please configure bank account mapping")
 	}
 
 	reqRefNum := ""

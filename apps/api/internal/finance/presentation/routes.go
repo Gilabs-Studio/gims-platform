@@ -129,6 +129,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	upCountryH := handler.NewUpCountryCostHandler(upCountryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
 	assetBudgetH := handler.NewAssetBudgetHandler(assetBudgetUC)
+	settingsH := handler.NewFinanceSettingsHandler(settingsService)
 
 	// Asset Maintenance
 	maintenanceH := handler.NewAssetMaintenanceHandler(maintenanceUC)
@@ -155,6 +156,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
+	router.RegisterFinanceSettingsRoutes(group, settingsH)
 
 	return &FinanceDeps{
 		JournalUC:  journalUC,

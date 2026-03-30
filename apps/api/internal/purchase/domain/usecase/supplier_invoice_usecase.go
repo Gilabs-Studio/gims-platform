@@ -994,10 +994,10 @@ func (uc *supplierInvoiceUsecase) Pending(ctx context.Context, id string) (*dto.
 		// --- Budget Guard ---
 		extraCost := si.DeliveryCost + si.OtherCost
 		if extraCost > 0 {
-			expAcct, err := uc.coaUC.GetByCode(ctx, "61000") // Expense Account
+			expAcctID, err := uc.engine.ResolveCOAID(ctx, financeModels.SettingCOAPurchaseExpense)
 			if err == nil {
 				parsedDate, _ := time.Parse("2006-01-02", si.InvoiceDate)
-				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcct.ID, parsedDate, extraCost); err != nil {
+				if err := finUsecase.EnsureWithinBudget(ctx, tx, expAcctID, parsedDate, extraCost); err != nil {
 					return err
 				}
 			}

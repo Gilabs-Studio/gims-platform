@@ -57,6 +57,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Finance - COA & Master Data (Sprint 12)
+	if err := SeedFinanceSprint12(); err != nil {
+		return err
+	}
+
 	// Supplier seeder (Sprint 4)
 	if err := SeedSupplier(); err != nil {
 		return err
@@ -140,11 +145,6 @@ func SeedAll() error {
 
 	// Sales → Finance Integration Flow (SQ → SO → DO → INV → PAY)
 	if err := SeedSalesIntegrationFlow(); err != nil {
-		return err
-	}
-
-	// Finance - Asset & Closing seeder (Sprint 12)
-	if err := SeedFinanceSprint12(); err != nil {
 		return err
 	}
 
@@ -376,6 +376,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedCustomers(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceSprint12(); err != nil {
 		return err
 	}
 

@@ -3,6 +3,7 @@ package presentation
 import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/stock_opname/data/repositories"
@@ -21,13 +22,13 @@ func RegisterRoutes(
 	permissionService security.PermissionService,
 	invUC inventoryUsecase.InventoryUsecase,
 	journalUC finUsecase.JournalEntryUsecase,
-	coaUC finUsecase.ChartOfAccountUsecase,
+	engine accounting.AccountingEngine,
 ) {
 	// Repositories
 	opnameRepo := repositories.NewStockOpnameRepository(db)
 
 	// Usecases — inject inventory usecase for stock movement creation on Post
-	opnameUC := usecase.NewStockOpnameUsecase(opnameRepo, invUC, journalUC, coaUC)
+	opnameUC := usecase.NewStockOpnameUsecase(opnameRepo, invUC, journalUC, engine)
 
 	// Handlers
 	opnameHandler := handler.NewStockOpnameHandler(opnameUC)

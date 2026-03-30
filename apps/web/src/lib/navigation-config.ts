@@ -516,6 +516,21 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
+      {
+        name: "Finance Settings",
+        i18nKey: "financeSettings",
+        url: "/finance/settings",
+        icon: "settings",
+        children: [
+          {
+            name: "Accounting Mapping",
+            i18nKey: "accountingMapping",
+            url: "/finance/settings/accounting-mapping",
+            icon: "file-text",
+            permission: "finance_settings.read",
+          },
+        ],
+      },
     ],
   },
   {

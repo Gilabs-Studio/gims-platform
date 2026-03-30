@@ -479,6 +479,10 @@ func SeedPermissions() error {
 		{"/finance/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
 		{"/finance/reports", "finance_reports_menu.read", "View Finance Reports Menu", "VIEW", "finance_report"},
 
+		// Finance Settings
+		{"/finance/settings/accounting-mapping", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
+		{"/finance/settings/accounting-mapping", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
 		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
@@ -839,6 +843,11 @@ func SeedPermissions() error {
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()
+
+	// Sync all permissions to admin role
+	if err := SyncAdminPermissions(); err != nil {
+		log.Printf("Warning: Failed to sync admin permissions: %v", err)
+	}
 
 	log.Println("ERP permissions seeded successfully")
 	return nil

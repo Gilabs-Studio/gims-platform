@@ -178,6 +178,8 @@
     "financialClosing": "Financial Closing",
     "bankingPayments": "Banking & Payments",
     "bankAccounts": "Bank Accounts",
+    "financeSettings": "Finance Settings",
+    "accountingMapping": "Accounting Mapping",
     "receivablesPayables": "Receivables & Payables",
     "nonTradePayables": "Non-Trade Payables",
     "taxInvoices": "Tax Invoices",
@@ -231,5 +233,9 @@
     "aiAssistant": "AI Assistant",
     "chatbot": "Chatbot",
     "settings": "Settings"
+  },
+  "financeSettings": {
+    "title": "Accounting Mapping Settings",
+    "description": "Enterprise Chart of Account Mapping Configuration"
   }
 }
