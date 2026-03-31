@@ -111,6 +111,13 @@ export const navigationConfig: NavItem[] = [
     ],
   },
   {
+    name: "Travel Planner",
+    i18nKey: "travelPlanner",
+    icon: "route",
+    url: "/travel-planner",
+    permission: "travel_planner.read",
+  },
+  {
     name: "Sales",
     i18nKey: "sales",
     icon: "shopping-cart",
@@ -504,13 +511,6 @@ export const navigationConfig: NavItem[] = [
         ],
       },
     ],
-  },
-  {
-    name: "Travel Planner",
-    i18nKey: "travelPlanner",
-    icon: "route",
-    url: "/travel-planner",
-    permission: "travel_planner.read",
   },
   {
     name: "HRD",
