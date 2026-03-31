@@ -6,16 +6,14 @@ import { useMemo, useState } from "react";
 import { usePathname } from "@/i18n/routing";
 import { useQueries } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { Filter, MapPinned, Plus, Search, Users, Wallet } from "lucide-react";
+import { Filter, MapPinned, Plus, Search, Wallet } from "lucide-react";
 
 import { PageMotion } from "@/components/motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
-import { MapPickerModal } from "@/components/ui/map/map-picker-modal";
 import { MapView, MarkerClusterGroup, type MapMarker } from "@/components/ui/map/map-view";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,6 +25,7 @@ import { visitReportService } from "@/features/crm/visit-report/services/visit-r
 import type { VisitReport } from "@/features/crm/visit-report/types";
 import { useHasPermission, usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { formatCurrency, resolveImageUrl } from "@/lib/utils";
 import {
   travelPlannerKeys,
@@ -39,6 +38,8 @@ import {
 } from "../hooks/use-travel-planner";
 import { travelPlannerService } from "../services/travel-planner-service";
 import type { TravelPlanInput } from "../types";
+import { TravelPlannerCreatePlanDialog } from "./travel-planner-create-plan-dialog";
+import { TravelPlannerMobileToolbar } from "./travel-planner-mobile-toolbar";
 
 const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
@@ -128,8 +129,11 @@ export function TravelPlannerMapWorkspace() {
 
   const pathname = usePathname();
   const isFullPage = pathname?.includes("/travel-planner") ?? false;
+  const isMobile = useIsMobile();
 
   const canReadTravelPlanner = useHasPermission("travel_planner.read");
+  const canCreateTravelPlanner = useHasPermission("travel_planner.create");
+  const canUpdateTravelPlanner = useHasPermission("travel_planner.update");
   const travelPlannerReadScope = usePermissionScope("travel_planner.read");
 
   const [newPlanTitle, setNewPlanTitle] = useState("Logistics Collaborative Plan");
@@ -140,8 +144,9 @@ export function TravelPlannerMapWorkspace() {
   const [initialExpenseItems, setInitialExpenseItems] = useState<Array<{ expense_type: string; amount: number; description: string }>>([]);
   const [selectedLocationLat, setSelectedLocationLat] = useState<number | undefined>(undefined);
   const [selectedLocationLng, setSelectedLocationLng] = useState<number | undefined>(undefined);
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [isPlanPanelOpen, setIsPlanPanelOpen] = useState(false);
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [planSearch, setPlanSearch] = useState("");
   const [planTypeFilter, setPlanTypeFilter] = useState<"all" | PlanDetailType>("all");
   const [visitSearch, setVisitSearch] = useState("");
@@ -156,6 +161,21 @@ export function TravelPlannerMapWorkspace() {
   const debouncedPlanSearch = useDebounce(planSearch, 300);
   const debouncedVisitSearch = useDebounce(visitSearch, 300);
 
+  const showPlanPanel = () => {
+    setIsPlanPanelOpen(true);
+    setIsDetailPanelOpen(false);
+  };
+
+  const showDetailPanel = () => {
+    setIsPlanPanelOpen(false);
+    setIsDetailPanelOpen(true);
+  };
+
+  const closeMobilePanels = () => {
+    setIsPlanPanelOpen(false);
+    setIsDetailPanelOpen(false);
+  };
+
   const plansQuery = useTravelPlans({
     page: 1,
     per_page: 20,
@@ -165,7 +185,7 @@ export function TravelPlannerMapWorkspace() {
   const formDataQuery = useTravelPlannerFormData();
   const createPlanMutation = useCreateTravelPlan();
   const createExpenseMutation = useCreateTravelExpense();
-  const participantOptions = formDataQuery.data?.data?.employees ?? [];
+  const participantOptions = useMemo(() => formDataQuery.data?.data?.employees ?? [], [formDataQuery.data?.data?.employees]);
   const participantOptionByID = useMemo(() => {
     const mapping = new Map<string, { employee_name: string; employee_avatar_url: string }>();
     participantOptions.forEach((employee) => {
@@ -392,7 +412,7 @@ export function TravelPlannerMapWorkspace() {
       }));
 
     return [...stopMarkers, ...visitMarkers];
-  }, [activePlan?.days, detailedVisits, t]);
+  }, [activePlan?.days, detailedVisits]);
 
   const mapCenter = useMemo<[number, number]>(() => {
     const firstMarker = markers[0];
@@ -438,6 +458,10 @@ export function TravelPlannerMapWorkspace() {
   };
 
   const handleCreatePlan = async () => {
+    if (!canCreateTravelPlanner) {
+      return;
+    }
+
     const safeBudget = Number.isFinite(newPlanBudget) && newPlanBudget >= 0 ? newPlanBudget : 0;
 
     const payload = buildCreatePlanPayload(newPlanTitle.trim() || "Travel Plan", newPlanMode);
@@ -493,6 +517,10 @@ export function TravelPlannerMapWorkspace() {
   };
 
   const handleCreateDetailExpense = async () => {
+    if (!canUpdateTravelPlanner) {
+      return;
+    }
+
     if (!activePlanId) {
       return;
     }
@@ -528,6 +556,15 @@ export function TravelPlannerMapWorkspace() {
   return (
     <PageMotion className={pageMotionClass}>
       <main className={mainClass}>
+        {isMobile ? (
+          <TravelPlannerMobileToolbar
+            showPlans={showPlanPanel}
+            showDetails={showDetailPanel}
+            closePanels={closeMobilePanels}
+            hasOpenPanel={isPlanPanelOpen || isDetailPanelOpen}
+          />
+        ) : null}
+
         {activePlanQuery.isLoading ? (
           <div className="h-full w-full flex items-center justify-center">
             <Skeleton className="h-full w-full" />
@@ -544,17 +581,23 @@ export function TravelPlannerMapWorkspace() {
           />
         )}
 
-        <aside className="absolute left-4 top-4 bottom-4 z-40 w-84 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex flex-col">
+        <aside
+          className="hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all left-4 top-4 bottom-4 w-84"
+        >
           <div className="p-4 border-b space-y-3">
             <p className="text-sm font-semibold">{t("planBootstrap.title")}</p>
-            <Button
-              className="w-full cursor-pointer"
-              onClick={() => setIsCreateDialogOpen(true)}
-              disabled={createPlanMutation.isPending || createExpenseMutation.isPending}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t("actions.createPlan")}
-            </Button>
+            {canCreateTravelPlanner ? (
+              <Button
+                className="w-full cursor-pointer"
+                onClick={() => setIsCreateDialogOpen(true)}
+                disabled={createPlanMutation.isPending || createExpenseMutation.isPending}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {t("actions.createPlan")}
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">You do not have permission to create plans.</p>
+            )}
             <p className="text-[11px] text-muted-foreground">Create Plan is only for Up Country Cost. Visit Report is created via CRM.</p>
           </div>
 
@@ -614,6 +657,9 @@ export function TravelPlannerMapWorkspace() {
                       setSelectedVisitId("");
                       setIsVisitDrawerOpen(false);
                       setSelectedPlanId(plan.id);
+                      if (isMobile) {
+                        showDetailPanel();
+                      }
                     }}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -671,7 +717,9 @@ export function TravelPlannerMapWorkspace() {
           </ScrollArea>
         </aside>
 
-        <aside className="absolute right-4 top-4 bottom-4 z-40 w-90 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex flex-col">
+        <aside
+          className="hidden md:flex absolute z-40 rounded-xl border bg-background/95 shadow-xl backdrop-blur supports-backdrop-filter:bg-background/80 flex-col transition-all right-4 top-4 bottom-4 w-90"
+        >
           <div className="p-4 border-b space-y-3">
             <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
               <div className="flex items-center gap-3">
@@ -868,222 +916,365 @@ export function TravelPlannerMapWorkspace() {
         </aside>
       </main>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent size="xl" className="space-y-4">
-          <DialogHeader>
-            <DialogTitle>{t("actions.createPlan")}</DialogTitle>
-            <DialogDescription>Set trip basics, participants, and optional initial expense items.</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Plan title</p>
-              <Input
-                value={newPlanTitle}
-                onChange={(event) => setNewPlanTitle(event.target.value)}
-                placeholder={t("planBootstrap.titlePlaceholder")}
-              />
+      {isMobile ? (
+        <Drawer
+          open={isPlanPanelOpen}
+          onOpenChange={setIsPlanPanelOpen}
+          title={t("planBootstrap.title")}
+          side="bottom"
+          className="h-[82vh] rounded-t-2xl"
+          showCloseButton
+          resizable={false}
+        >
+          <div className="h-full min-h-0 flex flex-col">
+            <div className="p-4 border-b space-y-3">
+              {canCreateTravelPlanner ? (
+                <Button
+                  className="w-full cursor-pointer"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  disabled={createPlanMutation.isPending || createExpenseMutation.isPending}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("actions.createPlan")}
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground">You do not have permission to create plans.</p>
+              )}
+              <p className="text-[11px] text-muted-foreground">Create Plan is only for Up Country Cost. Visit Report is created via CRM.</p>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Mode</p>
-              <Select value={newPlanMode} onValueChange={setNewPlanMode}>
+
+            <div className="px-4 py-3 border-b space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("tabs.operations")}</p>
+                <Badge variant="outline">{filteredPlans.length}</Badge>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={planSearch}
+                  onChange={(event) => setPlanSearch(event.target.value)}
+                  placeholder="Search plans"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={planTypeFilter} onValueChange={(value) => setPlanTypeFilter(value as "all" | PlanDetailType)}>
                 <SelectTrigger className="cursor-pointer">
-                  <SelectValue placeholder={t("planBootstrap.modePlaceholder")} />
+                  <SelectValue placeholder="Filter type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(formDataQuery.data?.data?.modes ?? []).map((mode) => (
-                    <SelectItem key={mode.value} value={mode.value} className="cursor-pointer">
-                      {mode.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all" className="cursor-pointer">All Types</SelectItem>
+                  <SelectItem value="up_country_cost" className="cursor-pointer">Up Country Cost / Travel Planner</SelectItem>
+                  <SelectItem value="visit_report" className="cursor-pointer">Visit Report</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <p className="text-sm font-medium">Budget</p>
-              <NumericInput
-                value={newPlanBudget}
-                onChange={(value) => setNewPlanBudget(value ?? 0)}
-                placeholder="0"
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Participant assignment</p>
-              <Badge variant="outline">{selectedParticipantIDs.length}</Badge>
-            </div>
-            <div className="rounded-lg border p-2 max-h-44 overflow-auto space-y-2">
-              {participantOptions.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No active employees available.</p>
-              ) : null}
-              {participantOptions.map((employee) => {
-                const isSelected = selectedParticipantIDs.includes(employee.id);
-                return (
-                  <button
-                    key={employee.id}
-                    type="button"
-                    className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors cursor-pointer ${
-                      isSelected ? "border-primary bg-primary/5" : "hover:bg-accent/40"
-                    }`}
-                    onClick={() => toggleParticipantAssignment(employee.id)}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={employee.avatar_url || undefined} alt={employee.name} />
-                        <AvatarFallback dataSeed={employee.name}>{employee.name}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate">{employee.name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{employee.employee_code}</p>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y">
+              <div className="p-2 space-y-2 pb-5">
+                {plansQuery.isLoading ? (
+                  <div className="space-y-2 p-2">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </div>
+                ) : null}
+
+                {filteredPlans.map((plan) => {
+                  const participants = routeParticipantsByPlan.get(plan.id) ?? [];
+                  const planType = routePlanTypeByPlan.get(plan.id) ?? "up_country_cost";
+                  const expenseSummary = routeExpenseSummaryByPlan.get(plan.id) ?? {
+                    budget: 0,
+                    spent: 0,
+                    remaining: 0,
+                  };
+                  const isActive = plan.id === activePlanId;
+
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      className={`w-full rounded-lg border p-3 text-left transition-colors cursor-pointer ${
+                        isActive ? "border-primary bg-primary/5" : "hover:bg-accent/40"
+                      }`}
+                      onClick={() => {
+                        setSelectedVisitId("");
+                        setIsVisitDrawerOpen(false);
+                        setSelectedPlanId(plan.id);
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold line-clamp-1">{plan.title}</p>
+                        {planType === "visit_report" ? (
+                          <MapPinned className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Wallet className="h-4 w-4 text-muted-foreground" />
+                        )}
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                      <p className="text-xs text-muted-foreground mt-1">{plan.code}</p>
+                      <Badge variant="outline" className="mt-2 text-[10px]">
+                        {planType === "visit_report" ? "Visit Report" : "Up Country Cost"}
+                      </Badge>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {participants.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex -space-x-2">
+                              {participants.slice(0, 3).map((participant) => (
+                                <Avatar key={`${plan.id}-${participant.employee_id}`} className="h-7 w-7 border border-background">
+                                  <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
+                                  <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
+                                </Avatar>
+                              ))}
+                            </div>
+                            <Badge variant="outline" className="text-[10px]">
+                              {participants.length > 3 ? `+${participants.length - 3} more` : `${participants.length} participant`}
+                            </Badge>
+                          </div>
+                        ) : null}
+                        {participants.length === 0 ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {t("visits.linkedEmpty")}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-1.5 rounded-md border bg-muted/40 p-2">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Budget</p>
+                          <p className="text-[11px] font-semibold leading-tight">{formatCurrency(expenseSummary.budget)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Spent</p>
+                          <p className="text-[11px] font-semibold leading-tight">{formatCurrency(expenseSummary.spent)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Remain</p>
+                          <p className="text-[11px] font-semibold leading-tight">{formatCurrency(expenseSummary.remaining)}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
+        </Drawer>
+      ) : null}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Expense items (optional)</p>
-              <Button type="button" variant="outline" size="sm" className="cursor-pointer" onClick={addExpenseItemRow}>
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add item
-              </Button>
-            </div>
-
-            {initialExpenseItems.length > 0 && (
-              <div className="rounded-md bg-muted/50 p-2">
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Budget</p>
-                    <p className="font-semibold">{formatCurrency(newPlanBudget)}</p>
+      {isMobile ? (
+        <Drawer
+          open={isDetailPanelOpen}
+          onOpenChange={setIsDetailPanelOpen}
+          title={activePlan?.title ?? "Plan details"}
+          side="bottom"
+          className="h-[82vh] rounded-t-2xl"
+          showCloseButton
+          resizable={false}
+        >
+          <div className="h-full min-h-0 flex flex-col">
+            <div className="p-4 border-b space-y-3">
+              <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.name ?? "User"} />
+                    <AvatarFallback dataSeed={user?.name ?? "guest"}>{user?.name ?? "U"}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{user?.name ?? t("context.notAuthenticated")}</p>
+                    <p className="text-xs text-muted-foreground truncate">{travelPlannerReadScope ?? t("context.scopeUnknown")}</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Total expenses</p>
-                    <p className="font-semibold">{formatCurrency(totalExpenseAmount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Remaining</p>
-                    <p className={`font-semibold ${newPlanBudget - totalExpenseAmount < 0 ? "text-red-600" : "text-green-600"}`}>
-                      {formatCurrency(Math.max(newPlanBudget - totalExpenseAmount, 0))}
-                    </p>
-                  </div>
+                  <Badge variant={canReadTravelPlanner ? "success" : "destructive"}>
+                    {canReadTravelPlanner ? t("context.permissionGranted") : t("context.permissionMissing")}
+                  </Badge>
                 </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              {initialExpenseItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No initial expense items added.</p>
-              ) : null}
+              <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3 space-y-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("tabs.operations")}</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground inline-flex items-center gap-1"><Wallet className="h-3.5 w-3.5" />Budget</span>
+                  <span className="font-semibold">{formatCurrency(totalBudget)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Spent</span>
+                  <span className="font-semibold">{formatCurrency(totalSpent)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="font-semibold">{formatCurrency(totalRemaining)}</span>
+                </div>
+              </div>
 
-              {initialExpenseItems.map((item, index) => (
-                <div key={`expense-item-${index}`} className="grid gap-2 rounded-md border p-2 md:grid-cols-12">
-                  <div className="md:col-span-4">
-                    <Select value={item.expense_type} onValueChange={(value) => updateExpenseItemRow(index, "expense_type", value)}>
+              {activePlanDetailType === "visit_report" ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={visitSearch}
+                      onChange={(event) => setVisitSearch(event.target.value)}
+                      placeholder={t("visits.searchPlaceholder")}
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={visitStatus} onValueChange={setVisitStatus}>
                       <SelectTrigger className="cursor-pointer">
-                        <SelectValue />
+                        <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {expenseTypeOptions.map((expenseType) => (
-                          <SelectItem key={expenseType.value} value={expenseType.value} className="cursor-pointer">
-                            {expenseType.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="all" className="cursor-pointer">All Status</SelectItem>
+                        <SelectItem value="draft" className="cursor-pointer">Draft</SelectItem>
+                        <SelectItem value="submitted" className="cursor-pointer">Submitted</SelectItem>
+                        <SelectItem value="approved" className="cursor-pointer">Approved</SelectItem>
+                        <SelectItem value="rejected" className="cursor-pointer">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={visitOutcome} onValueChange={setVisitOutcome}>
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder="Outcome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" className="cursor-pointer">All Outcome</SelectItem>
+                        <SelectItem value="very_positive" className="cursor-pointer">Very Positive</SelectItem>
+                        <SelectItem value="positive" className="cursor-pointer">Positive</SelectItem>
+                        <SelectItem value="neutral" className="cursor-pointer">Neutral</SelectItem>
+                        <SelectItem value="negative" className="cursor-pointer">Negative</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="md:col-span-3">
-                    <NumericInput
-                      placeholder="Amount"
-                      value={item.amount}
-                      onChange={(value) => updateExpenseItemRow(index, "amount", value ?? 0)}
-                    />
-                  </div>
-                  <div className="md:col-span-4">
-                    <Input
-                      placeholder="Description"
-                      value={item.description}
-                      onChange={(event) => updateExpenseItemRow(index, "description", event.target.value)}
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <Button type="button" variant="ghost" className="w-full cursor-pointer" onClick={() => removeExpenseItemRow(index)}>
-                      x
-                    </Button>
-                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3 space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Add Expense Item</p>
+                  <Select value={detailExpenseType} onValueChange={setDetailExpenseType}>
+                    <SelectTrigger className="cursor-pointer">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {expenseTypeOptions.map((expenseType) => (
+                        <SelectItem key={expenseType.value} value={expenseType.value} className="cursor-pointer">
+                          {expenseType.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <NumericInput
+                    value={detailExpenseAmount}
+                    onChange={(value) => setDetailExpenseAmount(value ?? 0)}
+                    placeholder="Amount"
+                  />
+                  <Input
+                    value={detailExpenseDescription}
+                    onChange={(event) => setDetailExpenseDescription(event.target.value)}
+                    placeholder="Description"
+                  />
+                  <Button
+                    type="button"
+                    className="w-full cursor-pointer"
+                    onClick={handleCreateDetailExpense}
+                    disabled={createExpenseMutation.isPending || detailExpenseAmount <= 0 || !activePlanId}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Expense
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Location (optional)</p>
-            <div className="rounded-lg border p-3 space-y-2 bg-muted/20">
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full cursor-pointer justify-center gap-2"
-                  onClick={() => setIsMapPickerOpen(true)}
-                >
-                  <MapPinned className="h-4 w-4" />
-                  Pick from Map
-                </Button>
+            <div className="px-4 py-2 border-b flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                <Filter className="h-3 w-3" />
+                {activePlanDetailType === "visit_report" ? "Visit Report Details" : "Expense Details"}
+              </p>
+              <Badge variant="outline">
+                {activePlanDetailType === "visit_report"
+                  ? filteredVisits.length
+                  : (activePlanExpensesQuery.data?.data?.items?.length ?? 0)}
+              </Badge>
+            </div>
 
-                {typeof selectedLocationLat === "number" && typeof selectedLocationLng === "number" ? (
-                  <p className="text-sm text-muted-foreground">{Number(selectedLocationLat).toFixed(6)}, {Number(selectedLocationLng).toFixed(6)}</p>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y">
+              <div className="p-2 space-y-2 pb-5">
+                {activePlanDetailType === "visit_report" ? (
+                  <>
+                    {filteredVisits.length === 0 ? (
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-center text-sm text-muted-foreground">
+                        {t("visits.linkedEmpty")}
+                      </div>
+                    ) : null}
+
+                    {filteredVisits.map((visit) => (
+                      <button
+                        key={visit.id}
+                        type="button"
+                        className="w-full rounded-lg border p-3 text-left hover:bg-accent/40 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedVisitId(visit.id);
+                          setIsVisitDrawerOpen(true);
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold line-clamp-1">{visit.code}</p>
+                          <Badge variant="outline" className="text-[10px]">{visit.status}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{visit.employee?.name || "-"}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{visit.customer?.name || t("visits.noCustomer")}</p>
+                        <p className="text-xs mt-2 line-clamp-2">{visit.purpose || "-"}</p>
+                      </button>
+                    ))}
+                  </>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">No location selected</p>
-                )}
+                  <>
+                    {(activePlanExpensesQuery.data?.data?.items ?? []).length === 0 ? (
+                      <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-center text-sm text-muted-foreground">
+                        No expense items yet.
+                      </div>
+                    ) : null}
 
-                <MapPickerModal
-                  open={isMapPickerOpen}
-                  onOpenChange={setIsMapPickerOpen}
-                  latitude={selectedLocationLat ?? -6.2088}
-                  longitude={selectedLocationLng ?? 106.8456}
-                  onCoordinateSelect={(lat, lng) => {
-                    setSelectedLocationLat(lat);
-                    setSelectedLocationLng(lng);
-                  }}
-                  onUseCurrentLocation={() => {
-                    if (!navigator.geolocation) return;
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        setSelectedLocationLat(pos.coords.latitude);
-                        setSelectedLocationLng(pos.coords.longitude);
-                      },
-                      () => {},
-                      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                  }}
-                  useCurrentLocationLabel="Use Current Location"
-                  title="Select Location"
-                  description="Click on the map or drag the marker to set location coordinates"
-                />
+                    {(activePlanExpensesQuery.data?.data?.items ?? []).map((expense) => (
+                      <div key={expense.id} className="rounded-2xl border border-border/60 bg-background/60 p-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold line-clamp-1">{expense.expense_type}</p>
+                          <p className="text-sm font-semibold">{formatCurrency(expense.amount)}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{expense.expense_date}</p>
+                        <p className="text-xs">{expense.description || "-"}</p>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           </div>
+        </Drawer>
+      ) : null}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" className="cursor-pointer" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="cursor-pointer"
-              onClick={handleCreatePlan}
-              disabled={createPlanMutation.isPending || createExpenseMutation.isPending}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              {t("actions.createPlan")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TravelPlannerCreatePlanDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        canCreate={canCreateTravelPlanner}
+        isSubmitting={createPlanMutation.isPending || createExpenseMutation.isPending}
+        title={newPlanTitle}
+        onTitleChange={setNewPlanTitle}
+        mode={newPlanMode}
+        onModeChange={setNewPlanMode}
+        budget={newPlanBudget}
+        onBudgetChange={setNewPlanBudget}
+        modeOptions={formDataQuery.data?.data?.modes ?? []}
+        participantOptions={participantOptions}
+        selectedParticipantIDs={selectedParticipantIDs}
+        onToggleParticipant={toggleParticipantAssignment}
+        expenseTypeOptions={expenseTypeOptions}
+        initialExpenseItems={initialExpenseItems}
+        totalExpenseAmount={totalExpenseAmount}
+        onAddExpenseItem={addExpenseItemRow}
+        onUpdateExpenseItem={updateExpenseItemRow}
+        onRemoveExpenseItem={removeExpenseItemRow}
+        selectedLocationLat={selectedLocationLat}
+        selectedLocationLng={selectedLocationLng}
+        onLocationChange={(lat, lng) => {
+          setSelectedLocationLat(lat);
+          setSelectedLocationLng(lng);
+        }}
+        onCreate={handleCreatePlan}
+      />
 
       <Drawer
         open={isVisitDrawerOpen}
