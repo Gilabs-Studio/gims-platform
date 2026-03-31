@@ -34,8 +34,6 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  Pencil,
-  Trash2,
   Eye,
   Clock,
   CheckCircle2,
@@ -61,7 +59,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   useOvertimeRequests,
-  useDeleteOvertimeRequest,
+  useCancelOvertimeRequest,
 } from "../hooks/use-overtime";
 import { useOvertimeCalendar } from "../hooks/use-overtime-calendar";
 import { OvertimeDialog } from "./overtime-dialog";
@@ -90,7 +88,7 @@ export function OvertimeList() {
   const [dayPage, setDayPage] = useState(1);
   const [dayPerPage, setDayPerPage] = useState(20);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<OvertimeRequest | null>(null);
   const [detailItem, setDetailItem] = useState<OvertimeRequest | null>(null);
@@ -134,17 +132,17 @@ export function OvertimeList() {
   const canView = useUserPermission("overtime.read");
   const canApprove = useUserPermission("overtime.approve");
 
-  const deleteMutation = useDeleteOvertimeRequest();
+  const cancelMutation = useCancelOvertimeRequest();
 
   const records = listData?.data ?? [];
   const pagination = listData?.meta?.pagination;
 
-  const handleDelete = async () => {
-    if (deletingId) {
+  const handleCancel = async () => {
+    if (cancellingId) {
       try {
-        await deleteMutation.mutateAsync(deletingId);
-        toast.success(t("messages.deleteSuccess"));
-        setDeletingId(null);
+        await cancelMutation.mutateAsync(cancellingId);
+        toast.success(t("messages.cancelSuccess"));
+        setCancellingId(null);
         calendar.refetch();
       } catch {
         // Error handled by api-client
@@ -153,6 +151,11 @@ export function OvertimeList() {
   };
 
   const handleEdit = (record: OvertimeRequest) => {
+    // Auto-detected overtime cannot be edited manually
+    if (record.request_type === "AUTO_DETECTED") {
+      toast.info(t("messages.autoDetectedInfo"));
+      return;
+    }
     setEditingItem(record);
     setIsFormOpen(true);
   };
@@ -400,19 +403,6 @@ export function OvertimeList() {
         )}
 
         <div className="flex-1" />
-
-        {canCreate && (
-          <Button
-            onClick={() => {
-              setEditingItem(null);
-              setIsFormOpen(true);
-            }}
-            className="cursor-pointer"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("actions.add")}
-          </Button>
-        )}
       </div>
 
       {/* Content: List or Calendar View */}
@@ -528,15 +518,6 @@ export function OvertimeList() {
                                 {tCommon("view")}
                               </DropdownMenuItem>
                             )}
-                            {canEditRecord(record) && (
-                              <DropdownMenuItem
-                                onClick={() => handleEdit(record)}
-                                className="cursor-pointer"
-                              >
-                                <Pencil className="h-4 w-4 mr-2" />
-                                {tCommon("edit")}
-                              </DropdownMenuItem>
-                            )}
                             {canApproveRecord(record) && (
                               <>
                                 <DropdownMenuSeparator />
@@ -560,11 +541,11 @@ export function OvertimeList() {
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => setDeletingId(record.id)}
+                                  onClick={() => setCancellingId(record.id)}
                                   className="cursor-pointer text-destructive"
                                 >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  {tCommon("delete")}
+                                  <X className="h-4 w-4 mr-2" />
+                                  {t("actions.cancel")}
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -615,7 +596,7 @@ export function OvertimeList() {
                 const record = records.find((r) => r.id === event.id);
                 if (record) handleReject(record);
               }}
-              onDelete={(id) => setDeletingId(id)}
+              onDelete={(id) => setCancellingId(id)}
               page={dayPage}
               perPage={dayPerPage}
               onPageChange={setDayPage}
@@ -803,7 +784,9 @@ export function OvertimeList() {
                     <label className="text-sm font-medium text-muted-foreground">
                       {t("fields.rejectedBy")}
                     </label>
-                    <p>{detailItem.rejected_by}</p>
+                    <p>
+                      {detailItem.rejected_by_name || detailItem.rejected_by}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {detailItem.rejected_at &&
                         format(
@@ -827,14 +810,14 @@ export function OvertimeList() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Cancel Confirmation */}
       <DeleteDialog
-        open={!!deletingId}
-        onOpenChange={(open) => !open && setDeletingId(null)}
-        onConfirm={handleDelete}
-        title={t("delete.title")}
-        description={t("delete.description")}
-        isLoading={deleteMutation.isPending}
+        open={!!cancellingId}
+        onOpenChange={(open) => !open && setCancellingId(null)}
+        onConfirm={handleCancel}
+        title={t("cancelDialog.title")}
+        description={t("cancelDialog.description")}
+        isLoading={cancelMutation.isPending}
       />
     </div>
   );

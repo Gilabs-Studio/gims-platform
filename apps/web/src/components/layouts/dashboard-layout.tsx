@@ -1,6 +1,13 @@
 "use client";
 
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname } from "@/i18n/routing";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +27,8 @@ import {
   AttendanceRightDrawer,
   type AttendanceDrawerTab,
 } from "@/features/hrd/attendance-records/components/attendance-right-drawer";
+import { LeaveRequestDrawer } from "@/features/hrd/leave-request/components/leave-request-drawer";
+import { OvertimeDrawer } from "@/features/hrd/overtime/components/overtime-drawer";
 import { useLocationPermission } from "@/features/hrd/attendance-records/hooks/use-location-permission";
 import { IconSidebar, type IconSidebarItem } from "./icon-sidebar";
 import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
@@ -34,7 +43,10 @@ function checkViewPermission(menu: MenuWithActions): boolean {
   if (menu.actions && menu.actions.length > 0) {
     const viewAction = menu.actions.find((action) => {
       if (action.action === "VIEW") return action.access;
-      return (action.code === "VIEW" || action.code.startsWith("VIEW_")) && action.access;
+      return (
+        (action.code === "VIEW" || action.code.startsWith("VIEW_")) &&
+        action.access
+      );
     });
 
     if (viewAction) return true;
@@ -51,7 +63,10 @@ function isPathMatch(pathname: string, url: string): boolean {
   return pathname === url || pathname.startsWith(`${url}/`);
 }
 
-function hasMatchingChildPath(children: MenuWithActions[], pathname: string): boolean {
+function hasMatchingChildPath(
+  children: MenuWithActions[],
+  pathname: string,
+): boolean {
   return children.some((child) => {
     if (child.url && isPathMatch(pathname, child.url)) return true;
     if (child.children) return hasMatchingChildPath(child.children, pathname);
@@ -59,7 +74,10 @@ function hasMatchingChildPath(children: MenuWithActions[], pathname: string): bo
   });
 }
 
-function findParentMenuByPath(menus: MenuWithActions[], pathname: string): string | null {
+function findParentMenuByPath(
+  menus: MenuWithActions[],
+  pathname: string,
+): string | null {
   for (const menu of menus) {
     if (!menu.children || menu.children.length === 0) continue;
 
@@ -79,7 +97,9 @@ interface DashboardLayoutProps {
   readonly children: React.ReactNode;
 }
 
-export const DashboardLayout = memo(function DashboardLayout({ children }: DashboardLayoutProps) {
+export const DashboardLayout = memo(function DashboardLayout({
+  children,
+}: DashboardLayoutProps) {
   const { user } = useAuthStore();
   const { menus } = useNavigation();
   useValidateRole();
@@ -89,13 +109,19 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
   const isMobile = useIsMobile();
 
   const userName = user?.name ?? "User";
-  const primaryAvatarUrl = user?.avatar_url && user.avatar_url.trim() !== "" ? user.avatar_url : undefined;
+  const primaryAvatarUrl =
+    user?.avatar_url && user.avatar_url.trim() !== ""
+      ? user.avatar_url
+      : undefined;
   const fallbackAvatarUrl = "/avatar-placeholder.svg";
 
   const { data: todayData } = useTodayAttendance();
   const today = todayData?.data;
 
-  const { isPrompt: isLocationPrompt, requestPermission: requestLocationPermission } = useLocationPermission();
+  const {
+    isPrompt: isLocationPrompt,
+    requestPermission: requestLocationPermission,
+  } = useLocationPermission();
   useEffect(() => {
     if (isLocationPrompt) {
       requestLocationPermission();
@@ -126,8 +152,15 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isAttendanceDrawerOpen, setIsAttendanceDrawerOpen] = useState(false);
-  const [attendanceDrawerTab, setAttendanceDrawerTab] = useState<AttendanceDrawerTab>("calendar");
+  const [attendanceDrawerTab, setAttendanceDrawerTab] =
+    useState<AttendanceDrawerTab>("calendar");
   const [openCreateLeaveSignal, setOpenCreateLeaveSignal] = useState(0);
+
+  // Separate drawer states for Leave Request and Overtime
+  const [isLeaveRequestDrawerOpen, setIsLeaveRequestDrawerOpen] =
+    useState(false);
+  const [isOvertimeDrawerOpen, setIsOvertimeDrawerOpen] = useState(false);
+  const [openCreateLeaveInDrawer, setOpenCreateLeaveInDrawer] = useState(0);
 
   useEffect(() => {
     React.startTransition(() => {
@@ -137,7 +170,10 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(DETAIL_SIDEBAR_STORAGE_KEY, String(isDetailSidebarOpen));
+      localStorage.setItem(
+        DETAIL_SIDEBAR_STORAGE_KEY,
+        String(isDetailSidebarOpen),
+      );
     }
   }, [isDetailSidebarOpen]);
 
@@ -173,7 +209,9 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
     const parentMenu = menus.find((menu) => String(menu.id) === activeParentId);
     if (!parentMenu?.children) return [];
 
-    const buildDetailItems = (menuItems: MenuWithActions[]): DetailSidebarItem[] => {
+    const buildDetailItems = (
+      menuItems: MenuWithActions[],
+    ): DetailSidebarItem[] => {
       return menuItems
         .filter((item) => checkViewPermission(item))
         .map((item) => ({
@@ -207,12 +245,18 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
 
     if (isInitialMount) {
       isInitialMountRef.current = false;
-      const storedSidebarState = localStorage.getItem(DETAIL_SIDEBAR_STORAGE_KEY);
+      const storedSidebarState = localStorage.getItem(
+        DETAIL_SIDEBAR_STORAGE_KEY,
+      );
       const detectedParent = findParentMenuByPath(menus, currentPathname);
 
       if (detectedParent) {
-        const parentMenu = menus.find((menu) => String(menu.id) === detectedParent);
-        const hasChildren = Boolean(parentMenu?.children && parentMenu.children.length > 0);
+        const parentMenu = menus.find(
+          (menu) => String(menu.id) === detectedParent,
+        );
+        const hasChildren = Boolean(
+          parentMenu?.children && parentMenu.children.length > 0,
+        );
 
         React.startTransition(() => {
           setActiveParentId(detectedParent);
@@ -244,8 +288,12 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
       const detectedParent = findParentMenuByPath(menus, currentPathname);
 
       if (detectedParent !== activeParentId) {
-        const parentMenu = menus.find((menu) => String(menu.id) === detectedParent);
-        const hasChildren = Boolean(parentMenu?.children && parentMenu.children.length > 0);
+        const parentMenu = menus.find(
+          (menu) => String(menu.id) === detectedParent,
+        );
+        const hasChildren = Boolean(
+          parentMenu?.children && parentMenu.children.length > 0,
+        );
 
         React.startTransition(() => {
           setActiveParentId(detectedParent);
@@ -287,7 +335,7 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
         setIsDetailSidebarOpen(false);
       }
     },
-    [parentItems]
+    [parentItems],
   );
 
   const handleToggleDetailSidebar = useCallback(() => {
@@ -304,13 +352,22 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
     pathname?.includes("/master-data/geographic") ||
     pathname?.includes("/crm/area-mapping");
 
-  const handleOpenAttendanceDrawer = useCallback((tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {
-    setAttendanceDrawerTab(tab);
-    setIsAttendanceDrawerOpen(true);
-    if (tab === "leave" && openCreateLeave) {
-      setOpenCreateLeaveSignal((prev) => prev + 1);
-    }
-  }, []);
+  const handleOpenAttendanceDrawer = useCallback(
+    (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {
+      if (tab === "leave") {
+        setIsLeaveRequestDrawerOpen(true);
+        if (openCreateLeave) {
+          setOpenCreateLeaveInDrawer((prev) => prev + 1);
+        }
+      } else if (tab === "overtime") {
+        setIsOvertimeDrawerOpen(true);
+      } else {
+        setAttendanceDrawerTab(tab);
+        setIsAttendanceDrawerOpen(true);
+      }
+    },
+    [],
+  );
 
   const shouldShowDetailSidebar = useMemo(() => {
     if (!activeParentId || !isMounted) return false;
@@ -320,7 +377,8 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
 
   const contentMarginLeft = useMemo(() => {
     if (isMobile || !isMounted) return "0";
-    if (isDetailSidebarOpen && shouldShowDetailSidebar) return "calc(4rem + 14rem)";
+    if (isDetailSidebarOpen && shouldShowDetailSidebar)
+      return "calc(4rem + 14rem)";
     return "4rem";
   }, [isMobile, isDetailSidebarOpen, shouldShowDetailSidebar, isMounted]);
 
@@ -329,7 +387,11 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
       <div className="min-h-screen bg-sidebar">
         {!isMobile && (
           <>
-            <IconSidebar items={parentItems} activeParentId={activeParentId} onSelectParent={handleSelectParent} />
+            <IconSidebar
+              items={parentItems}
+              activeParentId={activeParentId}
+              onSelectParent={handleSelectParent}
+            />
             {shouldShowDetailSidebar && (
               <DetailSidebar
                 title={activeParentTitle}
@@ -361,7 +423,10 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
           detailTitle={activeParentTitle}
         />
 
-        <main className="relative min-h-screen transition-[margin] duration-300 ease-out" style={{ marginLeft: contentMarginLeft }}>
+        <main
+          className="relative min-h-screen transition-[margin] duration-300 ease-out"
+          style={{ marginLeft: contentMarginLeft }}
+        >
           <div className="min-h-full bg-background md:rounded-3xl md:shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)]">
             {!isAIChatbotPage && !isFullScreenMapPage && (
               <DashboardHeader
@@ -377,7 +442,9 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
             <div
               className={cn(
                 "flex flex-1 flex-col",
-                isAIChatbotPage || isFullScreenMapPage ? "h-[calc(100vh-1px)] gap-0 p-0" : "gap-4 p-4 md:p-6"
+                isAIChatbotPage || isFullScreenMapPage
+                  ? "h-[calc(100vh-1px)] gap-0 p-0"
+                  : "gap-4 p-4 md:p-6",
               )}
             >
               {!isAIChatbotPage && !isFullScreenMapPage && <Breadcrumb />}
@@ -391,8 +458,17 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
         <AttendanceRightDrawer
           open={isAttendanceDrawerOpen}
           onOpenChange={setIsAttendanceDrawerOpen}
-          initialTab={attendanceDrawerTab}
-          openCreateLeaveSignal={openCreateLeaveSignal}
+        />
+
+        <LeaveRequestDrawer
+          open={isLeaveRequestDrawerOpen}
+          onOpenChange={setIsLeaveRequestDrawerOpen}
+          openCreateSignal={openCreateLeaveInDrawer}
+        />
+
+        <OvertimeDrawer
+          open={isOvertimeDrawerOpen}
+          onOpenChange={setIsOvertimeDrawerOpen}
         />
 
         <CommandPalette />

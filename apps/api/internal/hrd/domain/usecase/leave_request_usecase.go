@@ -274,7 +274,7 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("failed to check overlapping requests: %w", err)
 	}
 	if len(overlapping) > 0 {
-		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: employee already has a leave request for these dates")
+		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: Employee already has a leave request for these dates")
 	}
 
 	// 6. Fetch leave type to check if it cuts annual leave
@@ -856,6 +856,14 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 		// WHY: PENDING and APPROVED statuses can be cancelled
 		if leaveRequest.Status != models.LeaveStatusApproved && leaveRequest.Status != models.LeaveStatusPending {
 			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
+		}
+
+		// 1b. Check if cancel is performed before leave start date
+		// WHY: Business rule - can only cancel leave requests before the leave period starts
+		today := apptime.Now().Truncate(24 * time.Hour)
+		startDate := leaveRequest.StartDate.Truncate(24 * time.Hour)
+		if !today.Before(startDate) {
+			return fmt.Errorf("INVALID_DATE: leave request can only be cancelled before the start date (start date: %s, today: %s)", startDate.Format("2006-01-02"), today.Format("2006-01-02"))
 		}
 
 		// Track original status for conditional attendance record deletion

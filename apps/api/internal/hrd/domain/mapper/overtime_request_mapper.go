@@ -179,6 +179,12 @@ func (m *OvertimeRequestMapper) EnrichResponse(resp *dto.OvertimeRequestResponse
 			resp.ApprovedByName = approver.Name
 		}
 	}
+	// Enrich rejecter name if rejected
+	if resp.RejectedBy != nil {
+		if rejecter, ok := employeeMap[*resp.RejectedBy]; ok {
+			resp.RejectedByName = rejecter.Name
+		}
+	}
 }
 
 // EnrichResponseList enriches a list of overtime request responses with employee data

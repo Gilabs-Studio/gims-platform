@@ -29,16 +29,18 @@ func NewOvertimeRequestHandler(overtimeUC usecase.OvertimeRequestUsecase, employ
 
 // GetMyRequests handles get my overtime requests (self-service)
 func (h *OvertimeRequestHandler) GetMyRequests(c *gin.Context) {
-	// Get employee ID from context (set by auth middleware)
-	employeeID, exists := c.Get("employee_id")
+	// Get user ID from context
+	userID, exists := c.Get("user_id")
 	if !exists {
-		// Fallback to user_id if employee_id not set
-		userID, exists := c.Get("user_id")
-		if !exists {
-			errors.UnauthorizedResponse(c, "User not authenticated")
-			return
-		}
-		employeeID = userID
+		errors.UnauthorizedResponse(c, "User not authenticated")
+		return
+	}
+
+	// Lookup employee by user_id to get the correct employee_id
+	employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+	if err != nil {
+		errors.UnauthorizedResponse(c, "Employee not found for this user")
+		return
 	}
 
 	var req dto.ListOvertimeRequestsRequest
@@ -52,7 +54,7 @@ func (h *OvertimeRequestHandler) GetMyRequests(c *gin.Context) {
 	}
 
 	// Force filter by current employee
-	req.EmployeeID = employeeID.(string)
+	req.EmployeeID = employee.ID
 
 	requests, pagination, err := h.overtimeUC.List(c.Request.Context(), &req)
 	if err != nil {
@@ -70,7 +72,7 @@ func (h *OvertimeRequestHandler) GetMyRequests(c *gin.Context) {
 			HasPrev:    pagination.Page > 1,
 		},
 		Filters: map[string]interface{}{
-			"employee_id": employeeID.(string),
+			"employee_id": employee.ID,
 		},
 	}
 
@@ -182,16 +184,23 @@ func (h *OvertimeRequestHandler) Create(c *gin.Context) {
 	if req.EmployeeID != "" {
 		targetEmployeeID = req.EmployeeID
 	} else {
-		// Fallback to current user's employee_id
-		employeeID, exists := c.Get("employee_id")
-		if !exists {
-			employeeID, exists = c.Get("user_id")
+		// Get current user's employee_id
+		if id, exists := c.Get("employee_id"); exists {
+			targetEmployeeID = id.(string)
+		} else {
+			// Lookup employee by user_id
+			userID, exists := c.Get("user_id")
 			if !exists {
 				errors.UnauthorizedResponse(c, "User not authenticated")
 				return
 			}
+			employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+			if err != nil {
+				errors.UnauthorizedResponse(c, "Employee not found for this user")
+				return
+			}
+			targetEmployeeID = employee.ID
 		}
-		targetEmployeeID = employeeID.(string)
 	}
 
 	request, err := h.overtimeUC.Create(c.Request.Context(), &req, targetEmployeeID)
@@ -360,16 +369,25 @@ func (h *OvertimeRequestHandler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 
 	// Get employee ID from context
-	employeeID, exists := c.Get("employee_id")
-	if !exists {
-		employeeID, exists = c.Get("user_id")
+	var employeeID string
+	if id, exists := c.Get("employee_id"); exists {
+		employeeID = id.(string)
+	} else {
+		// Lookup employee by user_id
+		userID, exists := c.Get("user_id")
 		if !exists {
 			errors.UnauthorizedResponse(c, "User not authenticated")
 			return
 		}
+		employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+		if err != nil {
+			errors.UnauthorizedResponse(c, "Employee not found for this user")
+			return
+		}
+		employeeID = employee.ID
 	}
 
-	err := h.overtimeUC.Cancel(c.Request.Context(), id, employeeID.(string))
+	err := h.overtimeUC.Cancel(c.Request.Context(), id, employeeID)
 	if err != nil {
 		if err == usecase.ErrOvertimeRequestNotFound {
 			errors.ErrorResponse(c, "OVERTIME_REQUEST_NOT_FOUND", map[string]interface{}{
@@ -419,15 +437,23 @@ func (h *OvertimeRequestHandler) GetMonthlySummary(c *gin.Context) {
 	// Get employee ID from context or query
 	employeeID := c.Query("employee_id")
 	if employeeID == "" {
-		id, exists := c.Get("employee_id")
-		if !exists {
-			id, exists = c.Get("user_id")
+		// Try to get from context first
+		if id, exists := c.Get("employee_id"); exists {
+			employeeID = id.(string)
+		} else {
+			// Lookup employee by user_id
+			userID, exists := c.Get("user_id")
 			if !exists {
 				errors.UnauthorizedResponse(c, "User not authenticated")
 				return
 			}
+			employee, err := h.employeeRepo.FindByUserID(c.Request.Context(), userID.(string))
+			if err != nil {
+				errors.UnauthorizedResponse(c, "Employee not found for this user")
+				return
+			}
+			employeeID = employee.ID
 		}
-		employeeID = id.(string)
 	}
 
 	// Parse year and month from query params, default to current month

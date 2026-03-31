@@ -1,10 +1,12 @@
 package presentation
 
 import (
+	"github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
-	"github.com/gilabs/gims/api/internal/organization/data/repositories"
+	orgRepositories "github.com/gilabs/gims/api/internal/organization/data/repositories"
+	"github.com/gilabs/gims/api/internal/organization/domain/service"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/presentation/handler"
 	"github.com/gilabs/gims/api/internal/organization/presentation/router"
@@ -18,23 +20,29 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
 	// Initialize repositories
-	divisionRepo := repositories.NewDivisionRepository(db)
-	jobPositionRepo := repositories.NewJobPositionRepository(db)
-	businessUnitRepo := repositories.NewBusinessUnitRepository(db)
-	businessTypeRepo := repositories.NewBusinessTypeRepository(db)
-	areaRepo := repositories.NewAreaRepository(db)
-	companyRepo := repositories.NewCompanyRepository(db)
-	employeeRepo := repositories.NewEmployeeRepository(db)
-	employeeAreaRepo := repositories.NewEmployeeAreaRepository(db)
-	employeeContractRepo := repositories.NewEmployeeContractRepository(db)
-	educationHistoryRepo := repositories.NewEmployeeEducationHistoryRepository(db)
-	certificationRepo := repositories.NewEmployeeCertificationRepository(db)
-	assetRepo := repositories.NewEmployeeAssetRepository(db)
-	signatureRepo := repositories.NewEmployeeSignatureRepository(db)
+	divisionRepo := orgRepositories.NewDivisionRepository(db)
+	jobPositionRepo := orgRepositories.NewJobPositionRepository(db)
+	businessUnitRepo := orgRepositories.NewBusinessUnitRepository(db)
+	businessTypeRepo := orgRepositories.NewBusinessTypeRepository(db)
+	areaRepo := orgRepositories.NewAreaRepository(db)
+	companyRepo := orgRepositories.NewCompanyRepository(db)
+	employeeRepo := orgRepositories.NewEmployeeRepository(db)
+	employeeAreaRepo := orgRepositories.NewEmployeeAreaRepository(db)
+	employeeContractRepo := orgRepositories.NewEmployeeContractRepository(db)
+	educationHistoryRepo := orgRepositories.NewEmployeeEducationHistoryRepository(db)
+	certificationRepo := orgRepositories.NewEmployeeCertificationRepository(db)
+	assetRepo := orgRepositories.NewEmployeeAssetRepository(db)
+	signatureRepo := orgRepositories.NewEmployeeSignatureRepository(db)
 
 	// Finance repositories for asset borrowing integration
 	financeAssetRepo := financeRepositories.NewAssetRepository(db)
 	auditLogRepo := financeRepositories.NewAssetAuditLogRepository(db)
+
+	// Core repositories
+	timezoneRepo := repositories.NewTimeZoneRepository(db)
+
+	// Initialize services
+	timezoneService := service.NewTimezoneService(timezoneRepo)
 
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
@@ -44,7 +52,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
 	// Pass employeeRepo for GetFormData endpoint.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
-	companyUC := usecase.NewCompanyUsecase(companyRepo)
+	companyUC := usecase.NewCompanyUsecase(companyRepo, timezoneService)
 	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers

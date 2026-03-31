@@ -85,6 +85,10 @@ export const leaveRequestEn = {
     rejectionNote: "Rejection Note",
     cancellationInfo: "Cancellation Information",
     cancellationNote: "Cancellation Note",
+    fields: {
+      rejectedBy: "Rejected By",
+      rejectReason: "Reject Reason",
+    },
     actions: {
       label: "Actions",
       view: "View",
@@ -189,7 +193,8 @@ export const leaveRequestEn = {
     },
     emptyState: {
       title: "No leave requests found",
-      description: "No leave requests match your current filters. Try adjusting your search criteria or create a new leave request.",
+      description:
+        "No leave requests match your current filters. Try adjusting your search criteria or create a new leave request.",
     },
     filters: {
       allStatus: "All Status",
@@ -199,7 +204,8 @@ export const leaveRequestEn = {
     },
     deleteDialog: {
       title: "Delete Leave Request",
-      description: "Are you sure you want to delete this leave request? This action cannot be undone.",
+      description:
+        "Are you sure you want to delete this leave request? This action cannot be undone.",
       confirm: "Delete",
       cancel: "Cancel",
     },
@@ -217,7 +223,8 @@ export const leaveRequestEn = {
     },
     cancelDialog: {
       title: "Cancel Leave Request",
-      description: "Are you sure you want to cancel this leave request? This action cannot be undone.",
+      description:
+        "Are you sure you want to cancel this leave request? This action cannot be undone.",
       confirm: "Cancel Request",
       cancel: "Close",
     },

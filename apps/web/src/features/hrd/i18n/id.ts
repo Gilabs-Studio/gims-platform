@@ -59,8 +59,10 @@ export const hrdId = {
       historySubtitle: "Lihat kalender absensi dan permintaan cuti Anda",
       historyAction: "Riwayat Absensi",
       requestLeaveAction: "Ajukan Cuti",
+      overtimeAction: "Lembur Saya",
       calendarTab: "Kalender",
       leaveTab: "Permintaan Cuti",
+      overtimeTab: "Lembur",
       clockIn: "Masuk",
       clockOut: "Pulang",
       clockedIn: "Sudah Masuk",
@@ -86,6 +88,7 @@ export const hrdId = {
 
       // Status
       status: {
+        // Lowercase variants
         present: "Hadir",
         absent: "Tidak Hadir",
         late: "Terlambat",
@@ -95,6 +98,12 @@ export const hrdId = {
         leave: "Cuti",
         wfh: "Kerja dari Rumah",
         off_day: "Hari Libur",
+        field_work: "Kerja Lapangan",
+        pending: "Menunggu",
+        approved: "Disetujui",
+        rejected: "Ditolak",
+        canceled: "Dibatalkan",
+        // Uppercase variants
         PRESENT: "Hadir",
         ABSENT: "Tidak Hadir",
         LATE: "Terlambat",
@@ -104,6 +113,11 @@ export const hrdId = {
         LEAVE: "Cuti",
         WFH: "Kerja dari Rumah",
         OFF_DAY: "Hari Libur",
+        FIELD_WORK: "Kerja Lapangan",
+        PENDING: "Menunggu",
+        APPROVED: "Disetujui",
+        REJECTED: "Ditolak",
+        CANCELED: "Dibatalkan",
       },
 
       // Check-in type
@@ -144,6 +158,8 @@ export const hrdId = {
         address: "Alamat",
         isManualEntry: "Input Manual",
         manualEntryReason: "Alasan Input Manual",
+        photo: "Foto",
+        checkInPhoto: "Foto Absen Masuk",
       },
 
       // Form
@@ -208,6 +224,10 @@ export const hrdId = {
         outsideRadius: "Anda berada di luar radius lokasi yang diizinkan",
         alreadyClockedIn: "Anda sudah absen masuk hari ini",
         notClockedInYet: "Anda belum absen masuk",
+        overtimeDetected:
+          "Lembur terdeteksi: {duration}. Menunggu persetujuan.",
+        viewOvertime: "Lihat",
+        checkInAvailableAt: "Absen masuk tersedia pukul {time}",
       },
 
       // Errors
@@ -342,6 +362,12 @@ export const hrdId = {
           },
         },
       },
+    },
+
+    // Leave Request
+    leaveRequest: {
+      title: "Permintaan Cuti",
+      description: "Kelola permintaan cuti Anda dan lihat riwayat cuti",
     },
 
     // Work Schedule
@@ -517,6 +543,10 @@ export const hrdId = {
         REJECTED: "Ditolak",
         CANCELED: "Dibatalkan",
         HOLIDAY: "Libur",
+        pending: "Menunggu",
+        approved: "Disetujui",
+        rejected: "Ditolak",
+        canceled: "Dibatalkan",
       },
 
       fields: {
@@ -538,6 +568,7 @@ export const hrdId = {
         approvedAt: "Disetujui Pada",
         rejectedBy: "Ditolak Oleh",
         rejectionReason: "Alasan Penolakan",
+        rejectReason: "Alasan Penolakan",
         employee: "Karyawan",
         division: "Divisi",
         taskDetails: "Detail Tugas",
@@ -578,6 +609,7 @@ export const hrdId = {
 
       errors: {
         loadFailed: "Gagal memuat permintaan lembur",
+        fetchFailed: "Gagal memuat data lembur",
       },
 
       form: {
@@ -604,7 +636,29 @@ export const hrdId = {
         rejectConfirm: "Harap berikan alasan penolakan",
         autoDetectedInfo:
           "Lembur ini terdeteksi otomatis berdasarkan waktu pulang Anda",
+        cancelError: "Gagal membatalkan permintaan lembur",
+        fetchFailed: "Gagal memuat data lembur",
       },
+
+      requestTypes: {
+        autoDetected: "Terdeteksi Otomatis",
+        manualClaim: "Klaim Manual",
+        preApproved: "Disetujui Sebelumnya",
+      },
+
+      emptyState: {
+        noOvertime: "Tidak ada permintaan lembur",
+        autoDetectInfo:
+          "Lembur akan terdeteksi otomatis saat Anda absen pulang melebihi jam kerja",
+      },
+
+      cancelDialog: {
+        title: "Batalkan Permintaan Lembur",
+        description:
+          "Apakah Anda yakin ingin membatalkan permintaan lembur ini?",
+      },
+
+      approvedBy: "Disetujui oleh",
 
       stats: {
         totalRequested: "Total Diminta",

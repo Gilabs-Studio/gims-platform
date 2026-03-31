@@ -35,6 +35,7 @@ var (
 	ErrOffDayNoCheckOut   = errors.New("cannot check out on off day")
 	ErrLateReasonRequired = errors.New("late reason is required when clocking in late")
 	ErrPhotoRequired      = errors.New("photo proof is required for WFH and field work clock-in")
+	ErrTooEarlyToCheckIn  = errors.New("cannot check in before scheduled start time")
 )
 
 // AttendanceRecordUsecase defines the interface for attendance record business logic
@@ -61,15 +62,16 @@ type AttendanceRecordUsecase interface {
 }
 
 type attendanceRecordUsecase struct {
-	attendanceRepo   repositories.AttendanceRecordRepository
-	workScheduleRepo repositories.WorkScheduleRepository
-	holidayRepo      repositories.HolidayRepository
-	leaveRequestRepo repositories.LeaveRequestRepository
-	employeeRepo     orgRepos.EmployeeRepository
-	divisionRepo     orgRepos.DivisionRepository
-	mapper           *mapper.AttendanceRecordMapper
-	wsMapper         *mapper.WorkScheduleMapper
-	holidayMapper    *mapper.HolidayMapper
+	attendanceRepo    repositories.AttendanceRecordRepository
+	workScheduleRepo  repositories.WorkScheduleRepository
+	holidayRepo       repositories.HolidayRepository
+	leaveRequestRepo  repositories.LeaveRequestRepository
+	employeeRepo      orgRepos.EmployeeRepository
+	divisionRepo      orgRepos.DivisionRepository
+	overtimeRequestUC OvertimeRequestUsecase
+	mapper            *mapper.AttendanceRecordMapper
+	wsMapper          *mapper.WorkScheduleMapper
+	holidayMapper     *mapper.HolidayMapper
 }
 
 // NewAttendanceRecordUsecase creates a new AttendanceRecordUsecase
@@ -80,17 +82,19 @@ func NewAttendanceRecordUsecase(
 	leaveRequestRepo repositories.LeaveRequestRepository,
 	employeeRepo orgRepos.EmployeeRepository,
 	divisionRepo orgRepos.DivisionRepository,
+	overtimeRequestUC OvertimeRequestUsecase,
 ) AttendanceRecordUsecase {
 	return &attendanceRecordUsecase{
-		attendanceRepo:   attendanceRepo,
-		workScheduleRepo: workScheduleRepo,
-		holidayRepo:      holidayRepo,
-		leaveRequestRepo: leaveRequestRepo,
-		employeeRepo:     employeeRepo,
-		divisionRepo:     divisionRepo,
-		mapper:           mapper.NewAttendanceRecordMapper(),
-		wsMapper:         mapper.NewWorkScheduleMapper(),
-		holidayMapper:    mapper.NewHolidayMapper(),
+		attendanceRepo:    attendanceRepo,
+		workScheduleRepo:  workScheduleRepo,
+		holidayRepo:       holidayRepo,
+		leaveRequestRepo:  leaveRequestRepo,
+		employeeRepo:      employeeRepo,
+		divisionRepo:      divisionRepo,
+		overtimeRequestUC: overtimeRequestUC,
+		mapper:            mapper.NewAttendanceRecordMapper(),
+		wsMapper:          mapper.NewWorkScheduleMapper(),
+		holidayMapper:     mapper.NewHolidayMapper(),
 	}
 }
 
@@ -145,7 +149,7 @@ func (u *attendanceRecordUsecase) GetByID(ctx context.Context, id string) (*dto.
 		return nil, err
 	}
 
-	resp := u.mapper.ToResponse(ar)
+	resp := u.mapper.ToResponse(ar, ar.EmployeeID)
 	// Enrich with employee data
 	employeeMap := u.buildEmployeeMap(ctx, []string{ar.EmployeeID})
 	u.mapper.EnrichResponse(resp, employeeMap)
@@ -233,6 +237,33 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		return nil, ErrHolidayNoCheckIn
 	}
 
+	// Validate check-in time is not before scheduled start time
+	// Employee can only clock in at or after their scheduled start time
+	empLoc := apptime.LocationForEmployee(employeeID)
+	now := time.Now().In(empLoc)
+
+	// Determine the earliest allowed check-in time
+	var earliestCheckInTime string
+	if ws.IsFlexible && ws.FlexibleStartTime != "" {
+		earliestCheckInTime = ws.FlexibleStartTime
+	} else {
+		earliestCheckInTime = ws.StartTime
+	}
+
+	// Parse earliest check-in time
+	earliestTime, err := time.Parse("15:04", earliestCheckInTime)
+	if err != nil {
+		return nil, fmt.Errorf("invalid schedule start time: %w", err)
+	}
+
+	earliestCheckInToday := time.Date(today.Year(), today.Month(), today.Day(),
+		earliestTime.Hour(), earliestTime.Minute(), 0, 0, empLoc)
+
+	// Check if current time is before earliest allowed check-in time
+	if now.Before(earliestCheckInToday) {
+		return nil, fmt.Errorf("TOO_EARLY_TO_CHECK_IN: Cannot check in before %s. Your scheduled start time is %s.", earliestCheckInTime, ws.StartTime)
+	}
+
 	// GPS validation
 	if ws.RequireGPS && req.CheckInType == string(models.CheckInTypeNormal) {
 		if req.Latitude == nil || req.Longitude == nil {
@@ -247,8 +278,6 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 	}
 
 	// Calculate late minutes
-	empLoc := apptime.LocationForEmployee(employeeID)
-	now := time.Now().In(empLoc)
 	lateMinutes := 0
 
 	// Parse schedule start time
@@ -317,7 +346,8 @@ func (u *attendanceRecordUsecase) ClockIn(ctx context.Context, employeeID string
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(ar), nil
+	resp := u.mapper.ToResponse(ar, ar.EmployeeID)
+	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID string, req *dto.ClockOutRequest) (*dto.AttendanceRecordResponse, error) {
@@ -373,10 +403,12 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 	// Calculate working minutes
 	ar.CalculateWorkingMinutes()
 
+	var scheduleEndToday time.Time
+
 	// Calculate early leave minutes
 	if ws != nil {
 		scheduleEnd, _ := time.Parse("15:04", ws.EndTime)
-		scheduleEndToday := time.Date(today.Year(), today.Month(), today.Day(),
+		scheduleEndToday = time.Date(today.Year(), today.Month(), today.Day(),
 			scheduleEnd.Hour(), scheduleEnd.Minute(), 0, 0, empLoc)
 
 		// Subtract tolerance
@@ -421,7 +453,24 @@ func (u *attendanceRecordUsecase) ClockOut(ctx context.Context, employeeID strin
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(ar), nil
+	// Auto-create overtime request if overtime detected
+	if ar.OvertimeMinutes > 0 && u.overtimeRequestUC != nil && !scheduleEndToday.IsZero() {
+		overtimeStartTime := scheduleEndToday.Add(30 * time.Minute)
+		overtimeEndTime := now
+
+		_, _ = u.overtimeRequestUC.CreateAutoDetectedOvertime(
+			ctx,
+			ar.ID,
+			employeeID,
+			ar.OvertimeMinutes,
+			today,
+			overtimeStartTime,
+			overtimeEndTime,
+		)
+	}
+
+	resp := u.mapper.ToResponse(ar, employeeID)
+	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) CreateManualEntry(ctx context.Context, req *dto.ManualAttendanceRequest, createdBy string) (*dto.AttendanceRecordResponse, error) {
@@ -483,7 +532,8 @@ func (u *attendanceRecordUsecase) CreateManualEntry(ctx context.Context, req *dt
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(ar), nil
+	resp := u.mapper.ToResponse(ar, req.EmployeeID)
+	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) Update(ctx context.Context, id string, req *dto.UpdateAttendanceRecordRequest) (*dto.AttendanceRecordResponse, error) {
@@ -538,7 +588,8 @@ func (u *attendanceRecordUsecase) Update(ctx context.Context, id string, req *dt
 		return nil, err
 	}
 
-	return u.mapper.ToResponse(ar), nil
+	resp := u.mapper.ToResponse(ar, ar.EmployeeID)
+	return resp, nil
 }
 
 func (u *attendanceRecordUsecase) Delete(ctx context.Context, id string) error {

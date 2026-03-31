@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -209,8 +210,19 @@ func (h *AttendanceRecordHandler) ClockIn(c *gin.Context) {
 			errors.ErrorResponse(c, "PHOTO_REQUIRED", map[string]interface{}{
 				"message": "Photo proof is required for WFH and field work clock-in",
 			}, nil)
+		case usecase.ErrTooEarlyToCheckIn:
+			errors.ErrorResponse(c, "TOO_EARLY_TO_CHECK_IN", map[string]interface{}{
+				"message": "Cannot check in before your scheduled start time",
+			}, nil)
 		default:
-			errors.InternalServerErrorResponse(c, err.Error())
+			// Check for TOO_EARLY_TO_CHECK_IN with custom message format
+			if strings.Contains(err.Error(), "TOO_EARLY_TO_CHECK_IN") {
+				errors.ErrorResponse(c, "TOO_EARLY_TO_CHECK_IN", map[string]interface{}{
+					"message": err.Error(),
+				}, nil)
+			} else {
+				errors.InternalServerErrorResponse(c, err.Error())
+			}
 		}
 		return
 	}

@@ -1,4 +1,8 @@
-export type LeaveRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+export type LeaveRequestStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
 export type LeaveDuration = "FULL_DAY" | "HALF_DAY" | "MULTI_DAY";
 
 export interface LeaveType {
@@ -33,6 +37,9 @@ export interface LeaveRequest {
   total_days: number;
   reason: string;
   status: LeaveRequestStatus;
+  rejected_by?: string;
+  rejected_by_name?: string;
+  rejection_note?: string;
   created_at: string;
   updated_at: string;
 }

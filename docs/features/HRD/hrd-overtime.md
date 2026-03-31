@@ -2,7 +2,7 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13  
-> **Version:** 1.0.0  
+> **Version:** 1.0.1  
 > **Status:** ✅ Complete (API + Frontend)  
 > **Last Updated:** March 2026
 
@@ -186,6 +186,7 @@ type OvertimeRequestResponse struct {
     ApprovedByName     string  `json:"approved_by_name,omitempty"`  // Enriched
     ApprovedAt         *string `json:"approved_at,omitempty"`
     RejectedBy         *string `json:"rejected_by,omitempty"`
+    RejectedByName     string  `json:"rejected_by_name,omitempty"`  // Enriched (NEW)
     RejectedAt         *string `json:"rejected_at,omitempty"`
     RejectReason       string  `json:"reject_reason"`
     OvertimeRate       float64 `json:"overtime_rate"`
@@ -387,6 +388,20 @@ Dialog for approving or rejecting overtime requests.
 ---
 
 ## Recent Changes
+
+### v1.0.1 (March 2026) - Recent Updates
+
+#### UI/UX Improvements
+
+- ✅ **Rejected By Name**: Added `rejected_by_name` field to overtime request response
+- ✅ **Drawer UI Cleanup**: Removed redundant "Overtime" title from self-overtime-tab (drawer already has title)
+- ✅ **Cancel Action Update**: Changed from delete to cancel action with proper UI
+- ✅ **Reject Info Display**: Enhanced card display with rejected by name and reject reason
+
+#### Error Handling
+
+- ✅ **Error Message Parsing**: Frontend strips error code prefix for clean user messages
+- ✅ **Translation Keys**: Added lowercase status variants for dynamic status mapping
 
 ### v1.0.0 (March 2026)
 

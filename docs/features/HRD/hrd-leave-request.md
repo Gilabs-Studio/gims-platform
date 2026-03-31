@@ -2,7 +2,7 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** 13+  
-> **Version:** 1.5.0  
+> **Version:** 1.5.1  
 > **Status:** ✅ Complete (API + Frontend)  
 > **Last Updated:** March 2026
 
@@ -85,9 +85,25 @@ REJECTED ──▶ PENDING (after edit/resubmit)
 **Status Rules:**
 
 - Only `PENDING` can be approved or rejected
-- Only `PENDING` or `APPROVED` can be cancelled
+- Only `PENDING` or `APPROVED` can be cancelled (must be before start date)
 - `CANCELLED` is final state (cannot be changed)
-- Editing only allowed for `PENDING` or `REJECTED`
+- **Editing only allowed for `PENDING` (REJECTED cannot be edited, must create new request)**
+
+### 4. Cancel Validation Rules
+
+**Before Start Date Rule:**
+
+```
+Cancel can only be performed when: today < start_date
+
+If today >= start_date:
+  Return Error: "Leave request can only be cancelled before the start date"
+```
+
+**Applies to:**
+
+- Self-service cancel (employee canceling own request)
+- Admin cancel (HR/approver canceling any request)
 
 ### 4. Leave Balance Calculation
 
@@ -176,26 +192,27 @@ apps/web/src/features/hrd/leave-request/
 
 ### LeaveRequest
 
-| Field          | Type         | Description                            |
-| -------------- | ------------ | -------------------------------------- |
-| id             | UUID         | Primary key                            |
-| employee_id    | UUID         | Employee reference                     |
-| leave_type_id  | UUID         | Leave type reference                   |
-| start_date     | DATE         | Leave start date                       |
-| end_date       | DATE         | Leave end date                         |
-| duration       | ENUM         | HALF_DAY, FULL_DAY, MULTI_DAY          |
-| total_days     | DECIMAL(4,1) | Calculated working days                |
-| status         | ENUM         | PENDING, APPROVED, REJECTED, CANCELLED |
-| reason         | TEXT         | Leave reason/description               |
-| rejection_note | TEXT         | Rejection/cancellation reason          |
-| approved_by    | UUID         | Approver user ID                       |
-| approved_at    | TIMESTAMP    | Approval timestamp                     |
-| rejected_by    | UUID         | Rejecter user ID                       |
-| rejected_at    | TIMESTAMP    | Rejection timestamp                    |
-| is_carry_over  | BOOLEAN      | Whether from previous year             |
-| created_at     | TIMESTAMP    | Creation timestamp                     |
-| updated_at     | TIMESTAMP    | Last update timestamp                  |
-| deleted_at     | TIMESTAMP    | Soft delete timestamp                  |
+| Field                | Type         | Description                            |
+| -------------------- | ------------ | -------------------------------------- |
+| id                   | UUID         | Primary key                            |
+| employee_id          | UUID         | Employee reference                     |
+| leave_type_id        | UUID         | Leave type reference                   |
+| start_date           | DATE         | Leave start date                       |
+| end_date             | DATE         | Leave end date                         |
+| duration             | ENUM         | HALF_DAY, FULL_DAY, MULTI_DAY          |
+| total_days           | DECIMAL(4,1) | Calculated working days                |
+| status               | ENUM         | PENDING, APPROVED, REJECTED, CANCELLED |
+| reason               | TEXT         | Leave reason/description               |
+| rejection_note       | TEXT         | Rejection/cancellation reason          |
+| approved_by          | UUID         | Approver user ID                       |
+| approved_at          | TIMESTAMP    | Approval timestamp                     |
+| rejected_by          | UUID         | Rejecter user ID                       |
+| rejected_at          | TIMESTAMP    | Rejection timestamp                    |
+| **rejected_by_name** | STRING       | **Rejecter employee name (enriched)**  |
+| is_carry_over        | BOOLEAN      | Whether from previous year             |
+| created_at           | TIMESTAMP    | Creation timestamp                     |
+| updated_at           | TIMESTAMP    | Last update timestamp                  |
+| deleted_at           | TIMESTAMP    | Soft delete timestamp                  |
 
 ### LeaveType
 
@@ -233,9 +250,18 @@ Prevent double-booking:
 ```go
 existing = FindApprovedOrPendingRequests(employee_id, start_date, end_date)
 if existing.count > 0 {
-    return Error: "Overlapping leave request exists"
+    return Error: "OVERLAPPING_LEAVE_REQUEST: Employee already has a leave request for these dates"
 }
 ```
+
+**Error Message Format:**
+
+Backend returns errors in format: `ERROR_CODE: Human readable message`
+
+Frontend strips the error code prefix and displays only the human-readable message:
+
+- Backend: `"OVERLAPPING_LEAVE_REQUEST: Employee already has a leave request for these dates"`
+- Frontend Display: `"Employee already has a leave request for these dates"`
 
 ### 3. Row-Level Locking
 
@@ -270,15 +296,15 @@ When leave is cancelled (if was APPROVED):
 
 ### Self-Service Endpoints
 
-| Method | Endpoint                                     | Auth | Description             |
-| ------ | -------------------------------------------- | ---- | ----------------------- |
-| GET    | `/api/v1/hrd/leave-requests/self`            | JWT  | List own leave requests |
-| POST   | `/api/v1/hrd/leave-requests/self`            | JWT  | Submit own request      |
-| GET    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Get own request detail  |
-| PUT    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Update own request      |
-| POST   | `/api/v1/hrd/leave-requests/self/:id/cancel` | JWT  | Cancel own request      |
-| GET    | `/api/v1/hrd/leave-requests/my-balance`      | JWT  | Get own leave balance   |
-| GET    | `/api/v1/hrd/leave-requests/my-form-data`    | JWT  | Get form dropdown data  |
+| Method | Endpoint                                     | Auth | Description                                    |
+| ------ | -------------------------------------------- | ---- | ---------------------------------------------- |
+| GET    | `/api/v1/hrd/leave-requests/self`            | JWT  | List own leave requests                        |
+| POST   | `/api/v1/hrd/leave-requests/self`            | JWT  | Submit own request                             |
+| GET    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Get own request detail                         |
+| PUT    | `/api/v1/hrd/leave-requests/self/:id`        | JWT  | Update own request                             |
+| POST   | `/api/v1/hrd/leave-requests/self/:id/cancel` | JWT  | Cancel own request (must be before start date) |
+| GET    | `/api/v1/hrd/leave-requests/my-balance`      | JWT  | Get own leave balance                          |
+| GET    | `/api/v1/hrd/leave-requests/my-form-data`    | JWT  | Get form dropdown data                         |
 
 ### Admin Endpoints
 
@@ -669,18 +695,46 @@ POST /hrd/leave-requests/:id/cancel
 
 ## Notes & Improvements
 
+### Recent Updates (March 2026) 🆕
+
+**Cancel Date Validation:**
+
+- Cancel hanya bisa dilakukan sebelum tanggal cuti dimulai (today < start_date)
+- Validasi di backend dan frontend untuk konsistensi
+- Error message yang jelas: "Leave request can only be cancelled before the start date"
+
+**Edit Status Restriction:**
+
+- REJECTED status tidak bisa di-edit lagi
+- Hanya PENDING yang bisa di-edit
+- Alasan: REJECTED harus diajukan ulang (create new request)
+
+**Rejected By Name Enhancement:**
+
+- Menambahkan field `rejected_by_name` di API response
+- Menampilkan nama penolak di UI card leave request
+- Menampilkan reject reason dengan icon dan styling
+
+**Error Handling Improvements:**
+
+- Backend: Format error `CODE: message` untuk parsing mudah
+- Frontend: Strip error code prefix untuk pesan yang bersih
+- Contoh: `OVERLAPPING_LEAVE_REQUEST: Employee already has...` → `Employee already has...`
+
 ### Completed Features ✅
 
 **Backend:**
 
 - ✅ Search functionality dengan ILIKE + GIN indexes
 - ✅ Cancel endpoint dengan row-level locking
+- ✅ Cancel date validation (before start date only)
 - ✅ Form data dengan employee_code dan remaining_balance
 - ✅ Permission middleware integration
 - ✅ Soft delete untuk audit trail
 - ✅ Working days calculation (exclude weekends & holidays)
-- ✅ Overlap validation
+- ✅ Overlap validation dengan error message yang jelas
 - ✅ Balance validation
+- ✅ Rejected by name enrichment
 
 **Frontend:**
 
@@ -688,13 +742,16 @@ POST /hrd/leave-requests/:id/cancel
 - ✅ Auto-populate edit form
 - ✅ Employee balance in selector
 - ✅ Cancel/Reject action dengan note dialog
-- ✅ Separate cancel/reject info display
+- ✅ Cancel button hidden after leave start date
+- ✅ Edit button hanya untuk PENDING (tidak untuk REJECTED)
+- ✅ Rejected info display (rejected_by_name + reject_reason)
 - ✅ Self-service leave request tab
 - ✅ Leave quota display dengan color coding
 - ✅ Auto-fill end date
 - ✅ Form caching ke localStorage
 - ✅ Comprehensive detail modal
 - ✅ i18n translations (EN/ID)
+- ✅ Error message parsing (strip code prefix)
 
 ### Planned Improvements ⏳
 
@@ -735,15 +792,19 @@ POST /hrd/leave-requests/:id/cancel
 
 ### Error Codes
 
-| Code                   | Description                        |
-| ---------------------- | ---------------------------------- |
-| `INSUFFICIENT_BALANCE` | Requested days > remaining balance |
-| `OVERLAPPING_REQUEST`  | Overlapping leave exists           |
-| `INVALID_STATUS`       | Invalid status transition          |
-| `INVALID_DATE_RANGE`   | Start date > end date              |
-| `NOT_FOUND`            | Leave request not found            |
-| `ALREADY_APPROVED`     | Cannot modify approved request     |
-| `ALREADY_CANCELLED`    | Cannot modify cancelled request    |
+| Code                         | Description                                        |
+| ---------------------------- | -------------------------------------------------- |
+| `INSUFFICIENT_LEAVE_BALANCE` | Requested days > remaining balance                 |
+| `OVERLAPPING_LEAVE_REQUEST`  | Employee already has leave for these dates         |
+| `INVALID_STATUS`             | Invalid status transition (e.g., editing REJECTED) |
+| `INVALID_DATE`               | Cancel attempted on or after start date            |
+| `INVALID_DATE_FORMAT`        | Date format must be YYYY-MM-DD                     |
+| `INVALID_DATE_RANGE`         | Start date > end date                              |
+| `NOT_FOUND`                  | Leave request not found                            |
+| `LEAVE_REQUEST_NOT_FOUND`    | Leave request with given ID not found              |
+| `VALIDATION_ERROR`           | General validation error                           |
+| `FORBIDDEN`                  | User does not have permission for this action      |
+| `UNAUTHORIZED`               | User not authenticated                             |
 
 ### Database Indexes
 

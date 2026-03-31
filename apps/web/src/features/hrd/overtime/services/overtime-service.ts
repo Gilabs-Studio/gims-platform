@@ -40,6 +40,16 @@ export const overtimeService = {
     return response.data;
   },
 
+  async getMyRequests(
+    params?: ListOvertimeParams,
+  ): Promise<OvertimeListResponse> {
+    const response = await apiClient.get<OvertimeListResponse>(
+      "/hrd/overtime/my",
+      { params },
+    );
+    return response.data;
+  },
+
   // Manager/Admin endpoints
   async list(params?: ListOvertimeParams): Promise<OvertimeListResponse> {
     const response = await apiClient.get<OvertimeListResponse>(

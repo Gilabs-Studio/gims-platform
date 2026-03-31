@@ -50,7 +50,7 @@ func (m *LeaveRequestMapper) ToModel(req *dto.CreateLeaveRequestDTO, totalDays f
 
 // ToResponseDTO converts LeaveRequest model to LeaveRequestResponseDTO (list view with employee name and leave type)
 // WHY: List view should show names instead of IDs for better readability
-func (m *LeaveRequestMapper) ToResponseDTO(model *models.LeaveRequest, employee *orgModels.Employee, leaveType *coreModels.LeaveType) *dto.LeaveRequestResponseDTO {
+func (m *LeaveRequestMapper) ToResponseDTO(model *models.LeaveRequest, employee *orgModels.Employee, leaveType *coreModels.LeaveType, employeeMap map[string]*orgModels.Employee) *dto.LeaveRequestResponseDTO {
 	if model == nil {
 		return nil
 	}
@@ -65,7 +65,7 @@ func (m *LeaveRequestMapper) ToResponseDTO(model *models.LeaveRequest, employee 
 		leaveTypeName = leaveType.Name
 	}
 
-	return &dto.LeaveRequestResponseDTO{
+	dto := &dto.LeaveRequestResponseDTO{
 		ID:           model.ID,
 		EmployeeName: employeeName,
 		LeaveType:    leaveTypeName,
@@ -78,6 +78,19 @@ func (m *LeaveRequestMapper) ToResponseDTO(model *models.LeaveRequest, employee 
 		CreatedAt:    model.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:    model.UpdatedAt.Format(time.RFC3339),
 	}
+
+	// Add rejection details if rejected
+	if model.RejectedBy != nil {
+		dto.RejectedBy = model.RejectedBy
+		if rejecter, ok := employeeMap[*model.RejectedBy]; ok && rejecter != nil {
+			dto.RejectedByName = rejecter.Name
+		}
+	}
+	if model.RejectionNote != nil {
+		dto.RejectionNote = model.RejectionNote
+	}
+
+	return dto
 }
 
 // ToDetailResponseDTO converts LeaveRequest model to LeaveRequestDetailResponseDTO with full details
@@ -169,7 +182,7 @@ func (m *LeaveRequestMapper) ToList(models []*models.LeaveRequest, employees map
 			leaveType = leaveTypes[model.LeaveTypeID]
 		}
 
-		dtos[i] = m.ToResponseDTO(model, employee, leaveType)
+		dtos[i] = m.ToResponseDTO(model, employee, leaveType, employees)
 	}
 
 	return dtos
