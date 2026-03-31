@@ -62,7 +62,8 @@ export type WidgetType =
   | "track_purchase_orders"
   // Approval list widgets
   | "pending_approvals_sales"
-  | "pending_approvals_purchase";
+  | "pending_approvals_purchase"
+  | "travel_planner_overview";
 
 /** Widget registry entry - metadata describing a widget */
 export interface WidgetRegistryEntry {

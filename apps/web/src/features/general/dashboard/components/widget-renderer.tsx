@@ -22,6 +22,7 @@ import { TrackOrderCard } from "./track-order-card";
 import { TrackPurchaseOrderCard } from "./track-purchase-order-card";
 import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
 import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
+import { TravelPlannerWidget } from "./travel-planner-widget";
 import { WidgetAsyncState } from "./widget-async-state";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
 
@@ -187,6 +188,9 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
       break;
     case "best_selling":
       content = <BestSellingCard data={data?.top_products} />;
+      break;
+    case "travel_planner_overview":
+      content = <TravelPlannerWidget />;
       break;
 
     default:
