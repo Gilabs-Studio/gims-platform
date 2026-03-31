@@ -18,8 +18,11 @@ import (
 
 // SalesDeps holds exported Sales usecases for cross-module consumption
 type SalesDeps struct {
-	QuotationUC usecase.SalesQuotationUsecase
-	OrderUC     usecase.SalesOrderUsecase
+	QuotationUC       usecase.SalesQuotationUsecase
+	OrderUC           usecase.SalesOrderUsecase
+	DeliveryOrderUC   usecase.DeliveryOrderUsecase
+	CustomerInvoiceUC usecase.CustomerInvoiceUsecase
+	YearlyTargetUC    usecase.YearlyTargetUsecase
 }
 
 type PermissionService interface {
@@ -107,7 +110,10 @@ func RegisterRoutes(
 	router.RegisterReceivablesRecapRoutes(salesGroup, recapHandler)
 
 	return &SalesDeps{
-		QuotationUC: quotationUC,
-		OrderUC:     orderUC,
+		QuotationUC:       quotationUC,
+		OrderUC:           orderUC,
+		DeliveryOrderUC:   deliveryUC,
+		CustomerInvoiceUC: invoiceUC,
+		YearlyTargetUC:    yearlyTargetUC,
 	}
 }

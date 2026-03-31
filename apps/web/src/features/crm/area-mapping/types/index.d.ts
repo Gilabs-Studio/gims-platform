@@ -3,24 +3,7 @@ import type { ApiResponse, PaginatedResponse } from "@/types/api";
 // Area Mapping types
 
 /** Item type for area mapping */
-type AreaMappingItemType = "customer" | "lead";
-
-/** Customer data on the map */
-export interface AreaMappingCustomerData {
-  id: string;
-  code: string;
-  name: string;
-  type: "customer";
-  latitude: number;
-  longitude: number;
-  province: string;
-  city: string;
-  activity_count: number;
-  deal_count: number;
-  total_deal_value: number;
-  last_activity_at?: string;
-  intensity_score: number;
-}
+type AreaMappingItemType = "lead" | "pipeline";
 
 /** Lead data on the map */
 export interface AreaMappingLeadData {
@@ -43,17 +26,40 @@ export interface AreaMappingLeadData {
   intensity_score: number;
 }
 
-/** Area mapping item (union type of customer or lead) */
+/** Pipeline deal data on the map */
+export interface AreaMappingPipelineData {
+  id: string;
+  code: string;
+  title: string;
+  type: "pipeline";
+  latitude: number;
+  longitude: number;
+  province: string;
+  city: string;
+  pipeline_stage_id: string;
+  pipeline_stage_name: string;
+  status: string;
+  value: number;
+  probability: number;
+  expected_close_date?: string;
+  assigned_to?: string;
+  assigned_name?: string;
+  lead_id?: string;
+  lead_name?: string;
+  intensity_score: number;
+}
+
+/** Area mapping item (union type of lead or pipeline) */
 export interface AreaMappingItem {
   type: AreaMappingItemType;
-  customer?: AreaMappingCustomerData;
   lead?: AreaMappingLeadData;
+  pipeline?: AreaMappingPipelineData;
 }
 
 /** Area mapping summary stats */
 export interface AreaMappingSummary {
-  total_customers: number;
   total_leads: number;
+  total_pipelines: number;
   total_activities: number;
   total_pipeline_value: number;
   max_intensity_score: number;
@@ -70,8 +76,9 @@ export interface AreaMappingFilterMeta {
 export interface AreaMappingCluster {
   city: string;
   total_points: number;
-  customer_count: number;
   lead_count: number;
+  pipeline_deal_count: number;
+  total_pipeline_value: number;
   avg_intensity: number;
   max_intensity: number;
   center_lat: number;

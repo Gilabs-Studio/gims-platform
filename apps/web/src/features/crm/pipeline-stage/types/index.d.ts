@@ -16,20 +16,15 @@ export interface PipelineStage {
 
 export interface CreatePipelineStageData {
   name: string;
-  code: string;
-  order?: number;
   color?: string;
   probability?: number;
   is_won?: boolean;
   is_lost?: boolean;
-  is_active?: boolean;
   description?: string;
 }
 
 export interface UpdatePipelineStageData {
   name?: string;
-  code?: string;
-  order?: number;
   color?: string;
   probability?: number;
   is_won?: boolean;

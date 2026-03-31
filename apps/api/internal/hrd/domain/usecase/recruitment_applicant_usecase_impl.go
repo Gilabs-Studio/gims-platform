@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
@@ -81,6 +83,9 @@ func (u *recruitmentApplicantUsecase) GetAll(ctx context.Context, params dto.Lis
 }
 
 func (u *recruitmentApplicantUsecase) GetByID(ctx context.Context, id string) (*dto.RecruitmentApplicantResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.RecruitmentApplicant{}, id, security.HRDScopeQueryOptions()) {
+		return nil, errors.New("applicant not found")
+	}
 	applicant, err := u.applicantRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err

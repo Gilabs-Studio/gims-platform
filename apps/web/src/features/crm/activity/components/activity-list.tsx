@@ -40,7 +40,7 @@ export function ActivityList() {
   const { t, tCommon } = translations;
 
   const { data: formDataRes } = useLeadFormData({ enabled: permissions.canCreate });
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const { data: activityTypesData } = useActivityTypes({ per_page: 20, sort_by: "order", sort_dir: "asc" });
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.data?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);
@@ -132,7 +132,7 @@ export function ActivityList() {
               <TableHead>{t("table.customer")}</TableHead>
               <TableHead>{t("table.contact")}</TableHead>
               <TableHead>{t("table.timestamp")}</TableHead>
-              <TableHead className="w-[80px]">{tCommon("actions")}</TableHead>
+              <TableHead className="w-20">{tCommon("actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

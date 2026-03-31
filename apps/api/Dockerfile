@@ -19,6 +19,12 @@ COPY . .
 # Build the application with CGO enabled for libwebp support
 RUN CGO_ENABLED=1 GOOS=linux go build -a -o server ./cmd/api/main.go
 
+# Build seed tool (for manual seeding modes)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -o seed ./cmd/tools/seed/main.go
+
+# Build validation tool (to run financial validation checks)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -o validate_finance ./cmd/tools/validate_finance/main.go
+
 # Final stage
 FROM alpine:latest
 
@@ -27,8 +33,10 @@ RUN apk --no-cache add ca-certificates libwebp tzdata
 
 WORKDIR /root/
 
-# Copy the binary from builder
+# Copy binaries from builder
 COPY --from=builder /app/server .
+COPY --from=builder /app/seed .
+COPY --from=builder /app/validate_finance .
 
 # Create uploads directory
 RUN mkdir -p /app/uploads && chmod 755 /app/uploads

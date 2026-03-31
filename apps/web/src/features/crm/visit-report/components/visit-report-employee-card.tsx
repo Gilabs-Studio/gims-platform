@@ -6,36 +6,18 @@ import {
   ChevronUp,
   CalendarDays,
   BarChart3,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  FileText,
   Eye,
   MapPin,
-  Send,
-  ThumbsUp,
-  ThumbsDown,
-  Info,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatTime } from "@/lib/utils";
-import { useVisitReports, useSubmitVisitReport, useApproveVisitReport, useRejectVisitReport } from "../hooks/use-visit-reports";
-import { useUserPermission } from "@/hooks/use-user-permission";
-import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useVisitReports } from "../hooks/use-visit-reports";
 import { useRouter } from "@/i18n/routing";
-import type { VisitReportEmployeeSummary, VisitReportStatus, VisitReportOutcome } from "../types";
-
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive" | "success"> = {
-  draft: "secondary",
-  submitted: "default",
-  approved: "success",
-  rejected: "destructive",
-};
+import type { VisitReportEmployeeSummary, VisitReportOutcome } from "../types";
 
 const OUTCOME_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   very_positive: "default",
@@ -59,15 +41,8 @@ interface VisitReportEmployeeCardProps {
 /** Expandable card showing an employee's visit report summary with lazy-loaded report rows. */
 export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProps) {
   const t = useTranslations("crmVisitReport");
-  const tCommon = useTranslations("common");
   const router = useRouter();
-  const { user } = useAuthStore();
   const [expanded, setExpanded] = useState(false);
-
-  const canApprove = useUserPermission("crm_visit.approve");
-  const submitMutation = useSubmitVisitReport();
-  const approveMutation = useApproveVisitReport();
-  const rejectMutation = useRejectVisitReport();
 
   // Lazy-load visit reports for this employee only when the card is expanded
   const { data, isLoading } = useVisitReports(
@@ -108,35 +83,11 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
         </div>
 
         {/* Metrics Summary: use a fixed grid so badges align neatly */}
-        <div className="hidden sm:grid grid-cols-5 gap-4 items-center shrink-0 text-center">
+        <div className="hidden sm:grid grid-cols-1 gap-4 items-center shrink-0 text-center">
           <div className="py-1">
             <BarChart3 className="mx-auto h-4 w-4 text-muted-foreground" />
             <div className="mt-1 text-lg font-bold leading-none">{summary.total_reports}</div>
             <div className="text-xs text-muted-foreground">{t("metrics.total")}</div>
-          </div>
-
-          <div className="py-1">
-            <Clock className="mx-auto h-4 w-4 text-warning" />
-            <div className="mt-1 text-lg font-bold text-warning leading-none">{summary.status_counts.submitted}</div>
-            <div className="text-xs text-muted-foreground">{t("status.submitted")}</div>
-          </div>
-
-          <div className="py-1">
-            <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
-            <div className="mt-1 text-lg font-bold text-success leading-none">{summary.status_counts.approved}</div>
-            <div className="text-xs text-muted-foreground">{t("status.approved")}</div>
-          </div>
-
-          <div className="py-1">
-            <XCircle className="mx-auto h-4 w-4 text-destructive" />
-            <div className="mt-1 text-lg font-bold text-destructive leading-none">{summary.status_counts.rejected}</div>
-            <div className="text-xs text-muted-foreground">{t("status.rejected")}</div>
-          </div>
-
-          <div className="py-1">
-            <FileText className="mx-auto h-4 w-4 text-muted-foreground" />
-            <div className="mt-1 text-lg font-bold leading-none">{summary.status_counts.draft}</div>
-            <div className="text-xs text-muted-foreground">{t("status.draft")}</div>
           </div>
         </div>
 
@@ -189,12 +140,6 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                     <span className="text-sm">{formatDate(visit.visit_date)}</span>
                     <span className="text-sm truncate">{visit.customer?.name ?? "-"}</span>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge
-                        variant={STATUS_VARIANTS[visit.status as VisitReportStatus] ?? "outline"}
-                        className="text-xs"
-                      >
-                        {t(`status.${visit.status as VisitReportStatus}`)}
-                      </Badge>
                       {visit.outcome && (
                         <Badge
                           variant={OUTCOME_VARIANTS[visit.outcome] ?? "secondary"}
@@ -206,9 +151,7 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                     </div>
                   </button>
 
-                  {/* Fixed width container for trailing elements so they don't break flex alignment */}
-                  <div className="flex items-center justify-end gap-3 shrink-0 w-[160px]">
-                    {/* Check-in indicator */}
+                  <div className="flex items-center justify-end gap-3 shrink-0 w-24">
                     <div className="flex justify-end w-[60px]">
                       {visit.check_in_at && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap">
@@ -217,66 +160,10 @@ export function VisitReportEmployeeCard({ summary }: VisitReportEmployeeCardProp
                         </span>
                       )}
                     </div>
-
-                    {/* Action shortcuts */}
-                    <div className="flex items-center justify-end gap-1 w-[88px]">
-                      {visit.status === "draft" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-primary"
-                          title={t("actions.submit")}
-                          disabled={submitMutation.isPending}
-                          onClick={() => submitMutation.mutate({ id: visit.id })}
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {visit.status === "submitted" && canApprove && (
-                        <TooltipProvider>
-                          <div className="flex items-center gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-success"
-                                    title={t("actions.approve")}
-                                    disabled={approveMutation.isPending || (!!user && visit.created_by === user.id)}
-                                    onClick={() => approveMutation.mutate({ id: visit.id })}
-                                  >
-                                    <ThumbsUp className="h-3.5 w-3.5" />
-                                  </Button>
-                                </span>
-                              </TooltipTrigger>
-                              {!!user && visit.created_by === user.id && (
-                                <TooltipContent>
-                                  <p className="flex items-center gap-1.5 text-xs">
-                                    <Info className="h-3 w-3" />
-                                    {t("validation.cannotApproveOwn")}
-                                  </p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
-                              title={t("actions.reject")}
-                              disabled={rejectMutation.isPending}
-                              onClick={() => rejectMutation.mutate({ id: visit.id, data: { reason: "" } })}
-                            >
-                              <ThumbsDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TooltipProvider>
-                      )}
-                      <Eye
-                        className="h-3.5 w-3.5 text-muted-foreground cursor-pointer"
-                        onClick={() => router.push(`/crm/visits/${visit.id}`)}
-                      />
-                    </div>
+                    <Eye
+                      className="h-3.5 w-3.5 text-muted-foreground cursor-pointer"
+                      onClick={() => router.push(`/crm/visits/${visit.id}`)}
+                    />
                   </div>
                 </div>
               ))}

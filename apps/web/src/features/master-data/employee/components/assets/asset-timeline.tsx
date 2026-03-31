@@ -5,11 +5,7 @@ import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Package,
   CheckCircle,
@@ -18,7 +14,6 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
-  ImageIcon,
   ZoomIn,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils";
@@ -142,7 +137,7 @@ export function AssetTimeline({
             {sorted.map((asset) => (
               <div key={asset.id} className="relative flex gap-4">
                 <div
-                  className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full ${getStatusColor(
+                  className={`relative z-10 shrink-0 w-12 h-12 rounded-full ${getStatusColor(
                     asset.status,
                   )} flex items-center justify-center shadow-md`}
                 >
@@ -152,12 +147,25 @@ export function AssetTimeline({
                 <div className="flex-1 pb-6">
                   <div className="bg-card border rounded-lg p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-2 mb-3">
-                      <div>
-                        <h4 className="font-semibold text-base">
-                          {asset.asset_name}
-                        </h4>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-base">
+                            {asset.asset_name}
+                          </h4>
+                          {asset.asset_id && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-blue-50 text-blue-600 border-blue-200"
+                            >
+                              Linked
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {asset.asset_code} &middot; {asset.asset_category}
+                          {asset.asset?.location && (
+                            <span> &middot; {asset.asset.location.name}</span>
+                          )}
                         </p>
                       </div>
                       <StatusBadge status={asset.status} t={t} />
@@ -175,23 +183,26 @@ export function AssetTimeline({
                             })
                           }
                         >
-                          <img
-                            src={resolveImageUrl(asset.asset_image) ?? ""}
-                            alt={asset.asset_name}
-                            className="object-cover w-full h-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = "none";
-                              target.parentElement?.classList.add(
-                                "flex",
-                                "items-center",
-                                "justify-center",
-                              );
-                              const icon = document.createElement("div");
-                              icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
-                              target.parentElement?.appendChild(icon);
-                            }}
-                          />
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolveImageUrl(asset.asset_image) ?? ""}
+                              alt={asset.asset_name}
+                              className="object-cover w-full h-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                target.parentElement?.classList.add(
+                                  "flex",
+                                  "items-center",
+                                  "justify-center",
+                                );
+                                const icon = document.createElement("div");
+                                icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+                                target.parentElement?.appendChild(icon);
+                              }}
+                            />
+                          </>
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                             <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
@@ -316,11 +327,14 @@ export function AssetTimeline({
             {previewImage?.alt ?? "Asset image"}
           </DialogTitle>
           {previewImage && (
-            <img
-              src={previewImage.src}
-              alt={previewImage.alt}
-              className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewImage.src}
+                alt={previewImage.alt}
+                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>

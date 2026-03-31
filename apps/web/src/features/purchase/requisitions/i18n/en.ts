@@ -55,6 +55,7 @@ export const purchaseRequisitionEn = {
     auditTrail: "Audit Trail",
   },
   sections: {
+    orderInfo: "Order Information",
     procurement: "Procurement",
     financial: "Financial Summary",
   },
@@ -76,6 +77,7 @@ export const purchaseRequisitionEn = {
     requestDate: "Request Date",
     supplier: "Supplier",
     supplierPhoneNumber: "Supplier Phone Number",
+    supplierContact: "Supplier Contact",
     paymentTerms: "Payment Terms",
     businessUnit: "Business Unit",
     employee: "Employee",

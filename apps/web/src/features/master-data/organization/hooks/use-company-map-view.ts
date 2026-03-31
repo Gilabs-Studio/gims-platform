@@ -42,7 +42,7 @@ export function useCompanyMapView() {
 
   // Queries & Mutations
   const { data, isLoading, refetch } = useCompanies({
-    per_page: 100, // Get max allowed for map
+    per_page: 20, // Get max allowed for map
     search: debouncedSearch || undefined,
     is_active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : undefined,
   });
@@ -51,7 +51,7 @@ export function useCompanyMapView() {
   const submitForApproval = useSubmitCompanyForApproval();
   const approveCompany = useApproveCompany();
 
-  const companies = data?.data ?? [];
+  const companies = useMemo(() => data?.data ?? [], [data?.data]);
 
   // Filter companies with valid coordinates for map & ensure they are numbers
   const markers: MapMarker<Company>[] = useMemo(() => {

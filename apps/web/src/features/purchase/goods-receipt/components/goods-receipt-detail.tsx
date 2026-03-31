@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Edit,
-  Trash2,
   CheckCircle2,
   XCircle,
   FileText,
@@ -221,17 +220,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                     title={t("actions.edit")}
                   >
                     <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-                {canDelete && status === "DRAFT" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsDeleteOpen(true)}
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    title={t("actions.delete")}
-                  >
-                    <Trash2 className="h-4 w-4" />
                   </Button>
                 )}
                 {canSubmit && status === "DRAFT" && (

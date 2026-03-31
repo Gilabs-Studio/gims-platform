@@ -101,6 +101,7 @@ func SeedPermissions() error {
 		{"/master-data/customers", "customer.delete", "Delete Customers", "DELETE", "customer"},
 		{"/master-data/customers", "customer.submit", "Submit Customers", "SUBMIT", "customer"},
 		{"/master-data/customers", "customer.approve", "Approve Customers", "APPROVE", "customer"},
+		{"/master-data/customer", "customer_menu.read", "View Customer Menu", "VIEW", "customer"}, // Mapping for parent/aliased menu
 
 		{"/master-data/customer-types", "customer_type.read", "View Customer Types", "VIEW", "customer_type"},
 		{"/master-data/customer-types", "customer_type.create", "Create Customer Types", "CREATE", "customer_type"},
@@ -239,6 +240,12 @@ func SeedPermissions() error {
 		{"/sales/returns", "sales_return.update", "Edit Sales Returns", "EDIT", "sales_return"},
 		{"/sales/returns", "sales_return.delete", "Delete Sales Returns", "DELETE", "sales_return"},
 
+		{"/sales/estimations", "sales_estimation.read", "View Sales Estimations", "VIEW", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.create", "Create Sales Estimations", "CREATE", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.update", "Edit Sales Estimations", "EDIT", "sales_estimation"},
+		{"/sales/estimations", "sales_estimation.delete", "Delete Sales Estimations", "DELETE", "sales_estimation"},
+		{"/sales/receivables-recap", "receivables_recap.read", "View Receivables Recap", "VIEW", "receivables_recap"},
+
 		{"/crm/targets", "sales_target.read", "View Sales Targets", "VIEW", "sales_target"},
 		{"/crm/targets", "sales_target.create", "Create Sales Targets", "CREATE", "sales_target"},
 		{"/crm/targets", "sales_target.update", "Edit Sales Targets", "EDIT", "sales_target"},
@@ -332,6 +339,7 @@ func SeedPermissions() error {
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.print", "Print Purchase Payments", "PRINT", "purchase_payment"},
+		{"/purchase/payable-recap", "payable_recap.read", "View Payable Recap", "VIEW", "payable_recap"},
 
 		// Stock
 		{"/stock/inventory", "inventory.read", "View Inventory", "VIEW", "inventory"},
@@ -441,11 +449,11 @@ func SeedPermissions() error {
 		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
 		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
-		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.delete", "Delete Up Country Cost", "DELETE", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.approve", "Approve Up Country Cost", "APPROVE", "up_country_cost"},
+		// Travel Planner
+		{"/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
+		{"/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
+		{"/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
+		{"/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
@@ -460,6 +468,13 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.read", "View Trial Balance Report", "VIEW", "trial_balance_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
+
+		{"/finance/journals/sales", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
+		{"/finance/reports", "finance_reports_menu.read", "View Finance Reports Menu", "VIEW", "finance_report"},
+
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
 		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
@@ -518,6 +533,10 @@ func SeedPermissions() error {
 		{"/hrd/overtime", "overtime.delete", "Delete Overtime Requests", "DELETE", "overtime"},
 		{"/hrd/overtime", "overtime.approve", "Approve Overtime Requests", "APPROVE", "overtime"},
 		{"/hrd/overtime", "overtime.reject", "Reject Overtime Requests", "REJECT", "overtime"},
+		{"/hrd/education", "employee_education.read", "View Education History", "VIEW", "employee_education"},
+		{"/hrd/contracts", "employee_contract.read", "View Contracts", "VIEW", "employee_contract"},
+		{"/hrd/certifications", "employee_certification.read", "View Certifications", "VIEW", "employee_certification"},
+		{"/hrd/documents", "employee_document.read", "View Employee Documents", "VIEW", "employee_document"},
 
 		// Reports
 		{"/reports", "report.view", "View Reports", "VIEW", "report"},
@@ -546,6 +565,15 @@ func SeedPermissions() error {
 
 		// AI Assistant
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
+		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
+		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
+		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
+		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
+		{"/master-data/supplier", "supplier_menu.read", "View Supplier Menu", "VIEW", "supplier"},
+		{"/master-data/payment-courier", "payment_courier_menu.read", "View Payment & Courier Menu", "VIEW", "payment_courier"},
+		{"/master-data/area-supervisors", "area_supervisor_menu.read", "View Area Supervisors Menu", "VIEW", "area_supervisor"},
+
 		// CRM Settings - Pipeline Stages
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.read", "View Pipeline Stages", "VIEW", "crm_pipeline_stage"},
 		{"/crm/settings/pipeline-stages", "crm_pipeline_stage.create", "Create Pipeline Stages", "CREATE", "crm_pipeline_stage"},

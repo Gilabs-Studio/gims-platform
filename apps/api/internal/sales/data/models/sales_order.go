@@ -49,8 +49,9 @@ type SalesOrder struct {
 	DeliveryArea   *orgModels.Area `gorm:"foreignKey:DeliveryAreaID" json:"delivery_area,omitempty"`
 
 	// Customer reference (FK to master data customer)
-	CustomerID *string                  `gorm:"type:uuid;index" json:"customer_id"`
-	Customer   *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	CustomerID        *string                  `gorm:"type:uuid;index" json:"customer_id"`
+	Customer          *customerModels.Customer `gorm:"foreignKey:CustomerID" json:"customer,omitempty"`
+	CustomerContactID *string                  `gorm:"type:uuid;index" json:"customer_contact_id"`
 
 	// Customer snapshot (stored at order creation for historical record)
 	CustomerName    string `gorm:"type:varchar(255)" json:"customer_name"`

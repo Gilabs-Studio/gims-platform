@@ -22,9 +22,6 @@ type CustomerUsecase interface {
 	Update(ctx context.Context, id string, req dto.UpdateCustomerRequest) (dto.CustomerResponse, error)
 	Delete(ctx context.Context, id string) error
 	// Nested operations
-	AddPhoneNumber(ctx context.Context, customerID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
-	UpdatePhoneNumber(ctx context.Context, id string, req dto.UpdatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
-	DeletePhoneNumber(ctx context.Context, id string) error
 	AddBankAccount(ctx context.Context, customerID string, req dto.CreateCustomerBankRequest) (dto.CustomerBankResponse, error)
 	UpdateBankAccount(ctx context.Context, id string, req dto.UpdateCustomerBankRequest) (dto.CustomerBankResponse, error)
 	DeleteBankAccount(ctx context.Context, id string) error
@@ -94,20 +91,6 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 
 	if err := u.repo.Create(ctx, customer); err != nil {
 		return dto.CustomerResponse{}, err
-	}
-
-	// Create nested phone numbers
-	for _, phone := range req.PhoneNumbers {
-		phoneModel := &models.CustomerPhoneNumber{
-			ID:          uuid.New().String(),
-			CustomerID:  customer.ID,
-			PhoneNumber: phone.PhoneNumber,
-			Label:       phone.Label,
-			IsPrimary:   phone.IsPrimary,
-		}
-		if err := u.repo.CreatePhoneNumber(ctx, phoneModel); err != nil {
-			return dto.CustomerResponse{}, err
-		}
 	}
 
 	// Create nested bank accounts
@@ -287,60 +270,6 @@ func (u *customerUsecase) Delete(ctx context.Context, id string) error {
 		return errors.New("customer not found")
 	}
 	return u.repo.Delete(ctx, id)
-}
-
-// Nested phone number operations
-
-func (u *customerUsecase) AddPhoneNumber(ctx context.Context, customerID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error) {
-	phone := &models.CustomerPhoneNumber{
-		ID:          uuid.New().String(),
-		CustomerID:  customerID,
-		PhoneNumber: req.PhoneNumber,
-		Label:       req.Label,
-		IsPrimary:   req.IsPrimary,
-	}
-
-	if err := u.repo.CreatePhoneNumber(ctx, phone); err != nil {
-		return dto.PhoneNumberResponse{}, err
-	}
-
-	return dto.PhoneNumberResponse{
-		ID:          phone.ID,
-		CustomerID:  phone.CustomerID,
-		PhoneNumber: phone.PhoneNumber,
-		Label:       phone.Label,
-		IsPrimary:   phone.IsPrimary,
-		CreatedAt:   phone.CreatedAt,
-		UpdatedAt:   phone.UpdatedAt,
-	}, nil
-}
-
-func (u *customerUsecase) UpdatePhoneNumber(ctx context.Context, id string, req dto.UpdatePhoneNumberRequest) (dto.PhoneNumberResponse, error) {
-	phone := &models.CustomerPhoneNumber{ID: id}
-	if req.PhoneNumber != "" {
-		phone.PhoneNumber = req.PhoneNumber
-	}
-	if req.Label != "" {
-		phone.Label = req.Label
-	}
-	if req.IsPrimary != nil {
-		phone.IsPrimary = *req.IsPrimary
-	}
-
-	if err := u.repo.UpdatePhoneNumber(ctx, phone); err != nil {
-		return dto.PhoneNumberResponse{}, err
-	}
-
-	return dto.PhoneNumberResponse{
-		ID:          phone.ID,
-		PhoneNumber: phone.PhoneNumber,
-		Label:       phone.Label,
-		IsPrimary:   phone.IsPrimary,
-	}, nil
-}
-
-func (u *customerUsecase) DeletePhoneNumber(ctx context.Context, id string) error {
-	return u.repo.DeletePhoneNumber(ctx, id)
 }
 
 // Nested bank account operations

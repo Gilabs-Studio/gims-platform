@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -48,6 +48,24 @@ interface CorrectContractDialogProps {
 
 const CONTRACT_TYPES: ContractType[] = ["PKWTT", "PKWT", "Intern"];
 
+interface CorrectContractFormState {
+  contractType: ContractType | undefined;
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+  documentPath: string;
+  correctionReason: string;
+}
+
+const getInitialFormState = (
+  contract: EmployeeContract | null,
+): CorrectContractFormState => ({
+  contractType: contract?.contract_type,
+  startDate: contract?.start_date ? new Date(contract.start_date) : undefined,
+  endDate: contract?.end_date ? new Date(contract.end_date) : undefined,
+  documentPath: contract?.document_path || "",
+  correctionReason: "",
+});
+
 export function CorrectContractDialog({
   open,
   onOpenChange,
@@ -57,46 +75,32 @@ export function CorrectContractDialog({
 }: CorrectContractDialogProps) {
   const t = useTranslations("employee");
 
-  const [contractType, setContractType] = useState<ContractType | undefined>(
-    undefined,
-  );
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [documentPath, setDocumentPath] = useState("");
-  const [correctionReason, setCorrectionReason] = useState("");
+  const initialFormState = useMemo(() => getInitialFormState(contract), [contract]);
+  const [draftForm, setDraftForm] = useState<CorrectContractFormState | null>(null);
 
   const correctMutation = useCorrectActiveEmployeeContract();
-
-  useEffect(() => {
-    if (open && contract) {
-      setContractType(contract.contract_type);
-      setStartDate(
-        contract.start_date ? new Date(contract.start_date) : undefined,
-      );
-      setEndDate(contract.end_date ? new Date(contract.end_date) : undefined);
-      setDocumentPath(contract.document_path || "");
-      setCorrectionReason("");
-    }
-  }, [open, contract]);
+  const formState = draftForm ?? initialFormState;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!correctionReason.trim()) {
+    if (!formState.correctionReason.trim()) {
       toast.error(t("contract.validation.correctionReasonRequired"));
       return;
     }
 
     const data: CorrectEmployeeContractData = {
-      contract_type: contractType,
-      start_date: startDate ? format(startDate, "yyyy-MM-dd") : undefined,
+      contract_type: formState.contractType,
+      start_date: formState.startDate
+        ? format(formState.startDate, "yyyy-MM-dd")
+        : undefined,
       end_date:
-        contractType === "PKWTT"
+        formState.contractType === "PKWTT"
           ? undefined
-          : endDate
-            ? format(endDate, "yyyy-MM-dd")
+          : formState.endDate
+            ? format(formState.endDate, "yyyy-MM-dd")
             : undefined,
-      document_path: documentPath || undefined,
+      document_path: formState.documentPath || undefined,
     };
 
     try {
@@ -105,30 +109,24 @@ export function CorrectContractDialog({
       onOpenChange(false);
       onSuccess?.();
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error(t("contract.messages.correctError"));
     }
   };
 
   const resetForm = () => {
-    setContractType(contract?.contract_type);
-    setStartDate(
-      contract?.start_date ? new Date(contract.start_date) : undefined,
-    );
-    setEndDate(contract?.end_date ? new Date(contract.end_date) : undefined);
-    setDocumentPath(contract?.document_path || "");
-    setCorrectionReason("");
+    setDraftForm(null);
   };
 
-  const handleClose = () => {
-    if (!correctMutation.isPending) {
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && !correctMutation.isPending) {
       onOpenChange(false);
       resetForm();
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -162,8 +160,17 @@ export function CorrectContractDialog({
                 {t("contract.fields.contractType")}
               </Label>
               <Select
-                value={contractType}
-                onValueChange={(v) => setContractType(v as ContractType)}
+                value={formState.contractType}
+                onValueChange={(v) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialFormState),
+                    contractType: v as ContractType,
+                    endDate:
+                      v === "PKWTT"
+                        ? undefined
+                        : (prev ?? initialFormState).endDate,
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue
@@ -191,18 +198,25 @@ export function CorrectContractDialog({
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground",
+                      !formState.startDate && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : t("form.selectDate")}
+                    {formState.startDate
+                      ? format(formState.startDate, "PPP")
+                      : t("form.selectDate")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
+                    selected={formState.startDate}
+                    onSelect={(date: Date | undefined) =>
+                      setDraftForm((prev) => ({
+                        ...(prev ?? initialFormState),
+                        startDate: date,
+                      }))
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -210,7 +224,7 @@ export function CorrectContractDialog({
             </div>
 
             {/* End Date - Only for non-PKWTT */}
-            {contractType !== "PKWTT" && (
+            {formState.contractType !== "PKWTT" && (
               <div className="space-y-2">
                 <Label htmlFor="endDate">{t("contract.fields.endDate")}</Label>
                 <Popover>
@@ -219,18 +233,25 @@ export function CorrectContractDialog({
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !endDate && "text-muted-foreground",
+                          !formState.endDate && "text-muted-foreground",
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : t("form.selectDate")}
+                      {formState.endDate
+                        ? format(formState.endDate, "PPP")
+                        : t("form.selectDate")}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={endDate}
-                      onSelect={setEndDate}
+                      selected={formState.endDate}
+                      onSelect={(date: Date | undefined) =>
+                        setDraftForm((prev) => ({
+                          ...(prev ?? initialFormState),
+                          endDate: date,
+                        }))
+                      }
                       initialFocus
                     />
                   </PopoverContent>
@@ -242,8 +263,13 @@ export function CorrectContractDialog({
             <div className="space-y-2">
               <Label htmlFor="document">{t("contract.fields.document")}</Label>
               <FileUpload
-                value={documentPath}
-                onChange={(url) => setDocumentPath(url || "")}
+                value={formState.documentPath}
+                onChange={(url) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialFormState),
+                    documentPath: url || "",
+                  }))
+                }
                 placeholder={t("contract.placeholders.document")}
                 accept=".pdf,.doc,.docx"
               />
@@ -257,8 +283,13 @@ export function CorrectContractDialog({
               </Label>
               <Textarea
                 id="reason"
-                value={correctionReason}
-                onChange={(e) => setCorrectionReason(e.target.value)}
+                value={formState.correctionReason}
+                onChange={(e) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialFormState),
+                    correctionReason: e.target.value,
+                  }))
+                }
                 placeholder={t("contract.placeholders.correctionReason")}
                 rows={3}
               />
@@ -269,7 +300,7 @@ export function CorrectContractDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={() => handleDialogOpenChange(false)}
               disabled={correctMutation.isPending}
             >
               {t("actions.cancel")}

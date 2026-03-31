@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,18 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { MapView, type MapMarker, MarkerClusterGroup } from "@/components/ui/map/map-view";
 import dynamic from "next/dynamic";
 import type { SalesRepCheckInLocation } from "../types";
 
-// Dynamically import Leaflet components (client-side only)
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
 const Marker = dynamic(
   () => import("react-leaflet").then((mod) => mod.Marker),
   { ssr: false }
@@ -33,7 +25,6 @@ const Polyline = dynamic(
   () => import("react-leaflet").then((mod) => mod.Polyline),
   { ssr: false }
 );
-import { useMap } from "react-leaflet";
 
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -67,27 +58,6 @@ interface SalesRepCheckInMapProps {
   readonly perPage?: number;
   readonly onPageChange?: (page: number) => void;
   readonly onPerPageChange?: (perPage: number) => void;
-}
-
-// Auto-zoom to selected location
-function MapFocusHandler({
-  location,
-}: {
-  location: SalesRepCheckInLocation | null;
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (location?.location?.latitude && location.location.longitude) {
-      map.setView(
-        [location.location.latitude, location.location.longitude],
-        15,
-        { animate: true, duration: 0.5 }
-      );
-    }
-  }, [location, map]);
-
-  return null;
 }
 
 function createNumberedMarkerIcon(number: number) {
@@ -136,38 +106,13 @@ export function SalesRepCheckInMap({
       .sort((a, b) => b.visit_number - a.visit_number);
   }, [locations]);
 
-  const centerLat = useMemo(() => {
-    if (validLocations.length === 0) return -6.2088;
-    return (
-      validLocations.reduce(
-        (sum, loc) => sum + (loc.location?.latitude ?? 0),
-        0
-      ) / validLocations.length
-    );
-  }, [validLocations]);
-
-  const centerLng = useMemo(() => {
-    if (validLocations.length === 0) return 106.8456;
-    return (
-      validLocations.reduce(
-        (sum, loc) => sum + (loc.location?.longitude ?? 0),
-        0
-      ) / validLocations.length
-    );
-  }, [validLocations]);
-
-  const bounds = useMemo(() => {
-    if (validLocations.length === 0) return null;
-    const lats = validLocations.map(
-      (loc) => loc.location?.latitude ?? 0
-    );
-    const lngs = validLocations.map(
-      (loc) => loc.location?.longitude ?? 0
-    );
-    return L.latLngBounds(
-      [Math.min(...lats), Math.min(...lngs)],
-      [Math.max(...lats), Math.max(...lngs)]
-    );
+  const mapMarkers = useMemo<MapMarker<SalesRepCheckInLocation>[]>(() => {
+    return validLocations.map((location) => ({
+      id: location.visit_report_id,
+      latitude: location.location?.latitude ?? 0,
+      longitude: location.location?.longitude ?? 0,
+      data: location,
+    }));
   }, [validLocations]);
 
   const polylineCoordinates = useMemo(() => {
@@ -192,79 +137,75 @@ export function SalesRepCheckInMap({
     );
   }
 
+  const renderMarkers = (
+    markerList: MapMarker<SalesRepCheckInLocation>[]
+  ) => (
+    <>
+      {polylineCoordinates.length > 1 && (
+        <Polyline
+          positions={polylineCoordinates}
+          pathOptions={{
+            color: "var(--color-primary)",
+            weight: 3,
+            opacity: 0.6,
+          }}
+        />
+      )}
+
+      <MarkerClusterGroup chunkedLoading>
+        {markerList.map((marker) => {
+          const location = marker.data;
+
+          return (
+            <Marker
+              key={location.visit_report_id}
+              position={[marker.latitude, marker.longitude]}
+              icon={createNumberedMarkerIcon(location.visit_number)}
+              eventHandlers={{
+                click: () => setSelectedLocation(location),
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <div className="font-medium">
+                    Visit #{location.visit_number}
+                  </div>
+                  {location.location?.address && (
+                    <div className="mt-1">
+                      {location.location.address}
+                    </div>
+                  )}
+                  {location.customer?.name && (
+                    <div className="mt-1 text-muted-foreground">
+                      {location.customer.name}
+                    </div>
+                  )}
+                  {location.purpose && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {location.purpose}
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MarkerClusterGroup>
+    </>
+  );
+
   return (
     <div className="space-y-4">
       {/* Map Container */}
       <div className="relative h-[500px] w-full rounded-lg border overflow-hidden bg-muted">
-        {globalThis.window !== undefined && (
-          <MapContainer
-            center={[centerLat, centerLng]}
-            zoom={bounds ? undefined : 12}
-            bounds={bounds ?? undefined}
-            boundsOptions={{ padding: [50, 50] }}
-            className="h-full w-full z-0"
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            {/* Polyline connecting all points */}
-            {polylineCoordinates.length > 1 && (
-              <Polyline
-                positions={polylineCoordinates}
-                pathOptions={{
-                  color: "var(--color-primary)",
-                  weight: 3,
-                  opacity: 0.6,
-                }}
-              />
-            )}
-
-            {/* Numbered Markers */}
-            {validLocations.map((location) => (
-              <Marker
-                key={location.visit_report_id}
-                position={[
-                  location.location?.latitude ?? 0,
-                  location.location?.longitude ?? 0,
-                ]}
-                icon={createNumberedMarkerIcon(
-                  location.visit_number
-                )}
-                eventHandlers={{
-                  click: () => setSelectedLocation(location),
-                }}
-              >
-                <Popup>
-                  <div className="text-sm">
-                    <div className="font-medium">
-                      Visit #{location.visit_number}
-                    </div>
-                    {location.location?.address && (
-                      <div className="mt-1">
-                        {location.location.address}
-                      </div>
-                    )}
-                    {location.customer?.name && (
-                      <div className="mt-1 text-muted-foreground">
-                        {location.customer.name}
-                      </div>
-                    )}
-                    {location.purpose && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {location.purpose}
-                      </div>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-
-            <MapFocusHandler location={selectedLocation} />
-          </MapContainer>
-        )}
+        <MapView
+          markers={mapMarkers}
+          renderMarkers={renderMarkers}
+          className="h-full w-full"
+          defaultCenter={[-6.2088, 106.8456]}
+          defaultZoom={12}
+          selectedMarkerId={selectedLocation?.visit_report_id ?? null}
+        />
 
         {/* Overlay info */}
         {validLocations.length > 0 && (

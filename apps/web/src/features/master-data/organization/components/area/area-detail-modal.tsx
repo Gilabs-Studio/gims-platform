@@ -12,7 +12,6 @@ import {
   UserPlus,
   Users,
   Shield,
-  Hash,
 } from "lucide-react";
 
 import {

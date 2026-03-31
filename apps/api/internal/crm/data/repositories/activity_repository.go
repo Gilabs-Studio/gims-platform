@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -62,6 +63,7 @@ func (r *activityRepository) FindByID(ctx context.Context, id string) (*models.A
 
 func (r *activityRepository) List(ctx context.Context, params ActivityListParams) ([]models.Activity, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Activity{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("employee_id"))
 
 	query = r.applyFilters(query, params)
 

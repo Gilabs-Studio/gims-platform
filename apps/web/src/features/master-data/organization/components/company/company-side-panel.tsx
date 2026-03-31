@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { ButtonLoading } from "@/components/loading";
 import { LocationPicker } from "../../../geographic/components/location-picker";
 
@@ -105,20 +104,6 @@ export function CompanySidePanel(props: CompanySidePanelProps) {
                 enabled={props.isOpen}
               />
             </div>
-
-            {/* Active Status */}
-            {!state.isViewing && (
-              <Field
-                orientation="horizontal"
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <FieldLabel>{t("company.form.isActive")}</FieldLabel>
-                <Switch
-                  checked={state.isActive}
-                  onCheckedChange={(val) => actions.setValue("is_active", val)}
-                />
-              </Field>
-            )}
 
             {/* Actions */}
             {!state.isViewing && (

@@ -83,6 +83,22 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "User not found",
 	},
+	"INVALID_RESET_TOKEN": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Reset token is invalid",
+	},
+	"RESET_TOKEN_EXPIRED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Reset token has expired",
+	},
+	"RESET_TOKEN_ALREADY_USED": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "Reset token has already been used",
+	},
+	"MISSING_TOKEN": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Token is required",
+	},
 	"REFRESH_TOKEN_INVALID": {
 		HTTPStatus: http.StatusUnauthorized,
 		Message:    "Invalid refresh token",
@@ -183,6 +199,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"LEAD_CANNOT_CONVERT": {
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Lead cannot convert. Lead status must be 'qualified'",
+	},
+	"CRM_LEAD_INVALID_STATUS": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Invalid lead status",
 	},
 	"INVALID_LEAD_STATUS": {
 		HTTPStatus: http.StatusBadRequest,

@@ -20,6 +20,7 @@ type SalesOverviewUsecase interface {
 	GetSalesRepCheckInLocations(ctx context.Context, employeeID string, req dto.GetSalesRepCheckInLocationsRequest) (*dto.SalesRepCheckInLocationsResponse, error)
 	GetSalesRepProducts(ctx context.Context, employeeID string, req dto.ListSalesRepProductsRequest) ([]dto.SalesRepProductResponse, utils.PaginationResult, error)
 	GetSalesRepCustomers(ctx context.Context, employeeID string, req dto.ListSalesRepCustomersRequest) ([]dto.SalesRepCustomerResponse, utils.PaginationResult, error)
+	GetEmployeeDashboardMetrics(ctx context.Context, employeeID string, req dto.EmployeeDashboardMetricsRequest) (*dto.EmployeeDashboardMetricsResponse, error)
 }
 
 type salesOverviewUsecase struct {
@@ -418,4 +419,96 @@ func (uc *salesOverviewUsecase) GetSalesRepCustomers(ctx context.Context, employ
 	}
 
 	return results, pagination, nil
+}
+
+// GetEmployeeDashboardMetrics returns aggregated metrics for employee dashboard/profile
+func (uc *salesOverviewUsecase) GetEmployeeDashboardMetrics(ctx context.Context, employeeID string, req dto.EmployeeDashboardMetricsRequest) (*dto.EmployeeDashboardMetricsResponse, error) {
+	startDate, endDate := parseDateRange(req.StartDate, req.EndDate)
+
+	result := &dto.EmployeeDashboardMetricsResponse{}
+
+	// Get check-in locations summary
+	checkInParams := repositories.CheckInParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      1,
+		PerPage:   100, // Get all records for summary
+	}
+	checkInRows, totalVisits, err := uc.repo.GetSalesRepCheckInLocations(ctx, employeeID, checkInParams)
+	if err == nil {
+		result.CheckInLocations = &dto.CheckInLocationsSummary{
+			TotalLocations: len(checkInRows),
+			TotalVisits:    totalVisits,
+			Period: &dto.PeriodData{
+				Start: startDate.Format("2006-01-02"),
+				End:   endDate.Format("2006-01-02"),
+			},
+		}
+	}
+
+	// Get products sold summary
+	productParams := repositories.ProductParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      1,
+		PerPage:   100, // Get all records for summary
+		SortBy:    "revenue",
+		Order:     "desc",
+	}
+	productRows, _, err := uc.repo.GetSalesRepProducts(ctx, employeeID, productParams)
+	if err == nil {
+		totalProducts := len(productRows)
+		totalQty := 0.0
+		totalRev := 0.0
+		for _, row := range productRows {
+			totalQty += row.TotalQty
+			totalRev += row.TotalRevenue
+		}
+		avgRev := 0.0
+		if totalProducts > 0 {
+			avgRev = totalRev / float64(totalProducts)
+		}
+		result.ProductsSold = &dto.ProductsSoldSummary{
+			TotalProducts:           totalProducts,
+			TotalQuantity:           totalQty,
+			TotalRevenue:            totalRev,
+			TotalRevenueFormatted:   formatCurrencyIDR(totalRev),
+			AverageRevenue:          avgRev,
+			AverageRevenueFormatted: formatCurrencyIDR(avgRev),
+		}
+	}
+
+	// Get customers summary
+	customerParams := repositories.CustomerParams{
+		StartDate: startDate,
+		EndDate:   endDate,
+		Page:      1,
+		PerPage:   100, // Get all records for summary
+		SortBy:    "revenue",
+		Order:     "desc",
+	}
+	customerRows, _, err := uc.repo.GetSalesRepCustomers(ctx, employeeID, customerParams)
+	if err == nil {
+		totalCustomers := len(customerRows)
+		totalRev := 0.0
+		totalOrders := 0
+		for _, row := range customerRows {
+			totalRev += row.TotalRevenue
+			totalOrders += row.TotalOrders
+		}
+		avgOrderValue := 0.0
+		if totalOrders > 0 {
+			avgOrderValue = totalRev / float64(totalOrders)
+		}
+		result.Customers = &dto.CustomersSummary{
+			TotalCustomers:              totalCustomers,
+			TotalRevenue:                totalRev,
+			TotalRevenueFormatted:       formatCurrencyIDR(totalRev),
+			AverageOrderValue:           avgOrderValue,
+			AverageOrderValueFormatted:  formatCurrencyIDR(avgOrderValue),
+			TotalOrders:                 totalOrders,
+		}
+	}
+
+	return result, nil
 }

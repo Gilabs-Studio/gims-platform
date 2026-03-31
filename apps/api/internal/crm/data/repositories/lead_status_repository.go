@@ -11,11 +11,13 @@ import (
 type LeadStatusRepository interface {
 	Create(ctx context.Context, status *models.LeadStatus) error
 	FindByID(ctx context.Context, id string) (*models.LeadStatus, error)
+	FindByCode(ctx context.Context, code string) (*models.LeadStatus, error)
 	List(ctx context.Context, params ListParams) ([]models.LeadStatus, int64, error)
 	Update(ctx context.Context, status *models.LeadStatus) error
 	Delete(ctx context.Context, id string) error
 	FindDefault(ctx context.Context) (*models.LeadStatus, error)
 	FindConverted(ctx context.Context) (*models.LeadStatus, error)
+	GetMaxOrder(ctx context.Context) (int, error)
 }
 
 type leadStatusRepository struct {
@@ -40,6 +42,15 @@ func (r *leadStatusRepository) FindByID(ctx context.Context, id string) (*models
 	return &status, nil
 }
 
+func (r *leadStatusRepository) FindByCode(ctx context.Context, code string) (*models.LeadStatus, error) {
+	var status models.LeadStatus
+	err := r.db.WithContext(ctx).Where("code = ?", code).First(&status).Error
+	if err != nil {
+		return nil, err
+	}
+	return &status, nil
+}
+
 func (r *leadStatusRepository) List(ctx context.Context, params ListParams) ([]models.LeadStatus, int64, error) {
 	var statuses []models.LeadStatus
 	var total int64
@@ -56,13 +67,14 @@ func (r *leadStatusRepository) List(ctx context.Context, params ListParams) ([]m
 	}
 
 	if params.SortBy != "" {
-		order := params.SortBy
+		// Quote column name to handle reserved keywords like 'order'
+		quotedColumn := "\"" + params.SortBy + "\""
 		if params.SortDir == "desc" {
-			order += " DESC"
+			quotedColumn += " DESC"
 		} else {
-			order += " ASC"
+			quotedColumn += " ASC"
 		}
-		query = query.Order(order)
+		query = query.Order(quotedColumn)
 	} else {
 		query = query.Order("\"order\" ASC, name ASC")
 	}
@@ -105,4 +117,16 @@ func (r *leadStatusRepository) FindConverted(ctx context.Context) (*models.LeadS
 		return nil, err
 	}
 	return &status, nil
+}
+
+func (r *leadStatusRepository) GetMaxOrder(ctx context.Context) (int, error) {
+	var maxOrder int
+	err := r.db.WithContext(ctx).
+		Model(&models.LeadStatus{}).
+		Select(`COALESCE(MAX("order"), 0)`).
+		Scan(&maxOrder).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder, nil
 }

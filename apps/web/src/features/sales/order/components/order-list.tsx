@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,20 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
+function getInitialOpenOrderFromURL(): SalesOrder | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const openOrderId = searchParams.get("open_order");
+  if (!openOrderId) {
+    return null;
+  }
+
+  return { id: openOrderId } as SalesOrder;
+}
+
 export function OrderList() {
   const t = useTranslations("order");
   const [search, setSearch] = useState("");
@@ -43,9 +57,21 @@ export function OrderList() {
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
-  const [viewingOrder, setViewingOrder] = useState<SalesOrder | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<SalesOrder | null>(getInitialOpenOrderFromURL);
   const [viewingQuotation, setViewingQuotation] = useState<SalesQuotation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_order")) return;
+
+    searchParams.delete("open_order");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const { data, isLoading, isError } = useOrders({
     page,

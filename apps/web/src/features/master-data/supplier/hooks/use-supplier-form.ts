@@ -31,7 +31,7 @@ export const supplierFormSchema = z.object({
   notes: z.string().max(500, "Notes cannot exceed 500 characters").optional(),
   is_active: z.boolean(),
   // Arrays for creation mode
-  phone_numbers: z.array(z.any()).optional(), 
+  contacts: z.array(z.any()).optional(),
   bank_accounts: z.array(z.any()).optional(),
 });
 
@@ -55,19 +55,19 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
   // Fetch supplier types conditionally
   const { data: supplierTypesData } = useSupplierTypes({
     page: 1,
-    per_page: 100,
+    per_page: 20,
   }, { enabled: open });
   const supplierTypes = sortOptions(supplierTypesData?.data ?? [], (t) => t.name);
 
   const { data: paymentTermsData } = usePaymentTerms({
     page: 1,
-    per_page: 100,
+    per_page: 20,
   }, { enabled: open });
   const paymentTerms = sortOptions(paymentTermsData?.data ?? [], (pt) => pt.name);
 
   const { data: businessUnitsData } = useBusinessUnits({
     page: 1,
-    per_page: 100,
+    per_page: 20,
   }, { enabled: open });
   const businessUnits = sortOptions(businessUnitsData?.data ?? [], (bu) => bu.name);
 
@@ -109,7 +109,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
       contact_person: "",
       notes: "",
       is_active: true,
-      phone_numbers: [],
+      contacts: [],
       bank_accounts: [],
     },
   });
@@ -132,8 +132,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
           npwp: activeItem.npwp ?? "",
           contact_person: activeItem.contact_person ?? "",
           notes: activeItem.notes ?? "",
-          is_active: activeItem.is_active,
-          phone_numbers: [], 
+          is_active: true,
+          contacts: [],
           bank_accounts: [],
         });
       } else {
@@ -153,7 +153,7 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
           contact_person: "",
           notes: "",
           is_active: true,
-          phone_numbers: [],
+          contacts: [],
           bank_accounts: [],
         });
       }
@@ -182,8 +182,8 @@ export function useSupplierForm({ open, onOpenChange, editingItem, onCreated }: 
         npwp: data.npwp || undefined,
         contact_person: data.contact_person || undefined,
         notes: data.notes || undefined,
-        is_active: data.is_active,
-        phone_numbers: !isEditing ? data.phone_numbers : undefined,
+        is_active: true,
+        contacts: !isEditing ? data.contacts : undefined,
         bank_accounts: !isEditing ? data.bank_accounts : undefined,
       };
 

@@ -100,7 +100,7 @@ export function EmployeeEvaluationForm({ open, onClose, evaluation }: EmployeeEv
   // Fetch criteria for selected group (for scoring)
   const { data: criteriaData } = useEvaluationCriteriaByGroup(
     selectedGroupId ?? "",
-    { per_page: 100 },
+    { per_page: 20 },
     { enabled: open && !!selectedGroupId },
   );
 

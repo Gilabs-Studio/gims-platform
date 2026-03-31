@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -191,6 +193,9 @@ func (u *activityUsecase) syncProductItemsFromMetadata(ctx context.Context, lead
 
 
 func (u *activityUsecase) GetByID(ctx context.Context, id string) (dto.ActivityResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Activity{}, id, security.MixedOwnershipScopeQueryOptions("employee_id")) {
+		return dto.ActivityResponse{}, errors.New("activity not found")
+	}
 	activity, err := u.activityRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.ActivityResponse{}, errors.New("activity not found")

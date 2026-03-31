@@ -78,6 +78,16 @@ import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components
 import { SupplierInvoiceFormDialog } from "@/features/purchase/supplier-invoices/components/supplier-invoice-form";
 import { SupplierInvoiceDPFormDialog } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-form";
 
+function getInitialOpenPurchaseOrderFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const openOrderId = searchParams.get("open_purchase_order");
+  return openOrderId;
+}
+
 export function PurchaseOrdersList() {
   const t = useTranslations("purchaseOrder");
   const tCommon = useTranslations("common");
@@ -92,7 +102,7 @@ export function PurchaseOrdersList() {
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
@@ -143,6 +153,26 @@ export function PurchaseOrdersList() {
   const canCreateGR = useUserPermission("goods_receipt.create");
   const canCreateSI = useUserPermission("supplier_invoice.create");
   const canCreateSIDP = useUserPermission("supplier_invoice_dp.create");
+
+  // Auto-open detail modal when detailId is set from URL query param
+  useEffect(() => {
+    if (detailId) {
+      setDetailOpen(true);
+    }
+  }, [detailId]);
+
+  // Clear URL query param after modal is opened
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_purchase_order")) return;
+
+    searchParams.delete("open_purchase_order");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
 
   const { data, isLoading, isError } = usePurchaseOrders({
     page,

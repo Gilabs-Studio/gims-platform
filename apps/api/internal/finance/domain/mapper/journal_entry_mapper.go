@@ -55,6 +55,11 @@ func buildJournalReferenceCode(referenceType, referenceID *string) *string {
 	return &code
 }
 
+// BuildJournalReferenceCodeForExport exposes the synthetic reference code used when no source document code is found.
+func BuildJournalReferenceCodeForExport(referenceType, referenceID *string) *string {
+	return buildJournalReferenceCode(referenceType, referenceID)
+}
+
 func NewJournalEntryMapper(coaMapper *ChartOfAccountMapper) *JournalEntryMapper {
 	return &JournalEntryMapper{coaMapper: coaMapper}
 }
@@ -107,6 +112,7 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		Status:            item.Status,
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,
+		CreatedBy:         item.CreatedBy,
 		IsSystemGenerated: item.IsSystemGenerated,
 		SourceDocumentURL: item.SourceDocumentURL,
 		Lines:             lines,
@@ -142,6 +148,7 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		Status:            item.Status,
 		PostedAt:          item.PostedAt,
 		PostedBy:          item.PostedBy,
+		CreatedBy:         item.CreatedBy,
 		IsSystemGenerated: item.IsSystemGenerated,
 		SourceDocumentURL: item.SourceDocumentURL,
 		Lines:             []dto.JournalLineResponse{},

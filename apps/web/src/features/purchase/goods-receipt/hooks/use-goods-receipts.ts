@@ -2,11 +2,63 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { goodsReceiptsService } from "../services/goods-receipts-service";
+import { purchaseOrderKeys } from "../../orders/hooks/use-purchase-orders";
+import type { PurchaseOrderGRSummary, PurchaseOrderListItem } from "../../orders/types";
 import type {
   CreateGoodsReceiptInput,
+  GoodsReceiptDetail,
   GoodsReceiptListParams,
   UpdateGoodsReceiptInput,
 } from "../types";
+
+function upsertGoodsReceiptSummaryAtFront(
+  receipts: PurchaseOrderGRSummary[],
+  next: PurchaseOrderGRSummary,
+): PurchaseOrderGRSummary[] {
+  const withoutCurrent = receipts.filter((entry) => entry.id !== next.id);
+  return [next, ...withoutCurrent];
+}
+
+function applyGoodsReceiptToPurchaseOrderLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  goodsReceipt: GoodsReceiptDetail | undefined,
+) {
+  const purchaseOrderId = goodsReceipt?.purchase_order?.id;
+  if (!goodsReceipt || !purchaseOrderId) return;
+
+  const totalItemsReceived = Array.isArray(goodsReceipt.items)
+    ? goodsReceipt.items.reduce((sum, item) => sum + (item.quantity_received ?? 0), 0)
+    : 0;
+
+  const queries = queryClient.getQueriesData({ queryKey: purchaseOrderKeys.lists() });
+  queries.forEach(([key, old]) => {
+    if (!old || typeof old !== "object" || !("data" in (old as Record<string, unknown>))) return;
+    queryClient.setQueryData(key as readonly unknown[], (prev: unknown) => {
+      if (!prev || typeof prev !== "object" || !("data" in (prev as Record<string, unknown>))) return prev;
+      const list = prev as { data: PurchaseOrderListItem[] };
+      return {
+        ...list,
+        data: list.data.map((purchaseOrder) => {
+          if (purchaseOrder.id !== purchaseOrderId) return purchaseOrder;
+          const existing = Array.isArray(purchaseOrder.goods_receipts) ? purchaseOrder.goods_receipts : [];
+          const found = existing.find((entry) => entry.id === goodsReceipt.id);
+          const nextEntry: PurchaseOrderGRSummary = {
+            id: goodsReceipt.id,
+            code: goodsReceipt.code ?? found?.code ?? "",
+            status: goodsReceipt.status ?? found?.status ?? "DRAFT",
+            total_items: goodsReceipt.items?.length ?? found?.total_items,
+            total_items_received: totalItemsReceived || found?.total_items_received,
+          };
+
+          return {
+            ...purchaseOrder,
+            goods_receipts: upsertGoodsReceiptSummaryAtFront(existing, nextEntry),
+          };
+        }),
+      } as { data: PurchaseOrderListItem[] };
+    });
+  });
+}
 
 export const goodsReceiptKeys = {
   all: ["goods-receipts"] as const,
@@ -53,12 +105,13 @@ export function useCreateGoodsReceipt() {
 
   return useMutation({
     mutationFn: (data: CreateGoodsReceiptInput) => goodsReceiptsService.create(data),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.addData() });
       // Invalidate PO list so fulfillment + GR column reflects the new GR immediately.
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -69,10 +122,11 @@ export function useUpdateGoodsReceipt() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateGoodsReceiptInput }) =>
       goodsReceiptsService.update(id, data),
-    onSuccess: (_, variables) => {
+    onSuccess: (res, variables) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -93,11 +147,12 @@ export function useConfirmGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.confirm(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -107,11 +162,12 @@ export function useSubmitGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.submit(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -121,11 +177,12 @@ export function useApproveGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.approve(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -135,10 +192,11 @@ export function useRejectGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.reject(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }
@@ -148,10 +206,11 @@ export function useCloseGoodsReceipt() {
 
   return useMutation({
     mutationFn: (id: string) => goodsReceiptsService.close(id),
-    onSuccess: (_, id) => {
+    onSuccess: (res, id) => {
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.lists() });
       queryClient.invalidateQueries({ queryKey: goodsReceiptKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      applyGoodsReceiptToPurchaseOrderLists(queryClient, res?.data);
     },
   });
 }

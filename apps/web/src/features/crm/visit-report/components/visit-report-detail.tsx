@@ -16,15 +16,11 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
-  Send,
-  ThumbsUp,
-  ThumbsDown,
   Package,
   Printer,
   LogOut,
   Loader2,
   Navigation,
-  Info,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -43,29 +39,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
-import { useVisitReportById, useDeleteVisitReport, useSubmitVisitReport, useApproveVisitReport, useVisitReportHistory, useCheckOutVisitReport } from "../hooks/use-visit-reports";
-import { visitReportService } from "../services/visit-report-service";
+import { useVisitReportById, useDeleteVisitReport, useCheckOutVisitReport, useVisitReportPrintUrl } from "../hooks/use-visit-reports";
 import { MapView } from "@/components/ui/map/map-view";
 import { Marker, Popup } from "react-leaflet";
-import { VisitReportRejectDialog } from "./visit-report-reject-dialog";
 import { VisitReportPhotos } from "./visit-report-photos";
 
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { PageMotion } from "@/components/motion";
 import { toast } from "sonner";
-import type { VisitReport, VisitReportStatus, VisitReportDetail as VisitReportDetailType } from "../types";
+import type { VisitReport, VisitReportDetail as VisitReportDetailType } from "../types";
 
 interface VisitReportDetailProps {
   readonly visitId: string;
 }
-
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "destructive" | "outline" | "success"> = {
-  draft: "secondary",
-  submitted: "default",
-  approved: "success",
-  rejected: "destructive",
-};
 
 const OUTCOME_LABELS: Record<string, string> = {
   very_positive: "Very Positive",
@@ -111,26 +98,19 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useVisitReportById(visitId);
-  const { data: historyResponse } = useVisitReportHistory(visitId);
   const deleteMutation = useDeleteVisitReport();
-  const submitMutation = useSubmitVisitReport();
-  const approveMutation = useApproveVisitReport();
   const checkOutMutation = useCheckOutVisitReport();
 
   const canUpdate = useUserPermission("crm_visit.update");
   const canDelete = useUserPermission("crm_visit.delete");
-  const canApprove = useUserPermission("crm_visit.approve");
 
   const { user } = useAuthStore();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const visit: VisitReport | undefined = response?.data;
-  const history = historyResponse?.data ?? [];
-  const isDraft = visit?.status === "draft";
-  const isSubmitted = visit?.status === "submitted";
+  const printUrl = useVisitReportPrintUrl(visit?.id ?? "");
   // Only the user who created this visit report may submit / edit / delete it
   const isOwner = !!visit && !!user && visit.created_by === user.id;
 
@@ -144,31 +124,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
       toast.error(tCommon("error"));
     }
     setShowDeleteDialog(false);
-  };
-
-  const handleSubmit = async () => {
-    if (!visit) return;
-    try {
-      await submitMutation.mutateAsync({ id: visit.id });
-      toast.success(t("submitted"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!visit) return;
-    if (visit.status !== "submitted") {
-      toast.error(tCommon("error") || "Visit must be submitted before approval");
-      return;
-    }
-    try {
-      await approveMutation.mutateAsync({ id: visit.id, data: {} });
-      toast.success(t("approved"));
-    } catch (err) {
-      // API client now handles global 500 error messages from 'details.message'
-      // but we can add more specific handling here if needed
-    }
   };
 
   const handleCheckOut = async () => {
@@ -237,9 +192,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold tracking-tight">{visit.code}</h1>
-                <Badge variant={STATUS_VARIANTS[visit.status]}>
-                  {t(`status.${visit.status}`)}
-                </Badge>
                 {visit.outcome && (
                   <Badge variant="outline">
                     {t(`outcome.${visit.outcome}`)}
@@ -258,27 +210,14 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               variant="outline"
               size="sm"
               className="cursor-pointer"
-              onClick={() => window.open(visitReportService.getPrintUrl(visit.id), "_blank")}
+              onClick={() => window.open(printUrl, "_blank")}
             >
               <Printer className="h-4 w-4 mr-1" />
               {tCommon("print")}
             </Button>
 
-            {isDraft && isOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="cursor-pointer"
-                onClick={handleSubmit}
-                disabled={submitMutation.isPending}
-              >
-                <Send className="h-4 w-4 mr-1" />
-                {t("actions.submit")}
-              </Button>
-            )}
-
             {/* Checkout button — visible when checked in but not yet checked out */}
-            {visit.check_in_at && !visit.check_out_at && (isDraft || isSubmitted) && isOwner && (
+            {visit.check_in_at && !visit.check_out_at && isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -294,54 +233,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 {t("actions.checkOut")}
               </Button>
             )}
-            {isSubmitted && canApprove && (
-              <TooltipProvider>
-                <div className="flex gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="cursor-pointer"
-                          onClick={handleApprove}
-                          disabled={approveMutation.isPending || visit.status !== "submitted" || isOwner}
-                        >
-                          <ThumbsUp className="h-4 w-4 mr-1" />
-                          {t("actions.approve")}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {isOwner && (
-                      <TooltipContent>
-                        <p className="flex items-center gap-1.5">
-                          <Info className="h-3.5 w-3.5" />
-                          {t("validation.cannotApproveOwn")}
-                        </p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="cursor-pointer text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (visit.status !== "submitted") {
-                        toast.error(tCommon("error") || "Visit must be submitted before rejection");
-                        return;
-                      }
-                      setShowRejectDialog(true);
-                    }}
-                    disabled={visit.status !== "submitted"}
-                  >
-                    <ThumbsDown className="h-4 w-4 mr-1" />
-                    {t("actions.reject")}
-                  </Button>
-                </div>
-              </TooltipProvider>
-            )}
-            {isDraft && canUpdate && isOwner && (
+            {canUpdate && isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -352,7 +244,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
                 {tCommon("edit")}
               </Button>
             )}
-            {isDraft && canDelete && isOwner && (
+            {canDelete && isOwner && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -368,10 +260,8 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
         {/* Key metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">{t("table.status")}</p>
-            <Badge variant={STATUS_VARIANTS[visit.status]} className="mt-1">
-              {t(`status.${visit.status}`)}
-            </Badge>
+            <p className="text-xs text-muted-foreground">{t("table.code")}</p>
+            <p className="text-sm font-medium mt-1">{visit.code}</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="text-xs text-muted-foreground">{t("table.outcome")}</p>
@@ -526,7 +416,7 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
             <VisitReportPhotos
               visitId={visit.id}
               photos={visit.photos}
-              isEditable={isDraft && canUpdate}
+              isEditable={canUpdate && isOwner}
             />
           </div>
 
@@ -683,47 +573,6 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               );
             })()}
 
-            {/* Approval */}
-            {(visit.status === "approved" || visit.status === "rejected") && (
-              <div className="rounded-lg border p-3 space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                  {t("sections.approval")}
-                </h4>
-                {visit.status === "approved" && visit.approved_at && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <span className="text-sm font-medium">{t("status.approved")}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      <span>{formatDate(visit.approved_at)}</span>
-                    </div>
-                  </>
-                )}
-                {visit.status === "rejected" && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <XCircle className="h-4 w-4 text-destructive" />
-                      <span className="text-sm font-medium">{t("status.rejected")}</span>
-                    </div>
-                    {visit.rejected_at && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span>{formatDate(visit.rejected_at)}</span>
-                      </div>
-                    )}
-                    {visit.rejection_reason && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">{t("detail.rejectionReason")}</p>
-                        <p className="text-sm">{visit.rejection_reason}</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
             {/* Dates */}
             <div className="rounded-lg border p-3 space-y-2">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase">
@@ -739,43 +588,13 @@ export function VisitReportDetail({ visitId }: VisitReportDetailProps) {
               </div>
             </div>
 
-            {/* Progress History */}
-            {history.length > 0 && (
-              <div className="rounded-lg border p-3 space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                  {t("sections.history")}
-                </h4>
-                <div className="space-y-3">
-                  {history.map((h) => (
-                    <div key={h.id} className="flex items-start gap-2 text-xs">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-1 shrink-0" />
-                      <div>
-                        <p className="font-medium">
-                          {h.from_status} → {h.to_status}
-                        </p>
-                        {h.notes && <p className="text-muted-foreground">{h.notes}</p>}
-                        <p className="text-muted-foreground">{formatDate(h.created_at)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
           </div>
         </div>
       </div>
 
-      {/* Reject Dialog */}
-      {canApprove && isSubmitted && (
-        <VisitReportRejectDialog
-          open={showRejectDialog}
-          onClose={() => setShowRejectDialog(false)}
-          visitId={visit.id}
-        />
-      )}
-
       {/* Delete Dialog */}
-      {canDelete && isDraft && (
+      {canDelete && isOwner && (
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>

@@ -12,6 +12,22 @@ import (
 
 // SeedSupplier seeds sample supplier master data
 func SeedSupplier() error {
+	if isMinimalSeedMode() {
+		db := database.DB
+		supplier := models.Supplier{
+			Code:          "SUP-001",
+			Name:          "PT. Minimal Supplier",
+			Address:       "Jl. Example No. 1, Jakarta",
+			Email:         "supplier@example.com",
+			ContactPerson: "John Doe",
+			IsActive:      true,
+		}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "address", "email", "contact_person", "is_active", "updated_at"})}).Create(&supplier).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 	var currencies []coreModels.Currency
 	if err := db.Where("is_active = ?", true).Find(&currencies).Error; err != nil {
@@ -189,9 +205,9 @@ func SeedSupplier() error {
 
 		// Add sample phone numbers for first supplier
 		if i == 0 {
-			phones := []models.SupplierPhoneNumber{
-				{SupplierID: suppliers[i].ID, PhoneNumber: "021-12345678", Label: "Office", IsPrimary: true},
-				{SupplierID: suppliers[i].ID, PhoneNumber: "0812-3456-7890", Label: "Mobile", IsPrimary: false},
+			phones := []models.SupplierContact{
+				{SupplierID: suppliers[i].ID, Name: "Budi Hartono", Email: "budi.hartono@pharmadist.co.id", Phone: "021-12345678", IsPrimary: true},
+				{SupplierID: suppliers[i].ID, Name: "Siti Rahayu", Email: "siti.rahayu@pharmadist.co.id", Phone: "0812-3456-7890", IsPrimary: false},
 			}
 			for j := range phones {
 				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&phones[j])

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"gorm.io/gorm"
 )
@@ -32,6 +33,7 @@ type LeadRepository interface {
 	FindByID(ctx context.Context, id string) (*models.Lead, error)
 	FindByEmail(ctx context.Context, email string) (*models.Lead, error)
 	FindDuplicate(ctx context.Context, email, phone, companyName, placeID, cid string) (*models.Lead, error)
+	FindUnprocessed(ctx context.Context, limit int) ([]models.Lead, error)
 	List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error)
 	Update(ctx context.Context, lead *models.Lead) error
 	Delete(ctx context.Context, id string) error
@@ -77,6 +79,7 @@ func (r *leadRepository) FindByID(ctx context.Context, id string) (*models.Lead,
 	err := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Preload("Customer").
 		Preload("Contact").
@@ -108,6 +111,7 @@ func (r *leadRepository) FindByEmail(ctx context.Context, email string) (*models
 	err := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Where("email = ? AND converted_at IS NULL", email).
 		First(&lead).Error
@@ -123,6 +127,7 @@ func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, compan
 	query := r.db.WithContext(ctx).
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Where("converted_at IS NULL")
 
@@ -148,16 +153,41 @@ func (r *leadRepository) FindDuplicate(ctx context.Context, email, phone, compan
 	return &lead, nil
 }
 
+// FindUnprocessed retrieves leads that haven't been processed by n8n yet
+// ordered by creation date to process in FIFO order
+func (r *leadRepository) FindUnprocessed(ctx context.Context, limit int) ([]models.Lead, error) {
+	var leads []models.Lead
+	err := r.db.WithContext(ctx).
+		Preload("LeadSource").
+		Preload("LeadStatus").
+		Where("processed_from_n8n = ?", false).
+		Order("created_at ASC").
+		Limit(limit).
+		Find(&leads).Error
+	return leads, err
+}
+
 func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]models.Lead, int64, error) {
 	query := r.db.WithContext(ctx).Model(&models.Lead{})
+	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	// Search filter (prefix search for indexed columns)
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
-		query = query.Where(
-			"first_name ILIKE ? OR last_name ILIKE ? OR company_name ILIKE ? OR code ILIKE ? OR email ILIKE ?",
-			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
-		)
+		search := strings.TrimSpace(params.Search)
+		if search != "" {
+			searchTerm := "%" + search + "%"
+			query = query.Where(
+				`(
+					first_name ILIKE ? OR
+					last_name ILIKE ? OR
+					company_name ILIKE ? OR
+					CONCAT_WS(' ', first_name, last_name) ILIKE ? OR
+					code ILIKE ? OR
+					email ILIKE ?
+				)`,
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
+			)
+		}
 	}
 
 	// Status filter
@@ -225,6 +255,7 @@ func (r *leadRepository) List(ctx context.Context, params LeadListParams) ([]mod
 	err := query.
 		Preload("LeadSource").
 		Preload("LeadStatus").
+		Preload("ContactRole").
 		Preload("AssignedEmployee").
 		Order(fmt.Sprintf("%s %s", sortBy, sortDir)).
 		Limit(params.Limit).

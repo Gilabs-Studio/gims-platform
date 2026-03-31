@@ -73,7 +73,7 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
 
   const { data: criteriaData, isLoading: criteriaLoading } = useEvaluationCriteriaByGroup(
     group?.id ?? "",
-    { per_page: 100 },
+    { per_page: 20 },
     { enabled: open && !!group?.id },
   );
 

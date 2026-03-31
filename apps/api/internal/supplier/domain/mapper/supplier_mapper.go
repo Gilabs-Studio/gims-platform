@@ -75,9 +75,9 @@ func ToSupplierResponse(m *models.Supplier) dto.SupplierResponse {
 		resp.Village = toVillageResponse(m.Village)
 	}
 
-	// Map phone numbers if loaded
-	if len(m.PhoneNumbers) > 0 {
-		resp.PhoneNumbers = toPhoneNumberResponseList(m.PhoneNumbers)
+	// Map contacts if loaded
+	if len(m.Contacts) > 0 {
+		resp.Contacts = toContactResponseList(m.Contacts)
 	}
 
 	// Map bank accounts if loaded
@@ -98,22 +98,38 @@ func ToSupplierResponseList(models []models.Supplier) []dto.SupplierResponse {
 }
 
 // Helper functions for nested mappings
-func toPhoneNumberResponse(m *models.SupplierPhoneNumber) dto.PhoneNumberResponse {
-	return dto.PhoneNumberResponse{
-		ID:          m.ID,
-		SupplierID:  m.SupplierID,
-		PhoneNumber: m.PhoneNumber,
-		Label:       m.Label,
-		IsPrimary:   m.IsPrimary,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
+func toContactResponse(m *models.SupplierContact) dto.ContactResponse {
+	resp := dto.ContactResponse{
+		ID:            m.ID,
+		SupplierID:    m.SupplierID,
+		ContactRoleID: m.ContactRoleID,
+		Name:          m.Name,
+		Email:         m.Email,
+		Phone:         m.Phone,
+		Notes:         m.Notes,
+		IsPrimary:     m.IsPrimary,
+		IsActive:      m.IsActive,
+		CreatedBy:     m.CreatedBy,
+		CreatedAt:     m.CreatedAt,
+		UpdatedAt:     m.UpdatedAt,
 	}
+
+	if m.ContactRole != nil {
+		resp.ContactRole = &dto.ContactRoleInfo{
+			ID:         m.ContactRole.ID,
+			Name:       m.ContactRole.Name,
+			Code:       m.ContactRole.Code,
+			BadgeColor: m.ContactRole.BadgeColor,
+		}
+	}
+
+	return resp
 }
 
-func toPhoneNumberResponseList(models []models.SupplierPhoneNumber) []dto.PhoneNumberResponse {
-	responses := make([]dto.PhoneNumberResponse, len(models))
+func toContactResponseList(models []models.SupplierContact) []dto.ContactResponse {
+	responses := make([]dto.ContactResponse, len(models))
 	for i := range models {
-		responses[i] = toPhoneNumberResponse(&models[i])
+		responses[i] = toContactResponse(&models[i])
 	}
 	return responses
 }

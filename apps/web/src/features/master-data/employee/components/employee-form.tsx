@@ -131,7 +131,7 @@ export function EmployeeForm({
     { per_page: 20 },
     { enabled: open },
   );
-  const { data: availableUsersData } = useAvailableUsers(
+  const { data: availableUsersData, refetch: refetchAvailableUsers } = useAvailableUsers(
     undefined,
     employee?.id,
     { enabled: open },
@@ -215,6 +215,14 @@ export function EmployeeForm({
       password: "",
     },
   });
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    void refetchAvailableUsers();
+  }, [open, refetchAvailableUsers]);
 
   useEffect(() => {
     // Reset form when modal opens or employeeData changes
@@ -364,7 +372,6 @@ export function EmployeeForm({
       }
 
       const baseData = {
-        employee_code: data.employee_code,
         name: data.name,
         email: data.email || undefined,
         phone: data.phone || undefined,
@@ -391,7 +398,15 @@ export function EmployeeForm({
       };
 
       if (isEditing && employee) {
-        await updateEmployee.mutateAsync({ id: employee.id, data: baseData });
+        const updatePayload = {
+          ...baseData,
+          employee_code: data.employee_code?.trim() || undefined,
+        };
+
+        await updateEmployee.mutateAsync({
+          id: employee.id,
+          data: updatePayload,
+        });
 
         if (areaAssignments.length > 0) {
           await bulkUpdateAreas.mutateAsync({

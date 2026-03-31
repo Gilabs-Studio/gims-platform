@@ -76,8 +76,8 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   const isEdit = !!goodsReceiptId;
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
-  const [shouldLoadPurchaseOrderOptions, setShouldLoadPurchaseOrderOptions] = useState(!!defaultPurchaseOrderId);
-  const [shouldLoadWarehouseOptions, setShouldLoadWarehouseOptions] = useState(isEdit);
+  const [shouldLoadPurchaseOrderOptions, setShouldLoadPurchaseOrderOptions] = useState(true);
+  const [shouldLoadWarehouseOptions, setShouldLoadWarehouseOptions] = useState(true);
 
   const form = useForm<GoodsReceiptFormData>({
     resolver: zodResolver(goodsReceiptSchema),
@@ -120,17 +120,11 @@ export function GoodsReceiptForm({ open, onClose, goodsReceiptId, defaultPurchas
 
   useEffect(() => {
     if (!open) {
-      setShouldLoadPurchaseOrderOptions(!!defaultPurchaseOrderId);
-      setShouldLoadWarehouseOptions(isEdit);
       return;
     }
-    if (defaultPurchaseOrderId) {
-      setShouldLoadPurchaseOrderOptions(true);
-    }
-    if (isEdit) {
-      setShouldLoadWarehouseOptions(true);
-    }
-  }, [open, defaultPurchaseOrderId, isEdit]);
+    setShouldLoadPurchaseOrderOptions(true);
+    setShouldLoadWarehouseOptions(true);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

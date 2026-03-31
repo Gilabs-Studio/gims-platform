@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -24,11 +23,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "@/i18n/routing";
 import { ScheduleDetailDialog } from "@/features/crm/schedule/components/schedule-detail-dialog";
 import { TaskDetailDialog } from "@/features/crm/task/components/task-detail-dialog";
-import { useSchedules } from "@/features/crm/schedule/hooks/use-schedules";
-import { useTasks } from "@/features/crm/task/hooks/use-tasks";
-import { useUserPermission } from "@/hooks/use-user-permission";
+import { useTaskCalendarView } from "@/features/crm/task/hooks/use-task-calendar-view";
 import { formatDate } from "@/lib/utils";
-import { useTranslations } from "next-intl";
 import type { Schedule } from "@/features/crm/schedule/types";
 import type { Task } from "@/features/crm/task/types";
 
@@ -47,78 +43,20 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 };
 
 export function TaskCalendarView() {
-  const t = useTranslations("crmSchedule");
-  const tTask = useTranslations("crmTask");
-
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
-  const [detailItem, setDetailItem] = useState<Schedule | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [statusFilter, setStatusFilter] = useState("");
-
-  const canViewLead = useUserPermission("crm_lead.read");
-  const canViewDeal = useUserPermission("crm_deal.read");
-  const canViewCustomer = useUserPermission("customer.read");
-
-  const { data: allSchedulesRes, isLoading } = useSchedules({
-    page: 1,
-    per_page: 100,
-    status: statusFilter || undefined,
-  });
-
-  const { data: overdueTasksRes } = useTasks({
-    is_overdue: true,
-    per_page: 50,
-  });
-
-  const allItems = useMemo(() => allSchedulesRes?.data ?? [], [allSchedulesRes]);
-  const overdueItems = useMemo<Task[]>(() => overdueTasksRes?.data ?? [], [overdueTasksRes]);
-
-  const scheduleDatesMap = useMemo(() => {
-    const map = new Map<string, Schedule[]>();
-    for (const item of allItems) {
-      const dateKey = new Date(item.scheduled_at).toDateString();
-      const existing = map.get(dateKey) ?? [];
-      existing.push(item);
-      map.set(dateKey, existing);
-    }
-    return map;
-  }, [allItems]);
-
-  const selectedDateSchedules = useMemo(() => {
-    if (!selectedDate) return [];
-    return scheduleDatesMap.get(selectedDate.toDateString()) ?? [];
-  }, [selectedDate, scheduleDatesMap]);
-
-  const datesWithSchedules = useMemo(() => {
-    const scheduleDates = Array.from(scheduleDatesMap.keys()).map((d) => new Date(d));
-    const overdueTaskDates = overdueItems
-      .filter((t) => t.due_date)
-      .map((t) => {
-        const [y, mo, d] = t.due_date!.split("-").map(Number);
-        return new Date(y!, mo! - 1, d!);
-      });
-    return [...scheduleDates, ...overdueTaskDates];
-  }, [scheduleDatesMap, overdueItems]);
-
-  // Overdue tasks whose due_date matches the currently selected date
-  const selectedDateTasks = useMemo(() => {
-    if (!selectedDate) return [];
-    const selStr = [
-      selectedDate.getFullYear(),
-      String(selectedDate.getMonth() + 1).padStart(2, "0"),
-      String(selectedDate.getDate()).padStart(2, "0"),
-    ].join("-");
-    return overdueItems.filter((t) => t.due_date === selStr);
-  }, [selectedDate, overdueItems]);
+  const { state, data, permissions, actions, translations } = useTaskCalendarView();
+  const { t, tTask } = translations;
+  const { canViewLead, canViewDeal, canViewCustomer } = permissions;
+  const overdueItems = data.overdueItems as Task[];
+  const selectedDateTasks = data.selectedDateTasks as Task[];
+  const selectedDateSchedules = data.selectedDateSchedules as Schedule[];
 
   return (
     <div className="space-y-4">
       {/* Filter + Info */}
       <div className="flex items-center gap-3">
         <Select
-          value={statusFilter || "all"}
-          onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}
+          value={state.statusFilter || "all"}
+          onValueChange={(value) => actions.setStatusFilter(value === "all" ? "" : value)}
         >
           <SelectTrigger className="w-40 cursor-pointer">
             <Filter className="mr-2 h-4 w-4" />
@@ -146,11 +84,11 @@ export function TaskCalendarView() {
         <div className="rounded-lg border p-4">
           <Calendar
             mode="single"
-            selected={selectedDate}
-            onSelect={(date: Date | undefined) => setSelectedDate(date ?? new Date())}
-            month={calendarMonth}
-            onMonthChange={(m) => setCalendarMonth(m ?? new Date())}
-            modifiers={{ hasSchedule: datesWithSchedules }}
+            selected={state.selectedDate}
+            onSelect={actions.setSelectedDate}
+            month={state.calendarMonth}
+            onMonthChange={actions.setCalendarMonth}
+            modifiers={{ hasSchedule: data.datesWithSchedules }}
             modifiersClassNames={{
               hasSchedule:
                 "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
@@ -185,25 +123,11 @@ export function TaskCalendarView() {
                     role="button"
                     tabIndex={0}
                     className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2 cursor-pointer hover:bg-destructive/10 transition-colors"
-                    onClick={() => {
-                      if (task.due_date) {
-                        const [y, mo, d] = task.due_date.split("-").map(Number);
-                        const date = new Date(y!, mo! - 1, d!);
-                        setSelectedDate(date);
-                        setCalendarMonth(date);
-                      }
-                      setSelectedTask(task);
-                    }}
+                    onClick={() => actions.handleOverdueTaskClick(task)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        if (task.due_date) {
-                          const [y, mo, d] = task.due_date.split("-").map(Number);
-                          const date = new Date(y!, mo! - 1, d!);
-                          setSelectedDate(date);
-                          setCalendarMonth(date);
-                        }
-                        setSelectedTask(task);
+                        actions.handleOverdueTaskClick(task);
                       }
                     }}
                   >
@@ -305,17 +229,10 @@ export function TaskCalendarView() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-lg font-semibold">
               <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-              {selectedDate
-                ? selectedDate.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })
-                : t("title")}
+              {data.selectedDateLabel}
             </div>
 
-            {isLoading ? (
+            {data.isLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="rounded-lg border p-4 space-y-2">
@@ -339,11 +256,11 @@ export function TaskCalendarView() {
                     role="button"
                     tabIndex={0}
                     className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 cursor-pointer hover:bg-destructive/10 transition-colors"
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => actions.setSelectedTask(task)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setSelectedTask(task);
+                        actions.setSelectedTask(task);
                       }
                     }}
                   >
@@ -389,13 +306,13 @@ export function TaskCalendarView() {
                   <div
                     key={item.id}
                     className="rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => setDetailItem(item)}
+                    onClick={() => actions.setDetailItem(item)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setDetailItem(item);
+                        actions.setDetailItem(item);
                       }
                     }}
                   >
@@ -450,15 +367,11 @@ export function TaskCalendarView() {
       </div>
 
       {/* Detail Dialogs */}
-      <ScheduleDetailDialog
-        open={!!detailItem}
-        onClose={() => setDetailItem(null)}
-        schedule={detailItem}
-      />
+      <ScheduleDetailDialog open={!!state.detailItem} onClose={() => actions.setDetailItem(null)} schedule={state.detailItem} />
       <TaskDetailDialog
-        open={!!selectedTask}
-        onClose={() => setSelectedTask(null)}
-        task={selectedTask}
+        open={!!state.selectedTask}
+        onClose={() => actions.setSelectedTask(null)}
+        task={state.selectedTask}
       />
     </div>
   );

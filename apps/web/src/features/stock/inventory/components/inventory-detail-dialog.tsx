@@ -13,7 +13,7 @@ import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
 import { InventoryStockItem } from "../types";
 import { useInventoryTreeBatches } from "../hooks/use-inventory-tree";
 import { Package, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { Button } from "@/components/ui/button";
 
 interface InventoryDetailDialogProps {
   open: boolean;
@@ -23,7 +23,12 @@ interface InventoryDetailDialogProps {
 
 function BatchList({ warehouseId, productId }: { warehouseId: string; productId: string }) {
   const PAGE_SIZE = 5;
-  const { batches, meta, isLoading, page, setPage } = useInventoryTreeBatches(warehouseId, productId, true, PAGE_SIZE);
+  const { batches, meta, isLoading, isLoadingMore, loadMore } = useInventoryTreeBatches(
+    warehouseId,
+    productId,
+    true,
+    PAGE_SIZE,
+  );
 
   if (isLoading) {
     return (
@@ -81,16 +86,17 @@ function BatchList({ warehouseId, productId }: { warehouseId: string; productId:
           </div>
         </div>
       ))}
-      {meta && meta.total > 0 && (
-        <div className="pt-2">
-            <DataTablePagination
-                pageIndex={page}
-                pageSize={PAGE_SIZE}
-                rowCount={meta.total}
-                onPageChange={setPage}
-                onPageSizeChange={() => null}
-                pageSizeOptions={[5]} 
-            />
+      {meta?.has_next && (
+        <div className="pt-2 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="cursor-pointer"
+          >
+            {isLoadingMore ? "Loading..." : "Load more"}
+          </Button>
         </div>
       )}
     </div>

@@ -97,7 +97,7 @@ func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInve
 		req.PerPage = 20
 	}
 
-	items, total, err := u.repo.GetTreeProducts(ctx, req)
+	items, total, summary, err := u.repo.GetTreeProducts(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +114,7 @@ func (u *inventoryUsecase) GetTreeProducts(ctx context.Context, req *dto.GetInve
 			HasNext:    req.Page < totalPages,
 			HasPrev:    req.Page > 1,
 		},
+		Summary: summary,
 	}, nil
 }
 

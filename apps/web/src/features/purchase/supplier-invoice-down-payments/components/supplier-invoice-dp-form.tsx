@@ -20,14 +20,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonLoading } from "@/components/loading";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 
 import {
   useCreateSupplierInvoiceDP,
   useSupplierInvoiceDP,
-  useSupplierInvoiceDPAddData,
   useUpdateSupplierInvoiceDP,
 } from "../hooks/use-supplier-invoice-dp";
 import { usePurchaseOrder } from "@/features/purchase/orders/hooks/use-purchase-orders";
+import { purchaseOrdersService } from "@/features/purchase/orders/services/purchase-orders-service";
 import {
   supplierInvoiceDPSchema,
   type SupplierInvoiceDPFormData,
@@ -49,9 +50,6 @@ export function SupplierInvoiceDPFormDialog({
 }) {
   const t = useTranslations("supplierInvoiceDP");
   const isEdit = !!invoiceId;
-  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(false);
-
-  const addDataQuery = useSupplierInvoiceDPAddData({ enabled: open && shouldLoadSelectData });
   const detailQuery = useSupplierInvoiceDP(invoiceId ?? "", { enabled: open && isEdit });
 
   const createMutation = useCreateSupplierInvoiceDP();
@@ -69,16 +67,6 @@ export function SupplierInvoiceDPFormDialog({
   });
 
   const poQuery = usePurchaseOrder(defaultPurchaseOrderId ?? "", { enabled: open && !!defaultPurchaseOrderId && !isEdit });
-
-  useEffect(() => {
-    if (!open) {
-      setShouldLoadSelectData(false);
-      return;
-    }
-    if (isEdit || !!defaultPurchaseOrderId) {
-      setShouldLoadSelectData(true);
-    }
-  }, [open, isEdit, defaultPurchaseOrderId]);
 
   useEffect(() => {
     if (!open) return;
@@ -112,13 +100,24 @@ export function SupplierInvoiceDPFormDialog({
   }, [open, isEdit, detailQuery.data, form, defaultPurchaseOrderId, poQuery.data]);
 
   const isBusy = detailQuery.isLoading || createMutation.isPending || updateMutation.isPending;
-  const addData = addDataQuery.data?.success ? addDataQuery.data.data : null;
 
   const watchedPOId = form.watch("purchase_order_id");
-  const selectedPO = useMemo(
-    () => addData?.purchase_orders?.find((po) => po.id === watchedPOId) ?? null,
-    [addData, watchedPOId],
-  );
+  const selectedPOQuery = usePurchaseOrder(watchedPOId ?? "", {
+    enabled: open && !!watchedPOId,
+  });
+
+  const purchaseOrderOptions = usePaginatedComboboxOptions({
+    queryKey: ["supplier-invoice-dp", "purchase-order-options"],
+    enabled: open,
+    lazyLoad: true,
+    queryFn: (params) => purchaseOrdersService.list(params),
+    mapOption: (po) => ({
+      value: po.id,
+      label: `${po.code} - ${formatCurrency(po.total_amount ?? 0)}`,
+    }),
+  });
+
+  const selectedPO = selectedPOQuery.data?.success ? selectedPOQuery.data.data : null;
   const dpAmount = form.watch("amount");
 
   const invoiceSummary = useMemo(() => {
@@ -172,28 +171,31 @@ export function SupplierInvoiceDPFormDialog({
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
-                  onOpenChange={(isOpen) => {
-                    if (isOpen) {
-                      setShouldLoadSelectData(true);
-                    }
-                  }}
+                  onOpenChange={purchaseOrderOptions.onOpenChange}
+                  onSearchChange={purchaseOrderOptions.onSearchChange}
+                  searchDebounceMs={300}
                   disabled={isBusy || isEdit}
                 >
                   <SelectTrigger className="cursor-pointer">
                     <SelectValue placeholder={t("placeholders.select")} />
                   </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {addDataQuery.isFetching && (addData?.purchase_orders ?? []).length === 0 ? (
+                  <SelectContent
+                    className="max-h-60"
+                    onLoadMore={purchaseOrderOptions.onLoadMore}
+                    hasMore={purchaseOrderOptions.hasMore}
+                    isLoadingMore={purchaseOrderOptions.isLoadingMore}
+                  >
+                    {purchaseOrderOptions.isFetching && purchaseOrderOptions.options.length === 0 ? (
                       <SelectItem value={LOADING_VALUE} disabled>
                         Loading...
                       </SelectItem>
-                    ) : (addData?.purchase_orders ?? []).length === 0 ? (
+                    ) : purchaseOrderOptions.options.length === 0 ? (
                       <SelectItem value={EMPTY_VALUE} disabled>
                         No data available
                       </SelectItem>
-                    ) : (addData?.purchase_orders ?? []).map((po) => (
-                      <SelectItem key={po.id} value={po.id} className="cursor-pointer">
-                        {po.code}
+                    ) : purchaseOrderOptions.options.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="cursor-pointer">
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

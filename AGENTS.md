@@ -94,6 +94,7 @@ now := apptime.NowForCompany(companyID)
 ```
 
 **Rules:**
+
 - Import: `"github.com/gilabs/gims/api/internal/core/apptime"`
 - Global helpers: `Now()`, `Today()`, `StartOfMonth()`, `Location()`
 - Per-company: `NowForCompany()`, `LocationForCompany()`, `TodayForCompany()`
@@ -157,14 +158,13 @@ features/<feature>/
 
 ### Error Handling
 
-```typescript
+````typescript
 try {
   await createEmployee.mutateAsync(data);
   toast.success(t("createSuccess"));
 } catch (error) {
   toast.error(t("createError"));
 }
-```
 
 ## Critical Rules
 
@@ -213,6 +213,53 @@ import <domain> "github.com/gilabs/gims/api/internal/<domain>/data/models"
 - Always define return types
 - Strict null checks
 
+### Internationalization (i18n)
+
+**File Locations:**
+
+- Feature-specific: `features/<feature>/i18n/{en.ts, id.ts}`
+- Global: `src/i18n/messages/{en.json, id.json}`
+
+**Translation Keys:**
+
+```typescript
+// Use nested structure
+const t = useTranslations("financeAssets");
+t("detail.tabs.overview");
+t("actions.edit");
+
+// Common translations
+const tCommon = useTranslations("common");
+tCommon("systemInfo");
+tCommon("description");
+```
+
+**Adding New Keys:**
+
+1. Add to both `en.ts` AND `id.ts` (or `en.json` AND `id.json`)
+2. Use consistent naming convention
+3. Group related keys together
+
+**Common Keys in messages/en.json:**
+
+```json
+{
+  "common": {
+    "systemInfo": "System Information",
+    "description": "Description",
+    "amount": "Amount",
+    "match": "Match"
+  }
+}
+```
+
+**Preventing Missing Translation Errors:**
+
+- Check browser console for `IntlError: MISSING_MESSAGE`
+- Always add keys to both language files
+- Use `tCommon` for shared/common translations
+- Test both EN and ID locales
+
 ### Tailwind CSS
 
 - **NEVER** use arbitrary values
@@ -221,17 +268,48 @@ import <domain> "github.com/gilabs/gims/api/internal/<domain>/data/models"
 
 ## Documentation
 
-update the postman: `docs\postman\postman.json`
+Update Postman: `docs\postman\postman.json`
 Create: `docs/features/{features folder name}/{feature-name}.md`
 
-Required:
+### Documentation Standard Format
 
-1. Ringkasan Fitur
-2. Fitur Utama
-3. Business Rules
-4. Keputusan Teknis
-5. API Endpoints (table)
-6. Cara Test Manual
+Follow the structure from `hrd-attendance.md` for consistency:
+
+**Header Metadata:**
+
+```markdown
+> **Module:** [Module Name]
+> **Sprint:** [Sprint Number]
+> **Version:** [X.Y.Z]
+> **Status:** [Complete/In Progress/Planned]
+> **Last Updated:** [Month Year]
+```
+
+**Required Sections:**
+
+1. **Table of Contents** - Auto-generated links to sections
+2. **Overview** - Module description + Key Features table
+3. **Features** - Detailed feature breakdown with tables
+4. **System Architecture** - Backend/Frontend structure tree
+5. **Data Models** - Tables with field names, types, descriptions
+6. **Business Logic** - Rules, formulas, calculations
+7. **API Reference** - Endpoint tables (Method, Path, Permission, Description)
+8. **Frontend Components** - Component tables (Name, File, Description)
+9. **User Flows** - Mermaid sequence diagrams
+10. **Permissions** - Permission table (Name, Description)
+11. **Integration Points** - Integration with other modules
+12. **Testing Strategy** - Unit/Integration/E2E test locations
+13. **Keputusan Teknis** - Technical decisions with trade-offs (Rationale + Trade-off format)
+14. **Notes & Improvements** - Completed features, planned improvements, known limitations
+15. **Appendix** - Error codes, database indexes
+
+**Formatting Guidelines:**
+
+- Use **English** for all content (except Indonesian business terms like PKWTT, PKWT)
+- Use **tables** for structured data (features, API endpoints, fields, components)
+- Include **Mermaid diagrams** for user flows
+- Follow **Keputusan Teknis** format: Decision → Alasan → Trade-off
+- Maintain consistent indentation (2 spaces for code, 4 for YAML/JSON)
 
 ## Quick Reference
 
@@ -251,3 +329,4 @@ Required:
 - Copilot: `.github/copilot-instructions.md`
 - API Standards: `docs/api-standart/README.md`
 - Timezone/apptime: `docs/features/core/apptime-timezone-support.md`
+````

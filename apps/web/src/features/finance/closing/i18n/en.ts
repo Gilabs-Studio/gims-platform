@@ -31,6 +31,14 @@ export const financeClosingEn = {
     submit: "Save",
     cancel: "Cancel",
   },
+  snapshot: {
+    title: "Snapshot",
+    netProfit: "Net Profit",
+    retainedEarnings: "Retained Earnings",
+  },
+  validation: {
+    title: "Validation",
+  },
   toast: {
     created: "Closing created",
     approved: "Closing approved",

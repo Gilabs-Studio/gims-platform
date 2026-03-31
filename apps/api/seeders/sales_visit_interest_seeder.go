@@ -5,65 +5,119 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	"gorm.io/gorm/clause"
 )
 
-// SeedSalesVisitInterestQuestions seeds default survey questions
-func SeedSalesVisitInterestQuestions() error {
-	db := database.DB
+const (
+	interestQuestionNeedID          = "a1000001-0000-0000-0000-000000000001"
+	interestQuestionBudgetID        = "a1000001-0000-0000-0000-000000000002"
+	interestQuestionDecisionMakerID = "a1000001-0000-0000-0000-000000000003"
+	interestQuestionTimelineID      = "a1000001-0000-0000-0000-000000000004"
+	interestQuestionFitID           = "a1000001-0000-0000-0000-000000000005"
 
-	var count int64
-	db.Model(&salesModels.SalesVisitInterestQuestion{}).Count(&count)
-	if count > 0 {
-		log.Println("Sales visit interest questions already seeded, skipping...")
-		return nil
-	}
+	interestOptionNeedYesID          = "a2000001-0000-0000-0000-000000000001"
+	interestOptionNeedNoID           = "a2000001-0000-0000-0000-000000000002"
+	interestOptionBudgetYesID        = "a2000001-0000-0000-0000-000000000003"
+	interestOptionBudgetNoID         = "a2000001-0000-0000-0000-000000000004"
+	interestOptionDecisionMakerYesID = "a2000001-0000-0000-0000-000000000005"
+	interestOptionDecisionMakerNoID  = "a2000001-0000-0000-0000-000000000006"
+	interestOptionTimelineYesID      = "a2000001-0000-0000-0000-000000000007"
+	interestOptionTimelineNoID       = "a2000001-0000-0000-0000-000000000008"
+	interestOptionFitYesID           = "a2000001-0000-0000-0000-000000000009"
+	interestOptionFitNoID            = "a2000001-0000-0000-0000-00000000000a"
+)
 
-	log.Println("Seeding sales visit interest questions...")
+// SeedSalesVisitInterestSurvey seeds default yes/no interest survey questions for visit reports.
+func SeedSalesVisitInterestSurvey() error {
+	log.Println("Seeding sales visit interest survey...")
 
-	questions := []struct {
-		Text     string
-		Sequence int
-	}{
-		{Text: "Does the customer have a clear need for this product?", Sequence: 1},
-		{Text: "Is the budget confirmed?", Sequence: 2},
-		{Text: "Is the decision maker involved?", Sequence: 3},
-		{Text: "Is the timeline for purchase defined?", Sequence: 4},
-		{Text: "Does our solution fit their requirements?", Sequence: 5},
-	}
-
-	for _, qData := range questions {
-		question := salesModels.SalesVisitInterestQuestion{
-			QuestionText: qData.Text,
-			Sequence:     qData.Sequence,
+	questions := []salesModels.SalesVisitInterestQuestion{
+		{
+			ID:           interestQuestionNeedID,
+			QuestionText: "Does the customer have a clear need for this product?",
 			IsActive:     true,
-		}
+			Sequence:     1,
+		},
+		{
+			ID:           interestQuestionBudgetID,
+			QuestionText: "Is the budget confirmed?",
+			IsActive:     true,
+			Sequence:     2,
+		},
+		{
+			ID:           interestQuestionDecisionMakerID,
+			QuestionText: "Is the decision maker involved?",
+			IsActive:     true,
+			Sequence:     3,
+		},
+		{
+			ID:           interestQuestionTimelineID,
+			QuestionText: "Is the timeline for purchase defined?",
+			IsActive:     true,
+			Sequence:     4,
+		},
+		{
+			ID:           interestQuestionFitID,
+			QuestionText: "Does our solution fit their requirements?",
+			IsActive:     true,
+			Sequence:     5,
+		},
+	}
 
-		if err := db.Create(&question).Error; err != nil {
-			log.Printf("Warning: Failed to create question %s: %v", qData.Text, err)
-			continue
-		}
-
-		// Create Options (Yes/No)
-		options := []struct {
-			Text  string
-			Score int
-		}{
-			{Text: "Yes", Score: 1},
-			{Text: "No", Score: 0},
-		}
-
-		for _, optData := range options {
-			option := salesModels.SalesVisitInterestOption{
-				QuestionID: question.ID,
-				OptionText: optData.Text,
-				Score:      optData.Score,
-			}
-			if err := db.Create(&option).Error; err != nil {
-				log.Printf("Warning: Failed to create option %s: %v", optData.Text, err)
-			}
+	for _, question := range questions {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"question_text",
+				"is_active",
+				"sequence",
+				"updated_at",
+			}),
+		}).Create(&question).Error; err != nil {
+			return err
 		}
 	}
 
-	log.Println("Sales visit interest questions seeded successfully")
+	type optionSeed struct {
+		id         string
+		questionID string
+		optionText string
+		score      int
+	}
+
+	options := []optionSeed{
+		{id: interestOptionNeedYesID, questionID: interestQuestionNeedID, optionText: "Yes", score: 1},
+		{id: interestOptionNeedNoID, questionID: interestQuestionNeedID, optionText: "No", score: 0},
+		{id: interestOptionBudgetYesID, questionID: interestQuestionBudgetID, optionText: "Yes", score: 1},
+		{id: interestOptionBudgetNoID, questionID: interestQuestionBudgetID, optionText: "No", score: 0},
+		{id: interestOptionDecisionMakerYesID, questionID: interestQuestionDecisionMakerID, optionText: "Yes", score: 1},
+		{id: interestOptionDecisionMakerNoID, questionID: interestQuestionDecisionMakerID, optionText: "No", score: 0},
+		{id: interestOptionTimelineYesID, questionID: interestQuestionTimelineID, optionText: "Yes", score: 1},
+		{id: interestOptionTimelineNoID, questionID: interestQuestionTimelineID, optionText: "No", score: 0},
+		{id: interestOptionFitYesID, questionID: interestQuestionFitID, optionText: "Yes", score: 1},
+		{id: interestOptionFitNoID, questionID: interestQuestionFitID, optionText: "No", score: 0},
+	}
+
+	for _, seed := range options {
+		option := salesModels.SalesVisitInterestOption{
+			ID:         seed.id,
+			QuestionID: seed.questionID,
+			OptionText: seed.optionText,
+			Score:      seed.score,
+		}
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"question_id",
+				"option_text",
+				"score",
+				"updated_at",
+			}),
+		}).Create(&option).Error; err != nil {
+			return err
+		}
+	}
+
+	log.Println("Sales visit interest survey seeded successfully")
 	return nil
 }

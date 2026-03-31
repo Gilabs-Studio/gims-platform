@@ -111,6 +111,13 @@ export const navigationConfig: NavItem[] = [
     ],
   },
   {
+    name: "Travel Planner",
+    i18nKey: "travelPlanner",
+    icon: "route",
+    url: "/travel-planner",
+    permission: "travel_planner.read",
+  },
+  {
     name: "Sales",
     i18nKey: "sales",
     icon: "shopping-cart",
@@ -430,13 +437,6 @@ export const navigationConfig: NavItem[] = [
             icon: "coins",
             permission: "salary.read",
           },
-          {
-            name: "Up Country Cost",
-            i18nKey: "upCountryCost",
-            url: "/finance/up-country-cost",
-            icon: "map-pin",
-            permission: "up_country_cost.read",
-          },
         ],
       },
       {
@@ -534,8 +534,9 @@ export const navigationConfig: NavItem[] = [
       },
       {
         name: "Overtime",
+        i18nKey: "overtime",
         url: "/hrd/overtime",
-        icon: "clock",
+        icon: "moon",
         permission: "overtime.read",
       },
       {
@@ -683,6 +684,13 @@ export const navigationConfig: NavItem[] = [
         permission: "employee.read",
       },
       {
+        name: "Banks",
+        i18nKey: "banks",
+        url: "/master-data/banks",
+        icon: "landmark",
+        permission: "bank.read",
+      },
+      {
         name: "Supplier",
         i18nKey: "supplier",
         url: "/master-data/supplier",
@@ -701,13 +709,6 @@ export const navigationConfig: NavItem[] = [
             url: "/master-data/supplier-types",
             icon: "tag",
             permission: "supplier_type.read",
-          },
-          {
-            name: "Banks",
-            i18nKey: "banks",
-            url: "/master-data/banks",
-            icon: "landmark",
-            permission: "bank.read",
           },
         ],
       },

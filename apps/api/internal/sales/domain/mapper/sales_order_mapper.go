@@ -12,26 +12,27 @@ import (
 // pendingQtyMap maps sales_order_item_id -> total pending delivery quantity from active DOs
 func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]float64) dto.SalesOrderResponse {
 	response := dto.SalesOrderResponse{
-		ID:                  m.ID,
-		Code:                m.Code,
-		OrderDate:           m.OrderDate.Format("2006-01-02"),
-		Subtotal:            m.Subtotal,
-		DiscountAmount:      m.DiscountAmount,
-		TaxRate:             m.TaxRate,
-		TaxAmount:           m.TaxAmount,
-		DeliveryCost:        m.DeliveryCost,
-		OtherCost:           m.OtherCost,
-		TotalAmount:         m.TotalAmount,
-		ReservedStock:       m.ReservedStock,
-		CustomerID:          m.CustomerID,
-		CustomerName:        m.CustomerName,
-		CustomerContact:     m.CustomerContact,
-		CustomerPhone:       m.CustomerPhone,
-		CustomerEmail:       m.CustomerEmail,
-		Status:              string(m.Status),
-		Notes:               m.Notes,
-		CreatedAt:           m.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:           m.UpdatedAt.Format(time.RFC3339),
+		ID:                m.ID,
+		Code:              m.Code,
+		OrderDate:         m.OrderDate.Format("2006-01-02"),
+		Subtotal:          m.Subtotal,
+		DiscountAmount:    m.DiscountAmount,
+		TaxRate:           m.TaxRate,
+		TaxAmount:         m.TaxAmount,
+		DeliveryCost:      m.DeliveryCost,
+		OtherCost:         m.OtherCost,
+		TotalAmount:       m.TotalAmount,
+		ReservedStock:     m.ReservedStock,
+		CustomerID:        m.CustomerID,
+		CustomerContactID: m.CustomerContactID,
+		CustomerName:      m.CustomerName,
+		CustomerContact:   m.CustomerContact,
+		CustomerPhone:     m.CustomerPhone,
+		CustomerEmail:     m.CustomerEmail,
+		Status:            string(m.Status),
+		Notes:             m.Notes,
+		CreatedAt:         m.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         m.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if m.Customer != nil {
@@ -265,29 +266,30 @@ func ToSalesOrderModel(req *dto.CreateSalesOrderRequest, code string, createdBy 
 	}
 
 	order := &salesModels.SalesOrder{
-		Code:            code,
-		OrderDate:       orderDate,
-		SalesQuotationID: req.SalesQuotationID,
-		PaymentTermsID:  req.PaymentTermsID,
-		SalesRepID:      req.SalesRepID,
-		BusinessUnitID:  req.BusinessUnitID,
-		BusinessTypeID:  req.BusinessTypeID,
-		DeliveryAreaID:  req.DeliveryAreaID,
-		CustomerID:      req.CustomerID,
-		CustomerName:    req.CustomerName,
-		CustomerContact: req.CustomerContact,
-		CustomerPhone:   req.CustomerPhone,
-		CustomerEmail:   req.CustomerEmail,
-		TaxRate:         req.TaxRate,
-		DeliveryCost:    req.DeliveryCost,
-		OtherCost:       req.OtherCost,
-		DiscountAmount:  req.DiscountAmount,
-		Notes:           req.Notes,
-		Status:          salesModels.SalesOrderStatusDraft,
-		ReservedStock:   false,
-		CreatedBy:       createdBy,
-		CreatedAt:       apptime.Now(),
-		UpdatedAt:       apptime.Now(),
+		Code:              code,
+		OrderDate:         orderDate,
+		SalesQuotationID:  req.SalesQuotationID,
+		PaymentTermsID:    req.PaymentTermsID,
+		SalesRepID:        req.SalesRepID,
+		BusinessUnitID:    req.BusinessUnitID,
+		BusinessTypeID:    req.BusinessTypeID,
+		DeliveryAreaID:    req.DeliveryAreaID,
+		CustomerID:        req.CustomerID,
+		CustomerContactID: req.CustomerContactID,
+		CustomerName:      req.CustomerName,
+		CustomerContact:   req.CustomerContact,
+		CustomerPhone:     req.CustomerPhone,
+		CustomerEmail:     req.CustomerEmail,
+		TaxRate:           req.TaxRate,
+		DeliveryCost:      req.DeliveryCost,
+		OtherCost:         req.OtherCost,
+		DiscountAmount:    req.DiscountAmount,
+		Notes:             req.Notes,
+		Status:            salesModels.SalesOrderStatusDraft,
+		ReservedStock:     false,
+		CreatedBy:         createdBy,
+		CreatedAt:         apptime.Now(),
+		UpdatedAt:         apptime.Now(),
 	}
 
 	// Default tax rate to 11% if not provided
@@ -348,6 +350,10 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 		m.CustomerID = req.CustomerID
 	}
 
+	if req.CustomerContactID != nil {
+		m.CustomerContactID = req.CustomerContactID
+	}
+
 	if req.TaxRate != nil {
 		m.TaxRate = *req.TaxRate
 	}
@@ -404,34 +410,40 @@ func UpdateSalesOrderModel(m *salesModels.SalesOrder, req *dto.UpdateSalesOrderR
 }
 
 // ConvertQuotationToOrderModel converts a SalesQuotation to SalesOrder model
-func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliveryAreaID *string, customerName string, customerContact string, customerPhone string, customerEmail string, notes string, code string, createdBy *string) (*salesModels.SalesOrder, error) {
+func ConvertQuotationToOrderModel(quotation *salesModels.SalesQuotation, deliveryAreaID *string, customerContactID *string, customerName string, customerContact string, customerPhone string, customerEmail string, notes string, code string, createdBy *string) (*salesModels.SalesOrder, error) {
+	resolvedContactID := quotation.CustomerContactID
+	if customerContactID != nil {
+		resolvedContactID = customerContactID
+	}
+
 	order := &salesModels.SalesOrder{
-		Code:            code,
-		OrderDate:       apptime.Now(),
-		SalesQuotationID: &quotation.ID,
-		PaymentTermsID:  quotation.PaymentTermsID,
-		SalesRepID:      quotation.SalesRepID,
-		BusinessUnitID:  quotation.BusinessUnitID,
-		BusinessTypeID:  quotation.BusinessTypeID,
-		DeliveryAreaID:  deliveryAreaID,
-		CustomerID:      quotation.CustomerID,
-		CustomerName:    customerName,
-		CustomerContact: customerContact,
-		CustomerPhone:   customerPhone,
-		CustomerEmail:   customerEmail,
-		TaxRate:         quotation.TaxRate,
-		DeliveryCost:    quotation.DeliveryCost,
-		OtherCost:       quotation.OtherCost,
-		DiscountAmount:  quotation.DiscountAmount,
-		Subtotal:        quotation.Subtotal,
-		TaxAmount:       quotation.TaxAmount,
-		TotalAmount:     quotation.TotalAmount,
-		Notes:           notes,
-		Status:          salesModels.SalesOrderStatusDraft,
-		ReservedStock:   false,
-		CreatedBy:       createdBy,
-		CreatedAt:       apptime.Now(),
-		UpdatedAt:       apptime.Now(),
+		Code:              code,
+		OrderDate:         apptime.Now(),
+		SalesQuotationID:  &quotation.ID,
+		PaymentTermsID:    quotation.PaymentTermsID,
+		SalesRepID:        quotation.SalesRepID,
+		BusinessUnitID:    quotation.BusinessUnitID,
+		BusinessTypeID:    quotation.BusinessTypeID,
+		DeliveryAreaID:    deliveryAreaID,
+		CustomerID:        quotation.CustomerID,
+		CustomerContactID: resolvedContactID,
+		CustomerName:      customerName,
+		CustomerContact:   customerContact,
+		CustomerPhone:     customerPhone,
+		CustomerEmail:     customerEmail,
+		TaxRate:           quotation.TaxRate,
+		DeliveryCost:      quotation.DeliveryCost,
+		OtherCost:         quotation.OtherCost,
+		DiscountAmount:    quotation.DiscountAmount,
+		Subtotal:          quotation.Subtotal,
+		TaxAmount:         quotation.TaxAmount,
+		TotalAmount:       quotation.TotalAmount,
+		Notes:             notes,
+		Status:            salesModels.SalesOrderStatusDraft,
+		ReservedStock:     false,
+		CreatedBy:         createdBy,
+		CreatedAt:         apptime.Now(),
+		UpdatedAt:         apptime.Now(),
 	}
 
 	// Convert items

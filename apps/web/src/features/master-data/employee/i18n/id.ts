@@ -390,9 +390,11 @@ export const employeeId: EmployeeTranslations = {
   },
   asset: {
     fields: {
+      selectAsset: "Pilih Aset",
       assetName: "Nama Aset",
       assetCode: "Kode Aset",
       assetCategory: "Kategori",
+      location: "Lokasi",
       borrowDate: "Tanggal Pinjam",
       returnDate: "Tanggal Kembali",
       borrowCondition: "Kondisi Pinjam",
@@ -432,6 +434,8 @@ export const employeeId: EmployeeTranslations = {
         "Apakah Anda yakin ingin menghapus catatan aset ini? Tindakan ini tidak dapat dibatalkan.",
       returnConfirm:
         "Catat pengembalian aset ini. Silakan berikan tanggal dan kondisi pengembalian.",
+      loadingAssets: "Memuat aset yang tersedia...",
+      selectAssetPlaceholder: "Pilih aset dari inventaris perusahaan",
       assetNamePlaceholder: "Masukkan nama aset",
       assetCodePlaceholder: "Masukkan kode aset",
       assetCategoryPlaceholder: "Masukkan kategori (cth. Laptop, Telepon)",
@@ -441,6 +445,9 @@ export const employeeId: EmployeeTranslations = {
       imageHint: "Unggah gambar aset (opsional)",
       borrowedSince: "Dipinjam sejak",
       cannotEditReturned: "Tidak dapat mengedit aset yang sudah dikembalikan",
+      hasDefaultImage: "Aset memiliki gambar default",
+      willUseDefaultImage:
+        "Akan menggunakan gambar default aset jika tidak ada gambar kustom yang diunggah",
     },
     success: {
       created: "Aset berhasil ditambahkan",

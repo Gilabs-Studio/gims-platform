@@ -9,10 +9,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLoading } from "@/components/loading";
@@ -44,12 +44,8 @@ export function WarehouseDialog({
     register,
     control,
     setValue,
-    watch,
     formState: { errors },
   } = form;
-
-  const isActive = watch("is_active");
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
@@ -70,8 +66,8 @@ export function WarehouseDialog({
                     {editingItem.code}
                   </span>
                 )}
-                <Badge variant={isActive ? "success" : "secondary"} className="text-xs">
-                  {isActive ? t("common.active") : t("common.inactive")}
+                <Badge variant={true ? "success" : "secondary"} className="text-xs">
+                  {true ? t("common.active") : t("common.inactive")}
                 </Badge>
               </div>
             </div>
@@ -164,13 +160,13 @@ export function WarehouseDialog({
             <div className="border rounded-lg overflow-hidden">
               <div className="flex items-center justify-between p-4">
                 <div>
-                  <p className="text-sm font-medium">{t("warehouse.form.isActive")}</p>
+                  <p className="text-sm font-medium">{t("warehouse.form.true")}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isActive ? t("common.active") : t("common.inactive")}
+                    {true ? t("common.active") : t("common.inactive")}
                   </p>
                 </div>
                 <Switch
-                  checked={isActive}
+                  checked={true}
                   onCheckedChange={(val) => setValue("is_active", val)}
                 />
               </div>

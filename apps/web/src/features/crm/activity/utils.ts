@@ -1,26 +1,31 @@
-import {
-  Activity,
-  Mail,
-  MapPin,
-  Phone,
-  RefreshCw,
-  Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import React, { type ComponentType } from "react";
+import type { LucideProps } from "lucide-react";
+import { DynamicIcon } from "@/lib/icon-utils";
 import type { VisitActivityMetadata } from "./types";
 
-const ACTIVITY_ICON_MAP: Record<string, LucideIcon> = {
-  "map-pin": MapPin,
-  phone: Phone,
-  mail: Mail,
-  users: Users,
-  "refresh-cw": RefreshCw,
-};
+const DEFAULT_ACTIVITY_ICON = "circle";
 
-/** Maps an ActivityType icon code (e.g. "phone") to the corresponding Lucide icon component. Falls back to Activity. */
-export function getActivityTypeIcon(iconCode?: string | null): LucideIcon {
-  if (!iconCode) return Activity;
-  return ACTIVITY_ICON_MAP[iconCode] ?? Activity;
+function normalizeActivityIconName(iconCode?: string | null): string {
+  const normalized = (iconCode ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/\s+/g, "-");
+
+  return normalized || DEFAULT_ACTIVITY_ICON;
+}
+
+/** Maps an ActivityType icon code (e.g. "phone") to a dynamic Lucide icon component. Falls back to Circle. */
+export function getActivityTypeIcon(iconCode?: string | null): ComponentType<LucideProps> {
+  const iconName = normalizeActivityIconName(iconCode);
+
+  const ActivityTypeIcon = (props: LucideProps) => {
+    const normalizedSize = typeof props.size === "number" ? props.size : undefined;
+    return React.createElement(DynamicIcon, { ...props, name: iconName, size: normalizedSize });
+  };
+
+  ActivityTypeIcon.displayName = `ActivityTypeIcon(${iconName})`;
+  return ActivityTypeIcon;
 }
 
 /** Safely parses visit activity metadata from the JSON metadata field.

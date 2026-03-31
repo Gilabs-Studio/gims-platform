@@ -3,12 +3,15 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
 	"strings"
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -64,6 +67,10 @@ func (uc *purchaseRequisitionUsecase) List(ctx context.Context, params repositor
 }
 
 func (uc *purchaseRequisitionUsecase) GetByID(ctx context.Context, id string) (*dto.PurchaseRequisitionDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.PurchaseRequisition{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrPurchaseRequisitionNotFound
+	}
+
 	pr, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -238,7 +245,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 	var suppliers []supplierModels.Supplier
 	if err := uc.db.WithContext(ctx).
 		Model(&supplierModels.Supplier{}).
-		Preload("PhoneNumbers").
+		Preload("Contacts").
 		Where("is_active = ?", true).
 		Order("name ASC").
 		Find(&suppliers).Error; err != nil {
@@ -284,12 +291,12 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 
 	addSuppliers := make([]dto.PurchaseRequisitionAddSupplier, 0, len(suppliers))
 	for _, s := range suppliers {
-		addPhones := make([]dto.PurchaseRequisitionAddSupplierPhoneNumber, 0, len(s.PhoneNumbers))
-		for _, ph := range s.PhoneNumbers {
-			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierPhoneNumber{
+		addPhones := make([]dto.PurchaseRequisitionAddSupplierContact, 0, len(s.Contacts))
+		for _, ph := range s.Contacts {
+			addPhones = append(addPhones, dto.PurchaseRequisitionAddSupplierContact{
 				ID:          ph.ID,
-				PhoneNumber: ph.PhoneNumber,
-				Label:       ph.Label,
+				PhoneNumber: ph.Phone,
+				Label:       ph.Position,
 				IsPrimary:   ph.IsPrimary,
 			})
 		}
@@ -299,7 +306,7 @@ func (uc *purchaseRequisitionUsecase) AddData(ctx context.Context) (*dto.Purchas
 			Name:           s.Name,
 			PaymentTermsID: s.PaymentTermsID,
 			BusinessUnitID: s.BusinessUnitID,
-			PhoneNumbers:   addPhones,
+			Contacts:       addPhones,
 			Products:       productsBySupplier[s.ID],
 		})
 	}
@@ -394,6 +401,17 @@ func (uc *purchaseRequisitionUsecase) Submit(ctx context.Context, id string) (*d
 		"before": before,
 		"after":  prAuditSnapshot(updated),
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "purchase_requisition.approve",
+		EntityType:     "purchase_requisition",
+		EntityID:       updated.ID,
+		Title:          "Purchase Requisition Approval",
+		Message:        "A purchase requisition has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create purchase requisition notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(updated), nil
 }
 

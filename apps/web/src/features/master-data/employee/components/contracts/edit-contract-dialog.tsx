@@ -69,7 +69,7 @@ export function EditContractDialog({
       toast.success(t("contract.messages.updateSuccess"));
       onOpenChange(false);
       onSuccess?.();
-    } catch (error) {
+    } catch {
       toast.error(t("contract.messages.updateError"));
     }
   };

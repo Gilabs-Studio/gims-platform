@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import {
   MoreHorizontal,
   Eye,
@@ -25,7 +24,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScheduleDetailDialog } from "./schedule-detail-dialog";
 import { useScheduleList } from "../hooks/use-schedule-list";
-import { useSchedules } from "../hooks/use-schedules";
+import { useScheduleCalendarView } from "../hooks/use-schedule-calendar-view";
 import { formatDate } from "@/lib/utils";
 import type { Schedule } from "../types";
 
@@ -45,44 +44,11 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 
 export function ScheduleList() {
   const { state, actions, permissions, translations } = useScheduleList();
-  const { t, tCommon } = translations;
-
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
-  const [detailItem, setDetailItem] = useState<Schedule | null>(null);
-
-  // Fetch all schedules for the visible month (no search/pagination — calendar needs all)
-  const { data: allSchedulesRes, isLoading: isCalendarLoading } = useSchedules({
-    page: 1,
-    per_page: 100,
-    status: state.statusFilter || undefined,
-  });
-
-  const allItems = allSchedulesRes?.data ?? [];
-
-  // Build a set of dates that have schedules for calendar highlighting
-  const scheduleDatesMap = useMemo(() => {
-    const map = new Map<string, Schedule[]>();
-    for (const item of allItems) {
-      const dateKey = new Date(item.scheduled_at).toDateString();
-      const existing = map.get(dateKey) ?? [];
-      existing.push(item);
-      map.set(dateKey, existing);
-    }
-    return map;
-  }, [allItems]);
-
-  // Filter schedules for selected date
-  const selectedDateSchedules = useMemo(() => {
-    if (!selectedDate) return [];
-    return scheduleDatesMap.get(selectedDate.toDateString()) ?? [];
-  }, [selectedDate, scheduleDatesMap]);
-
-  // Dates that have at least one schedule — for calendar modifiers
-  const datesWithSchedules = useMemo(
-    () => Array.from(scheduleDatesMap.keys()).map((d) => new Date(d)),
-    [scheduleDatesMap],
+  const { t } = translations;
+  const { state: calendarState, data: calendarData, actions: calendarActions } = useScheduleCalendarView(
+    state.statusFilter,
   );
+  const selectedDateSchedules = calendarData.selectedDateSchedules as Schedule[];
 
   return (
     <div className="space-y-6">
@@ -124,11 +90,11 @@ export function ScheduleList() {
         <div className="rounded-lg border p-4">
           <Calendar
             mode="single"
-            selected={selectedDate}
-            onSelect={(date: Date | undefined) => setSelectedDate(date ?? new Date())}
-            month={calendarMonth}
-            onMonthChange={(m) => setCalendarMonth(m ?? new Date())}
-            modifiers={{ hasSchedule: datesWithSchedules }}
+            selected={calendarState.selectedDate}
+            onSelect={calendarActions.setSelectedDate}
+            month={calendarState.calendarMonth}
+            onMonthChange={calendarActions.setCalendarMonth}
+            modifiers={{ hasSchedule: calendarData.datesWithSchedules }}
             modifiersClassNames={{
               hasSchedule:
                 "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
@@ -149,17 +115,10 @@ export function ScheduleList() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-lg font-semibold">
             <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-            {selectedDate
-              ? selectedDate.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-              : t("title")}
+              {calendarData.selectedDateLabel}
           </div>
 
-          {isCalendarLoading ? (
+            {calendarData.isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-lg border p-4 space-y-2">
@@ -169,7 +128,7 @@ export function ScheduleList() {
                 </div>
               ))}
             </div>
-          ) : selectedDateSchedules.length === 0 ? (
+            ) : selectedDateSchedules.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <CalendarIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
               <p className="text-sm text-muted-foreground">{t("emptyState")}</p>
@@ -181,13 +140,13 @@ export function ScheduleList() {
                 <div
                   key={item.id}
                   className="rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => setDetailItem(item)}
+                  onClick={() => calendarActions.setDetailItem(item)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setDetailItem(item);
+                      calendarActions.setDetailItem(item);
                     }
                   }}
                 >
@@ -237,7 +196,7 @@ export function ScheduleList() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setDetailItem(item)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => calendarActions.setDetailItem(item)} className="cursor-pointer">
                               <Eye className="mr-2 h-4 w-4" />
                               {t("detailTitle")}
                             </DropdownMenuItem>
@@ -255,9 +214,9 @@ export function ScheduleList() {
 
       {/* Detail Dialog */}
       <ScheduleDetailDialog
-        open={!!detailItem}
-        onClose={() => setDetailItem(null)}
-        schedule={detailItem}
+        open={!!calendarState.detailItem}
+        onClose={() => calendarActions.setDetailItem(null)}
+        schedule={calendarState.detailItem}
       />
     </div>
   );

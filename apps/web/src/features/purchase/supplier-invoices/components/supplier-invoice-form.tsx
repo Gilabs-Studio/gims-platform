@@ -77,7 +77,7 @@ export function SupplierInvoiceFormDialog({
 
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
-  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(false);
+  const [shouldLoadSelectData, setShouldLoadSelectData] = useState(true);
   const openQuickCreate = useCallback((type: QuickCreateType) => setQuickCreate({ type }), []);
   const closeQuickCreate = useCallback(() => setQuickCreate({ type: null }), []);
 
@@ -119,13 +119,10 @@ export function SupplierInvoiceFormDialog({
 
   useEffect(() => {
     if (!open) {
-      setShouldLoadSelectData(false);
       return;
     }
-    if (isEdit || !!defaultGoodsReceiptId || !!defaultPurchaseOrderId) {
-      setShouldLoadSelectData(true);
-    }
-  }, [open, isEdit, defaultGoodsReceiptId, defaultPurchaseOrderId]);
+    setShouldLoadSelectData(true);
+  }, [open]);
 
   const filteredGRs = useMemo(() => {
     const all = addData?.goods_receipts ?? [];

@@ -3,13 +3,12 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Switch } from "@/components/ui/switch";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, CheckCircle, XCircle, Send, Eye, FileText, Download } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, Download } from "lucide-react";
 import { EmployeeForm } from "./employee-form";
 import { EmployeeDetailModal } from "./employee-detail-modal";
 import { resolveImageUrl, sortOptions } from "@/lib/utils";
@@ -212,7 +211,7 @@ export function EmployeeList() {
                       <Switch
                         checked={employee.is_active}
                         onCheckedChange={() =>
-                          handleStatusChange(employee.id, employee.is_active, employee.name)
+                          handleStatusChange(employee.id, employee.is_active)
                         }
                         disabled={!permissions.canUpdate || data.isUpdating}
                         className="cursor-pointer"

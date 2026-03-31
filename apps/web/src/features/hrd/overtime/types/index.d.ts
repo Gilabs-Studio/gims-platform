@@ -27,6 +27,7 @@ export interface OvertimeRequest {
   readonly description?: string;
   readonly task_details?: string;
   readonly approved_by?: string;
+  readonly approved_by_name?: string;
   readonly approved_at?: string;
   readonly rejected_by?: string;
   readonly rejected_at?: string;
@@ -36,10 +37,11 @@ export interface OvertimeRequest {
 }
 
 export interface CreateOvertimeRequest {
+  readonly employee_id: string;
   readonly date: string;
   readonly start_time: string;
   readonly end_time: string;
-  readonly reason: string;
+  readonly reason?: string;
   readonly description?: string;
   readonly task_details?: string;
   readonly request_type: OvertimeType;
@@ -122,4 +124,20 @@ export interface NotificationsResponse {
 export interface DeleteResponse {
   readonly success: boolean;
   readonly message: string;
+}
+
+// Calendar Event Types
+export interface CalendarEvent {
+  readonly id: string;
+  readonly employeeId: string;
+  readonly employeeName: string;
+  readonly employeeCode: string;
+  readonly divisionName?: string;
+  readonly date: Date;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly plannedHours: string;
+  readonly status: OvertimeStatus;
+  readonly requestType: OvertimeType;
+  readonly reason?: string;
 }

@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { toast } from "sonner";
-import { Camera, X, Upload, Loader2, ImageIcon } from "lucide-react";
+import { Camera, X, Upload, Loader2, ImageIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { resolveImageUrl } from "@/lib/utils";
-import { visitReportService } from "../services/visit-report-service";
-import { useUploadVisitPhotos } from "../hooks/use-visit-reports";
+import { useUploadVisitPhotos, useUploadVisitImage } from "../hooks/use-visit-reports";
 
 interface VisitReportPhotosProps {
   readonly visitId: string;
@@ -25,6 +25,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const uploadMutation = useUploadVisitPhotos();
+  const uploadImageMutation = useUploadVisitImage();
 
   const parsedPhotos: string[] = (() => {
     if (!photos) return [];
@@ -53,7 +54,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
       // Upload each file to the image upload endpoint first
       const uploadedUrls: string[] = [];
       for (const file of filesToUpload) {
-        const result = await visitReportService.uploadImage(file);
+        const result = await uploadImageMutation.mutateAsync(file);
         if (result?.data?.url) {
           uploadedUrls.push(result.data.url);
         }
@@ -72,7 +73,7 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
         fileInputRef.current.value = "";
       }
     }
-  }, [visitId, remainingSlots, uploadMutation, t, tCommon]);
+  }, [visitId, remainingSlots, uploadMutation, uploadImageMutation, t, tCommon]);
 
   return (
     <div className="rounded-lg border p-4 space-y-4">
@@ -110,21 +111,28 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
 
       {parsedPhotos.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {parsedPhotos.map((url, idx) => (
+          {parsedPhotos.map((url, idx) => {
+            const resolvedSrc = resolveImageUrl(url) ?? url;
+            return (
             <div
               key={`photo-${idx}`}
               className="relative aspect-video rounded-lg overflow-hidden border bg-muted cursor-pointer group"
-              onClick={() => setPreviewUrl(resolveImageUrl(url) ?? url)}
+              onClick={() => setPreviewUrl(resolvedSrc)}
             >
-              <img
-                src={resolveImageUrl(url)}
+              <Image
+                src={resolvedSrc}
                 alt={`${t("sections.photos")} ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
+                fill
+                sizes="(max-width: 640px) 50vw, 33vw"
+                className="object-cover transition-transform group-hover:scale-105"
+                unoptimized
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/35">
+                <Search className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* Upload placeholder slots */}
           {isEditable && remainingSlots > 0 && (
@@ -178,10 +186,13 @@ export function VisitReportPhotos({ visitId, photos, isEditable }: VisitReportPh
           >
             <X className="h-6 w-6" />
           </Button>
-          <img
+          <Image
             src={resolveImageUrl(previewUrl) ?? previewUrl}
             alt={t("sections.photos")}
+            width={1600}
+            height={1200}
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+            unoptimized
             onClick={(e) => e.stopPropagation()}
           />
         </div>

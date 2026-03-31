@@ -17,21 +17,39 @@ import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LeadAnalytics } from "./lead-analytics";
 import { GenerateLeadsDialog } from "./generate-leads-dialog";
 import { useLeadList } from "../hooks/use-lead-list";
-import { useLeadFormData, useUpdateLead } from "../hooks/use-leads";
+import { useUpdateLead } from "../hooks/use-leads";
+import { useLeadSources } from "../../lead-source/hooks/use-lead-source";
+import { useLeadStatuses } from "../../lead-status/hooks/use-lead-status";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
 
+const LEAD_SOURCE_GOOGLE_MAPS_ID = "cb000001-0000-0000-0000-000000000006";
+const LEAD_SOURCE_LINKEDIN_ID = "cb000001-0000-0000-0000-000000000007";
+const LEAD_STATUS_NEW_ID = "cc000001-0000-0000-0000-000000000001";
+
 export function LeadList() {
   const { state, actions, data, permissions, translations } = useLeadList();
   const { t, tCommon } = translations;
-  const { data: formData } = useLeadFormData();
   const router = useRouter();
   const updateMutation = useUpdateLead();
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [shouldLoadFilterOptions, setShouldLoadFilterOptions] = useState(false);
+  const [shouldLoadStatusActionOptions, setShouldLoadStatusActionOptions] = useState(false);
 
-  const leadSources = formData?.data?.lead_sources ?? [];
-  const leadStatuses = formData?.data?.lead_statuses ?? [];
+  const { data: leadSourcesResponse, isLoading: isLeadSourcesLoading } = useLeadSources(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: shouldLoadFilterOptions },
+  );
+  const { data: leadStatusesResponse, isLoading: isLeadStatusesLoading } = useLeadStatuses(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: shouldLoadFilterOptions || shouldLoadStatusActionOptions },
+  );
+
+  const leadSources = shouldLoadFilterOptions ? (leadSourcesResponse?.data ?? []) : [];
+  const leadStatuses = shouldLoadFilterOptions || shouldLoadStatusActionOptions
+    ? (leadStatusesResponse?.data ?? [])
+    : [];
 
   const handleStatusChange = async (leadId: string, statusId: string) => {
     try {
@@ -95,6 +113,11 @@ export function LeadList() {
         </div>
         <Select
           value={state.statusFilter}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setShouldLoadFilterOptions(true);
+            }
+          }}
           onValueChange={(value) => {
             actions.setStatusFilter(value === "all" ? "" : value);
             actions.setPage(1);
@@ -106,6 +129,11 @@ export function LeadList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
+            {isLeadStatusesLoading && (
+              <SelectItem value="__loading__" disabled>
+                Loading...
+              </SelectItem>
+            )}
             {leadStatuses.map((status) => (
               <SelectItem key={status.id} value={status.id} className="cursor-pointer">
                 {status.name}
@@ -115,6 +143,11 @@ export function LeadList() {
         </Select>
         <Select
           value={state.sourceFilter}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              setShouldLoadFilterOptions(true);
+            }
+          }}
           onValueChange={(value) => {
             actions.setSourceFilter(value === "all" ? "" : value);
             actions.setPage(1);
@@ -126,6 +159,11 @@ export function LeadList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="cursor-pointer">{t("allSources")}</SelectItem>
+            {isLeadSourcesLoading && (
+              <SelectItem value="__loading__" disabled>
+                Loading...
+              </SelectItem>
+            )}
             {leadSources.map((source) => (
               <SelectItem key={source.id} value={source.id} className="cursor-pointer">
                 {source.name}
@@ -185,6 +223,22 @@ export function LeadList() {
               data.items.map((item) => {
                 const isConverted = !!item.converted_at;
                 const statusColor = item.lead_status?.color ?? undefined;
+                const sourceLabel = item.lead_source?.name
+                  ?? (item.lead_source_id === LEAD_SOURCE_LINKEDIN_ID
+                    ? "LinkedIn Scraping"
+                    : item.lead_source_id === LEAD_SOURCE_GOOGLE_MAPS_ID
+                      ? "Google Maps Scraping"
+                      : "-");
+                const statusLabel = isConverted
+                  ? t("convertedBadge")
+                  : (item.lead_status?.name
+                    ?? (item.lead_status_id === LEAD_STATUS_NEW_ID || !item.lead_status_id ? "New" : "-"));
+                const statusStyle = isConverted
+                  ? undefined
+                  : (statusColor ? { borderColor: statusColor, color: statusColor } : undefined);
+                const statusClassName = isConverted
+                  ? "bg-success/10 text-success border-success/30 cursor-pointer hover:border-primary hover:text-primary transition-colors"
+                  : (item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : "");
 
                 return (
                   <TableRow
@@ -206,9 +260,9 @@ export function LeadList() {
                             className="text-xs text-primary hover:underline w-fit"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {item.lead_source?.name === "LinkedIn" || item.lead_source?.name === "LinkedIn Scraping"
+                            {sourceLabel === "LinkedIn" || sourceLabel === "LinkedIn Scraping"
                               ? "View LinkedIn Profile"
-                              : item.lead_source?.name === "Google Maps" || item.lead_source?.name === "Google Maps Scraping"
+                              : sourceLabel === "Google Maps" || sourceLabel === "Google Maps Scraping"
                               ? "View on Google Maps"
                               : t("form.visitLink") || "Visit Source Link"}
                           </a>
@@ -216,14 +270,14 @@ export function LeadList() {
                       </div>
                     </TableCell>
                     <TableCell>{item.company_name || "-"}</TableCell>
-                    <TableCell>{item.lead_source?.name ?? "-"}</TableCell>
+                    <TableCell>{sourceLabel}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        style={statusColor ? { borderColor: statusColor, color: statusColor } : undefined}
-                        className={isConverted && item.deal_id ? "cursor-pointer hover:border-primary hover:text-primary transition-colors" : ""}
+                        style={statusStyle}
+                        className={statusClassName}
                         onClick={
-                          isConverted && item.deal_id
+                          item.deal_id
                             ? (e) => {
                                 e.stopPropagation();
                                 router.push(`/crm/pipeline/${item.deal_id}`);
@@ -231,7 +285,7 @@ export function LeadList() {
                             : undefined
                         }
                       >
-                        {item.lead_status?.name ?? "-"}
+                        {statusLabel}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono">{item.lead_score}</TableCell>
@@ -263,7 +317,13 @@ export function LeadList() {
                     </TableCell>
                     {(permissions.canUpdate || permissions.canDelete || permissions.canConvert) && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
+                        <DropdownMenu
+                          onOpenChange={(isOpen) => {
+                            if (isOpen) {
+                              setShouldLoadStatusActionOptions(true);
+                            }
+                          }}
+                        >
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="cursor-pointer">
                               <MoreHorizontal className="h-4 w-4" />
@@ -289,15 +349,26 @@ export function LeadList() {
                                 {t("convertTitle")}
                               </DropdownMenuItem>
                             )}
-                            {permissions.canUpdate && !isConverted && leadStatuses.length > 0 && (
+                            {permissions.canUpdate && !isConverted && (isLeadStatusesLoading || leadStatuses.length > 0) && (
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger className="cursor-pointer">
                                   <ChevronRight className="mr-2 h-4 w-4" />
                                   {t("changeStatus")}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent>
-                                  {leadStatuses
+                                  {isLeadStatusesLoading && (
+                                    <DropdownMenuItem disabled>
+                                      Loading...
+                                    </DropdownMenuItem>
+                                  )}
+                                  {!isLeadStatusesLoading && leadStatuses.length === 0 && (
+                                    <DropdownMenuItem disabled>
+                                      {tCommon("noData")}
+                                    </DropdownMenuItem>
+                                  )}
+                                  {!isLeadStatusesLoading && leadStatuses
                                     .slice()
+                                    .filter((status) => status.code?.toUpperCase() !== "CONVERTED")
                                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                                     .map((status) => {
                                       const isCurrent = item.lead_status_id === status.id;

@@ -1,8 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
-import { Loader2, FileText, CalendarIcon, Calculator } from "lucide-react";
+import { Loader2, Calculator } from "lucide-react";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -35,7 +34,6 @@ export function TargetForm({ open, onClose, target }: TargetFormProps) {
     isEdit,
     activeTab,
     setActiveTab,
-    isValidating,
     isLoading,
     isFormLoading,
     areas,
@@ -62,7 +60,7 @@ export function TargetForm({ open, onClose, target }: TargetFormProps) {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v === "months" ? "months" : "basic")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="basic">{t("common.basicInfo")}</TabsTrigger>
               <TabsTrigger value="months">{t("monthlyBreakdown")}</TabsTrigger>

@@ -29,7 +29,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
@@ -88,8 +88,8 @@ export function SupplierBankList({
   const updateMutation = useUpdateBankAccount();
   const deleteMutation = useDeleteBankAccount();
 
-  const { data: bankOptionsData } = useBanks({ page: 1, per_page: 100 });
-  const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 100, sort_by: "code", sort_dir: "asc" });
+  const { data: bankOptionsData } = useBanks({ page: 1, per_page: 20 });
+  const { data: currencyOptionsData } = useCurrencies({ page: 1, per_page: 20, sort_by: "code", sort_dir: "asc" });
   const bankOptions = bankOptionsData?.data ?? [];
   const currencyOptions = currencyOptionsData?.data ?? [];
 
@@ -101,7 +101,7 @@ export function SupplierBankList({
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<BankFormData>({
     resolver: zodResolver(bankSchema) as any,
@@ -200,9 +200,9 @@ export function SupplierBankList({
     return currencyOptions.find((currency) => currency.id === id)?.code || "-";
   };
 
-  const bankId = watch("bank_id");
-  const currencyId = watch("currency_id");
-  const isPrimary = watch("is_primary");
+  const bankId = useWatch({ control, name: "bank_id" });
+  const currencyId = useWatch({ control, name: "currency_id" });
+  const isPrimary = useWatch({ control, name: "is_primary" });
 
   return (
     <div className="space-y-4">

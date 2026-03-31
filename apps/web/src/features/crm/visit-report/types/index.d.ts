@@ -1,6 +1,5 @@
 // CRM Visit Report Types
 
-export type VisitReportStatus = "draft" | "submitted" | "approved" | "rejected";
 export type VisitReportOutcome = "positive" | "neutral" | "negative" | "very_positive";
 
 // Brief entity representations
@@ -102,17 +101,6 @@ export interface VisitReportDetail {
   updated_at: string;
 }
 
-// Progress history
-export interface VisitReportProgressHistory {
-  id: string;
-  visit_report_id: string;
-  from_status: string;
-  to_status: string;
-  notes: string;
-  changed_by?: string | null;
-  created_at: string;
-}
-
 // Main visit report entity
 export interface VisitReport {
   id: string;
@@ -147,12 +135,6 @@ export interface VisitReport {
   contact_person: string;
   contact_phone: string;
   photos?: string | null;
-  status: VisitReportStatus;
-  approved_by?: string | null;
-  approved_at?: string | null;
-  rejected_by?: string | null;
-  rejected_at?: string | null;
-  rejection_reason: string;
   created_by?: string | null;
   details?: VisitReportDetail[];
   created_at: string;
@@ -215,7 +197,6 @@ export interface VisitReportListParams {
   page?: number;
   per_page?: number;
   search?: string;
-  status?: VisitReportStatus;
   customer_id?: string;
   employee_id?: string;
   contact_id?: string;
@@ -247,15 +228,6 @@ export interface SubmitVisitData {
   notes?: string;
 }
 
-export interface ApproveVisitData {
-  notes?: string;
-}
-
-export interface RejectVisitData {
-  reason: string;
-  notes?: string;
-}
-
 // Form data for dropdowns
 export interface VisitReportFormDataResponse {
   customers: VisitFormDataCustomer[];
@@ -264,9 +236,8 @@ export interface VisitReportFormDataResponse {
   deals: VisitFormDataDeal[];
   leads: VisitFormDataLead[];
   products: VisitFormDataProduct[];
-  interest_questions: VisitInterestQuestion[];
   outcomes: VisitFormDataOption[];
-  statuses: VisitFormDataOption[];
+  interest_questions: VisitInterestQuestion[];
 }
 
 export interface VisitFormDataCustomer {

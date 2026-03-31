@@ -9,7 +9,6 @@ export interface Contact {
   name: string;
   phone: string;
   email: string;
-  position: string;
   notes: string;
   is_active: boolean;
   created_by?: string | null;
@@ -36,7 +35,6 @@ export interface CreateContactData {
   name: string;
   phone?: string;
   email?: string;
-  position?: string;
   notes?: string;
   is_active?: boolean;
 }
@@ -47,7 +45,6 @@ export interface UpdateContactData {
   name?: string;
   phone?: string;
   email?: string;
-  position?: string;
   notes?: string;
   is_active?: boolean;
 }

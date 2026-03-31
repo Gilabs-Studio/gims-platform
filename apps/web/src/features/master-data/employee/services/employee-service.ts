@@ -1,6 +1,5 @@
 import apiClient from "@/lib/api-client";
 import type {
-  Employee,
   EmployeeListResponse,
   EmployeeSingleResponse,
   ListEmployeesParams,
@@ -27,6 +26,7 @@ import type {
   UpdateEmployeeAssetData,
   ReturnEmployeeAssetData,
   EmployeeSignature,
+  AvailableAsset,
 } from "../types";
 
 const BASE_PATH = "/organization";
@@ -290,6 +290,14 @@ export const employeeService = {
     );
   },
 
+  // Available Assets from Finance Assets module
+  async getAvailableAssets(): Promise<AvailableAsset[]> {
+    const response = await apiClient.get<{
+      data: AvailableAsset[];
+    }>("/finance/assets/available");
+    return response.data.data;
+  },
+
   // Asset management
   async getEmployeeAssets(employeeId: string): Promise<EmployeeAsset[]> {
     const response = await apiClient.get<{
@@ -348,8 +356,10 @@ export const employeeService = {
         data: EmployeeSignature;
       }>(`${BASE_PATH}/employees/${employeeId}/signature`);
       return response.data.data;
-    } catch (error: any) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } }).response
+        ?.status;
+      if (status === 404) {
         return null;
       }
       throw error;

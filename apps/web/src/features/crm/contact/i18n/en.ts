@@ -14,6 +14,7 @@ export const crmContactEn = {
     sections: {
       basicInfo: "Basic Information",
       contactInfo: "Contact Information",
+      settings: "Settings",
       additional: "Additional Information",
     },
     form: {
@@ -31,6 +32,9 @@ export const crmContactEn = {
       emailPlaceholder: "Enter email address",
       notes: "Notes",
       notesPlaceholder: "Additional notes about this contact",
+      isPrimary: "Primary Contact",
+      primaryDescription: "Set as the main contact person.",
+      activeDescription: "Toggle to disable this contact.",
       isActive: "Active",
       activeStatus: "Active",
       inactiveStatus: "Inactive",

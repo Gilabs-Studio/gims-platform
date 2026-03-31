@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { MapPin, Loader2, Camera, X, Check, CalendarIcon, Plus, Trash2, Package } from "lucide-react";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -29,15 +29,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { cn } from "@/lib/utils";
-import { useCreateVisitReport, useVisitReportFormData } from "../hooks/use-visit-reports";
-import { visitReportService } from "../services/visit-report-service";
-import { activityKeys } from "@/features/crm/activity/hooks/use-activities";
-import { activityService } from "@/features/crm/activity/services/activity-service";
+import {
+  useCreateVisitReport,
+  useVisitReportFormData,
+  useSubmitVisitReport,
+  useCheckInVisitReport,
+  useUploadVisitPhotos,
+  useUploadVisitImage,
+} from "../hooks/use-visit-reports";
+import { activityKeys, useActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
+import { dealKeys } from "@/features/crm/deal/hooks/use-deals";
+import { travelPlannerKeys } from "@/features/travel-planner/collaborative/hooks/use-travel-planner";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/utils";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import type { CreateVisitReportData, VisitInterestQuestion } from "../types";
+import { calculateVisitInterestLevel } from "../constants/interest-questions";
+import type { CreateVisitReportData } from "../types";
 
 const MAX_PHOTOS = 5;
 
@@ -83,7 +91,6 @@ export function LogVisitDialog({
   dealId,
   customerId,
   contactId,
-  defaultEmployeeId,
   defaultContactPerson,
   defaultContactPhone,
   contacts,
@@ -94,37 +101,27 @@ export function LogVisitDialog({
   const authUser = useAuthStore((state) => state.user);
   const qc = useQueryClient();
   const createMutation = useCreateVisitReport();
+  const submitMutation = useSubmitVisitReport();
+  const checkInMutation = useCheckInVisitReport();
+  const uploadPhotosMutation = useUploadVisitPhotos();
+  const uploadImageMutation = useUploadVisitImage();
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions: VisitInterestQuestion[] = useMemo(
-    () => formDataRes?.data?.interest_questions ?? [],
-    [formDataRes?.data?.interest_questions]
-  );
+  const questions = formDataRes?.data?.interest_questions ?? [];
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", { enabled: open && !!leadId });
 
   // Fetch recent activities sorted by timestamp desc to determine the authoritative product state.
-  const { data: recentActivitiesRes } = useQuery({
-    queryKey: activityKeys.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    queryFn: () => activityService.timeline({ lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" }),
-    enabled: open && !!leadId,
-    staleTime: 60 * 1000,
-  });
+  const { data: recentActivitiesRes } = useActivityTimeline(
+    { lead_id: leadId, per_page: 20, sort_by: "timestamp", sort_dir: "desc" },
+    { enabled: open && !!leadId },
+  );
 
   const calculateInterest = useCallback(
     (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers || answers.length === 0) return 0;
-      const questionMap = new Map(questions.map((q) => [q.id, q]));
-      let score = 0;
-      answers.forEach((ans) => {
-        const question = questionMap.get(ans.question_id);
-        if (question) {
-          const option = question.options.find((o) => o.id === ans.option_id);
-          if (option) score += option.score;
-        }
-      });
-      return Math.min(score, 5);
+      return calculateVisitInterestLevel(answers, questions);
     },
     [questions]
   );
@@ -327,7 +324,7 @@ export function LogVisitDialog({
     try {
       const urls: string[] = [];
       for (const file of filesToUpload) {
-        const res = await visitReportService.uploadImage(file);
+        const res = await uploadImageMutation.mutateAsync(file);
         if (res.data?.url) {
           urls.push(res.data.url);
         }
@@ -339,7 +336,7 @@ export function LogVisitDialog({
       setUploadingPhoto(false);
       e.target.value = "";
     }
-  }, [photos.length, tCommon]);
+  }, [photos.length, tCommon, uploadImageMutation]);
 
   const removePhoto = useCallback((index: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -370,7 +367,12 @@ export function LogVisitDialog({
           notes: pi.notes || undefined,
           quantity: pi.quantity || undefined,
           price: pi.price || undefined,
-          answers: pi.answers.length > 0 ? pi.answers : undefined,
+          answers: pi.answers
+            .filter((ans) => ans.question_id && ans.option_id)
+            .map((ans) => ({
+              question_id: ans.question_id,
+              option_id: ans.option_id,
+            })),
         })),
     };
 
@@ -385,29 +387,37 @@ export function LogVisitDialog({
         return;
       }
 
+      // Keep backend side-effects intact (activity feed + lead product sync).
+      await submitMutation.mutateAsync({ id: visitId, data: {} });
+
       // Check-in with GPS if captured
       if (checkInGps) {
-        await visitReportService.checkIn(visitId, {
-          latitude: checkInGps.latitude,
-          longitude: checkInGps.longitude,
-          accuracy: checkInGps.accuracy,
+        await checkInMutation.mutateAsync({
+          id: visitId,
+          data: {
+            latitude: checkInGps.latitude,
+            longitude: checkInGps.longitude,
+            accuracy: checkInGps.accuracy,
+          },
         });
       }
 
       // Upload photos if any
       if (photos.length > 0) {
-        await visitReportService.uploadPhotos(visitId, photos);
+        await uploadPhotosMutation.mutateAsync({ id: visitId, photoUrls: photos });
       }
-
-      // Submit the visit to trigger activity creation
-      await visitReportService.submit(visitId);
 
       // Invalidate activity queries to refresh timelines
       qc.invalidateQueries({ queryKey: activityKeys.all });
       // Invalidate lead product items so the product interest tab reflects the visit's survey answers
       if (leadId) {
         qc.invalidateQueries({ queryKey: leadKeys.productItems(leadId) });
+        qc.invalidateQueries({ queryKey: leadKeys.all });
       }
+      if (dealId) {
+        qc.invalidateQueries({ queryKey: dealKeys.all });
+      }
+      qc.invalidateQueries({ queryKey: travelPlannerKeys.availableVisitsBase() });
 
       toast.success(t("created"));
       handleClose();
@@ -420,8 +430,15 @@ export function LogVisitDialog({
     authUser, leadId, dealId, customerId, contactId,
     contactPerson, contactPhone, checkInGps,
     photos, productItems, createMutation, handleClose, onSuccess,
+    submitMutation, checkInMutation, uploadPhotosMutation,
     qc, t, tCommon,
   ]);
+
+  const isSubmittingFlow =
+    createMutation.isPending ||
+    submitMutation.isPending ||
+    checkInMutation.isPending ||
+    uploadPhotosMutation.isPending;
 
   const hasContacts = contacts && contacts.length > 0;
 
@@ -705,10 +722,10 @@ export function LogVisitDialog({
                                     <input
                                       type="radio"
                                       id={`lv-${idx}-${q.id}-${opt.id}`}
-                                      checked={currentAnswer?.option_id === opt.id && currentAnswer?.answer !== false}
+                                      checked={currentAnswer?.option_id === opt.id}
                                       onChange={() => {
                                         const otherAnswers = item.answers.filter((a) => a.question_id !== q.id);
-                                        const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: true }];
+                                        const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: opt.score > 0 }];
                                         const newScore = calculateInterest(newAnswers);
                                         setProductItems((prev) =>
                                           prev.map((p, i) =>
@@ -829,10 +846,10 @@ export function LogVisitDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={createMutation.isPending || !purpose.trim()}
+            disabled={isSubmittingFlow || !purpose.trim()}
             className="cursor-pointer"
           >
-            {createMutation.isPending ? (
+            {isSubmittingFlow ? (
               <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
             ) : (
               <MapPin className="h-4 w-4 mr-1.5" />

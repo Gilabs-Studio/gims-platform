@@ -11,6 +11,11 @@ func SeedAll() error {
 		}
 	}
 
+	// Minimal seed mode: small, traceable dataset for debugging and validation.
+	// if os.Getenv("SEED_MINIMAL_DATA") == "true" {
+	// 	return seedMinimalData()
+	// }
+
 	if os.Getenv("SEED_ONLY_MASTER_DATA") == "true" {
 		return seedMasterData()
 	}
@@ -49,6 +54,11 @@ func SeedAll() error {
 
 	// Employee seeder (Sprint 3)
 	if err := SeedEmployees(); err != nil {
+		return err
+	}
+
+	// Travel Planner seeder (depends on employee master data)
+	if err := SeedTravelPlanner(); err != nil {
 		return err
 	}
 
@@ -150,17 +160,21 @@ func SeedAll() error {
 		return err
 	}
 
+	// Reconciliate journal entries after transactional seeders
+	if err := SeedJournalReconciliation(); err != nil {
+		return err
+	}
+
 	// Sales/Purchase Returns seeder (depends on invoices and goods receipts)
 	if err := SeedReturns(); err != nil {
 		return err
 	}
 
-	// Sales Visit Interest Questions seeder (Sprint 7)
-	if err := SeedSalesVisitInterestQuestions(); err != nil {
+	// Sales Visit seeder (Sprint 7)
+	if err := SeedSalesVisitInterestSurvey(); err != nil {
 		return err
 	}
 
-	// Sales Visit seeder (Sprint 7)
 	if err := SeedSalesVisit(); err != nil {
 		return err
 	}
@@ -232,16 +246,6 @@ func SeedAll() error {
 
 	// HRD - Recruitment Requests seeder (Sprint 15)
 	if err := SeedRecruitmentRequests(); err != nil {
-		return err
-	}
-
-	// HRD - Applicant Stages seeder (Sprint 15)
-	if err := SeedApplicantStages(); err != nil {
-		return err
-	}
-
-	// HRD - Recruitment Applicants seeder (Sprint 15)
-	if err := SeedRecruitmentApplicants(); err != nil {
 		return err
 	}
 

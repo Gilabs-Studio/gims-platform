@@ -6,10 +6,27 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/product/data/models"
+	"gorm.io/gorm/clause"
 )
 
 // SeedProduct seeds sample product master data
 func SeedProduct() error {
+	if isMinimalSeedMode() {
+		db := database.DB
+		product := models.Product{
+			Code:         "PROD-MIN-001",
+			Name:         "Sample Product (Minimal)",
+			CostPrice:    50000,
+			SellingPrice: 100000,
+			TaxType:      "VAT",
+			IsActive:     true,
+		}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "cost_price", "selling_price", "tax_type", "is_active", "updated_at"})}).Create(&product).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+
 	db := database.DB
 
 	// 1. Seed Product Categories

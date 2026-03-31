@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { ButtonLoading } from "@/components/loading";
 
 import { currencyFormSchema, type CurrencyFormValues } from "../schemas/currency.schema";
@@ -58,8 +57,6 @@ export function CurrencyFormDialog({ open, onOpenChange, editingItem, onCreated 
 
   const {
     register,
-    setValue,
-    watch,
     formState: { errors },
   } = form;
 
@@ -121,14 +118,6 @@ export function CurrencyFormDialog({ open, onOpenChange, editingItem, onCreated 
             <FieldLabel>{t("form.decimalPlaces")}</FieldLabel>
             <Input type="number" min={0} max={6} {...register("decimal_places", { valueAsNumber: true })} />
             {errors.decimal_places && <FieldError>{errors.decimal_places.message}</FieldError>}
-          </Field>
-
-          <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <FieldLabel>{t("form.isActive")}</FieldLabel>
-              <p className="text-sm text-muted-foreground">{watch("is_active") ? tCommon("active") : tCommon("inactive")}</p>
-            </div>
-            <Switch checked={watch("is_active")} onCheckedChange={(value) => setValue("is_active", value)} className="cursor-pointer" />
           </Field>
 
           <DialogFooter>

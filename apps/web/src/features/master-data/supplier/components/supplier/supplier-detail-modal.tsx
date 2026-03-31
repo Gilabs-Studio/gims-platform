@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Supplier } from "../../types";
 import { useSupplier } from "../../hooks/use-suppliers";
-import { SupplierPhoneList } from "./supplier-phone-list";
+import { SupplierContactList } from "./supplier-contact-list";
 import { SupplierBankList } from "./supplier-bank-list";
 
 interface SupplierDetailModalProps {
@@ -126,17 +126,17 @@ export function SupplierDetailModal({
           </div>
         </DialogHeader>
 
-        {/* Body with tabs (Details / Phones / Banks) */}
+        {/* Body with tabs (Details / Contacts / Banks) */}
         <div className="overflow-y-auto flex-1 px-5 py-4">
           <Tabs defaultValue="details" className="space-y-4">
             <TabsList>
               <TabsTrigger value="details">{tCommon("viewDetails")}</TabsTrigger>
-              <TabsTrigger value="phones" className="flex items-center gap-2">
+              <TabsTrigger value="contacts" className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5" />
-                {t("sections.phoneNumbers")}
-                {(supplier.phone_numbers?.length ?? 0) > 0 && (
+                {t("sections.contact")}
+                {(supplier.contacts?.length ?? 0) > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px]">
-                    {supplier.phone_numbers?.length}
+                    {supplier.contacts?.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -159,16 +159,16 @@ export function SupplierDetailModal({
                   <Table>
                     <TableBody>
                       <TableRow>
-                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.contactPerson")}</TableCell>
-                        <TableCell>{supplier.contact_person ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("form.supplierType")}</TableCell>
                         <TableCell>{supplier.supplier_type?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("form.paymentTerms")}</TableCell>
+                        <TableCell>{supplier.payment_terms?.name ?? "-"}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell className="font-medium bg-muted/50">{t("form.paymentTerms")}</TableCell>
-                        <TableCell>{supplier.payment_terms?.name ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50">{t("form.businessUnit")}</TableCell>
                         <TableCell>{supplier.business_unit?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
+                        <TableCell>{supplier.npwp ?? "-"}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50">{t("form.email")}</TableCell>
@@ -188,10 +188,6 @@ export function SupplierDetailModal({
                           ) : "-"}
                         </TableCell>
                       </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium bg-muted/50">{t("form.npwp")}</TableCell>
-                        <TableCell colSpan={3}>{supplier.npwp ?? "-"}</TableCell>
-                      </TableRow>
                       {supplier.notes && (
                         <TableRow>
                           <TableCell className="font-medium bg-muted/50">Notes</TableCell>
@@ -203,19 +199,20 @@ export function SupplierDetailModal({
                 </div>
               </div>
 
-              {/* Contact Numbers */}
-              {(supplier.phone_numbers?.length ?? 0) > 0 && (
+              {/* Contacts */}
+              {((supplier.contacts ?? []).length ?? 0) > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-3 mt-6">{t("sections.phoneNumbers")}</h3>
+                  <h3 className="text-sm font-semibold mb-3 mt-6">{t("sections.contact")}</h3>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableBody>
-                        {supplier.phone_numbers?.map((phone) => (
+                        {(supplier.contacts ?? []).map((phone) => (
                           <TableRow key={phone.id}>
-                            <TableCell className="font-medium bg-muted/50 w-48">{phone.label || "Phone"}</TableCell>
+                            <TableCell className="font-medium bg-muted/50 w-48">{phone.name}</TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span>{phone.phone_number}</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span>{phone.phone}</span>
+                                {phone.email && <span className="text-muted-foreground">{phone.email}</span>}
                                 {phone.is_primary && (
                                   <Badge variant="secondary" className="text-[10px]">Primary</Badge>
                                 )}
@@ -280,10 +277,10 @@ export function SupplierDetailModal({
               </div>
             </TabsContent>
 
-            <TabsContent value="phones">
-              <SupplierPhoneList
+            <TabsContent value="contacts">
+              <SupplierContactList
                 supplierId={supplier.id}
-                phones={supplier.phone_numbers || []}
+                contacts={supplier.contacts || []}
               />
             </TabsContent>
 

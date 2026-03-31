@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from "../dialog";
 import dynamic from "next/dynamic";
+import { PlaceSearchInput } from "./place-search-input";
+import type { PlaceSearchResult } from "@/features/master-data/geographic/hooks/use-place-search";
 
 // Dynamically load the self-contained map picker (SSR-safe).
 // Icon fix runs at module scope inside map-picker-inner.tsx,
@@ -34,6 +36,8 @@ interface MapPickerModalProps {
   readonly latitude: number;
   readonly longitude: number;
   readonly onCoordinateSelect: (latitude: number, longitude: number) => void;
+  readonly onUseCurrentLocation?: () => void;
+  readonly useCurrentLocationLabel?: string;
   readonly title?: string;
   readonly description?: string;
 }
@@ -44,22 +48,33 @@ export function MapPickerModal({
   latitude,
   longitude,
   onCoordinateSelect,
+  onUseCurrentLocation,
+  useCurrentLocationLabel = "Use Current Location",
   title = "Select Location",
   description = "Click on the map or drag the marker to set the location coordinates",
 }: MapPickerModalProps) {
   const [currentLat, setCurrentLat] = useState(latitude || DEFAULT_LOCATION[0]);
   const [currentLng, setCurrentLng] = useState(longitude || DEFAULT_LOCATION[1]);
+  const [navigateToPosition, setNavigateToPosition] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     if (open) {
       setCurrentLat(latitude || DEFAULT_LOCATION[0]);
       setCurrentLng(longitude || DEFAULT_LOCATION[1]);
+      setNavigateToPosition(null);
     }
   }, [open, latitude, longitude]);
 
   const handleCoordinateSelect = (lat: number, lng: number) => {
     setCurrentLat(lat);
     setCurrentLng(lng);
+    setNavigateToPosition(null);
+  };
+
+  const handlePlaceSelect = (place: PlaceSearchResult) => {
+    setCurrentLat(place.lat);
+    setCurrentLng(place.lon);
+    setNavigateToPosition([place.lat, place.lon]);
   };
 
   const handleConfirm = () => {
@@ -78,16 +93,38 @@ export function MapPickerModal({
         </DialogHeader>
 
         <div className="space-y-4 px-6 sm:px-0">
+          {/* Place Search Input */}
+          <div className="space-y-2">
+            <PlaceSearchInput
+              onPlaceSelect={handlePlaceSelect}
+              placeholder="Search for a location (e.g., restaurant, address, business)..."
+            />
+            {onUseCurrentLocation && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onUseCurrentLocation}
+                className="w-full justify-center gap-2"
+              >
+                <MapPin className="h-4 w-4" />
+                {useCurrentLocationLabel}
+              </Button>
+            )}
+          </div>
+
+          {/* Map */}
           <div className="h-[300px] sm:h-[500px] rounded-md border overflow-hidden relative">
             {open && (
               <MapPickerInner
                 initialPosition={initialPosition}
                 onCoordinateSelect={handleCoordinateSelect}
                 defaultZoom={10}
+                navigateToPosition={navigateToPosition}
               />
             )}
           </div>
 
+          {/* Coordinate Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Latitude</label>

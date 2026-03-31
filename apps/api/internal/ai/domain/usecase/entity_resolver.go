@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 
 	"gorm.io/gorm"
@@ -195,47 +197,122 @@ func (r *EntityResolver) ResolveWarehouse(ctx context.Context, nameOrCode string
 
 // ResolveCustomer resolves customer name from sales documents
 func (r *EntityResolver) ResolveCustomer(ctx context.Context, name string) (*ResolvedEntity, error) {
-	var result struct {
+	searchTerm := strings.TrimSpace(name)
+	if searchTerm == "" {
+		return nil, fmt.Errorf("ENTITY_NOT_FOUND: customer '%s' not found", name)
+	}
+
+	var master struct {
+		ID   string
+		Code string
+		Name string
+	}
+	var masters []struct {
+		ID   string
+		Code string
+		Name string
+	}
+
+	// 1) Prefer master customer table for canonical ID + name.
+	// Try exact code first because it is expected to be unique and deterministic.
+	err := r.db.WithContext(ctx).Table("customers").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(code) = LOWER(?)", searchTerm).
+		Limit(1).Scan(&master).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer master code query error: %w", err)
+	}
+	if master.ID != "" {
+		return &ResolvedEntity{ID: master.ID, DisplayName: master.Name, EntityType: "customer", Code: master.Code}, nil
+	}
+
+	// Exact name match can be ambiguous when multiple legal entities share a base name.
+	err = r.db.WithContext(ctx).Table("customers").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) = LOWER(?)", searchTerm).
+		Order("name ASC").
+		Limit(3).Find(&masters).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer master exact name query error: %w", err)
+	}
+	if len(masters) == 1 {
+		match := masters[0]
+		return &ResolvedEntity{ID: match.ID, DisplayName: match.Name, EntityType: "customer", Code: match.Code}, nil
+	}
+	if len(masters) > 1 {
+		return nil, fmt.Errorf("ENTITY_AMBIGUOUS: customer '%s' is ambiguous. Candidates: %s", searchTerm, formatCustomerCandidates(masters))
+	}
+
+	err = r.db.WithContext(ctx).Table("customers").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", "%"+searchTerm+"%").
+		Order("name ASC").
+		Limit(3).Find(&masters).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer master fuzzy search error: %w", err)
+	}
+	if len(masters) == 1 {
+		match := masters[0]
+		return &ResolvedEntity{ID: match.ID, DisplayName: match.Name, EntityType: "customer", Code: match.Code}, nil
+	}
+	if len(masters) > 1 {
+		return nil, fmt.Errorf("ENTITY_AMBIGUOUS: customer '%s' matches multiple records. Candidates: %s", searchTerm, formatCustomerCandidates(masters))
+	}
+
+	// 2) Fallback to transactional tables for compatibility with legacy data.
+	var transactional struct {
 		CustomerName string
 	}
 
-	searchTerm := strings.TrimSpace(name)
-
-	// Search in sales quotations for customer name
-	err := r.db.WithContext(ctx).Table("sales_quotations").
+	err = r.db.WithContext(ctx).Table("sales_quotations").
 		Select("customer_name").
 		Where("deleted_at IS NULL").
 		Where("LOWER(customer_name) LIKE LOWER(?)", searchTerm+"%").
-		Limit(1).Scan(&result).Error
+		Limit(1).Scan(&transactional).Error
 	if err != nil {
-		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer search error: %w", err)
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer quotation search error: %w", err)
 	}
-	if result.CustomerName != "" {
-		return &ResolvedEntity{
-			ID:          "", // Customers have no standalone ID, use name as identifier
-			DisplayName: result.CustomerName,
-			EntityType:  "customer",
-		}, nil
+	if transactional.CustomerName != "" {
+		return &ResolvedEntity{ID: "", DisplayName: transactional.CustomerName, EntityType: "customer"}, nil
 	}
 
-	// Also search in sales estimations
 	err = r.db.WithContext(ctx).Table("sales_estimations").
 		Select("customer_name").
 		Where("deleted_at IS NULL").
 		Where("LOWER(customer_name) LIKE LOWER(?)", searchTerm+"%").
-		Limit(1).Scan(&result).Error
+		Limit(1).Scan(&transactional).Error
 	if err != nil {
 		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: customer estimation search error: %w", err)
 	}
-	if result.CustomerName != "" {
-		return &ResolvedEntity{
-			ID:          "",
-			DisplayName: result.CustomerName,
-			EntityType:  "customer",
-		}, nil
+	if transactional.CustomerName != "" {
+		return &ResolvedEntity{ID: "", DisplayName: transactional.CustomerName, EntityType: "customer"}, nil
 	}
 
 	return nil, fmt.Errorf("ENTITY_NOT_FOUND: customer '%s' not found", name)
+}
+
+func formatCustomerCandidates(candidates []struct {
+	ID   string
+	Code string
+	Name string
+}) string {
+	options := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		label := strings.TrimSpace(candidate.Name)
+		if candidate.Code != "" {
+			label = fmt.Sprintf("%s (%s)", label, candidate.Code)
+		}
+		options = append(options, label)
+	}
+
+	if len(options) == 0 {
+		return ""
+	}
+
+	return strings.Join(options, ", ")
 }
 
 // ResolveSupplier resolves supplier name/code to supplier ID
@@ -285,6 +362,85 @@ func (r *EntityResolver) ResolveSupplier(ctx context.Context, nameOrCode string)
 	}
 
 	return nil, fmt.Errorf("ENTITY_NOT_FOUND: supplier '%s' not found", nameOrCode)
+}
+
+// ResolveArea resolves area name/code to area ID
+func (r *EntityResolver) ResolveArea(ctx context.Context, nameOrCode string) (*ResolvedEntity, error) {
+	var result struct {
+		ID   string
+		Code string
+		Name string
+	}
+
+	searchTerm := sanitizeAreaSearch(strings.TrimSpace(nameOrCode))
+	if searchTerm == "" {
+		return nil, fmt.Errorf("ENTITY_NOT_FOUND: area '%s' not found", nameOrCode)
+	}
+
+	// Try exact code/name match first
+	err := r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(code) = LOWER(?) OR LOWER(name) = LOWER(?)", searchTerm, searchTerm).
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area query error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	// Fallback to prefix search
+	err = r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area search error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	// Last attempt using contains for phrases like "bali full"
+	err = r.db.WithContext(ctx).Table("areas").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", "%"+searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: area contains search error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{
+			ID:          result.ID,
+			DisplayName: result.Name,
+			EntityType:  "area",
+			Code:        result.Code,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("ENTITY_NOT_FOUND: area '%s' not found", nameOrCode)
+}
+
+func sanitizeAreaSearch(v string) string {
+	lower := strings.ToLower(strings.TrimSpace(v))
+	replacements := []string{" area ", " full", " seluruh", " semua", "region", "wilayah"}
+	for _, token := range replacements {
+		lower = strings.ReplaceAll(lower, token, " ")
+	}
+	return strings.TrimSpace(lower)
 }
 
 // ResolveUserToEmployeeID looks up the employee record linked to a user account.
@@ -346,57 +502,308 @@ func (r *EntityResolver) ResolveEntitiesFromParameters(ctx context.Context, para
 		resolved["customer"] = entity
 	}
 
+	// Resolve area references
+	if areaName, ok := params["area_name"].(string); ok && areaName != "" {
+		entity, err := r.ResolveArea(ctx, areaName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["area"] = entity
+	}
+
+	// Resolve bank references
+	if bankName, ok := params["bank_name"].(string); ok && bankName != "" {
+		entity, err := r.ResolveBank(ctx, bankName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["bank"] = entity
+	}
+
+	// Resolve company references
+	if companyName, ok := params["company_name"].(string); ok && companyName != "" {
+		entity, err := r.ResolveCompany(ctx, companyName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["company"] = entity
+	}
+
+	// Resolve division references
+	if divisionName, ok := params["division_name"].(string); ok && divisionName != "" {
+		entity, err := r.ResolveDivision(ctx, divisionName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["division"] = entity
+	}
+
+	// Resolve business type references
+	if btName, ok := params["business_type_name"].(string); ok && btName != "" {
+		entity, err := r.ResolveBusinessType(ctx, btName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["business_type"] = entity
+	}
+
+	// Resolve supplier type references
+	if stName, ok := params["supplier_type_name"].(string); ok && stName != "" {
+		entity, err := r.ResolveSupplierType(ctx, stName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["supplier_type"] = entity
+	}
+
+	// Resolve customer type references
+	if ctName, ok := params["customer_type_name"].(string); ok && ctName != "" {
+		entity, err := r.ResolveCustomerType(ctx, ctName)
+		if err != nil {
+			return resolved, err
+		}
+		resolved["customer_type"] = entity
+	}
+
 	return resolved, nil
 }
 
-// ResolvePaymentTerms resolves a payment terms name to its database UUID
-func (r *EntityResolver) ResolvePaymentTerms(ctx context.Context, name string) (string, error) {
+func (r *EntityResolver) ResolveBank(ctx context.Context, nameOrCode string) (*ResolvedEntity, error) {
+	var result struct {
+		ID   string
+		Code string
+		Name string
+	}
+
+	searchTerm := strings.TrimSpace(nameOrCode)
+	err := r.db.WithContext(ctx).Table("banks").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(code) = LOWER(?) OR LOWER(name) = LOWER(?)", searchTerm, searchTerm).
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: bank query error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: "bank", Code: result.Code}, nil
+	}
+
+	err = r.db.WithContext(ctx).Table("banks").
+		Select("id, code, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: bank search error: %w", err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: "bank", Code: result.Code}, nil
+	}
+
+	return nil, fmt.Errorf("ENTITY_NOT_FOUND: bank '%s' not found", nameOrCode)
+}
+
+func (r *EntityResolver) ResolveCompany(ctx context.Context, name string) (*ResolvedEntity, error) {
 	var result struct {
 		ID   string
 		Name string
 	}
-	searchTerm := strings.TrimSpace(name)
 
-	// Try exact name match (case-insensitive)
-	err := r.db.WithContext(ctx).Table("payment_terms").
+	searchTerm := strings.TrimSpace(name)
+	err := r.db.WithContext(ctx).Table("companies").
 		Select("id, name").
-		Where("deleted_at IS NULL AND is_active = true").
+		Where("deleted_at IS NULL").
 		Where("LOWER(name) = LOWER(?)", searchTerm).
 		Limit(1).Scan(&result).Error
 	if err != nil {
-		return "", fmt.Errorf("ENTITY_RESOLUTION_FAILED: payment terms query error: %w", err)
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: company query error: %w", err)
 	}
 	if result.ID != "" {
-		return result.ID, nil
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: "company"}, nil
 	}
 
-	// Try prefix search for partial matches (e.g. "Net 14" matching "Net 14 Days")
-	err = r.db.WithContext(ctx).Table("payment_terms").
+	err = r.db.WithContext(ctx).Table("companies").
 		Select("id, name").
-		Where("deleted_at IS NULL AND is_active = true").
+		Where("deleted_at IS NULL").
 		Where("LOWER(name) LIKE LOWER(?)", searchTerm+"%").
 		Limit(1).Scan(&result).Error
 	if err != nil {
-		return "", fmt.Errorf("ENTITY_RESOLUTION_FAILED: payment terms search error: %w", err)
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: company search error: %w", err)
 	}
 	if result.ID != "" {
-		return result.ID, nil
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: "company"}, nil
 	}
 
-	// Try contains search as last resort (e.g. "14" matching "Net 14 Days")
-	err = r.db.WithContext(ctx).Table("payment_terms").
+	return nil, fmt.Errorf("ENTITY_NOT_FOUND: company '%s' not found", name)
+}
+
+func (r *EntityResolver) ResolveDivision(ctx context.Context, name string) (*ResolvedEntity, error) {
+	return r.resolveNameOnlyEntity(ctx, "divisions", "division", name)
+}
+
+func (r *EntityResolver) ResolveBusinessType(ctx context.Context, name string) (*ResolvedEntity, error) {
+	return r.resolveNameOnlyEntity(ctx, "business_types", "business_type", name)
+}
+
+func (r *EntityResolver) ResolveSupplierType(ctx context.Context, name string) (*ResolvedEntity, error) {
+	return r.resolveNameOnlyEntity(ctx, "supplier_types", "supplier_type", name)
+}
+
+func (r *EntityResolver) ResolveCustomerType(ctx context.Context, name string) (*ResolvedEntity, error) {
+	return r.resolveNameOnlyEntity(ctx, "customer_types", "customer_type", name)
+}
+
+func (r *EntityResolver) resolveNameOnlyEntity(ctx context.Context, table, entityType, name string) (*ResolvedEntity, error) {
+	var result struct {
+		ID   string
+		Name string
+	}
+
+	searchTerm := strings.TrimSpace(name)
+	err := r.db.WithContext(ctx).Table(table).
 		Select("id, name").
-		Where("deleted_at IS NULL AND is_active = true").
-		Where("LOWER(name) LIKE LOWER(?)", "%"+searchTerm+"%").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) = LOWER(?)", searchTerm).
 		Limit(1).Scan(&result).Error
 	if err != nil {
-		return "", fmt.Errorf("ENTITY_RESOLUTION_FAILED: payment terms fuzzy search error: %w", err)
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: %s query error: %w", entityType, err)
 	}
 	if result.ID != "" {
-		return result.ID, nil
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: entityType}, nil
 	}
 
-	return "", fmt.Errorf("ENTITY_NOT_FOUND: payment terms '%s' not found", name)
+	err = r.db.WithContext(ctx).Table(table).
+		Select("id, name").
+		Where("deleted_at IS NULL").
+		Where("LOWER(name) LIKE LOWER(?)", searchTerm+"%").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: %s search error: %w", entityType, err)
+	}
+	if result.ID != "" {
+		return &ResolvedEntity{ID: result.ID, DisplayName: result.Name, EntityType: entityType}, nil
+	}
+
+	return nil, fmt.Errorf("ENTITY_NOT_FOUND: %s '%s' not found", entityType, name)
+}
+
+// ResolvePaymentTerms resolves a payment terms name to its database UUID
+func (r *EntityResolver) ResolvePaymentTerms(ctx context.Context, name string) (string, error) {
+	var terms []struct {
+		ID   string
+		Name string
+		Code string
+	}
+	searchTerm := strings.TrimSpace(name)
+	if searchTerm == "" {
+		return "", fmt.Errorf("ENTITY_NOT_FOUND: payment terms '%s' not found", name)
+	}
+
+	err := r.db.WithContext(ctx).Table("payment_terms").
+		Select("id, name, code").
+		Where("deleted_at IS NULL AND is_active = true").
+		Find(&terms).Error
+	if err != nil {
+		return "", fmt.Errorf("ENTITY_RESOLUTION_FAILED: payment terms query error: %w", err)
+	}
+	if len(terms) == 0 {
+		return "", fmt.Errorf("ENTITY_NOT_FOUND: payment terms '%s' not found", name)
+	}
+
+	aliases := paymentTermsAliases(searchTerm)
+	requestIsCOD := isCODAlias(searchTerm)
+
+	type scoredTerm struct {
+		id    string
+		score int
+	}
+	scored := make([]scoredTerm, 0, len(terms))
+
+	for _, term := range terms {
+		nameNorm := normalizeLookupToken(term.Name)
+		codeNorm := normalizeLookupToken(term.Code)
+		bestScore := 0
+
+		for _, alias := range aliases {
+			score := 0
+			switch {
+			case alias != "" && codeNorm == alias:
+				score = 100
+			case alias != "" && nameNorm == alias:
+				score = 95
+			case alias != "" && strings.HasPrefix(nameNorm, alias):
+				score = 80
+			case alias != "" && strings.Contains(nameNorm, alias):
+				score = 60
+			}
+			if score > bestScore {
+				bestScore = score
+			}
+		}
+
+		if bestScore > 0 {
+			scored = append(scored, scoredTerm{id: term.ID, score: bestScore})
+		}
+	}
+
+	if len(scored) == 0 {
+		return "", fmt.Errorf("ENTITY_NOT_FOUND: payment terms '%s' not found", name)
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].id < scored[j].id
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	// For COD aliases, require a high-confidence exact code/name mapping.
+	if requestIsCOD && scored[0].score < 95 {
+		return "", fmt.Errorf("ENTITY_NOT_FOUND: payment terms '%s' not found", name)
+	}
+
+	return scored[0].id, nil
+}
+
+func paymentTermsAliases(raw string) []string {
+	normalized := normalizeLookupToken(raw)
+	if normalized == "" {
+		return nil
+	}
+
+	set := map[string]struct{}{normalized: {}}
+
+	if isCODAlias(raw) {
+		set["cod"] = struct{}{}
+		set["cashondelivery"] = struct{}{}
+		set["tunai"] = struct{}{}
+	}
+
+	aliases := make([]string, 0, len(set))
+	for alias := range set {
+		aliases = append(aliases, alias)
+	}
+
+	return aliases
+}
+
+func isCODAlias(raw string) bool {
+	norm := normalizeLookupToken(raw)
+	switch norm {
+	case "cod", "cashondelivery", "cashdelivery", "cash", "tunai":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeLookupToken(raw string) string {
+	lower := strings.ToLower(strings.TrimSpace(raw))
+	if lower == "" {
+		return ""
+	}
+	re := regexp.MustCompile(`[^a-z0-9]+`)
+	return re.ReplaceAllString(lower, "")
 }
 
 // ResolveBusinessUnit resolves a business unit name to its database UUID

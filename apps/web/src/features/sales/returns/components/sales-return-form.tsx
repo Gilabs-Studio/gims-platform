@@ -45,17 +45,8 @@ const formatQty = (value: number) =>
 export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess }: SalesReturnFormProps) {
   const t = useTranslations("salesReturns");
   const isDeliveryLocked = !!defaultDeliveryId;
-  const [shouldLoadDeliveryOptions, setShouldLoadDeliveryOptions] = useState(false);
+  const [shouldLoadDeliveryOptions, setShouldLoadDeliveryOptions] = useState(true);
   const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!defaultDeliveryId);
-
-  const { data: formDataResponse } = useSalesReturnFormData({
-    enabled: shouldLoadReferenceData,
-  });
-  const { data: deliveryOptionsResponse } = useDeliveryOrders(
-    { per_page: 20, status: "delivered" },
-    { enabled: !isDeliveryLocked && shouldLoadDeliveryOptions },
-  );
-  const createMutation = useCreateSalesReturn();
 
   const form = useForm<SalesReturnFormData>({
     resolver: zodResolver(salesReturnSchema),
@@ -86,11 +77,15 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
 
   const selectedDeliveryId = useWatch({ control, name: "delivery_id" });
 
-  useEffect(() => {
-    if (selectedDeliveryId) {
-      setShouldLoadReferenceData(true);
-    }
-  }, [selectedDeliveryId]);
+  const shouldLoadReferenceDataEnabled = shouldLoadReferenceData || !!selectedDeliveryId;
+  const { data: formDataResponse } = useSalesReturnFormData({
+    enabled: shouldLoadReferenceDataEnabled,
+  });
+  const { data: deliveryOptionsResponse } = useDeliveryOrders(
+    { per_page: 20, status: "delivered" },
+    { enabled: !isDeliveryLocked && shouldLoadDeliveryOptions },
+  );
+  const createMutation = useCreateSalesReturn();
 
   const { data: deliveryResponse, isLoading: isLoadingDelivery, isError: isDeliveryError } = useDeliveryOrder(
     selectedDeliveryId ?? "",

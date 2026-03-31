@@ -56,3 +56,18 @@ export const sellAssetSchema = z.object({
 });
 
 export type SellAssetValues = z.infer<typeof sellAssetSchema>;
+
+export const assignAssetSchema = z.object({
+  employee_id: z.string().uuid(),
+  notes: z.string().optional(),
+});
+
+export type AssignAssetValues = z.infer<typeof assignAssetSchema>;
+
+export const returnAssetSchema = z.object({
+  return_date: z.string().trim().min(1),
+  return_reason: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export type ReturnAssetValues = z.infer<typeof returnAssetSchema>;

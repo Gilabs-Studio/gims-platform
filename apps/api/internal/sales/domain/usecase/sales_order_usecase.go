@@ -3,15 +3,18 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	crmRepos "github.com/gilabs/gims/api/internal/crm/data/repositories"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -54,6 +57,7 @@ type salesOrderUsecase struct {
 	deliveryOrderRepo salesRepos.DeliveryOrderRepository
 	quotationRepo     salesQuotationRepos.SalesQuotationRepository
 	customerRepo      customerRepos.CustomerRepository
+	contactRepo       crmRepos.ContactRepository
 	productRepo       productRepos.ProductRepository
 	inventoryUC       inventoryUsecase.InventoryUsecase
 	employeeRepo      organizationRepos.EmployeeRepository
@@ -76,6 +80,7 @@ func NewSalesOrderUsecase(
 		deliveryOrderRepo: deliveryOrderRepo,
 		quotationRepo:     quotationRepo,
 		customerRepo:      customerRepos.NewCustomerRepository(db),
+		contactRepo:       crmRepos.NewContactRepository(db),
 		productRepo:       productRepo,
 		inventoryUC:       inventoryUC,
 		employeeRepo:      employeeRepo,
@@ -101,6 +106,7 @@ func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRe
 			pendingQtyMap, _ = u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, orders[i].ID)
 		}
 		responses[i] = mapper.ToSalesOrderResponse(&orders[i], pendingQtyMap)
+		u.attachCustomerContactResponse(ctx, &responses[i])
 	}
 
 	// Calculate pagination
@@ -177,6 +183,9 @@ func (u *salesOrderUsecase) ListItems(ctx context.Context, orderID string, req *
 }
 
 func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesOrderResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
+		return nil, ErrSalesOrderNotFound
+	}
 	order, err := u.orderRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -185,15 +194,11 @@ func (u *salesOrderUsecase) GetByID(ctx context.Context, id string) (*dto.SalesO
 		return nil, err
 	}
 
-	// Scope-based access control: consistent with List filtering
-	if !security.CheckRecordScopeAccess(u.db, ctx, &models.SalesOrder{}, id, security.SalesScopeQueryOptions()) {
-		return nil, ErrSalesOrderNotFound
-	}
-
 	// Fetch pending delivery quantities for this order
 	pendingQtyMap, _ := u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, order.ID)
 
 	response := mapper.ToSalesOrderResponse(order, pendingQtyMap)
+	u.attachCustomerContactResponse(ctx, &response)
 	return &response, nil
 }
 
@@ -263,6 +268,7 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 	}
 
 	response := mapper.ToSalesOrderResponse(created, nil)
+	u.attachCustomerContactResponse(ctx, &response)
 	logSalesAudit(u.auditService, ctx, "sales_order.create", created.ID, map[string]interface{}{
 		"after": map[string]interface{}{
 			"code":         created.Code,
@@ -350,6 +356,7 @@ func (u *salesOrderUsecase) Update(ctx context.Context, id string, req *dto.Upda
 	}
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
+	u.attachCustomerContactResponse(ctx, &response)
 	afterSnapshot := salesOrderAuditSnapshot(updated)
 	if shouldLogSnapshotChange(beforeSnapshot, afterSnapshot) {
 		logSalesAudit(u.auditService, ctx, "sales_order.update", id, map[string]interface{}{
@@ -483,6 +490,21 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 	}
 
 	response := mapper.ToSalesOrderResponse(updated, nil)
+	u.attachCustomerContactResponse(ctx, &response)
+
+	if newStatus == models.SalesOrderStatusSubmitted {
+		if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
+			PermissionCode: "sales_order.approve",
+			EntityType:     "sales_order",
+			EntityID:       updated.ID,
+			Title:          "Sales order approval required",
+			Message:        fmt.Sprintf("Sales order %s requires approval and review.", updated.Code),
+			ActorUserID:    stringValue(userID),
+		}); err != nil {
+			fmt.Printf("failed to create sales order approval notification: %v\n", err)
+		}
+	}
+
 	logSalesAudit(u.auditService, ctx, "sales_order.status_change", id, map[string]interface{}{
 		"before_status": previousStatus,
 		"after_status":  updated.Status,
@@ -529,7 +551,7 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 	if customerEmail == "" {
 		customerEmail = quotation.CustomerEmail
 	}
-	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, customerName, customerContact, customerPhone, customerEmail, req.Notes, code, createdBy)
+	order, err := mapper.ConvertQuotationToOrderModel(quotation, req.DeliveryAreaID, req.CustomerContactID, customerName, customerContact, customerPhone, customerEmail, req.Notes, code, createdBy)
 	if err != nil {
 		return nil, err
 	}
@@ -551,6 +573,7 @@ func (u *salesOrderUsecase) ConvertFromQuotation(ctx context.Context, req *dto.C
 	}
 
 	response := mapper.ToSalesOrderResponse(created, nil)
+	u.attachCustomerContactResponse(ctx, &response)
 	logSalesAudit(u.auditService, ctx, "sales_order.create", created.ID, map[string]interface{}{
 		"after": map[string]interface{}{
 			"code":               created.Code,
@@ -613,6 +636,17 @@ func (u *salesOrderUsecase) checkAccess(ctx context.Context, order *models.Sales
 }
 
 func (u *salesOrderUsecase) applyCustomerSnapshot(ctx context.Context, order *models.SalesOrder) error {
+	if order != nil && order.CustomerContactID != nil && *order.CustomerContactID != "" && u.contactRepo != nil {
+		contact, err := u.contactRepo.FindByID(ctx, *order.CustomerContactID)
+		if err == nil {
+			if order.CustomerID == nil || *order.CustomerID == "" || contact.CustomerID == *order.CustomerID {
+				order.CustomerContact = salesOrderFirstNonEmpty(order.CustomerContact, contact.Name)
+				order.CustomerEmail = salesOrderFirstNonEmpty(order.CustomerEmail, contact.Email)
+				order.CustomerPhone = salesOrderFirstNonEmpty(order.CustomerPhone, contact.Phone)
+			}
+		}
+	}
+
 	if order == nil || order.CustomerID == nil || *order.CustomerID == "" || u.customerRepo == nil {
 		return nil
 	}
@@ -633,6 +667,24 @@ func (u *salesOrderUsecase) applyCustomerSnapshot(ctx context.Context, order *mo
 	return nil
 }
 
+func (u *salesOrderUsecase) attachCustomerContactResponse(ctx context.Context, response *dto.SalesOrderResponse) {
+	if response == nil || response.CustomerContactID == nil || *response.CustomerContactID == "" || u.contactRepo == nil {
+		return
+	}
+
+	contact, err := u.contactRepo.FindByID(ctx, *response.CustomerContactID)
+	if err != nil {
+		return
+	}
+
+	response.CustomerContactRef = &dto.CustomerContactResponse{
+		ID:    contact.ID,
+		Name:  contact.Name,
+		Phone: contact.Phone,
+		Email: contact.Email,
+	}
+}
+
 func salesOrderFirstNonEmpty(current string, fallback string) string {
 	if current != "" {
 		return current
@@ -641,17 +693,8 @@ func salesOrderFirstNonEmpty(current string, fallback string) string {
 }
 
 func salesOrderResolvePrimaryPhone(customer *customerModels.Customer) string {
-	if customer == nil || len(customer.PhoneNumbers) == 0 {
-		return ""
-	}
-
-	for _, phone := range customer.PhoneNumbers {
-		if phone.IsPrimary {
-			return phone.PhoneNumber
-		}
-	}
-
-	return customer.PhoneNumbers[0].PhoneNumber
+	_ = customer
+	return ""
 }
 
 // calculateTotals calculates all financial totals for the order

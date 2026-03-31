@@ -9,7 +9,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
 import { useUserPermission } from "@/hooks/use-user-permission";
+
+const LOCAL_COMBOBOX_PAGE_SIZE = 20;
 
 export interface ComboboxOption {
   value: string;
@@ -31,6 +34,11 @@ export interface CreatableComboboxProps {
   className?: string;
   ariaInvalid?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onSearchChange?: (query: string) => void;
+  searchDebounceMs?: number;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 /**
@@ -53,10 +61,19 @@ export function CreatableCombobox({
   className,
   ariaInvalid = false,
   onOpenChange,
+  onSearchChange,
+  searchDebounceMs = 300,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
 }: CreatableComboboxProps) {
+  const listboxId = React.useId();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [activeIndex, setActiveIndex] = React.useState(-1);
+  const [localVisibleCount, setLocalVisibleCount] = React.useState(
+    LOCAL_COMBOBOX_PAGE_SIZE,
+  );
   const searchInputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
 
@@ -77,6 +94,35 @@ export function CreatableCombobox({
   const showCreateButton =
     canCreate && filteredOptions.length === 0 && search.trim().length > 0;
 
+  const localHasMore = !onLoadMore && filteredOptions.length > localVisibleCount;
+  const effectiveHasMore = onLoadMore ? hasMore : localHasMore;
+  const effectiveIsLoadingMore = onLoadMore ? isLoadingMore : false;
+  const displayedOptions = React.useMemo(() => {
+    if (onLoadMore) return filteredOptions;
+    return filteredOptions.slice(0, localVisibleCount);
+  }, [filteredOptions, localVisibleCount, onLoadMore]);
+
+  const effectiveLoadMore = React.useCallback(() => {
+    if (onLoadMore) {
+      onLoadMore();
+      return;
+    }
+    if (!localHasMore) return;
+    setLocalVisibleCount((prev) => prev + LOCAL_COMBOBOX_PAGE_SIZE);
+  }, [localHasMore, onLoadMore]);
+
+  React.useEffect(() => {
+    setLocalVisibleCount(LOCAL_COMBOBOX_PAGE_SIZE);
+  }, [open, search]);
+
+  React.useEffect(() => {
+    if (!onSearchChange) return;
+    const timer = window.setTimeout(() => {
+      onSearchChange(search);
+    }, searchDebounceMs);
+    return () => window.clearTimeout(timer);
+  }, [onSearchChange, search, searchDebounceMs]);
+
   const handleOpenChange = React.useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
     onOpenChange?.(nextOpen);
@@ -84,8 +130,10 @@ export function CreatableCombobox({
       setActiveIndex(-1);
       setSearch("");
       requestAnimationFrame(() => searchInputRef.current?.focus());
+    } else {
+      onSearchChange?.("");
     }
-  }, [onOpenChange]);
+  }, [onOpenChange, onSearchChange]);
 
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue === value ? "" : selectedValue);
@@ -100,7 +148,7 @@ export function CreatableCombobox({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const total = filteredOptions.length + (showCreateButton ? 1 : 0);
+    const total = displayedOptions.length + (showCreateButton ? 1 : 0);
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, total - 1));
@@ -109,9 +157,9 @@ export function CreatableCombobox({
       setActiveIndex((i) => Math.max(i - 1, -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-        handleSelect(filteredOptions[activeIndex].value);
-      } else if (activeIndex === filteredOptions.length && showCreateButton) {
+      if (activeIndex >= 0 && activeIndex < displayedOptions.length) {
+        handleSelect(displayedOptions[activeIndex].value);
+      } else if (activeIndex === displayedOptions.length && showCreateButton) {
         handleCreate();
       }
     } else if (e.key === "Escape") {
@@ -136,6 +184,27 @@ export function CreatableCombobox({
     [],
   );
 
+  const handleListScroll = React.useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!effectiveHasMore || effectiveIsLoadingMore) return;
+      const target = e.currentTarget;
+      const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (distanceToBottom <= 48) {
+        effectiveLoadMore();
+      }
+    },
+    [effectiveHasMore, effectiveIsLoadingMore, effectiveLoadMore],
+  );
+
+  React.useEffect(() => {
+    const listElement = listRef.current;
+    if (!listElement || !effectiveHasMore || effectiveIsLoadingMore) return;
+    const hasScrollableContent = listElement.scrollHeight > listElement.clientHeight;
+    if (!hasScrollableContent) {
+      effectiveLoadMore();
+    }
+  }, [displayedOptions, effectiveHasMore, effectiveIsLoadingMore, effectiveLoadMore]);
+
   const createButtonLabel = createLabel.replace("{query}", search.trim());
 
   return (
@@ -145,6 +214,7 @@ export function CreatableCombobox({
         <button
           type="button"
           role="combobox"
+          aria-controls={listboxId}
           aria-expanded={open}
           aria-haspopup="listbox"
           disabled={disabled || isLoading}
@@ -214,9 +284,11 @@ export function CreatableCombobox({
 
         {/* Scrollable item list */}
         <div
+          id={listboxId}
           role="listbox"
           ref={listRef}
           onWheel={handleListWheel}
+          onScroll={handleListScroll}
           className="max-h-[220px] overflow-y-auto overflow-x-hidden p-1 scroll-my-1"
         >
           {filteredOptions.length === 0 && !showCreateButton && (
@@ -225,7 +297,7 @@ export function CreatableCombobox({
             </div>
           )}
 
-          {filteredOptions.map((option, idx) => (
+          {displayedOptions.map((option, idx) => (
             <div
               key={option.value}
               role="option"
@@ -254,19 +326,28 @@ export function CreatableCombobox({
           {showCreateButton && (
             <div
               role="option"
+              aria-selected={activeIndex === displayedOptions.length}
               onClick={handleCreate}
-              onMouseEnter={() => setActiveIndex(filteredOptions.length)}
+              onMouseEnter={() => setActiveIndex(displayedOptions.length)}
               className={cn(
                 "relative flex w-full cursor-pointer items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-sm",
                 "text-primary outline-hidden select-none transition-colors border-t mt-1 pt-2",
                 "hover:bg-accent hover:text-accent-foreground",
-                activeIndex === filteredOptions.length &&
+                activeIndex === displayedOptions.length &&
                   "bg-accent text-accent-foreground",
               )}
             >
               <Plus className="h-4 w-4 shrink-0" />
               <span className="truncate">{createButtonLabel}</span>
             </div>
+          )}
+
+          {effectiveHasMore && (
+            <StageScrollLoader
+              onLoadMore={effectiveLoadMore}
+              hasMore={effectiveHasMore}
+              isLoading={effectiveIsLoadingMore}
+            />
           )}
         </div>
       </PopoverContent>

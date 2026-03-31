@@ -51,7 +51,7 @@ export function useProductSegmentForm({ open, onOpenChange, editingItem, onCreat
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -71,7 +71,7 @@ export function useProductSegmentForm({ open, onOpenChange, editingItem, onCreat
           data: {
             name: data.name,
             description: data.description || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updated", { fallback: "Product Segment updated successfully" }));
@@ -79,7 +79,7 @@ export function useProductSegmentForm({ open, onOpenChange, editingItem, onCreat
         const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("created", { fallback: "Product Segment created successfully" }));
         if (onCreated && result?.data?.id) {

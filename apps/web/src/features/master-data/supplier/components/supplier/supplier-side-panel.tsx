@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -27,8 +26,8 @@ import { useCreateSupplier, useUpdateSupplier, useSupplier } from "../../hooks/u
 import { useSupplierTypes } from "../../hooks/use-supplier-types";
 import { usePaymentTerms } from "@/features/master-data/payment-and-couriers/payment-terms/hooks/use-payment-terms";
 import { useBusinessUnits } from "@/features/master-data/organization/hooks/use-business-units";
-import type { Supplier, CreatePhoneNumberData, CreateSupplierBankData } from "../../types";
-import { SupplierPhoneList } from "./supplier-phone-list";
+import type { Supplier, CreateContactData, CreateSupplierBankData } from "../../types";
+import { SupplierContactList } from "./supplier-contact-list";
 import { SupplierBankList } from "./supplier-bank-list";
 
 const formSchema = z.object({
@@ -40,7 +39,6 @@ const formSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   website: z.string().url().optional().or(z.literal("")),
   npwp: z.string().max(30).optional(),
-  contact_person: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
   province_id: z.string().optional(),
   city_id: z.string().optional(),
@@ -48,8 +46,7 @@ const formSchema = z.object({
   village_name: z.string().optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
-  is_active: z.boolean(),
-  phone_numbers: z.array(z.unknown()).optional(),
+  contacts: z.array(z.unknown()).optional(),
   bank_accounts: z.array(z.unknown()).optional(),
 });
 
@@ -87,11 +84,11 @@ export function SupplierSidePanel({
   );
   const fullSupplier = detailRes?.data ?? supplier;
 
-  const { data: supplierTypesData } = useSupplierTypes({ per_page: 100 }, { enabled: isOpen });
+  const { data: supplierTypesData } = useSupplierTypes({ per_page: 20 }, { enabled: isOpen });
   const supplierTypes = supplierTypesData?.data ?? [];
-  const { data: paymentTermsData } = usePaymentTerms({ per_page: 100 }, { enabled: isOpen });
+  const { data: paymentTermsData } = usePaymentTerms({ per_page: 20 }, { enabled: isOpen });
   const paymentTerms = paymentTermsData?.data ?? [];
-  const { data: businessUnitsData } = useBusinessUnits({ per_page: 100 }, { enabled: isOpen });
+  const { data: businessUnitsData } = useBusinessUnits({ per_page: 20 }, { enabled: isOpen });
   const businessUnits = businessUnitsData?.data ?? [];
 
   const {
@@ -112,7 +109,6 @@ export function SupplierSidePanel({
       email: "",
       website: "",
       npwp: "",
-      contact_person: "",
       notes: "",
       province_id: undefined,
       city_id: undefined,
@@ -120,13 +116,12 @@ export function SupplierSidePanel({
       village_name: "",
       latitude: null,
       longitude: null,
-      is_active: true,
-      phone_numbers: [],
+      contacts: [],
       bank_accounts: [],
     },
   });
 
-  const formPhones = (useWatch({ control, name: "phone_numbers" }) as CreatePhoneNumberData[]) ?? [];
+  const formContacts = (useWatch({ control, name: "contacts" }) as CreateContactData[]) ?? [];
   const formBanks = (useWatch({ control, name: "bank_accounts" }) as CreateSupplierBankData[]) ?? [];
 
   // Stable ref so the main setup effect can read the latest supplier fallback
@@ -170,7 +165,6 @@ export function SupplierSidePanel({
           email: entity.email ?? "",
           website: entity.website ?? "",
           npwp: entity.npwp ?? "",
-          contact_person: entity.contact_person ?? "",
           notes: entity.notes ?? "",
           province_id: entity.province_id ?? p?.id ?? undefined,
           city_id: entity.city_id ?? c?.id ?? undefined,
@@ -178,10 +172,10 @@ export function SupplierSidePanel({
           village_name: entity.village_name ?? "",
           latitude: entity.latitude ?? null,
           longitude: entity.longitude ?? null,
-          is_active: entity.is_active,
-          phone_numbers: entity.phone_numbers?.map(ph => ({
-            phone_number: ph.phone_number,
-            label: ph.label ?? "",
+          contacts: (entity.contacts ?? []).map(ph => ({
+            name: ph.name,
+            email: ph.email ?? "",
+            phone: ph.phone,
             is_primary: ph.is_primary,
           })) ?? [],
           bank_accounts: entity.bank_accounts?.map(b => ({
@@ -203,12 +197,11 @@ export function SupplierSidePanel({
         email: "",
         website: "",
         npwp: "",
-        contact_person: "",
         notes: "",
         village_name: "",
           latitude: null,
           longitude: null,
-        phone_numbers: [],
+        contacts: [],
         bank_accounts: [],
       });
     }
@@ -234,11 +227,9 @@ export function SupplierSidePanel({
             email: data.email ?? "",
             website: data.website ?? "",
             npwp: data.npwp ?? "",
-            contact_person: data.contact_person ?? "",
             notes: data.notes ?? "",
             latitude: data.latitude,
             longitude: data.longitude,
-            is_active: data.is_active,
           },
         });
       } else {
@@ -255,12 +246,10 @@ export function SupplierSidePanel({
           email: data.email || undefined,
           website: data.website || undefined,
           npwp: data.npwp || undefined,
-          contact_person: data.contact_person || undefined,
           notes: data.notes || undefined,
           latitude: data.latitude,
           longitude: data.longitude,
-          is_active: data.is_active,
-          phone_numbers: data.phone_numbers as CreatePhoneNumberData[],
+          contacts: data.contacts as CreateContactData[],
           bank_accounts: data.bank_accounts as CreateSupplierBankData[],
         });
       }
@@ -276,16 +265,16 @@ export function SupplierSidePanel({
   };
 
   // Handlers for nested lists (create mode)
-  const handleAddPhone = (phone: CreatePhoneNumberData) => {
-    setValue("phone_numbers", [...formPhones, phone]);
+  const handleAddContact = (contact: CreateContactData) => {
+    setValue("contacts", [...formContacts, contact]);
   };
-  const handleUpdatePhone = (index: number, phone: CreatePhoneNumberData) => {
-    const newPhones = [...formPhones];
-    newPhones[index] = phone;
-    setValue("phone_numbers", newPhones);
+  const handleUpdateContact = (index: number, contact: CreateContactData) => {
+    const nextContacts = [...formContacts];
+    nextContacts[index] = contact;
+    setValue("contacts", nextContacts);
   };
-  const handleDeletePhone = (index: number) => {
-    setValue("phone_numbers", formPhones.filter((_, i) => i !== index));
+  const handleDeleteContact = (index: number) => {
+    setValue("contacts", formContacts.filter((_, i) => i !== index));
   };
 
   const handleAddBank = (bank: CreateSupplierBankData) => {
@@ -341,11 +330,37 @@ export function SupplierSidePanel({
             <button ref={submitBtnRef} type="submit" className="hidden" aria-hidden />
 
             <TabsContent forceMount value="general" className="mt-4 space-y-6 p-4 data-[state=inactive]:hidden">
-              {/* Basic Information Section */}
+              {/* Supplier Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium border-b pb-2">
                   {t("sections.basicInfo")}
                 </h3>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.supplierType")}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="supplier_type_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        disabled={isViewing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("form.supplierTypePlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {supplierTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
 
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.name")} *</FieldLabel>
@@ -357,124 +372,90 @@ export function SupplierSidePanel({
                   {errors.name && <FieldError>{errors.name.message}</FieldError>}
                 </Field>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.supplierType")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="supplier_type_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("form.supplierTypePlaceholder")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {supplierTypes.map((type) => (
-                              <SelectItem key={type.id} value={type.id}>
-                                {type.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="payment_terms_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        disabled={isViewing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("form.paymentTermsPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentTerms.map((pt) => (
+                            <SelectItem key={pt.id} value={pt.id}>
+                              {pt.code ? `${pt.code} - ${pt.name}` : pt.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
 
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.contactPerson")}</FieldLabel>
-                    <Input
-                      placeholder={t("form.contactPersonPlaceholder")}
-                      {...register("contact_person")}
-                      disabled={isViewing}
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.paymentTerms")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="payment_terms_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("form.paymentTermsPlaceholder")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {paymentTerms.map((pt) => (
-                              <SelectItem key={pt.id} value={pt.id}>
-                                {pt.code ? `${pt.code} - ${pt.name}` : pt.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.businessUnit")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="business_unit_id"
-                      render={({ field }) => (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={isViewing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("form.businessUnitPlaceholder")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {businessUnits.map((bu) => (
-                              <SelectItem key={bu.id} value={bu.id}>
-                                {bu.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.email")}</FieldLabel>
-                    <Input
-                      type="email"
-                      placeholder={t("form.emailPlaceholder")}
-                      {...register("email")}
-                      disabled={isViewing}
-                    />
-                    {errors.email && <FieldError>{errors.email.message}</FieldError>}
-                  </Field>
-
-                  <Field orientation="vertical">
-                    <FieldLabel>{t("form.website")}</FieldLabel>
-                    <Input
-                      placeholder={t("form.websitePlaceholder")}
-                      {...register("website")}
-                      disabled={isViewing}
-                    />
-                  </Field>
-                </div>
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.businessUnit")}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="business_unit_id"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={field.onChange}
+                        disabled={isViewing}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("form.businessUnitPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {businessUnits.map((bu) => (
+                            <SelectItem key={bu.id} value={bu.id}>
+                              {bu.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
 
                 <Field orientation="vertical">
                   <FieldLabel>{t("form.npwp")}</FieldLabel>
                   <Input
                     placeholder={t("form.npwpPlaceholder")}
                     {...register("npwp")}
+                    disabled={isViewing}
+                  />
+                </Field>
+
+              </div>
+
+              <div className="space-y-4 pt-4">
+                <h3 className="text-sm font-medium border-b pb-2">
+                  {t("sections.contact")}
+                </h3>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.email")}</FieldLabel>
+                  <Input
+                    type="email"
+                    placeholder={t("form.emailPlaceholder")}
+                    {...register("email")}
+                    disabled={isViewing}
+                  />
+                  {errors.email && <FieldError>{errors.email.message}</FieldError>}
+                </Field>
+
+                <Field orientation="vertical">
+                  <FieldLabel>{t("form.website")}</FieldLabel>
+                  <Input
+                    placeholder={t("form.websitePlaceholder")}
+                    {...register("website")}
                     disabled={isViewing}
                   />
                 </Field>
@@ -488,28 +469,9 @@ export function SupplierSidePanel({
                     disabled={isViewing}
                   />
                 </Field>
-
-                {!isViewing && (
-                  <Field
-                    orientation="horizontal"
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <FieldLabel>{t("form.isActive")}</FieldLabel>
-                    <Controller
-                      control={control}
-                      name="is_active"
-                      render={({ field }) => (
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      )}
-                    />
-                  </Field>
-                )}
               </div>
 
-              {/* Location Section - flexible: user can fill only what they have */}
+              {/* Location Section */}
               <div className="space-y-4 pt-4">
                 <h3 className="text-sm font-medium border-b pb-2">
                   {t("sections.location")}
@@ -535,19 +497,19 @@ export function SupplierSidePanel({
             </TabsContent>
 
             <TabsContent forceMount value="financial" className="mt-4 space-y-6 p-4 data-[state=inactive]:hidden">
-              {/* Phone Numbers Section */}
+              {/* Contacts Section */}
               <div className="space-y-4">
-                <SupplierPhoneList
+                <SupplierContactList
                   supplierId={(isEditing || isViewing) ? fullSupplier?.id : undefined}
-                  phones={(isEditing || isViewing) ? (fullSupplier?.phone_numbers ?? []) : formPhones}
-                  onAdd={handleAddPhone}
-                  onUpdate={handleUpdatePhone}
-                  onDelete={handleDeletePhone}
+                  contacts={(isEditing || isViewing) ? (fullSupplier?.contacts ?? []) : formContacts}
+                  onAdd={handleAddContact}
+                  onUpdate={handleUpdateContact}
+                  onDelete={handleDeleteContact}
                   isReadOnly={isViewing}
                 />
                 {(mode === "create") && (
                   <p className="text-xs text-muted-foreground italic">
-                    Note: Phone numbers added here will be saved when you click
+                    Note: Contacts added here will be saved when you click
                     &quot;{tCommon("create")}&quot;.
                   </p>
                 )}

@@ -53,7 +53,6 @@ type Customer struct {
 	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 	// Nested relations
-	PhoneNumbers []CustomerPhoneNumber `gorm:"foreignKey:CustomerID" json:"phone_numbers,omitempty"`
 	BankAccounts []CustomerBank        `gorm:"foreignKey:CustomerID" json:"bank_accounts,omitempty"`
 }
 

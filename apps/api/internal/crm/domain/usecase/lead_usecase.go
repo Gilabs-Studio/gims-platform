@@ -10,6 +10,8 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/crm/data/models"
 	"github.com/gilabs/gims/api/internal/crm/data/repositories"
 	"github.com/gilabs/gims/api/internal/crm/domain/dto"
@@ -28,15 +30,24 @@ type LeadUsecase interface {
 	Delete(ctx context.Context, id string) error
 	Convert(ctx context.Context, id string, req dto.ConvertLeadRequest, convertedBy string) (dto.LeadResponse, error)
 	BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequest, createdBy string) (*dto.BulkUpsertLeadResponse, error)
+	GetUnprocessed(ctx context.Context, limit int) ([]dto.LeadResponse, error)
 	GetFormData(ctx context.Context) (*dto.LeadFormDataResponse, error)
 	GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error)
 	GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error)
 }
 
+var ErrCannotManuallySetConvertedStatus = errors.New("cannot manually set converted status, use the convert endpoint")
+
+const (
+	leadSourceGoogleMapsID = "cb000001-0000-0000-0000-000000000006"
+	leadSourceLinkedInID   = "cb000001-0000-0000-0000-000000000007"
+)
+
 type leadUsecase struct {
 	leadRepo          repositories.LeadRepository
 	leadStatusRepo    repositories.LeadStatusRepository
 	leadSourceRepo    repositories.LeadSourceRepository
+	contactRoleRepo   repositories.ContactRoleRepository
 	dealRepo          repositories.DealRepository
 	pipelineStageRepo repositories.PipelineStageRepository
 	activityRepo      repositories.ActivityRepository
@@ -52,6 +63,7 @@ func NewLeadUsecase(
 	leadRepo repositories.LeadRepository,
 	leadStatusRepo repositories.LeadStatusRepository,
 	leadSourceRepo repositories.LeadSourceRepository,
+	contactRoleRepo repositories.ContactRoleRepository,
 	dealRepo repositories.DealRepository,
 	pipelineStageRepo repositories.PipelineStageRepository,
 	activityRepo repositories.ActivityRepository,
@@ -65,6 +77,7 @@ func NewLeadUsecase(
 		leadRepo:          leadRepo,
 		leadStatusRepo:    leadStatusRepo,
 		leadSourceRepo:    leadSourceRepo,
+		contactRoleRepo:   contactRoleRepo,
 		dealRepo:          dealRepo,
 		pipelineStageRepo: pipelineStageRepo,
 		activityRepo:      activityRepo,
@@ -109,6 +122,14 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		}
 	}
 
+	// Validate contact role if provided
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
+	}
+
 	// Parse time expected
 	var timeExpected *time.Time
 	if req.TimeExpected != nil && *req.TimeExpected != "" {
@@ -126,6 +147,7 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		CompanyName:          req.CompanyName,
 		Email:                req.Email,
 		Phone:                req.Phone,
+		ContactRoleID:        req.ContactRoleID,
 		JobTitle:             req.JobTitle,
 		Address:              req.Address,
 		City:                 req.City,
@@ -141,6 +163,8 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 		Website:              req.Website,
 		BankAccountID:        req.BankAccountID,
 		BankAccountReference: req.BankAccountReference,
+		Latitude:             req.Latitude,
+		Longitude:            req.Longitude,
 		BudgetConfirmed:      req.BudgetConfirmed,
 		BudgetAmount:         req.BudgetAmount,
 		AuthConfirmed:        req.AuthConfirmed,
@@ -181,6 +205,10 @@ func (u *leadUsecase) Create(ctx context.Context, req dto.CreateLeadRequest, cre
 }
 
 func (u *leadUsecase) GetByID(ctx context.Context, id string) (dto.LeadResponse, error) {
+	if !security.CheckRecordScopeAccess(database.DB, ctx, &models.Lead{}, id, security.MixedOwnershipScopeQueryOptions("assigned_to")) {
+		return dto.LeadResponse{}, errors.New("lead not found")
+	}
+
 	lead, err := u.leadRepo.FindByID(ctx, id)
 	if err != nil {
 		return dto.LeadResponse{}, errors.New("lead not found")
@@ -275,7 +303,7 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 		}
 		// Prevent manual assignment of converted status
 		if status.IsConverted {
-			return dto.LeadResponse{}, errors.New("cannot manually set converted status, use the convert endpoint")
+			return dto.LeadResponse{}, ErrCannotManuallySetConvertedStatus
 		}
 
 		// Track status changes for activity logging
@@ -295,6 +323,14 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 			return dto.LeadResponse{}, errors.New("assigned employee not found")
 		}
 		lead.AssignedTo = req.AssignedTo
+	}
+
+	// Validate contact role if changing
+	if req.ContactRoleID != nil && *req.ContactRoleID != "" {
+		_, err := u.contactRoleRepo.FindByID(ctx, *req.ContactRoleID)
+		if err != nil {
+			return dto.LeadResponse{}, errors.New("contact role not found")
+		}
 	}
 
 	// Apply partial updates
@@ -317,6 +353,18 @@ func (u *leadUsecase) Update(ctx context.Context, id string, req dto.UpdateLeadR
 	if req.Phone != nil {
 		addStringChange("phone", lead.Phone, *req.Phone)
 		lead.Phone = *req.Phone
+	}
+	if req.ContactRoleID != nil {
+		old := ""
+		if lead.ContactRoleID != nil {
+			old = *lead.ContactRoleID
+		}
+		newVal := ""
+		if *req.ContactRoleID != "" {
+			newVal = *req.ContactRoleID
+		}
+		addStringChange("contact_role_id", old, newVal)
+		lead.ContactRoleID = req.ContactRoleID
 	}
 	if req.JobTitle != nil {
 		addStringChange("job_title", lead.JobTitle, *req.JobTitle)
@@ -600,7 +648,7 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		return dto.LeadResponse{}, errors.New("cannot convert a lost lead")
 	}
 
-	// Resolve pipeline stage: use provided stage or default to first stage (order=1)
+	// Resolve pipeline stage: use provided stage or default to lowest-probability active pipeline stage
 	var pipelineStageID string
 	if req.PipelineStageID != nil && *req.PipelineStageID != "" {
 		stage, err := u.pipelineStageRepo.FindByID(ctx, *req.PipelineStageID)
@@ -609,11 +657,32 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		}
 		pipelineStageID = stage.ID
 	} else {
-		firstStage, err := u.pipelineStageRepo.FindByOrder(ctx, 1)
+		stages, _, err := u.pipelineStageRepo.List(ctx, repositories.ListParams{Limit: 100})
 		if err != nil {
-			return dto.LeadResponse{}, fmt.Errorf("failed to find default pipeline stage: %w", err)
+			return dto.LeadResponse{}, fmt.Errorf("failed to load pipeline stages: %w", err)
 		}
-		pipelineStageID = firstStage.ID
+		if len(stages) == 0 {
+			return dto.LeadResponse{}, errors.New("no pipeline stages available")
+		}
+
+		// Choose lowest probability stage (avoid won/lost stages if possible)
+		var defaultStage *models.PipelineStage
+		for i := range stages {
+			stage := &stages[i]
+			if stage.IsWon || stage.IsLost || !stage.IsActive {
+				continue
+			}
+			if defaultStage == nil || stage.Probability < defaultStage.Probability {
+				defaultStage = stage
+			}
+		}
+
+		if defaultStage == nil {
+			// Fallback: take first stage if no non-won/non-lost stage exists
+			defaultStage = &stages[0]
+		}
+
+		pipelineStageID = defaultStage.ID
 	}
 
 	// Build deal title from request or lead data
@@ -647,8 +716,6 @@ func (u *leadUsecase) Convert(ctx context.Context, id string, req dto.ConvertLea
 		Probability:          lead.Probability,
 		LeadID:               &lead.ID,
 		AssignedTo:           lead.AssignedTo,
-		BankAccountID:        lead.BankAccountID,
-		BankAccountReference: lead.BankAccountReference,
 		BudgetConfirmed:      lead.BudgetConfirmed,
 		BudgetAmount:         lead.BudgetAmount,
 		AuthConfirmed:        lead.AuthConfirmed,
@@ -779,11 +846,37 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 	// Resolve default status once for all new leads
 	var defaultStatusID *string
 	defaultStatus, err := u.leadStatusRepo.FindDefault(ctx)
+	if err != nil || defaultStatus == nil {
+		fallbackStatus, fallbackErr := u.leadStatusRepo.FindByCode(ctx, "NEW")
+		if fallbackErr == nil && fallbackStatus != nil {
+			defaultStatus = fallbackStatus
+			err = nil
+		}
+	}
 	if err == nil && defaultStatus != nil {
 		defaultStatusID = &defaultStatus.ID
 	}
 
 	for _, item := range req.Leads {
+		// Resolve lead source defensively so list column doesn't show empty source for automation leads.
+		resolvedLeadSourceID := item.LeadSourceID
+		if resolvedLeadSourceID == nil || *resolvedLeadSourceID == "" {
+			inferred := inferLeadSourceID(item)
+			if inferred != "" {
+				resolvedLeadSourceID = &inferred
+			}
+		}
+		if resolvedLeadSourceID != nil && *resolvedLeadSourceID != "" {
+			if _, sourceErr := u.leadSourceRepo.FindByID(ctx, *resolvedLeadSourceID); sourceErr != nil {
+				inferred := inferLeadSourceID(item)
+				if inferred != "" {
+					resolvedLeadSourceID = &inferred
+				} else {
+					resolvedLeadSourceID = nil
+				}
+			}
+		}
+
 		// Try to find existing lead by place_id, cid, email, phone, or company_name (deduplication key)
 		existing, findErr := u.leadRepo.FindDuplicate(ctx, item.Email, item.Phone, item.CompanyName, item.PlaceID, item.CID)
 
@@ -809,6 +902,9 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 
 		if findErr == nil && existing != nil {
 			// Update existing lead with new data (merge non-empty fields)
+			if defaultStatusID != nil && (existing.LeadStatusID == nil || *existing.LeadStatusID == "") {
+				existing.LeadStatusID = defaultStatusID
+			}
 			if item.FirstName != "" {
 				existing.FirstName = item.FirstName
 			}
@@ -848,8 +944,8 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			if item.EstimatedValue > 0 {
 				existing.EstimatedValue = item.EstimatedValue
 			}
-			if item.LeadSourceID != nil && *item.LeadSourceID != "" {
-				existing.LeadSourceID = item.LeadSourceID
+			if resolvedLeadSourceID != nil && *resolvedLeadSourceID != "" {
+				existing.LeadSourceID = resolvedLeadSourceID
 			}
 			if item.Latitude != nil {
 				existing.Latitude = item.Latitude
@@ -885,6 +981,11 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 				existing.Notes = existing.Notes + "\n---\n" + item.Notes
 			}
 
+			// Mark as processed by n8n
+			now := apptime.Now()
+			existing.ProcessedFromN8N = true
+			existing.ProcessedAt = &now
+
 			existing.LeadScore = existing.CalculateLeadScore()
 
 			if updateErr := u.leadRepo.Update(ctx, existing); updateErr != nil {
@@ -902,36 +1003,39 @@ func (u *leadUsecase) BulkUpsert(ctx context.Context, req dto.BulkUpsertLeadRequ
 			result.Items = append(result.Items, mapper.ToLeadResponse(reloaded))
 		} else {
 			// Create new lead
+			now := apptime.Now()
 			lead := &models.Lead{
-				ID:             uuid.New().String(),
-				FirstName:      item.FirstName,
-				LastName:       item.LastName,
-				CompanyName:    item.CompanyName,
-				Email:          item.Email,
-				Phone:          item.Phone,
-				JobTitle:       item.JobTitle,
-				Address:        item.Address,
-				City:           item.City,
-				Province:       item.Province,
-				ProvinceID:     item.ProvinceID,
-				CityID:         item.CityID,
-				DistrictID:     item.DistrictID,
-				VillageName:    item.VillageName,
-				LeadSourceID:   item.LeadSourceID,
-				LeadStatusID:   defaultStatusID,
-				EstimatedValue: item.EstimatedValue,
-				Latitude:       item.Latitude,
-				Longitude:      item.Longitude,
-				Rating:         item.Rating,
-				RatingCount:    item.RatingCount,
-				Types:          typesStr,
-				OpeningHours:   openingHoursStr,
-				ThumbnailURL:   item.ThumbnailURL,
-				CID:            item.CID,
-				PlaceID:        item.PlaceID,
-				Website:        item.Website,
-				Notes:          item.Notes,
-				CreatedBy:      &createdBy,
+				ID:               uuid.New().String(),
+				FirstName:        item.FirstName,
+				LastName:         item.LastName,
+				CompanyName:      item.CompanyName,
+				Email:            item.Email,
+				Phone:            item.Phone,
+				JobTitle:         item.JobTitle,
+				Address:          item.Address,
+				City:             item.City,
+				Province:         item.Province,
+				ProvinceID:       item.ProvinceID,
+				CityID:           item.CityID,
+				DistrictID:       item.DistrictID,
+				VillageName:      item.VillageName,
+				LeadSourceID:     resolvedLeadSourceID,
+				LeadStatusID:     defaultStatusID,
+				EstimatedValue:   item.EstimatedValue,
+				Latitude:         item.Latitude,
+				Longitude:        item.Longitude,
+				Rating:           item.Rating,
+				RatingCount:      item.RatingCount,
+				Types:            typesStr,
+				OpeningHours:     openingHoursStr,
+				ThumbnailURL:     item.ThumbnailURL,
+				CID:              item.CID,
+				PlaceID:          item.PlaceID,
+				Website:          item.Website,
+				Notes:            item.Notes,
+				CreatedBy:        &createdBy,
+				ProcessedFromN8N: true,
+				ProcessedAt:      &now,
 			}
 
 			// Load status for score calculation
@@ -1088,6 +1192,37 @@ func (u *leadUsecase) GetFormData(ctx context.Context) (*dto.LeadFormDataRespons
 
 func (u *leadUsecase) GetAnalytics(ctx context.Context) (*repositories.LeadAnalytics, error) {
 	return u.leadRepo.GetAnalytics(ctx)
+}
+
+// GetUnprocessed retrieves unprocessed leads for n8n automation (prevents duplicate processing)
+func (u *leadUsecase) GetUnprocessed(ctx context.Context, limit int) ([]dto.LeadResponse, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50 // Default and max limit
+	}
+
+	leads, err := u.leadRepo.FindUnprocessed(ctx, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch unprocessed leads: %w", err)
+	}
+
+	responses := mapper.ToLeadResponseList(leads)
+	return responses, nil
+}
+
+func inferLeadSourceID(item dto.UpsertLeadItem) string {
+	placeIDLower := strings.ToLower(strings.TrimSpace(item.PlaceID))
+	websiteLower := strings.ToLower(strings.TrimSpace(item.Website))
+	notesLower := strings.ToLower(strings.TrimSpace(item.Notes))
+
+	if strings.Contains(placeIDLower, "linkedin.com") || strings.Contains(websiteLower, "linkedin.com") || strings.Contains(notesLower, "linkedin") {
+		return leadSourceLinkedInID
+	}
+
+	if strings.Contains(placeIDLower, "google.com/maps") || strings.Contains(notesLower, "google maps") || item.CID != "" || item.Latitude != nil || item.Longitude != nil {
+		return leadSourceGoogleMapsID
+	}
+
+	return ""
 }
 
 func (u *leadUsecase) GetProductItems(ctx context.Context, leadID string) ([]dto.LeadProductItemResponse, error) {

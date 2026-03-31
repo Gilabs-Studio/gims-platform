@@ -61,7 +61,7 @@ export function StockMovementForm() {
   const [productSearch, setProductSearch] = useState("");
 
   // ─── Data ─────────────────────────────────────────────────────────────────
-  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 100 });
+  const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
   const warehouses = warehouseData?.data ?? [];
 
   // OUT/TRANSFER → show only products that exist in the selected warehouse with stock
@@ -72,7 +72,7 @@ export function StockMovementForm() {
 
   // IN → pick from master product catalogue (stock can be 0)
   const { data: masterProductData, isLoading: isMasterLoading } = useProducts(
-    { page: 1, per_page: 100 },
+    { page: 1, per_page: 20 },
     { enabled: type === "IN" && !!sourceWarehouseId }
   );
 

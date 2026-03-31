@@ -34,13 +34,13 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
   // Fetch Lookup Data conditionally when form is open
   const fetchOptions = { enabled: open };
   
-  const { data: categoriesData } = useProductCategories({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: brandsData } = useProductBrands({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: segmentsData } = useProductSegments({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: typesData } = useProductTypes({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: uomsData } = useUnitsOfMeasure({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: packagingsData } = usePackagings({ per_page: 100, sort: "name" }, fetchOptions);
-  const { data: procurementTypesData } = useProcurementTypes({ per_page: 100, sort: "name" }, fetchOptions);
+  const { data: categoriesData } = useProductCategories({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: brandsData } = useProductBrands({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: segmentsData } = useProductSegments({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: typesData } = useProductTypes({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: uomsData } = useUnitsOfMeasure({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: packagingsData } = usePackagings({ per_page: 20, sort: "name" }, fetchOptions);
+  const { data: procurementTypesData } = useProcurementTypes({ per_page: 20, sort: "name" }, fetchOptions);
 
   const categories = sortOptions(categoriesData?.data ?? [], (i) => i.name);
   const brands = sortOptions(brandsData?.data ?? [], (i) => i.name);

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { visitReportService } from "../services/visit-report-service";
 import type {
@@ -8,8 +9,6 @@ import type {
   CheckInData,
   CheckOutData,
   SubmitVisitData,
-  ApproveVisitData,
-  RejectVisitData,
 } from "../types";
 
 const QUERY_KEY = "crm-visit-reports";
@@ -21,7 +20,6 @@ export const visitReportKeys = {
   details: () => [...visitReportKeys.all, "detail"] as const,
   detail: (id: string) => [...visitReportKeys.details(), id] as const,
   formData: () => [...visitReportKeys.all, "form-data"] as const,
-  history: (id: string) => [...visitReportKeys.all, "history", id] as const,
   byEmployee: (params: VisitReportEmployeeListParams) => [...visitReportKeys.all, "by-employee", params] as const,
 };
 
@@ -47,14 +45,6 @@ export function useVisitReportFormData(options?: { enabled?: boolean }) {
     queryFn: () => visitReportService.getFormData(),
     staleTime: 10 * 60 * 1000,
     enabled: options?.enabled ?? true,
-  });
-}
-
-export function useVisitReportHistory(id: string, options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: visitReportKeys.history(id),
-    queryFn: () => visitReportService.getProgressHistory(id),
-    enabled: (options?.enabled ?? true) && !!id,
   });
 }
 
@@ -116,35 +106,8 @@ export function useSubmitVisitReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: SubmitVisitData }) =>
       visitReportService.submit(id, data),
-    onSuccess: (_response, variables) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: visitReportKeys.all });
-      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
-    },
-  });
-}
-
-export function useApproveVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: ApproveVisitData }) =>
-      visitReportService.approve(id, data),
-    onSuccess: (_response, variables) => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-      // Force refetch the specific detail to ensure UI sync
-      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
-    },
-  });
-}
-
-export function useRejectVisitReport() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RejectVisitData }) =>
-      visitReportService.reject(id, data),
-    onSuccess: (_response, variables) => {
-      qc.invalidateQueries({ queryKey: visitReportKeys.all });
-      // Force refetch the specific detail to ensure UI sync
-      qc.refetchQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
 }
@@ -158,6 +121,19 @@ export function useUploadVisitPhotos() {
       qc.invalidateQueries({ queryKey: visitReportKeys.detail(variables.id) });
     },
   });
+}
+
+export function useUploadVisitImage() {
+  return useMutation({
+    mutationFn: (file: File) => visitReportService.uploadImage(file),
+  });
+}
+
+export function useVisitReportPrintUrl(id: string) {
+  return useMemo(() => {
+    if (!id) return "";
+    return visitReportService.getPrintUrl(id);
+  }, [id]);
 }
 
 /** Fetches per-employee visit report metrics for the ALL/DIVISION/AREA team views. */

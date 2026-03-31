@@ -24,9 +24,9 @@ type SupplierUsecase interface {
 	Submit(ctx context.Context, id string) (dto.SupplierResponse, error)
 	Approve(ctx context.Context, id string, userID string, req dto.ApproveSupplierRequest) (dto.SupplierResponse, error)
 	// Nested operations
-	AddPhoneNumber(ctx context.Context, supplierID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
-	UpdatePhoneNumber(ctx context.Context, id string, req dto.UpdatePhoneNumberRequest) (dto.PhoneNumberResponse, error)
-	DeletePhoneNumber(ctx context.Context, id string) error
+	AddContact(ctx context.Context, supplierID string, req dto.CreateContactRequest) (dto.ContactResponse, error)
+	UpdateContact(ctx context.Context, id string, req dto.UpdateContactRequest) (dto.ContactResponse, error)
+	DeleteContact(ctx context.Context, id string) error
 	AddBankAccount(ctx context.Context, supplierID string, req dto.CreateSupplierBankRequest) (dto.SupplierBankResponse, error)
 	UpdateBankAccount(ctx context.Context, id string, req dto.UpdateSupplierBankRequest) (dto.SupplierBankResponse, error)
 	DeleteBankAccount(ctx context.Context, id string) error
@@ -102,15 +102,23 @@ func (u *supplierUsecase) Create(ctx context.Context, userID string, req dto.Cre
 	}
 
 	// Create phone numbers
-	for _, phone := range req.PhoneNumbers {
-		phoneModel := &models.SupplierPhoneNumber{
-			ID:          uuid.New().String(),
-			SupplierID:  supplier.ID,
-			PhoneNumber: phone.PhoneNumber,
-			Label:       phone.Label,
-			IsPrimary:   phone.IsPrimary,
+	for _, phone := range req.Contacts {
+		phoneModel := &models.SupplierContact{
+			ID:            uuid.New().String(),
+			SupplierID:    supplier.ID,
+			ContactRoleID: phone.ContactRoleID,
+			Name:          phone.Name,
+			Email:         phone.Email,
+			Phone:         phone.Phone,
+			Notes:         phone.Notes,
+			IsPrimary:     phone.IsPrimary,
 		}
-		if err := u.repo.CreatePhoneNumber(ctx, phoneModel); err != nil {
+		if phone.IsActive != nil {
+			phoneModel.IsActive = *phone.IsActive
+		} else {
+			phoneModel.IsActive = true
+		}
+		if err := u.repo.CreateContact(ctx, phoneModel); err != nil {
 			return dto.SupplierResponse{}, err
 		}
 	}
@@ -269,7 +277,7 @@ func (u *supplierUsecase) Update(ctx context.Context, id string, req dto.UpdateS
 	supplier.City = nil
 	supplier.District = nil
 	supplier.Village = nil
-	supplier.PhoneNumbers = nil
+	supplier.Contacts = nil
 	supplier.BankAccounts = nil
 
 	if err := u.repo.Update(ctx, supplier); err != nil {
@@ -338,58 +346,87 @@ func (u *supplierUsecase) Approve(ctx context.Context, id string, userID string,
 	return mapper.ToSupplierResponse(supplier), nil
 }
 
-// Nested phone number operations
-func (u *supplierUsecase) AddPhoneNumber(ctx context.Context, supplierID string, req dto.CreatePhoneNumberRequest) (dto.PhoneNumberResponse, error) {
-	phone := &models.SupplierPhoneNumber{
-		ID:          uuid.New().String(),
-		SupplierID:  supplierID,
-		PhoneNumber: req.PhoneNumber,
-		Label:       req.Label,
-		IsPrimary:   req.IsPrimary,
+// Nested contact operations
+func (u *supplierUsecase) AddContact(ctx context.Context, supplierID string, req dto.CreateContactRequest) (dto.ContactResponse, error) {
+	phone := &models.SupplierContact{
+		ID:            uuid.New().String(),
+		SupplierID:    supplierID,
+		ContactRoleID: req.ContactRoleID,
+		Name:          req.Name,
+		Email:         req.Email,
+		Phone:         req.Phone,
+		Notes:         req.Notes,
+		IsPrimary:     req.IsPrimary,
+	}
+	
+	if req.IsActive != nil {
+		phone.IsActive = *req.IsActive
+	} else {
+		phone.IsActive = true
 	}
 
-	if err := u.repo.CreatePhoneNumber(ctx, phone); err != nil {
-		return dto.PhoneNumberResponse{}, err
+	if err := u.repo.CreateContact(ctx, phone); err != nil {
+		return dto.ContactResponse{}, err
 	}
 
-	return dto.PhoneNumberResponse{
-		ID:          phone.ID,
-		SupplierID:  phone.SupplierID,
-		PhoneNumber: phone.PhoneNumber,
-		Label:       phone.Label,
-		IsPrimary:   phone.IsPrimary,
-		CreatedAt:   phone.CreatedAt,
-		UpdatedAt:   phone.UpdatedAt,
+	return dto.ContactResponse{
+		ID:            phone.ID,
+		SupplierID:    phone.SupplierID,
+		ContactRoleID: phone.ContactRoleID,
+		Name:          phone.Name,
+		Email:         phone.Email,
+		Phone:         phone.Phone,
+		Notes:         phone.Notes,
+		IsPrimary:     phone.IsPrimary,
+		IsActive:      phone.IsActive,
+		CreatedAt:     phone.CreatedAt,
+		UpdatedAt:     phone.UpdatedAt,
 	}, nil
 }
 
-func (u *supplierUsecase) UpdatePhoneNumber(ctx context.Context, id string, req dto.UpdatePhoneNumberRequest) (dto.PhoneNumberResponse, error) {
+func (u *supplierUsecase) UpdateContact(ctx context.Context, id string, req dto.UpdateContactRequest) (dto.ContactResponse, error) {
 	// For simplicity, we'll update directly. In production, you'd want a FindPhoneByID method
-	phone := &models.SupplierPhoneNumber{ID: id}
-	if req.PhoneNumber != "" {
-		phone.PhoneNumber = req.PhoneNumber
+	phone := &models.SupplierContact{ID: id}
+	if req.ContactRoleID != nil {
+		phone.ContactRoleID = req.ContactRoleID
 	}
-	if req.Label != "" {
-		phone.Label = req.Label
+	if req.Name != "" {
+		phone.Name = req.Name
+	}
+	if req.Email != "" {
+		phone.Email = req.Email
+	}
+	if req.Phone != "" {
+		phone.Phone = req.Phone
+	}
+	if req.Notes != "" {
+		phone.Notes = req.Notes
 	}
 	if req.IsPrimary != nil {
 		phone.IsPrimary = *req.IsPrimary
 	}
-
-	if err := u.repo.UpdatePhoneNumber(ctx, phone); err != nil {
-		return dto.PhoneNumberResponse{}, err
+	if req.IsActive != nil {
+		phone.IsActive = *req.IsActive
 	}
 
-	return dto.PhoneNumberResponse{
-		ID:          phone.ID,
-		PhoneNumber: phone.PhoneNumber,
-		Label:       phone.Label,
-		IsPrimary:   phone.IsPrimary,
+	if err := u.repo.UpdateContact(ctx, phone); err != nil {
+		return dto.ContactResponse{}, err
+	}
+
+	return dto.ContactResponse{
+		ID:            phone.ID,
+		ContactRoleID: phone.ContactRoleID,
+		Name:          phone.Name,
+		Email:         phone.Email,
+		Phone:         phone.Phone,
+		Notes:         phone.Notes,
+		IsPrimary:     phone.IsPrimary,
+		IsActive:      phone.IsActive,
 	}, nil
 }
 
-func (u *supplierUsecase) DeletePhoneNumber(ctx context.Context, id string) error {
-	return u.repo.DeletePhoneNumber(ctx, id)
+func (u *supplierUsecase) DeleteContact(ctx context.Context, id string) error {
+	return u.repo.DeleteContact(ctx, id)
 }
 
 // Nested bank account operations

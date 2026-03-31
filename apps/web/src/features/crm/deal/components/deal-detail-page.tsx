@@ -46,8 +46,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { useDealById, useDeleteDeal, useDealFormData } from "../hooks/use-deals";
 import { useLeadById, useUpdateLead, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
-import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
-import type { VisitInterestQuestion } from "@/features/crm/visit-report/types";
+import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { DealFormDialog } from "./deal-form-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
 import { DealHistoryTimeline } from "./deal-history-timeline";
@@ -56,6 +55,7 @@ import { DealStockCheck } from "./deal-stock-check";
 import { DealActivityFeed } from "./deal-activity-feed";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByDeal } from "@/features/crm/task/hooks/use-tasks";
@@ -91,12 +91,27 @@ function getStatusVariant(status: string): "default" | "secondary" | "destructiv
 export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const t = useTranslations("crmDeal");
   const tCommon = useTranslations("common");
+  const tVisit = useTranslations("crmVisitReport");
   const router = useRouter();
 
   const { data: response, isLoading, isError, refetch } = useDealById(dealId);
   const deleteMutation = useDeleteDeal();
-  const { data: formDataRes } = useDealFormData();
-  const { data: activityTypesData } = useActivityTypes({ per_page: 100, sort_by: "order", sort_dir: "asc" });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showMoveStage, setShowMoveStage] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showActivityDialog, setShowActivityDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
+
+  const { data: formDataRes } = useDealFormData({ enabled: showActivityDialog || showVisitDialog });
+  const { data: activityTypesData } = useActivityTypes(
+    { per_page: 20, sort_by: "order", sort_dir: "asc" },
+    { enabled: showActivityDialog },
+  );
   const activityTypes = activityTypesData?.data?.filter((at) => at.is_active) ?? [];
   const employees = formDataRes?.employees ?? [];
   const authUser = useAuthStore((state) => state.user);
@@ -109,25 +124,19 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const canCreateTask = useUserPermission("crm_task.create");
   const canViewProduct = useUserPermission("product.read");
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showMoveStage, setShowMoveStage] = useState(false);
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
-  const [showActivityDialog, setShowActivityDialog] = useState(false);
-  const [showVisitDialog, setShowVisitDialog] = useState(false);
-  const [showTaskDialog, setShowTaskDialog] = useState(false);
-  const [showMapPicker, setShowMapPicker] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["activities"]));
-
-  const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId);
+  const { data: tasksData, isLoading: isTasksLoading } = useTasksByDeal(dealId, undefined, {
+    enabled: visitedTabs.has("tasks"),
+  });
   const deal: Deal | undefined = response?.data;
   const { totalCount: activitiesCount } = useDealActivityTimeline(dealId, deal?.lead_id ?? undefined);
   const updateLeadMutation = useUpdateLead();
   // Fetch the lead's current product items for live interest levels, deleted state, and survey answers
-  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", { enabled: !!deal?.lead_id });
-  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: !!deal?.lead_id });
-  const interestQuestions: VisitInterestQuestion[] = visitFormDataRes?.data?.interest_questions ?? [];
+  const isItemsTabVisited = visitedTabs.has("items");
+  const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", {
+    enabled: isItemsTabVisited && !!deal?.lead_id,
+  });
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isItemsTabVisited });
+  const surveyQuestions = visitFormDataRes?.data?.interest_questions ?? [];
 
   const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);
   const leadInterestMap = new Map<string, number>(leadItems.map((p) => [p.product_id!, p.interest_level]));
@@ -135,18 +144,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const leadItemByProductId = new Map<string, LeadProductItem>(leadItems.map((p) => [p.product_id!, p]));
 
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    if (!raw) return [];
-    try {
-      const parsed: { question_id: string; option_id: string }[] = JSON.parse(raw);
-      return parsed.flatMap((ans) => {
-        const q = interestQuestions.find((q) => q.id === ans.question_id);
-        const opt = q?.options.find((o) => o.id === ans.option_id);
-        if (!q || !opt) return [];
-        return [{ question_text: q.question_text, option_text: opt.option_text, score: opt.score }];
-      });
-    } catch {
-      return [];
-    }
+    return resolveVisitSurveyAnswers(raw, surveyQuestions);
   }
 
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });

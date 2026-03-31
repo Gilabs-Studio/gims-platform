@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -29,6 +30,7 @@ type AssetRepository interface {
 	List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error)
 	FindLastDepreciation(ctx context.Context, assetID string) (*financeModels.AssetDepreciation, error)
 	GenerateCode(ctx context.Context) (string, error)
+	UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error
 }
 
 type assetRepository struct {
@@ -57,12 +59,12 @@ func (r *assetRepository) FindByID(ctx context.Context, id string, withDetails b
 }
 
 var assetAllowedSort = map[string]string{
-	"created_at":       "assets.created_at",
-	"updated_at":       "assets.updated_at",
-	"acquisition_date": "assets.acquisition_date",
-	"code":             "assets.code",
-	"name":             "assets.name",
-	"book_value":       "assets.book_value",
+	"created_at":       "fixed_assets.created_at",
+	"updated_at":       "fixed_assets.updated_at",
+	"acquisition_date": "fixed_assets.acquisition_date",
+	"code":             "fixed_assets.code",
+	"name":             "fixed_assets.name",
+	"book_value":       "fixed_assets.book_value",
 }
 
 func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]financeModels.Asset, int64, error) {
@@ -72,25 +74,26 @@ func (r *assetRepository) List(ctx context.Context, params AssetListParams) ([]f
 	q := r.db.WithContext(ctx).Model(&financeModels.Asset{}).
 		Preload("Category").
 		Preload("Location")
+	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("assets.code ILIKE ? OR assets.name ILIKE ?", like, like)
+		q = q.Where("fixed_assets.code ILIKE ? OR fixed_assets.name ILIKE ?", like, like)
 	}
 	if params.Status != nil {
-		q = q.Where("assets.status = ?", *params.Status)
+		q = q.Where("fixed_assets.status = ?", *params.Status)
 	}
 	if params.CategoryID != nil && strings.TrimSpace(*params.CategoryID) != "" {
-		q = q.Where("assets.category_id = ?", strings.TrimSpace(*params.CategoryID))
+		q = q.Where("fixed_assets.category_id = ?", strings.TrimSpace(*params.CategoryID))
 	}
 	if params.LocationID != nil && strings.TrimSpace(*params.LocationID) != "" {
-		q = q.Where("assets.location_id = ?", strings.TrimSpace(*params.LocationID))
+		q = q.Where("fixed_assets.location_id = ?", strings.TrimSpace(*params.LocationID))
 	}
 	if params.StartDate != nil {
-		q = q.Where("assets.acquisition_date >= ?", *params.StartDate)
+		q = q.Where("fixed_assets.acquisition_date >= ?", *params.StartDate)
 	}
 	if params.EndDate != nil {
-		q = q.Where("assets.acquisition_date <= ?", *params.EndDate)
+		q = q.Where("fixed_assets.acquisition_date <= ?", *params.EndDate)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -153,4 +156,11 @@ func (r *assetRepository) GenerateCode(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("%s%04d", prefix, nextNum), nil
+}
+
+func (r *assetRepository) UpdateStatus(ctx context.Context, assetID string, status financeModels.AssetStatus) error {
+	return r.db.WithContext(ctx).
+		Model(&financeModels.Asset{}).
+		Where("id = ?", assetID).
+		Update("status", status).Error
 }

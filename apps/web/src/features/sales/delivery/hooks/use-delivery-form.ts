@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useForm, useFieldArray, useWatch, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import type { Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
@@ -14,10 +14,12 @@ import {
 } from "../schemas/delivery.schema";
 import type { CreateDeliveryOrderData, UpdateDeliveryOrderData, DeliveryOrder } from "../types";
 import { useCreateDeliveryOrder, useUpdateDeliveryOrder, useDeliveryOrder } from "../hooks/use-deliveries";
-import { useOrders, useOrder } from "@/features/sales/order/hooks/use-orders";
-import { useEmployees } from "@/features/master-data/employee/hooks/use-employees";
-import { useCourierAgencies } from "@/features/master-data/payment-and-couriers/courier-agency/hooks/use-courier-agency";
-import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
+import { useOrder } from "@/features/sales/order/hooks/use-orders";
+import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { orderService } from "@/features/sales/order/services/order-service";
+import { employeeService } from "@/features/master-data/employee/services/employee-service";
+import { courierAgencyService } from "@/features/master-data/payment-and-couriers/courier-agency/services/courier-agency-service";
+import { warehouseService } from "@/features/master-data/warehouse/services/warehouse-service";
 import type { SalesOrderItem } from "../../order/types";
 import { sortOptions } from "@/lib/utils";
 import { getFirstFormErrorMessage, getSalesErrorMessage, toOptionalString } from "../../utils/error-utils";
@@ -37,7 +39,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   
   const [activeTab, setActiveTab] = useState<"basic" | "items">("basic");
   const [isValidating, setIsValidating] = useState(false);
-  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(isEdit || !!defaultSalesOrderId);
+  const [shouldLoadReferenceOptions, setShouldLoadReferenceOptions] = useState(true);
 
   type QuickCreateType = "employee" | "courierAgency" | null;
   const [quickCreate, setQuickCreate] = useState<{ type: QuickCreateType }>({ type: null });
@@ -54,54 +56,128 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     { enabled: open && isEdit && !!delivery?.id }
   );
 
-  // Fetch lookup data
-  const { data: salesOrdersData } = useOrders(
-    { per_page: 20, status: "approved", unfulfilled_only: true },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
-  const { data: employeesData } = useEmployees(
-    { per_page: 20 },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
-  const { data: courierAgenciesData } = useCourierAgencies(
-    { per_page: 20 },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
-  const { data: warehousesData } = useWarehouses(
-    { per_page: 20 },
-    { enabled: open && shouldLoadReferenceOptions },
-  );
+  const selectedDelivery = fullDeliveryData?.data ?? delivery ?? null;
+  const referenceOptionsEnabled = open && shouldLoadReferenceOptions;
+
+  const salesOrdersCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "delivery", "orders"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      orderService.list({
+        ...params,
+        status: "approved",
+        unfulfilled_only: true,
+        sort_by: "order_date",
+        sort_dir: "desc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedDelivery?.sales_order?.id
+        ? [{ value: selectedDelivery.sales_order.id, label: selectedDelivery.sales_order.code }]
+        : undefined,
+  });
+
+  const employeesCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "delivery", "employees"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      employeeService.list({
+        ...params,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: `${item.employee_code} - ${item.name}`,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedDelivery?.delivered_by?.id
+        ? [
+            {
+              value: selectedDelivery.delivered_by.id,
+              label: selectedDelivery.delivered_by.employee_code
+                ? `${selectedDelivery.delivered_by.employee_code} - ${selectedDelivery.delivered_by.name}`
+                : selectedDelivery.delivered_by.name,
+            },
+          ]
+        : undefined,
+  });
+
+  const courierAgenciesCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "delivery", "courier-agencies"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      courierAgencyService.list({
+        ...params,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.name,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedDelivery?.courier_agency?.id
+        ? [{ value: selectedDelivery.courier_agency.id, label: selectedDelivery.courier_agency.name }]
+        : undefined,
+  });
+
+  const warehousesCombobox = usePaginatedComboboxOptions({
+    queryKey: ["sales", "delivery", "warehouses"],
+    queryFn: (params: { page: number; per_page: number; search?: string }) =>
+      warehouseService.list({
+        ...params,
+        sort_by: "name",
+        sort_dir: "asc",
+      }),
+    mapOption: (item) => ({
+      value: item.id,
+      label: item.code ? `${item.code} - ${item.name}` : item.name,
+    }),
+    enabled: referenceOptionsEnabled,
+    pinnedOptions:
+      selectedDelivery?.warehouse?.id
+        ? [
+            {
+              value: selectedDelivery.warehouse.id,
+              label: selectedDelivery.warehouse.code
+                ? `${selectedDelivery.warehouse.code} - ${selectedDelivery.warehouse.name}`
+                : selectedDelivery.warehouse.name,
+            },
+          ]
+        : undefined,
+  });
 
   useEffect(() => {
     if (!open) {
-      setShouldLoadReferenceOptions(isEdit || !!defaultSalesOrderId);
       return;
     }
 
-    if (isEdit || !!defaultSalesOrderId) {
-      setShouldLoadReferenceOptions(true);
-    }
-  }, [open, isEdit, defaultSalesOrderId]);
+    setShouldLoadReferenceOptions(true);
+  }, [open]);
 
-  const salesOrders = useMemo(() => {
-    const data = salesOrdersData?.data ?? [];
-    return sortOptions(data, (item) => item.code);
-  }, [salesOrdersData?.data]);
+  const salesOrders = useMemo(
+    () => sortOptions(salesOrdersCombobox.items, (item) => item.code),
+    [salesOrdersCombobox.items],
+  );
 
-  const employees = useMemo(() => {
-    const data = employeesData?.data ?? [];
-    return sortOptions(data, (item) => `${item.employee_code} - ${item.name}`);
-  }, [employeesData?.data]);
+  const employees = useMemo(
+    () => sortOptions(employeesCombobox.items, (item) => `${item.employee_code} - ${item.name}`),
+    [employeesCombobox.items],
+  );
   
-  const courierAgencies = useMemo(() => {
-    const data = courierAgenciesData?.data ?? [];
-    return sortOptions(data, (item: any) => item.name ?? "");
-  }, [courierAgenciesData?.data]);
+  const courierAgencies = useMemo(
+    () => sortOptions(courierAgenciesCombobox.items, (item) => item.name ?? ""),
+    [courierAgenciesCombobox.items],
+  );
 
-  const warehouses = useMemo(() => {
-    const data = warehousesData?.data ?? [];
-    return sortOptions(data, (item) => item.code ? `${item.code} - ${item.name}` : item.name);
-  }, [warehousesData?.data]);
+  const warehouses = useMemo(
+    () => sortOptions(warehousesCombobox.items, (item) => (item.code ? `${item.code} - ${item.name}` : item.name)),
+    [warehousesCombobox.items],
+  );
 
   const schema = isEdit ? getUpdateDeliveryOrderSchema(t) : getDeliveryOrderSchema(t);
   const formResolver = zodResolver(schema) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
@@ -139,8 +215,6 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   });
 
   const {
-    register,
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -467,5 +541,9 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
     enableReferenceOptionsFetch,
     handleDeliveredByCreated,
     handleCourierAgencyCreated,
+    salesOrdersCombobox,
+    employeesCombobox,
+    courierAgenciesCombobox,
+    warehousesCombobox,
   };
 }

@@ -16,7 +16,9 @@ import (
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
+	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -25,6 +27,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -75,7 +78,9 @@ func AutoMigrate() error {
 		&permission.Permission{},
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
+		&passwordReset.PasswordResetRequest{},
 		&core.AuditLog{},
+		&notification.Notification{},
 		// Geographic entities (Sprint 1)
 		&geographic.Country{},
 		&geographic.Province{},
@@ -98,12 +103,11 @@ func AutoMigrate() error {
 		&supplier.SupplierType{},
 		&supplier.Bank{},
 		&supplier.Supplier{},
-		&supplier.SupplierPhoneNumber{},
+		&supplier.SupplierContact{},
 		&supplier.SupplierBank{},
 		// Customer entities (Master Data)
 		&customer.CustomerType{},
 		&customer.Customer{},
-		&customer.CustomerPhoneNumber{},
 		&customer.CustomerBank{},
 		// Product entities (Sprint 4)
 		&product.ProductCategory{},
@@ -125,6 +129,7 @@ func AutoMigrate() error {
 		&core.BankAccount{},
 		// Finance entities (Sprint 10)
 		&finance.ChartOfAccount{},
+		&finance.FinanceSetting{},
 		&finance.JournalEntry{},
 		&finance.JournalLine{},
 		&finance.JournalReversal{},
@@ -142,9 +147,16 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		// NEW: Extended Asset entities
+		&finance.AssetAttachment{},
+		&finance.AssetAuditLog{},
+		&finance.AssetAssignmentHistory{},
 		&finance.AssetBudget{},
 		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
+		&finance.AccountingPeriod{},
+		&finance.FinancialClosingSnapshot{},
+		&finance.FinancialClosingLog{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
@@ -152,6 +164,12 @@ func AutoMigrate() error {
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		// Travel Planner entities
+		&travelPlanner.TravelPlan{},
+		&travelPlanner.TravelPlanDay{},
+		&travelPlanner.TravelPlanStop{},
+		&travelPlanner.TravelPlanDayNote{},
+		&travelPlanner.TravelPlanExpense{},
 		// Asset Maintenance entities
 		&finance.AssetMaintenanceSchedule{},
 		&finance.AssetWorkOrder{},
@@ -263,7 +281,7 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
-		// General: user dashboard layout preferences
+		// General: user dashboard layout preferences 
 		&general.DashboardLayout{},
 	)
 	if err != nil {
@@ -298,16 +316,57 @@ func AutoMigrate() error {
 		return fmt.Errorf("failed to ensure goods receipt warehouse column: %w", err)
 	}
 
+	// Safety net for rollout compatibility: older databases may miss
+	// customer_contact_id columns introduced in sales documents.
+	if err := ensureSalesCustomerContactColumns(); err != nil {
+		return fmt.Errorf("failed to ensure sales customer contact columns: %w", err)
+	}
+
 	// Create search indexes for performance
 	if err := createSearchIndexes(); err != nil {
 		log.Printf("Warning: Failed to create search indexes (this is non-fatal): %v", err)
 	}
 
-	return nil
-} 	
+	// Create triggers to enforce closed accounting periods on journal entries
+	if err := createJournalEntryPeriodLockTrigger(); err != nil {
+		log.Printf("Warning: Failed to create journal entry period lock trigger (this is non-fatal): %v", err)
+	}
 
-// migrateAreaSupervisorsToEmployeeAreas moves legacy area_supervisor records into
-// employee_areas with is_supervisor=true. This is idempotent — if the source
+	return nil
+}
+
+func createJournalEntryPeriodLockTrigger() error {
+	// The trigger will prevent inserts/updates of journal entries if their entry_date falls within a closed accounting period.
+	// It is intentionally permissive for historical entries when the accounting_periods table is empty.
+	if err := DB.Exec(`
+		CREATE OR REPLACE FUNCTION enforce_journal_entry_period_not_closed()
+		RETURNS trigger AS $$
+		BEGIN
+			IF EXISTS (
+				SELECT 1 FROM accounting_periods
+				WHERE status = 'closed'
+				  AND NEW.entry_date BETWEEN start_date AND end_date
+			) THEN
+				RAISE EXCEPTION 'Period is closed (%), cannot modify journal entries in this period', NEW.entry_date;
+			END IF;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DROP TRIGGER IF EXISTS trg_journal_entry_period_lock ON journal_entries;
+		CREATE TRIGGER trg_journal_entry_period_lock
+		BEFORE INSERT OR UPDATE ON journal_entries
+		FOR EACH ROW EXECUTE FUNCTION enforce_journal_entry_period_not_closed();
+	`).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // tables no longer exist the function silently returns nil.
 func migrateAreaSupervisorsToEmployeeAreas() error {
 	// Check if the legacy tables still exist
@@ -385,6 +444,78 @@ func ensureGoodsReceiptWarehouseColumn() error {
 				ADD CONSTRAINT fk_goods_receipts_warehouse
 				FOREIGN KEY (warehouse_id)
 				REFERENCES warehouses(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ensureSalesCustomerContactColumns() error {
+	if err := DB.Exec(`
+		ALTER TABLE sales_quotations
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		ALTER TABLE sales_orders
+		ADD COLUMN IF NOT EXISTS customer_contact_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_quotations_customer_contact_id
+		ON sales_quotations (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_sales_orders_customer_contact_id
+		ON sales_orders (customer_contact_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_quotations_customer_contact'
+			) THEN
+				ALTER TABLE sales_quotations
+				ADD CONSTRAINT fk_sales_quotations_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
+				ON UPDATE CASCADE
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_sales_orders_customer_contact'
+			) THEN
+				ALTER TABLE sales_orders
+				ADD CONSTRAINT fk_sales_orders_customer_contact
+				FOREIGN KEY (customer_contact_id)
+				REFERENCES crm_contacts(id)
 				ON UPDATE CASCADE
 				ON DELETE SET NULL;
 			END IF;

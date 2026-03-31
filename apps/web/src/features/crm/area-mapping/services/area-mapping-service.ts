@@ -15,7 +15,7 @@ const BASE_URL = "/crm/area-mapping";
 export const areaMappingService = {
     /**
      * Get area mapping data for map visualization
-     * Returns customers and leads with their locations and activity metrics
+      * Returns lead-based mapping data used for pipeline heat map visualization
      */
     async getAreaMapping(params?: AreaMappingRequest): Promise<AreaMappingApiResponse> {
       const response = await apiClient.get<AreaMappingApiResponse>(

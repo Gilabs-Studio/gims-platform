@@ -14,6 +14,7 @@ import {
 import { useCreateYearlyTarget, useUpdateYearlyTarget, useYearlyTarget } from "./use-targets";
 import { useAreas } from "@/features/master-data/organization/hooks/use-areas";
 import type { YearlyTarget } from "../types";
+import type { MonthlyTarget } from "../types";
 import { sortOptions } from "@/lib/utils";
 
 const STORAGE_KEY = "target_form_cache";
@@ -38,7 +39,7 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
     { enabled: open && isEdit && !!target?.id }
   );
 
-  const { data: areasData } = useAreas({ per_page: 100 }, { enabled: open });
+  const { data: areasData } = useAreas({ per_page: 20 }, { enabled: open });
 
   const areas = useMemo(() => {
     const data = areasData?.data ?? [];
@@ -56,7 +57,7 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
           area_id: target.area_id,
           total_target: target.total_target,
           notes: target.notes ?? "",
-          months: target.monthly_targets?.map((m: any) => ({
+          months: target.monthly_targets?.map((m: MonthlyTarget) => ({
             month: m.month,
             target_amount: m.target_amount,
             notes: m.notes ?? "",
@@ -78,7 +79,6 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
   });
 
   const {
-    handleSubmit,
     setValue,
     control,
     reset,
@@ -118,7 +118,7 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
             area_id: data.area_id,
             total_target: data.total_target,
             notes: data.notes ?? "",
-            months: data.monthly_targets?.map((m: any) => ({
+            months: data.monthly_targets?.map((m: MonthlyTarget) => ({
               month: m.month,
               target_amount: m.target_amount,
               notes: m.notes ?? "",
@@ -192,7 +192,7 @@ export function useTargetForm({ target, open, onClose }: UseTargetFormProps) {
       }
       localStorage.removeItem(STORAGE_KEY);
       onClose();
-    } catch (error) {
+    } catch {
       toast.error(t("common.error"));
     }
   };

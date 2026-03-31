@@ -5,15 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+const maxEmployeeCodeGenerationAttempts = 5
 
 var (
 	ErrEmployeeNotFound          = errors.New("employee not found")
@@ -102,6 +108,8 @@ type employeeUsecase struct {
 	certificationRepo    repositories.EmployeeCertificationRepository
 	assetRepo            repositories.EmployeeAssetRepository
 	signatureRepo        repositories.EmployeeSignatureRepository
+	financeAssetRepo     financeRepositories.AssetRepository
+	auditLogRepo         financeRepositories.AssetAuditLogRepository
 }
 
 // NewEmployeeUsecase creates a new EmployeeUsecase instance
@@ -117,6 +125,8 @@ func NewEmployeeUsecase(
 	certificationRepo repositories.EmployeeCertificationRepository,
 	assetRepo repositories.EmployeeAssetRepository,
 	signatureRepo repositories.EmployeeSignatureRepository,
+	financeAssetRepo financeRepositories.AssetRepository,
+	auditLogRepo financeRepositories.AssetAuditLogRepository,
 ) EmployeeUsecase {
 	return &employeeUsecase{
 		employeeRepo:         employeeRepo,
@@ -130,29 +140,21 @@ func NewEmployeeUsecase(
 		certificationRepo:    certificationRepo,
 		assetRepo:            assetRepo,
 		signatureRepo:        signatureRepo,
+		financeAssetRepo:     financeAssetRepo,
+		auditLogRepo:         auditLogRepo,
 	}
 }
 
 func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequest, createdBy string) (dto.EmployeeResponse, error) {
 	// Generate EmployeeCode if not provided
-	employeeCode := req.EmployeeCode
-	if employeeCode == "" {
-		lastCode, err := u.employeeRepo.GetLastEmployeeCode(ctx)
-		if err != nil {
-			return dto.EmployeeResponse{}, fmt.Errorf("failed to get last employee code: %w", err)
-		}
+	employeeCode := strings.TrimSpace(req.EmployeeCode)
 
-		var lastNumber int
-		if lastCode != "" && len(lastCode) > 4 {
-			fmt.Sscanf(lastCode, "EMP-%d", &lastNumber)
+	// Check if user-provided employee code already exists
+	if employeeCode != "" {
+		existing, _ := u.employeeRepo.FindByCode(ctx, employeeCode)
+		if existing != nil {
+			return dto.EmployeeResponse{}, ErrEmployeeCodeExists
 		}
-		employeeCode = fmt.Sprintf("EMP-%03d", lastNumber+1)
-	}
-
-	// Check if employee code already exists
-	existing, _ := u.employeeRepo.FindByCode(ctx, employeeCode)
-	if existing != nil {
-		return dto.EmployeeResponse{}, ErrEmployeeCodeExists
 	}
 
 	// Validate replacement employee if specified
@@ -204,8 +206,36 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 		IsActive:         isActive,
 	}
 
-	if err := u.employeeRepo.Create(ctx, employee); err != nil {
-		return dto.EmployeeResponse{}, err
+	if employeeCode == "" {
+		created := false
+		for attempt := 0; attempt < maxEmployeeCodeGenerationAttempts; attempt++ {
+			nextCode, err := u.getNextEmployeeCode(ctx)
+			if err != nil {
+				return dto.EmployeeResponse{}, fmt.Errorf("failed to get next employee code: %w", err)
+			}
+
+			employee.EmployeeCode = nextCode
+			if err := u.employeeRepo.Create(ctx, employee); err != nil {
+				if isEmployeeCodeUniqueViolation(err) {
+					continue
+				}
+				return dto.EmployeeResponse{}, err
+			}
+
+			created = true
+			break
+		}
+
+		if !created {
+			return dto.EmployeeResponse{}, fmt.Errorf("failed to generate unique employee code after %d attempts", maxEmployeeCodeGenerationAttempts)
+		}
+	} else {
+		if err := u.employeeRepo.Create(ctx, employee); err != nil {
+			if isEmployeeCodeUniqueViolation(err) {
+				return dto.EmployeeResponse{}, ErrEmployeeCodeExists
+			}
+			return dto.EmployeeResponse{}, err
+		}
 	}
 
 	// Create initial contract if provided
@@ -292,6 +322,29 @@ func (u *employeeUsecase) Create(ctx context.Context, req dto.CreateEmployeeRequ
 	latestCert, _ := u.GetLatestCertification(ctx, employee.ID)
 
 	return mapper.ToEmployeeResponse(employee, currentContract, latestEdu, latestCert), nil
+}
+
+func (u *employeeUsecase) getNextEmployeeCode(ctx context.Context) (string, error) {
+	lastCode, err := u.employeeRepo.GetLastEmployeeCode(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var lastNumber int
+	if lastCode != "" && len(lastCode) > 4 {
+		_, _ = fmt.Sscanf(lastCode, "EMP-%d", &lastNumber)
+	}
+
+	return fmt.Sprintf("EMP-%03d", lastNumber+1), nil
+}
+
+func isEmployeeCodeUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" && pgErr.ConstraintName == "idx_employees_employee_code"
+	}
+
+	return false
 }
 
 func (u *employeeUsecase) GetByID(ctx context.Context, id string) (dto.EmployeeResponse, error) {
@@ -1499,9 +1552,28 @@ func (u *employeeUsecase) CreateEmployeeAsset(ctx context.Context, employeeID st
 		return dto.EmployeeAssetResponse{}, ErrEmployeeNotFound
 	}
 
+	// Check if asset_code already exists
 	existing, _ := u.assetRepo.FindByAssetCode(ctx, req.AssetCode)
 	if existing != nil {
 		return dto.EmployeeAssetResponse{}, ErrDuplicateAssetCode
+	}
+
+	// Validate and link to finance asset if asset_id provided
+	var assetID *string
+	if req.AssetID != "" {
+		financeAsset, err := u.financeAssetRepo.FindByID(ctx, req.AssetID, false)
+		if err != nil {
+			return dto.EmployeeAssetResponse{}, errors.New("finance asset not found")
+		}
+		if financeAsset.Status != financeModels.AssetStatusActive {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is not available for borrowing")
+		}
+		// Check if asset is already borrowed
+		existingBorrowed, _ := u.assetRepo.FindByAssetID(ctx, req.AssetID)
+		if existingBorrowed != nil && !existingBorrowed.IsReturned() {
+			return dto.EmployeeAssetResponse{}, errors.New("asset is already borrowed by another employee")
+		}
+		assetID = &req.AssetID
 	}
 
 	borrowDate, err := time.Parse("2006-01-02", req.BorrowDate)
@@ -1510,6 +1582,7 @@ func (u *employeeUsecase) CreateEmployeeAsset(ctx context.Context, employeeID st
 	}
 
 	asset := &models.EmployeeAsset{
+		AssetID:         assetID,
 		EmployeeID:      employeeID,
 		AssetName:       req.AssetName,
 		AssetCode:       req.AssetCode,
@@ -1522,6 +1595,49 @@ func (u *employeeUsecase) CreateEmployeeAsset(ctx context.Context, employeeID st
 
 	if err := u.assetRepo.Create(ctx, asset); err != nil {
 		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to create asset: %w", err)
+	}
+
+	// Update finance asset status to in_use if linked and create audit log
+	if assetID != nil {
+		// Update asset status to in_use
+		if err := u.financeAssetRepo.UpdateStatus(ctx, *assetID, financeModels.AssetStatusInUse); err != nil {
+			return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to update asset status: %w", err)
+		}
+
+		// Get employee info for audit log
+		employee, _ := u.employeeRepo.FindByID(ctx, employeeID)
+		employeeName := ""
+		if employee != nil {
+			employeeName = employee.Name
+		}
+
+		// Parse asset ID to UUID
+		assetUUID, err := uuid.Parse(*assetID)
+		if err != nil {
+			log.Printf("Failed to parse asset ID for audit log: %v", err)
+		} else {
+			// Create audit log entry
+			changes := financeModels.AuditChanges{
+				{Field: "status", OldValue: string(financeModels.AssetStatusActive), NewValue: string(financeModels.AssetStatusInUse)},
+				{Field: "assigned_to_employee", NewValue: employeeID},
+			}
+
+			auditLog := &financeModels.AssetAuditLog{
+				AssetID: assetUUID,
+				Action:  "borrowed",
+				Changes: changes,
+				Metadata: financeModels.MapStringInterface{
+					"employee_id":   employeeID,
+					"employee_name": employeeName,
+					"borrow_date":   req.BorrowDate,
+				},
+			}
+
+			if err := u.auditLogRepo.Create(ctx, auditLog); err != nil {
+				// Log error but don't fail the operation
+				log.Printf("Failed to create audit log for asset borrow: %v", err)
+			}
+		}
 	}
 
 	return mapper.ToAssetResponse(asset), nil
@@ -1620,6 +1736,51 @@ func (u *employeeUsecase) ReturnEmployeeAsset(ctx context.Context, employeeID st
 
 	if err := u.assetRepo.Update(ctx, asset); err != nil {
 		return dto.EmployeeAssetResponse{}, fmt.Errorf("failed to return asset: %w", err)
+	}
+
+	// Update finance asset status back to active if linked and create audit log
+	if asset.AssetID != nil {
+		// Update asset status back to active
+		if err := u.financeAssetRepo.UpdateStatus(ctx, *asset.AssetID, financeModels.AssetStatusActive); err != nil {
+			// Log error but don't fail the operation
+			log.Printf("Failed to update asset status on return: %v", err)
+		}
+
+		// Get employee info for audit log
+		employee, _ := u.employeeRepo.FindByID(ctx, employeeID)
+		employeeName := ""
+		if employee != nil {
+			employeeName = employee.Name
+		}
+
+		// Parse asset ID to UUID
+		assetUUID, err := uuid.Parse(*asset.AssetID)
+		if err != nil {
+			log.Printf("Failed to parse asset ID for audit log: %v", err)
+		} else {
+			// Create audit log entry
+			changes := financeModels.AuditChanges{
+				{Field: "status", OldValue: string(financeModels.AssetStatusInUse), NewValue: string(financeModels.AssetStatusActive)},
+				{Field: "assigned_to_employee", OldValue: employeeID},
+			}
+
+			auditLog := &financeModels.AssetAuditLog{
+				AssetID: assetUUID,
+				Action:  "returned",
+				Changes: changes,
+				Metadata: financeModels.MapStringInterface{
+					"employee_id":      employeeID,
+					"employee_name":    employeeName,
+					"return_date":      req.ReturnDate,
+					"return_condition": req.ReturnCondition,
+				},
+			}
+
+			if err := u.auditLogRepo.Create(ctx, auditLog); err != nil {
+				// Log error but don't fail the operation
+				log.Printf("Failed to create audit log for asset return: %v", err)
+			}
+		}
 	}
 
 	return mapper.ToAssetResponse(asset), nil

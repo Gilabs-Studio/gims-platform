@@ -7,8 +7,6 @@ import {
   Pencil,
   Trash2,
   Eye,
-  AlertTriangle,
-  ArrowRightLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,21 +27,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { WarehouseDialog } from "./warehouse-dialog";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
 import { WarehouseDeleteBlockedDialog } from "./warehouse-delete-blocked-dialog";
 import { useWarehouseList } from "../../hooks/use-warehouse-list";
-import { Link } from "@/i18n/routing";
 
 export function WarehouseList() {
   const { state, actions, data, permissions, translations } = useWarehouseList();

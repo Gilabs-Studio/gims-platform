@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/response"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AssetHandler struct {
@@ -205,4 +207,144 @@ func (h *AssetHandler) Sell(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, res, nil)
+}
+
+// ========== Phase 2: Attachments ==========
+
+func (h *AssetHandler) ListAttachments(c *gin.Context) {
+	assetID := strings.TrimSpace(c.Param("id"))
+	items, err := h.uc.ListAttachments(c.Request.Context(), assetID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ATTACHMENT_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
+}
+
+func (h *AssetHandler) CreateAttachment(c *gin.Context) {
+	assetID := strings.TrimSpace(c.Param("id"))
+	assetUUID, err := uuid.Parse(assetID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "INVALID_ASSET_ID", "Invalid asset ID", nil, nil)
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "FILE_REQUIRED", "File is required", nil, nil)
+		return
+	}
+	defer file.Close()
+
+	fileType := c.PostForm("file_type")
+	if fileType == "" {
+		fileType = "document"
+	}
+	description := c.PostForm("description")
+
+	// Get content type
+	contentType := header.Header.Get("Content-Type")
+	fileSize := int(header.Size)
+
+	// For now, store file info (actual file storage would use cloud storage)
+	att := &financeModels.AssetAttachment{
+		AssetID:     assetUUID,
+		FileName:    header.Filename,
+		FilePath:    "uploads/assets/" + assetID + "/" + header.Filename,
+		FileURL:     "/api/v1/finance/assets/" + assetID + "/attachments/" + header.Filename,
+		FileType:    fileType,
+		FileSize:    &fileSize,
+		MimeType:    &contentType,
+		Description: &description,
+	}
+
+	// Set uploaded by
+	actorID, _ := c.Request.Context().Value("user_id").(string)
+	if actorID != "" {
+		actorUUID, err := uuid.Parse(actorID)
+		if err == nil {
+			att.UploadedBy = &actorUUID
+		}
+	}
+
+	res, err := h.uc.CreateAttachment(c.Request.Context(), assetID, att)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ATTACHMENT_CREATE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+func (h *AssetHandler) DeleteAttachment(c *gin.Context) {
+	assetID := strings.TrimSpace(c.Param("id"))
+	attachmentID := strings.TrimSpace(c.Param("attachment_id"))
+	if err := h.uc.DeleteAttachment(c.Request.Context(), assetID, attachmentID); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ATTACHMENT_DELETE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponseDeleted(c, "attachment", attachmentID, nil)
+}
+
+// ========== Phase 2: Assignments ==========
+
+func (h *AssetHandler) AssignAsset(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.AssignAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.Assign(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_ASSIGN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) ReturnAsset(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.ReturnAssetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.Return(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_RETURN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// ========== Phase 2: Audit Logs & Assignment History ==========
+
+func (h *AssetHandler) ListAuditLogs(c *gin.Context) {
+	assetID := strings.TrimSpace(c.Param("id"))
+	items, err := h.uc.ListAuditLogs(c.Request.Context(), assetID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "AUDIT_LOG_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
+}
+
+func (h *AssetHandler) ListAssignmentHistory(c *gin.Context) {
+	assetID := strings.TrimSpace(c.Param("id"))
+	items, err := h.uc.ListAssignmentHistory(c.Request.Context(), assetID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "ASSIGNMENT_HISTORY_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
+}
+
+// GetAvailableAssets returns list of assets available for employee borrowing
+func (h *AssetHandler) GetAvailableAssets(c *gin.Context) {
+	items, err := h.uc.GetAvailableAssets(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "AVAILABLE_ASSETS_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
 }

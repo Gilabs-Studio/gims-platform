@@ -313,10 +313,3 @@ func SeedCRMDeals() error {
 	return nil
 }
 
-// nilIfEmpty returns a pointer to the string if non-empty, nil otherwise
-func nilIfEmpty(s string) *string {
-	if s == "" {
-		return nil
-	}
-	return &s
-}

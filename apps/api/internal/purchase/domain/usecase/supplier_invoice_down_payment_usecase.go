@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -11,8 +12,10 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -107,6 +110,10 @@ func (uc *supplierInvoiceDownPaymentUsecase) List(ctx context.Context, params re
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) GetByID(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrSupplierInvoiceNotFound
+	}
+
 	si, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -384,6 +391,17 @@ func (uc *supplierInvoiceDownPaymentUsecase) Submit(ctx context.Context, id stri
 		"before":        map[string]interface{}{"status": beforeStatus},
 		"after":         map[string]interface{}{"status": out.Status},
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "supplier_invoice_dp.approve",
+		EntityType:     "supplier_invoice_dp",
+		EntityID:       out.ID,
+		Title:          "Supplier Invoice Down Payment Approval",
+		Message:        "A supplier invoice down payment has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create supplier invoice DP notification: %v", err)
+	}
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
@@ -531,14 +549,14 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 
 func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
 	// DP Invoice recognition:
-	// Debit: Purchase Advances (11900) - asset representing advance paid to supplier
-	// Credit: AP (21000) - liability to pay the supplier
+	// Debit: Purchase Advances (from settings) - asset representing advance paid to supplier
+	// Credit: AP (from settings) - liability to pay the supplier
 
-	advAcct, err := uc.coaUC.GetByCode(ctx, "11900")
+	advAcct, err := uc.coaUC.GetByCode(ctx, "11900") // Purchase Advances
 	if err != nil {
 		return err
 	}
-	apAcct, err := uc.coaUC.GetByCode(ctx, "21000")
+	apAcct, err := uc.coaUC.GetByCode(ctx, "21000") // Accounts Payable
 	if err != nil {
 		return err
 	}

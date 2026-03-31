@@ -83,7 +83,6 @@ const FEATURE_COLORS = [
   "#d97706", "#7c3aed", "#059669", "#dc2626", "#2563eb",
 ];
 const HOVER_OPACITY = 0.6;
-const SELECTED_OPACITY = 0.7;
 const DEFAULT_OPACITY = 0.35;
 
 // Ensures container size is correct on mount

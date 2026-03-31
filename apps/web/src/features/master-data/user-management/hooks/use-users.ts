@@ -14,6 +14,7 @@ export function useUsers(params?: {
   return useQuery({
     queryKey: ["users", params],
     queryFn: () => userService.list(params),
+    staleTime: 10 * 1000,
     retry: (failureCount, error) => {
       // Don't retry on 404 errors (might be expected)
       if (error && typeof error === "object" && "response" in error) {

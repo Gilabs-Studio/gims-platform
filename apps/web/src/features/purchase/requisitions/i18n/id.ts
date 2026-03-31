@@ -56,6 +56,7 @@ export const purchaseRequisitionId = {
     auditTrail: "Audit Trail",
   },
   sections: {
+    orderInfo: "Informasi Pesanan",
     procurement: "Pengadaan",
     financial: "Ringkasan Keuangan",
   },
@@ -77,6 +78,7 @@ export const purchaseRequisitionId = {
     requestDate: "Tanggal Permintaan",
     supplier: "Supplier",
     supplierPhoneNumber: "Nomor Telepon Supplier",
+    supplierContact: "Kontak Supplier",
     paymentTerms: "Termin Pembayaran",
     businessUnit: "Unit Bisnis",
     employee: "Karyawan",

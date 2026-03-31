@@ -4,17 +4,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { ButtonLoading } from "@/components/loading";
 import { useContactRoleForm } from "../hooks/use-contact-role-form";
 import type { ContactRole } from "../types";
 
-export function ContactRoleDialog({ open, onOpenChange, editingItem }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: ContactRole | null }) {
-  const { form, t, tCommon, isLoading, onSubmit } = useContactRoleForm({ open, onOpenChange, editingItem });
-  const { register, setValue, watch, formState: { errors } } = form;
-
-  const isActive = watch("is_active");
+export function ContactRoleDialog({ open, onOpenChange, editingItem, onCreated, initialName }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void; readonly editingItem?: ContactRole | null; readonly onCreated?: (item: { id: string; name: string }) => void; readonly initialName?: string }) {
+  const { form, t, tCommon, isLoading, onSubmit } = useContactRoleForm({ open, onOpenChange, editingItem, onCreated, initialName });
+  const { register, formState: { errors } } = form;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -24,16 +21,11 @@ export function ContactRoleDialog({ open, onOpenChange, editingItem }: { readonl
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Field>
               <FieldLabel>{t("form.name")}</FieldLabel>
               <Input placeholder={t("form.namePlaceholder")} {...register("name")} />
               {errors.name && <FieldError>{errors.name.message}</FieldError>}
-            </Field>
-            <Field>
-              <FieldLabel>{t("form.code")}</FieldLabel>
-              <Input placeholder={t("form.codePlaceholder")} {...register("code")} />
-              {errors.code && <FieldError>{errors.code.message}</FieldError>}
             </Field>
           </div>
           <Field>
@@ -45,13 +37,6 @@ export function ContactRoleDialog({ open, onOpenChange, editingItem }: { readonl
             <FieldLabel>{t("form.description")}</FieldLabel>
             <Textarea placeholder={t("form.descriptionPlaceholder")} {...register("description")} />
             {errors.description && <FieldError>{errors.description.message}</FieldError>}
-          </Field>
-          <Field orientation="horizontal" className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <FieldLabel>{t("form.isActive")}</FieldLabel>
-              <p className="text-sm text-muted-foreground">{isActive ? tCommon("active") : tCommon("inactive")} status</p>
-            </div>
-            <Switch checked={isActive} onCheckedChange={(val) => setValue("is_active", val)} className="cursor-pointer" />
           </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">{tCommon("cancel")}</Button>

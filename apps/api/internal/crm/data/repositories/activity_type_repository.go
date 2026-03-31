@@ -14,6 +14,7 @@ type ActivityTypeRepository interface {
 	List(ctx context.Context, params ListParams) ([]models.ActivityType, int64, error)
 	Update(ctx context.Context, actType *models.ActivityType) error
 	Delete(ctx context.Context, id string) error
+	GetMaxOrder(ctx context.Context) (int, error)
 }
 
 type activityTypeRepository struct {
@@ -88,4 +89,16 @@ func (r *activityTypeRepository) Update(ctx context.Context, actType *models.Act
 
 func (r *activityTypeRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.ActivityType{}, "id = ?", id).Error
+}
+
+func (r *activityTypeRepository) GetMaxOrder(ctx context.Context) (int, error) {
+	var maxOrder int
+	err := r.db.WithContext(ctx).
+		Model(&models.ActivityType{}).
+		Select(`COALESCE(MAX("order"), 0)`).
+		Scan(&maxOrder).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxOrder, nil
 }

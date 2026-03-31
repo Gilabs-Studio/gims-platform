@@ -8,7 +8,9 @@ import (
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/mapper"
@@ -74,6 +76,9 @@ func (u *yearlyTargetUsecase) List(ctx context.Context, req *dto.ListYearlyTarge
 }
 
 func (u *yearlyTargetUsecase) GetByID(ctx context.Context, id string) (*dto.YearlyTargetResponse, error) {
+	if !security.CheckRecordScopeAccess(u.db, ctx, &models.YearlyTarget{}, id, security.DefaultScopeQueryOptions()) {
+		return nil, ErrYearlyTargetNotFound
+	}
 	target, err := u.targetRepo.FindByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

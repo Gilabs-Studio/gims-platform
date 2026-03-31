@@ -47,6 +47,13 @@ export interface CustomerBrief {
   contact_person?: string;
 }
 
+export interface CustomerContactBrief {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface SalesProspect {
   id: string;
   company?: {
@@ -84,8 +91,9 @@ export interface SalesQuotation {
   business_unit?: BusinessUnit;
   business_type_id?: string;
   business_type?: BusinessType;
-  delivery_area_id?: string;
   sales_prospect?: SalesProspect;
+  customer_contact_id?: string;
+  customer_contact_ref?: CustomerContactBrief;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;
@@ -190,6 +198,7 @@ export interface CreateSalesQuotationData {
   sales_rep_id: string;
   business_unit_id: string;
   business_type_id?: string;
+  customer_contact_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;
@@ -217,6 +226,7 @@ export interface UpdateSalesQuotationData {
   sales_rep_id?: string;
   business_unit_id?: string;
   business_type_id?: string;
+  customer_contact_id?: string;
   customer_name?: string;
   customer_contact?: string;
   customer_phone?: string;

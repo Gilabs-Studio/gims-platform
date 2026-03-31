@@ -42,7 +42,7 @@ export function useAttendanceCalendar() {
   const { data, isLoading } = useAttendanceRecords({
     date_from: format(startDate, "yyyy-MM-dd"),
     date_to: format(endDate, "yyyy-MM-dd"),
-    per_page: 100, // Get all records for the month
+    per_page: 20, // Get all records for the month
   });
 
   // Fetch holidays for the current calendar year

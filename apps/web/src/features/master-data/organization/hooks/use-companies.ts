@@ -9,6 +9,7 @@ import type {
   ApproveCompanyData,
   Company,
   OrganizationListResponse,
+  OrganizationSingleResponse,
 } from "../types";
 
 export const companyKeys = {
@@ -33,9 +34,16 @@ export function useCompanies(
 
 export function useCompany(
   id: string,
-  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+  options?: Omit<
+    UseQueryOptions<
+      OrganizationSingleResponse<Company>,
+      Error,
+      OrganizationSingleResponse<Company>
+    >,
+    "queryKey" | "queryFn"
+  >
 ) {
-  return useQuery({
+  return useQuery<OrganizationSingleResponse<Company>, Error>({
     queryKey: companyKeys.detail(id),
     queryFn: () => companyService.getById(id),
     enabled: !!id,

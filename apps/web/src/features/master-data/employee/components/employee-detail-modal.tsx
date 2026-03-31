@@ -63,10 +63,6 @@ import {
 } from "./assets";
 import { EmployeeSignatureSection } from "./signature";
 
-interface EmployeePermission {
-  permissions?: string[];
-}
-
 interface EmployeeDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -174,7 +170,6 @@ export function EmployeeDetailModal({
                 {t("tabs.employment")}
               </TabsTrigger>
               <TabsTrigger value="contract-history">
-                <FileText className="h-4 w-4 mr-1" />
                 {t("tabs.contractHistory")}
               </TabsTrigger>
               <TabsTrigger value="signature">{t("tabs.signature")}</TabsTrigger>

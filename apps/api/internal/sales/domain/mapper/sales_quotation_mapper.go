@@ -23,6 +23,7 @@ func ToSalesQuotationResponse(m *salesModels.SalesQuotation) dto.SalesQuotationR
 		TotalAmount:         m.TotalAmount,
 		Status:              string(m.Status),
 		CustomerID:          m.CustomerID,
+		CustomerContactID:   m.CustomerContactID,
 		CustomerName:        m.CustomerName,
 		CustomerContact:     m.CustomerContact,
 		CustomerPhone:       m.CustomerPhone,
@@ -187,6 +188,7 @@ func ToSalesQuotationModel(req *dto.CreateSalesQuotationRequest, code string, cr
 		BusinessUnitID:  &businessUnitID,
 		BusinessTypeID:  req.BusinessTypeID,
 		CustomerID:      req.CustomerID,
+		CustomerContactID: req.CustomerContactID,
 		CustomerName:    req.CustomerName,
 		CustomerContact: req.CustomerContact,
 		CustomerPhone:   req.CustomerPhone,
@@ -268,6 +270,10 @@ func UpdateSalesQuotationModel(m *salesModels.SalesQuotation, req *dto.UpdateSal
 
 	if req.CustomerID != nil {
 		m.CustomerID = req.CustomerID
+	}
+
+	if req.CustomerContactID != nil {
+		m.CustomerContactID = req.CustomerContactID
 	}
 
 	if req.CustomerName != nil {

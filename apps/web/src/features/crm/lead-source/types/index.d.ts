@@ -12,17 +12,12 @@ export interface LeadSource {
 
 export interface CreateLeadSourceData {
   name: string;
-  code: string;
   description?: string;
-  order?: number;
-  is_active?: boolean;
 }
 
 export interface UpdateLeadSourceData {
   name?: string;
-  code?: string;
   description?: string;
-  order?: number;
   is_active?: boolean;
 }
 

@@ -13,8 +13,10 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -43,6 +45,7 @@ type SupplierInvoiceUsecase interface {
 	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	Pending(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
+	TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error
 }
 
 type supplierInvoiceUsecase struct {
@@ -70,6 +73,10 @@ func (uc *supplierInvoiceUsecase) List(ctx context.Context, params repositories.
 }
 
 func (uc *supplierInvoiceUsecase) GetByID(ctx context.Context, id string) (*dto.SupplierInvoiceDetailResponse, error) {
+	if !security.CheckRecordScopeAccess(uc.db, ctx, &models.SupplierInvoice{}, id, security.PurchaseScopeQueryOptions()) {
+		return nil, ErrSupplierInvoiceNotFound
+	}
+
 	si, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -724,6 +731,17 @@ func (uc *supplierInvoiceUsecase) Submit(ctx context.Context, id string) (*dto.S
 		"before":        map[string]interface{}{"status": beforeStatus},
 		"after":         map[string]interface{}{"status": out.Status},
 	})
+	actorUserID, _ := ctx.Value("user_id").(string)
+	if err := notificationService.CreateApprovalNotification(ctx, uc.db, notificationService.ApprovalNotificationParams{
+		PermissionCode: "supplier_invoice.approve",
+		EntityType:     "supplier_invoice",
+		EntityID:       out.ID,
+		Title:          "Supplier Invoice Approval",
+		Message:        "A supplier invoice has been submitted and requires your approval.",
+		ActorUserID:    actorUserID,
+	}); err != nil {
+		log.Printf("warning: failed to create supplier invoice notification: %v", err)
+	}
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
@@ -1147,6 +1165,10 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 	})
 
 	return nil
+}
+
+func (uc *supplierInvoiceUsecase) TriggerJournalForSupplierInvoice(ctx context.Context, si *models.SupplierInvoice) error {
+	return uc.triggerJournalEntry(ctx, si)
 }
 
 func (uc *supplierInvoiceUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

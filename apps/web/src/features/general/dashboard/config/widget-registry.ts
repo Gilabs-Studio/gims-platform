@@ -347,6 +347,19 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     descriptionKey: "widgets.pending_approvals_purchase.description",
     icon: "PackageCheck",
   },
+  travel_planner_overview: {
+    type: "travel_planner_overview",
+    category: "sales",
+    defaultSize: "xl",
+    defaultColSpan: 4,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 2,
+    titleKey: "widgets.travel_planner_overview.title",
+    descriptionKey: "widgets.travel_planner_overview.description",
+    icon: "Route",
+    permission: "travel_planner.read",
+  },
 };
 
 /** Default layout for new users — mirrors the reference Sales Dashboard design */

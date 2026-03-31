@@ -32,6 +32,7 @@ import {
   Warehouse,
   ClipboardCheck,
   PackageCheck,
+  Route,
 } from "lucide-react";
 import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
@@ -56,6 +57,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Warehouse,
   ClipboardCheck,
   PackageCheck,
+  Route,
 };
 
 const CATEGORY_LABELS: Record<WidgetCategory, string> = {

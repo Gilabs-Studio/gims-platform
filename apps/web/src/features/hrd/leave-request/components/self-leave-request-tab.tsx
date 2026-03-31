@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, isBefore, startOfDay } from "date-fns";
 import { useTranslations } from "next-intl";
@@ -44,36 +43,10 @@ import {
 } from "../hooks/use-leave-requests";
 import type { LeaveRequestStatus, LeaveDuration } from "../types";
 import { cn, formatDate } from "@/lib/utils";
-
-const formSchema = z
-  .object({
-    leave_type_id: z.string().min(1, { message: "Leave type is required" }),
-    start_date: z.date(),
-    end_date: z.date(),
-    duration: z.enum(["FULL_DAY", "HALF_DAY", "MULTI_DAY"]),
-    reason: z
-      .string()
-      .min(10, { message: "Reason must be at least 10 characters" })
-      .max(500, { message: "Reason must be at most 500 characters" }),
-  })
-  .refine((data) => data.end_date >= data.start_date, {
-    message: "Invalid date range",
-    path: ["end_date"],
-  })
-  .refine(
-    (data) => {
-      if (data.duration === "MULTI_DAY") {
-        return data.start_date < data.end_date;
-      }
-      return data.start_date.toDateString() === data.end_date.toDateString();
-    },
-    {
-      message: "Invalid duration/date combination",
-      path: ["duration"],
-    }
-  );
-
-type SelfLeaveFormData = z.infer<typeof formSchema>;
+import {
+  getSelfLeaveRequestSchema,
+  type SelfLeaveRequestFormData,
+} from "../schemas/leave-request.schema";
 
 interface SelfLeaveRequestTabProps {
   readonly openCreateSignal?: number;
@@ -94,6 +67,7 @@ function statusVariant(status: LeaveRequestStatus): "default" | "secondary" | "d
 
 export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabProps) {
   const t = useTranslations("leaveRequest");
+  const formSchema = useMemo(() => getSelfLeaveRequestSchema(t), [t]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -118,7 +92,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
   const leaveTypes = useMemo(() => formData?.data?.leave_types ?? [], [formData?.data?.leave_types]);
   const requests = useMemo(() => listData?.data ?? [], [listData?.data]);
 
-  const form = useForm<SelfLeaveFormData>({
+  const form = useForm<SelfLeaveRequestFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       leave_type_id: "",
@@ -191,7 +165,7 @@ export function SelfLeaveRequestTab({ openCreateSignal }: SelfLeaveRequestTabPro
     }
   }, [startDate, endDate, form]);
 
-  const onSubmit = async (values: SelfLeaveFormData) => {
+  const onSubmit = async (values: SelfLeaveRequestFormData) => {
     const payload = {
       leave_type_id: values.leave_type_id,
       start_date: format(values.start_date, "yyyy-MM-dd"),

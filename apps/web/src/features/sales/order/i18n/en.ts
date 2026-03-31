@@ -37,6 +37,8 @@ export const orderEn = {
       selectDate: "Select date",
       selectCustomer: "Select customer",
       customer: "Customer",
+      phone: "Phone",
+      email: "Email",
       validating: "Validating...",
       back: "Back",
     },

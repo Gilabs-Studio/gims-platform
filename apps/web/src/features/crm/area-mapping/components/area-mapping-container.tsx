@@ -25,11 +25,11 @@ export function AreaMappingContainer() {
   const t = useTranslations("areaMapping");
   const [selectedArea, setSelectedArea] = useState<Area | null>(null);
 
-  const { data: areasData, isLoading: areasLoading } = useAreas({ per_page: 100 });
+  const { data: areasData, isLoading: areasLoading } = useAreas({ per_page: 20 });
   const { data: coverageData } = useAreaCoverage();
 
   const areas = areasData?.data ?? [];
-  const coverageList: AreaCoverage[] = coverageData?.data?.areas ?? [];
+  const coverageList: AreaCoverage[] = useMemo(() => coverageData?.data?.areas ?? [], [coverageData?.data?.areas]);
 
   // Create lookup map for coverage data by area_id
   const coverageMap = useMemo(() => {

@@ -171,6 +171,19 @@
       "pending_approvals_purchase": {
         "title": "Persetujuan Tertunda - Pembelian",
         "description": "Dokumen yang menunggu persetujuan di jalur pembelian"
+      },
+      "travel_planner_overview": {
+        "title": "Anggaran Travel Planner",
+        "description": "Anggaran, realisasi, dan rencana perjalanan aktif",
+        "open": "Buka Planner",
+        "utilization": "Utilisasi Anggaran",
+        "listTitle": "Rencana Aktif",
+        "empty": "Belum ada rencana perjalanan",
+        "metrics": {
+          "budget": "Anggaran",
+          "spent": "Terpakai",
+          "remaining": "Sisa"
+        }
       }
     },
     "approvals": {

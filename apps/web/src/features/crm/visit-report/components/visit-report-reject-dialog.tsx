@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { ButtonLoading } from "@/components/loading";
 import { getRejectSchema, type RejectFormData } from "../schemas/visit-report.schema";
-import { useRejectVisitReport } from "../hooks/use-visit-reports";
 
 interface VisitReportRejectDialogProps {
   readonly open: boolean;
@@ -27,7 +26,6 @@ interface VisitReportRejectDialogProps {
 export function VisitReportRejectDialog({ open, onClose, visitId }: VisitReportRejectDialogProps) {
   const t = useTranslations("crmVisitReport");
   const tCommon = useTranslations("common");
-  const rejectMutation = useRejectVisitReport();
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<RejectFormData>({
     resolver: zodResolver(getRejectSchema(t)),
@@ -41,8 +39,9 @@ export function VisitReportRejectDialog({ open, onClose, visitId }: VisitReportR
 
   const onSubmit = async (data: RejectFormData) => {
     try {
-      await rejectMutation.mutateAsync({ id: visitId, data });
-      toast.success(t("rejected"));
+      void data;
+      void visitId;
+      toast.error(tCommon("featureUnavailable"));
       handleClose();
     } catch {
       toast.error(tCommon("error"));
@@ -83,10 +82,10 @@ export function VisitReportRejectDialog({ open, onClose, visitId }: VisitReportR
             <Button
               type="submit"
               variant="destructive"
-              disabled={rejectMutation.isPending}
+              disabled={false}
               className="cursor-pointer"
             >
-              <ButtonLoading loading={rejectMutation.isPending}>
+              <ButtonLoading loading={false}>
                 {t("actions.reject")}
               </ButtonLoading>
             </Button>

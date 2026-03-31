@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { Controller } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
 
@@ -30,6 +29,7 @@ import { BusinessUnitForm } from "@/features/master-data/organization/components
 import { BusinessTypeForm } from "@/features/master-data/organization/components/business-type/business-type-form";
 import { CustomerSidePanel } from "@/features/master-data/customer/components/customer/customer-side-panel";
 import { EmployeeForm } from "@/features/master-data/employee/components/employee-form";
+import { ContactFormDialog } from "@/features/crm/contact/components/contact-form-dialog";
 
 import { useOrderForm } from "../hooks/use-order-form";
 
@@ -54,7 +54,6 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     paymentTerms,
     businessUnits,
     businessTypes,
-    areas,
     quotations,
     customers,
     contacts,
@@ -85,7 +84,15 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     handleBusinessUnitCreated,
     handleBusinessTypeCreated,
     handleCustomerCreated,
+    handleContactCreated,
     handleSalesRepCreated,
+    customerCombobox,
+    paymentTermsCombobox,
+    employeeCombobox,
+    businessUnitCombobox,
+    businessTypeCombobox,
+    quotationCombobox,
+    productCombobox,
   } = useOrderForm({ order, open, onClose });
 
   return (
@@ -134,16 +141,23 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        quotationCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={quotationCombobox.onSearchChange}
+                      searchDebounceMs={300}
                       disabled={isEdit} 
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={t("salesQuotation")} />
                       </SelectTrigger>
-                      <SelectContent>
-                        {quotations.map((q) => (
-                          <SelectItem key={q.id} value={q.id}>
-                            {q.code}
+                      <SelectContent
+                        onLoadMore={quotationCombobox.onLoadMore}
+                        hasMore={quotationCombobox.hasMore}
+                        isLoadingMore={quotationCombobox.isLoadingMore}
+                      >
+                        {quotationCombobox.options.map((q) => (
+                          <SelectItem key={q.value} value={q.value}>
+                            {q.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -162,17 +176,24 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={customers.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
+                      options={customerCombobox.options}
                       value={field.value || ""}
                       onValueChange={handleCustomerChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        customerCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={customerCombobox.onSearchChange}
+                      onLoadMore={customerCombobox.onLoadMore}
+                      hasMore={customerCombobox.hasMore}
+                      isLoadingMore={customerCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("common.selectCustomer") || "Select customer"}
                       createPermission="customer.create"
                       onCreateClick={() => openQuickCreate("customer")}
+                      isLoading={customerCombobox.isLoading || customerCombobox.isFetching}
                     />
                   )}
                 />
@@ -226,17 +247,24 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={paymentTerms.map(term => ({ value: term.id, label: term.code ? `${term.code} - ${term.name}` : term.name }))}
+                      options={paymentTermsCombobox.options}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        paymentTermsCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={paymentTermsCombobox.onSearchChange}
+                      onLoadMore={paymentTermsCombobox.onLoadMore}
+                      hasMore={paymentTermsCombobox.hasMore}
+                      isLoadingMore={paymentTermsCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("paymentTerms")}
                       createPermission="payment_term.create"
                       onCreateClick={() => openQuickCreate("paymentTerm")}
+                      isLoading={paymentTermsCombobox.isLoading || paymentTermsCombobox.isFetching}
                     />
                   )}
                 />
@@ -252,17 +280,24 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={employees.map(emp => ({ value: emp.id, label: `${emp.employee_code} - ${emp.name}` }))}
+                      options={employeeCombobox.options}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        employeeCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={employeeCombobox.onSearchChange}
+                      onLoadMore={employeeCombobox.onLoadMore}
+                      hasMore={employeeCombobox.hasMore}
+                      isLoadingMore={employeeCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("salesRep")}
                       createPermission="employee.create"
                       onCreateClick={() => openQuickCreate("employee")}
+                      isLoading={employeeCombobox.isLoading || employeeCombobox.isFetching}
                     />
                   )}
                 />
@@ -278,17 +313,24 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={businessUnits.map(u => ({ value: u.id, label: u.name }))}
+                      options={businessUnitCombobox.options}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        businessUnitCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={businessUnitCombobox.onSearchChange}
+                      onLoadMore={businessUnitCombobox.onLoadMore}
+                      hasMore={businessUnitCombobox.hasMore}
+                      isLoadingMore={businessUnitCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("businessUnit")}
                       createPermission="business_unit.create"
                       onCreateClick={() => openQuickCreate("businessUnit")}
+                      isLoading={businessUnitCombobox.isLoading || businessUnitCombobox.isFetching}
                     />
                   )}
                 />
@@ -304,55 +346,29 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   control={control}
                   render={({ field }) => (
                     <CreatableCombobox
-                      options={businessTypes.map(bt => ({ value: bt.id, label: bt.name }))}
+                      options={businessTypeCombobox.options}
                       value={field.value || ""}
                       onValueChange={field.onChange}
                       onOpenChange={(isOpen) => {
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
+                        businessTypeCombobox.onOpenChange(isOpen);
                       }}
+                      onSearchChange={businessTypeCombobox.onSearchChange}
+                      onLoadMore={businessTypeCombobox.onLoadMore}
+                      hasMore={businessTypeCombobox.hasMore}
+                      isLoadingMore={businessTypeCombobox.isLoadingMore}
+                      searchDebounceMs={300}
                       placeholder={t("common.select")}
                       createPermission="business_type.create"
                       onCreateClick={() => openQuickCreate("businessType")}
+                      isLoading={businessTypeCombobox.isLoading || businessTypeCombobox.isFetching}
                     />
                   )}
                 />
                 {errors.business_type_id && (
                   <FieldError>{errors.business_type_id.message}</FieldError>
-                )}
-              </Field>
-
-              <Field orientation="vertical" className="col-span-2">
-                <FieldLabel>{t("deliveryArea")}</FieldLabel>
-                <Controller
-                  name="delivery_area_id"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                      onOpenChange={(isOpen) => {
-                        if (isOpen) {
-                          enableReferenceOptionsFetch();
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("deliveryArea")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {areas.filter(a => a.is_active).map((area) => (
-                          <SelectItem key={area.id} value={area.id}>
-                            {area.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.delivery_area_id && (
-                  <FieldError>{errors.delivery_area_id.message}</FieldError>
                 )}
               </Field>
 
@@ -365,7 +381,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                       .filter(Boolean)
                       .join(" - "),
                   }))}
-                  value={selectedContactId || undefined}
+                  value={selectedContactId || ""}
                   onValueChange={handleContactChange}
                   onOpenChange={(isOpen) => {
                     if (isOpen) {
@@ -374,6 +390,9 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                   }}
                   placeholder={t("customerContact")}
                   emptyText={t("notFound")}
+                  createPermission="customer.create"
+                  createLabel={`${t("common.create") || "Create"} "{query}"`}
+                  onCreateClick={() => openQuickCreate("contact")}
                   disabled={!watch("customer_id")}
                 />
                 {errors.customer_contact && (
@@ -548,7 +567,13 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                       if (isOpen) {
                                         enableProductOptionsFetch();
                                       }
+                                      productCombobox.onOpenChange(isOpen);
                                     }}
+                                    onSearchChange={productCombobox.onSearchChange}
+                                    onLoadMore={productCombobox.onLoadMore}
+                                    hasMore={productCombobox.hasMore}
+                                    isLoadingMore={productCombobox.isLoadingMore}
+                                    searchDebounceMs={300}
                                     options={products.map((product) => ({
                                       value: product.id,
                                       label: `${product.code} - ${product.name}`,
@@ -769,6 +794,14 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
           open
           onOpenChange={(o) => { if (!o) closeQuickCreate(); }}
           onCreated={handleSalesRepCreated}
+        />
+      )}
+      {quickCreate.type === "contact" && watch("customer_id") && (
+        <ContactFormDialog
+          open
+          onClose={closeQuickCreate}
+          customerId={watch("customer_id")}
+          onCreated={handleContactCreated}
         />
       )}
     </Dialog>

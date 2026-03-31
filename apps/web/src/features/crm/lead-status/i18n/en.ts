@@ -17,11 +17,6 @@ export const leadStatusEn = {
     score: "Score",
     color: "Color",
     order: "Order",
-    flags: "Flags",
-    isDefault: "Default Status",
-    isDefaultDescription: "Mark this as the default status for new leads",
-    isConverted: "Converted Status",
-    isConvertedDescription: "Mark this as the converted/qualified status",
     isActive: "Active",
   },
 };

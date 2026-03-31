@@ -56,7 +56,7 @@ export function useBankForm({ open, onOpenChange, editingItem }: UseBankFormProp
           name: editingItem.name,
           code: editingItem.code,
           swift_code: editingItem.swift_code ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -78,7 +78,7 @@ export function useBankForm({ open, onOpenChange, editingItem }: UseBankFormProp
             name: data.name,
             code: data.code,
             swift_code: data.swift_code || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updateSuccess", { fallback: "Bank updated successfully" }));
@@ -87,7 +87,7 @@ export function useBankForm({ open, onOpenChange, editingItem }: UseBankFormProp
           name: data.name,
           code: data.code,
           swift_code: data.swift_code || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("createSuccess", { fallback: "Bank created successfully" }));
       }

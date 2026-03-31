@@ -57,7 +57,7 @@ export function useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreate
           name: editingItem.name,
           symbol: editingItem.symbol,
           description: editingItem.description ?? "",
-          is_active: editingItem.is_active,
+          is_active: true,
         });
       } else {
         form.reset({
@@ -79,7 +79,7 @@ export function useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreate
             name: data.name,
             symbol: data.symbol,
             description: data.description || undefined,
-            is_active: data.is_active,
+            is_active: true,
           },
         });
         toast.success(t("updated", { fallback: "UoM updated successfully" }));
@@ -88,7 +88,7 @@ export function useUnitOfMeasureForm({ open, onOpenChange, editingItem, onCreate
           name: data.name,
           symbol: data.symbol,
           description: data.description || undefined,
-          is_active: data.is_active,
+          is_active: true,
         });
         toast.success(t("created", { fallback: "UoM created successfully" }));
         if (onCreated && result?.data?.id) {
