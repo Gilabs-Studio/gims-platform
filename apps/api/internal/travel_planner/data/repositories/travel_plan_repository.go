@@ -99,6 +99,17 @@ func (r *travelPlanRepository) FindByID(ctx context.Context, id string, withRela
 func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListParams) ([]models.TravelPlan, int64, error) {
 	q := r.db.WithContext(ctx).Model(&models.TravelPlan{})
 
+	if scope, _ := ctx.Value("permission_scope").(string); scope != "" {
+		actorID, _ := ctx.Value("user_id").(string)
+		scope = strings.ToUpper(strings.TrimSpace(scope))
+		switch scope {
+		case "OWN", "DIVISION", "AREA":
+			if actorID != "" {
+				q = q.Where("created_by = ?", actorID)
+			}
+		}
+	}
+
 	if strings.TrimSpace(params.Search) != "" {
 		like := "%" + strings.TrimSpace(params.Search) + "%"
 		q = q.Where("code ILIKE ? OR title ILIKE ? OR notes ILIKE ?", like, like, like)

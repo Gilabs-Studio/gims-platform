@@ -171,6 +171,10 @@ func SeedAll() error {
 	}
 
 	// Sales Visit seeder (Sprint 7)
+	if err := SeedSalesVisitInterestSurvey(); err != nil {
+		return err
+	}
+
 	if err := SeedSalesVisit(); err != nil {
 		return err
 	}

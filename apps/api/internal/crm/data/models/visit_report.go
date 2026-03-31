@@ -12,7 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// VisitReportStatus represents the approval workflow status
+// VisitReportStatus represents the approval workflow status.
+// Internal-only compatibility: API response may omit this field.
 type VisitReportStatus string
 
 const (
@@ -21,6 +22,8 @@ const (
 	VisitReportStatusApproved  VisitReportStatus = "approved"
 	VisitReportStatusRejected  VisitReportStatus = "rejected"
 )
+
+
 
 // VisitReportOutcome categorizes the visit result
 type VisitReportOutcome string
@@ -81,7 +84,7 @@ type VisitReport struct {
 	// Photos (from CRM) — JSONB array of photo URLs
 	Photos *string `gorm:"type:jsonb" json:"photos"`
 
-	// Approval Workflow (from CRM)
+	// Approval workflow (kept for backward compatibility in existing domain logic)
 	Status          VisitReportStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	ApprovedBy      *string           `gorm:"type:uuid" json:"approved_by"`
 	ApprovedAt      *time.Time        `json:"approved_at"`
@@ -151,7 +154,7 @@ func (d *VisitReportDetail) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// VisitReportProgressHistory tracks status changes
+// VisitReportProgressHistory tracks status changes.
 type VisitReportProgressHistory struct {
 	ID            string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	VisitReportID string            `gorm:"type:uuid;not null;index" json:"visit_report_id"`

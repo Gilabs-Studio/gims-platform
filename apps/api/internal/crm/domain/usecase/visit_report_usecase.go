@@ -18,6 +18,7 @@ import (
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
+	travelModels "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -152,7 +153,6 @@ func (u *visitReportUsecase) List(ctx context.Context, req *dto.ListVisitReports
 		SortDir:           req.SortDir,
 		Limit:             perPage,
 		Offset:            (page - 1) * perPage,
-		Status:            req.Status,
 		CustomerID:        req.CustomerID,
 		EmployeeID:        req.EmployeeID,
 		ContactID:         req.ContactID,
@@ -218,7 +218,6 @@ func (u *visitReportUsecase) Create(ctx context.Context, req *dto.CreateVisitRep
 		VillageID:     req.VillageID,
 		Purpose:       req.Purpose,
 		Notes:         req.Notes,
-		Status:        models.VisitReportStatusDraft,
 		CreatedBy:     createdBy,
 	}
 
@@ -263,11 +262,6 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	report, err := u.visitRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, ErrVisitReportNotFound
-	}
-
-	// Only draft or rejected visits can be edited
-	if report.Status != models.VisitReportStatusDraft && report.Status != models.VisitReportStatusRejected {
-		return nil, ErrVisitReportNotDraft
 	}
 
 	// Apply updates
@@ -330,11 +324,6 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		report.NextSteps = *req.NextSteps
 	}
 
-	// If rejected, reset to draft on edit
-	if report.Status == models.VisitReportStatusRejected {
-		report.Status = models.VisitReportStatusDraft
-	}
-
 	// Replace details if provided
 	if req.Details != nil {
 		optionScoreMap := u.buildOptionScoreMap(ctx)
@@ -365,14 +354,8 @@ func (u *visitReportUsecase) Update(ctx context.Context, id string, req *dto.Upd
 }
 
 func (u *visitReportUsecase) Delete(ctx context.Context, id string) error {
-	report, err := u.visitRepo.FindByID(ctx, id)
-	if err != nil {
+	if _, err := u.visitRepo.FindByID(ctx, id); err != nil {
 		return ErrVisitReportNotFound
-	}
-
-	// Only draft visits can be deleted
-	if report.Status != models.VisitReportStatusDraft {
-		return ErrVisitReportNotDraft
 	}
 
 	return u.visitRepo.Delete(ctx, id)
@@ -494,6 +477,9 @@ func (u *visitReportUsecase) Submit(ctx context.Context, id string, req *dto.Sub
 
 	// Sync product interests to the associated lead
 	u.syncProductItemsToLead(ctx, id)
+
+	// Ensure the visit is discoverable in Travel Planner visit report plans.
+	u.ensureTravelPlannerVisitReport(ctx, id, userID)
 
 	if err := notificationService.CreateApprovalNotification(ctx, u.db, notificationService.ApprovalNotificationParams{
 		PermissionCode: "crm_visit.approve",
@@ -755,22 +741,21 @@ func (u *visitReportUsecase) GetFormData(ctx context.Context) (*dto.VisitReportF
 		{Value: "very_positive", Label: "Very Positive"},
 	}
 
-	statuses := []dto.VisitFormDataOption{
-		{Value: "draft", Label: "Draft"},
-		{Value: "submitted", Label: "Submitted"},
-		{Value: "approved", Label: "Approved"},
-		{Value: "rejected", Label: "Rejected"},
+	questions, err := u.visitRepo.ListInterestQuestions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch interest questions: %w", err)
 	}
+	interestQuestions := mapper.MapInterestQuestionsToResponse(questions)
 
 	return &dto.VisitReportFormDataResponse{
-		Customers: customerOptions,
-		Contacts:  contactOptions,
-		Employees: employeeOptions,
-		Deals:     dealOptions,
-		Leads:     leadOptions,
-		Products:  productOptions,
-		Outcomes:  outcomes,
-		Statuses:  statuses,
+		Customers:         customerOptions,
+		Contacts:          contactOptions,
+		Employees:         employeeOptions,
+		Deals:             dealOptions,
+		Leads:             leadOptions,
+		Products:          productOptions,
+		Outcomes:          outcomes,
+		InterestQuestions: interestQuestions,
 	}, nil
 }
 
@@ -1095,13 +1080,31 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 		// Serialize survey answers to JSONB for lead product item persistence
 		if len(detail.Answers) > 0 {
 			type answerInfo struct {
-				QuestionID string `json:"question_id"`
-				OptionID   string `json:"option_id"`
-				Answer     bool   `json:"answer,omitempty"`
+				QuestionID   string `json:"question_id"`
+				OptionID     string `json:"option_id"`
+				QuestionText string `json:"question_text,omitempty"`
+				OptionText   string `json:"option_text,omitempty"`
+				Score        int    `json:"score,omitempty"`
+				Answer       bool   `json:"answer,omitempty"`
 			}
 			ans := make([]answerInfo, 0, len(detail.Answers))
 			for _, a := range detail.Answers {
-				ans = append(ans, answerInfo{QuestionID: a.QuestionID, OptionID: a.OptionID, Answer: true})
+				questionText := ""
+				if a.Question != nil {
+					questionText = a.Question.QuestionText
+				}
+				optionText := ""
+				if a.Option != nil {
+					optionText = a.Option.OptionText
+				}
+				ans = append(ans, answerInfo{
+					QuestionID:   a.QuestionID,
+					OptionID:     a.OptionID,
+					QuestionText: questionText,
+					OptionText:   optionText,
+					Score:        a.Score,
+					Answer:       a.Score > 0,
+				})
 			}
 			if b, err := json.Marshal(ans); err == nil {
 				s := string(b)
@@ -1119,6 +1122,62 @@ func (u *visitReportUsecase) syncProductItemsToLead(ctx context.Context, visitRe
 
 	if err := u.leadRepo.UpsertProductItems(ctx, leadID, items); err != nil {
 		fmt.Printf("[WARN] failed to sync product items to lead %s: %v\n", leadID, err)
+	}
+}
+
+// ensureTravelPlannerVisitReport creates a visit_report travel plan and links the submitted visit.
+func (u *visitReportUsecase) ensureTravelPlannerVisitReport(ctx context.Context, visitReportID string, userID *string) {
+	visit, err := u.visitRepo.FindByID(ctx, visitReportID)
+	if err != nil {
+		fmt.Printf("[WARN] failed to load visit for travel planner sync: %v\n", err)
+		return
+	}
+
+	if visit.TravelPlanID != nil && *visit.TravelPlanID != "" {
+		return
+	}
+
+	now := apptime.Now()
+	prefix := fmt.Sprintf("TPL-%s", now.Format("200601"))
+	var count int64
+	if err := u.db.WithContext(ctx).
+		Model(&travelModels.TravelPlan{}).
+		Where("code LIKE ?", prefix+"-%").
+		Count(&count).Error; err != nil {
+		fmt.Printf("[WARN] failed to generate travel plan code for visit %s: %v\n", visit.Code, err)
+		return
+	}
+
+	code := fmt.Sprintf("%s-%04d", prefix, count+1)
+	createdBy := visit.CreatedBy
+	if createdBy == nil || *createdBy == "" {
+		createdBy = userID
+	}
+
+	visitDate := time.Date(visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(), 0, 0, 0, 0, apptime.Location())
+	plan := travelModels.TravelPlan{
+		Code:         code,
+		Title:        fmt.Sprintf("Visit %s", visit.Code),
+		PlanType:     travelModels.TravelPlanTypeVisitReport,
+		Mode:         travelModels.TravelModeMilestone,
+		StartDate:    visitDate,
+		EndDate:      visitDate,
+		Status:       travelModels.TravelPlanStatusActive,
+		BudgetAmount: 0,
+		Notes:        visit.Purpose,
+		CreatedBy:    createdBy,
+	}
+
+	if err := u.db.WithContext(ctx).Create(&plan).Error; err != nil {
+		fmt.Printf("[WARN] failed to create travel plan for visit %s: %v\n", visit.Code, err)
+		return
+	}
+
+	if err := u.db.WithContext(ctx).
+		Model(&models.VisitReport{}).
+		Where("id = ?", visitReportID).
+		Update("travel_plan_id", plan.ID).Error; err != nil {
+		fmt.Printf("[WARN] failed to link visit %s to travel plan %s: %v\n", visit.Code, plan.Code, err)
 	}
 }
 

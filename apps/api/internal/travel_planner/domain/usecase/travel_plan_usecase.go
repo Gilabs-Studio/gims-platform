@@ -324,12 +324,74 @@ func (uc *travelPlanUsecase) List(ctx context.Context, req *dto.ListTravelPlansR
 		Limit:     perPage,
 		Offset:    (page - 1) * perPage,
 	})
+	if err == nil && planType != nil && *planType == models.TravelPlanTypeVisitReport && total == 0 {
+		uc.backfillVisitReportPlans(ctx)
+		plans, total, err = uc.repo.List(ctx, repositories.TravelPlanListParams{
+			Search:    strings.TrimSpace(req.Search),
+			PlanType:  planType,
+			Mode:      mode,
+			Status:    status,
+			StartDate: startDate,
+			EndDate:   endDate,
+			Limit:     perPage,
+			Offset:    (page - 1) * perPage,
+		})
+	}
 	if err != nil {
 		return nil, 0, page, perPage, err
 	}
 
 	responses := uc.mapper.ToResponseList(plans)
 	return responses, total, page, perPage, nil
+}
+
+// backfillVisitReportPlans creates travel planner plans for submitted/approved/rejected visits that are not linked yet.
+func (uc *travelPlanUsecase) backfillVisitReportPlans(ctx context.Context) {
+	visits := make([]crmModels.VisitReport, 0)
+	if err := uc.db.WithContext(ctx).
+		Where("travel_plan_id IS NULL").
+		Where("status IN ?", []string{"submitted", "approved", "rejected"}).
+		Order("created_at DESC").
+		Limit(500).
+		Find(&visits).Error; err != nil {
+		return
+	}
+
+	for _, visit := range visits {
+		now := apptime.Now()
+		prefix := fmt.Sprintf("TPL-%s", now.Format("200601"))
+		var count int64
+		if err := uc.db.WithContext(ctx).
+			Model(&models.TravelPlan{}).
+			Where("code LIKE ?", prefix+"-%").
+			Count(&count).Error; err != nil {
+			continue
+		}
+
+		code := fmt.Sprintf("%s-%04d", prefix, count+1)
+		visitDate := time.Date(visit.VisitDate.Year(), visit.VisitDate.Month(), visit.VisitDate.Day(), 0, 0, 0, 0, apptime.Location())
+		plan := models.TravelPlan{
+			Code:         code,
+			Title:        fmt.Sprintf("Visit %s", visit.Code),
+			PlanType:     models.TravelPlanTypeVisitReport,
+			Mode:         models.TravelModeMilestone,
+			StartDate:    visitDate,
+			EndDate:      visitDate,
+			Status:       models.TravelPlanStatusActive,
+			BudgetAmount: 0,
+			Notes:        visit.Purpose,
+			CreatedBy:    visit.CreatedBy,
+		}
+
+		if err := uc.db.WithContext(ctx).Create(&plan).Error; err != nil {
+			continue
+		}
+
+		_ = uc.db.WithContext(ctx).
+			Model(&crmModels.VisitReport{}).
+			Where("id = ?", visit.ID).
+			Update("travel_plan_id", plan.ID).Error
+	}
 }
 
 func (uc *travelPlanUsecase) GetFormData(ctx context.Context) (*dto.TravelPlannerFormDataResponse, error) {
@@ -1462,7 +1524,7 @@ func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVi
 		employeeName = strings.TrimSpace(visit.Employee.Name)
 	}
 
-	return dto.TravelPlanVisitResponse{
+	resp := dto.TravelPlanVisitResponse{
 		ID:           visit.ID,
 		Code:         visit.Code,
 		TravelPlanID: visit.TravelPlanID,
@@ -1475,13 +1537,31 @@ func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVi
 			}
 			return ""
 		}(),
-		CustomerID:   visit.CustomerID,
-		CustomerName: customerName,
-		Status:       string(visit.Status),
-		Purpose:      visit.Purpose,
-		Outcome:      visit.Outcome,
-		CreatedAt:    visit.CreatedAt.Format(time.RFC3339),
+		CustomerID:           visit.CustomerID,
+		CustomerName:         customerName,
+		Status:               string(visit.Status),
+		Purpose:              visit.Purpose,
+		Outcome:              visit.Outcome,
+		CreatedAt:            visit.CreatedAt.Format(time.RFC3339),
+		Photos:               visit.Photos,
+		Notes:                visit.Notes,
+		Result:               visit.Result,
+		ProductInterestCount: len(visit.Details),
 	}
+
+	// Map check-in/out timestamps and locations
+	if visit.CheckInAt != nil {
+		checkInStr := visit.CheckInAt.Format(time.RFC3339)
+		resp.CheckInAt = &checkInStr
+	}
+	if visit.CheckOutAt != nil {
+		checkOutStr := visit.CheckOutAt.Format(time.RFC3339)
+		resp.CheckOutAt = &checkOutStr
+	}
+	resp.CheckInLocation = visit.CheckInLocation
+	resp.CheckOutLocation = visit.CheckOutLocation
+
+	return resp
 }
 
 func (uc *travelPlanUsecase) generateVisitCode(ctx context.Context, now time.Time) (string, error) {

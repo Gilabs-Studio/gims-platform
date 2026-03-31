@@ -5,14 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/i18n/routing";
-import type { VisitReport, VisitReportStatus } from "../types";
-
-const STATUS_COLORS: Record<VisitReportStatus, string> = {
-  draft: "bg-muted text-muted-foreground",
-  submitted: "bg-warning text-warning dark:bg-warning/30 dark:text-warning",
-  approved: "bg-success text-success dark:bg-success/30 dark:text-success",
-  rejected: "bg-destructive text-destructive dark:bg-destructive/30 dark:text-destructive",
-};
+import type { VisitReport } from "../types";
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -129,9 +122,7 @@ export function VisitReportCalendarView({ items }: VisitReportCalendarViewProps)
                           key={v.id}
                           type="button"
                           onClick={() => router.push(`/crm/visits/${v.id}`)}
-                          className={`w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded cursor-pointer truncate ${
-                            STATUS_COLORS[v.status as VisitReportStatus] ?? STATUS_COLORS.draft
-                          }`}
+                          className="w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded cursor-pointer truncate bg-muted text-muted-foreground"
                           title={`${v.code} - ${v.customer?.name ?? ""}`}
                         >
                           {v.customer?.name ?? v.code}
@@ -155,19 +146,7 @@ export function VisitReportCalendarView({ items }: VisitReportCalendarViewProps)
       <div className="flex flex-wrap gap-3 text-xs">
         <div className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-sm bg-muted" />
-          <span>{t("status.draft")}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-warning dark:bg-warning/50" />
-          <span>{t("status.submitted")}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-success dark:bg-success/50" />
-          <span>{t("status.approved")}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-destructive dark:bg-destructive/50" />
-          <span>{t("status.rejected")}</span>
+          <span>{t("calendar.visit")}</span>
         </div>
       </div>
     </div>

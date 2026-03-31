@@ -125,6 +125,17 @@ export interface TravelPlanVisit {
   purpose: string;
   outcome: string;
   created_at: string;
+  // Visit execution details
+  check_in_at?: string | null;
+  check_out_at?: string | null;
+  check_in_location?: string | null;
+  check_out_location?: string | null;
+  // Documentation
+  photos?: string | null;
+  notes: string;
+  result: string;
+  // Product interests
+  product_interest_count: number;
 }
 
 export interface LinkTravelPlanVisitsInput {

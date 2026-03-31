@@ -34,11 +34,10 @@ func RegisterVisitReportRoutes(r *gin.RouterGroup, h *handler.VisitReportHandler
 	g.GET("/:id/print", middleware.RequirePermission(visitRead), printH.PrintVisitReport)
 
 	// Workflow actions
-	g.POST("/:id/check-in", middleware.RequirePermission(visitUpdate), h.CheckIn)
-	g.POST("/:id/check-out", middleware.RequirePermission(visitUpdate), h.CheckOut)
 	g.POST("/:id/submit", middleware.RequirePermission(visitUpdate), h.Submit)
 	g.POST("/:id/approve", middleware.RequirePermission(visitApprove), h.Approve)
 	g.POST("/:id/reject", middleware.RequirePermission(visitApprove), h.Reject)
+	g.POST("/:id/check-in", middleware.RequirePermission(visitUpdate), h.CheckIn)
+	g.POST("/:id/check-out", middleware.RequirePermission(visitUpdate), h.CheckOut)
 	g.POST("/:id/photos", middleware.RequirePermission(visitUpdate), h.UploadPhotos)
-	g.GET("/:id/history", middleware.RequirePermission(visitRead), h.ListProgressHistory)
 }

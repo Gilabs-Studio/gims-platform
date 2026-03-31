@@ -281,7 +281,7 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
-		// General: user dashboard layout preferences
+		// General: user dashboard layout preferences 
 		&general.DashboardLayout{},
 	)
 	if err != nil {

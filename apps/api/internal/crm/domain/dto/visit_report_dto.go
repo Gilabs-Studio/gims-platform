@@ -62,7 +62,6 @@ type ListVisitReportsRequest struct {
 	Page              int    `form:"page" binding:"omitempty,min=1"`
 	PerPage           int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search            string `form:"search"`
-	Status            string `form:"status" binding:"omitempty,oneof=draft submitted approved rejected"`
 	CustomerID        string `form:"customer_id" binding:"omitempty,uuid"`
 	EmployeeID        string `form:"employee_id" binding:"omitempty,uuid"`
 	ContactID         string `form:"contact_id" binding:"omitempty,uuid"`
@@ -145,12 +144,6 @@ type VisitReportResponse struct {
 	ContactPerson    string                      `json:"contact_person"`
 	ContactPhone     string                      `json:"contact_phone"`
 	Photos           *string                     `json:"photos"`
-	Status           string                      `json:"status"`
-	ApprovedBy       *string                     `json:"approved_by"`
-	ApprovedAt       *string                     `json:"approved_at"`
-	RejectedBy       *string                     `json:"rejected_by"`
-	RejectedAt       *string                     `json:"rejected_at"`
-	RejectionReason  string                      `json:"rejection_reason"`
 	CreatedBy        *string                     `json:"created_by"`
 	Details          []VisitReportDetailResponse `json:"details,omitempty"`
 	CreatedAt        string                      `json:"created_at"`
@@ -288,14 +281,14 @@ type VisitProvinceResponse struct {
 
 // VisitReportFormDataResponse contains form data for creating/editing visit reports
 type VisitReportFormDataResponse struct {
-	Customers []VisitFormDataCustomer `json:"customers"`
-	Contacts  []VisitFormDataContact  `json:"contacts"`
-	Employees []VisitFormDataEmployee `json:"employees"`
-	Deals     []VisitFormDataDeal     `json:"deals"`
-	Leads     []VisitFormDataLead     `json:"leads"`
-	Products  []VisitFormDataProduct  `json:"products"`
-	Outcomes  []VisitFormDataOption   `json:"outcomes"`
-	Statuses  []VisitFormDataOption   `json:"statuses"`
+	Customers         []VisitFormDataCustomer         `json:"customers"`
+	Contacts          []VisitFormDataContact          `json:"contacts"`
+	Employees         []VisitFormDataEmployee         `json:"employees"`
+	Deals             []VisitFormDataDeal             `json:"deals"`
+	Leads             []VisitFormDataLead             `json:"leads"`
+	Products          []VisitFormDataProduct          `json:"products"`
+	Outcomes          []VisitFormDataOption           `json:"outcomes"`
+	InterestQuestions []VisitInterestQuestionResponse `json:"interest_questions"`
 }
 
 // VisitFormDataCustomer is a customer option for forms

@@ -33,7 +33,6 @@ func (h *VisitReportHandler) List(c *gin.Context) {
 		Page:              page,
 		PerPage:           perPage,
 		Search:            c.Query("search"),
-		Status:            c.Query("status"),
 		CustomerID:        c.Query("customer_id"),
 		EmployeeID:        c.Query("employee_id"),
 		ContactID:         c.Query("contact_id"),

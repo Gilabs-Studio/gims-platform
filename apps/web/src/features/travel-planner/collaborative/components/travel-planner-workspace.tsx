@@ -209,7 +209,7 @@ export function TravelPlannerWorkspace() {
   const mapsLinksQuery = useTravelPlanGoogleMapsLinks(activePlanId, !!activePlanId);
   const expensesQuery = useTravelPlanExpenses(activePlanId, !!activePlanId);
   const visitsQuery = useTravelPlanVisits(activePlanId, !!activePlanId);
-  const availableVisitsQuery = useTravelPlanAvailableVisits(availableVisitSearch, !!activePlanId);
+  const availableVisitsQuery = useTravelPlanAvailableVisits(availableVisitSearch, true);
   const visitFormDataQuery = useVisitReportFormData({ enabled: !!activePlanId });
   const placeSearchQuery = useTravelPlannerPlaceSearch(
     searchQuery,

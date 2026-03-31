@@ -12,11 +12,8 @@ import {
   MapPin,
   LogIn,
   LogOut,
-  Send,
   BarChart3,
   CheckCircle2,
-  Clock,
-  XCircle,
   LayoutList,
   CalendarDays,
   Users,
@@ -55,14 +52,7 @@ import { VisitReportEmployeeView } from "./visit-report-employee-view";
 import { useVisitReportList } from "../hooks/use-visit-report-list";
 import { formatDate, formatTime } from "@/lib/utils";
 import { useRouter } from "@/i18n/routing";
-import type { VisitReportStatus, VisitReportOutcome } from "../types";
-
-const STATUS_VARIANTS: Record<VisitReportStatus, "default" | "secondary" | "outline" | "destructive" | "success"> = {
-  draft: "secondary",
-  submitted: "default",
-  approved: "success",
-  rejected: "destructive",
-};
+import type { VisitReportOutcome } from "../types";
 
 const OUTCOME_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   very_positive: "default",
@@ -71,7 +61,6 @@ const OUTCOME_VARIANTS: Record<string, "default" | "secondary" | "outline" | "de
   negative: "destructive",
 };
 
-const STATUSES: VisitReportStatus[] = ["draft", "submitted", "approved", "rejected"];
 const OUTCOMES: VisitReportOutcome[] = ["positive", "neutral", "negative", "very_positive"];
 
 export function VisitReportList() {
@@ -114,26 +103,6 @@ export function VisitReportList() {
             className="pl-8"
           />
         </div>
-        <Select
-          value={state.statusFilter}
-          onValueChange={(value) => {
-            actions.setStatusFilter(value === "all" ? "" : value);
-            actions.setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px] cursor-pointer">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder={t("allStatuses")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="cursor-pointer">{t("allStatuses")}</SelectItem>
-            {STATUSES.map((status) => (
-              <SelectItem key={status} value={status} className="cursor-pointer">
-                {t(`status.${status}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select
           value={state.outcomeFilter}
           onValueChange={(value) => {
@@ -178,7 +147,7 @@ export function VisitReportList() {
 
       {/* Summary Metrics — visible for team-level scope (ALL, DIVISION, AREA) */}
       {data.hasTeamView && !data.isLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="h-4 w-4" />
@@ -188,21 +157,16 @@ export function VisitReportList() {
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span className="text-xs">{t("metrics.pending")}</span>
-            </div>
-            <p className="text-2xl font-bold text-warning">{data.metrics.statusCounts.submitted}</p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" />
-              <span className="text-xs">{t("metrics.approved")}</span>
+              <span className="text-xs">{t("metrics.withOutcome")}</span>
             </div>
-            <p className="text-2xl font-bold text-success">{data.metrics.statusCounts.approved}</p>
+            <p className="text-2xl font-bold text-success">
+              {data.metrics.outcomeCounts.positive + data.metrics.outcomeCounts.very_positive + data.metrics.outcomeCounts.neutral + data.metrics.outcomeCounts.negative}
+            </p>
           </div>
           <div className="rounded-lg border p-3 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <XCircle className="h-4 w-4" />
+              <MapPin className="h-4 w-4" />
               <span className="text-xs">{t("metrics.checkInRate")}</span>
             </div>
             <p className="text-2xl font-bold">{data.metrics.checkInRate}%</p>
@@ -226,7 +190,6 @@ export function VisitReportList() {
                   <TableHead>{t("table.visitDate")}</TableHead>
                   <TableHead>{t("table.customer")}</TableHead>
                   <TableHead>{t("table.employee")}</TableHead>
-                  <TableHead>{t("table.status")}</TableHead>
                   <TableHead>{t("table.outcome")}</TableHead>
                   <TableHead>{t("table.checkIn")}</TableHead>
                   <TableHead>{t("table.checkOut")}</TableHead>
@@ -239,7 +202,7 @@ export function VisitReportList() {
                 {data.isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: permissions.canUpdate || permissions.canDelete || permissions.canApprove ? 9 : 8 }).map((_, j) => (
+                      {Array.from({ length: permissions.canUpdate || permissions.canDelete || permissions.canApprove ? 8 : 7 }).map((_, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                       ))}
                     </TableRow>
@@ -247,7 +210,7 @@ export function VisitReportList() {
                 ) : data.items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={(permissions.canUpdate || permissions.canDelete || permissions.canApprove) ? 9 : 8}
+                      colSpan={(permissions.canUpdate || permissions.canDelete || permissions.canApprove) ? 8 : 7}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {t("emptyState")}
@@ -255,10 +218,8 @@ export function VisitReportList() {
                   </TableRow>
                 ) : (
                   data.items.map((item) => {
-                    const isDraft = item.status === "draft";
-                    const canCheckIn = isDraft && !item.check_in_at;
+                    const canCheckIn = !item.check_in_at;
                     const canCheckOut = !!item.check_in_at && !item.check_out_at;
-                    const canSubmit = isDraft;
                     // Only the creator of a visit report may mutate or submit it
                     const owner = permissions.isOwner(item);
 
@@ -272,11 +233,6 @@ export function VisitReportList() {
                         <TableCell>{formatDate(item.visit_date)}</TableCell>
                         <TableCell>{item.customer?.name ?? "-"}</TableCell>
                         <TableCell>{item.employee?.name ?? "-"}</TableCell>
-                        <TableCell>
-                          <Badge variant={STATUS_VARIANTS[item.status as VisitReportStatus] ?? "outline"}>
-                            {t(`status.${item.status as VisitReportStatus}`)}
-                          </Badge>
-                        </TableCell>
                         <TableCell>
                           {item.outcome ? (
                             <Badge variant={OUTCOME_VARIANTS[item.outcome] ?? "secondary"}>
@@ -343,7 +299,7 @@ export function VisitReportList() {
                                   </DropdownMenuItem>
                                 )}
 
-                                {permissions.canUpdate && isDraft && owner && (
+                                {permissions.canUpdate && owner && (
                                   <DropdownMenuItem
                                     onClick={() => actions.handleEdit(item)}
                                     className="cursor-pointer"
@@ -353,17 +309,7 @@ export function VisitReportList() {
                                   </DropdownMenuItem>
                                 )}
 
-                                {permissions.canUpdate && canSubmit && owner && (
-                                  <DropdownMenuItem
-                                    onClick={() => actions.handleSubmit(item.id)}
-                                    className="cursor-pointer"
-                                  >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    {t("actions.submit")}
-                                  </DropdownMenuItem>
-                                )}
-
-                                {permissions.canDelete && isDraft && owner && (
+                                {permissions.canDelete && owner && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem

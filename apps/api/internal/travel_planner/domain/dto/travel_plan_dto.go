@@ -157,19 +157,30 @@ type CreateTravelPlanVisitRequest struct {
 }
 
 type TravelPlanVisitResponse struct {
-	ID                string  `json:"id"`
-	Code              string  `json:"code"`
-	TravelPlanID      *string `json:"travel_plan_id"`
-	VisitDate         string  `json:"visit_date"`
-	EmployeeID        string  `json:"employee_id"`
-	EmployeeName      string  `json:"employee_name"`
-	EmployeeAvatarURL string  `json:"employee_avatar_url"`
-	CustomerID        *string `json:"customer_id"`
-	CustomerName      string  `json:"customer_name"`
-	Status            string  `json:"status"`
-	Purpose           string  `json:"purpose"`
-	Outcome           string  `json:"outcome"`
-	CreatedAt         string  `json:"created_at"`
+	ID                string                   `json:"id"`
+	Code              string                   `json:"code"`
+	TravelPlanID      *string                  `json:"travel_plan_id"`
+	VisitDate         string                   `json:"visit_date"`
+	EmployeeID        string                   `json:"employee_id"`
+	EmployeeName      string                   `json:"employee_name"`
+	EmployeeAvatarURL string                   `json:"employee_avatar_url"`
+	CustomerID        *string                  `json:"customer_id"`
+	CustomerName      string                   `json:"customer_name"`
+	Status            string                   `json:"status"`
+	Purpose           string                   `json:"purpose"`
+	Outcome           string                   `json:"outcome"`
+	CreatedAt         string                   `json:"created_at"`
+	// Visit execution details
+	CheckInAt        *string                  `json:"check_in_at,omitempty"`
+	CheckOutAt       *string                  `json:"check_out_at,omitempty"`
+	CheckInLocation  *string                  `json:"check_in_location,omitempty"`
+	CheckOutLocation *string                  `json:"check_out_location,omitempty"`
+	// Product interests count
+	ProductInterestCount int                   `json:"product_interest_count"`
+	// Documentation
+	Photos           *string                  `json:"photos,omitempty"`
+	Notes            string                   `json:"notes"`
+	Result           string                   `json:"result"`
 }
 
 type PlaceSearchResult struct {
