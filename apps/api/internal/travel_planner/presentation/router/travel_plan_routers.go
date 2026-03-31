@@ -22,7 +22,6 @@ func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) 
 		plans.DELETE("/:id", middleware.RequirePermission("travel_planner.delete"), h.Delete)
 
 		plans.POST("/:id/optimize-route", middleware.RequirePermission("travel_planner.update"), h.OptimizeRoute)
-		plans.GET("/:id/weather", middleware.RequirePermission("travel_planner.read"), h.GetWeather)
 		plans.GET("/:id/google-maps-links", middleware.RequirePermission("travel_planner.read"), h.GetGoogleMapsLinks)
 		plans.GET("/:id/export/pdf", middleware.RequirePermission("travel_planner.read"), h.ExportPDF)
 

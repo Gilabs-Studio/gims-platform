@@ -12,6 +12,7 @@ import (
 
 type TravelPlanListParams struct {
 	Search    string
+	PlanType  *models.TravelPlanType
 	Mode      *models.TravelMode
 	Status    *models.TravelPlanStatus
 	StartDate *time.Time
@@ -101,6 +102,9 @@ func (r *travelPlanRepository) List(ctx context.Context, params TravelPlanListPa
 	if strings.TrimSpace(params.Search) != "" {
 		like := "%" + strings.TrimSpace(params.Search) + "%"
 		q = q.Where("code ILIKE ? OR title ILIKE ? OR notes ILIKE ?", like, like, like)
+	}
+	if params.PlanType != nil {
+		q = q.Where("plan_type = ?", *params.PlanType)
 	}
 	if params.Mode != nil {
 		q = q.Where("mode = ?", *params.Mode)

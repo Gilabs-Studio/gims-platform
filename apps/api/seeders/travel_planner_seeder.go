@@ -37,11 +37,10 @@ func SeedTravelPlanner() error {
 			CreatedBy:    &adminID,
 			Days: []travelPlanner.TravelPlanDay{
 				{
-					ID:          "f1100001-0000-0000-0000-000000000001",
-					DayIndex:    1,
-					DayDate:     time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
-					Summary:     "Pickup from HQ warehouse then deliver to Jakarta medical accounts.",
-					WeatherRisk: travelPlanner.TravelWeatherRiskLow,
+					ID:       "f1100001-0000-0000-0000-000000000001",
+					DayIndex: 1,
+					DayDate:  time.Date(2026, time.March, 2, 0, 0, 0, 0, time.UTC),
+					Summary:  "Pickup from HQ warehouse then deliver to Jakarta medical accounts.",
 					Stops: []travelPlanner.TravelPlanStop{
 						{
 							ID:         "f1200001-0000-0000-0000-000000000001",
@@ -85,11 +84,10 @@ func SeedTravelPlanner() error {
 					},
 				},
 				{
-					ID:          "f1100001-0000-0000-0000-000000000002",
-					DayIndex:    2,
-					DayDate:     time.Date(2026, time.March, 3, 0, 0, 0, 0, time.UTC),
-					Summary:     "Continue route to Bekasi area and return to warehouse.",
-					WeatherRisk: travelPlanner.TravelWeatherRiskMedium,
+					ID:       "f1100001-0000-0000-0000-000000000002",
+					DayIndex: 2,
+					DayDate:  time.Date(2026, time.March, 3, 0, 0, 0, 0, time.UTC),
+					Summary:  "Continue route to Bekasi area and return to warehouse.",
 					Stops: []travelPlanner.TravelPlanStop{
 						{
 							ID:         "f1200001-0000-0000-0000-000000000004",
@@ -147,11 +145,10 @@ func SeedTravelPlanner() error {
 			CreatedBy:    &managerID,
 			Days: []travelPlanner.TravelPlanDay{
 				{
-					ID:          "f1100001-0000-0000-0000-000000000003",
-					DayIndex:    1,
-					DayDate:     time.Date(2026, time.April, 7, 0, 0, 0, 0, time.UTC),
-					Summary:     "Kickoff milestone and customer contract review.",
-					WeatherRisk: travelPlanner.TravelWeatherRiskLow,
+					ID:       "f1100001-0000-0000-0000-000000000003",
+					DayIndex: 1,
+					DayDate:  time.Date(2026, time.April, 7, 0, 0, 0, 0, time.UTC),
+					Summary:  "Kickoff milestone and customer contract review.",
 					Stops: []travelPlanner.TravelPlanStop{
 						{
 							ID:         "f1200001-0000-0000-0000-000000000007",
@@ -185,11 +182,10 @@ func SeedTravelPlanner() error {
 					},
 				},
 				{
-					ID:          "f1100001-0000-0000-0000-000000000004",
-					DayIndex:    2,
-					DayDate:     time.Date(2026, time.April, 8, 0, 0, 0, 0, time.UTC),
-					Summary:     "Finance checkpoint and closure of milestone documentation.",
-					WeatherRisk: travelPlanner.TravelWeatherRiskLow,
+					ID:       "f1100001-0000-0000-0000-000000000004",
+					DayIndex: 2,
+					DayDate:  time.Date(2026, time.April, 8, 0, 0, 0, 0, time.UTC),
+					Summary:  "Finance checkpoint and closure of milestone documentation.",
 					Stops: []travelPlanner.TravelPlanStop{
 						{
 							ID:         "f1200001-0000-0000-0000-000000000009",

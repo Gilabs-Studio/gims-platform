@@ -49,7 +49,6 @@ type TravelPlanUsecase interface {
 	GetFormData(ctx context.Context) (*dto.TravelPlannerFormDataResponse, error)
 	SearchPlaces(ctx context.Context, query string, provider string) ([]dto.PlaceSearchResult, error)
 	OptimizeRoute(ctx context.Context, planID string) (*dto.RouteOptimizationResponse, error)
-	GetWeather(ctx context.Context, planID string) (*dto.WeatherPlanResponse, error)
 	GetGoogleMapsLinks(ctx context.Context, planID string) ([]dto.DayGoogleMapsLink, error)
 	ExportPDF(ctx context.Context, planID string, dayIndex *int) ([]byte, string, error)
 	ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error)
@@ -126,6 +125,7 @@ func (uc *travelPlanUsecase) Create(ctx context.Context, req *dto.CreateTravelPl
 	plan := &models.TravelPlan{
 		Code:         code,
 		Title:        strings.TrimSpace(req.Title),
+		PlanType:     models.TravelPlanTypeUpCountryCost,
 		Mode:         mode,
 		StartDate:    startDate,
 		EndDate:      endDate,
@@ -269,6 +269,15 @@ func (uc *travelPlanUsecase) List(ctx context.Context, req *dto.ListTravelPlansR
 		perPage = 100
 	}
 
+	var planType *models.TravelPlanType
+	if req.PlanType != nil && strings.TrimSpace(*req.PlanType) != "" {
+		parsedPlanType, err := parseTravelPlanType(*req.PlanType)
+		if err != nil {
+			return nil, 0, page, perPage, err
+		}
+		planType = &parsedPlanType
+	}
+
 	var mode *models.TravelMode
 	if req.Mode != nil && strings.TrimSpace(*req.Mode) != "" {
 		parsedMode, err := parseTravelMode(*req.Mode)
@@ -307,6 +316,7 @@ func (uc *travelPlanUsecase) List(ctx context.Context, req *dto.ListTravelPlansR
 
 	plans, total, err := uc.repo.List(ctx, repositories.TravelPlanListParams{
 		Search:    strings.TrimSpace(req.Search),
+		PlanType:  planType,
 		Mode:      mode,
 		Status:    status,
 		StartDate: startDate,
@@ -323,7 +333,36 @@ func (uc *travelPlanUsecase) List(ctx context.Context, req *dto.ListTravelPlansR
 }
 
 func (uc *travelPlanUsecase) GetFormData(ctx context.Context) (*dto.TravelPlannerFormDataResponse, error) {
-	_ = ctx
+	type employeeFormRow struct {
+		ID           string `gorm:"column:id"`
+		EmployeeCode string `gorm:"column:employee_code"`
+		Name         string `gorm:"column:name"`
+		AvatarURL    string `gorm:"column:avatar_url"`
+	}
+
+	rows := make([]employeeFormRow, 0)
+	err := uc.db.WithContext(ctx).
+		Table("employees AS e").
+		Select("e.id, e.employee_code, e.name, COALESCE(u.avatar_url, '') AS avatar_url").
+		Joins("LEFT JOIN users AS u ON u.id = e.user_id").
+		Where("e.deleted_at IS NULL").
+		Where("e.is_active = ?", true).
+		Order("e.name ASC").
+		Limit(200).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	employees := make([]dto.EmployeeFormOption, 0, len(rows))
+	for _, row := range rows {
+		employees = append(employees, dto.EmployeeFormOption{
+			ID:           row.ID,
+			EmployeeCode: row.EmployeeCode,
+			Name:         row.Name,
+			AvatarURL:    row.AvatarURL,
+		})
+	}
 
 	return &dto.TravelPlannerFormDataResponse{
 		Modes: []dto.EnumOption{
@@ -345,11 +384,7 @@ func (uc *travelPlanUsecase) GetFormData(ctx context.Context) (*dto.TravelPlanne
 			{Value: string(models.TravelStopSourceGooglePlaces), Label: "Google Places"},
 			{Value: string(models.TravelStopSourceOpenStreetMap), Label: "OpenStreetMap"},
 		},
-		WeatherRisk: []dto.EnumOption{
-			{Value: string(models.TravelWeatherRiskLow), Label: "Low"},
-			{Value: string(models.TravelWeatherRiskMedium), Label: "Medium"},
-			{Value: string(models.TravelWeatherRiskHigh), Label: "High"},
-		},
+		Employees: employees,
 		ExpenseTypes: []dto.EnumOption{
 			{Value: string(models.TravelExpenseTypeTransport), Label: "Transport"},
 			{Value: string(models.TravelExpenseTypeAccommodation), Label: "Accommodation"},
@@ -453,42 +488,6 @@ func (uc *travelPlanUsecase) OptimizeRoute(ctx context.Context, planID string) (
 		PlanID:      plan.ID,
 		OptimizedAt: optimizedAt.Format(time.RFC3339),
 		Days:        summaries,
-	}, nil
-}
-
-func (uc *travelPlanUsecase) GetWeather(ctx context.Context, planID string) (*dto.WeatherPlanResponse, error) {
-	planID = strings.TrimSpace(planID)
-	plan, err := uc.repo.FindByID(ctx, planID, true)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrTravelPlanNotFound
-		}
-		return nil, err
-	}
-
-	forecastMap := map[string]dto.WeatherDayResponse{}
-	if lat, lon, ok := extractRepresentativeCoordinate(plan); ok {
-		forecastMap, _ = uc.fetchOpenMeteoForecast(ctx, lat, lon)
-	}
-
-	days := make([]dto.WeatherDayResponse, 0, len(plan.Days))
-	sortedDays := append([]models.TravelPlanDay{}, plan.Days...)
-	sort.SliceStable(sortedDays, func(i, j int) bool {
-		return sortedDays[i].DayIndex < sortedDays[j].DayIndex
-	})
-
-	for _, day := range sortedDays {
-		dayKey := day.DayDate.Format("2006-01-02")
-		if forecast, ok := forecastMap[dayKey]; ok {
-			days = append(days, forecast)
-			continue
-		}
-		days = append(days, buildHistoricalWeather(day.DayDate))
-	}
-
-	return &dto.WeatherPlanResponse{
-		PlanID: plan.ID,
-		Days:   days,
 	}, nil
 }
 
@@ -762,6 +761,7 @@ func (uc *travelPlanUsecase) ListVisits(ctx context.Context, planID string) ([]d
 	err := uc.db.WithContext(ctx).
 		Preload("Customer").
 		Preload("Employee").
+		Preload("Employee.User").
 		Where("travel_plan_id = ?", planID).
 		Order("visit_date DESC").
 		Order("created_at DESC").
@@ -788,6 +788,7 @@ func (uc *travelPlanUsecase) ListAvailableVisits(ctx context.Context, search str
 		Model(&crmModels.VisitReport{}).
 		Preload("Customer").
 		Preload("Employee").
+		Preload("Employee.User").
 		Where("travel_plan_id IS NULL").
 		Order("visit_date DESC").
 		Order("created_at DESC").
@@ -931,6 +932,7 @@ func (uc *travelPlanUsecase) CreateVisitFromTrip(ctx context.Context, planID str
 	if err := uc.db.WithContext(ctx).
 		Preload("Customer").
 		Preload("Employee").
+		Preload("Employee.User").
 		Where("id = ?", visit.ID).
 		First(&created).Error; err != nil {
 		return nil, err
@@ -946,11 +948,6 @@ func (uc *travelPlanUsecase) buildDays(dayRequests []dto.TravelPlanDayRequest) (
 		dayDate, err := parseDate(dayRequest.DayDate)
 		if err != nil {
 			return nil, ErrInvalidDayDate
-		}
-
-		weatherRisk, err := parseWeatherRisk(dayRequest.WeatherRisk)
-		if err != nil {
-			return nil, err
 		}
 
 		stops := make([]models.TravelPlanStop, 0, len(dayRequest.Stops))
@@ -1009,12 +1006,11 @@ func (uc *travelPlanUsecase) buildDays(dayRequests []dto.TravelPlanDayRequest) (
 		}
 
 		days = append(days, models.TravelPlanDay{
-			DayIndex:    dayRequest.DayIndex,
-			DayDate:     dayDate,
-			Summary:     strings.TrimSpace(dayRequest.Summary),
-			WeatherRisk: weatherRisk,
-			Stops:       stops,
-			Notes:       notes,
+			DayIndex: dayRequest.DayIndex,
+			DayDate:  dayDate,
+			Summary:  strings.TrimSpace(dayRequest.Summary),
+			Stops:    stops,
+			Notes:    notes,
 		})
 	}
 
@@ -1040,6 +1036,16 @@ func parseTravelMode(mode string) (models.TravelMode, error) {
 		return models.TravelMode(normalized), nil
 	default:
 		return "", ErrInvalidTravelMode
+	}
+}
+
+func parseTravelPlanType(planType string) (models.TravelPlanType, error) {
+	normalized := strings.ToLower(strings.TrimSpace(planType))
+	switch models.TravelPlanType(normalized) {
+	case models.TravelPlanTypeUpCountryCost, models.TravelPlanTypeVisitReport:
+		return models.TravelPlanType(normalized), nil
+	default:
+		return "", errors.New("invalid travel plan type")
 	}
 }
 
@@ -1104,19 +1110,6 @@ func parseBudgetAmount(value float64) (float64, error) {
 		return 0, ErrInvalidBudgetAmount
 	}
 	return roundToTwo(value), nil
-}
-
-func parseWeatherRisk(risk string) (models.TravelWeatherRisk, error) {
-	normalized := strings.ToLower(strings.TrimSpace(risk))
-	if normalized == "" {
-		return models.TravelWeatherRiskLow, nil
-	}
-	switch models.TravelWeatherRisk(normalized) {
-	case models.TravelWeatherRiskLow, models.TravelWeatherRiskMedium, models.TravelWeatherRiskHigh:
-		return models.TravelWeatherRisk(normalized), nil
-	default:
-		return "", errors.New("invalid weather risk")
-	}
 }
 
 func normalizeNoteTime(value string) string {
@@ -1288,111 +1281,6 @@ func buildGoogleMapsURL(stops []models.TravelPlanStop) string {
 	}
 
 	return "https://www.google.com/maps/dir/?" + values.Encode()
-}
-
-func extractRepresentativeCoordinate(plan *models.TravelPlan) (float64, float64, bool) {
-	for _, day := range plan.Days {
-		if len(day.Stops) > 0 {
-			return day.Stops[0].Latitude, day.Stops[0].Longitude, true
-		}
-	}
-	return 0, 0, false
-}
-
-func (uc *travelPlanUsecase) fetchOpenMeteoForecast(ctx context.Context, latitude float64, longitude float64) (map[string]dto.WeatherDayResponse, error) {
-	values := url.Values{}
-	values.Set("latitude", strconv.FormatFloat(latitude, 'f', 6, 64))
-	values.Set("longitude", strconv.FormatFloat(longitude, 'f', 6, 64))
-	values.Set("daily", "weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max")
-	values.Set("forecast_days", "16")
-	values.Set("timezone", "auto")
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.open-meteo.com/v1/forecast?"+values.Encode(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	response, err := uc.httpClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("open-meteo error status: %d", response.StatusCode)
-	}
-
-	var payload struct {
-		Daily struct {
-			Time                     []string  `json:"time"`
-			TemperatureMax           []float64 `json:"temperature_2m_max"`
-			TemperatureMin           []float64 `json:"temperature_2m_min"`
-			PrecipitationProbability []float64 `json:"precipitation_probability_max"`
-		} `json:"daily"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
-		return nil, err
-	}
-
-	weather := make(map[string]dto.WeatherDayResponse, len(payload.Daily.Time))
-	for index, day := range payload.Daily.Time {
-		if index >= len(payload.Daily.TemperatureMax) ||
-			index >= len(payload.Daily.TemperatureMin) ||
-			index >= len(payload.Daily.PrecipitationProbability) {
-			continue
-		}
-		precipitation := int(math.Round(payload.Daily.PrecipitationProbability[index]))
-		weather[day] = dto.WeatherDayResponse{
-			Date:                 day,
-			TemperatureMin:       payload.Daily.TemperatureMin[index],
-			TemperatureMax:       payload.Daily.TemperatureMax[index],
-			PrecipitationPercent: precipitation,
-			Risk:                 string(riskFromPrecipitation(precipitation)),
-			Source:               "open-meteo",
-		}
-	}
-
-	return weather, nil
-}
-
-func buildHistoricalWeather(dayDate time.Time) dto.WeatherDayResponse {
-	month := int(dayDate.Month())
-
-	precipitation := 35
-	switch month {
-	case 11, 12, 1, 2, 3:
-		precipitation = 68
-	case 4, 5, 10:
-		precipitation = 48
-	default:
-		precipitation = 32
-	}
-
-	temperatureMin := 23.0
-	temperatureMax := 31.0
-	if month >= 6 && month <= 9 {
-		temperatureMin = 22.0
-		temperatureMax = 32.0
-	}
-
-	return dto.WeatherDayResponse{
-		Date:                 dayDate.Format("2006-01-02"),
-		TemperatureMin:       temperatureMin,
-		TemperatureMax:       temperatureMax,
-		PrecipitationPercent: precipitation,
-		Risk:                 string(riskFromPrecipitation(precipitation)),
-		Source:               "historical-fallback",
-	}
-}
-
-func riskFromPrecipitation(precipitation int) models.TravelWeatherRisk {
-	if precipitation >= 70 {
-		return models.TravelWeatherRiskHigh
-	}
-	if precipitation >= 40 {
-		return models.TravelWeatherRiskMedium
-	}
-	return models.TravelWeatherRiskLow
 }
 
 func (uc *travelPlanUsecase) searchGooglePlaces(ctx context.Context, query string) ([]dto.PlaceSearchResult, error) {
@@ -1581,6 +1469,12 @@ func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVi
 		VisitDate:    visit.VisitDate.Format("2006-01-02"),
 		EmployeeID:   visit.EmployeeID,
 		EmployeeName: employeeName,
+		EmployeeAvatarURL: func() string {
+			if visit.Employee != nil && visit.Employee.User != nil {
+				return strings.TrimSpace(visit.Employee.User.AvatarURL)
+			}
+			return ""
+		}(),
 		CustomerID:   visit.CustomerID,
 		CustomerName: customerName,
 		Status:       string(visit.Status),
@@ -1591,28 +1485,10 @@ func mapTravelPlanVisitToResponse(visit *crmModels.VisitReport) dto.TravelPlanVi
 }
 
 func (uc *travelPlanUsecase) generateVisitCode(ctx context.Context, now time.Time) (string, error) {
+	// Use format: VISIT-YYYYMM-NNNNNNNNN (9 digits from nanoseconds)
+	// This ensures uniqueness even with concurrent requests
 	prefix := fmt.Sprintf("VISIT-%s-", now.Format("200601"))
+	nanoFraction := now.Nanosecond() % 1_000_000_000 // Last 9 digits of nanoseconds
 
-	latest := struct {
-		Code string `gorm:"column:code"`
-	}{}
-	err := uc.db.WithContext(ctx).
-		Model(&crmModels.VisitReport{}).
-		Select("code").
-		Where("code LIKE ?", prefix+"%").
-		Order("code DESC").
-		Take(&latest).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", err
-	}
-
-	sequence := 1
-	if len(latest.Code) > len(prefix) {
-		suffix := latest.Code[len(prefix):]
-		if parsed, parseErr := strconv.Atoi(suffix); parseErr == nil {
-			sequence = parsed + 1
-		}
-	}
-
-	return fmt.Sprintf("%s%05d", prefix, sequence), nil
+	return fmt.Sprintf("%s%09d", prefix, nanoFraction), nil
 }

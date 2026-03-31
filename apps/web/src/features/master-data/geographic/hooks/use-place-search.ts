@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
 
 /**
  * Result from Nominatim reverse geocoding or search
@@ -52,16 +53,7 @@ interface NominatimReverseResponse {
  */
 export function usePlaceSearch() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  // Debounce search query (300ms)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery.trim());
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const debouncedQuery = useDebounce(searchQuery.trim(), 300);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);

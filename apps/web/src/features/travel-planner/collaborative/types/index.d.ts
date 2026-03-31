@@ -21,13 +21,13 @@ export interface ApiEnvelope<T> {
 
 export type TravelMode = "logistic" | "cargo" | "vessel" | "milestone";
 
+export type TravelPlanType = "up_country_cost" | "visit_report";
+
 export type TravelPlanStatus = "draft" | "active" | "completed" | "cancelled";
 
 export type TravelStopCategory = "pickup" | "dropoff" | "refuel" | "checkpoint" | "rest" | "custom";
 
 export type TravelStopSource = "manual" | "google_places" | "open_street_map";
-
-export type WeatherRisk = "low" | "medium" | "high";
 
 export type TravelExpenseType =
   | "transport"
@@ -64,7 +64,6 @@ export interface TravelPlanDay {
   day_index: number;
   day_date: string;
   summary: string;
-  weather_risk: WeatherRisk | string;
   stops: TravelPlanStop[];
   notes: TravelPlanDayNote[];
 }
@@ -73,6 +72,7 @@ export interface TravelPlan {
   id: string;
   code: string;
   title: string;
+  plan_type: TravelPlanType | string;
   mode: TravelMode | string;
   start_date: string;
   end_date: string;
@@ -118,6 +118,7 @@ export interface TravelPlanVisit {
   visit_date: string;
   employee_id: string;
   employee_name: string;
+  employee_avatar_url: string;
   customer_id?: string | null;
   customer_name: string;
   status: string;
@@ -158,6 +159,7 @@ export interface TravelPlanListParams {
   page?: number;
   per_page?: number;
   search?: string;
+  plan_type?: string;
   mode?: string;
   status?: string;
   start_date?: string;
@@ -187,7 +189,6 @@ export interface TravelPlanDayInput {
   day_index: number;
   day_date: string;
   summary?: string;
-  weather_risk?: WeatherRisk | string;
   stops: TravelPlanStopInput[];
   notes?: TravelPlanDayNoteInput[];
 }
@@ -228,20 +229,6 @@ export interface RouteOptimizationResult {
   days: RouteOptimizationDaySummary[];
 }
 
-export interface WeatherDaySummary {
-  date: string;
-  temperature_min: number;
-  temperature_max: number;
-  precipitation_percent: number;
-  risk: WeatherRisk | string;
-  source: string;
-}
-
-export interface WeatherSummaryResult {
-  plan_id: string;
-  days: WeatherDaySummary[];
-}
-
 export interface DayGoogleMapsLink {
   day_id: string;
   day_index: number;
@@ -253,10 +240,17 @@ export interface EnumOption {
   label: string;
 }
 
+export interface EmployeeFormOption {
+  id: string;
+  employee_code: string;
+  name: string;
+  avatar_url: string;
+}
+
 export interface TravelPlannerFormData {
   modes: EnumOption[];
   categories: EnumOption[];
   sources: EnumOption[];
-  weather_risk: EnumOption[];
+  employees: EmployeeFormOption[];
   expense_types: EnumOption[];
 }

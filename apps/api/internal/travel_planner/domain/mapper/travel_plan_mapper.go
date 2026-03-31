@@ -57,13 +57,12 @@ func (m *TravelPlanMapper) ToResponse(plan *models.TravelPlan) dto.TravelPlanRes
 		})
 
 		days = append(days, dto.TravelPlanDayResponse{
-			ID:          day.ID,
-			DayIndex:    day.DayIndex,
-			DayDate:     day.DayDate.Format("2006-01-02"),
-			Summary:     day.Summary,
-			WeatherRisk: string(day.WeatherRisk),
-			Stops:       stops,
-			Notes:       notes,
+			ID:       day.ID,
+			DayIndex: day.DayIndex,
+			DayDate:  day.DayDate.Format("2006-01-02"),
+			Summary:  day.Summary,
+			Stops:    stops,
+			Notes:    notes,
 		})
 	}
 
@@ -75,6 +74,7 @@ func (m *TravelPlanMapper) ToResponse(plan *models.TravelPlan) dto.TravelPlanRes
 		ID:           plan.ID,
 		Code:         plan.Code,
 		Title:        plan.Title,
+		PlanType:     string(plan.PlanType),
 		Mode:         string(plan.Mode),
 		StartDate:    plan.StartDate.Format("2006-01-02"),
 		EndDate:      plan.EndDate.Format("2006-01-02"),

@@ -16,7 +16,6 @@ import type {
   TravelPlanVisit,
   TravelPlannerFormData,
   UnlinkTravelPlanVisitResult,
-  WeatherSummaryResult,
 } from "../types";
 
 const BASE_URL = "/travel-planner";
@@ -66,11 +65,6 @@ export const travelPlannerService = {
     const response = await apiClient.post<ApiEnvelope<RouteOptimizationResult>>(
       `${BASE_URL}/plans/${planId}/optimize-route`,
     );
-    return response.data;
-  },
-
-  getWeather: async (planId: string): Promise<ApiEnvelope<WeatherSummaryResult>> => {
-    const response = await apiClient.get<ApiEnvelope<WeatherSummaryResult>>(`${BASE_URL}/plans/${planId}/weather`);
     return response.data;
   },
 

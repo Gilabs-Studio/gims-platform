@@ -25,6 +25,13 @@ const (
 	TravelPlanStatusCancelled TravelPlanStatus = "cancelled"
 )
 
+type TravelPlanType string
+
+const (
+	TravelPlanTypeUpCountryCost TravelPlanType = "up_country_cost"
+	TravelPlanTypeVisitReport   TravelPlanType = "visit_report"
+)
+
 type TravelStopCategory string
 
 const (
@@ -44,14 +51,6 @@ const (
 	TravelStopSourceOpenStreetMap TravelStopSource = "open_street_map"
 )
 
-type TravelWeatherRisk string
-
-const (
-	TravelWeatherRiskLow    TravelWeatherRisk = "low"
-	TravelWeatherRiskMedium TravelWeatherRisk = "medium"
-	TravelWeatherRiskHigh   TravelWeatherRisk = "high"
-)
-
 type TravelExpenseType string
 
 const (
@@ -68,6 +67,7 @@ type TravelPlan struct {
 	ID           string           `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	Code         string           `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
 	Title        string           `gorm:"type:varchar(255);not null" json:"title"`
+	PlanType     TravelPlanType   `gorm:"type:varchar(30);default:'up_country_cost';index;not null" json:"plan_type"`
 	Mode         TravelMode       `gorm:"type:varchar(30);index;not null" json:"mode"`
 	StartDate    time.Time        `gorm:"type:date;not null" json:"start_date"`
 	EndDate      time.Time        `gorm:"type:date;not null" json:"end_date"`
@@ -96,12 +96,11 @@ func (t *TravelPlan) BeforeCreate(tx *gorm.DB) error {
 }
 
 type TravelPlanDay struct {
-	ID           string            `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	TravelPlanID string            `gorm:"type:uuid;not null;index;uniqueIndex:idx_travel_plan_day_order,priority:1" json:"travel_plan_id"`
-	DayIndex     int               `gorm:"not null;uniqueIndex:idx_travel_plan_day_order,priority:2" json:"day_index"`
-	DayDate      time.Time         `gorm:"type:date;not null" json:"day_date"`
-	Summary      string            `gorm:"type:text" json:"summary"`
-	WeatherRisk  TravelWeatherRisk `gorm:"type:varchar(20);default:'low'" json:"weather_risk"`
+	ID           string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TravelPlanID string    `gorm:"type:uuid;not null;index;uniqueIndex:idx_travel_plan_day_order,priority:1" json:"travel_plan_id"`
+	DayIndex     int       `gorm:"not null;uniqueIndex:idx_travel_plan_day_order,priority:2" json:"day_index"`
+	DayDate      time.Time `gorm:"type:date;not null" json:"day_date"`
+	Summary      string    `gorm:"type:text" json:"summary"`
 
 	Stops []TravelPlanStop    `gorm:"foreignKey:TravelPlanDayID;constraint:OnDelete:CASCADE" json:"stops,omitempty"`
 	Notes []TravelPlanDayNote `gorm:"foreignKey:TravelPlanDayID;constraint:OnDelete:CASCADE" json:"notes,omitempty"`

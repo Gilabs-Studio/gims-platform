@@ -357,7 +357,6 @@ export function ItineraryBoard({ days, selectedDayIndex, onSelectDay, onChange }
         day_index: nextDayIndex,
         day_date: nextDate.toISOString().slice(0, 10),
         summary: "",
-        weather_risk: "low",
         stops: [
           {
             id: createTempId("stop"),
@@ -486,9 +485,6 @@ export function ItineraryBoard({ days, selectedDayIndex, onSelectDay, onChange }
                       <p className="text-sm font-semibold">Day {day.day_index}</p>
                       <p className="text-xs text-muted-foreground">{day.day_date}</p>
                     </button>
-                    <Badge variant="outline" className="text-xs">
-                      {day.weather_risk}
-                    </Badge>
                   </div>
 
                   <Input

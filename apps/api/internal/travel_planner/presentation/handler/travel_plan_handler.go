@@ -128,17 +128,6 @@ func (h *TravelPlanHandler) OptimizeRoute(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
-func (h *TravelPlanHandler) GetWeather(c *gin.Context) {
-	planID := strings.TrimSpace(c.Param("id"))
-	res, err := h.uc.GetWeather(c.Request.Context(), planID)
-	if err != nil {
-		handleTravelPlanError(c, err)
-		return
-	}
-
-	response.SuccessResponse(c, res, nil)
-}
-
 func (h *TravelPlanHandler) GetGoogleMapsLinks(c *gin.Context) {
 	planID := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.GetGoogleMapsLinks(c.Request.Context(), planID)

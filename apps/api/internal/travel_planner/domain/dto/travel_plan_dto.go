@@ -25,12 +25,11 @@ type TravelPlanDayNoteRequest struct {
 }
 
 type TravelPlanDayRequest struct {
-	DayIndex    int                        `json:"day_index" binding:"required,min=1"`
-	DayDate     string                     `json:"day_date" binding:"required"`
-	Summary     string                     `json:"summary"`
-	WeatherRisk string                     `json:"weather_risk"`
-	Stops       []TravelPlanStopRequest    `json:"stops" binding:"required,min=1"`
-	Notes       []TravelPlanDayNoteRequest `json:"notes"`
+	DayIndex int                        `json:"day_index" binding:"required,min=1"`
+	DayDate  string                     `json:"day_date" binding:"required"`
+	Summary  string                     `json:"summary"`
+	Stops    []TravelPlanStopRequest    `json:"stops" binding:"required,min=1"`
+	Notes    []TravelPlanDayNoteRequest `json:"notes"`
 }
 
 type CreateTravelPlanRequest struct {
@@ -58,6 +57,7 @@ type ListTravelPlansRequest struct {
 	Page      int     `form:"page" binding:"omitempty,min=1"`
 	PerPage   int     `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search    string  `form:"search"`
+	PlanType  *string `form:"plan_type"`
 	Mode      *string `form:"mode"`
 	Status    *string `form:"status"`
 	StartDate *string `form:"start_date"`
@@ -86,19 +86,19 @@ type TravelPlanDayNoteResponse struct {
 }
 
 type TravelPlanDayResponse struct {
-	ID          string                      `json:"id"`
-	DayIndex    int                         `json:"day_index"`
-	DayDate     string                      `json:"day_date"`
-	Summary     string                      `json:"summary"`
-	WeatherRisk string                      `json:"weather_risk"`
-	Stops       []TravelPlanStopResponse    `json:"stops"`
-	Notes       []TravelPlanDayNoteResponse `json:"notes"`
+	ID       string                      `json:"id"`
+	DayIndex int                         `json:"day_index"`
+	DayDate  string                      `json:"day_date"`
+	Summary  string                      `json:"summary"`
+	Stops    []TravelPlanStopResponse    `json:"stops"`
+	Notes    []TravelPlanDayNoteResponse `json:"notes"`
 }
 
 type TravelPlanResponse struct {
 	ID           string                  `json:"id"`
 	Code         string                  `json:"code"`
 	Title        string                  `json:"title"`
+	PlanType     string                  `json:"plan_type"`
 	Mode         string                  `json:"mode"`
 	StartDate    string                  `json:"start_date"`
 	EndDate      string                  `json:"end_date"`
@@ -157,18 +157,19 @@ type CreateTravelPlanVisitRequest struct {
 }
 
 type TravelPlanVisitResponse struct {
-	ID           string  `json:"id"`
-	Code         string  `json:"code"`
-	TravelPlanID *string `json:"travel_plan_id"`
-	VisitDate    string  `json:"visit_date"`
-	EmployeeID   string  `json:"employee_id"`
-	EmployeeName string  `json:"employee_name"`
-	CustomerID   *string `json:"customer_id"`
-	CustomerName string  `json:"customer_name"`
-	Status       string  `json:"status"`
-	Purpose      string  `json:"purpose"`
-	Outcome      string  `json:"outcome"`
-	CreatedAt    string  `json:"created_at"`
+	ID                string  `json:"id"`
+	Code              string  `json:"code"`
+	TravelPlanID      *string `json:"travel_plan_id"`
+	VisitDate         string  `json:"visit_date"`
+	EmployeeID        string  `json:"employee_id"`
+	EmployeeName      string  `json:"employee_name"`
+	EmployeeAvatarURL string  `json:"employee_avatar_url"`
+	CustomerID        *string `json:"customer_id"`
+	CustomerName      string  `json:"customer_name"`
+	Status            string  `json:"status"`
+	Purpose           string  `json:"purpose"`
+	Outcome           string  `json:"outcome"`
+	CreatedAt         string  `json:"created_at"`
 }
 
 type PlaceSearchResult struct {
@@ -196,30 +197,23 @@ type RouteOptimizationResponse struct {
 	Days        []RouteOptimizationDaySummary `json:"days"`
 }
 
-type WeatherDayResponse struct {
-	Date                 string  `json:"date"`
-	TemperatureMin       float64 `json:"temperature_min"`
-	TemperatureMax       float64 `json:"temperature_max"`
-	PrecipitationPercent int     `json:"precipitation_percent"`
-	Risk                 string  `json:"risk"`
-	Source               string  `json:"source"`
-}
-
-type WeatherPlanResponse struct {
-	PlanID string               `json:"plan_id"`
-	Days   []WeatherDayResponse `json:"days"`
-}
-
 type DayGoogleMapsLink struct {
 	DayID    string `json:"day_id"`
 	DayIndex int    `json:"day_index"`
 	URL      string `json:"url"`
 }
 
+type EmployeeFormOption struct {
+	ID           string `json:"id"`
+	EmployeeCode string `json:"employee_code"`
+	Name         string `json:"name"`
+	AvatarURL    string `json:"avatar_url"`
+}
+
 type TravelPlannerFormDataResponse struct {
-	Modes        []EnumOption `json:"modes"`
-	Categories   []EnumOption `json:"categories"`
-	Sources      []EnumOption `json:"sources"`
-	WeatherRisk  []EnumOption `json:"weather_risk"`
-	ExpenseTypes []EnumOption `json:"expense_types"`
+	Modes        []EnumOption         `json:"modes"`
+	Categories   []EnumOption         `json:"categories"`
+	Sources      []EnumOption         `json:"sources"`
+	Employees    []EmployeeFormOption `json:"employees"`
+	ExpenseTypes []EnumOption         `json:"expense_types"`
 }

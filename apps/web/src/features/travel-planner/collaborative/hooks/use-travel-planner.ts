@@ -16,7 +16,6 @@ export const travelPlannerKeys = {
   planList: (params?: TravelPlanListParams) => [...travelPlannerKeys.plans(), params] as const,
   planDetail: (id: string) => [...travelPlannerKeys.all, "plan", id] as const,
   formData: () => [...travelPlannerKeys.all, "form-data"] as const,
-  weather: (planId: string) => [...travelPlannerKeys.all, "weather", planId] as const,
   googleMapsLinks: (planId: string) => [...travelPlannerKeys.all, "google-maps-links", planId] as const,
   expenses: (planId: string) => [...travelPlannerKeys.all, "expenses", planId] as const,
   visits: (planId: string) => [...travelPlannerKeys.all, "visits", planId] as const,
@@ -54,14 +53,6 @@ export function useTravelPlannerPlaceSearch(query: string, provider?: string) {
     queryFn: () => travelPlannerService.searchPlaces(query, provider),
     enabled: query.trim().length >= 2,
     staleTime: 30_000,
-  });
-}
-
-export function useTravelPlanWeather(planId: string, enabled = true) {
-  return useQuery({
-    queryKey: travelPlannerKeys.weather(planId),
-    queryFn: () => travelPlannerService.getWeather(planId),
-    enabled: enabled && !!planId,
   });
 }
 
@@ -124,7 +115,6 @@ export function useUpdateTravelPlan() {
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: travelPlannerKeys.plans() });
       queryClient.invalidateQueries({ queryKey: travelPlannerKeys.planDetail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: travelPlannerKeys.weather(variables.id) });
       queryClient.invalidateQueries({ queryKey: travelPlannerKeys.googleMapsLinks(variables.id) });
       if (result.data?.id) {
         queryClient.invalidateQueries({ queryKey: travelPlannerKeys.planDetail(result.data.id) });

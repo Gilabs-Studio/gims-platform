@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CloudSun, FileDown, Link, Navigation, Plus, RefreshCcw, Route, Save, Trash2, UserPlus, Users } from "lucide-react";
+import { FileDown, Link, Navigation, Plus, RefreshCcw, Route, Save, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -42,7 +42,6 @@ import {
   useTravelPlannerFormData,
   useTravelPlannerPlaceSearch,
   useTravelPlans,
-  useTravelPlanWeather,
   useUpdateTravelPlan,
 } from "../hooks/use-travel-planner";
 import type { PlaceSearchResult, TravelPlan, TravelPlanInput } from "../types";
@@ -68,7 +67,6 @@ function buildDefaultPlanInput(title: string, mode: string): TravelPlanInput {
         day_index: 1,
         day_date: startDate,
         summary: "",
-        weather_risk: "low",
         stops: [
           {
             place_name: "Jakarta Checkpoint",
@@ -102,7 +100,6 @@ function toTravelPlanInput(plan: TravelPlan): TravelPlanInput {
         day_index: day.day_index,
         day_date: day.day_date,
         summary: day.summary,
-        weather_risk: day.weather_risk,
         stops: [...(day.stops ?? [])]
           .sort((a, b) => a.order_index - b.order_index)
           .map((stop, index) => ({
@@ -209,7 +206,6 @@ export function TravelPlannerWorkspace() {
   const activePlanId = selectedPlanId || fallbackPlanId;
 
   const selectedPlanQuery = useTravelPlan(activePlanId, !!activePlanId);
-  const weatherQuery = useTravelPlanWeather(activePlanId, !!activePlanId);
   const mapsLinksQuery = useTravelPlanGoogleMapsLinks(activePlanId, !!activePlanId);
   const expensesQuery = useTravelPlanExpenses(activePlanId, !!activePlanId);
   const visitsQuery = useTravelPlanVisits(activePlanId, !!activePlanId);
@@ -262,15 +258,6 @@ export function TravelPlannerWorkspace() {
     const stillValid = selectedCategories.filter((category) => availableCategories.includes(category));
     return stillValid.length > 0 ? stillValid : availableCategories;
   }, [availableCategories, selectedCategories]);
-
-  const weatherByDate = useMemo(() => {
-    const entries = weatherQuery.data?.data?.days ?? [];
-    const map = new Map<string, (typeof entries)[number]>();
-    for (const entry of entries) {
-      map.set(entry.date, entry);
-    }
-    return map;
-  }, [weatherQuery.data?.data?.days]);
 
   const activeDayGoogleMapsLink = useMemo(() => {
     const links = mapsLinksQuery.data?.data ?? [];
@@ -678,7 +665,7 @@ export function TravelPlannerWorkspace() {
 
       {activePlan ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 md:w-fit">
+          <TabsList className="grid w-full grid-cols-2 md:w-fit">
             <TabsTrigger value="planner" className="cursor-pointer">
               <Route className="h-4 w-4 mr-1" />
               {t("tabs.planner")}
@@ -688,7 +675,7 @@ export function TravelPlannerWorkspace() {
               {t("tabs.operations")}
             </TabsTrigger>
             <TabsTrigger value="insights" className="cursor-pointer">
-              <CloudSun className="h-4 w-4 mr-1" />
+              <FileDown className="h-4 w-4 mr-1" />
               {t("tabs.insights")}
             </TabsTrigger>
           </TabsList>
@@ -1131,33 +1118,6 @@ export function TravelPlannerWorkspace() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{t("weather.title")}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {(activePlan.days ?? []).map((day) => {
-                    const weather = weatherByDate.get(day.day_date);
-                    return (
-                      <div key={day.id} className="rounded-md border p-3 space-y-2">
-                        <p className="text-sm font-medium">{t("weather.dayLabel", { day: day.day_index })}</p>
-                        <p className="text-xs text-muted-foreground">{day.day_date}</p>
-                        <div className="flex items-center justify-between text-sm">
-                          <span>{weather?.temperature_min ?? "-"}°C</span>
-                          <span>{weather?.temperature_max ?? "-"}°C</span>
-                        </div>
-                        <Badge variant="outline">{weather?.risk ?? t("weather.noData")}</Badge>
-                        <p className="text-xs text-muted-foreground">
-                          {t("weather.precipitation")}: {weather?.precipitation_percent ?? "-"}%
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("export.title")}</CardTitle>
