@@ -8,20 +8,42 @@ import (
 )
 
 func ToStockOpnameResponse(m *models.StockOpname) dto.StockOpnameResponse {
+	totalNegativeVariance, totalPositiveVariance := calculateVarianceSummary(m.Items)
+
 	return dto.StockOpnameResponse{
-		ID:               m.ID,
-		OpnameNumber:     m.OpnameNumber,
-		WarehouseID:      m.WarehouseID,
-		WarehouseName:    getWarehouseName(m),
-		Date:             m.Date,
-		Status:           dto.StockOpnameStatus(m.Status),
-		Description:      m.Description,
-		TotalItems:       m.TotalItems,
-		TotalVarianceQty: m.TotalVarianceQty,
-		CreatedBy:        m.CreatedBy,
-		CreatedAt:        m.CreatedAt,
-		UpdatedAt:        m.UpdatedAt,
+		ID:                       m.ID,
+		OpnameNumber:             m.OpnameNumber,
+		WarehouseID:              m.WarehouseID,
+		WarehouseName:            getWarehouseName(m),
+		Date:                     m.Date,
+		Status:                   dto.StockOpnameStatus(m.Status),
+		Description:              m.Description,
+		TotalItems:               m.TotalItems,
+		TotalVarianceQty:         m.TotalVarianceQty,
+		TotalNegativeVarianceQty: totalNegativeVariance,
+		TotalPositiveVarianceQty: totalPositiveVariance,
+		CreatedBy:                m.CreatedBy,
+		CreatedAt:                m.CreatedAt,
+		UpdatedAt:                m.UpdatedAt,
 	}
+}
+
+func calculateVarianceSummary(items []models.StockOpnameItem) (float64, float64) {
+	var totalNegativeVariance float64
+	var totalPositiveVariance float64
+
+	for _, item := range items {
+		if item.VarianceQty < 0 {
+			totalNegativeVariance += item.VarianceQty
+			continue
+		}
+
+		if item.VarianceQty > 0 {
+			totalPositiveVariance += item.VarianceQty
+		}
+	}
+
+	return totalNegativeVariance, totalPositiveVariance
 }
 
 func getWarehouseName(m *models.StockOpname) string {
@@ -59,19 +81,18 @@ func getProductCode(m *models.StockOpnameItem) string {
 	return ""
 }
 
-
 func ToStockOpnameModel(req *dto.CreateStockOpnameRequest, opnameNumber string, createdBy *string) (*models.StockOpname, error) {
-    date, err := time.Parse("2006-01-02", req.Date)
-    if err != nil {
-        return nil, err
-    }
-    return &models.StockOpname{
-        OpnameNumber: opnameNumber,
-        WarehouseID:  req.WarehouseID,
-        Date:         date,
-        Description:  req.Description,
-        Status:       models.StockOpnameStatusDraft,
-        CreatedBy:    createdBy,
-        UpdatedBy:    createdBy,
-    }, nil
+	date, err := time.Parse("2006-01-02", req.Date)
+	if err != nil {
+		return nil, err
+	}
+	return &models.StockOpname{
+		OpnameNumber: opnameNumber,
+		WarehouseID:  req.WarehouseID,
+		Date:         date,
+		Description:  req.Description,
+		Status:       models.StockOpnameStatusDraft,
+		CreatedBy:    createdBy,
+		UpdatedBy:    createdBy,
+	}, nil
 }

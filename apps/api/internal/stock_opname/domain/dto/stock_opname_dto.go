@@ -35,19 +35,21 @@ type StockOpnameItemRequest struct {
 }
 
 type StockOpnameResponse struct {
-	ID               string            `json:"id"`
-	OpnameNumber     string            `json:"opname_number"`
-	WarehouseID      string            `json:"warehouse_id"`
-	WarehouseName    string            `json:"warehouse_name,omitempty"`
-	Date             time.Time         `json:"date"`
-	Status           StockOpnameStatus `json:"status"`
-	Description      string            `json:"description"`
-	TotalItems       int               `json:"total_items"`
-	TotalVarianceQty float64           `json:"total_variance_qty"`
-	CreatedBy        *string           `json:"created_by"`
-	CreatedByName    string            `json:"created_by_name,omitempty"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
+	ID                       string            `json:"id"`
+	OpnameNumber             string            `json:"opname_number"`
+	WarehouseID              string            `json:"warehouse_id"`
+	WarehouseName            string            `json:"warehouse_name,omitempty"`
+	Date                     time.Time         `json:"date"`
+	Status                   StockOpnameStatus `json:"status"`
+	Description              string            `json:"description"`
+	TotalItems               int               `json:"total_items"`
+	TotalVarianceQty         float64           `json:"total_variance_qty"`
+	TotalNegativeVarianceQty float64           `json:"total_negative_variance_qty"`
+	TotalPositiveVarianceQty float64           `json:"total_positive_variance_qty"`
+	CreatedBy                *string           `json:"created_by"`
+	CreatedByName            string            `json:"created_by_name,omitempty"`
+	CreatedAt                time.Time         `json:"created_at"`
+	UpdatedAt                time.Time         `json:"updated_at"`
 }
 
 type StockOpnameItemResponse struct {

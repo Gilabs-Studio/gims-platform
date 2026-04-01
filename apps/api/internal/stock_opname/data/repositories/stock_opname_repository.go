@@ -49,7 +49,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	var opnames []models.StockOpname
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&models.StockOpname{}).Preload("Warehouse")
+	query := r.db.WithContext(ctx).Model(&models.StockOpname{}).Preload("Warehouse").Preload("Items")
 
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
@@ -107,7 +107,7 @@ func (r *stockOpnameRepository) ReplaceItems(ctx context.Context, opnameID strin
 		for _, item := range items {
 			totalVariance += item.VarianceQty
 		}
-		
+
 		if err := tx.Model(&models.StockOpname{}).Where("id = ?", opnameID).Updates(map[string]interface{}{
 			"total_items":        len(items),
 			"total_variance_qty": totalVariance,

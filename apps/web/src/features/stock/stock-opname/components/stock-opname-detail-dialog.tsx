@@ -68,6 +68,8 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const isLoading = opnameQuery.isLoading || itemsQuery.isLoading;
   const opname = opnameQuery.data?.data;
   const items = itemsQuery.data?.data ?? [];
+  const totalNegativeVariance = opname?.total_negative_variance_qty ?? 0;
+  const totalPositiveVariance = opname?.total_positive_variance_qty ?? 0;
 
   // Dialog States
   const [editOpnameOpen, setEditOpnameOpen] = useState(false);
@@ -299,9 +301,18 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                         </div>
                          <div className="p-3 border rounded-lg text-center space-y-1 bg-muted/20">
                             <p className="text-xs text-muted-foreground uppercase font-semibold">{t("dialog.summary.totalVariance")}</p>
-                            <p className="text-2xl font-bold" style={{ color: opname.total_variance_qty < 0 ? 'hsl(var(--chart-4))' : 'hsl(var(--chart-2))' }}>
-                                {opname.total_variance_qty > 0 ? '+' : ''}{opname.total_variance_qty}
-                            </p>
+                            {totalNegativeVariance === 0 && totalPositiveVariance === 0 ? (
+                                <p className="text-2xl font-bold text-muted-foreground">-</p>
+                            ) : (
+                                <div className="flex items-center gap-4 justify-center text-2xl font-bold leading-none">
+                                    {totalNegativeVariance !== 0 && (
+                                        <p className="text-destructive">{totalNegativeVariance}</p>
+                                    )}
+                                    {totalPositiveVariance !== 0 && (
+                                        <p className="text-success">+{totalPositiveVariance}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
