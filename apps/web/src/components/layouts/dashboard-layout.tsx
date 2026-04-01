@@ -396,7 +396,7 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
           openCreateLeaveSignal={openCreateLeaveSignal}
         />
 
-        <CommandPalette />
+        <CommandPalette menus={menus} />
         {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>
