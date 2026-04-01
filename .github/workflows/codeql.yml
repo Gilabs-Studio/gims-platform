@@ -11,6 +11,9 @@
 #
 name: "CodeQL Advanced"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [ "dev" ]
@@ -44,7 +47,7 @@ jobs:
       matrix:
         include:
         - language: go
-          build-mode: autobuild
+          build-mode: manual
         - language: javascript-typescript
           build-mode: none
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
@@ -58,6 +61,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Set up Go
+      if: matrix.language == 'go'
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: apps/api/go.mod
 
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
@@ -88,12 +97,13 @@ jobs:
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+        if [ "${{ matrix.language }}" = "go" ]; then
+          cd apps/api
+          go mod download
+          go build ./...
+        else
+          echo "No manual build commands configured for language: ${{ matrix.language }}"
+        fi
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
