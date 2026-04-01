@@ -9,6 +9,7 @@ import (
 func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) {
 	// Fixed routes before /plans/:id to avoid route shadowing.
 	r.GET("/form-data", middleware.RequirePermission("travel_planner.read"), h.GetFormData)
+	r.GET("/participants", middleware.RequirePermission("travel_planner.read"), h.ListParticipants)
 	r.GET("/place-search", middleware.RequirePermission("travel_planner.read"), h.SearchPlaces)
 	r.GET("/visits/available", middleware.RequirePermission("travel_planner.read"), h.ListAvailableVisits)
 
@@ -19,6 +20,7 @@ func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) 
 
 		plans.GET("/:id", middleware.RequirePermission("travel_planner.read"), h.GetByID)
 		plans.PUT("/:id", middleware.RequirePermission("travel_planner.update"), h.Update)
+		plans.PATCH("/:id/participants", middleware.RequirePermission("travel_planner.update"), h.UpdateParticipants)
 		plans.DELETE("/:id", middleware.RequirePermission("travel_planner.delete"), h.Delete)
 
 		plans.POST("/:id/optimize-route", middleware.RequirePermission("travel_planner.update"), h.OptimizeRoute)

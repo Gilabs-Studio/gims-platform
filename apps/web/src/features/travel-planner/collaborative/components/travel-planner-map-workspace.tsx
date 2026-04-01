@@ -7,6 +7,7 @@ import { usePathname } from "@/i18n/routing";
 import { useQueries } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
+  Check,
   Camera,
   CheckCircle2,
   Clock,
@@ -38,6 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useVisitReportById } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { visitReportService } from "@/features/crm/visit-report/services/visit-report-service";
@@ -53,7 +55,9 @@ import {
   useTravelPlan,
   useTravelPlanExpenses,
   useTravelPlannerFormData,
+  useTravelPlannerParticipants,
   useTravelPlans,
+  useUpdateTravelPlanParticipants,
 } from "../hooks/use-travel-planner";
 import { travelPlannerService } from "../services/travel-planner-service";
 import type { TravelPlanInput } from "../types";
@@ -225,8 +229,15 @@ export function TravelPlannerMapWorkspace() {
   const [detailExpenseDescription, setDetailExpenseDescription] = useState("");
   const [selectedVisitId, setSelectedVisitId] = useState("");
   const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState<string | null>(null);
+  const [detailParticipantDraftIDs, setDetailParticipantDraftIDs] = useState<string[] | null>(null);
+  const [isParticipantPickerOpen, setIsParticipantPickerOpen] = useState(false);
+  const [participantPickerSearch, setParticipantPickerSearch] = useState("");
+  const [participantPickerPage, setParticipantPickerPage] = useState(1);
+
+  const PARTICIPANT_PICKER_PER_PAGE = 20;
 
   const debouncedPlanSearch = useDebounce(planSearch, 300);
+  const debouncedParticipantSearch = useDebounce(participantPickerSearch, 300);
 
   const showPlanPanel = () => {
     setIsPlanPanelOpen(true);
@@ -251,7 +262,14 @@ export function TravelPlannerMapWorkspace() {
   });
   const formDataQuery = useTravelPlannerFormData();
   const createPlanMutation = useCreateTravelPlan();
+  const updateParticipantsMutation = useUpdateTravelPlanParticipants();
   const createExpenseMutation = useCreateTravelExpense();
+  const participantPickerQuery = useTravelPlannerParticipants(
+    participantPickerPage,
+    PARTICIPANT_PICKER_PER_PAGE,
+    debouncedParticipantSearch,
+    isParticipantPickerOpen,
+  );
   const participantOptions = useMemo(() => formDataQuery.data?.data?.employees ?? [], [formDataQuery.data?.data?.employees]);
   const participantOptionByID = useMemo(() => {
     const mapping = new Map<string, { employee_name: string; employee_avatar_url: string }>();
@@ -312,14 +330,10 @@ export function TravelPlannerMapWorkspace() {
         const assignedParticipants = assignedParticipantIDs
           .map((employeeID) => {
             const participant = participantOptionByID.get(employeeID);
-            if (!participant) {
-              return null;
-            }
-
             return {
               employee_id: employeeID,
-              employee_name: participant.employee_name,
-              employee_avatar_url: participant.employee_avatar_url,
+              employee_name: participant?.employee_name ?? employeeID,
+              employee_avatar_url: participant?.employee_avatar_url ?? "",
             };
           })
           .filter((item): item is { employee_id: string; employee_name: string; employee_avatar_url: string } => !!item);
@@ -353,6 +367,21 @@ export function TravelPlannerMapWorkspace() {
   const activePlanParticipants = useMemo(() => {
     return routeParticipantsByPlan.get(activePlanId) ?? [];
   }, [activePlanId, routeParticipantsByPlan]);
+
+  const activePlanParticipantIDs = useMemo(() => {
+    if (!activePlan || activePlan.plan_type === "visit_report") {
+      return [];
+    }
+
+    return extractParticipantIDs(activePlan.notes ?? "");
+  }, [activePlan]);
+
+  const detailSelectedParticipantIDs = detailParticipantDraftIDs ?? activePlanParticipantIDs;
+
+  const participantPickerItems = participantPickerQuery.data?.data ?? [];
+  const participantPickerMeta = participantPickerQuery.data?.meta?.pagination;
+  const participantPickerHasPrev = participantPickerMeta?.has_prev ?? false;
+  const participantPickerHasNext = participantPickerMeta?.has_next ?? false;
 
   const routePlanTypeByPlan = useMemo(() => {
     const mapping = new Map<string, PlanDetailType>();
@@ -460,6 +489,27 @@ export function TravelPlannerMapWorkspace() {
     setSelectedParticipantIDs((current) =>
       current.includes(employeeID) ? current.filter((item) => item !== employeeID) : [...current, employeeID],
     );
+  };
+
+  const handleToggleParticipantAndAutoSave = async (employeeID: string) => {
+    if (!canUpdateTravelPlanner || !activePlan || activePlan.plan_type === "visit_report") {
+      return;
+    }
+
+    const current = detailSelectedParticipantIDs;
+    const nextIDs = current.includes(employeeID)
+      ? current.filter((item) => item !== employeeID)
+      : [...current, employeeID];
+
+    setDetailParticipantDraftIDs(nextIDs);
+
+    await updateParticipantsMutation.mutateAsync({
+      id: activePlan.id,
+      participantIDs: nextIDs,
+    });
+
+    await activePlanQuery.refetch();
+    setDetailParticipantDraftIDs(null);
   };
 
   const addExpenseItemRow = () => {
@@ -647,6 +697,7 @@ export function TravelPlannerMapWorkspace() {
 
     setSelectedVisitId("");
     setSelectedPlanId(createdId);
+    setDetailParticipantDraftIDs(null);
     setIsCreateDialogOpen(false);
     setSelectedParticipantIDs([]);
     setInitialExpenseItems([]);
@@ -1069,6 +1120,7 @@ export function TravelPlannerMapWorkspace() {
                     onClick={() => {
                       setSelectedVisitId("");
                       setSelectedPlanId(plan.id);
+                      setDetailParticipantDraftIDs(null);
                       if (isMobile) {
                         showDetailPanel();
                       }
@@ -1091,10 +1143,17 @@ export function TravelPlannerMapWorkspace() {
                         <div className="flex items-center gap-2">
                           <div className="flex -space-x-2">
                             {participants.slice(0, 3).map((participant) => (
-                              <Avatar key={`${plan.id}-${participant.employee_id}`} className="h-7 w-7 border border-background">
-                                <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
-                                <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
-                              </Avatar>
+                              <Tooltip key={`${plan.id}-${participant.employee_id}`}>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Avatar className="h-7 w-7 border border-background cursor-pointer">
+                                      <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
+                                      <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
+                                    </Avatar>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">{participant.employee_name}</TooltipContent>
+                              </Tooltip>
                             ))}
                           </div>
                           <Badge variant="outline" className="text-[10px]">
@@ -1155,10 +1214,17 @@ export function TravelPlannerMapWorkspace() {
           <div className="p-4 border-b space-y-3">
             <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.name ?? "User"} />
-                  <AvatarFallback dataSeed={user?.name ?? "guest"}>{user?.name ?? "U"}</AvatarFallback>
-                </Avatar>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Avatar className="h-10 w-10 cursor-pointer">
+                        <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.name ?? "User"} />
+                        <AvatarFallback dataSeed={user?.name ?? "guest"}>{user?.name ?? "U"}</AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">{user?.name ?? t("context.notAuthenticated")}</TooltipContent>
+                </Tooltip>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold truncate">{user?.name ?? t("context.notAuthenticated")}</p>
                   <p className="text-xs text-muted-foreground truncate">{travelPlannerReadScope ?? t("context.scopeUnknown")}</p>
@@ -1208,24 +1274,42 @@ export function TravelPlannerMapWorkspace() {
               )}
               {activePlanDetailType !== "visit_report" && (
                 <div className="pt-2 border-t space-y-1.5">
-                  <span className="text-muted-foreground text-xs uppercase tracking-wide">Participants</span>
-                  {activePlanParticipants.length > 0 ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex -space-x-2">
-                        {activePlanParticipants.slice(0, 4).map((participant) => (
-                          <Avatar key={`active-${participant.employee_id}`} className="h-7 w-7 border border-background">
-                            <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
-                            <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
-                          </Avatar>
-                        ))}
-                      </div>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {activePlanParticipants.length > 4 ? `+${activePlanParticipants.length - 4}` : activePlanParticipants.length}
-                      </Badge>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground text-xs uppercase tracking-wide">Participants</span>
+                    <Badge variant="secondary" className="text-[10px]">{activePlanParticipants.length}</Badge>
+                  </div>
+                  <TooltipProvider>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activePlanParticipants.map((participant) => (
+                        <Tooltip key={`active-${participant.employee_id}`}>
+                          <TooltipTrigger asChild>
+                            <div>
+                              <Avatar className="h-7 w-7 border border-background cursor-pointer">
+                                <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
+                                <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
+                              </Avatar>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">{participant.employee_name}</TooltipContent>
+                        </Tooltip>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 rounded-full cursor-pointer"
+                        onClick={() => {
+                          setParticipantPickerPage(1);
+                          setParticipantPickerSearch("");
+                          setIsParticipantPickerOpen(true);
+                        }}
+                        disabled={!canUpdateTravelPlanner || updateParticipantsMutation.isPending}
+                        aria-label="Add participants"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No participants yet</p>
-                  )}
+                  </TooltipProvider>
                 </div>
               )}
             </div>
@@ -1237,37 +1321,37 @@ export function TravelPlannerMapWorkspace() {
             ) : (
               <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-3 space-y-2">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Add Expense Item</p>
-                  <Select value={detailExpenseType} onValueChange={setDetailExpenseType}>
-                    <SelectTrigger className="cursor-pointer">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseTypeOptions.map((expenseType) => (
-                        <SelectItem key={expenseType.value} value={expenseType.value} className="cursor-pointer">
-                          {expenseType.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <NumericInput
-                    value={detailExpenseAmount}
-                    onChange={(value) => setDetailExpenseAmount(value ?? 0)}
-                    placeholder="Amount"
-                  />
-                  <Input
-                    value={detailExpenseDescription}
-                    onChange={(event) => setDetailExpenseDescription(event.target.value)}
-                    placeholder="Description"
-                  />
-                  <Button
-                    type="button"
-                    className="w-full cursor-pointer"
-                    onClick={handleCreateDetailExpense}
-                    disabled={createExpenseMutation.isPending || detailExpenseAmount <= 0 || !activePlanId}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Expense
-                  </Button>
+                <Select value={detailExpenseType} onValueChange={setDetailExpenseType}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseTypeOptions.map((expenseType) => (
+                      <SelectItem key={expenseType.value} value={expenseType.value} className="cursor-pointer">
+                        {expenseType.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <NumericInput
+                  value={detailExpenseAmount}
+                  onChange={(value) => setDetailExpenseAmount(value ?? 0)}
+                  placeholder="Amount"
+                />
+                <Input
+                  value={detailExpenseDescription}
+                  onChange={(event) => setDetailExpenseDescription(event.target.value)}
+                  placeholder="Description"
+                />
+                <Button
+                  type="button"
+                  className="w-full cursor-pointer"
+                  onClick={handleCreateDetailExpense}
+                  disabled={createExpenseMutation.isPending || detailExpenseAmount <= 0 || !activePlanId}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Expense
+                </Button>
               </div>
             )}
           </div>
@@ -1401,6 +1485,7 @@ export function TravelPlannerMapWorkspace() {
                       onClick={() => {
                         setSelectedVisitId("");
                         setSelectedPlanId(plan.id);
+                        setDetailParticipantDraftIDs(null);
                       }}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -1420,7 +1505,11 @@ export function TravelPlannerMapWorkspace() {
                           <div className="flex items-center gap-2">
                             <div className="flex -space-x-2">
                               {participants.slice(0, 3).map((participant) => (
-                                <Avatar key={`${plan.id}-${participant.employee_id}`} className="h-7 w-7 border border-background">
+                                <Avatar
+                                  key={`${plan.id}-${participant.employee_id}`}
+                                  className="h-7 w-7 border border-background"
+                                  title={participant.employee_name}
+                                >
                                   <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
                                   <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
                                 </Avatar>
@@ -1494,10 +1583,17 @@ export function TravelPlannerMapWorkspace() {
             <div className="p-4 border-b space-y-3">
               <div className="rounded-2xl border border-border/60 bg-background/60 px-3 py-2.5">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.name ?? "User"} />
-                    <AvatarFallback dataSeed={user?.name ?? "guest"}>{user?.name ?? "U"}</AvatarFallback>
-                  </Avatar>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Avatar className="h-10 w-10 cursor-pointer">
+                          <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.name ?? "User"} />
+                          <AvatarFallback dataSeed={user?.name ?? "guest"}>{user?.name ?? "U"}</AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{user?.name ?? t("context.notAuthenticated")}</TooltipContent>
+                  </Tooltip>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{user?.name ?? t("context.notAuthenticated")}</p>
                     <p className="text-xs text-muted-foreground truncate">{travelPlannerReadScope ?? t("context.scopeUnknown")}</p>
@@ -1542,6 +1638,44 @@ export function TravelPlannerMapWorkspace() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Remaining</span>
                       <span className="font-semibold">{formatCurrency(totalRemaining)}</span>
+                    </div>
+                    <div className="pt-2 border-t space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs uppercase tracking-wide">Participants</span>
+                        <Badge variant="secondary" className="text-[10px]">{activePlanParticipants.length}</Badge>
+                      </div>
+                      <TooltipProvider>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {activePlanParticipants.map((participant) => (
+                            <Tooltip key={`mobile-active-${participant.employee_id}`}>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <Avatar className="h-7 w-7 border border-background cursor-pointer">
+                                    <AvatarImage src={participant.employee_avatar_url || undefined} alt={participant.employee_name} />
+                                    <AvatarFallback dataSeed={participant.employee_name}>{participant.employee_name}</AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">{participant.employee_name}</TooltipContent>
+                            </Tooltip>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 rounded-full cursor-pointer"
+                            onClick={() => {
+                              setParticipantPickerPage(1);
+                              setParticipantPickerSearch("");
+                              setIsParticipantPickerOpen(true);
+                            }}
+                            disabled={!canUpdateTravelPlanner || updateParticipantsMutation.isPending}
+                            aria-label="Add participants"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TooltipProvider>
                     </div>
                   </>
                 )}
@@ -1648,6 +1782,100 @@ export function TravelPlannerMapWorkspace() {
               />
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isParticipantPickerOpen} onOpenChange={setIsParticipantPickerOpen}>
+        <DialogContent size="lg" className="space-y-3">
+          <DialogHeader>
+            <DialogTitle>Select Participants</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              value={participantPickerSearch}
+              onChange={(event) => {
+                setParticipantPickerPage(1);
+                setParticipantPickerSearch(event.target.value);
+              }}
+              placeholder="Search employee name or code"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Auto-save enabled. Selecting an employee will save immediately.
+            </p>
+          </div>
+          <div className="max-h-[55vh] space-y-2 overflow-auto rounded-md border p-2">
+            {participantPickerQuery.isLoading ? (
+              <div className="space-y-2 p-1">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : null}
+            {!participantPickerQuery.isLoading && participantPickerItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No active employees available.</p>
+            ) : null}
+            {participantPickerItems.map((employee) => {
+              const selected = detailSelectedParticipantIDs.includes(employee.id);
+              return (
+                <button
+                  key={`picker-participant-${employee.id}`}
+                  type="button"
+                  className={`w-full rounded-md border px-2 py-1.5 text-left transition-colors cursor-pointer ${
+                    selected ? "border-primary bg-primary/5" : "hover:bg-accent/40"
+                  }`}
+                  onClick={() => void handleToggleParticipantAndAutoSave(employee.id)}
+                  disabled={!canUpdateTravelPlanner || updateParticipantsMutation.isPending}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="h-7 w-7" title={employee.name}>
+                      <AvatarImage src={employee.avatar_url || undefined} alt={employee.name} />
+                      <AvatarFallback dataSeed={employee.name}>{employee.name}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{employee.name}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{employee.employee_code}</p>
+                    </div>
+                    {selected ? <Check className="h-4 w-4 text-primary" /> : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Page {participantPickerMeta?.page ?? participantPickerPage} / {participantPickerMeta?.total_pages ?? 1}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => setParticipantPickerPage((page) => Math.max(page - 1, 1))}
+                disabled={!participantPickerHasPrev || participantPickerQuery.isFetching}
+              >
+                Prev
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => setParticipantPickerPage((page) => page + 1)}
+                disabled={!participantPickerHasNext || participantPickerQuery.isFetching}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setIsParticipantPickerOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -54,6 +54,24 @@ func (h *TravelPlanHandler) Update(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *TravelPlanHandler) UpdateParticipants(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+
+	var req dto.UpdateTravelPlanParticipantsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.UpdateParticipants(c.Request.Context(), id, req.ParticipantIDs)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *TravelPlanHandler) Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if err := h.uc.Delete(c.Request.Context(), id); err != nil {
@@ -102,6 +120,25 @@ func (h *TravelPlanHandler) GetFormData(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, res, nil)
+}
+
+func (h *TravelPlanHandler) ListParticipants(c *gin.Context) {
+	var req dto.ListTravelPlanParticipantsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	items, total, page, perPage, err := h.uc.ListParticipants(c.Request.Context(), &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	meta := &response.Meta{
+		Pagination: response.NewPaginationMeta(page, perPage, int(total)),
+	}
+	response.SuccessResponse(c, items, meta)
 }
 
 func (h *TravelPlanHandler) SearchPlaces(c *gin.Context) {

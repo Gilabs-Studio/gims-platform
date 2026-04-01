@@ -21,6 +21,8 @@ export const travelPlannerKeys = {
   visits: (planId: string) => [...travelPlannerKeys.all, "visits", planId] as const,
   availableVisitsBase: () => [...travelPlannerKeys.all, "visits", "available"] as const,
   availableVisits: (search?: string) => [...travelPlannerKeys.availableVisitsBase(), search] as const,
+  participants: (page: number, perPage: number, search?: string) =>
+    [...travelPlannerKeys.all, "participants", page, perPage, search] as const,
   placeSearch: (query: string, provider?: string) =>
     [...travelPlannerKeys.all, "place-search", query, provider] as const,
 };
@@ -44,6 +46,22 @@ export function useTravelPlannerFormData() {
   return useQuery({
     queryKey: travelPlannerKeys.formData(),
     queryFn: () => travelPlannerService.getFormData(),
+  });
+}
+
+export function useTravelPlannerParticipants(page: number, perPage: number, search: string, enabled = true) {
+  const trimmedSearch = search.trim();
+
+  return useQuery({
+    queryKey: travelPlannerKeys.participants(page, perPage, trimmedSearch || undefined),
+    queryFn: () =>
+      travelPlannerService.listParticipants({
+        page,
+        per_page: perPage,
+        search: trimmedSearch || undefined,
+      }),
+    enabled,
+    staleTime: 30_000,
   });
 }
 
@@ -119,6 +137,19 @@ export function useUpdateTravelPlan() {
       if (result.data?.id) {
         queryClient.invalidateQueries({ queryKey: travelPlannerKeys.planDetail(result.data.id) });
       }
+    },
+  });
+}
+
+export function useUpdateTravelPlanParticipants() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, participantIDs }: { id: string; participantIDs: string[] }) =>
+      travelPlannerService.updatePlanParticipants(id, { participant_ids: participantIDs }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: travelPlannerKeys.plans() });
+      queryClient.invalidateQueries({ queryKey: travelPlannerKeys.planDetail(variables.id) });
     },
   });
 }

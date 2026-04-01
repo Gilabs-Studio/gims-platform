@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,10 +44,12 @@ var (
 type TravelPlanUsecase interface {
 	Create(ctx context.Context, req *dto.CreateTravelPlanRequest) (*dto.TravelPlanResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateTravelPlanRequest) (*dto.TravelPlanResponse, error)
+	UpdateParticipants(ctx context.Context, id string, participantIDs []string) (*dto.TravelPlanResponse, error)
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*dto.TravelPlanResponse, error)
 	List(ctx context.Context, req *dto.ListTravelPlansRequest) ([]dto.TravelPlanResponse, int64, int, int, error)
 	GetFormData(ctx context.Context) (*dto.TravelPlannerFormDataResponse, error)
+	ListParticipants(ctx context.Context, req *dto.ListTravelPlanParticipantsRequest) ([]dto.EmployeeFormOption, int64, int, int, error)
 	SearchPlaces(ctx context.Context, query string, provider string) ([]dto.PlaceSearchResult, error)
 	OptimizeRoute(ctx context.Context, planID string) (*dto.RouteOptimizationResponse, error)
 	GetGoogleMapsLinks(ctx context.Context, planID string) ([]dto.DayGoogleMapsLink, error)
@@ -210,6 +213,31 @@ func (uc *travelPlanUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		return nil, err
 	}
 	if err := uc.repo.ReplaceDays(ctx, existing.ID, days); err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, existing.ID, true)
+	if err != nil {
+		return nil, err
+	}
+
+	response := uc.mapper.ToResponse(full)
+	return &response, nil
+}
+
+func (uc *travelPlanUsecase) UpdateParticipants(ctx context.Context, id string, participantIDs []string) (*dto.TravelPlanResponse, error) {
+	id = strings.TrimSpace(id)
+	existing, err := uc.repo.FindByID(ctx, id, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTravelPlanNotFound
+		}
+		return nil, err
+	}
+
+	existing.Notes = mergeParticipantMeta(strings.TrimSpace(existing.Notes), participantIDs)
+
+	if err := uc.repo.Update(ctx, existing); err != nil {
 		return nil, err
 	}
 
@@ -457,6 +485,75 @@ func (uc *travelPlanUsecase) GetFormData(ctx context.Context) (*dto.TravelPlanne
 			{Value: string(models.TravelExpenseTypeOther), Label: "Other"},
 		},
 	}, nil
+}
+
+func (uc *travelPlanUsecase) ListParticipants(
+	ctx context.Context,
+	req *dto.ListTravelPlanParticipantsRequest,
+) ([]dto.EmployeeFormOption, int64, int, int, error) {
+	if req == nil {
+		req = &dto.ListTravelPlanParticipantsRequest{}
+	}
+
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+
+	perPage := req.PerPage
+	if perPage < 1 {
+		perPage = 20
+	}
+	if perPage > 100 {
+		perPage = 100
+	}
+
+	search := strings.TrimSpace(req.Search)
+
+	baseQuery := uc.db.WithContext(ctx).
+		Table("employees AS e").
+		Joins("LEFT JOIN users AS u ON u.id = e.user_id").
+		Where("e.deleted_at IS NULL").
+		Where("e.is_active = ?", true)
+
+	if search != "" {
+		like := "%" + search + "%"
+		baseQuery = baseQuery.Where("e.name ILIKE ? OR e.employee_code ILIKE ?", like, like)
+	}
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, page, perPage, err
+	}
+
+	type employeeFormRow struct {
+		ID           string `gorm:"column:id"`
+		EmployeeCode string `gorm:"column:employee_code"`
+		Name         string `gorm:"column:name"`
+		AvatarURL    string `gorm:"column:avatar_url"`
+	}
+
+	rows := make([]employeeFormRow, 0)
+	if err := baseQuery.
+		Select("e.id, e.employee_code, e.name, COALESCE(u.avatar_url, '') AS avatar_url").
+		Order("e.name ASC").
+		Limit(perPage).
+		Offset((page - 1) * perPage).
+		Find(&rows).Error; err != nil {
+		return nil, 0, page, perPage, err
+	}
+
+	items := make([]dto.EmployeeFormOption, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, dto.EmployeeFormOption{
+			ID:           row.ID,
+			EmployeeCode: row.EmployeeCode,
+			Name:         row.Name,
+			AvatarURL:    row.AvatarURL,
+		})
+	}
+
+	return items, total, page, perPage, nil
 }
 
 func (uc *travelPlanUsecase) SearchPlaces(ctx context.Context, query string, provider string) ([]dto.PlaceSearchResult, error) {
@@ -1089,6 +1186,37 @@ func parseDate(value string) (time.Time, error) {
 		return time.Time{}, ErrInvalidDayDate
 	}
 	return parsed, nil
+}
+
+func mergeParticipantMeta(notes string, participantIDs []string) string {
+	cleanNotes := strings.TrimSpace(notes)
+	metaRe := regexp.MustCompile(`\n?\[participants:[^\]]*\]$`)
+	cleanNotes = strings.TrimSpace(metaRe.ReplaceAllString(cleanNotes, ""))
+
+	ids := make([]string, 0, len(participantIDs))
+	seen := make(map[string]struct{}, len(participantIDs))
+	for _, participantID := range participantIDs {
+		trimmedID := strings.TrimSpace(participantID)
+		if trimmedID == "" {
+			continue
+		}
+		if _, exists := seen[trimmedID]; exists {
+			continue
+		}
+		seen[trimmedID] = struct{}{}
+		ids = append(ids, trimmedID)
+	}
+
+	if len(ids) == 0 {
+		return cleanNotes
+	}
+
+	participantMeta := fmt.Sprintf("[participants:%s]", strings.Join(ids, ","))
+	if cleanNotes == "" {
+		return participantMeta
+	}
+
+	return cleanNotes + "\n" + participantMeta
 }
 
 func parseTravelMode(mode string) (models.TravelMode, error) {

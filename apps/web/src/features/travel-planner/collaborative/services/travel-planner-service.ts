@@ -15,7 +15,9 @@ import type {
   TravelPlanListParams,
   TravelPlanVisit,
   TravelPlannerFormData,
+  UpdateTravelPlanParticipantsInput,
   UnlinkTravelPlanVisitResult,
+  EmployeeListParams,
 } from "../types";
 
 const BASE_URL = "/travel-planner";
@@ -41,6 +43,14 @@ export const travelPlannerService = {
     return response.data;
   },
 
+  updatePlanParticipants: async (
+    id: string,
+    payload: UpdateTravelPlanParticipantsInput,
+  ): Promise<ApiEnvelope<TravelPlan>> => {
+    const response = await apiClient.patch<ApiEnvelope<TravelPlan>>(`${BASE_URL}/plans/${id}/participants`, payload);
+    return response.data;
+  },
+
   deletePlan: async (id: string): Promise<ApiEnvelope<{ id: string }>> => {
     const response = await apiClient.delete<ApiEnvelope<{ id: string }>>(`${BASE_URL}/plans/${id}`);
     return response.data;
@@ -48,6 +58,13 @@ export const travelPlannerService = {
 
   getFormData: async (): Promise<ApiEnvelope<TravelPlannerFormData>> => {
     const response = await apiClient.get<ApiEnvelope<TravelPlannerFormData>>(`${BASE_URL}/form-data`);
+    return response.data;
+  },
+
+  listParticipants: async (params?: EmployeeListParams): Promise<ApiEnvelope<TravelPlannerFormData["employees"]>> => {
+    const response = await apiClient.get<ApiEnvelope<TravelPlannerFormData["employees"]>>(`${BASE_URL}/participants`, {
+      params,
+    });
     return response.data;
   },
 

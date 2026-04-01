@@ -53,6 +53,10 @@ type UpdateTravelPlanRequest struct {
 	Days         []TravelPlanDayRequest `json:"days" binding:"required,min=1"`
 }
 
+type UpdateTravelPlanParticipantsRequest struct {
+	ParticipantIDs []string `json:"participant_ids" binding:"omitempty,dive,uuid"`
+}
+
 type ListTravelPlansRequest struct {
 	Page      int     `form:"page" binding:"omitempty,min=1"`
 	PerPage   int     `form:"per_page" binding:"omitempty,min=1,max=100"`
@@ -62,6 +66,12 @@ type ListTravelPlansRequest struct {
 	Status    *string `form:"status"`
 	StartDate *string `form:"start_date"`
 	EndDate   *string `form:"end_date"`
+}
+
+type ListTravelPlanParticipantsRequest struct {
+	Page    int    `form:"page" binding:"omitempty,min=1"`
+	PerPage int    `form:"per_page" binding:"omitempty,min=1,max=100"`
+	Search  string `form:"search"`
 }
 
 type TravelPlanStopResponse struct {

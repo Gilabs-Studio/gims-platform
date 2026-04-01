@@ -19,6 +19,12 @@ export interface ApiEnvelope<T> {
   request_id?: string;
 }
 
+export interface EmployeeListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+}
+
 export type TravelMode = "logistic" | "cargo" | "vessel" | "milestone";
 
 export type TravelPlanType = "up_country_cost" | "visit_report";
@@ -213,6 +219,10 @@ export interface TravelPlanInput {
   budget_amount?: number;
   notes?: string;
   days: TravelPlanDayInput[];
+}
+
+export interface UpdateTravelPlanParticipantsInput {
+  participant_ids: string[];
 }
 
 export interface PlaceSearchResult {
