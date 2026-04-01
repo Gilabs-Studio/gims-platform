@@ -20,8 +20,5 @@ func SetupEmployeeEvaluationRoutes(router *gin.RouterGroup, handler *handler.Emp
 		evaluations.POST("", middleware.RequirePermission("evaluation.create"), handler.Create)
 		evaluations.PUT("/:id", middleware.RequirePermission("evaluation.update"), handler.Update)
 		evaluations.DELETE("/:id", middleware.RequirePermission("evaluation.delete"), handler.Delete)
-
-		// Status transition action
-		evaluations.POST("/:id/status", middleware.RequirePermission("evaluation.update"), handler.UpdateStatus)
 	}
 }

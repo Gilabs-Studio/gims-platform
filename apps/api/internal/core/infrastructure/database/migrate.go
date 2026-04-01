@@ -9,6 +9,7 @@ import (
 	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database/migrations"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -331,6 +332,11 @@ func AutoMigrate() error {
 	// Migrate timezone data for auto-detection (using longitude-based detection for Indonesia)
 	if err := migrateTimezoneData(); err != nil {
 		log.Printf("Warning: Could not migrate timezone data: %v", err)
+	}
+
+	// Remove status column from employee_evaluations table (Sprint 16)
+	if err := migrations.RemoveEvaluationStatusColumn(DB); err != nil {
+		log.Printf("Warning: Could not remove evaluation status column: %v", err)
 	}
 
 	return nil
@@ -849,7 +855,6 @@ func handleConstraintIssues() error {
 
 	return nil
 }
-
 
 // migrateTimezoneData creates timezone tables and inserts Indonesia timezone data
 func migrateTimezoneData() error {

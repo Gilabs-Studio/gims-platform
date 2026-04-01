@@ -24,7 +24,8 @@ export const evaluationEn = {
 
     // Page
     title: "Employee Evaluation",
-    subtitle: "Manage evaluation groups, criteria, and employee performance evaluations",
+    subtitle:
+      "Manage evaluation groups, criteria, and employee performance evaluations",
 
     // Tabs
     tabs: {
@@ -34,25 +35,10 @@ export const evaluationEn = {
       auditTrail: "Audit Trail",
     },
 
-    // Status
-    status: {
-      draft: "Draft",
-      submitted: "Submitted",
-      reviewed: "Reviewed",
-      finalized: "Finalized",
-    },
-
     // Evaluation Type
     evaluationType: {
       self: "Self Assessment",
       manager: "Manager Review",
-    },
-
-    // Actions
-    actions: {
-      submit: "Submit",
-      review: "Mark as Reviewed",
-      finalize: "Finalize",
     },
 
     details: {
@@ -76,9 +62,6 @@ export const evaluationEn = {
         create: "Create",
         update: "Update",
         delete: "Delete",
-        submit: "Submit",
-        review: "Review",
-        finalize: "Finalize",
         view: "View",
         auditTrail: "Audit Trail",
       },
@@ -131,6 +114,8 @@ export const evaluationEn = {
       unknown: "Unknown Criteria",
       deleteDesc:
         "Are you sure you want to delete this criteria? This action cannot be undone.",
+      maxWeightReached:
+        "Maximum weight (100%) reached. Cannot add more criteria.",
     },
 
     // Employee Evaluation
@@ -161,10 +146,9 @@ export const evaluationEn = {
       deleted: "Evaluation deleted successfully",
       created: "Evaluation created successfully",
       updated: "Evaluation updated successfully",
-      statusUpdated: "Evaluation status updated successfully",
       notFound: "No evaluations found",
       deleteDesc:
-        "Are you sure you want to delete this evaluation? This action cannot be undone. Only draft evaluations can be deleted.",
+        "Are you sure you want to delete this evaluation? This action cannot be undone.",
     },
 
     // Validation

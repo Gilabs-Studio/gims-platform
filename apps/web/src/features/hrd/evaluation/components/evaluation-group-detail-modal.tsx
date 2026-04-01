@@ -16,7 +16,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,12 +59,19 @@ interface EvaluationGroupDetailModalProps {
   readonly group: EvaluationGroup | null;
 }
 
-export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationGroupDetailModalProps) {
+export function EvaluationGroupDetailModal({
+  open,
+  onClose,
+  group,
+}: EvaluationGroupDetailModalProps) {
   const t = useTranslations("evaluation");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCriteriaFormOpen, setIsCriteriaFormOpen] = useState(false);
-  const [editingCriteria, setEditingCriteria] = useState<EvaluationCriteria | null>(null);
-  const [deletingCriteriaId, setDeletingCriteriaId] = useState<string | null>(null);
+  const [editingCriteria, setEditingCriteria] =
+    useState<EvaluationCriteria | null>(null);
+  const [deletingCriteriaId, setDeletingCriteriaId] = useState<string | null>(
+    null,
+  );
   const [isDeleteGroupOpen, setIsDeleteGroupOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
 
@@ -71,11 +83,12 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
     enabled: open && !!group?.id,
   });
 
-  const { data: criteriaData, isLoading: criteriaLoading } = useEvaluationCriteriaByGroup(
-    group?.id ?? "",
-    { per_page: 20 },
-    { enabled: open && !!group?.id },
-  );
+  const { data: criteriaData, isLoading: criteriaLoading } =
+    useEvaluationCriteriaByGroup(
+      group?.id ?? "",
+      { per_page: 20 },
+      { enabled: open && !!group?.id },
+    );
 
   const deleteCriteria = useDeleteEvaluationCriteria();
   const deleteGroup = useDeleteEvaluationGroup();
@@ -132,8 +145,8 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogTitle className="flex items-center gap-2 truncate text-xl font-semibold">
-                <ListChecks className="h-5 w-5" />
-                {displayGroup.name}
+                  <ListChecks className="h-5 w-5" />
+                  {displayGroup.name}
                 </DialogTitle>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {displayGroup.is_active ? (
@@ -141,7 +154,11 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                   ) : (
                     <Badge variant="secondary">{t("common.inactive")}</Badge>
                   )}
-                  <Badge variant={displayGroup.total_weight === 100 ? "success" : "warning"}>
+                  <Badge
+                    variant={
+                      displayGroup.total_weight === 100 ? "success" : "warning"
+                    }
+                  >
                     {displayGroup.total_weight}%
                   </Badge>
                   <span className="text-sm text-muted-foreground">
@@ -157,7 +174,12 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                     size="icon"
                     className="cursor-pointer"
                     onClick={() => setIsCriteriaFormOpen(true)}
-                    title={t("criteria.add")}
+                    title={
+                      displayGroup.total_weight >= 100
+                        ? t("criteria.maxWeightReached")
+                        : t("criteria.add")
+                    }
+                    disabled={displayGroup.total_weight >= 100}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -211,12 +233,18 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                   <div className="rounded-xl border bg-card p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("common.status")}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t("common.status")}
+                        </p>
                         <div className="mt-2">
                           {displayGroup.is_active ? (
-                            <Badge variant="success">{t("common.active")}</Badge>
+                            <Badge variant="success">
+                              {t("common.active")}
+                            </Badge>
                           ) : (
-                            <Badge variant="secondary">{t("common.inactive")}</Badge>
+                            <Badge variant="secondary">
+                              {t("common.inactive")}
+                            </Badge>
                           )}
                         </div>
                       </div>
@@ -231,8 +259,12 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                   <div className="rounded-xl border bg-card p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("group.totalWeight")}</p>
-                        <p className="mt-1 text-3xl font-semibold">{displayGroup.total_weight}%</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t("group.totalWeight")}
+                        </p>
+                        <p className="mt-1 text-3xl font-semibold">
+                          {displayGroup.total_weight}%
+                        </p>
                       </div>
                       <Scale className="h-6 w-6 text-primary" />
                     </div>
@@ -241,42 +273,74 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                   <div className="rounded-xl border bg-card p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("details.criteriaCount")}</p>
-                        <p className="mt-1 text-3xl font-semibold">{criteria.length}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t("details.criteriaCount")}
+                        </p>
+                        <p className="mt-1 text-3xl font-semibold">
+                          {criteria.length}
+                        </p>
                       </div>
                       <ListChecks className="h-6 w-6 text-primary" />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                <div className="flex flex-col gap-6">
+                  {/* Summary Section - Now on top */}
                   <div className="rounded-xl border bg-card p-5 shadow-sm">
-                    <h3 className="mb-4 text-base font-semibold">{t("details.summary")}</h3>
+                    <h3 className="mb-4 text-base font-semibold">
+                      {t("details.summary")}
+                    </h3>
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">{t("group.description")}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t("group.description")}
+                        </p>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground whitespace-pre-wrap">
-                          {displayGroup.description?.trim() ? displayGroup.description : t("details.emptyDescription")}
+                          {displayGroup.description?.trim()
+                            ? displayGroup.description
+                            : t("details.emptyDescription")}
                         </p>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="rounded-lg border p-3">
-                          <p className="text-sm text-muted-foreground">{t("details.createdAt")}</p>
-                          <p className="mt-2 font-medium">{formatDate(displayGroup.created_at)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {t("details.createdAt")}
+                          </p>
+                          <p className="mt-2 font-medium">
+                            {formatDate(displayGroup.created_at)}
+                          </p>
                         </div>
                         <div className="rounded-lg border p-3">
-                          <p className="text-sm text-muted-foreground">{t("details.updatedAt")}</p>
-                          <p className="mt-2 font-medium">{formatDate(displayGroup.updated_at)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {t("details.updatedAt")}
+                          </p>
+                          <p className="mt-2 font-medium">
+                            {formatDate(displayGroup.updated_at)}
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
+                  {/* Criteria Section - Now below Summary */}
                   <div className="rounded-xl border bg-card p-5 shadow-sm">
                     <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-base font-semibold">{t("criteria.title")}</h3>
+                      <h3 className="text-base font-semibold">
+                        {t("criteria.title")}
+                      </h3>
                       {canEdit ? (
-                        <Button size="sm" onClick={() => setIsCriteriaFormOpen(true)} className="cursor-pointer">
+                        <Button
+                          size="sm"
+                          onClick={() => setIsCriteriaFormOpen(true)}
+                          className="cursor-pointer"
+                          disabled={displayGroup.total_weight >= 100}
+                          title={
+                            displayGroup.total_weight >= 100
+                              ? t("criteria.maxWeightReached")
+                              : ""
+                          }
+                        >
                           <Plus className="mr-2 h-3 w-3" />
                           {t("criteria.add")}
                         </Button>
@@ -300,39 +364,57 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                             <TableRow>
                               <TableHead className="w-14">#</TableHead>
                               <TableHead>{t("criteria.name")}</TableHead>
-                              <TableHead className="w-28">{t("criteria.weight")}</TableHead>
-                              <TableHead className="w-28">{t("criteria.maxScore")}</TableHead>
+                              <TableHead className="w-28">
+                                {t("criteria.weight")}
+                              </TableHead>
+                              <TableHead className="w-28">
+                                {t("criteria.maxScore")}
+                              </TableHead>
                               <TableHead className="w-16" />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {criteria.map((criterion, index) => (
                               <TableRow key={criterion.id}>
-                                <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {index + 1}
+                                </TableCell>
                                 <TableCell>
                                   <div>
-                                    <p className="font-medium">{criterion.name}</p>
+                                    <p className="font-medium">
+                                      {criterion.name}
+                                    </p>
                                     <p className="text-xs text-muted-foreground">
-                                      {criterion.description?.trim() ? criterion.description : t("details.emptyDescription")}
+                                      {criterion.description?.trim()
+                                        ? criterion.description
+                                        : t("details.emptyDescription")}
                                     </p>
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline">{criterion.weight}%</Badge>
+                                  <Badge variant="outline">
+                                    {criterion.weight}%
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>{criterion.max_score}</TableCell>
                                 <TableCell>
-                                  {(canEdit || canDelete) ? (
+                                  {canEdit || canDelete ? (
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 cursor-pointer"
+                                        >
                                           <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end">
                                         {canEdit ? (
                                           <DropdownMenuItem
-                                            onClick={() => handleEditCriteria(criterion)}
+                                            onClick={() =>
+                                              handleEditCriteria(criterion)
+                                            }
                                             className="cursor-pointer"
                                           >
                                             <Pencil className="mr-2 h-4 w-4" />
@@ -341,7 +423,11 @@ export function EvaluationGroupDetailModal({ open, onClose, group }: EvaluationG
                                         ) : null}
                                         {canDelete ? (
                                           <DropdownMenuItem
-                                            onClick={() => setDeletingCriteriaId(criterion.id)}
+                                            onClick={() =>
+                                              setDeletingCriteriaId(
+                                                criterion.id,
+                                              )
+                                            }
                                             className="cursor-pointer text-destructive"
                                           >
                                             <Trash2 className="mr-2 h-4 w-4" />
