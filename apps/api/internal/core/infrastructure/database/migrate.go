@@ -339,6 +339,12 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not remove evaluation status column: %v", err)
 	}
 
+	// Remove days_requested column from leave_requests table (Sprint 14)
+	// WHY: Consolidate to using TotalDays only with inclusive calendar days calculation
+	if err := migrations.RemoveLeaveRequestDaysRequestedMigration(DB); err != nil {
+		log.Printf("Warning: Could not remove leave request days_requested column: %v", err)
+	}
+
 	return nil
 }
 

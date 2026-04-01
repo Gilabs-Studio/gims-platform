@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { CalendarIcon, Pencil, Plus, XCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, XCircle, AlertCircle } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,18 +20,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   useMyLeaveRequests,
@@ -50,6 +46,14 @@ import {
 
 interface SelfLeaveRequestTabProps {
   readonly openCreateSignal?: number;
+}
+
+// Helper function to calculate inclusive calendar days
+// 2-3 = 2 days (inclusive count)
+function calculateInclusiveDays(startDate: Date, endDate: Date): number {
+  const diffTime = endDate.getTime() - startDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // +1 for inclusive
 }
 
 function statusVariant(
@@ -121,6 +125,41 @@ export function SelfLeaveRequestTab({
   const endDate = form.watch("end_date");
   const duration = form.watch("duration");
 
+  // Create date range object for DateRangePicker
+  const dateRange: DateRange | undefined = useMemo(() => {
+    if (!startDate || !endDate) return undefined;
+    return {
+      from: startDate,
+      to: endDate,
+    };
+  }, [startDate, endDate]);
+
+  // Handle date range change from DateRangePicker
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (range?.from) {
+      form.setValue("start_date", range.from);
+      form.setValue("end_date", range.to || range.from);
+    }
+  };
+
+  // Calculate total days (inclusive calendar days)
+  const totalDays = useMemo(() => {
+    if (!startDate || !endDate) return 0;
+
+    const isSameDate = startDate.toDateString() === endDate.toDateString();
+
+    if (duration === "HALF_DAY") {
+      return 0.5;
+    }
+
+    if (duration === "FULL_DAY" && isSameDate) {
+      return 1;
+    }
+
+    // For MULTI_DAY or fallback: use inclusive calendar days
+    return calculateInclusiveDays(startDate, endDate);
+  }, [startDate, endDate, duration]);
+
   useEffect(() => {
     if (!openCreateSignal) return;
     // Only open form if this is a genuinely new signal (not a remount with stale signal)
@@ -167,22 +206,6 @@ export function SelfLeaveRequestTab({
     }
   }, [startDate, endDate, duration, form]);
 
-  // Auto-fill end date when start date changes and start_date > end_date
-  const prevStartDateRef = useRef<Date | null>(null);
-  useEffect(() => {
-    if (!startDate || !endDate) return;
-    const prevStart = prevStartDateRef.current;
-    prevStartDateRef.current = startDate;
-    // Only auto-fill if start date actually changed (not on initial render)
-    if (
-      prevStart &&
-      prevStart.getTime() !== startDate.getTime() &&
-      startDate > endDate
-    ) {
-      form.setValue("end_date", startDate);
-    }
-  }, [startDate, endDate, form]);
-
   const onSubmit = async (values: SelfLeaveRequestFormData) => {
     const payload = {
       leave_type_id: values.leave_type_id,
@@ -218,6 +241,19 @@ export function SelfLeaveRequestTab({
       let errorMessage =
         axiosError?.response?.data?.error?.details?.message ||
         axiosError?.response?.data?.error?.message;
+
+      // Get error code for specific error handling
+      const errorCode = axiosError?.response?.data?.error?.code || "";
+
+      // Handle specific error codes with translated messages
+      if (errorCode === "INVALID_START_DATE") {
+        toast.error(t("messages.invalidStartDate"));
+        return;
+      }
+      if (errorCode === "INVALID_END_DATE") {
+        toast.error(t("messages.invalidEndDate"));
+        return;
+      }
 
       // Strip error code prefix (e.g., "OVERLAPPING_LEAVE_REQUEST: " -> "")
       if (errorMessage) {
@@ -413,10 +449,7 @@ export function SelfLeaveRequestTab({
                   </Button>
                 )}
                 {(item.status === "PENDING" || item.status === "APPROVED") &&
-                  isBefore(
-                    startOfDay(new Date()),
-                    startOfDay(new Date(item.start_date)),
-                  ) && (
+                  new Date() < new Date(item.start_date) && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -482,71 +515,28 @@ export function SelfLeaveRequestTab({
                 </FieldError>
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field>
-                  <FieldLabel>{t("form.startDate.label")}</FieldLabel>
-                  <Controller
-                    name="start_date"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full cursor-pointer justify-start text-left"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formatDate(field.value.toISOString())}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={(d: Date | undefined) =>
-                              d && field.onChange(d)
-                            }
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>{t("form.endDate.label")}</FieldLabel>
-                  <Controller
-                    name="end_date"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full cursor-pointer justify-start text-left"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formatDate(field.value.toISOString())}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={(d: Date | undefined) =>
-                              d && field.onChange(d)
-                            }
-                            disabled={(d) =>
-                              startDate
-                                ? isBefore(startOfDay(d), startOfDay(startDate))
-                                : false
-                            }
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                </Field>
-              </div>
+              <Field>
+                <FieldLabel>{t("form.dateRange.label")}</FieldLabel>
+                <Controller
+                  name="start_date"
+                  control={form.control}
+                  render={() => (
+                    <DateRangePicker
+                      dateRange={dateRange}
+                      onDateChange={handleDateRangeChange}
+                      disabledDays={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                    />
+                  )}
+                />
+                <FieldError>
+                  {form.formState.errors.start_date?.message ||
+                    form.formState.errors.end_date?.message}
+                </FieldError>
+              </Field>
 
               <Field>
                 <div className="flex items-center gap-2">
@@ -583,6 +573,17 @@ export function SelfLeaveRequestTab({
                   </label>
                 </div>
               </Field>
+
+              {totalDays > 0 && (
+                <div className="rounded-lg border border-border bg-muted/50 p-3">
+                  <p className="text-sm font-medium">
+                    {t("form.daysRequested")}:{" "}
+                    <span className="text-primary">
+                      {totalDays} {t("days")}
+                    </span>
+                  </p>
+                </div>
+              )}
 
               <Field>
                 <FieldLabel>{t("form.reason.label")}</FieldLabel>

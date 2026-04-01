@@ -136,6 +136,11 @@ export const leaveRequestEn = {
         invalid: "Invalid end date",
         beforeStart: "End date must be after start date",
       },
+      dateRange: {
+        label: "Date Range",
+        placeholder: "Select date range",
+        required: "Date range is required",
+      },
       daysRequested: "Days Requested",
       reason: {
         label: "Reason",
@@ -177,6 +182,8 @@ export const leaveRequestEn = {
       approveSuccess: "Leave request approved successfully",
       rejectSuccess: "Leave request rejected successfully",
       cancelSuccess: "Leave request cancelled successfully",
+      invalidStartDate: "Start date cannot be in the past",
+      invalidEndDate: "End date cannot be in the past",
       createError: "Failed to submit leave request",
       updateError: "Failed to update leave request",
       deleteError: "Failed to delete leave request",

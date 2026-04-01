@@ -138,6 +138,11 @@ export const leaveRequestId = {
         invalid: "Tanggal selesai tidak valid",
         beforeStart: "Tanggal selesai harus setelah tanggal mulai",
       },
+      dateRange: {
+        label: "Rentang Tanggal",
+        placeholder: "Pilih rentang tanggal",
+        required: "Rentang tanggal wajib diisi",
+      },
       daysRequested: "Hari yang Diminta",
       reason: {
         label: "Alasan",
@@ -179,6 +184,8 @@ export const leaveRequestId = {
       approveSuccess: "Permintaan cuti berhasil disetujui",
       rejectSuccess: "Permintaan cuti berhasil ditolak",
       cancelSuccess: "Permintaan cuti berhasil dibatalkan",
+      invalidStartDate: "Tanggal mulai tidak boleh di masa lalu",
+      invalidEndDate: "Tanggal selesai tidak boleh di masa lalu",
       createError: "Gagal mengajukan permintaan cuti",
       updateError: "Gagal memperbarui permintaan cuti",
       deleteError: "Gagal menghapus permintaan cuti",

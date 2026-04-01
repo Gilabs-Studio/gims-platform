@@ -3,11 +3,13 @@
 
 /* eslint-disable react-hooks/incompatible-library */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, CalendarIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   getCreateLeaveRequestSchema,
   getUpdateLeaveRequestSchema,
@@ -32,13 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   useCreateLeaveRequest,
   useUpdateLeaveRequest,
@@ -48,7 +44,7 @@ import {
 import type { LeaveRequest, LeaveRequestDetail, LeaveDuration } from "../types";
 import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
-import { differenceInDays, format, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
 
 const STORAGE_KEY = "leave_request_form_cache";
 
@@ -56,6 +52,14 @@ interface LeaveRequestFormProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly leaveRequest?: LeaveRequest | LeaveRequestDetail | null;
+}
+
+// Helper function to calculate inclusive calendar days
+// 2-3 = 2 days (inclusive count)
+function calculateInclusiveDays(startDate: Date, endDate: Date): number {
+  const diffTime = endDate.getTime() - startDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // +1 for inclusive
 }
 
 export function LeaveRequestForm({
@@ -125,6 +129,23 @@ export function LeaveRequestForm({
     [employees, selectedEmployeeId],
   );
 
+  // Create date range object for DateRangePicker
+  const dateRange: DateRange | undefined = useMemo(() => {
+    if (!startDate || !endDate) return undefined;
+    return {
+      from: startDate,
+      to: endDate,
+    };
+  }, [startDate, endDate]);
+
+  // Handle date range change from DateRangePicker
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (range?.from) {
+      setValue("start_date", range.from);
+      setValue("end_date", range.to || range.from);
+    }
+  };
+
   // Auto-adjust duration when dates change
   useEffect(() => {
     if (!startDate || !endDate) return;
@@ -143,23 +164,7 @@ export function LeaveRequestForm({
     }
   }, [startDate, endDate, duration, setValue]);
 
-  // Auto-fill end date when start date changes and start_date > end_date
-  const prevStartDateRef = useRef<Date | null>(null);
-  useEffect(() => {
-    if (!startDate || !endDate) return;
-    const prevStart = prevStartDateRef.current;
-    prevStartDateRef.current = startDate;
-    // Only auto-fill if start date actually changed (not on initial render)
-    if (
-      prevStart &&
-      prevStart.getTime() !== startDate.getTime() &&
-      startDate > endDate
-    ) {
-      setValue("end_date", startDate);
-    }
-  }, [startDate, endDate, setValue]);
-
-  // Calculate total days based on duration
+  // Calculate total days based on duration (inclusive calendar days)
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
 
@@ -173,12 +178,8 @@ export function LeaveRequestForm({
       return 1;
     }
 
-    if (duration === "MULTI_DAY") {
-      return Math.max(0, differenceInDays(endDate, startDate) + 1);
-    }
-
-    // Fallback
-    return Math.max(0, differenceInDays(endDate, startDate) + 1);
+    // For MULTI_DAY or fallback: use inclusive calendar days
+    return calculateInclusiveDays(startDate, endDate);
   }, [startDate, endDate, duration]);
 
   // Reset form when leave request data changes (for edit mode)
@@ -357,6 +358,19 @@ export function LeaveRequestForm({
         axiosError?.response?.data?.error?.details?.message ||
         axiosError?.response?.data?.error?.message;
 
+      // Get error code for specific error handling
+      const errorCode = axiosError?.response?.data?.error?.code || "";
+
+      // Handle specific error codes with translated messages
+      if (errorCode === "INVALID_START_DATE") {
+        toast.error(t("messages.invalidStartDate"));
+        return;
+      }
+      if (errorCode === "INVALID_END_DATE") {
+        toast.error(t("messages.invalidEndDate"));
+        return;
+      }
+
       // Strip error code prefix (e.g., "OVERLAPPING_LEAVE_REQUEST: " -> "")
       if (errorMessage) {
         const colonIndex = errorMessage.indexOf(":");
@@ -486,89 +500,27 @@ export function LeaveRequestForm({
               <FieldError>{errors.leave_type_id?.message}</FieldError>
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>{t("form.startDate.label")} *</FieldLabel>
-                <Controller
-                  name="start_date"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal cursor-pointer",
-                            !field.value && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value
-                            ? formatDate(field.value.toISOString())
-                            : t("form.startDate.placeholder")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date: Date | undefined) =>
-                            date && field.onChange(date)
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-                <FieldError>{errors.start_date?.message}</FieldError>
-              </Field>
-
-              <Field>
-                <FieldLabel>{t("form.endDate.label")} *</FieldLabel>
-                <Controller
-                  name="end_date"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal cursor-pointer",
-                            !field.value && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value
-                            ? formatDate(field.value.toISOString())
-                            : t("form.endDate.placeholder")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date: Date | undefined) =>
-                            date && field.onChange(date)
-                          }
-                          initialFocus
-                          disabled={(date) =>
-                            startDate
-                              ? isBefore(
-                                  startOfDay(date),
-                                  startOfDay(startDate),
-                                )
-                              : false
-                          }
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-                <FieldError>{errors.end_date?.message}</FieldError>
-              </Field>
-            </div>
+            <Field>
+              <FieldLabel>{t("form.dateRange.label")} *</FieldLabel>
+              <Controller
+                name="start_date"
+                control={control}
+                render={() => (
+                  <DateRangePicker
+                    dateRange={dateRange}
+                    onDateChange={handleDateRangeChange}
+                    disabledDays={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
+                  />
+                )}
+              />
+              <FieldError>
+                {errors.start_date?.message || errors.end_date?.message}
+              </FieldError>
+            </Field>
 
             <Field>
               <div className="flex items-center space-x-2">
