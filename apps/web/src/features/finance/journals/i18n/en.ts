@@ -104,7 +104,7 @@ export const financeJournalsEn = {
   gl_vs_subledger_validation: "General Ledger vs Subledger Validation",
   reconciliation_failed: "Reconciliation check failed",
   unknown_error: "An unknown error occurred",
-  status: "Status",
+  statusLabel: "Status",
   reconciliation_matched: "Matched",
   reconciliation_mismatched: "Mismatched",
   checked_at: "Checked at",

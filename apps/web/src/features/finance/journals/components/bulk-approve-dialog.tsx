@@ -113,7 +113,7 @@ export function BulkApproveDialog({
                     <TableHead>{t("type")}</TableHead>
                     <TableHead>{t("period")}</TableHead>
                     <TableHead className="text-right">{t("delta")}</TableHead>
-                    <TableHead className="text-center">{t("status")}</TableHead>
+                    <TableHead className="text-center">{t("statusLabel")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

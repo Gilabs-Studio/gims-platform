@@ -88,7 +88,7 @@ export function ReconciliationModal({
             {/* Header Summary */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">{t("status")}</h3>
+                <h3 className="text-sm font-medium">{t("statusLabel")}</h3>
                 <Badge
                   variant={report.status === "matched" ? "default" : "destructive"}
                   className="flex items-center gap-1"
@@ -164,7 +164,7 @@ export function ReconciliationModal({
                         <TableHead className="text-right">{t("subledger_total")}</TableHead>
                         <TableHead className="text-right">{t("delta")}</TableHead>
                         <TableHead className="text-right">{t("tolerance")}</TableHead>
-                        <TableHead className="text-center">{t("status")}</TableHead>
+                        <TableHead className="text-center">{t("statusLabel")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

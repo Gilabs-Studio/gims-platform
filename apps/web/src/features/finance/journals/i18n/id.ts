@@ -85,7 +85,7 @@ export const financeJournalsId = {
   gl_vs_subledger_validation: "Validasi Buku Besar vs Sub Buku Besar",
   reconciliation_failed: "Pemeriksaan rekonsiliasi gagal",
   unknown_error: "Terjadi kesalahan yang tidak diketahui",
-  status: "Status",
+  statusLabel: "Status",
   reconciliation_matched: "Cocok",
   reconciliation_mismatched: "Tidak Cocok",
   checked_at: "Diperiksa pada",

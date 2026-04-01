@@ -24,23 +24,9 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
       return (
         <Badge variant="info" className={className}>
           <Send className="h-3 w-3 mr-1.5" />
-            {t("status.sent")}
+          {t("status.submitted")}
         </Badge>
       );
-      case "submitted":
-        return (
-          <Badge variant="info" className={className}>
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.sent")}
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="info" className={className}>
-            <Send className="h-3 w-3 mr-1.5" />
-            {t("status.pending")}
-          </Badge>
-        );
     case "rejected":
       return (
         <Badge variant="destructive" className={className}>
@@ -59,7 +45,7 @@ export function InvoiceStatusBadge({ status, className }: InvoiceStatusBadgeProp
       return (
         <Badge variant="info" className={className}>
           <Clock className="h-3 w-3 mr-1.5" />
-            {t("status.waiting_payment")}
+          {t("status.waiting_payment")}
         </Badge>
       );
     case "partial":
