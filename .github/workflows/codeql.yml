@@ -11,9 +11,6 @@
 #
 name: "CodeQL Advanced"
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: [ "dev" ]
@@ -67,6 +64,13 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version-file: apps/api/go.mod
+        cache-dependency-path: apps/api/go.sum
+
+    - name: Install Go native dependencies
+      if: matrix.language == 'go'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libwebp-dev
 
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
