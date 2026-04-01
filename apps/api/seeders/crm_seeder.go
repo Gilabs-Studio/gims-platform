@@ -11,22 +11,22 @@ import (
 // CRM Settings UUIDs (hex-only: 0-9, a-f)
 const (
 	// Pipeline Stages (prefix: ca)
-	PipelineStageQualificationID  = "ca000001-0000-0000-0000-000000000001"
-	PipelineStageNeedsAnalysisID  = "ca000001-0000-0000-0000-000000000006"
-	PipelineStageDemoID           = "ca000001-0000-0000-0000-000000000007"
-	PipelineStageProposalID       = "ca000001-0000-0000-0000-000000000002"
-	PipelineStageNegotiationID    = "ca000001-0000-0000-0000-000000000003"
-	PipelineStageClosedWonID      = "ca000001-0000-0000-0000-000000000004"
-	PipelineStageClosedLostID     = "ca000001-0000-0000-0000-000000000005"
+	PipelineStageQualificationID = "ca000001-0000-0000-0000-000000000001"
+	PipelineStageNeedsAnalysisID = "ca000001-0000-0000-0000-000000000006"
+	PipelineStageDemoID          = "ca000001-0000-0000-0000-000000000007"
+	PipelineStageProposalID      = "ca000001-0000-0000-0000-000000000002"
+	PipelineStageNegotiationID   = "ca000001-0000-0000-0000-000000000003"
+	PipelineStageClosedWonID     = "ca000001-0000-0000-0000-000000000004"
+	PipelineStageClosedLostID    = "ca000001-0000-0000-0000-000000000005"
 
 	// Lead Sources (prefix: cb)
-	LeadSourceWebsiteID    = "cb000001-0000-0000-0000-000000000001"
-	LeadSourceReferralID   = "cb000001-0000-0000-0000-000000000002"
-	LeadSourceColdCallID   = "cb000001-0000-0000-0000-000000000003"
-	LeadSourceExhibitionID = "cb000001-0000-0000-0000-000000000004"
+	LeadSourceWebsiteID     = "cb000001-0000-0000-0000-000000000001"
+	LeadSourceReferralID    = "cb000001-0000-0000-0000-000000000002"
+	LeadSourceColdCallID    = "cb000001-0000-0000-0000-000000000003"
+	LeadSourceExhibitionID  = "cb000001-0000-0000-0000-000000000004"
 	LeadSourceSocialMediaID = "cb000001-0000-0000-0000-000000000005"
-	LeadSourceGoogleMapsID = "cb000001-0000-0000-0000-000000000006"
-	LeadSourceLinkedInID   = "cb000001-0000-0000-0000-000000000007"
+	LeadSourceGoogleMapsID  = "cb000001-0000-0000-0000-000000000006"
+	LeadSourceLinkedInID    = "cb000001-0000-0000-0000-000000000007"
 
 	// Lead Statuses (prefix: cc) — "Proposal Sent" removed (tracked in pipeline stages)
 	LeadStatusNewID       = "cc000001-0000-0000-0000-000000000001"
@@ -55,13 +55,13 @@ const (
 	ActivityTypeMeetingID  = "ce000001-0000-0000-0000-000000000004"
 	ActivityTypeFollowUpID = "ce000001-0000-0000-0000-000000000005"
 
-	colorPrimaryBlue   = "#3B82F6"
-	colorAmber        = "#F59E0B"
-	colorPurple       = "#8B5CF6"
-	colorGreen        = "#10B981"
-	colorRed          = "#EF4444"
-	colorCyan         = "#06B6D4"
-	colorTeal         = "#14B8A6"
+	colorPrimaryBlue = "#3B82F6"
+	colorAmber       = "#F59E0B"
+	colorPurple      = "#8B5CF6"
+	colorGreen       = "#10B981"
+	colorRed         = "#EF4444"
+	colorCyan        = "#06B6D4"
+	colorTeal        = "#14B8A6"
 
 	// Contacts (prefix: cf)
 	ContactID1 = "cf000001-0000-0000-0000-000000000001"

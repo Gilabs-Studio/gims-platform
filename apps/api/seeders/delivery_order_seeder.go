@@ -8,12 +8,12 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
+	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
-	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
-	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -117,7 +117,7 @@ func SeedDeliveryOrder() error {
 	for i, doData := range deliveryOrders {
 		// Select sales order
 		salesOrder := salesOrders[i%len(salesOrders)]
-		
+
 		// Select random references
 		employee := employees[i%len(employees)]
 		warehouse := warehouses[i%len(warehouses)]
@@ -146,16 +146,16 @@ func SeedDeliveryOrder() error {
 			if itemCount >= doData.itemsCount {
 				break
 			}
-			
+
 			// Calculate quantity to deliver (partial or full)
 			quantity := soItem.Quantity
 			if doData.status == salesModels.DeliveryOrderStatusPrepared {
 				quantity = soItem.Quantity * 0.5 // Partial for prepared status
 			}
-			
+
 			// Find a batch for this product in the selected warehouse
 			var batch inventoryModels.InventoryBatch
-			if err := db.Where("product_id = ? AND warehouse_id = ? AND current_quantity >= ?", 
+			if err := db.Where("product_id = ? AND warehouse_id = ? AND current_quantity >= ?",
 				soItem.ProductID, warehouse.ID, quantity).First(&batch).Error; err != nil {
 				// Fallback: any batch for this product
 				db.Where("product_id = ?", soItem.ProductID).First(&batch)
@@ -168,17 +168,17 @@ func SeedDeliveryOrder() error {
 
 			if batch.ID != "" {
 				item.InventoryBatchID = &batch.ID
-				
+
 				// Synchronize stock based on status (manual update in seeder to bypass UC complexity)
 				if doData.status == salesModels.DeliveryOrderStatusPrepared {
 					// Reserved
-					db.Model(&batch).Update("reserved_quantity", batch.ReservedQuantity + quantity)
+					db.Model(&batch).Update("reserved_quantity", batch.ReservedQuantity+quantity)
 					db.Model(&productModels.Product{}).Where("id = ?", soItem.ProductID).
 						Update("reserved_stock", gorm.Expr("reserved_stock + ?", quantity))
-				} else if doData.status == salesModels.DeliveryOrderStatusShipped || 
-						   doData.status == salesModels.DeliveryOrderStatusDelivered {
+				} else if doData.status == salesModels.DeliveryOrderStatusShipped ||
+					doData.status == salesModels.DeliveryOrderStatusDelivered {
 					// Deducted in database
-					db.Model(&batch).Update("current_quantity", batch.CurrentQuantity - quantity)
+					db.Model(&batch).Update("current_quantity", batch.CurrentQuantity-quantity)
 					db.Model(&productModels.Product{}).Where("id = ?", soItem.ProductID).
 						Update("current_stock", gorm.Expr("current_stock - ?", quantity))
 
@@ -189,7 +189,7 @@ func SeedDeliveryOrder() error {
 						WarehouseID:      warehouse.ID,
 						MovementType:     "OUT",
 						RefType:          "DELIVERY_ORDER",
-						RefID:            doID, 
+						RefID:            doID,
 						RefNumber:        code,
 						QtyOut:           quantity,
 						Cost:             batch.CostPrice,
@@ -206,15 +206,15 @@ func SeedDeliveryOrder() error {
 
 		// Create delivery order
 		deliveryOrder := salesModels.DeliveryOrder{
-			ID:          doID,
-			Code:        code,
-			DeliveryDate: deliveryDate,
-			WarehouseID:  &warehouse.ID,
-			SalesOrderID: salesOrder.ID,
-		ReceiverName:  salesOrder.CustomerName,
-		ReceiverPhone: salesOrder.CustomerPhone,
-			Status:      doData.status,
-			Notes:       doData.notes,
+			ID:            doID,
+			Code:          code,
+			DeliveryDate:  deliveryDate,
+			WarehouseID:   &warehouse.ID,
+			SalesOrderID:  salesOrder.ID,
+			ReceiverName:  salesOrder.CustomerName,
+			ReceiverPhone: salesOrder.CustomerPhone,
+			Status:        doData.status,
+			Notes:         doData.notes,
 		}
 
 		if employee.ID != "" {
@@ -241,10 +241,10 @@ func SeedDeliveryOrder() error {
 			if len(employees) > 1 {
 				deliveryOrder.ShippedBy = &employees[(i+1)%len(employees)].ID
 			}
-			
+
 			deliveredAt := deliveryDate.AddDate(0, 0, 5)
 			deliveryOrder.DeliveredAt = &deliveredAt
-			
+
 			// Placeholder signature (base64 encoded "SIGNED")
 			signature := "U0lHTkVE" // Base64 for "SIGNED"
 			deliveryOrder.ReceiverSignature = signature

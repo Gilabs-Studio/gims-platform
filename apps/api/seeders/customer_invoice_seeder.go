@@ -229,20 +229,20 @@ func SeedCustomerInvoice() error {
 
 		// Create invoice
 		invoice := salesModels.CustomerInvoice{
-			Code:           code,
-			InvoiceDate:    invoiceDate,
-			DueDate:        &dueDate,
-			Type:           salesModels.CustomerInvoiceTypeRegular,
-			PaymentTermsID: &paymentTerm.ID,
-			TaxRate:        taxRate,
-			TaxAmount:      taxAmount,
-			DeliveryCost:   deliveryCost,
-			OtherCost:      otherCost,
-			Subtotal:       subtotal,
-			Amount:         totalAmount,
-			Status:         invData.status,
-			Notes:          invData.notes,
-			CreatedBy:      &adminID,
+			Code:            code,
+			InvoiceDate:     invoiceDate,
+			DueDate:         &dueDate,
+			Type:            salesModels.CustomerInvoiceTypeRegular,
+			PaymentTermsID:  &paymentTerm.ID,
+			TaxRate:         taxRate,
+			TaxAmount:       taxAmount,
+			DeliveryCost:    deliveryCost,
+			OtherCost:       otherCost,
+			Subtotal:        subtotal,
+			Amount:          totalAmount,
+			Status:          invData.status,
+			Notes:           invData.notes,
+			CreatedBy:       &adminID,
 			RemainingAmount: totalAmount, // Initialize with total amount
 		}
 
@@ -257,14 +257,14 @@ func SeedCustomerInvoice() error {
 
 				dpDueDate := invoiceDate.AddDate(0, 0, 28)
 				dpInvoice := salesModels.CustomerInvoice{
-					Code:         dpCode,
-					InvoiceDate:  invoiceDate.AddDate(0, 0, -2), // DP was 2 days ago
-					DueDate:      &dpDueDate,
-					Type:         salesModels.CustomerInvoiceTypeDownPayment,
-					SalesOrderID: &linkedOrder.ID,
-					Amount:       dpAmount,
-					Subtotal:     dpAmount,
-					PaidAmount:   dpAmount,
+					Code:            dpCode,
+					InvoiceDate:     invoiceDate.AddDate(0, 0, -2), // DP was 2 days ago
+					DueDate:         &dpDueDate,
+					Type:            salesModels.CustomerInvoiceTypeDownPayment,
+					SalesOrderID:    &linkedOrder.ID,
+					Amount:          dpAmount,
+					Subtotal:        dpAmount,
+					PaidAmount:      dpAmount,
 					RemainingAmount: dpAmount,
 					Status:          salesModels.CustomerInvoiceStatusPaid,
 					CreatedBy:       &adminID,

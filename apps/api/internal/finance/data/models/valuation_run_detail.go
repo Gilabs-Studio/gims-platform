@@ -31,6 +31,11 @@ type ValuationRunDetail struct {
 	Delta       float64            `gorm:"type:numeric(18,2);not null;default:0" json:"delta"`
 	Direction   ValuationDirection `gorm:"type:varchar(10);not null;index" json:"direction"`
 
+	// Snapshots (immutable for audit trail)
+	CostPriceSnapshot      *float64 `gorm:"type:numeric(18,6)" json:"cost_price_snapshot,omitempty"`
+	CurrencyCodeSnapshot   *string  `gorm:"type:varchar(3)" json:"currency_code_snapshot,omitempty"`
+	ExchangeRateSnapshot   *float64 `gorm:"type:numeric(15,8)" json:"exchange_rate_snapshot,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

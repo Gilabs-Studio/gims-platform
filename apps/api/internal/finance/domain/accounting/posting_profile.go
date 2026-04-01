@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 )
 
@@ -471,40 +472,48 @@ var (
 	// ProfileInventoryGain generates journal for inventory increase (Stock Opname Gain / Adjustment IN).
 	// Debit: Inventory Asset
 	// Credit: Inventory Gain (Other Income)
+	// ProfileInventoryValuation generates journal for inventory valuation uplift.
+	// Debit: Inventory Asset (increase in value)
+	// Credit: Revaluation Reserve (EQUITY - not income, per PSAK/IFRS)
+	// Note: Revaluation gains/losses are recognized in OCI/Equity, NOT P&L
 	ProfileInventoryValuation = PostingProfile{
 		ReferenceType:       reference.RefTypeInventoryValuation,
-		DescriptionTemplate: "Inventory Valuation Gain: %s",
+		DescriptionTemplate: "Inventory Revaluation Uplift: %s",
 		Rules: []PostingRule{
 			{
 				COASettingKey: "coa.inventory_asset",
 				Side:          "debit",
 				AmountSource:  "total",
-				MemoTemplate:  "Inventory valuation uplift",
+				MemoTemplate:  "Inventory revaluation uplift (equity)",
 			},
 			{
-				COASettingKey: "coa.inventory_gain",
+				COASettingKey: models.SettingCOAInventoryRevaluationReserve,
 				Side:          "credit",
 				AmountSource:  "total",
-				MemoTemplate:  "Inventory valuation gain",
+				MemoTemplate:  "Revaluation surplus - retained earnings",
 			},
 		},
 	}
 
+	// ProfileInventoryValuationLoss generates journal for inventory valuation downswing.
+	// Debit: Inventory Loss (expense - recorded in P&L)
+	// Credit: Inventory Asset (decrease in value)
+	// Note: Losses beyond prior revaluation gains are expensed per PSAK
 	ProfileInventoryValuationLoss = PostingProfile{
 		ReferenceType:       reference.RefTypeInventoryValuation,
-		DescriptionTemplate: "Inventory Valuation Loss: %s",
+		DescriptionTemplate: "Inventory Revaluation Loss: %s",
 		Rules: []PostingRule{
 			{
 				COASettingKey: "coa.inventory_loss",
 				Side:          "debit",
 				AmountSource:  "total",
-				MemoTemplate:  "Inventory valuation loss",
+				MemoTemplate:  "Inventory revaluation loss (expense)",
 			},
 			{
 				COASettingKey: "coa.inventory_asset",
 				Side:          "credit",
 				AmountSource:  "total",
-				MemoTemplate:  "Inventory valuation write-down",
+				MemoTemplate:  "Inventory revaluation write-down",
 			},
 		},
 	}
@@ -584,6 +593,50 @@ var (
 				Side:          "credit",
 				AmountSource:  "total",
 				MemoTemplate:  "FX remeasurement adjustment",
+			},
+		},
+	}
+
+	// ProfileAssetDepreciation generates journal when asset depreciation is posted.
+	// Debit: Depreciation Expense (from settings)
+	// Credit: Accumulated Depreciation (from settings)
+	ProfileAssetDepreciation = PostingProfile{
+		ReferenceType:       reference.RefTypeAssetDepreciation,
+		DescriptionTemplate: "Asset Depreciation: %s - %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.depreciation_expense",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Depreciation expense for asset",
+			},
+			{
+				COASettingKey: "coa.depreciation_accumulated",
+				Side:          "credit",
+				AmountSource:  "total",
+				MemoTemplate:  "Accumulated depreciation",
+			},
+		},
+	}
+
+	// ProfileAssetTransaction generates journal for asset purchase, write-off, or disposal.
+	// Debit: Fixed Asset Account (from settings)
+	// Credit: Cash/Bank Account (user-specified)
+	ProfileAssetTransaction = PostingProfile{
+		ReferenceType:       reference.RefTypeAssetTransaction,
+		DescriptionTemplate: "Asset Transaction: %s",
+		Rules: []PostingRule{
+			{
+				COASettingKey: "coa.fixed_asset",
+				Side:          "debit",
+				AmountSource:  "total",
+				MemoTemplate:  "Asset purchase or addition",
+			},
+			{
+				COASource:    "payment_account",
+				Side:         "credit",
+				AmountSource: "total",
+				MemoTemplate: "Cash payment for asset",
 			},
 		},
 	}

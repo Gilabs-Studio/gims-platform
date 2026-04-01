@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	"github.com/gilabs/gims/api/internal/finance/domain/service"
 )
 
 // TransactionData holds the data needed by the AccountingEngine to generate journal lines.
@@ -73,20 +74,28 @@ type AccountingEngine interface {
 }
 
 type accountingEngine struct {
-	settingsService financesettings.SettingsService
-	coaRepo         repositories.ChartOfAccountRepository
+	settingsService  financesettings.SettingsService
+	coaRepo          repositories.ChartOfAccountRepository
+	coaValidationSvc service.COAValidationService
 }
 
-// NewAccountingEngine creates a new central accounting engine.
-func NewAccountingEngine(settingsService financesettings.SettingsService, coaRepo repositories.ChartOfAccountRepository) AccountingEngine {
+// NewAccountingEngine creates a new central accounting engine with COA validation.
+func NewAccountingEngine(settingsService financesettings.SettingsService, coaRepo repositories.ChartOfAccountRepository, coaValidationSvc service.COAValidationService) AccountingEngine {
 	return &accountingEngine{
-		settingsService: settingsService,
-		coaRepo:         coaRepo,
+		settingsService:  settingsService,
+		coaRepo:          coaRepo,
+		coaValidationSvc: coaValidationSvc,
 	}
 }
 
 // GenerateJournal builds a balanced journal entry request from a posting profile.
+// It validates that all required COA settings are configured before processing.
 func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingProfile, data TransactionData) (*dto.CreateJournalEntryRequest, error) {
+	// VALIDATION: Ensure all required COA settings are configured
+	if err := e.validateProfileCOAs(ctx, profile); err != nil {
+		return nil, fmt.Errorf("accounting engine validation failed: %w", err)
+	}
+
 	var lines []dto.JournalLineRequest
 
 	for _, rule := range profile.Rules {
@@ -263,4 +272,25 @@ func (e *accountingEngine) resolveMemo(rule PostingRule, data TransactionData) s
 		return fmt.Sprintf(rule.MemoTemplate, data.MemoArgs...)
 	}
 	return rule.MemoTemplate
+}
+
+// validateProfileCOAs ensures all COA settings required by the posting profile are configured.
+// Fails fast with a clear error message listing missing settings.
+func (e *accountingEngine) validateProfileCOAs(ctx context.Context, profile PostingProfile) error {
+	// Extract all COA setting keys from the posting profile rules
+	var requiredKeys []string
+	for _, rule := range profile.Rules {
+		// Only validate rules that reference settings (not user-provided COAs)
+		if rule.COASettingKey != "" {
+			requiredKeys = append(requiredKeys, rule.COASettingKey)
+		}
+	}
+
+	// If no settings keys required, no validation needed
+	if len(requiredKeys) == 0 {
+		return nil
+	}
+
+	// Validate all required settings exist and have values
+	return e.coaValidationSvc.ValidateRequiredSettings(ctx, requiredKeys...)
 }

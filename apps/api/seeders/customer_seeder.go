@@ -403,4 +403,3 @@ func seedCustomerBankAccounts(customers []models.Customer) {
 		}
 	}
 }
-

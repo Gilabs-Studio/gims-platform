@@ -65,22 +65,26 @@ func SeedSalesIntegrationFlow() error {
 
 		var customer customerModels.Customer
 		if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var pt coreModels.PaymentTerms
 		if err := tx.Where("is_active = ?", true).First(&pt).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var bankAccount coreModels.BankAccount
 		if err := tx.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var warehouse warehouseModels.Warehouse
 		if err := tx.Where("is_active = ?", true).First(&warehouse).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var products []productModels.Product

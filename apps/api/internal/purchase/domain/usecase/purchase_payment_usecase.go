@@ -45,9 +45,6 @@ type PurchasePaymentUsecase interface {
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error)
 	ExportCSV(ctx context.Context, params repositories.PurchasePaymentListParams) ([]byte, error)
 	TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error
-	
-	// ReconcileAP performs a system-wide check for overpayment or mismatch
-	ReconcileAP(ctx context.Context, invoiceID string) (*dto.APReconciliationResult, error)
 }
 
 type purchasePaymentUsecase struct {
@@ -371,28 +368,10 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			return err
 		}
 
-		// DRONE_ERP_RULE: Account for Purchase Returns to prevent business-level overpayment
-		var returnTotal float64
-		if inv.GoodsReceiptID != nil {
-			tx.Model(&models.PurchaseReturn{}).
-				Where("goods_receipt_id = ? AND status = ?", *inv.GoodsReceiptID, models.PurchaseReturnStatusApproved).
-				Select("COALESCE(SUM(total_amount), 0)").
-				Scan(&returnTotal)
-		} else if inv.PurchaseOrderID != "" {
-			// Fallback to PO-level returns if no specific GR linkage
-			tx.Model(&models.PurchaseReturn{}).
-				Where("purchase_order_id = ? AND status = ?", inv.PurchaseOrderID, models.PurchaseReturnStatusApproved).
-				Select("COALESCE(SUM(total_amount), 0)").
-				Scan(&returnTotal)
-		}
-
-		// Total satisfied amount = Paid Cash + New Payment + Down Payment + Returns
-		totalSettled := round2dp(row.Total + pay.Amount + inv.DownPaymentAmount + returnTotal)
-		
-		// BUSINESS VALIDATION: Overpayment Check
-		if totalSettled > round2dp(inv.Amount + 0.001) {
-			return fmt.Errorf("payment rejected: value exceeds invoice outstanding balance (Total: %.2f, Settled/Returned: %.2f, Requested: %.2f)", 
-				inv.Amount, row.Total + inv.DownPaymentAmount + returnTotal, pay.Amount)
+		// Total settled amount = Cash Payments + Down Payment
+		totalSettled := row.Total + pay.Amount + inv.DownPaymentAmount
+		if totalSettled > inv.Amount+0.0001 {
+			return ErrPurchasePaymentConflict
 		}
 
 		if err := tx.Model(&pay).Updates(map[string]interface{}{"status": models.PurchasePaymentStatusConfirmed, "updated_at": apptime.Now()}).Error; err != nil {
@@ -406,8 +385,8 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 
 		updateData := map[string]interface{}{
 			"status":           newStatus,
-			"paid_amount":      round2dp(row.Total + pay.Amount), // Track cash payments
-			"remaining_amount": round2dp(inv.Amount - totalSettled),
+			"paid_amount":      row.Total + pay.Amount, // Track cash payments only (DP tracked separately in down_payment_amount)
+			"remaining_amount": math.Max(0, inv.Amount-totalSettled),
 			"updated_at":       apptime.Now(),
 		}
 		if newStatus == models.SupplierInvoiceStatusPaid {
@@ -629,17 +608,6 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		return nil
 	}
 
-	// ERP_IDEMPOTENCY: Check if journal already exists for this payment event
-	refType := reference.Normalize(reference.RefTypePurchasePayment)
-	var existing financeModels.JournalEntry
-	if err := uc.db.WithContext(ctx).
-		Where("reference_type = ? AND reference_id = ?", refType, pay.ID).
-		Where("status <> ?", financeModels.JournalStatusReversed).
-		First(&existing).Error; err == nil {
-		log.Printf("journal_observability event=trigger.skip module=purchase_payment reference_id=%s reason=already_exists", pay.ID)
-		return nil
-	}
-
 	// Fetch BankAccount COA ID
 	var baCOAID string
 	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
@@ -651,8 +619,12 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 		}
 	}
 
+	// Default to cash if bank account has no COA
 	if baCOAID == "" {
-		return fmt.Errorf("bank account is not linked to any Chart of Account. Please configure bank account mapping")
+		def, err := uc.coaUC.GetByCode(ctx, "11100")
+		if err == nil {
+			baCOAID = def.ID
+		}
 	}
 
 	reqRefNum := ""
@@ -826,54 +798,4 @@ func (uc *purchasePaymentUsecase) ExportCSV(ctx context.Context, params reposito
 		return nil, err
 	}
 	return []byte(buf.String()), nil
-}
-
-func (uc *purchasePaymentUsecase) ReconcileAP(ctx context.Context, invoiceID string) (*dto.APReconciliationResult, error) {
-	if uc.db == nil {
-		return nil, errors.New("db is nil")
-	}
-
-	var inv models.SupplierInvoice
-	if err := uc.db.WithContext(ctx).First(&inv, "id = ?", invoiceID).Error; err != nil {
-		return nil, err
-	}
-
-	// 1. Sum Confirmed Payments
-	var payTotal float64
-	uc.db.WithContext(ctx).Model(&models.PurchasePayment{}).
-		Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusConfirmed).
-		Select("COALESCE(SUM(amount), 0)").
-		Scan(&payTotal)
-
-	// 2. Sum Approved Returns
-	var returnTotal float64
-	if inv.GoodsReceiptID != nil {
-		uc.db.WithContext(ctx).Model(&models.PurchaseReturn{}).
-			Where("goods_receipt_id = ? AND status = ?", *inv.GoodsReceiptID, models.PurchaseReturnStatusApproved).
-			Select("COALESCE(SUM(total_amount), 0)").
-			Scan(&returnTotal)
-	}
-
-	totalSettled := round2dp(payTotal + returnTotal + inv.DownPaymentAmount)
-	remaining := round2dp(inv.Amount - totalSettled)
-	
-	mismatch := false
-	desc := "Invoice is balanced"
-	
-	if remaining < -0.001 {
-		mismatch = true
-		desc = fmt.Sprintf("OVERPAYMENT DETECTED: Total settled (%.2f) exceeds invoice amount (%.2f) by %.2f", totalSettled, inv.Amount, math.Abs(remaining))
-	} else if math.Abs(inv.RemainingAmount - remaining) > 0.001 {
-		mismatch = true
-		desc = fmt.Sprintf("INTEGRITY ERROR: DB RemainingAmount (%.2f) does not match calculated remaining (%.2f)", inv.RemainingAmount, remaining)
-	}
-
-	return &dto.APReconciliationResult{
-		TotalAmount:      inv.Amount,
-		TotalPayments:    payTotal + inv.DownPaymentAmount,
-		TotalReturns:     returnTotal,
-		TotalOutstanding: inv.RemainingAmount,
-		MismatchFound:    mismatch,
-		Description:      desc,
-	}, nil
 }

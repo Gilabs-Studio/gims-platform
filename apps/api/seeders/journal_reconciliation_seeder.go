@@ -6,11 +6,12 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
-	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	financeRepos "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/service"
 	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -42,7 +43,8 @@ func SeedJournalReconciliation() error {
 	// Accounting Engine
 	settingsRepo := financeRepos.NewFinanceSettingRepository(db)
 	settingsService := financesettings.NewSettingsService(settingsRepo)
-	engine := accounting.NewAccountingEngine(settingsService, coaRepo)
+	coaValidationSvc := service.NewCOAValidationService(settingsRepo)
+	engine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	// Shared Infrastructure usecases
 	inventoryRepo := inventoryRepos.NewInventoryRepository(db)
@@ -74,7 +76,7 @@ func SeedJournalReconciliation() error {
 	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine)
 
 	stockOpnameRepo := stockOpnameRepos.NewStockOpnameRepository(db)
-	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, engine)
+	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, coaUC)
 
 	assetRepo := financeRepos.NewAssetRepository(db)
 	assetCatRepo := financeRepos.NewAssetCategoryRepository(db)
@@ -200,7 +202,7 @@ func SeedJournalReconciliation() error {
 			log.Printf("warning: failed to reconcile purchase payment journal (%s): %v", pp.ID, err)
 		}
 	}
-	
+
 	// Sync Goods Receipts
 	var grs []purchaseModels.GoodsReceipt
 	if err := db.Where("status IN ?", []purchaseModels.GoodsReceiptStatus{purchaseModels.GoodsReceiptStatusConfirmed, purchaseModels.GoodsReceiptStatusApproved, purchaseModels.GoodsReceiptStatusClosed}).
@@ -237,25 +239,6 @@ func SeedJournalReconciliation() error {
 		}
 	}
 
-
-	// Sync Delivery Orders (COGS recognition)
-	var deliveryOrders []salesModels.DeliveryOrder
-	if err := db.Where("status IN ?", []salesModels.DeliveryOrderStatus{salesModels.DeliveryOrderStatusShipped, salesModels.DeliveryOrderStatusDelivered}).
-		Find(&deliveryOrders).Error; err == nil {
-		for _, do := range deliveryOrders {
-			var count int64
-			db.Model(&financeModels.JournalEntry{}).
-				Where("reference_type = ? AND reference_id = ?", "DELIVERY_ORDER", do.ID).
-				Count(&count)
-			if count > 0 {
-				continue
-			}
-			if err := inventoryUC.TriggerDocumentJournal(ctx, db, "DELIVERY_ORDER", do.ID); err != nil {
-				log.Printf("warning: failed to reconcile delivery order journal (%s): %v", do.ID, err)
-			}
-		}
-	}
-	
 	// Sync Sales Returns
 	var salesReturns []salesModels.SalesReturn
 	if err := db.Where("status = ?", salesModels.SalesReturnStatusProcessed).Find(&salesReturns).Error; err == nil {
@@ -279,7 +262,7 @@ func SeedJournalReconciliation() error {
 		for _, ret := range purchaseReturns {
 			var count int64
 			db.Model(&financeModels.JournalEntry{}).
-				Where("reference_type = ? AND reference_id = ?", "PURCHASE_RETURN", ret.ID). 
+				Where("reference_type = ? AND reference_id = ?", "PURCHASE_RETURN", ret.ID).
 				Count(&count)
 			if count > 0 {
 				continue

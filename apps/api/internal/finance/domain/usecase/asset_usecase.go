@@ -16,6 +16,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
@@ -516,7 +517,7 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		}
 
 		now := apptime.Now()
-		refType := "asset_depreciation"
+		refType := reference.RefTypeAssetDepreciation
 
 		je := &financeModels.JournalEntry{
 			EntryDate:     dep.DepreciationDate,

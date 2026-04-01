@@ -232,6 +232,33 @@ type ApproveValuationRequest struct {
 	Notes string `json:"notes"`
 }
 
+// UnlockValuationRequest is the payload to unlock a posted (locked) valuation run.
+// Only allowed for admin/finance_manager users to enable corrections if errors are discovered.
+type UnlockValuationRequest struct {
+	UnlockReason string `json:"unlock_reason" binding:"required,min=3"`
+}
+
+// BulkApproveValuationRequest is the payload to bulk approve multiple valuation runs.
+type BulkApproveValuationRequest struct {
+	RunIDs []string `json:"run_ids" binding:"required,min=1,max=100"`
+}
+
+// BulkApproveResult is the status of a single run in bulk approve operation.
+type BulkApproveResult struct {
+	RunID   string `json:"run_id"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// BulkApproveValuationResponse is the response for batch approval operation.
+type BulkApproveValuationResponse struct {
+	Results        []BulkApproveResult `json:"results"`
+	TotalProcessed int                 `json:"total_processed"`
+	SuccessCount   int                 `json:"success_count"`
+	FailureCount   int                 `json:"failure_count"`
+	ProcessedAt    string              `json:"processed_at"`
+}
+
 // ValuationRunResponse is the API response for a valuation run record.
 type ValuationRunResponse struct {
 	ID             string                  `json:"id"`
@@ -245,11 +272,19 @@ type ValuationRunResponse struct {
 	TotalDelta     float64                 `json:"total_delta"`
 	JournalEntryID *string                 `json:"journal_entry_id,omitempty"`
 	ErrorMessage   *string                 `json:"error_message,omitempty"`
-	CreatedBy      *string                 `json:"created_by,omitempty"`
-	CompletedAt    *string                 `json:"completed_at,omitempty"`
-	Items          []ValuationItemResponse `json:"items,omitempty"`
-	CreatedAt      string                  `json:"created_at"`
-	UpdatedAt      string                  `json:"updated_at"`
+	
+	// Approval Tracking (audit trail)
+	IsLocked      bool    `json:"is_locked"`
+	LockedAt      *string `json:"locked_at,omitempty"`
+	ApprovedBy    *string `json:"approved_by,omitempty"`
+	ApprovedAt    *string `json:"approved_at,omitempty"`
+	ApprovalNotes string  `json:"approval_notes,omitempty"`
+	
+	CreatedBy   *string                 `json:"created_by,omitempty"`
+	CompletedAt *string                 `json:"completed_at,omitempty"`
+	Items       []ValuationItemResponse `json:"items,omitempty"`
+	CreatedAt   string                  `json:"created_at"`
+	UpdatedAt   string                  `json:"updated_at"`
 }
 
 // ValuationKPIMeta is additional metadata returned with valuation list endpoints.

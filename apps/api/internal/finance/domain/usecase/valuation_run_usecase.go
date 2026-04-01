@@ -24,11 +24,13 @@ import (
 )
 
 var (
-	ErrValuationConflict    = errors.New("a valuation run is already pending for this type and period")
-	ErrValuationPeriod      = errors.New("invalid valuation period: start must be before or equal to end")
-	ErrValuationTypeUnknown = errors.New("unknown valuation type")
-	ErrValuationStatus      = errors.New("valuation run is not in approvable status")
-	ErrReconciliationFailed = errors.New("inventory reconciliation mismatch: inventory GL is not equal to subledger")
+	ErrValuationConflict      = errors.New("a valuation run is already pending for this type and period")
+	ErrValuationPeriod        = errors.New("invalid valuation period: start must be before or equal to end")
+	ErrValuationTypeUnknown   = errors.New("unknown valuation type")
+	ErrValuationStatus        = errors.New("valuation run is not in approvable status")
+	ErrReconciliationFailed   = errors.New("inventory reconciliation mismatch: inventory GL is not equal to subledger")
+	ErrPeriodLocked           = errors.New("cannot run valuation: period is locked (already posted)")
+	ErrPeriodLockRequired      = errors.New("period locking required: use unlock endpoint to modify posted runs")
 )
 
 type ValuationItem struct {
@@ -54,17 +56,21 @@ type ValuationRunUsecase interface {
 	Preview(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationPreviewResponse, error)
 	Run(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationRunResponse, error)
 	Approve(ctx context.Context, id string, req *dto.ApproveValuationRequest) (*dto.ValuationRunResponse, error)
+	Unlock(ctx context.Context, id string, req *dto.UnlockValuationRequest) (*dto.ValuationRunResponse, error)
+	BulkApprove(ctx context.Context, req *dto.BulkApproveValuationRequest) (*dto.BulkApproveValuationResponse, error)
 	GetByID(ctx context.Context, id string) (*dto.ValuationRunResponse, error)
 	List(ctx context.Context, req *dto.ListValuationRunsRequest) ([]dto.ValuationRunResponse, int64, *dto.ValuationKPIMeta, error)
 }
 
 type valuationRunUsecase struct {
-	db               *gorm.DB
-	repo             repositories.ValuationRunRepository
-	journalUC        JournalEntryUsecase
-	accountingEngine accounting.AccountingEngine
-	settings         financesettings.SettingsService
-	strategies       map[string]ValuationStrategy
+	db                  *gorm.DB
+	repo                repositories.ValuationRunRepository
+	journalUC           JournalEntryUsecase
+	accountingEngine    accounting.AccountingEngine
+	settings            financesettings.SettingsService
+	settingsValidator   financesettings.SettingsValidator
+	strategyValidator   ValuationStrategyValidator
+	strategies          map[string]ValuationStrategy
 }
 
 func NewValuationRunUsecase(
@@ -75,12 +81,14 @@ func NewValuationRunUsecase(
 	accountingEngine accounting.AccountingEngine,
 ) ValuationRunUsecase {
 	uc := &valuationRunUsecase{
-		db:               db,
-		repo:             repo,
-		journalUC:        journalUC,
-		settings:         settings,
-		accountingEngine: accountingEngine,
-		strategies:       make(map[string]ValuationStrategy),
+		db:                db,
+		repo:              repo,
+		journalUC:         journalUC,
+		accountingEngine:  accountingEngine,
+		settings:          settings,
+		settingsValidator: financesettings.NewSettingsValidator(settings),
+		strategyValidator: NewValuationStrategyValidator(db),
+		strategies:        make(map[string]ValuationStrategy),
 	}
 
 	uc.strategies["inventory"] = &inventoryValuationStrategy{db: db}
@@ -91,11 +99,26 @@ func NewValuationRunUsecase(
 }
 
 func (uc *valuationRunUsecase) Preview(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationPreviewResponse, error) {
+	// 1. Validate required finance settings exist
+	if err := uc.settingsValidator.ValidateRequiredSettings(ctx, financesettings.ValidatorConfig{
+		RequiredSettings: financesettings.DefaultRequiredSettings(),
+		FailFast:         true,
+	}); err != nil {
+		return nil, fmt.Errorf("finance configuration incomplete: %w", err)
+	}
+
+	// 2. Resolve and validate strategy
 	valType, periodStart, periodEnd, _, strategy, err := uc.resolveRunRequest(ctx, req, true)
 	if err != nil {
 		return nil, err
 	}
 
+	// 3. Strategy-specific validation
+	if err := uc.validateStrategyDataRequirements(ctx, valType); err != nil {
+		return nil, fmt.Errorf("valuation data validation failed: %w", err)
+	}
+
+	// 4. Calculate valuation
 	result, err := strategy.Calculate(ctx, periodStart, periodEnd)
 	if err != nil {
 		return nil, fmt.Errorf("valuation calculation failed: %w", err)
@@ -126,16 +149,36 @@ func (uc *valuationRunUsecase) Preview(ctx context.Context, req *dto.RunValuatio
 }
 
 func (uc *valuationRunUsecase) Run(ctx context.Context, req *dto.RunValuationRequest) (*dto.ValuationRunResponse, error) {
+	// 1. Validate required finance settings exist
+	if err := uc.settingsValidator.ValidateRequiredSettings(ctx, financesettings.ValidatorConfig{
+		RequiredSettings: financesettings.DefaultRequiredSettings(),
+		FailFast:         true,
+	}); err != nil {
+		return nil, fmt.Errorf("finance configuration incomplete: %w", err)
+	}
+
+	// 2. Resolve and validate strategy
 	valType, periodStart, periodEnd, refID, strategy, err := uc.resolveRunRequest(ctx, req, false)
 	if err != nil {
 		return nil, err
 	}
 
+	// 3. Strategy-specific validation
+	if err := uc.validateStrategyDataRequirements(ctx, valType); err != nil {
+		return nil, fmt.Errorf("valuation data validation failed: %w", err)
+	}
+
+	// 4. Check for duplicate (idempotency)
 	existing, err := uc.repo.FindByReferenceID(ctx, refID)
 	if err == nil && existing != nil {
+		// Check if existing run is locked (posted period)
+		if existing.IsLocked {
+			return nil, fmt.Errorf("%w (locked at %s) — use admin endpoint to unlock period", ErrPeriodLocked, existing.LockedAt)
+		}
 		return uc.toResponse(existing), nil
 	}
 
+	// 5. Check for period lock (prevent overwrite of posted runs)
 	hasPending, err := uc.repo.HasPendingRun(ctx, valType, periodStart, periodEnd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check valuation lock: %w", err)
@@ -144,6 +187,7 @@ func (uc *valuationRunUsecase) Run(ctx context.Context, req *dto.RunValuationReq
 		return nil, ErrValuationConflict
 	}
 
+	// 6. Calculate valuation
 	result, err := strategy.Calculate(ctx, periodStart, periodEnd)
 	if err != nil {
 		return nil, fmt.Errorf("valuation calculation failed: %w", err)
@@ -260,8 +304,15 @@ func (uc *valuationRunUsecase) Approve(ctx context.Context, id string, _ *dto.Ap
 		run.TotalDebit = totalDebit
 		run.TotalCredit = totalCredit
 		run.JournalEntryID = &journalID
+		run.ApprovedBy = &actorID
+		run.ApprovedAt = timePtr(apptime.Now())
 		now := apptime.Now()
 		run.CompletedAt = &now
+		
+		// CRITICAL: Lock period after posting to prevent re-runs
+		run.IsLocked = true
+		run.LockedAt = timePtr(apptime.Now())
+		
 		if err := tx.Save(run).Error; err != nil {
 			return err
 		}
@@ -274,6 +325,114 @@ func (uc *valuationRunUsecase) Approve(ctx context.Context, id string, _ *dto.Ap
 	}
 
 	return uc.toResponse(outRun), nil
+}
+
+// Unlock removes the period lock for a posted valuation run (admin-only operation).
+// This allows corrections to be made if errors are discovered post-posting.
+// Requires explicit RBAC permission for audit trail.
+func (uc *valuationRunUsecase) Unlock(ctx context.Context, id string, req *dto.UnlockValuationRequest) (*dto.ValuationRunResponse, error) {
+	actorID := strings.TrimSpace(getActorID(ctx))
+	if actorID == "" {
+		return nil, errors.New("user context is required for unlock audit trail")
+	}
+
+	if req == nil {
+		req = &dto.UnlockValuationRequest{}
+	}
+
+	var outRun *financeModels.ValuationRun
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		run, err := uc.repo.FindByIDForUpdate(ctx, tx, id)
+		if err != nil {
+			return fmt.Errorf("valuation run not found: %w", err)
+		}
+
+		// Only allow unlock of posted (locked) runs
+		if !run.IsLocked {
+			return errors.New("cannot unlock: valuation run is not currently locked")
+		}
+
+		if run.Status != financeModels.ValuationRunStatusPosted {
+			return fmt.Errorf("cannot unlock: invalid status (%s); only posted runs can be unlocked", run.Status)
+		}
+
+		// Unlock the period
+		run.IsLocked = false
+		run.LockedAt = nil
+		
+		// Store unlock reason for audit trail (optional)
+		if req.UnlockReason != "" {
+			reasonNote := fmt.Sprintf("Unlocked by %s at %s: %s", actorID, apptime.Now().Format("2006-01-02 15:04:05"), req.UnlockReason)
+			if run.ApprovalNotes != "" {
+				run.ApprovalNotes = run.ApprovalNotes + "\n" + reasonNote
+			} else {
+				run.ApprovalNotes = reasonNote
+			}
+		}
+
+		if err := tx.Save(run).Error; err != nil {
+			return fmt.Errorf("failed to unlock valuation run: %w", err)
+		}
+
+		outRun = run
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return uc.toResponse(outRun), nil
+}
+
+// BulkApprove approves multiple valuation runs in a single transaction.
+// Returns success/failure status per run for batch processing.
+func (uc *valuationRunUsecase) BulkApprove(ctx context.Context, req *dto.BulkApproveValuationRequest) (*dto.BulkApproveValuationResponse, error) {
+	if req == nil || len(req.RunIDs) == 0 {
+		return nil, errors.New("no runs provided for bulk approve")
+	}
+
+	if len(req.RunIDs) > 100 {
+		return nil, errors.New("bulk approve limited to 100 runs per request")
+	}
+
+	actorID := strings.TrimSpace(getActorID(ctx))
+	if actorID == "" {
+		return nil, errors.New("user context is required")
+	}
+
+	response := &dto.BulkApproveValuationResponse{
+		Results:         make([]dto.BulkApproveResult, 0, len(req.RunIDs)),
+		TotalProcessed:  0,
+		SuccessCount:    0,
+		FailureCount:    0,
+	}
+
+	// Process each run serially to capture individual errors
+	for _, runID := range req.RunIDs {
+		result := dto.BulkApproveResult{
+			RunID: runID,
+		}
+
+		// Approve individually within a transaction
+		_, err := uc.Approve(ctx, runID, &dto.ApproveValuationRequest{Notes: ""})
+
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			response.FailureCount++
+		} else {
+			result.Success = true
+			result.Error = ""
+			response.SuccessCount++
+		}
+
+		response.Results = append(response.Results, result)
+		response.TotalProcessed++
+	}
+
+	response.ProcessedAt = apptime.Now().Format("2006-01-02T15:04:05Z07:00")
+	return response, nil
 }
 
 func (uc *valuationRunUsecase) GetByID(ctx context.Context, id string) (*dto.ValuationRunResponse, error) {
@@ -565,10 +724,21 @@ func (uc *valuationRunUsecase) toResponse(run *financeModels.ValuationRun) *dto.
 		TotalDelta:     run.TotalDelta,
 		JournalEntryID: run.JournalEntryID,
 		ErrorMessage:   run.ErrorMessage,
+		IsLocked:       run.IsLocked,
+		ApprovedBy:     run.ApprovedBy,
+		ApprovalNotes:  run.ApprovalNotes,
 		CreatedBy:      run.CreatedBy,
 		Items:          mapValuationDetails(run.Details),
 		CreatedAt:      run.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:      run.UpdatedAt.Format(time.RFC3339),
+	}
+	if run.LockedAt != nil {
+		s := run.LockedAt.Format(time.RFC3339)
+		resp.LockedAt = &s
+	}
+	if run.ApprovedAt != nil {
+		s := run.ApprovedAt.Format(time.RFC3339)
+		resp.ApprovedAt = &s
 	}
 	if run.CompletedAt != nil {
 		s := run.CompletedAt.Format(time.RFC3339)
@@ -675,6 +845,21 @@ func nullableString(s string) *string {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// validateStrategyDataRequirements checks that the strategy-specific data requirements are met.
+// This fails fast with explicit errors rather than silent failures.
+func (uc *valuationRunUsecase) validateStrategyDataRequirements(ctx context.Context, valType string) error {
+	switch valType {
+	case "inventory":
+		return uc.strategyValidator.ValidateInventoryData(ctx)
+	case "fx":
+		return uc.strategyValidator.ValidateFXData(ctx)
+	case "depreciation":
+		return uc.strategyValidator.ValidateDepreciationData(ctx)
+	default:
+		return fmt.Errorf("unknown valuation type: %s", valType)
+	}
 }
 
 // inventoryValuationStrategy computes itemized inventory valuation from inventory_batches and stock_movements.

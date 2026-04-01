@@ -27,9 +27,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 import {
@@ -60,6 +74,13 @@ function statusVariant(status: ValuationRunStatus): "success" | "secondary" | "d
     return "destructive";
   }
   return "outline";
+}
+
+function statusLabel(status: ValuationRunStatus): string {
+  if (status === "pending_approval") return "Pending Approval";
+  if (status === "no_difference") return "No Difference";
+  if (status === "posted") return "Completed";
+  return status.replace(/_/g, " ");
 }
 
 export function ValuationJournalsList() {
@@ -184,14 +205,29 @@ export function ValuationJournalsList() {
     }
   };
 
+  const handleRetry = async (run: ValuationRun) => {
+    try {
+      const response = await runMutation.mutateAsync({
+        valuation_type: run.valuation_type,
+        period_start: run.period_start,
+        period_end: run.period_end,
+      });
+      toast.success("Retry valuation run submitted");
+      setSelectedRunID(response.data.id);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Retry failed";
+      toast.error(message);
+    }
+  };
+
   if (isError) {
     return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-blue-50 via-cyan-50 to-white p-5">
-        <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-cyan-200/40 blur-2xl" />
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-background via-card to-background p-5">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/10 blur-2xl" />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">{t("valuationTitle")}</h1>
@@ -241,47 +277,87 @@ export function ValuationJournalsList() {
         {runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No valuation run history yet.</p>
         ) : (
-          <div className="space-y-2">
-            {runs.map((run) => (
-              <div key={run.id} className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-3">
-                  <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
-                  <button
-                    type="button"
-                    className="cursor-pointer text-left text-sm font-medium text-primary hover:underline"
-                    onClick={() => setSelectedRunID(run.id)}
-                  >
-                    {run.reference_id}
-                  </button>
-                  <span className="rounded-md bg-background px-2 py-1 text-xs uppercase tracking-wide">
-                    {run.valuation_type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>
-                    {run.period_start} to {run.period_end}
-                  </span>
-                  <span>{formatCurrency(run.total_delta ?? 0)}</span>
-                  {run.journal_entry_id && canOpenJournal ? (
-                    <Link className="cursor-pointer text-primary hover:underline" href={`/finance/journals?open_journal=${run.journal_entry_id}`}>
-                      Open Journal
-                    </Link>
-                  ) : null}
-                  {canApprove && (run.status === "pending_approval" || run.status === "approved") ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="cursor-pointer"
-                      disabled={approveMutation.isPending}
-                      onClick={() => handleApprove(run)}
-                    >
-                      <ShieldCheck className="mr-1 h-4 w-4" />
-                      Approve
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Reference ID</TableHead>
+                  <TableHead>Valuation Type</TableHead>
+                  <TableHead>Period</TableHead>
+                  <TableHead className="text-right">Total Debit</TableHead>
+                  <TableHead className="text-right">Total Credit</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created By</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {runs.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>
+                      <button
+                        type="button"
+                        className="cursor-pointer text-left text-sm font-medium text-primary hover:underline"
+                        onClick={() => setSelectedRunID(run.id)}
+                      >
+                        {run.reference_id}
+                      </button>
+                    </TableCell>
+                    <TableCell className="uppercase">{run.valuation_type}</TableCell>
+                    <TableCell>{formatDate(run.period_start)} - {formatDate(run.period_end)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(run.total_debit ?? 0)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(run.total_credit ?? 0)}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(run.status)}>{statusLabel(run.status)}</Badge>
+                    </TableCell>
+                    <TableCell>{run.created_by ?? "system"}</TableCell>
+                    <TableCell>{formatDate(run.created_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="cursor-pointer">...
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => setSelectedRunID(run.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Detail
+                          </DropdownMenuItem>
+                          {run.journal_entry_id && canOpenJournal ? (
+                            <DropdownMenuItem asChild>
+                              <Link className="cursor-pointer" href={`/finance/journals?open_journal=${run.journal_entry_id}`}>
+                                View Journal
+                              </Link>
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canApprove && (run.status === "pending_approval" || run.status === "approved") ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              disabled={approveMutation.isPending}
+                              onClick={() => handleApprove(run)}
+                            >
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              Approve
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canRun && run.status === "failed" ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              disabled={runMutation.isPending}
+                              onClick={() => handleRetry(run)}
+                            >
+                              <Play className="mr-2 h-4 w-4" />
+                              Retry
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

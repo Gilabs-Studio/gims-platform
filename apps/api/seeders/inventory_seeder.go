@@ -29,13 +29,12 @@ func SeedInventory() error {
 		}
 
 		batch := inventoryModels.InventoryBatch{
-			BatchNumber:     "BATCH-MIN-001",
-			ProductID:       product.ID,
-			WarehouseID:     warehouse.ID,
+			BatchNumber:      "BATCH-MIN-001",
+			ProductID:        product.ID,
+			WarehouseID:      warehouse.ID,
 			InitialQuantity:  100,
 			CurrentQuantity:  100,
 			ReservedQuantity: 0,
-			CostPrice:        product.CostPrice,
 		}
 
 		var existing inventoryModels.InventoryBatch
@@ -94,7 +93,7 @@ func SeedInventory() error {
 		// Distribute across warehouses
 		// Warehouse 1
 		wh1 := warehouses[0]
-		
+
 		scenario := i % 4
 
 		// Base batch creation helper
@@ -107,7 +106,6 @@ func SeedInventory() error {
 				InitialQuantity:  qty,
 				CurrentQuantity:  qty,
 				ReservedQuantity: 0,
-				CostPrice:        product.CostPrice,
 				ExpiryDate:       &expDate,
 			}
 		}
@@ -117,11 +115,13 @@ func SeedInventory() error {
 			// E.g., Min 100, Max 500. Lets give 200.
 			qty := product.MinStock + (product.MaxStock-product.MinStock)/2
 			batches = append(batches, createBatch(wh1.ID, qty, 365))
-			
+
 		case 1: // Low Stock
 			// E.g., Min 100. Give 50.
 			qty := product.MinStock / 2
-			if qty == 0 { qty = 1 }
+			if qty == 0 {
+				qty = 1
+			}
 			batches = append(batches, createBatch(wh1.ID, qty, 180))
 
 		case 2: // Out of Stock
@@ -139,7 +139,7 @@ func SeedInventory() error {
 			wh2 := warehouses[1]
 			// 50% chance to have stock in WH2
 			if rand.Float32() > 0.5 {
-				batches = append(batches, createBatch(wh2.ID, product.MinStock + 10, 200))
+				batches = append(batches, createBatch(wh2.ID, product.MinStock+10, 200))
 			}
 		}
 	}
@@ -165,7 +165,6 @@ func SeedInventory() error {
 		InitialQuantity:  50,
 		CurrentQuantity:  50,
 		ReservedQuantity: 0,
-		CostPrice:        firstProduct.CostPrice,
 		ExpiryDate:       &expiringAt,
 		IsActive:         true,
 	}
@@ -179,7 +178,6 @@ func SeedInventory() error {
 		InitialQuantity:  30,
 		CurrentQuantity:  30,
 		ReservedQuantity: 0,
-		CostPrice:        firstProduct.CostPrice,
 		ExpiryDate:       &expiredAt,
 		IsActive:         true,
 	}
@@ -191,23 +189,5 @@ func SeedInventory() error {
 	}
 
 	log.Println("Inventory batches seeded successfully!")
-	
-	// --- Sync Product Stock ---
-	// After seeding batches, we must update current_stock on products table 
-	// so it matches the sum of its batches.
-	for _, product := range products {
-		var totalQty float64
-		db.Model(&inventoryModels.InventoryBatch{}).
-			Where("product_id = ? AND deleted_at IS NULL", product.ID).
-			Select("SUM(current_quantity)").
-			Scan(&totalQty)
-		
-		if err := db.Model(&productModels.Product{}).
-			Where("id = ?", product.ID).
-			Update("current_stock", totalQty).Error; err != nil {
-			log.Printf("Warning: Failed to sync product stock for %s: %v", product.Code, err)
-		}
-	}
-
 	return nil
 }

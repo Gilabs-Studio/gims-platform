@@ -14,6 +14,7 @@ import (
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	finAccounting "github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finSettings "github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	finService "github.com/gilabs/gims/api/internal/finance/domain/service"
 	
 	// Purchase
 	purchModels "github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -71,7 +72,8 @@ func main() {
 	journalUC := finUC.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	financeSettingRepo := finRepos.NewFinanceSettingRepository(db)
 	settingsService := finSettings.NewSettingsService(financeSettingRepo)
-	engine := finAccounting.NewAccountingEngine(settingsService, coaRepo)
+	coaValidationSvc := finService.NewCOAValidationService(financeSettingRepo)
+	engine := finAccounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 	coaUC := finUC.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 
 	// Additional Finance Deps (Assets)

@@ -52,8 +52,8 @@ func SeedWarehouse() error {
 	}
 
 	// Coordinates for Jakarta warehouses
-	lat1, lng1 := -6.2088, 106.8456   // Central Jakarta
-	lat2, lng2 := -6.1751, 106.8650   // North Jakarta
+	lat1, lng1 := -6.2088, 106.8456 // Central Jakarta
+	lat2, lng2 := -6.1751, 106.8650 // North Jakarta
 
 	// Capacities
 	cap1, cap2 := 10000, 15000
@@ -90,7 +90,7 @@ func SeedWarehouse() error {
 	for i := range warehouses {
 		var existing models.Warehouse
 		err := db.Where("code = ?", warehouses[i].Code).First(&existing).Error
-		
+
 		if err == gorm.ErrRecordNotFound {
 			// Create new warehouse
 			if err := db.Create(&warehouses[i]).Error; err != nil {

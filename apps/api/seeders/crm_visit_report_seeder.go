@@ -247,4 +247,3 @@ func seedVisitReportHistory(salesRep1, salesRep2, managerID, adminID string, las
 
 	return nil
 }
-

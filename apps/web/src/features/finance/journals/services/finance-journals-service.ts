@@ -247,4 +247,45 @@ export const financeJournalsService = {
     });
     return response.data;
   },
+
+  getValuationReconciliation: async (
+    id: string,
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>(
+      `${BASE_URL}/valuation/runs/${id}/reconciliation`,
+    );
+    return response.data;
+  },
+
+  unlockValuation: async (
+    id: string,
+    reason: string,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.post<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/runs/${id}/unlock`,
+      { unlock_reason: reason },
+    );
+    return response.data;
+  },
+
+  exportValuation: async (
+    id: string,
+    format: "csv" | "pdf",
+  ): Promise<Blob> => {
+    const response = await apiClient.get(
+      `${BASE_URL}/valuation/runs/${id}/export?format=${format}`,
+      { responseType: "blob" },
+    );
+    return response.data;
+  },
+
+  bulkApproveValuations: async (
+    runIds: string[],
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `${BASE_URL}/valuation/runs/bulk-approve`,
+      { run_ids: runIds },
+    );
+    return response.data;
+  },
 };

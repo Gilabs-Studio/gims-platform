@@ -132,13 +132,13 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="text-xs text-muted-foreground">Audit Trail</div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">Draft</Badge>
-                <span className="text-muted-foreground">created by {journal.created_by ?? "system"}</span>
+                <span className="text-muted-foreground">created by {journal.created_by_name ?? journal.created_by ?? "system"}</span>
                 {journal.status === "posted" || journal.status === "reversed" ? (
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="success">Posted</Badge>
                     <span className="text-muted-foreground">
-                      at {safeDate(journal.posted_at ?? null)} by {journal.posted_by ?? "system"}
+                      at {safeDate(journal.posted_at ?? null)} by {journal.posted_by_name ?? journal.posted_by ?? "system"}
                     </span>
                   </>
                 ) : null}
@@ -146,7 +146,9 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="destructive">Reversed</Badge>
-                    <span className="text-muted-foreground">after posting</span>
+                    <span className="text-muted-foreground">
+                      at {safeDate(journal.reversed_at ?? null)} by {journal.reversed_by_name ?? journal.reversed_by ?? "system"}
+                    </span>
                   </>
                 ) : null}
               </div>

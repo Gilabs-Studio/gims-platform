@@ -31,6 +31,7 @@ import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journ
 import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
+import { JournalActionMenu } from "./journal-action-menu";
 
 function toApiDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -193,84 +194,28 @@ export function JournalsList() {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
         }}
-        actionRender={(row) => {
-          const item = row.original;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelectedId(item.id);
-                    setViewOpen(true);
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {t("actions.view")}
-                </DropdownMenuItem>
-                {canUpdate && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => {
-                      setFormMode("edit");
-                      setSelectedId(item.id);
-                      setFormOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("actions.edit")}
-                  </DropdownMenuItem>
-                )}
-                {canPost && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-success focus:text-success"
-                    onClick={async () => {
-                      try {
-                        await postMutation.mutateAsync(item.id);
-                        toast.success(t("toast.posted"));
-                      } catch {
-                        toast.error(t("toast.failed"));
-                      }
-                    }}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    {t("actions.post")}
-                  </DropdownMenuItem>
-                )}
-                {canDelete && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    onClick={() => setDeletingItem(item)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("actions.delete")}
-                  </DropdownMenuItem>
-                )}
-                {canReverse && item.status === "posted" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-warning focus:text-warning"
-                    onClick={async () => {
-                      try {
-                        await reverseMutation.mutateAsync(item.id);
-                        toast.success(t("toast.reversed"));
-                      } catch {
-                        toast.error(t("toast.failed"));
-                      }
-                    }}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    {t("actions.reverse")}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        }}
+        actionRender={(row) => (
+          <JournalActionMenu
+            row={row}
+            onView={(id: string) => {
+              setSelectedId(id);
+              setViewOpen(true);
+            }}
+            onEdit={(id: string) => {
+              setFormMode("edit");
+              setSelectedId(id);
+              setFormOpen(true);
+            }}
+            onDelete={(id: string) => {
+              const item = row.original as JournalEntry;
+              setDeletingItem(item);
+            }}
+            onSourceDetail={(r: UnifiedJournalRow<any>) => {
+              setSelectedReferenceRow(r as any);
+              setIsReferenceModalOpen(true);
+            }}
+          />
+        )}
       />
 
       <DataTablePagination

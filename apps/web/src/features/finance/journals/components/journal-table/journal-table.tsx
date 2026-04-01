@@ -506,18 +506,20 @@ export function JournalTable<T = unknown>({
                         return (
                           <TableCell key="number" className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                             <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-4 w-4 p-0 hover:bg-transparent"
-                                onClick={() => toggleExpand(row.id)}
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3" />
-                                )}
-                              </Button>
+                              {((row.original as any)?.lines?.length > 0) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-4 w-4 p-0 hover:bg-transparent"
+                                  onClick={() => toggleExpand(row.id)}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              )}
                               <span>{rowStartNumber + index}</span>
                             </div>
                           </TableCell>

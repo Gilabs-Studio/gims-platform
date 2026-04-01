@@ -33,15 +33,15 @@ func SeedBankAccounts() error {
 		}
 
 		var existingID string
-	if err := db.Model(&financeModels.ChartOfAccount{}).Where("code = ?", coa.Code).Pluck("id", &existingID).Error; err != nil {
+		if err := db.Model(&financeModels.ChartOfAccount{}).Where("code = ?", coa.Code).Pluck("id", &existingID).Error; err != nil {
 		}
 
 		account := coreModels.BankAccount{
-			Name:          "Minimal Bank Account",
-			AccountNumber: "0000000001",
-			AccountHolder: "PT. Minimal",
-			Currency:      "IDR",
-			IsActive:      true,
+			Name:             "Minimal Bank Account",
+			AccountNumber:    "0000000001",
+			AccountHolder:    "PT. Minimal",
+			Currency:         "IDR",
+			IsActive:         true,
 			ChartOfAccountID: &existingID,
 		}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "account_number"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "account_holder", "currency", "is_active", "chart_of_account_id", "updated_at"})}).Create(&account).Error; err != nil {

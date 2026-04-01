@@ -287,3 +287,45 @@ export function useTrialBalance(
     staleTime: 60_000,
   });
 }
+
+export function useValuationReconciliation(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...financeJournalKeys.valuationRuns(), "reconciliation", id],
+    queryFn: () => financeJournalsService.getValuationReconciliation(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    staleTime: 30_000,
+  });
+}
+
+export function useUnlockFinanceValuation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      financeJournalsService.unlockValuation(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRunDetail(id) });
+    },
+  });
+}
+
+export function useExportFinanceValuation() {
+  return useMutation({
+    mutationFn: ({ id, format }: { id: string; format: "csv" | "pdf" }) =>
+      financeJournalsService.exportValuation(id, format),
+  });
+}
+
+export function useBulkApproveFinanceValuations() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runIds: string[]) =>
+      financeJournalsService.bulkApproveValuations(runIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationList() });
+    },
+  });
+}

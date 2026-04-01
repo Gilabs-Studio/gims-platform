@@ -47,6 +47,15 @@ type ValuationRun struct {
 
 	ErrorMessage *string `gorm:"type:text" json:"error_message,omitempty"`
 
+	// Period Locking (prevents re-run after posting)
+	IsLocked bool       `gorm:"type:boolean;default:false;index" json:"is_locked"`
+	LockedAt *time.Time `json:"locked_at,omitempty"`
+
+	// Approval Tracking (audit trail)
+	ApprovedBy   *string    `gorm:"type:uuid" json:"approved_by,omitempty"`
+	ApprovedAt   *time.Time `json:"approved_at,omitempty"`
+	ApprovalNotes string    `gorm:"type:text" json:"approval_notes,omitempty"`
+
 	CreatedBy   *string    `gorm:"type:uuid" json:"created_by"`
 	CompletedAt *time.Time `json:"completed_at"`
 

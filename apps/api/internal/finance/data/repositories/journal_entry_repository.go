@@ -27,6 +27,8 @@ type JournalEntryListParams struct {
 type JournalEntryRepository interface {
 	FindByID(ctx context.Context, id string, withLines bool) (*financeModels.JournalEntry, error)
 	List(ctx context.Context, params JournalEntryListParams) ([]financeModels.JournalEntry, int64, error)
+	FindByReferenceID(ctx context.Context, referenceType string, referenceID string) (*financeModels.JournalEntry, error)
+	ExistsByReference(ctx context.Context, referenceType string, referenceID string) (bool, error)
 }
 
 type journalEntryRepository struct {
@@ -124,4 +126,37 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+// FindByReferenceID returns the journal entry for a given reference type and ID.
+// This supports idempotency - prevents duplicate journals for the same transaction.
+func (r *journalEntryRepository) FindByReferenceID(ctx context.Context, referenceType string, referenceID string) (*financeModels.JournalEntry, error) {
+	var item financeModels.JournalEntry
+	q := r.getDB(ctx).
+		Preload("Lines").
+		Preload("Lines.ChartOfAccount").
+		Preload("CreatedByUser").
+		Preload("PostedByUser").
+		Preload("ReversedByUser")
+
+	if err := q.Where("reference_type = ? AND reference_id = ?", strings.ToUpper(referenceType), referenceID).First(&item).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Explicitly return nil for no record found
+		}
+		return nil, err
+	}
+	return &item, nil
+}
+
+// ExistsByReference checks if a journal entry already exists for the given reference type and ID.
+// Returns true if exists, false if not found.
+func (r *journalEntryRepository) ExistsByReference(ctx context.Context, referenceType string, referenceID string) (bool, error) {
+	var count int64
+	q := r.getDB(ctx).Model(&financeModels.JournalEntry{}).
+		Where("reference_type = ? AND reference_id = ?", strings.ToUpper(referenceType), referenceID)
+
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

@@ -264,14 +264,14 @@ func SeedPurchaseFinanceE2E() error {
 
 		for _, sc := range scenarios2026 {
 			if err := seedPurchaseFlow(tx, purchaseFlowInput{
-			year:     2026,
-			month:    sc.month,
-			tag:      sc.tag,
-			qty:      sc.qty,
-			price:    sc.price,
-			taxRate:  sc.taxRate,
-			poStatus: sc.status, // "DRAFT" or "SUBMITTED" — GR/SI skipped automatically
-			payRatio: sc.payRatio,
+				year:        2026,
+				month:       sc.month,
+				tag:         sc.tag,
+				qty:         sc.qty,
+				price:       sc.price,
+				taxRate:     sc.taxRate,
+				poStatus:    sc.status, // "DRAFT" or "SUBMITTED" — GR/SI skipped automatically
+				payRatio:    sc.payRatio,
 				product:     products[sc.prodIdx%len(products)],
 				supplier:    suppliers[sc.suppIdx%len(suppliers)],
 				pt:          paymentTerms[0],
@@ -546,9 +546,9 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		SupplierNameSnapshot: in.supplier.Name,
 		PaymentTermsID:       nilIfEmpty(in.pt.ID),
 		BusinessUnitID:       nilIfEmpty(in.bu.ID),
-		CreatedBy:      in.adminID,
-		OrderDate:      orderDate.Format("2006-01-02"),
-		Status:         func() purchaseModels.PurchaseOrderStatus {
+		CreatedBy:            in.adminID,
+		OrderDate:            orderDate.Format("2006-01-02"),
+		Status: func() purchaseModels.PurchaseOrderStatus {
 			switch in.poStatus {
 			case "DRAFT":
 				return purchaseModels.PurchaseOrderStatusDraft
@@ -558,11 +558,11 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 				return purchaseModels.PurchaseOrderStatusApproved
 			}
 		}(),
-		TaxRate:        in.taxRate,
-		TaxAmount:      tax,
-		SubTotal:       subtotal,
-		TotalAmount:    total,
-		Notes:          fmt.Sprintf("E2E PO for %s %d", time.Month(in.month), in.year),
+		TaxRate:     in.taxRate,
+		TaxAmount:   tax,
+		SubTotal:    subtotal,
+		TotalAmount: total,
+		Notes:       fmt.Sprintf("E2E PO for %s %d", time.Month(in.month), in.year),
 		Items: []purchaseModels.PurchaseOrderItem{
 			{
 				ProductID: in.product.ID,

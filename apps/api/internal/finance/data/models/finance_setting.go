@@ -117,6 +117,9 @@ const (
 	// SettingCOAInventoryLoss maps to the expense account for inventory losses (opname/waste).
 	SettingCOAInventoryLoss = "coa.inventory_loss"
 
+	// SettingCOAInventoryRevaluationReserve maps to the equity account for inventory revaluation gains (PSAK/IFRS).
+	SettingCOAInventoryRevaluationReserve = "coa.inventory_revaluation_reserve"
+
 	// SettingCOAFXGain maps to the other income account for FX valuation gains.
 	SettingCOAFXGain = "coa.fx_gain"
 
@@ -140,4 +143,17 @@ const (
 
 	// SettingCOACOGS maps to the cost of goods sold account.
 	SettingCOACOGS = "coa.cogs"
+
+	// SettingCOAFixedAsset maps to the fixed asset account for asset purchases.
+	SettingCOAFixedAsset = "coa.fixed_asset"
+
+	// SettingCOACash maps to cash on hand account.
+	SettingCOACash = "coa.cash"
+
+	// SettingCOABank maps to bank accounts.
+	SettingCOABank = "coa.bank"
+
+	// SettingValuationReconciliationTolerance maps to the tolerance for inventory valuation reconciliation.
+	// Default value: "0.01" (1% tolerance for rounding differences)
+	SettingValuationReconciliationTolerance = "valuation.reconciliation_tolerance"
 )

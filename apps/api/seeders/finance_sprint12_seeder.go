@@ -19,34 +19,43 @@ func SeedFinanceSprint12() error {
 
 	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable + UpCountryCost + YearEndClosing.
 	coaSeeds := []financeModels.ChartOfAccount{
+		// 1) ASSETS (1000-1999)
+		{Code: "1000", Name: "Cash on Hand", Type: financeModels.AccountTypeCashBank, IsActive: true},
 		{Code: "1100", Name: "Accounts Receivable", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "11100", Name: "Cash on Hand", Type: financeModels.AccountTypeCashBank, IsActive: true},
-		{Code: "11400", Name: "Merchandise Inventory", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "11800", Name: "VAT Input", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1200", Name: "Purchase Advances (Prepaid)", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "1300", Name: "Merchandise Inventory", Type: financeModels.AccountTypeAsset, IsActive: true},
+		{Code: "1400", Name: "VAT Input (PPN Masukan)", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1500", Name: "Fixed Assets", Type: financeModels.AccountTypeAsset, IsActive: true},
 		{Code: "1590", Name: "Accumulated Depreciation", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "17100", Name: "Accumulated Depreciation (General)", Type: financeModels.AccountTypeAsset, IsActive: true}, // Matching setting
-		{Code: "21000", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "21100", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "21200", Name: "Non-Trade Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "21300", Name: "Accrued Expenses", Type: financeModels.AccountTypeLiability, IsActive: true}, // Added for consistency
-		{Code: "21400", Name: "Customer Advances (DP)", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "21500", Name: "VAT Output", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "31000", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
-		{Code: "32000", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
+
+		// 2) LIABILITIES (2000-2999)
+		{Code: "2100", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "2200", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "2300", Name: "Non-Trade Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "2400", Name: "Accrued Expenses", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "2500", Name: "Customer Advances (DP)", Type: financeModels.AccountTypeLiability, IsActive: true},
+		{Code: "2600", Name: "VAT Output (PPN Keluaran)", Type: financeModels.AccountTypeLiability, IsActive: true},
+
+		// 3) EQUITY (3000-3999)
+		{Code: "3100", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
+		{Code: "3200", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
+
+		// 4) REVENUE (4000-4999)
 		{Code: "4100", Name: "Sales Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
 		{Code: "4200", Name: "Sales Returns", Type: financeModels.AccountTypeRevenue, IsActive: true},
-		{Code: "49000", Name: "Inventory Gain", Type: financeModels.AccountTypeRevenue, IsActive: true}, // Matching setting
-		{Code: "5100", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "5200", Name: "Purchase Returns", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "59000", Name: "Inventory Adjustment", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
+		{Code: "4400", Name: "Inventory Gain", Type: financeModels.AccountTypeRevenue, IsActive: true},
+
+		// 5) COGS (5000-5999)
+		{Code: "5000", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "5100", Name: "Purchase Returns", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "5200", Name: "Inventory Adjustment (Increase)", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "5300", Name: "Inventory Loss (COGS)", Type: financeModels.AccountTypeExpense, IsActive: true},
+
+		// 6) EXPENSES (6000-7999)
 		{Code: "6100", Name: "Depreciation Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "61000", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "6200", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "62000", Name: "Travel Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "62050", Name: "Depreciation Expense (General)", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
-		{Code: "69000", Name: "Inventory Loss", Type: financeModels.AccountTypeExpense, IsActive: true}, // Matching setting
+		{Code: "6200", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "6300", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
+		{Code: "6400", Name: "Travel Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
 	}
 
 	for i := range coaSeeds {
@@ -67,7 +76,7 @@ func SeedFinanceSprint12() error {
 	var depExpenseCOA financeModels.ChartOfAccount
 	_ = db.Where("code = ?", "6100").First(&depExpenseCOA).Error
 	var officeExpenseCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "6200").First(&officeExpenseCOA).Error
+	_ = db.Where("code = ?", "6300").First(&officeExpenseCOA).Error
 
 	// 2) Seed Asset Locations
 	locations := []financeModels.AssetLocation{
@@ -235,7 +244,7 @@ func SeedFinanceSprint12() error {
 	var budgetCount int64
 	db.Model(&financeModels.Budget{}).Count(&budgetCount)
 	if budgetCount == 0 {
-		marketingCoa := "6200" // Office/General as fallback
+		marketingCoa := "6300" // Office/General as fallback
 		budget := financeModels.Budget{
 			Name:        fmt.Sprintf("Operational Budget %d", now.Year()),
 			Description: "Annual operational and marketing budget",

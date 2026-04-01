@@ -173,34 +173,6 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		finalCredit = calcCredit
 	}
 
-	lines := make([]dto.JournalLineResponse, 0, len(item.Lines))
-	for _, ln := range item.Lines {
-		var coaResp *dto.ChartOfAccountResponse
-		if strings.TrimSpace(ln.ChartOfAccountCodeSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountNameSnapshot) != "" || strings.TrimSpace(ln.ChartOfAccountTypeSnapshot) != "" {
-			coaResp = &dto.ChartOfAccountResponse{
-				ID:        ln.ChartOfAccountID,
-				Code:      ln.ChartOfAccountCodeSnapshot,
-				Name:      ln.ChartOfAccountNameSnapshot,
-				Type:      financeModels.AccountType(ln.ChartOfAccountTypeSnapshot),
-				ParentID:  nil,
-				IsActive:  true,
-				CreatedAt: time.Time{},
-				UpdatedAt: time.Time{},
-			}
-		} else if ln.ChartOfAccount != nil {
-			v := m.coaMapper.ToResponse(ln.ChartOfAccount)
-			coaResp = &v
-		}
-		lines = append(lines, dto.JournalLineResponse{
-			ID:               ln.ID,
-			ChartOfAccountID: ln.ChartOfAccountID,
-			ChartOfAccount:   coaResp,
-			Debit:            ln.Debit,
-			Credit:           ln.Credit,
-			Memo:             ln.Memo,
-		})
-	}
-
 	res := dto.JournalEntryResponse{
 		ID:                item.ID,
 		EntryDate:         item.EntryDate,
@@ -217,7 +189,7 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		ReversalReason:    item.ReversalReason,
 		IsSystemGenerated: item.IsSystemGenerated,
 		SourceDocumentURL: item.SourceDocumentURL,
-		Lines:             lines,
+		Lines:             nil, // Summary should not include lines for performance
 		DebitTotal:        finalDebit,
 		CreditTotal:       finalCredit,
 		IsValuation:       item.IsValuation,

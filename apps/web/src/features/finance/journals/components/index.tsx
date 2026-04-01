@@ -69,6 +69,12 @@ export const InventoryJournalsList = dynamic(
   },
 );
 
+// Phase 4 Components
+export { ReconciliationModal } from "./reconciliation-modal";
+export { UnlockDialog } from "./unlock-dialog";
+export { BulkApproveDialog } from "./bulk-approve-dialog";
+export { ExportDialog } from "./export-dialog";
+
 export function FinanceJournalsContainer() {
   return (
     <PageMotion>
