@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Clock, Download, Search, TrendingDown, Users, DollarSign, ExternalLink } from "lucide-react";
-import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { CustomerDetailModal } from "@/features/master-data/customer/components/customer/customer-detail-modal";
 import { Input } from "@/components/ui/input";
@@ -22,9 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useReceivablesRecap, useReceivablesSummary } from "../hooks/use-receivables-recap";
-import { receivablesRecapService } from "../services/receivables-recap-service";
 
 function AgingBadge({ category }: { category: string }) {
   switch (category) {
@@ -83,6 +82,7 @@ export function ReceivablesRecapList() {
   const { data, isLoading } = useReceivablesRecap(params);
   const { data: summaryData, isLoading: summaryLoading } = useReceivablesSummary();
   const hasCustomerPermission = useHasPermission("customer.read");
+  const exportProgress = useExportProgress();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -90,13 +90,10 @@ export function ReceivablesRecapList() {
 
   const handleExport = async () => {
     try {
-      const blob = await receivablesRecapService.exportCsv(params);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "receivables_recap.csv";
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/sales/receivables-recap/export",
+        params,
+      });
       toast.success(t("exportSuccess"));
     } catch {
       toast.error(t("exportError"));
@@ -154,9 +151,9 @@ export function ReceivablesRecapList() {
             className="pl-9"
           />
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} id="receivables-recap-export" className="cursor-pointer">
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={exportProgress.isExporting} id="receivables-recap-export" className="cursor-pointer">
           <Download className="mr-2 h-4 w-4" />
-          {t("export")}
+          {exportProgress.label(t("export"))}
         </Button>
       </div>
 

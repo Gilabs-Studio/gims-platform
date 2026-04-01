@@ -48,6 +48,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -62,7 +63,6 @@ import {
   useSubmitPurchaseRequisition,
 } from "../hooks/use-purchase-requisitions";
 import type { PurchaseRequisitionListItem, PurchaseRequisitionStatus } from "../types";
-import { purchaseRequisitionsService } from "../services/purchase-requisitions-service";
 import { PurchaseRequisitionForm } from "./purchase-requisition-form";
 import { PurchaseRequisitionDetail } from "./purchase-requisition-detail";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -153,6 +153,7 @@ export function PurchaseRequisitionsList() {
   const approveMutation = useApprovePurchaseRequisition();
   const rejectMutation = useRejectPurchaseRequisition();
   const convertMutation = useConvertPurchaseRequisition();
+  const exportProgress = useExportProgress();
 
   if (isError) {
     return (
@@ -162,20 +163,15 @@ export function PurchaseRequisitionsList() {
 
   const handleExport = async () => {
     try {
-      const blob = await purchaseRequisitionsService.exportCsv({
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/purchase-requisitions/export",
+        params: {
         search: debouncedSearch || undefined,
         sort_by: "created_at",
         sort_dir: "desc",
-        limit: 10000,
+        limit: 100,
+        },
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "purchase_requisitions.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -305,10 +301,11 @@ export function PurchaseRequisitionsList() {
           <Button
             variant="outline"
             onClick={handleExport}
+            disabled={exportProgress.isExporting}
             className="cursor-pointer"
           >
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

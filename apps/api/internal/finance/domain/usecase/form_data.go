@@ -117,12 +117,12 @@ func (uc *nonTradePayableUsecase) GetFormData(ctx context.Context) (*dto.NonTrad
 // --- Asset ---
 
 func (uc *assetUsecase) GetFormData(ctx context.Context) (*dto.AssetFormDataResponse, error) {
-	cats, _, err := uc.catRepo.List(ctx, repositories.AssetCategoryListParams{Limit: 1000})
+	cats, _, err := uc.catRepo.List(ctx, repositories.AssetCategoryListParams{Limit: 100})
 	if err != nil {
 		return nil, err
 	}
 
-	locs, _, err := uc.locRepo.List(ctx, repositories.AssetLocationListParams{Limit: 1000})
+	locs, _, err := uc.locRepo.List(ctx, repositories.AssetLocationListParams{Limit: 100})
 	if err != nil {
 		return nil, err
 	}

@@ -140,6 +140,9 @@ export const orderEn = {
     convertFromQuotation: "Convert from Quotation",
     print: "Print",
     export: "Export PDF",
+    exportCsv: "Export",
+    exporting: "Exporting",
+    exportSuccess: "Export generated successfully",
 
     // Item
     item: {

@@ -25,7 +25,7 @@ import type { FinanceSetting } from "../types";
 export const AccountingMappingForm = () => {
   const t = useTranslations("financeSettings");
   const { data: settings, isLoading: isSettingsLoading } = useFinanceSettings();
-  const { data: _coaData, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 1000 });
+  const { data: _coaData, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 100 });
   const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings();
   const canUpdate = useUserPermission("finance_settings.update");
 

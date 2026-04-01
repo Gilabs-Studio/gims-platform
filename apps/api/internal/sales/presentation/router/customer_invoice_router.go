@@ -10,6 +10,7 @@ import (
 func RegisterCustomerInvoiceRoutes(rg *gin.RouterGroup, h *handler.CustomerInvoiceHandler, printH *handler.CustomerInvoicePrintHandler) {
 	g := rg.Group("/customer-invoices")
 	g.GET("", middleware.RequirePermission("customer_invoice.read"), h.List)
+	g.GET("/export", middleware.RequirePermission("customer_invoice.read"), h.Export)
 	g.GET("/:id", middleware.RequirePermission("customer_invoice.read"), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission("customer_invoice.read"), h.AuditTrail)
 	g.GET("/:id/items", middleware.RequirePermission("customer_invoice.read"), h.ListItems)

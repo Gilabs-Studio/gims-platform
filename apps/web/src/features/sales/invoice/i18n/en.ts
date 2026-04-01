@@ -137,6 +137,9 @@ export const invoiceEn = {
     deleteDesc: "Are you sure you want to delete this invoice? This action cannot be undone. Only unpaid invoices can be deleted.",
     recordPayment: "Record Payment",
     export: "Export PDF",
+    exportCsv: "Export",
+    exporting: "Exporting",
+    exportSuccess: "Export generated successfully",
     overdue: "Overdue",
     daysOverdue: "days overdue",
 

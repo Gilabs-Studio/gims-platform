@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -13,8 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-import { useExportFinanceValuation } from "../hooks/use-finance-journals";
+import { useExportProgress } from "@/lib/use-export-progress";
 
 interface ExportDialogProps {
   valuationRunId: string | null;
@@ -30,25 +30,18 @@ export function ExportDialog({
   onOpenChange,
 }: ExportDialogProps) {
   const t = useTranslations("finance.journal");
-  const { mutateAsync: exportFile, isPending } =
-    useExportFinanceValuation();
+  const exportProgress = useExportProgress();
 
   const handleExport = async (format: "csv" | "pdf") => {
-    try {
-      const blob = await exportFile({
-        id: valuationRunId!,
-        format,
-      });
+    if (!valuationRunId) {
+      return;
+    }
 
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `valuation_${valuationType}_${new Date().toISOString().split("T")[0]}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+    try {
+      await exportProgress.runWithProgress({
+        endpoint: `/finance/journal-entries/valuation/runs/${valuationRunId}/export`,
+        params: { format },
+      });
 
       toast.success(t("export_success", { format: format.toUpperCase() }));
       onOpenChange(false);
@@ -78,15 +71,15 @@ export function ExportDialog({
             variant="outline"
             className="w-full justify-start gap-3"
             onClick={() => handleExport("csv")}
-            disabled={isPending}
+            disabled={exportProgress.isExporting}
           >
-            {isPending ? (
+            {exportProgress.isExporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <FileText className="h-4 w-4" />
             )}
             <div className="flex-1 text-left">
-              <p className="font-medium">{t("export_csv")}</p>
+              <p className="font-medium">{exportProgress.label(t("export_csv"))}</p>
               <p className="text-xs text-muted-foreground">
                 {t("export_csv_desc")}
               </p>
@@ -98,15 +91,15 @@ export function ExportDialog({
             variant="outline"
             className="w-full justify-start gap-3"
             onClick={() => handleExport("pdf")}
-            disabled={isPending}
+            disabled={exportProgress.isExporting}
           >
-            {isPending ? (
+            {exportProgress.isExporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <FileText className="h-4 w-4" />
             )}
             <div className="flex-1 text-left">
-              <p className="font-medium">{t("export_pdf")}</p>
+              <p className="font-medium">{exportProgress.label(t("export_pdf"))}</p>
               <p className="text-xs text-muted-foreground">
                 {t("export_pdf_desc")}
               </p>
@@ -118,7 +111,7 @@ export function ExportDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isPending}
+            disabled={exportProgress.isExporting}
           >
             {t("cancel")}
           </Button>

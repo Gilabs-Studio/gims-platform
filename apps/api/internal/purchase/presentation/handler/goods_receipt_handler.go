@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -75,7 +76,7 @@ func (h *GoodsReceiptHandler) List(c *gin.Context) {
 	meta := &response.Meta{
 		Pagination: response.NewPaginationMeta(page, perPage, int(total)),
 		Filters:    map[string]interface{}{},
-		Sort: &response.SortMeta{Field: params.SortBy, Order: params.SortDir},
+		Sort:       &response.SortMeta{Field: params.SortBy, Order: params.SortDir},
 	}
 	if strings.TrimSpace(params.Search) != "" {
 		meta.Filters["search"] = params.Search
@@ -459,44 +460,55 @@ func (h *GoodsReceiptHandler) Export(c *gin.Context) {
 		limit = 10000
 	}
 
-	items, _, err := h.uc.List(c.Request.Context(), repositories.GoodsReceiptListParams{
-		Search:  search,
-		Status:  status,
-		SortBy:  sortBy,
-		SortDir: sortDir,
-		Limit:   limit,
-		Offset:  0,
-	})
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		items, _, err := h.uc.List(ctx, repositories.GoodsReceiptListParams{
+			Search:  search,
+			Status:  status,
+			SortBy:  sortBy,
+			SortDir: sortDir,
+			Limit:   limit,
+			Offset:  0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var b strings.Builder
+		b.WriteString("code,purchase_order_code,receipt_date,status\n")
+		for _, it := range items {
+			poCode := ""
+			if it.PurchaseOrder != nil {
+				poCode = it.PurchaseOrder.Code
+			}
+			rd := ""
+			if it.ReceiptDate != nil {
+				rd = *it.ReceiptDate
+			}
+			row := []string{
+				csvEscape(it.Code),
+				csvEscape(poCode),
+				csvEscape(rd),
+				csvEscape(it.Status),
+			}
+			b.WriteString(strings.Join(row, ","))
+			b.WriteString("\n")
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    "goods_receipts.csv",
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       []byte(b.String()),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	filename := "goods_receipts.csv"
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Status(http.StatusOK)
-
-	var b strings.Builder
-	b.WriteString("code,purchase_order_code,receipt_date,status\n")
-	for _, it := range items {
-		poCode := ""
-		if it.PurchaseOrder != nil {
-			poCode = it.PurchaseOrder.Code
-		}
-		rd := ""
-		if it.ReceiptDate != nil {
-			rd = *it.ReceiptDate
-		}
-		row := []string{
-			csvEscape(it.Code),
-			csvEscape(poCode),
-			csvEscape(rd),
-			csvEscape(it.Status),
-		}
-		b.WriteString(strings.Join(row, ","))
-		b.WriteString("\n")
-	}
-
-	_, _ = c.Writer.WriteString(b.String())
+	exportjob.WriteSyncFile(c, file)
 }

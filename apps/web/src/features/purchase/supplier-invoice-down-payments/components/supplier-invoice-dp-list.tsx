@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -53,7 +54,6 @@ import {
 } from "../hooks/use-supplier-invoice-dp";
 import { PurchaseOrderDetail } from "../../orders/components/purchase-order-detail";
 import { SupplierInvoiceDetail } from "../../supplier-invoices/components/supplier-invoice-detail";
-import { supplierInvoiceDPService } from "../services/supplier-invoice-dp-service";
 import type { SupplierInvoiceDPListItem } from "../types";
 import { SupplierInvoiceDownPaymentStatusBadge } from "./supplier-invoice-down-payment-status-badge";
 import { SupplierInvoiceDPPrintDialog } from "./supplier-invoice-dp-print-dialog";
@@ -201,18 +201,14 @@ export function SupplierInvoiceDPList() {
   const canView = useUserPermission("supplier_invoice_dp.read");
   const canPrint = useUserPermission("supplier_invoice_dp.print");
   const canViewPO = useUserPermission("purchase_order.read");
+  const exportProgress = useExportProgress();
 
   async function handleExport() {
     try {
-      const blob = await supplierInvoiceDPService.exportCsv(listParams);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "supplier-invoice-down-payments.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/supplier-invoice-down-payments/export",
+        params: listParams,
+      });
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -259,9 +255,9 @@ export function SupplierInvoiceDPList() {
         <div className="flex-1" />
 
         {canExport && (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

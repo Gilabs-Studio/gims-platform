@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/service"
@@ -13,11 +16,11 @@ import (
 )
 
 type JournalEntryHandler struct {
-	uc              usecase.JournalEntryUsecase
-	valuationUC     usecase.ValuationRunUsecase
-	cashBankUC      usecase.CashBankJournalUsecase
+	uc                usecase.JournalEntryUsecase
+	valuationUC       usecase.ValuationRunUsecase
+	cashBankUC        usecase.CashBankJournalUsecase
 	reconciliationSvc usecase.ValuationReconciliationService
-	exportSvc       service.ValuationExportService
+	exportSvc         service.ValuationExportService
 }
 
 func NewJournalEntryHandler(
@@ -375,12 +378,12 @@ func (h *JournalEntryHandler) GetValuationRun(c *gin.Context) {
 // Returns reconciliation report comparing GL posting vs subledger for audit trail.
 func (h *JournalEntryHandler) GetValuationReconciliation(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
-	
+
 	if h.reconciliationSvc == nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "RECONCILIATION_SERVICE_UNAVAILABLE", "Reconciliation service not configured", nil, nil)
 		return
 	}
-	
+
 	report, err := h.reconciliationSvc.GenerateReconciliationReport(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "RECONCILIATION_FAILED", err.Error(), nil, nil)
@@ -400,27 +403,46 @@ func (h *JournalEntryHandler) ExportValuation(c *gin.Context) {
 		return
 	}
 
-	var file *service.ExportedFile
-	var err error
-
-	switch format {
-	case "csv":
-		file, err = h.exportSvc.ExportAsCSV(c.Request.Context(), id)
-	case "pdf":
-		file, err = h.exportSvc.ExportAsPDF(c.Request.Context(), id)
-	default:
+	if format != "csv" && format != "pdf" {
 		response.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORMAT", "format must be 'csv' or 'pdf'", nil, nil)
 		return
 	}
 
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		var file *service.ExportedFile
+		var err error
+
+		switch format {
+		case "csv":
+			file, err = h.exportSvc.ExportAsCSV(ctx, id)
+		case "pdf":
+			file, err = h.exportSvc.ExportAsPDF(ctx, id)
+		default:
+			return nil, fmt.Errorf("format must be 'csv' or 'pdf'")
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    file.FileName,
+			ContentType: file.ContentType,
+			Bytes:       file.Content,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
 	}
 
-	// Send file as attachment
-	c.Header("Content-Disposition", "attachment; filename="+file.FileName)
-	c.Data(http.StatusOK, file.ContentType, file.Content)
+	exportjob.WriteSyncFile(c, file)
 }
 
 // BulkApproveValuation handles POST /finance/journal-entries/valuation/runs/bulk-approve

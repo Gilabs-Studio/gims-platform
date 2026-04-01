@@ -21,7 +21,6 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -47,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { PurchaseOrderDetail } from "@/features/purchase/orders/components/purchase-order-detail";
@@ -59,7 +59,6 @@ import {
   useApproveGoodsReceipt,
   useRejectGoodsReceipt,
 } from "../hooks/use-goods-receipts";
-import { goodsReceiptsService } from "../services/goods-receipts-service";
 import type { GoodsReceiptListItem } from "../types";
 import { GoodsReceiptDetail } from "./goods-receipt-detail";
 import { GoodsReceiptForm } from "./goods-receipt-form";
@@ -133,6 +132,7 @@ export function GoodsReceiptsList() {
   const submitMutation = useSubmitGoodsReceipt();
   const approveMutation = useApproveGoodsReceipt();
   const rejectMutation = useRejectGoodsReceipt();
+  const exportProgress = useExportProgress();
 
   useEffect(() => {
     if (detailId) {
@@ -160,20 +160,15 @@ export function GoodsReceiptsList() {
 
   const handleExport = async () => {
     try {
-      const blob = await goodsReceiptsService.exportCsv({
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/goods-receipt/export",
+        params: {
         search: debouncedSearch || undefined,
         sort_by: "created_at",
         sort_dir: "desc",
-        limit: 10000,
+        limit: 100,
+        },
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "goods_receipts.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -236,10 +231,11 @@ export function GoodsReceiptsList() {
           <Button
             variant="outline"
             onClick={handleExport}
+            disabled={exportProgress.isExporting}
             className="cursor-pointer"
           >
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

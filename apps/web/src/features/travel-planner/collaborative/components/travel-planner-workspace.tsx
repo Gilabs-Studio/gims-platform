@@ -23,6 +23,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { runAsyncExport } from "@/lib/async-export";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { useHasPermission, usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import {
@@ -30,7 +32,6 @@ import {
   useCreateTravelPlanVisit,
   useDeleteTravelExpense,
   useCreateTravelPlan,
-  useExportTravelPlanPdf,
   useLinkTravelPlanVisits,
   useOptimizeTravelRoute,
   useTravelPlan,
@@ -140,17 +141,6 @@ function collectCategories(plan: TravelPlan | null): string[] {
   return [...categorySet];
 }
 
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
-
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -219,7 +209,7 @@ export function TravelPlannerWorkspace() {
   const createPlanMutation = useCreateTravelPlan();
   const updatePlanMutation = useUpdateTravelPlan();
   const optimizeRouteMutation = useOptimizeTravelRoute();
-  const exportPdfMutation = useExportTravelPlanPdf();
+  const exportProgress = useExportProgress();
   const createExpenseMutation = useCreateTravelExpense();
   const deleteExpenseMutation = useDeleteTravelExpense();
   const linkVisitsMutation = useLinkTravelPlanVisits();
@@ -369,12 +359,12 @@ export function TravelPlannerWorkspace() {
     }
 
     try {
-      const blob = await exportPdfMutation.mutateAsync({
-        planId: activePlanId,
-        dayIndex,
+      await exportProgress.runWithProgress({
+        endpoint: `/travel-planner/plans/${activePlanId}/export/pdf`,
+        params: {
+          day_index: dayIndex,
+        },
       });
-      const filename = dayIndex ? `travel-plan-day-${dayIndex}.pdf` : "travel-plan.pdf";
-      downloadBlob(blob, filename);
       toast.success(t("toasts.pdfExported"));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("toasts.genericError");
@@ -1128,20 +1118,22 @@ export function TravelPlannerWorkspace() {
                     type="button"
                     className="cursor-pointer"
                     onClick={() => handleExportPdf()}
-                    disabled={exportPdfMutation.isPending}
+                    disabled={exportProgress.isExporting}
                   >
                     <FileDown className="h-4 w-4 mr-1" />
-                    {t("export.fullPdf")}
+                    {exportProgress.label(t("export.fullPdf"))}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     className="cursor-pointer"
                     onClick={() => handleExportPdf(resolvedSelectedDayIndex)}
-                    disabled={exportPdfMutation.isPending}
+                    disabled={exportProgress.isExporting}
                   >
                     <FileDown className="h-4 w-4 mr-1" />
-                    {t("export.dayPdf", { day: resolvedSelectedDayIndex })}
+                    {exportProgress.isExporting
+                      ? exportProgress.label(t("export.dayPdf", { day: resolvedSelectedDayIndex }))
+                      : t("export.dayPdf", { day: resolvedSelectedDayIndex })}
                   </Button>
                   <Button
                     type="button"

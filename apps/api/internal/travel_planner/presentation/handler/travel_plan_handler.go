@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/travel_planner/domain/dto"
 	"github.com/gilabs/gims/api/internal/travel_planner/domain/usecase"
@@ -190,16 +192,30 @@ func (h *TravelPlanHandler) ExportPDF(c *gin.Context) {
 		dayIndex = &parsedDayIndex
 	}
 
-	pdfBytes, filename, err := h.uc.ExportPDF(c.Request.Context(), planID, dayIndex)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		pdfBytes, filename, err := h.uc.ExportPDF(ctx, planID, dayIndex)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    filename,
+			ContentType: "application/pdf",
+			Bytes:       pdfBytes,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		handleTravelPlanError(c, err)
 		return
 	}
 
-	c.Header("Content-Type", "application/pdf")
-	c.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	c.Header("Cache-Control", "no-store")
-	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+	exportjob.WriteSyncFile(c, file)
 }
 
 func (h *TravelPlanHandler) ListExpenses(c *gin.Context) {
