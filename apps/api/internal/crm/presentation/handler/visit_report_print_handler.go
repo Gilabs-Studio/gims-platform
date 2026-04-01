@@ -99,7 +99,7 @@ func (h *VisitReportPrintHandler) PrintVisitReport(c *gin.Context) {
 	// Map response to PDF data struct
 	data := visitPDFData{
 		Code:      visit.Code,
-		Status:    strings.ToUpper(visit.Status),
+		Status:    "-",
 		VisitDate: visit.VisitDate,
 		PrintDate: apptime.Now().Format("02 Jan 2006 15:04"),
 	}

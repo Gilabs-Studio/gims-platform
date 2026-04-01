@@ -185,6 +185,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 11. Travel Planner
+	travelPlannerMenu := &permission.Menu{
+		Name:   "Travel Planner",
+		Icon:   "route",
+		URL:    "/travel-planner",
+		Order:  11,
+		Status: "active",
+	}
+	if err := createMenu(travelPlannerMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -451,6 +463,24 @@ func SeedMenus() error {
 	}
 	for _, child := range financeSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// TRAVEL PLANNER SUB-MENUS
+	// ============================================================
+
+	travelPlannerChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Planner Workspace", "map", "/travel-planner", 1},
+	}
+	for _, child := range travelPlannerChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
 			return err
 		}
 	}

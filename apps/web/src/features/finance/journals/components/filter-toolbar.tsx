@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Search } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -8,12 +10,15 @@ type FilterToolbarProps = {
   readonly search?: string;
   readonly startDate?: string;
   readonly endDate?: string;
+  readonly dateRange?: DateRange;
   readonly searchPlaceholder?: string;
   readonly startDateLabel?: string;
   readonly endDateLabel?: string;
+  readonly dateRangeLabel?: string;
   readonly onSearchChange?: (value: string) => void;
   readonly onStartDateChange?: (value: string) => void;
   readonly onEndDateChange?: (value: string) => void;
+  readonly onDateRangeChange?: (value: DateRange | undefined) => void;
   readonly children?: ReactNode;
 };
 
@@ -21,17 +26,21 @@ export function FilterToolbar({
   search,
   startDate,
   endDate,
+  dateRange,
   searchPlaceholder,
   startDateLabel,
   endDateLabel,
+  dateRangeLabel,
   onSearchChange,
   onStartDateChange,
   onEndDateChange,
+  onDateRangeChange,
   children,
 }: FilterToolbarProps) {
   const hasSearch = typeof search === "string" && !!searchPlaceholder && !!onSearchChange;
   const hasStartDate = typeof startDate === "string" && !!startDateLabel && !!onStartDateChange;
   const hasEndDate = typeof endDate === "string" && !!endDateLabel && !!onEndDateChange;
+  const hasDateRange = !!dateRangeLabel && !!onDateRangeChange;
 
   return (
     <div className="flex flex-col sm:flex-row items-end gap-4">
@@ -67,6 +76,13 @@ export function FilterToolbar({
             value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
           />
+        </div>
+      ) : null}
+
+      {hasDateRange ? (
+        <div className="w-full sm:w-auto space-y-2">
+          <Label>{dateRangeLabel}</Label>
+          <DateRangePicker dateRange={dateRange} onDateChange={onDateRangeChange} />
         </div>
       ) : null}
 

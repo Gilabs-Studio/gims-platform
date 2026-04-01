@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreUsecase "github.com/gilabs/gims/api/internal/core/domain/usecase"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -48,6 +50,13 @@ import (
 	userHandler "github.com/gilabs/gims/api/internal/user/presentation/handler"
 	userRouter "github.com/gilabs/gims/api/internal/user/presentation/router"
 
+	passwordResetRepo "github.com/gilabs/gims/api/internal/password_reset/data/repositories"
+	passwordResetUsecase "github.com/gilabs/gims/api/internal/password_reset/domain/usecase"
+	passwordResetHandler "github.com/gilabs/gims/api/internal/password_reset/presentation/handler"
+	passwordResetRouter "github.com/gilabs/gims/api/internal/password_reset/presentation/router"
+
+	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
+
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
 	customerPresentation "github.com/gilabs/gims/api/internal/customer/presentation"
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
@@ -65,6 +74,7 @@ import (
 	salesPresentation "github.com/gilabs/gims/api/internal/sales/presentation"
 	stockOpnamePresentation "github.com/gilabs/gims/api/internal/stock_opname/presentation"
 	supplierPresentation "github.com/gilabs/gims/api/internal/supplier/presentation"
+	travelPlannerPresentation "github.com/gilabs/gims/api/internal/travel_planner/presentation"
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
@@ -219,6 +229,8 @@ func main() {
 	roleRepository := roleRepo.NewRoleRepository(database.DB)
 	permissionRepository := permissionRepo.NewPermissionRepository(database.DB)
 	menuRepository := permissionRepo.NewMenuRepository(database.DB)
+	passwordResetRepository := passwordResetRepo.NewPasswordResetRequestRepository(database.DB)
+	notificationRepository := notificationRepo.NewNotificationRepository(database.DB)
 	_ = menuRepository // potentially unused in main, but good to init if needed later
 
 	// Setup Services
@@ -234,12 +246,14 @@ func main() {
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, auditService, eventPublisher, redis.GetClient())
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
+	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, notificationRepository, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
 	authH := authHandler.NewAuthHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
+	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
 
 	// Setup refresh token cleanup worker
 	// Run every 24 hours to clean up expired refresh tokens
@@ -313,6 +327,7 @@ func main() {
 		})
 
 		authRouter.RegisterAuthRoutes(v1, authH, jwtManager, permissionService)
+		passwordResetRouter.RegisterPasswordResetRoutes(v1, passwordResetH, jwtManager, permissionService)
 		userRouter.RegisterUserRoutes(v1, userH, permissionH, jwtManager, permissionService)
 		roleRouter.RegisterRoleRoutes(v1, roleH, jwtManager, permissionService)
 		permissionRouter.RegisterPermissionRoutes(v1, permissionH, jwtManager, permissionService)
@@ -375,26 +390,48 @@ func main() {
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
+		// Travel Planner module
+		travelPlannerPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
 		// General module (Dashboard)
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
 
 		// AI Assistant module
+		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)
+		bankAccountRepo := coreRepos.NewBankAccountRepository(database.DB)
+		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+
 		cerebrasClient := cerebras.NewClient(
 			config.AppConfig.Cerebras.BaseURL,
 			config.AppConfig.Cerebras.APIKey,
 			config.AppConfig.Cerebras.Model,
 		)
 		aiPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, cerebrasClient, &aiPresentation.AIDeps{
-			HolidayUC:        hrdDeps.HolidayUC,
-			LeaveRequestUC:   hrdDeps.LeaveRequestUC,
-			AttendanceUC:     hrdDeps.AttendanceUC,
-			SalesQuotationUC: salesDeps.QuotationUC,
-			SalesOrderUC:     salesDeps.OrderUC,
-			YearlyTargetUC:   salesDeps.YearlyTargetUC,
-			InventoryUC:      invUC,
+			HolidayUC:         hrdDeps.HolidayUC,
+			LeaveRequestUC:    hrdDeps.LeaveRequestUC,
+			AttendanceUC:      hrdDeps.AttendanceUC,
+			SalesQuotationUC:  salesDeps.QuotationUC,
+			SalesOrderUC:      salesDeps.OrderUC,
+			DeliveryOrderUC:   salesDeps.DeliveryOrderUC,
+			CustomerInvoiceUC: salesDeps.CustomerInvoiceUC,
+			YearlyTargetUC:    salesDeps.YearlyTargetUC,
+			InventoryUC:       invUC,
+			PurchaseOrderUC:   purchaseDeps.OrderUC,
+			PurchaseReqUC:     purchaseDeps.RequisitionUC,
+			GoodsReceiptUC:    purchaseDeps.GoodsReceiptUC,
+			SupplierInvoiceUC: purchaseDeps.SupplierInvoiceUC,
+			CoaUC:             financeDeps.CoaUC,
+			JournalUC:         financeDeps.JournalUC,
+			FinancePaymentUC:  financeDeps.PaymentUC,
+			BudgetUC:          financeDeps.BudgetUC,
+			CashBankUC:        financeDeps.CashBankUC,
+			TaxInvoiceUC:      financeDeps.TaxInvoiceUC,
+			AssetUC:           financeDeps.AssetUC,
+			SalaryUC:          financeDeps.SalaryUC,
+			BankAccountUC:     bankAccountUC,
 		})
 	}
 

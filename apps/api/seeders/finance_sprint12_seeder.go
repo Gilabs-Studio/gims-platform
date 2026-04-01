@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
+
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -140,17 +142,56 @@ func SeedFinanceSprint12() error {
 	var vehiclesCat financeModels.AssetCategory
 	_ = db.Where("name = ?", "Vehicles").First(&vehiclesCat).Error
 
-	// 4) Seed Assets
+	// 4) Seed Assets – includes Phase 2 extended fields
+	warrantyStart := time.Now().AddDate(0, -10, 0)
+	warrantyEnd := warrantyStart.AddDate(2, 0, 0)
+	insStart := warrantyStart
+	insEnd := insStart.AddDate(1, 0, 0)
+	insValue1 := 15000000.0
+	insValue2 := 265000000.0
+	serial1 := "SN-LP-20250101"
+	serial2 := "SN-PR-20250201"
+	serial3 := "VIN-DLV-XJ72941"
+	barcode1 := "4901234567890"
+	barcode2 := "4901234567891"
+	barcode3 := "4901234567892"
+	tag1 := "IT-001"
+	tag2 := "IT-002"
+	tag3 := "VH-001"
+	warrantyProvider1 := "Lenovo Indonesia"
+	warrantyProvider2 := "HP Indonesia"
+	warrantyProvider3 := "Mitsubishi Motors"
+	insProvider1 := "Asuransi Astra"
+	insProvider2 := "Asuransi Jasindo"
+	insPolicy1 := "POL-AST-0001"
+	insPolicy2 := "POL-AST-0003"
+
 	assets := []financeModels.Asset{
 		{
-			Code:            "AST-0001",
-			Name:            "Laptop - Finance",
-			CategoryID:      officeEquipmentCat.ID,
-			LocationID:      headOffice.ID,
-			AcquisitionDate: time.Now().AddDate(0, -10, 0),
-			AcquisitionCost: 15000000,
-			SalvageValue:    1000000,
-			Status:          financeModels.AssetStatusActive,
+			Code:             "AST-0001",
+			Name:             "Laptop - Finance",
+			CategoryID:       officeEquipmentCat.ID,
+			LocationID:       headOffice.ID,
+			AcquisitionDate:  time.Now().AddDate(0, -10, 0),
+			AcquisitionCost:  15000000,
+			SalvageValue:     1000000,
+			Status:           financeModels.AssetStatusActive,
+			SerialNumber:     &serial1,
+			Barcode:          &barcode1,
+			AssetTag:         &tag1,
+			ShippingCost:     150000,
+			InstallationCost: 250000,
+			TaxAmount:        1500000,
+			IsDepreciable:    true,
+			IsCapitalized:    true,
+			WarrantyStart:    &warrantyStart,
+			WarrantyEnd:      &warrantyEnd,
+			WarrantyProvider: &warrantyProvider1,
+			InsurancePolicyNumber: &insPolicy1,
+			InsuranceProvider:     &insProvider1,
+			InsuranceStart:        &insStart,
+			InsuranceEnd:          &insEnd,
+			InsuranceValue:        &insValue1,
 		},
 		{
 			Code:            "AST-0002",
@@ -161,16 +202,42 @@ func SeedFinanceSprint12() error {
 			AcquisitionCost: 8500000,
 			SalvageValue:    500000,
 			Status:          financeModels.AssetStatusActive,
+			SerialNumber:    &serial2,
+			Barcode:         &barcode2,
+			AssetTag:        &tag2,
+			ShippingCost:    100000,
+			TaxAmount:       850000,
+			IsDepreciable:   true,
+			IsCapitalized:   true,
+			WarrantyStart:   &warrantyStart,
+			WarrantyEnd:     &warrantyEnd,
+			WarrantyProvider: &warrantyProvider2,
 		},
 		{
-			Code:            "AST-0003",
-			Name:            "Delivery Van",
-			CategoryID:      vehiclesCat.ID,
-			LocationID:      warehouse.ID,
-			AcquisitionDate: time.Now().AddDate(-1, 0, 0),
-			AcquisitionCost: 265000000,
-			SalvageValue:    25000000,
-			Status:          financeModels.AssetStatusActive,
+			Code:             "AST-0003",
+			Name:             "Delivery Van",
+			CategoryID:       vehiclesCat.ID,
+			LocationID:       warehouse.ID,
+			AcquisitionDate:  time.Now().AddDate(-1, 0, 0),
+			AcquisitionCost:  265000000,
+			SalvageValue:     25000000,
+			Status:           financeModels.AssetStatusActive,
+			SerialNumber:     &serial3,
+			Barcode:          &barcode3,
+			AssetTag:         &tag3,
+			ShippingCost:     5000000,
+			InstallationCost: 2500000,
+			TaxAmount:        26500000,
+			IsDepreciable:    true,
+			IsCapitalized:    true,
+			WarrantyStart:    &warrantyStart,
+			WarrantyEnd:      &warrantyEnd,
+			WarrantyProvider: &warrantyProvider3,
+			InsurancePolicyNumber: &insPolicy2,
+			InsuranceProvider:     &insProvider2,
+			InsuranceStart:        &insStart,
+			InsuranceEnd:          &insEnd,
+			InsuranceValue:        &insValue2,
 		},
 	}
 
@@ -187,8 +254,196 @@ func SeedFinanceSprint12() error {
 		}
 	}
 
-	// 6) Financial closing is a manual process, keeping it as a sample.
+	// 5a) Seed Depreciation records for AST-0001
 	now := time.Now()
+	var ast1 financeModels.Asset
+	if err := db.Where("code = ?", "AST-0001").First(&ast1).Error; err == nil {
+		depreciations := []financeModels.AssetDepreciation{
+			{
+				AssetID:          ast1.ID,
+				Period:           now.AddDate(0, -3, 0).Format("2006-01"),
+				DepreciationDate: time.Date(now.Year(), now.Month()-3, 28, 0, 0, 0, 0, time.UTC),
+				Method:           financeModels.DepreciationMethodStraightLine,
+				Amount:           388889,
+				Accumulated:      388889,
+				BookValue:        14611111,
+				Status:           financeModels.AssetDepreciationStatusApproved,
+			},
+			{
+				AssetID:          ast1.ID,
+				Period:           now.AddDate(0, -2, 0).Format("2006-01"),
+				DepreciationDate: time.Date(now.Year(), now.Month()-2, 28, 0, 0, 0, 0, time.UTC),
+				Method:           financeModels.DepreciationMethodStraightLine,
+				Amount:           388889,
+				Accumulated:      777778,
+				BookValue:        14222222,
+				Status:           financeModels.AssetDepreciationStatusApproved,
+			},
+			{
+				AssetID:          ast1.ID,
+				Period:           now.AddDate(0, -1, 0).Format("2006-01"),
+				DepreciationDate: time.Date(now.Year(), now.Month()-1, 28, 0, 0, 0, 0, time.UTC),
+				Method:           financeModels.DepreciationMethodStraightLine,
+				Amount:           388889,
+				Accumulated:      1166667,
+				BookValue:        13833333,
+				Status:           financeModels.AssetDepreciationStatusPending,
+			},
+		}
+
+		for i := range depreciations {
+			if err := db.
+				Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "asset_id"}, {Name: "period"}}, DoNothing: true}).
+				Create(&depreciations[i]).Error; err != nil {
+				log.Printf("Warning: Failed to create depreciation for %s period %s: %v", ast1.Code, depreciations[i].Period, err)
+			}
+		}
+	}
+
+	// 5b) Seed Transaction records
+	var ast2 financeModels.Asset
+	_ = db.Where("code = ?", "AST-0002").First(&ast2).Error
+	var ast3 financeModels.Asset
+	_ = db.Where("code = ?", "AST-0003").First(&ast3).Error
+
+	if ast1.ID != "" {
+		transactions := []financeModels.AssetTransaction{
+			{
+				AssetID:         ast1.ID,
+				Type:            financeModels.AssetTransactionTypeAcquire,
+				TransactionDate: ast1.AcquisitionDate,
+				Amount:          ast1.AcquisitionCost,
+				Description:     "Initial acquisition of Laptop - Finance",
+				Status:          financeModels.AssetTransactionStatusApproved,
+			},
+			{
+				AssetID:         ast1.ID,
+				Type:            financeModels.AssetTransactionTypeDepreciate,
+				TransactionDate: now.AddDate(0, -3, 0),
+				Amount:          388889,
+				Description:     fmt.Sprintf("Monthly depreciation %s", now.AddDate(0, -3, 0).Format("Jan 2006")),
+				Status:          financeModels.AssetTransactionStatusApproved,
+			},
+		}
+		if ast3.ID != "" {
+			transactions = append(transactions, financeModels.AssetTransaction{
+				AssetID:         ast3.ID,
+				Type:            financeModels.AssetTransactionTypeAcquire,
+				TransactionDate: ast3.AcquisitionDate,
+				Amount:          ast3.AcquisitionCost,
+				Description:     "Initial acquisition of Delivery Van",
+				Status:          financeModels.AssetTransactionStatusApproved,
+			})
+			transactions = append(transactions, financeModels.AssetTransaction{
+				AssetID:         ast3.ID,
+				Type:            financeModels.AssetTransactionTypeTransfer,
+				TransactionDate: now.AddDate(0, -1, 0),
+				Amount:          0,
+				Description:     "Transferred from Head Office to Warehouse",
+				Status:          financeModels.AssetTransactionStatusApproved,
+			})
+		}
+
+		for i := range transactions {
+			if err := db.Create(&transactions[i]).Error; err != nil {
+				log.Printf("Warning: Failed to create transaction: %v", err)
+			}
+		}
+	}
+
+	// 5c) Seed Assignment History
+	if ast1.ID != "" {
+		ast1UUID, _ := uuid.Parse(ast1.ID)
+		hoUUID, _ := uuid.Parse(headOffice.ID)
+
+		assignments := []financeModels.AssetAssignmentHistory{
+			{
+				AssetID:    ast1UUID,
+				LocationID: &hoUUID,
+				AssignedAt: ast1.AcquisitionDate,
+				Notes:      stringPtr("Assigned upon acquisition to Finance department"),
+			},
+		}
+		if ast3.ID != "" {
+			ast3UUID, _ := uuid.Parse(ast3.ID)
+			whUUID, _ := uuid.Parse(warehouse.ID)
+			returnedAt := now.AddDate(0, -1, 0)
+			assignments = append(assignments, financeModels.AssetAssignmentHistory{
+				AssetID:      ast3UUID,
+				LocationID:   &hoUUID,
+				AssignedAt:   ast3.AcquisitionDate,
+				ReturnedAt:   &returnedAt,
+				ReturnReason: stringPtr("Relocated to warehouse"),
+				Notes:        stringPtr("Initially at Head Office"),
+			})
+			assignments = append(assignments, financeModels.AssetAssignmentHistory{
+				AssetID:    ast3UUID,
+				LocationID: &whUUID,
+				AssignedAt: now.AddDate(0, -1, 0),
+				Notes:      stringPtr("Transferred to Warehouse"),
+			})
+		}
+
+		for i := range assignments {
+			if err := db.Create(&assignments[i]).Error; err != nil {
+				log.Printf("Warning: Failed to create assignment history: %v", err)
+			}
+		}
+	}
+
+	// 5d) Seed Audit Logs
+	if ast1.ID != "" {
+		ast1UUID, _ := uuid.Parse(ast1.ID)
+
+		auditLogs := []financeModels.AssetAuditLog{
+			{
+				AssetID:     ast1UUID,
+				Action:      "created",
+				PerformedAt: ast1.AcquisitionDate,
+				Metadata: financeModels.MapStringInterface{
+					"source": "seeder",
+					"note":   "Asset initially created",
+				},
+			},
+			{
+				AssetID: ast1UUID,
+				Action:  "depreciated",
+				Changes: financeModels.AuditChanges{
+					{Field: "book_value", OldValue: 15000000, NewValue: 14611111},
+					{Field: "accumulated_depreciation", OldValue: 0, NewValue: 388889},
+				},
+				PerformedAt: now.AddDate(0, -3, 0),
+			},
+		}
+		if ast3.ID != "" {
+			ast3UUID, _ := uuid.Parse(ast3.ID)
+			auditLogs = append(auditLogs, financeModels.AssetAuditLog{
+				AssetID:     ast3UUID,
+				Action:      "created",
+				PerformedAt: ast3.AcquisitionDate,
+				Metadata: financeModels.MapStringInterface{
+					"source": "seeder",
+					"note":   "Fleet vehicle acquired",
+				},
+			})
+			auditLogs = append(auditLogs, financeModels.AssetAuditLog{
+				AssetID: ast3UUID,
+				Action:  "transferred",
+				Changes: financeModels.AuditChanges{
+					{Field: "location", OldValue: "Head Office", NewValue: "Warehouse"},
+				},
+				PerformedAt: now.AddDate(0, -1, 0),
+			})
+		}
+
+		for i := range auditLogs {
+			if err := db.Create(&auditLogs[i]).Error; err != nil {
+				log.Printf("Warning: Failed to create audit log: %v", err)
+			}
+		}
+	}
+
+	// 6) Financial closing is a manual process, keeping it as a sample.
 	firstOfThisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	lastMonthEnd := firstOfThisMonth.AddDate(0, 0, -1)
 

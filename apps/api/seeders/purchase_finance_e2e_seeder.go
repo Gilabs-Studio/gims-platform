@@ -967,7 +967,15 @@ type journalLineInput struct {
 }
 
 func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *string, adminID string, lines []journalLineInput) {
-	log.Printf("Triggering journal entry creation for %v (%v)", *refType, *refID)
+	refTypeValue := ""
+	if refType != nil {
+		refTypeValue = *refType
+	}
+	refIDValue := ""
+	if refID != nil {
+		refIDValue = *refID
+	}
+	log.Printf("Triggering journal entry creation for %v (%v)", refTypeValue, refIDValue)
 
 	coaRepo := financeRepositories.NewChartOfAccountRepository(tx)
 	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
@@ -1007,8 +1015,8 @@ func createJournal(tx *gorm.DB, date time.Time, desc string, refType, refID *str
 
 	_, err := journalUC.PostOrUpdateJournal(txCtx, req)
 	if err != nil {
-		log.Printf("ERROR: Failed to create journal entry via usecase for %v (%v): %v", *refType, *refID, err)
+		log.Printf("ERROR: Failed to create journal entry via usecase for %v (%v): %v", refTypeValue, refIDValue, err)
 	} else {
-		log.Printf("SUCCESS: Created journal entry via usecase for %v (%v)", *refType, *refID)
+		log.Printf("SUCCESS: Created journal entry via usecase for %v (%v)", refTypeValue, refIDValue)
 	}
 }

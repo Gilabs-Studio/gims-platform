@@ -55,6 +55,7 @@ import { DealStockCheck } from "./deal-stock-check";
 import { DealActivityFeed } from "./deal-activity-feed";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
 import { useTasksByDeal } from "@/features/crm/task/hooks/use-tasks";
@@ -134,6 +135,8 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const { data: leadProductItemsData } = useLeadProductItems(deal?.lead_id ?? "", {
     enabled: isItemsTabVisited && !!deal?.lead_id,
   });
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isItemsTabVisited });
+  const surveyQuestions = visitFormDataRes?.data?.interest_questions ?? [];
 
   const leadItems = (leadProductItemsData?.data ?? []).filter((p) => p.product_id);
   const leadInterestMap = new Map<string, number>(leadItems.map((p) => [p.product_id!, p.interest_level]));
@@ -141,7 +144,7 @@ export function DealDetailPage({ dealId }: DealDetailPageProps) {
   const leadItemByProductId = new Map<string, LeadProductItem>(leadItems.map((p) => [p.product_id!, p]));
 
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    return resolveVisitSurveyAnswers(raw, (key) => tVisit(key));
+    return resolveVisitSurveyAnswers(raw, surveyQuestions);
   }
 
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });

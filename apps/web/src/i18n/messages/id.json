@@ -15,6 +15,7 @@
     "primary": "Utama",
     "active": "Aktif",
     "inactive": "Tidak Aktif",
+    "view": "Lihat",
     "edit": "Ubah",
     "delete": "Hapus",
     "deleteConfirm": "Apakah Anda yakin ingin menghapus item ini?",
@@ -54,8 +55,22 @@
     "validationError": "Periksa kembali isian form",
     "myActivities": "Aktivitas Saya",
     "add": "Tambah",
+    "adding": "Menambahkan...",
     "remove": "Hapus",
-    "detail": "Detail"
+    "removing": "Menghapus...",
+    "detail": "Detail",
+    "months": "bulan",
+    "years": "tahun",
+    "complete": "Selesai",
+    "reset": "Reset",
+    "clearAll": "Bersihkan Semua",
+    "savedSuccessfully": "Berhasil disimpan",
+    "passwordChangedSuccessfully": "Kata sandi berhasil diubah!",
+    "avatarUpdatedSuccessfully": "Avatar berhasil diperbarui!",
+    "systemInfo": "Informasi Sistem",
+    "description": "Deskripsi",
+    "amount": "Jumlah",
+    "match": "Cocok"
   },
   "notFound": {
     "label": "404",
@@ -182,7 +197,7 @@
     "budgetingCost": "Anggaran & Biaya",
     "budget": "Anggaran",
     "salary": "Gaji",
-    "upCountryCost": "Biaya Perjalanan Dinas",
+    "upCountryCost": "Biaya Perjalanan",
     "assetManagement": "Manajemen Aset",
     "assets": "Aset",
     "assetCategories": "Kategori Aset",
@@ -196,6 +211,7 @@
     "hrd": "HRD",
     "attendance": "Kehadiran",
     "leaveRequests": "Pengajuan Cuti",
+    "overtime": "Lembur",
     "evaluation": "Evaluasi",
     "recruitment": "Rekrutmen",
     "workSchedule": "Jadwal Kerja",
@@ -226,11 +242,181 @@
     "supplierResearch": "Riset Pemasok",
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
+    "travelPlanner": "Travel Planner",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",
     "description": "Konfigurasi Pemetaan Bagan Akun Perusahaan"
+  },
+  "travelPlanner": {
+    "badge": "Kolaboratif Lanjutan",
+    "title": "Travel Planner",
+    "description": "Modul parent terpadu untuk perencanaan trip, kunjungan sales, dan biaya perjalanan pada operasi logistik, kargo, kapal, dan milestone.",
+    "modules": {
+      "title": "Modul",
+      "description": "Kelola perencanaan trip, eksekusi kunjungan, dan pencatatan biaya perjalanan dalam satu workflow.",
+      "upCountryCost": {
+        "title": "Trip Visit & Expense",
+        "description": "Workflow terpadu untuk perencanaan rute, linking visit, dan pencatatan biaya perjalanan.",
+        "action": "Buka Modul"
+      },
+      "collaborative": {
+        "title": "Workspace Planner Kolaboratif",
+        "description": "Ruang kerja itinerary bersama untuk driver, dispatcher, dan tim operasional.",
+        "status": "Direncanakan"
+      }
+    },
+    "capabilities": {
+      "title": "Kapabilitas Target",
+      "description": "Roadmap bertahap yang akan diimplementasikan di domain parent baru.",
+      "items": {
+        "itinerary": {
+          "title": "Itinerary Per Hari",
+          "description": "Drag and drop tempat, aktivitas, dan catatan harian lintas hari perjalanan."
+        },
+        "interactiveMap": {
+          "title": "Peta Interaktif",
+          "description": "Peta Leaflet dengan marker foto, clustering marker, preview rute, dan penggantian tile source."
+        },
+        "placeSearch": {
+          "title": "Pencarian Tempat",
+          "description": "Cari tempat dari Google Places atau OpenStreetMap untuk memperkaya aktivitas itinerary."
+        },
+        "routeOptimization": {
+          "title": "Optimasi Rute",
+          "description": "Optimasi otomatis urutan kunjungan dan ekspor rute akhir ke navigasi Google Maps."
+        },
+        "weather": {
+          "title": "Prakiraan Cuaca",
+          "description": "Prakiraan hingga 16 hari dari Open-Meteo dengan fallback iklim historis."
+        },
+        "pdfExport": {
+          "title": "Ekspor Trip ke PDF",
+          "description": "Generate dokumen trip ber-branding dengan cover, detail itinerary, dan ekspor PDF per hari."
+        }
+      }
+    },
+    "workspace": {
+      "badge": "Workspace Kolaboratif Lanjutan",
+      "title": "Travel Planner Collaborative Advance",
+      "description": "Rencanakan itinerary harian untuk logistik, kargo, kapal, dan milestone perjalanan dengan kolaborasi drag-drop, peta interaktif, optimasi rute, cuaca, dan ekspor dokumen.",
+      "planBootstrap": {
+        "title": "Inisialisasi Plan",
+        "titlePlaceholder": "Judul plan",
+        "modePlaceholder": "Pilih mode",
+        "pickExisting": "Pilih plan yang sudah ada"
+      },
+      "actions": {
+        "createPlan": "Buat Plan",
+        "creating": "Membuat...",
+        "savePlan": "Simpan Plan",
+        "saving": "Menyimpan...",
+        "optimize": "Optimasi Rute",
+        "optimizing": "Mengoptimasi..."
+      },
+      "context": {
+        "title": "Konteks Akses Pengguna",
+        "userLabel": "Pengguna aktif",
+        "roleLabel": "Peran",
+        "scopeLabel": "Ruang lingkup izin",
+        "permissionLabel": "travel_planner.read",
+        "permissionGranted": "Diizinkan",
+        "permissionMissing": "Belum diizinkan",
+        "scopeUnknown": "Tidak diketahui",
+        "notAuthenticated": "Belum login"
+      },
+      "tabs": {
+        "planner": "Planner",
+        "operations": "Kunjungan & Biaya",
+        "insights": "Cuaca & Ekspor",
+        "itinerary": "Itinerary",
+        "map": "Peta Interaktif",
+        "visits": "Kunjungan",
+        "expenses": "Biaya",
+        "weather": "Cuaca",
+        "export": "Ekspor"
+      },
+      "visits": {
+        "createTitle": "Buat Kunjungan dari Trip",
+        "employeePlaceholder": "Pilih karyawan",
+        "customerPlaceholder": "Pilih pelanggan (opsional)",
+        "noCustomer": "Tanpa pelanggan",
+        "contactPersonPlaceholder": "Nama kontak",
+        "contactPhonePlaceholder": "Nomor kontak",
+        "addressPlaceholder": "Alamat",
+        "purposePlaceholder": "Tujuan kunjungan",
+        "notesPlaceholder": "Catatan kunjungan",
+        "createAction": "Buat Kunjungan",
+        "creating": "Membuat kunjungan...",
+        "availableTitle": "Kunjungan Tersedia",
+        "searchPlaceholder": "Cari kunjungan tersedia",
+        "linkSelected": "Tautkan Terpilih ({count})",
+        "linking": "Menautkan...",
+        "availableEmpty": "Tidak ada kunjungan yang bisa ditautkan",
+        "linkedTitle": "Kunjungan Tertaut",
+        "linkedEmpty": "Belum ada kunjungan tertaut ke trip ini",
+        "unlinkAction": "Lepas Taut"
+      },
+      "expenses": {
+        "createTitle": "Catat Biaya Trip",
+        "typePlaceholder": "Tipe biaya",
+        "amountPlaceholder": "Jumlah biaya",
+        "descriptionPlaceholder": "Deskripsi",
+        "receiptPlaceholder": "URL bukti",
+        "createAction": "Tambah Biaya",
+        "creating": "Menambahkan...",
+        "summaryTitle": "Ringkasan Biaya",
+        "listTitle": "Daftar Biaya",
+        "empty": "Belum ada biaya",
+        "noDescription": "Tanpa deskripsi",
+        "deleteAction": "Hapus"
+      },
+      "placeSearch": {
+        "title": "Pencarian Tempat",
+        "placeholder": "Cari nama tempat atau alamat",
+        "empty": "Tidak ada hasil tempat"
+      },
+      "weather": {
+        "title": "Ringkasan Cuaca 16 Hari",
+        "dayLabel": "Hari {day}",
+        "precipitation": "Curah hujan",
+        "noData": "Belum ada data"
+      },
+      "export": {
+        "title": "Ekspor dan Navigasi",
+        "fullPdf": "Ekspor PDF Penuh",
+        "dayPdf": "Ekspor PDF Hari {day}",
+        "openGoogleMaps": "Buka Rute Hari Ini di Google Maps",
+        "dayRoute": "Rute Hari {day}"
+      },
+      "errors": {
+        "failedLoadPlansTitle": "Gagal memuat daftar plan",
+        "failedLoadPlansDescription": "Silakan coba ulang setelah memastikan koneksi API.",
+        "failedLoadPlanTitle": "Gagal memuat plan terpilih",
+        "failedLoadPlanDescription": "Plan terpilih belum dapat diambil saat ini.",
+        "selectPlanFirst": "Pilih trip plan terlebih dahulu",
+        "invalidExpenseAmount": "Jumlah biaya harus lebih dari nol",
+        "employeeRequired": "Karyawan wajib dipilih untuk membuat kunjungan",
+        "selectVisitsToLink": "Pilih minimal satu kunjungan untuk ditautkan",
+        "failedLoadAvailableVisits": "Gagal memuat daftar kunjungan tersedia",
+        "failedLoadTripVisits": "Gagal memuat kunjungan yang tertaut",
+        "failedLoadExpenses": "Gagal memuat biaya trip"
+      },
+      "toasts": {
+        "planCreated": "Travel plan berhasil dibuat",
+        "planSaved": "Travel plan berhasil disimpan",
+        "routeOptimized": "Rute berhasil dioptimasi",
+        "placeAdded": "Tempat berhasil ditambahkan ke hari terpilih",
+        "pdfExported": "PDF berhasil diekspor",
+        "expenseCreated": "Biaya trip berhasil ditambahkan",
+        "expenseDeleted": "Biaya trip berhasil dihapus",
+        "visitsLinked": "{count} kunjungan berhasil ditautkan ke trip",
+        "visitCreated": "Kunjungan berhasil dibuat dari trip",
+        "visitUnlinked": "Kunjungan berhasil dilepas dari trip",
+        "genericError": "Terjadi kesalahan"
+      }
+    }
   }
 }

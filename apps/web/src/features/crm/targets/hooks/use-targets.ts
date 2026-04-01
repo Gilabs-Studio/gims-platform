@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import * as targetsService from "../services/targets-service";
-import type { ListParams } from "../types";
+import type { ApiResponse, ListParams, YearlyTarget } from "../types";
 
 export function useYearlyTargets(params?: ListParams & { year?: number; area_id?: string }) {
   return useQuery({
@@ -11,7 +11,7 @@ export function useYearlyTargets(params?: ListParams & { year?: number; area_id?
 
 export function useYearlyTarget(
   id: string,
-  options?: Omit<UseQueryOptions<any, Error, any>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<ApiResponse<YearlyTarget>, Error, ApiResponse<YearlyTarget>>, "queryKey" | "queryFn">
 ) {
   return useQuery({
     queryKey: ["yearly-target", id],

@@ -171,6 +171,19 @@
       "pending_approvals_purchase": {
         "title": "Pending Approval - Purchase",
         "description": "Documents awaiting approval in the purchase pipeline"
+      },
+      "travel_planner_overview": {
+        "title": "Travel Planner Budget",
+        "description": "Budget, spend, and active trip plans",
+        "open": "Open Planner",
+        "utilization": "Budget Utilization",
+        "listTitle": "Active Plans",
+        "empty": "No travel plans found",
+        "metrics": {
+          "budget": "Budget",
+          "spent": "Spent",
+          "remaining": "Remaining"
+        }
       }
     },
     "approvals": {

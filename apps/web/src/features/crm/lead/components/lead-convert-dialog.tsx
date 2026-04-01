@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -49,27 +49,36 @@ export function LeadConvertDialog({
 
   const convertMutation = useConvertLead();
   const { data: formDataRes } = useLeadFormData({ enabled: open });
-  const pipelineStages = formDataRes?.data?.pipeline_stages ?? [];
+  const pipelineStages = useMemo(
+    () => formDataRes?.data?.pipeline_stages ?? [],
+    [formDataRes?.data?.pipeline_stages]
+  );
+
+  const syncFromLead = useCallback((currentLead: Lead, stages: typeof pipelineStages) => {
+    const title = currentLead.company_name || `${currentLead.first_name} ${currentLead.last_name ?? ""}`.trim();
+    setDealTitle(title);
+
+    const defaultStage = stages.reduce<null | { id: string; probability: number }>((best, stage) => {
+      if (!best || stage.probability < best.probability) {
+        return { id: stage.id, probability: stage.probability };
+      }
+      return best;
+    }, null);
+    setPipelineStageId(defaultStage?.id ?? "");
+
+    setDealValue(currentLead.budget_confirmed && currentLead.budget_amount > 0 ? currentLead.budget_amount : undefined);
+    setNotes("");
+  }, []);
 
   // Pre-fill deal title and pipeline stage from lead when dialog opens
   useEffect(() => {
     if (open && lead) {
-      const title = lead.company_name || `${lead.first_name} ${lead.last_name ?? ""}`.trim();
-      setDealTitle(title);
-
-      const defaultStage = pipelineStages.reduce<null | { id: string; probability: number }>((best, stage) => {
-        if (!best || stage.probability < best.probability) {
-          return { id: stage.id, probability: stage.probability };
-        }
-        return best;
-      }, null);
-      setPipelineStageId(defaultStage?.id ?? "");
-
-      // Auto-fill deal value from budget_amount when budget is confirmed
-      setDealValue(lead.budget_confirmed && lead.budget_amount > 0 ? lead.budget_amount : undefined);
-      setNotes("");
+      const timer = setTimeout(() => {
+        syncFromLead(lead, pipelineStages);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [open, lead, pipelineStages]);
+  }, [open, lead, pipelineStages, syncFromLead]);
 
   const handleConvert = async () => {
     if (!lead) return;

@@ -14,7 +14,9 @@
     "retry": "Retry",
     "showing": "Showing {from} to {to} of {total} notifications",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "copyToken": "Copy token",
+    "tokenCopied": "Token copied"
   }
 }
 

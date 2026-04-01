@@ -7,7 +7,7 @@ import { Camera, Loader2, Upload } from "lucide-react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useUploadAvatar } from "../../hooks/use-profile";
 import { toast } from "sonner";
 
@@ -61,9 +61,6 @@ export function AvatarUpload() {
 
   return (
     <Card className="h-fit">
-      <CardHeader className="pb-4">
-        <CardTitle>{t("profilePicture")}</CardTitle>
-      </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">
         <div className="relative group">
           <Avatar className="h-32 w-32 cursor-pointer ring-4 ring-background shadow-xl transition-all hover:opacity-90" onClick={handleFileClick}>

@@ -55,6 +55,7 @@ import { LeadFormDialog } from "./lead-form-dialog";
 import { LeadConvertDialog } from "./lead-convert-dialog";
 import { LogActivityDialog } from "@/features/crm/activity/components/log-activity-dialog";
 import { LogVisitDialog } from "@/features/crm/visit-report/components/log-visit-dialog";
+import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-visit-reports";
 import { resolveVisitSurveyAnswers } from "@/features/crm/visit-report/constants/interest-questions";
 import { TaskEmbedList } from "@/features/crm/task/components/task-embed-list";
 import { TaskFormDialog } from "@/features/crm/task/components/task-form-dialog";
@@ -252,11 +253,13 @@ export function LeadDetail({ leadId }: LeadDetailProps) {
   const { data: productItemsData, isLoading: isProductItemsLoading } = useLeadProductItems(leadId, {
     enabled: isProductItemsTabActive,
   });
+  const { data: visitFormDataRes } = useVisitReportFormData({ enabled: isProductItemsTabActive });
+  const surveyQuestions = visitFormDataRes?.data?.interest_questions ?? [];
   const selectedProductQuery = useProduct(selectedProductId ?? "", { enabled: !!selectedProductId });
 
-  /** Resolves raw { question_id, option_id }[] JSON to display-friendly text array */
+  /** Resolves raw survey answer JSON to display-friendly text using backend question definitions. */
   function resolveLastSurveyAnswers(raw: string | null | undefined) {
-    return resolveVisitSurveyAnswers(raw, (key) => tVisit(key));
+    return resolveVisitSurveyAnswers(raw, surveyQuestions);
   }
 
   const lead: Lead | undefined = response?.data;

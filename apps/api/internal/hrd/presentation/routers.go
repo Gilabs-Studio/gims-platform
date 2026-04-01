@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	financeRepos "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/data/repositories"
 	"github.com/gilabs/gims/api/internal/hrd/domain/usecase"
 	"github.com/gilabs/gims/api/internal/hrd/presentation/handler"
@@ -60,6 +61,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	educationHistoryRepo := orgRepos.NewEmployeeEducationHistoryRepository(db)
 	certificationRepo := orgRepos.NewEmployeeCertificationRepository(db)
 	assetRepo := orgRepos.NewEmployeeAssetRepository(db)
+	financeAssetRepo := financeRepos.NewAssetRepository(db)
+	auditLogRepo := financeRepos.NewAssetAuditLogRepository(db)
 	auditService := audit.NewAuditService(db)
 
 	// Initialize usecases
@@ -73,14 +76,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeEvaluationUC := usecase.NewEmployeeEvaluationUsecase(db, employeeEvaluationRepo, evaluationGroupRepo, evaluationCriteriaRepo, employeeRepo, auditService)
 	recruitmentUC := usecase.NewRecruitmentRequestUsecase(recruitmentRepo, employeeRepo, divisionRepo, positionRepo)
 	signatureRepo := orgRepos.NewEmployeeSignatureRepository(db)
-	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, positionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo)
+	employeeUC := orgUsecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, positionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 	applicantUC := usecase.NewRecruitmentApplicantUsecase(applicantRepo, applicantStageRepo, applicantActivityRepo, recruitmentRepo, employeeUC)
 
 	// Initialize handlers
 	workScheduleHandler := handler.NewWorkScheduleHandler(workScheduleUC)
 	holidayHandler := handler.NewHolidayHandler(holidayUC)
 	attendanceHandler := handler.NewAttendanceRecordHandler(attendanceUC)
-	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC)
+	overtimeHandler := handler.NewOvertimeRequestHandler(overtimeUC, employeeRepo)
 	leaveRequestHandler := handler.NewLeaveRequestHandler(leaveRequestUC)
 	evaluationGroupHandler := handler.NewEvaluationGroupHandler(evaluationGroupUC)
 	evaluationCriteriaHandler := handler.NewEvaluationCriteriaHandler(evaluationCriteriaUC)

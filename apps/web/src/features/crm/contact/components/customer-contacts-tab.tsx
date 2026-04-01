@@ -62,10 +62,6 @@ export function CustomerContactsTab({ customerId }: CustomerContactsTabProps) {
     setFormOpen(true);
   };
 
-  const handleView = (contact: Contact) => {
-    setViewContact(contact);
-  };
-
   const handleEdit = (contact: Contact) => {
     setEditingContact(contact);
     setFormOpen(true);

@@ -84,7 +84,12 @@ func main() {
 	assetCatMapper := finMapper.NewAssetCategoryMapper()
 	assetLocMapper := finMapper.NewAssetLocationMapper()
 	assetMapper := finMapper.NewAssetMapper(assetCatMapper, assetLocMapper)
-	assetUC := finUC.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper)
+
+	assetAttachmentRepo := finRepos.NewAssetAttachmentRepository(db)
+	assetAuditLogRepo := finRepos.NewAssetAuditLogRepository(db)
+	assetAssignmentRepo := finRepos.NewAssetAssignmentRepository(db)
+
+	assetUC := finUC.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo)
 
 	// Init Inventory Deps
 	invRepo := invRepos.NewInventoryRepository(db)

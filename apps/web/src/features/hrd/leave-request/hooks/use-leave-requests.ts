@@ -61,6 +61,7 @@ export function useMyLeaveBalance() {
   return useQuery({
     queryKey: leaveRequestKeys.myBalance(),
     queryFn: () => leaveRequestService.getMyLeaveBalance(),
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -76,6 +77,8 @@ export function useMyLeaveRequests(filters?: LeaveRequestFilters) {
   return useQuery({
     queryKey: leaveRequestKeys.selfList(filters),
     queryFn: () => leaveRequestService.getMyLeaveRequests(filters),
+    staleTime: 1000 * 30,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -92,6 +95,7 @@ export function useMyLeaveFormData(options?: { enabled?: boolean }) {
     queryKey: leaveRequestKeys.myFormData(),
     queryFn: () => leaveRequestService.getMyFormData(),
     enabled: options?.enabled,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

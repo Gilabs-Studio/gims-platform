@@ -18,6 +18,7 @@ import (
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
 	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
+	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -26,6 +27,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -71,6 +73,7 @@ func AutoMigrate() error {
 		&permission.Permission{},
 		&permission.Menu{},
 		&refreshToken.RefreshToken{},
+		&passwordReset.PasswordResetRequest{},
 		&core.AuditLog{},
 		&notification.Notification{},
 		// Geographic entities (Sprint 1)
@@ -139,6 +142,10 @@ func AutoMigrate() error {
 		&finance.Asset{},
 		&finance.AssetDepreciation{},
 		&finance.AssetTransaction{},
+		// NEW: Extended Asset entities
+		&finance.AssetAttachment{},
+		&finance.AssetAuditLog{},
+		&finance.AssetAssignmentHistory{},
 		&finance.AssetBudget{},
 		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
@@ -154,6 +161,12 @@ func AutoMigrate() error {
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
 		&finance.SystemAccountMapping{},
+		// Travel Planner entities
+		&travelPlanner.TravelPlan{},
+		&travelPlanner.TravelPlanDay{},
+		&travelPlanner.TravelPlanStop{},
+		&travelPlanner.TravelPlanDayNote{},
+		&travelPlanner.TravelPlanExpense{},
 		// Asset Maintenance entities
 		&finance.AssetMaintenanceSchedule{},
 		&finance.AssetWorkOrder{},
@@ -265,7 +278,7 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
-		// General: user dashboard layout preferences
+		// General: user dashboard layout preferences 
 		&general.DashboardLayout{},
 	)
 	if err != nil {

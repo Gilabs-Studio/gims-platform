@@ -84,6 +84,42 @@ export function getUpdateLeaveRequestSchema(t: TFunction) {
     );
 }
 
+export function getSelfLeaveRequestSchema(t: TFunction) {
+  return z
+    .object({
+      leave_type_id: z.string().min(1, t("form.leaveType.required")),
+      start_date: z.date(),
+      end_date: z.date(),
+      duration: z.enum(["FULL_DAY", "HALF_DAY", "MULTI_DAY"], {
+        message: t("form.duration.required"),
+      }),
+      reason: z
+        .string()
+        .min(1, t("form.reason.required"))
+        .min(10, t("form.reason.min", { count: 10 }))
+        .max(500, t("form.reason.max", { count: 500 })),
+    })
+    .refine((data) => data.end_date >= data.start_date, {
+      message: t("form.endDate.beforeStart"),
+      path: ["end_date"],
+    })
+    .refine(
+      (data) => {
+        if (data.duration === "FULL_DAY" || data.duration === "HALF_DAY") {
+          return data.start_date.toDateString() === data.end_date.toDateString();
+        }
+        if (data.duration === "MULTI_DAY") {
+          return data.start_date < data.end_date;
+        }
+        return true;
+      },
+      {
+        message: t("form.duration.invalidDateRange"),
+        path: ["duration"],
+      }
+    );
+}
+
 export function getApproveLeaveRequestSchema() {
   return z.object({
     notes: z.string().optional(),
@@ -111,4 +147,7 @@ export type ApproveLeaveRequestFormData = z.infer<
 >;
 export type RejectLeaveRequestFormData = z.infer<
   ReturnType<typeof getRejectLeaveRequestSchema>
+>;
+export type SelfLeaveRequestFormData = z.infer<
+  ReturnType<typeof getSelfLeaveRequestSchema>
 >;

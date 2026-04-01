@@ -61,7 +61,7 @@ export function RevenueBarChartCard({
   }
 
   return (
-    <Card className="relative h-full overflow-hidden">
+    <Card className="relative flex h-full flex-col overflow-hidden">
       <CardHeader>
         <CardTitle>{t("revenueChart.title")}</CardTitle>
         <CardDescription>
@@ -95,51 +95,53 @@ export function RevenueBarChartCard({
           </button>
         </div>
       </CardHeader>
-      <CardContent className="px-6">
-        <ResponsiveContainer width="100%" height={186}>
-          <BarChart
-            data={chartData}
-            margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-          >
-            <CartesianGrid
-              vertical={false}
-              strokeDasharray=""
-              className="stroke-border/50"
-            />
-            <XAxis
-              dataKey="period"
-              tick={{ fontSize: 11 }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis hide />
-            <Tooltip
-              cursor={{
-                fill: "hsl(var(--border))",
-                fillOpacity: 0.3,
-              }}
-              contentStyle={{
-                borderRadius: 8,
-                border: "1px solid hsl(var(--border))",
-                background: "hsl(var(--popover))",
-                color: "hsl(var(--popover-foreground))",
-                fontSize: 12,
-              }}
-              formatter={(v: number) => [formatCurrency(v)]}
-              labelFormatter={(label) => String(label)}
-            />
-            <Bar
-              dataKey="value"
-              fill={
-                activeKey === "revenue"
-                  ? "hsl(var(--chart-2))"
-                  : "hsl(var(--chart-1))"
-              }
-              radius={[5, 5, 0, 0]}
-              maxBarSize={20}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+      <CardContent className="flex flex-1 items-center px-6 pb-6">
+        <div className="w-full">
+          <ResponsiveContainer width="100%" height={186}>
+            <BarChart
+              data={chartData}
+              margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+            >
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray=""
+                className="stroke-border/50"
+              />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis hide />
+              <Tooltip
+                cursor={{
+                  fill: "hsl(var(--border))",
+                  fillOpacity: 0.3,
+                }}
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "1px solid hsl(var(--border))",
+                  background: "hsl(var(--popover))",
+                  color: "hsl(var(--popover-foreground))",
+                  fontSize: 12,
+                }}
+                formatter={(v: number) => [formatCurrency(v)]}
+                labelFormatter={(label) => String(label)}
+              />
+              <Bar
+                dataKey="value"
+                fill={
+                  activeKey === "revenue"
+                    ? "hsl(var(--chart-2))"
+                    : "hsl(var(--chart-1))"
+                }
+                radius={[5, 5, 0, 0]}
+                maxBarSize={20}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </CardContent>
     </Card>
   );

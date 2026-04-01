@@ -45,16 +45,17 @@ func (h *UserHandler) List(c *gin.Context) {
 	userDTOs := make([]presentationDTO.UserResponseDTO, len(users))
 	for i, u := range users {
 		userDTOs[i] = presentationDTO.UserResponseDTO{
-			ID:        u.ID,
-			Name:      u.Name,
-			Email:     u.Email,
-			AvatarURL: u.AvatarURL,
+			ID:                   u.ID,
+			Name:                 u.Name,
+			Email:                u.Email,
+			AvatarURL:            u.AvatarURL,
 			Role: presentationDTO.RoleDTO{
 				Code: u.Role.Code,
 				Name: u.Role.Name,
 			},
-			Status:    u.Status,
-			CreatedAt: u.CreatedAt,
+			Status:               u.Status,
+			PasswordResetPending: u.PasswordResetPending,
+			CreatedAt:            u.CreatedAt,
 		}
 	}
 

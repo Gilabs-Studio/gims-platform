@@ -43,7 +43,7 @@ import { useVisitReportFormData } from "@/features/crm/visit-report/hooks/use-vi
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { toast } from "sonner";
 import type { ActivityType } from "@/features/crm/activity-type/types";
-import { VISIT_INTEREST_QUESTIONS, calculateVisitInterestLevel } from "@/features/crm/visit-report/constants/interest-questions";
+import { calculateVisitInterestLevel } from "@/features/crm/visit-report/constants/interest-questions";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { ActivityTypeDialog } from "@/features/crm/activity-type/components/activity-type-dialog";
 
@@ -102,7 +102,7 @@ export function LogActivityDialog({
   // Form data for product interest (products list)
   const { data: formDataRes } = useVisitReportFormData({ enabled: open });
   const products = formDataRes?.data?.products ?? [];
-  const questions = VISIT_INTEREST_QUESTIONS;
+  const questions = formDataRes?.data?.interest_questions ?? [];
 
   // Pre-populate product interest from existing lead product items
   const { data: leadProductItemsRes } = useLeadProductItems(leadId ?? "", {
@@ -120,9 +120,9 @@ export function LogActivityDialog({
   const calculateInterest = useCallback(
     (answers: { question_id: string; option_id: string; answer?: boolean }[]) => {
       if (!answers.length) return 0;
-      return calculateVisitInterestLevel(answers);
+      return calculateVisitInterestLevel(answers, questions);
     },
-    [],
+    [questions],
   );
 
   const schema = useMemo(
@@ -311,8 +311,8 @@ export function LogActivityDialog({
                     const opt = q.options.find((o) => o.id === ans.option_id);
                     if (!opt) return null;
                     return {
-                      question_text: tVisit(q.question_text_key),
-                      option_text: tVisit(opt.option_text_key),
+                      question_text: q.question_text,
+                      option_text: opt.option_text,
                       score: opt.score,
                     };
                   })
@@ -573,24 +573,24 @@ export function LogActivityDialog({
                             const currentAnswer = item.answers.find((a) => a.question_id === q.id);
                             return (
                               <div key={q.id} className="space-y-1.5">
-                                <Label className="text-xs">{tVisit(q.question_text_key)}</Label>
+                                <Label className="text-xs">{q.question_text}</Label>
                                 <div className="flex flex-wrap gap-4">
                                   {q.options.map((opt) => (
                                     <div key={opt.id} className="flex items-center gap-1.5">
                                       <input
                                         type="radio"
                                         id={`la-${idx}-${q.id}-${opt.id}`}
-                                        checked={currentAnswer?.option_id === opt.id && currentAnswer?.answer !== false}
+                                        checked={currentAnswer?.option_id === opt.id}
                                         onChange={() => {
                                           const otherAnswers = item.answers.filter((a) => a.question_id !== q.id);
-                                          const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: true }];
+                                          const newAnswers = [...otherAnswers, { question_id: q.id, option_id: opt.id, answer: opt.score > 0 }];
                                           const newScore = calculateInterest(newAnswers);
                                           setProductItems((prev) => prev.map((p, i) => (i === idx ? { ...p, answers: newAnswers, interest_level: newScore } : p)));
                                         }}
                                         className="h-4 w-4 cursor-pointer accent-primary"
                                       />
                                       <label htmlFor={`la-${idx}-${q.id}-${opt.id}`} className="text-xs cursor-pointer">
-                                        {tVisit(opt.option_text_key)}
+                                        {opt.option_text}
                                       </label>
                                     </div>
                                   ))}

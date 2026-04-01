@@ -3,12 +3,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { attendanceRecordService } from "../services/attendance-record-service";
 import type {
+  AttendanceRecord,
+  TodayAttendanceResponse,
   ClockInRequest,
   ClockOutRequest,
   ManualAttendanceRequest,
   UpdateAttendanceRequest,
   ListAttendanceRecordsParams,
 } from "../types";
+
+function applyClockRecordToTodayCache(
+  old: TodayAttendanceResponse | undefined,
+  record: AttendanceRecord,
+): TodayAttendanceResponse | undefined {
+  if (!old?.data) return old;
+
+  return {
+    ...old,
+    data: {
+      ...old.data,
+      has_checked_in: true,
+      has_checked_out: !!record.check_out_time,
+      attendance_record: record,
+      is_late: (record.late_minutes ?? 0) > 0,
+      late_minutes: record.late_minutes ?? 0,
+    },
+  };
+}
 
 // Query key factory - consistent with visit feature pattern
 export const attendanceKeys = {
@@ -40,9 +61,29 @@ export function useClockIn() {
 
   return useMutation({
     mutationFn: (data: ClockInRequest) => attendanceRecordService.clockIn(data),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: attendanceKeys.today() });
+      const previousToday = queryClient.getQueryData<TodayAttendanceResponse>(
+        attendanceKeys.today(),
+      );
+
+      return { previousToday };
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData<TodayAttendanceResponse>(
+        attendanceKeys.today(),
+        (old) => applyClockRecordToTodayCache(old, response.data),
+      );
+
       queryClient.invalidateQueries({ queryKey: attendanceKeys.today() });
       queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.myHistory() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.myStats() });
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousToday) {
+        queryClient.setQueryData(attendanceKeys.today(), context.previousToday);
+      }
     },
   });
 }
@@ -52,10 +93,30 @@ export function useClockOut() {
 
   return useMutation({
     mutationFn: (data: ClockOutRequest) => attendanceRecordService.clockOut(data),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: attendanceKeys.today() });
+      const previousToday = queryClient.getQueryData<TodayAttendanceResponse>(
+        attendanceKeys.today(),
+      );
+
+      return { previousToday };
+    },
+    onSuccess: (response) => {
+      queryClient.setQueryData<TodayAttendanceResponse>(
+        attendanceKeys.today(),
+        (old) => applyClockRecordToTodayCache(old, response.data),
+      );
+
       queryClient.invalidateQueries({ queryKey: attendanceKeys.today() });
       queryClient.invalidateQueries({ queryKey: attendanceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.myHistory() });
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.myStats() });
       queryClient.invalidateQueries({ queryKey: ["overtime"] });
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousToday) {
+        queryClient.setQueryData(attendanceKeys.today(), context.previousToday);
+      }
     },
   });
 }

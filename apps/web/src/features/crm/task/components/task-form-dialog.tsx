@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Controller } from "react-hook-form";
 import { Loader2, CalendarIcon, Bell, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -120,11 +120,9 @@ export function TaskFormDialog({
     formState: { errors },
   } = form;
 
-  // Initialize calendar state when dialog opens or task changes
-  useEffect(() => {
-    if (!open) return;
-    if (task?.due_date) {
-      const d = new Date(task.due_date);
+  const syncLocalStateFromTask = useCallback((currentTask?: Task | null) => {
+    if (currentTask?.due_date) {
+      const d = new Date(currentTask.due_date);
       setDueDate(d);
       setDueTime(
         `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
@@ -133,8 +131,8 @@ export function TaskFormDialog({
       setDueDate(null);
       setDueTime("09:00");
     }
-    // Pre-fill reminder state from existing reminder, or reset if none
-    const existingReminder = task?.reminders?.[0] ?? null;
+
+    const existingReminder = currentTask?.reminders?.[0] ?? null;
     if (existingReminder) {
       const remindAt = new Date(existingReminder.remind_at);
       setExistingReminderId(existingReminder.id);
@@ -153,8 +151,18 @@ export function TaskFormDialog({
       setReminderType("in_app");
       setReminderMessage("");
     }
+
     setDueDateOpen(false);
-  }, [open, task?.id, task?.due_date]);
+  }, []);
+
+  // Initialize calendar state when dialog opens or task changes
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      syncLocalStateFromTask(task);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [open, task, syncLocalStateFromTask]);
 
   // Sync calendar date into the form field (backend accepts YYYY-MM-DD only)
   useEffect(() => {

@@ -5,10 +5,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { notificationQueryKeys } from "./use-notifications";
+import type { ListUsersResponse, User } from "@/features/master-data/user-management/types";
 import type { WebSocketMessage, Notification } from "../types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 const WS_URL = API_BASE_URL.replace(/^http/, "ws");
+
+function extractEmailFromNotificationMessage(message: string): string | null {
+  const match = message.match(/\(([^)]+@[^)]+)\)/);
+  return match?.[1]?.toLowerCase() ?? null;
+}
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -87,6 +93,33 @@ export function useWebSocket() {
             queryClientRef.current.setQueryData<number>(notificationQueryKeys.unreadCount, (current) =>
               Math.max(0, (current ?? 0) + 1)
             );
+
+            // Keep user-management table in sync when password reset requests are created.
+            if (notification.entity_type === "password_reset_request") {
+              const requestedEmail = extractEmailFromNotificationMessage(notification.message);
+
+              if (requestedEmail) {
+                queryClientRef.current.setQueriesData<ListUsersResponse>(
+                  { queryKey: ["users"] },
+                  (current) => {
+                    if (!current) {
+                      return current;
+                    }
+
+                    return {
+                      ...current,
+                      data: current.data.map((row: User) =>
+                        row.email.toLowerCase() === requestedEmail
+                          ? { ...row, password_reset_pending: true }
+                          : row
+                      ),
+                    };
+                  }
+                );
+              }
+
+              queryClientRef.current.invalidateQueries({ queryKey: ["users"] });
+            }
 
             // Show toast notification
             toast.info(notification.title, {

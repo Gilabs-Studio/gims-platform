@@ -206,9 +206,28 @@ export interface UpdateEmployeeCertificationData {
 export type AssetCondition = "NEW" | "GOOD" | "FAIR" | "POOR" | "DAMAGED";
 export type AssetStatus = "BORROWED" | "RETURNED";
 
+// Available Asset from Finance Assets module
+export interface AvailableAsset {
+  id: string;
+  code: string;
+  name: string;
+  category?: {
+    id: string;
+    name: string;
+  };
+  location?: {
+    id: string;
+    name: string;
+  };
+  asset_image?: string;
+  status: string;
+  book_value: number;
+}
+
 export interface EmployeeAsset {
   id: string;
   employee_id: string;
+  asset_id?: string;
   asset_name: string;
   asset_code: string;
   asset_category: string;
@@ -220,12 +239,14 @@ export interface EmployeeAsset {
   notes?: string;
   status: AssetStatus;
   days_borrowed: number;
+  asset?: AvailableAsset;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface EmployeeAssetBrief {
   id: string;
+  asset_id?: string;
   asset_name: string;
   asset_code: string;
   asset_category: string;
@@ -252,6 +273,7 @@ export interface EmployeeSignature {
 }
 
 export interface CreateEmployeeAssetData {
+  asset_id: string;
   asset_name: string;
   asset_code: string;
   asset_category: string;

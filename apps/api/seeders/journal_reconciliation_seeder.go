@@ -82,7 +82,12 @@ func SeedJournalReconciliation() error {
 	assetCatRepo := financeRepos.NewAssetCategoryRepository(db)
 	assetLocRepo := financeRepos.NewAssetLocationRepository(db)
 	assetMapper := financeMapper.NewAssetMapper(financeMapper.NewAssetCategoryMapper(), financeMapper.NewAssetLocationMapper())
-	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper)
+
+	assetAttachmentRepo := financeRepos.NewAssetAttachmentRepository(db)
+	assetAuditLogRepo := financeRepos.NewAssetAuditLogRepository(db)
+	assetAssignmentRepo := financeRepos.NewAssetAssignmentRepository(db)
+
+	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo)
 
 	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine)
 

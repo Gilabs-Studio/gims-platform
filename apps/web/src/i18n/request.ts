@@ -67,6 +67,9 @@ import { evaluationId } from "@/features/hrd/evaluation/i18n/id";
 import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
 import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 
+import { passwordResetEn } from "@/features/auth/password-reset/i18n/en";
+import { passwordResetId } from "@/features/auth/password-reset/i18n/id";
+
 import { purchaseRequisitionEn } from "@/features/purchase/requisitions/i18n/en";
 import { purchaseRequisitionId } from "@/features/purchase/requisitions/i18n/id";
 
@@ -130,8 +133,6 @@ import { financeTaxInvoicesEn } from "@/features/finance/tax-invoices/i18n/en";
 import { financeTaxInvoicesId } from "@/features/finance/tax-invoices/i18n/id";
 import { financeNonTradePayablesEn } from "@/features/finance/non-trade-payables/i18n/en";
 import { financeNonTradePayablesId } from "@/features/finance/non-trade-payables/i18n/id";
-import { financeUpCountryCostEn } from "@/features/finance/up-country-cost/i18n/en";
-import { financeUpCountryCostId } from "@/features/finance/up-country-cost/i18n/id";
 import { financeSalaryEn } from "@/features/finance/salary/i18n/en";
 import { financeSalaryId } from "@/features/finance/salary/i18n/id";
 import { aiChatEn } from "@/features/ai-chat/i18n/en";
@@ -213,6 +214,11 @@ const messages = {
     ...settingsEn,
     ...evaluationEn,
     ...recruitmentEn,
+    ...passwordResetEn,
+    auth: {
+      ...globalEnMessages.auth,
+      ...passwordResetEn.auth,
+    },
     purchaseRequisition: purchaseRequisitionEn,
     purchaseOrder: purchaseOrderEn,
     goodsReceipt: goodsReceiptEn,
@@ -239,7 +245,6 @@ const messages = {
     financeClosing: financeClosingEn,
     financeTaxInvoices: financeTaxInvoicesEn,
     financeNonTradePayables: financeNonTradePayablesEn,
-    financeUpCountryCost: financeUpCountryCostEn,
     financeSalary: financeSalaryEn,
     ...aiChatEn,
     pipelineStage: pipelineStageEn,
@@ -296,6 +301,11 @@ const messages = {
     ...settingsId,
     ...evaluationId,
     ...recruitmentId,
+    ...passwordResetId,
+    auth: {
+      ...globalIdMessages.auth,
+      ...passwordResetId.auth,
+    },
     purchaseRequisition: purchaseRequisitionId,
     purchaseOrder: purchaseOrderId,
     goodsReceipt: goodsReceiptId,
@@ -322,7 +332,6 @@ const messages = {
     financeClosing: financeClosingId,
     financeTaxInvoices: financeTaxInvoicesId,
     financeNonTradePayables: financeNonTradePayablesId,
-    financeUpCountryCost: financeUpCountryCostId,
     financeSalary: financeSalaryId,
     ...aiChatId,
     pipelineStage: pipelineStageId,

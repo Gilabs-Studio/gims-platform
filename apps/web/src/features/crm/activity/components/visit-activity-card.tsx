@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { MapPin, LogOut, Loader2, Package } from "lucide-react";
+import { MapPin, LogOut, Loader2, Package, Search, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,7 @@ interface VisitActivityCardProps {
 export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProps) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const qc = useQueryClient();
   const checkOutMutation = useCheckOutVisitReport();
   const checkInMutation = useCheckInVisitReport();
@@ -181,16 +182,29 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
       {/* Photo gallery thumbnails — show up to 5 */}
       {meta.photos && meta.photos.length > 0 && (
         <div className="flex gap-1 flex-wrap">
-          {meta.photos.slice(0, MAX_VISIBLE_PHOTOS).map((url) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={url}
-              src={resolveImageUrl(url)}
-              alt=""
-              className="h-16 w-16 rounded object-cover border"
-              loading="lazy"
-            />
-          ))}
+          {meta.photos.slice(0, MAX_VISIBLE_PHOTOS).map((url, index) => {
+            const resolvedUrl = resolveImageUrl(url) ?? url;
+            return (
+              <button
+                key={`${resolvedUrl}-${index}`}
+                type="button"
+                className="group relative h-16 w-16 overflow-hidden rounded border cursor-pointer"
+                onClick={() => setPreviewUrl(resolvedUrl)}
+                aria-label={t("sections.photos")}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedUrl}
+                  alt={`${t("sections.photos")} ${index + 1}`}
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                  loading="lazy"
+                />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-200 group-hover:bg-black/40">
+                  <Search className="h-4 w-4 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                </span>
+              </button>
+            );
+          })}
           {meta.photos.length > MAX_VISIBLE_PHOTOS && (
             <div className="h-16 w-16 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground border">
               +{meta.photos.length - MAX_VISIBLE_PHOTOS}
@@ -296,6 +310,35 @@ export function VisitActivityCard({ meta, visitReportId }: VisitActivityCardProp
         >
           {meta.visit_code ?? t("detail.visitCode")} &rarr;
         </Link>
+      )}
+
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setPreviewUrl(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("sections.photos")}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25 cursor-pointer"
+            onClick={(event) => {
+              event.stopPropagation();
+              setPreviewUrl(null);
+            }}
+            aria-label="Close preview"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewUrl}
+            alt={t("sections.photos")}
+            className="max-h-[90vh] max-w-[92vw] rounded-lg object-contain"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   );

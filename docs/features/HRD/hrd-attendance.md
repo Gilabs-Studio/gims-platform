@@ -36,6 +36,7 @@ The HRD Attendance Management module provides comprehensive attendance tracking 
 >
 > - [Work Schedule Management](hrd-work-schedules.md) — Schedule configuration, GPS settings, working days
 > - [Holiday Management](hrd-holidays.md) — National holidays, collective leave, calendar view
+> - [Self Service Header (Attendance & Leave)](hrd-self-service-header-attendance-leave.md) — Header quick actions, shared hook orchestration, and cache strategy
 
 ### Key Features
 
