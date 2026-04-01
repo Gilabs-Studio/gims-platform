@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
@@ -16,6 +16,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import type { JournalEntry } from "../types";
 import {
@@ -30,9 +31,19 @@ import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journ
 import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
+import { JournalActionMenu } from "./journal-action-menu";
 
 function toApiDate(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function getInitialOpenJournalFromURL(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get("open_journal");
 }
 
 export function JournalsList() {
@@ -62,7 +73,7 @@ export function JournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(getInitialOpenJournalFromURL);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
@@ -88,8 +99,26 @@ export function JournalsList() {
   const postMutation = usePostFinanceJournal();
   const reverseMutation = useReverseFinanceJournal();
 
+  useEffect(() => {
+    if (selectedId) {
+      setViewOpen(true);
+    }
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    if (!searchParams.get("open_journal")) return;
+
+    searchParams.delete("open_journal");
+    const nextQuery = searchParams.toString();
+    const nextURL = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+    window.history.replaceState(null, "", nextURL);
+  }, []);
+
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return <FinanceListErrorState message={tCommon("error")} />;
   }
 
   return (
@@ -128,6 +157,7 @@ export function JournalsList() {
         )}
       </div>
 
+
       <div className="flex flex-col sm:flex-row items-end gap-4">
         <div className="relative flex-1 max-w-sm">
           <Label className="mb-2 block">{t("search")}</Label>
@@ -164,84 +194,28 @@ export function JournalsList() {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
         }}
-        actionRender={(row) => {
-          const item = row.original;
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelectedId(item.id);
-                    setViewOpen(true);
-                  }}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  {t("actions.view")}
-                </DropdownMenuItem>
-                {canUpdate && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer"
-                    onClick={() => {
-                      setFormMode("edit");
-                      setSelectedId(item.id);
-                      setFormOpen(true);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {t("actions.edit")}
-                  </DropdownMenuItem>
-                )}
-                {canPost && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-success focus:text-success"
-                    onClick={async () => {
-                      try {
-                        await postMutation.mutateAsync(item.id);
-                        toast.success(t("toast.posted"));
-                      } catch {
-                        toast.error(t("toast.failed"));
-                      }
-                    }}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    {t("actions.post")}
-                  </DropdownMenuItem>
-                )}
-                {canDelete && item.status === "draft" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                    onClick={() => setDeletingItem(item)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("actions.delete")}
-                  </DropdownMenuItem>
-                )}
-                {canReverse && item.status === "posted" && (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-warning focus:text-warning"
-                    onClick={async () => {
-                      try {
-                        await reverseMutation.mutateAsync(item.id);
-                        toast.success(t("toast.reversed"));
-                      } catch {
-                        toast.error(t("toast.failed"));
-                      }
-                    }}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    {t("actions.reverse")}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          );
-        }}
+        actionRender={(row) => (
+          <JournalActionMenu
+            row={row}
+            onView={(id: string) => {
+              setSelectedId(id);
+              setViewOpen(true);
+            }}
+            onEdit={(id: string) => {
+              setFormMode("edit");
+              setSelectedId(id);
+              setFormOpen(true);
+            }}
+            onDelete={(id: string) => {
+              const item = row.original as JournalEntry;
+              setDeletingItem(item);
+            }}
+            onSourceDetail={(r: UnifiedJournalRow<any>) => {
+              setSelectedReferenceRow(r as any);
+              setIsReferenceModalOpen(true);
+            }}
+          />
+        )}
       />
 
       <DataTablePagination

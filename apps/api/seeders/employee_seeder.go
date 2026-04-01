@@ -78,7 +78,7 @@ func SeedEmployees() error {
 			VillageID:    villageID,
 
 			// Employment
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           ManagerEmployeeID,
@@ -102,7 +102,7 @@ func SeedEmployees() error {
 			VillageID:    villageID,
 
 			// Employment
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           StaffEmployeeID,
@@ -123,7 +123,7 @@ func SeedEmployees() error {
 			Address:      "Jl. Staff No. 1",
 			VillageID:    villageID,
 
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           SalesRep1EmployeeID,
@@ -143,7 +143,7 @@ func SeedEmployees() error {
 			Address:      "Jl. Semarang No. 5",
 			VillageID:    villageID,
 
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           SalesRep2EmployeeID,
@@ -163,7 +163,7 @@ func SeedEmployees() error {
 			Address:      "Jl. Yogya No. 12",
 			VillageID:    villageID,
 
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           FinanceStaffEmployeeID,
@@ -183,7 +183,7 @@ func SeedEmployees() error {
 			Address:      "Jl. Malang No. 8",
 			VillageID:    villageID,
 
-			IsActive:   true,
+			IsActive: true,
 		},
 		{
 			ID:           HRStaffEmployeeID,
@@ -203,7 +203,7 @@ func SeedEmployees() error {
 			Address:      "Jl. Denpasar No. 3",
 			VillageID:    villageID,
 
-			IsActive:   true,
+			IsActive: true,
 		},
 	}
 

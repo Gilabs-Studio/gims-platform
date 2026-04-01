@@ -388,6 +388,7 @@ func SeedPermissions() error {
 		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
 		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
 		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.approve", "Approve Journal Valuation", "APPROVE", "journal_valuation"},
 		{"/finance/journals/valuation", "journal_valuation.export", "Export Journal Valuation", "EXPORT", "journal_valuation"},
 
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions

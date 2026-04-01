@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
@@ -44,26 +47,36 @@ type SalesReturnUsecase interface {
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.SalesReturnResponse, error)
 	Delete(ctx context.Context, id string) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.CustomerInvoiceAuditTrailEntry, int64, error)
+	TriggerJournalForReturn(ctx context.Context, ret *models.SalesReturn) error
 }
 
 type salesReturnUsecase struct {
 	db           *gorm.DB
 	repo         repositories.SalesReturnRepository
 	invUC        invUsecase.InventoryUsecase
+	journalUC    finUsecase.JournalEntryUsecase
+	coaUC        finUsecase.ChartOfAccountUsecase
 	auditService audit.AuditService
+	engine       accounting.AccountingEngine
 }
 
 func NewSalesReturnUsecase(
 	db *gorm.DB,
 	repo repositories.SalesReturnRepository,
 	invUC invUsecase.InventoryUsecase,
+	journalUC finUsecase.JournalEntryUsecase,
+	coaUC finUsecase.ChartOfAccountUsecase,
 	auditService audit.AuditService,
+	engine accounting.AccountingEngine,
 ) SalesReturnUsecase {
 	return &salesReturnUsecase{
 		db:           db,
 		repo:         repo,
 		invUC:        invUC,
+		journalUC:    journalUC,
+		coaUC:        coaUC,
 		auditService: auditService,
+		engine:       engine,
 	}
 }
 
@@ -252,6 +265,10 @@ func (u *salesReturnUsecase) UpdateStatus(ctx context.Context, id string, status
 		actorID = strings.TrimSpace(actorID)
 		if err := u.createStockMovementsFromRows(ctx, row.Items, row.WarehouseID, row.Code, actorID); err != nil {
 			return nil, err
+		}
+		// Trigger journal entry
+		if err := u.TriggerJournalForReturn(ctx, row); err != nil {
+			fmt.Printf("⚠️ Failed to trigger journal for sales return %s: %v\n", id, err)
 		}
 	}
 
@@ -687,6 +704,50 @@ func (u *salesReturnUsecase) getAvailableDeliveryQtyByProduct(ctx context.Contex
 	}
 
 	return availableByProduct, nil
+}
+
+func (u *salesReturnUsecase) TriggerJournalForReturn(ctx context.Context, ret *models.SalesReturn) error {
+	if ret == nil || u.journalUC == nil || u.engine == nil {
+		return nil
+	}
+
+	if ret.TotalAmount <= 0 {
+		return nil
+	}
+
+	data := accounting.TransactionData{
+		ReferenceType:   "SALES_RETURN",
+		ReferenceID:     ret.ID,
+		EntryDate:       apptime.Now().Format("2006-01-02"),
+		Description:     fmt.Sprintf("Sales Return %s", ret.Code),
+		TotalAmount:     ret.TotalAmount,
+		SubTotal:        ret.TotalAmount, // Assuming no tax split on return for now
+		DescriptionArgs: []interface{}{ret.Code},
+	}
+
+	req, err := u.engine.GenerateJournal(ctx, accounting.ProfileSalesReturn, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate sales return journal: %w", err)
+	}
+
+	// Balance check
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated sales return journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
+	}
+
+	req.IsSystemGenerated = true
+	_, err = u.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to post sales return journal: %w", err)
+	}
+
+	log.Printf("journal_observability event=trigger.success module=sales_return reference_id=%s", ret.ID)
+	return nil
 }
 
 func mapSalesReturnRow(row *models.SalesReturn) *dto.SalesReturnResponse {

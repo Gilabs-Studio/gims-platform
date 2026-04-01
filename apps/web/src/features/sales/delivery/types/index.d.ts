@@ -74,6 +74,7 @@ export interface DeliveryOrder {
   cancelled_at?: string;
   cancellation_reason?: string;
   items?: DeliveryOrderItem[];
+  journal_entry_id?: string;
   created_at: string;
   updated_at: string;
 }

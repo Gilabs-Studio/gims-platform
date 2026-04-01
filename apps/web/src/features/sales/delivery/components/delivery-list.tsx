@@ -346,6 +346,7 @@ export function DeliveryList() {
               <TableHead>{t("code")}</TableHead>
               <TableHead>{t("deliveryDate")}</TableHead>
               <TableHead>{t("salesOrder")}</TableHead>
+              <TableHead>{t("warehouse")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
               <TableHead>{t("trackingNumber")}</TableHead>
               <TableHead className="w-[70px]" />
@@ -358,6 +359,7 @@ export function DeliveryList() {
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-10" /></TableCell>
@@ -365,7 +367,7 @@ export function DeliveryList() {
               ))
             ) : deliveries.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {t("notFound")}
                 </TableCell>
               </TableRow>
@@ -395,6 +397,15 @@ export function DeliveryList() {
                       <span>{delivery.sales_order?.code ?? "-"}</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {delivery.warehouse ? (
+                      <span className="text-xs font-medium">
+                         {delivery.warehouse.code ? `${delivery.warehouse.code} - ${delivery.warehouse.name}` : delivery.warehouse.name}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getDeliveryBadge(delivery)}</TableCell>
                   <TableCell>{delivery.tracking_number || "-"}</TableCell>
                   <TableCell>
@@ -412,7 +423,7 @@ export function DeliveryList() {
                               {t("common.view")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && delivery.status === "draft" && (
+                          {canUpdate && (delivery.status === "draft" || delivery.status === "sent" || delivery.status === "approved" || delivery.status === "prepared") && (
                             <DropdownMenuItem onClick={() => handleEdit(delivery)} className="cursor-pointer">
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}

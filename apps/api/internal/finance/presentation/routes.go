@@ -1,12 +1,15 @@
 package presentation
 
 import (
+	"context"
+
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/service"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
 	"github.com/gilabs/gims/api/internal/finance/presentation/router"
@@ -24,9 +27,15 @@ type FinanceDeps struct {
 	TaxInvoiceUC usecase.TaxInvoiceUsecase
 	SalaryUC     usecase.SalaryStructureUsecase
 	SettingsUC   financesettings.SettingsService
+	Engine       accounting.AccountingEngine
 }
 
-func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
+func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, auditService interface {
+	Log(ctx context.Context, action string, targetID string, metadata map[string]interface{})
+	LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{})
+	LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{})
+	LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{})
+}, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) *FinanceDeps {
@@ -73,10 +82,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Settings & Accounting Engine
 	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
 	settingsService := financesettings.NewSettingsService(financeSettingRepo)
-	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo)
+	coaValidationSvc := service.NewCOAValidationService(financeSettingRepo)
+	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
@@ -99,7 +109,19 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
-	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, coaRepo, journalUC)
+	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
+	
+	// Reconciliation service for GL vs subledger validation
+	reconciliationSvc := usecase.NewValuationReconciliationService(
+		db,
+		valuationRunRepo,
+		coaRepo,
+		accountingEngine,
+		settingsService,
+	)
+
+	// Export service for audit-ready CSV/PDF generation
+	exportSvc := service.NewValuationExportService(valuationRunRepo)
 
 	// Asset Maintenance
 	maintenanceUC := usecase.NewAssetMaintenanceUsecase(db, maintenanceRepo)
@@ -110,7 +132,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetBudgetUC := usecase.NewAssetBudgetUsecase(db, assetBudgetRepo, assetCategoryRepo, assetBudgetMapper)
 
 	coaH := handler.NewChartOfAccountHandler(coaUC)
-	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC)
+	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
 	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)
@@ -161,5 +183,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		TaxInvoiceUC: taxInvoiceUC,
 		SalaryUC:     salaryUC,
 		SettingsUC:   settingsService,
+		Engine:       accountingEngine,
 	}
 }

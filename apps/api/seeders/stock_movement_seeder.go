@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	purchaseModels "github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -41,9 +42,9 @@ func SeedStockMovement() error {
 
 	// Check which real categories already exist
 	var inCount, outCount, adjustCount int64
-	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "GoodsReceipt").Count(&inCount)
-	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "DeliveryOrder").Count(&outCount)
-	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", "StockOpname").Count(&adjustCount)
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", reference.RefTypeGoodsReceipt).Count(&inCount)
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", reference.RefTypeDeliveryOrder).Count(&outCount)
+	db.Model(&inventoryModels.StockMovement{}).Where("ref_type = ?", reference.RefTypeStockOpname).Count(&adjustCount)
 
 	if inCount > 0 && outCount > 0 && adjustCount > 0 {
 		log.Println("Stock movements already seeded for all categories, skipping...")
@@ -173,7 +174,7 @@ func seedGoodsReceiptMovements(events *[]movementEvent, costMap map[string]float
 				ID:           uuid.NewString(),
 				Date:         movementDate,
 				MovementType: inventoryModels.MovementTypeIn,
-				RefType:      "GoodsReceipt",
+				RefType:      reference.RefTypeGoodsReceipt,
 				RefID:        gr.ID,
 				RefNumber:    gr.Code,
 				Source:       fmt.Sprintf("Supplier: %s", gr.SupplierNameSnapshot),
@@ -242,7 +243,7 @@ func seedDeliveryOrderMovements(events *[]movementEvent, costMap map[string]floa
 				ID:           uuid.NewString(),
 				Date:         movementDate,
 				MovementType: inventoryModels.MovementTypeOut,
-				RefType:      "DeliveryOrder",
+				RefType:      reference.RefTypeDeliveryOrder,
 				RefID:        do.ID,
 				RefNumber:    do.Code,
 				Source:       "Customer Delivery",
@@ -299,7 +300,7 @@ func seedStockOpnameMovements(events *[]movementEvent, costMap map[string]float6
 				ID:           uuid.NewString(),
 				Date:         opname.Date,
 				MovementType: inventoryModels.MovementTypeAdjust,
-				RefType:      "StockOpname",
+				RefType:      reference.RefTypeStockOpname,
 				RefID:        opname.ID,
 				RefNumber:    opname.OpnameNumber,
 				Source:       fmt.Sprintf("Opname Adjustment (%s)", opname.OpnameNumber),

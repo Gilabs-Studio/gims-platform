@@ -147,7 +147,56 @@ export function DeliveryForm({ open, onClose, delivery, defaultSalesOrderId }: D
                       )}
                     </Field>
 
-                    {/* Warehouse selection moved to items */}
+                    <Field orientation="vertical">
+                      <FieldLabel>{t("warehouse")} *</FieldLabel>
+                      <Controller
+                        name="warehouse_id"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={(val) => {
+                              field.onChange(val);
+                              // Sync items warehouse if they are empty
+                              const currentItems = getValues("items");
+                              if (currentItems && currentItems.length > 0) {
+                                currentItems.forEach((_, idx) => {
+                                  if (!getValues(`items.${idx}.warehouse_id`)) {
+                                     setValue(`items.${idx}.warehouse_id`, val as string);
+                                  }
+                                });
+                              }
+                            }}
+                            onOpenChange={(isOpen) => {
+                              if (isOpen) {
+                                enableReferenceOptionsFetch();
+                              }
+                              warehousesCombobox.onOpenChange(isOpen);
+                            }}
+                            onSearchChange={warehousesCombobox.onSearchChange}
+                            searchDebounceMs={300}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t("warehouse")} />
+                            </SelectTrigger>
+                            <SelectContent
+                              onLoadMore={warehousesCombobox.onLoadMore}
+                              hasMore={warehousesCombobox.hasMore}
+                              isLoadingMore={warehousesCombobox.isLoadingMore}
+                            >
+                              {warehouses.filter(w => w.is_active).map((w) => (
+                                <SelectItem key={w.id} value={w.id}>
+                                  {w.code ? `${w.code} - ${w.name}` : w.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      {errors.warehouse_id && (
+                        <FieldError>{errors.warehouse_id.message}</FieldError>
+                      )}
+                    </Field>
 
                     <Field orientation="vertical" className="col-span-2">
                       <FieldLabel>{t("salesOrder")} *</FieldLabel>

@@ -1,6 +1,7 @@
+import React, { useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ExternalLink, FileText, Lock } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, FileText, Lock } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,32 +51,7 @@ const DEFAULT_COLUMNS: JournalTableColumn[] = [
   { key: "action", label: "Action" },
 ];
 
-function buildReferenceCode(referenceType?: string | null, referenceID?: string | null): string | null {
-  const rawType = (referenceType ?? "").trim().toUpperCase();
-  const compact = rawType.replace(/[^A-Z0-9]/g, "");
-  if (!rawType) return null;
-
-  let prefix = "REF";
-  if (compact.includes("SALESINVOICE")) {
-    prefix = "INV";
-  } else if (compact.includes("SUPPLIERINVOICE")) {
-    prefix = "PINV";
-  } else if (compact.includes("PAYMENT")) {
-    prefix = "PAY";
-  } else if (compact.includes("CASHBANK")) {
-    prefix = "CB";
-  } else if (compact.includes("ADJUST")) {
-    prefix = "ADJ";
-  } else if (compact.includes("VALUATION")) {
-    prefix = "VAL";
-  } else if (rawType.length >= 3) {
-    prefix = rawType.slice(0, 3);
-  }
-
-  const source = (referenceID ?? "").trim();
-  const short = source ? source.split("-")[0].toUpperCase().slice(0, 10) : "N/A";
-  return `${prefix}-${short}`;
-}
+// Task 5: Manual generation logic removed as reference_code is now provided by API.
 
 function getReferenceSourceMeta(type: string | null): JournalReferenceTypeBadgeMeta {
   if (!type) {
@@ -234,7 +210,7 @@ export function mapJournalToUnifiedRow<
     referenceType: item.reference_type ?? null,
     referenceTypeBadge: getReferenceBadge(item.reference_type ?? null),
     referenceId: item.reference_id ?? null,
-    referenceCode: item.reference_code ?? buildReferenceCode(item.reference_type, item.reference_id),
+    referenceCode: item.reference_code ?? null,
     status: item.status ?? "draft",
     debit: item.debit_total ?? 0,
     credit: item.credit_total ?? 0,
@@ -286,7 +262,7 @@ export function mapCashBankToUnifiedRow<
     referenceType: item.reference_type ?? item.type.toUpperCase(),
     referenceTypeBadge: getReferenceBadge(item.reference_type ?? item.type.toUpperCase()),
     referenceId: item.reference_id ?? item.id,
-    referenceCode: item.reference_code ?? `CB-${item.id.slice(0, 8).toUpperCase()}`,
+    referenceCode: item.reference_code ?? null,
     transactionType,
     bankAccountName: item.bank_account?.name ?? null,
     isSystemGenerated: true,
@@ -461,6 +437,20 @@ export function JournalTable<T = unknown>({
   canReferenceClick,
   actionRender,
 }: JournalTableProps<T>) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
   const activeColumns = showBankAccountColumn
     ? columns.reduce<JournalTableColumn[]>((acc, column) => {
         acc.push(column);
@@ -506,25 +496,93 @@ export function JournalTable<T = unknown>({
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row, index) => (
-              <TableRow key={row.id} className="hover:bg-muted/50 transition-colors">
-                {activeColumns.map((column) => (
-                  <FragmentCell
-                    key={`${row.id}-${column.key}`}
-                    content={renderCell(
-                      column.key,
-                      row,
-                      index,
-                      rowStartNumber,
-                      referenceTooltipText,
-                      onReferenceClick,
-                      canReferenceClick,
-                      actionRender,
-                    )}
-                  />
-                ))}
-              </TableRow>
-            ))
+            data.map((row, index) => {
+              const isExpanded = expandedIds.has(row.id);
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow className="hover:bg-muted/50 transition-colors">
+                    {activeColumns.map((column) => {
+                      if (column.key === "number") {
+                        return (
+                          <TableCell key="number" className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+                            <div className="flex items-center justify-end gap-2">
+                              {((row.original as any)?.lines?.length > 0) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-4 w-4 p-0 hover:bg-transparent"
+                                  onClick={() => toggleExpand(row.id)}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              )}
+                              <span>{rowStartNumber + index}</span>
+                            </div>
+                          </TableCell>
+                        );
+                      }
+                      return (
+                        <FragmentCell
+                          key={`${row.id}-${column.key}`}
+                          content={renderCell(
+                            column.key,
+                            row,
+                            index,
+                            rowStartNumber,
+                            referenceTooltipText,
+                            onReferenceClick,
+                            canReferenceClick,
+                            actionRender,
+                          )}
+                        />
+                      );
+                    })}
+                  </TableRow>
+                  {isExpanded && row.original && (row.original as any).lines && (
+                    <TableRow className="bg-muted/30 border-b-0">
+                      <TableCell colSpan={activeColumns.length} className="p-0">
+                        <div className="px-12 py-3">
+                          <Table className="border rounded-md bg-background">
+                            <TableHeader className="bg-muted/50">
+                              <TableRow className="hover:bg-transparent h-8">
+                                <TableHead className="text-[10px] uppercase font-bold py-1">Account</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold py-1 text-right">Debit</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold py-1 text-right">Credit</TableHead>
+                                <TableHead className="text-[10px] uppercase font-bold py-1">Memo</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {(row.original as any).lines.map((ln: any) => (
+                                <TableRow key={ln.id} className="hover:bg-muted/50 h-8">
+                                  <TableCell className="py-1 text-xs">
+                                    <span className="font-medium">{ln.chart_of_account?.code ?? "-"}</span>
+                                    <span className="mx-2 text-muted-foreground">|</span>
+                                    <span>{ln.chart_of_account?.name ?? "-"}</span>
+                                  </TableCell>
+                                  <TableCell className="py-1 text-right text-xs tabular-nums font-mono text-emerald-600">
+                                    {ln.debit > 0 ? formatCurrency(ln.debit) : "-"}
+                                  </TableCell>
+                                  <TableCell className="py-1 text-right text-xs tabular-nums font-mono text-rose-600">
+                                    {ln.credit > 0 ? formatCurrency(ln.credit) : "-"}
+                                  </TableCell>
+                                  <TableCell className="py-1 text-xs text-muted-foreground italic">
+                                    {ln.memo || "-"}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            })
           )}
         </TableBody>
       </Table>

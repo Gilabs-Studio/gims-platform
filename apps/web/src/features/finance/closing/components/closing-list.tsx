@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import type { FinancialClosing } from "../types";
 import { useApproveFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
@@ -116,7 +117,7 @@ export function ClosingList() {
   }, []);
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
+    return <FinanceListErrorState message={tCommon("error")} />;
   }
 
   return (
@@ -143,6 +144,7 @@ export function ClosingList() {
         )}
       </div>
 
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -166,7 +168,7 @@ export function ClosingList() {
             ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  -
+                  {tCommon("empty")}
                 </TableCell>
               </TableRow>
             ) : (

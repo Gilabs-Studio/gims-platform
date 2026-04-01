@@ -8,13 +8,21 @@ import type { CreateChartOfAccountInput, UpdateChartOfAccountInput } from "../ty
 export const financeCoaKeys = {
   all: ["finance-coa"] as const,
   tree: (params?: { only_active?: boolean }) => [...financeCoaKeys.all, "tree", params] as const,
-  lists: () => [...financeCoaKeys.all, "list"] as const,
+  lists: (params?: any) => [...financeCoaKeys.all, "list", params] as const,
 };
 
 export function useFinanceCoaTree(params?: { only_active?: boolean }) {
   return useQuery({
     queryKey: financeCoaKeys.tree(params),
     queryFn: () => financeCoaService.tree(params),
+    staleTime: 60_000,
+  });
+}
+
+export function useFinanceChartOfAccounts(params?: any) {
+  return useQuery({
+    queryKey: financeCoaKeys.lists(params),
+    queryFn: () => financeCoaService.list(params),
     staleTime: 60_000,
   });
 }

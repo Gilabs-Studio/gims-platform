@@ -7,6 +7,9 @@ export const financeJournalsEn = {
   purchaseTitle: "Purchase Journal",
   purchaseDescription:
     "Read-only journals generated from purchase transactions (Goods Receipt, Supplier Invoice, Purchase Payment).",
+  inventoryTitle: "Inventory Journal",
+  inventoryDescription:
+    "Inventory impact journals from stock movement, goods receipt, and valuation adjustments.",
   adjustmentTitle: "Adjustment Journal",
   adjustmentDescription:
     "Manual correction journals controlled by Finance. Supports create, post, and reverse.",
@@ -69,6 +72,7 @@ export const financeJournalsEn = {
     select: "Select...",
   },
   runValuation: "Run Valuation",
+  openJournal: "Open Journal",
   runValuationConfirm:
     "Are you sure you want to run the valuation process? This will generate and post adjustment journals automatically.",
   runValuationFormTitle: "Configure Valuation Run",
@@ -95,4 +99,70 @@ export const financeJournalsEn = {
     continue: "Continue",
     loading: "Loading...",
   },
+  // Phase 4: Reconciliation, Unlock, Export, Bulk Approve
+  reconciliation_report: "Reconciliation Report",
+  gl_vs_subledger_validation: "General Ledger vs Subledger Validation",
+  reconciliation_failed: "Reconciliation check failed",
+  unknown_error: "An unknown error occurred",
+  status: "Status",
+  reconciliation_matched: "Matched",
+  reconciliation_mismatched: "Mismatched",
+  checked_at: "Checked at",
+  overall_delta: "Overall Delta",
+  reconciliation_status: "Reconciliation Status",
+  valuation_type: "Valuation Type",
+  account_details: "Account Details",
+  gl_balance: "GL Balance",
+  subledger_total: "Subledger Total",
+  delta: "Variance (Delta)",
+  tolerance: "Tolerance",
+  matched: "Matched",
+  mismatched: "Mismatched",
+  pass: "Pass",
+  fail: "Fail",
+  reconciliation_matched_desc:
+    "All GL balances match their subredger totals within tolerance. Valuation is ready for posting.",
+  reconciliation_mismatched_desc:
+    "GL balance does not match subledger total. Review the variance details and correct as needed before posting.",
+  
+  // Unlock Dialog
+  unlock_valuation: "Unlock Valuation Run",
+  unlock_confirmation: "This will allow modifications to a posted valuation run.",
+  unlock_warning: "⚠️ Admin Action Required",
+  unlock_reason_required_audit: "A reason must be provided for audit trail purposes.",
+  unlock_reason: "Unlock Reason",
+  unlock_reason_placeholder: "Explain why this valuation run needs to be unlocked (min 3 characters)",
+  unlock_reason_required: "Unlock reason is required",
+  unlock_reason_min_length: "Unlock reason must be at least 3 characters",
+  unlock: "Unlock",
+  unlock_success: "Valuation run unlocked successfully",
+  unlock_failed: "Failed to unlock valuation run",
+  characters: "characters",
+  
+  // Export Dialog
+  export_valuation: "Export Valuation Run",
+  export_format_desc: "Choose a format to export this valuation run for analysis or audit.",
+  export_csv: "Export as CSV",
+  export_csv_desc: "Spreadsheet format for analysis and data manipulation",
+  export_pdf: "Export as PDF",
+  export_pdf_desc: "Formatted report suitable for printing and archival",
+  export_success: "Exported successfully as { format }",
+  export_failed: "Failed to export valuation run",
+  
+  // Bulk Approve
+  bulk_approve: "Bulk Approve Valuations",
+  bulk_approve_desc: "Approve { count } selected valuation runs",
+  approval_summary: "Approval Summary",
+  runs_selected: "Runs Selected",
+  total_delta: "Total Delta",
+  total_debit: "Total Debit",
+  selected_runs: "Selected Runs",
+  period: "Period",
+  type: "Type",
+  bulk_approve_will_lock: "✓ Approved runs will be locked and cannot be modified without unlock permission.",
+  bulk_approve_success: "Successfully approved { count } valuation runs",
+  bulk_approve_failed: "Failed to approve valuation runs",
+  approve: "Approve",
+  runs: "Runs",
 };
+

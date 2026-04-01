@@ -11,6 +11,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	inventoryDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -333,11 +334,10 @@ func (u *deliveryOrderUsecase) Update(ctx context.Context, id string, req *dto.U
 	}
 
 	// Check if delivery order can be modified
-	if deliveryOrder.Status != models.DeliveryOrderStatusDraft && deliveryOrder.Status != models.DeliveryOrderStatusApproved && deliveryOrder.Status != models.DeliveryOrderStatusPrepared {
+	if deliveryOrder.Status == models.DeliveryOrderStatusShipped || 
+	   deliveryOrder.Status == models.DeliveryOrderStatusDelivered || 
+	   deliveryOrder.Status == models.DeliveryOrderStatusCancelled {
 		return nil, ErrInvalidDeliveryOrderStatus
-	}
-	if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
-		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 
 	beforeSnapshot := deliveryOrderAuditSnapshot(deliveryOrder)
@@ -473,9 +473,19 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	newStatus := models.DeliveryOrderStatus(req.Status)
 	previousStatus := deliveryOrder.Status
 
+	log.Printf("[Sales] UpdateStatus: ID=%s, currentStatus=%s, nextStatus=%s, warehouseID=%v", id, deliveryOrder.Status, newStatus, deliveryOrder.WarehouseID)
+
 	// Validate status transition
 	if !u.isValidStatusTransition(deliveryOrder.Status, newStatus) {
 		return nil, ErrInvalidDeliveryStatusTransition
+	}
+
+	// For SHIPPED and DELIVERED, they must use specialized methods to ensure transactional logic runs
+	if newStatus == models.DeliveryOrderStatusShipped {
+		return nil, errors.New("cannot change status to SHIPPED via generic status update — please use the specialized /ship action")
+	}
+	if newStatus == models.DeliveryOrderStatusDelivered {
+		return nil, errors.New("cannot change status to DELIVERED via generic status update — please use the specialized /deliver action")
 	}
 
 	var reason *string
@@ -486,6 +496,13 @@ func (u *deliveryOrderUsecase) UpdateStatus(ctx context.Context, id string, req 
 	// Release stock reservations when cancelling to prevent "trapped" inventory
 	if newStatus == models.DeliveryOrderStatusCancelled {
 		return u.cancelAndReleaseStock(ctx, deliveryOrder, userID, reason)
+	}
+
+	// Validation: Prepared status requires a warehouse
+	if newStatus == models.DeliveryOrderStatusPrepared {
+		if deliveryOrder.WarehouseID == nil || strings.TrimSpace(*deliveryOrder.WarehouseID) == "" {
+			return nil, errors.New(errDeliveryWarehouseIDRequired)
+		}
 	}
 
 	if err := u.deliveryOrderRepo.UpdateStatus(ctx, id, newStatus, userID, reason); err != nil {
@@ -586,47 +603,80 @@ func (u *deliveryOrderUsecase) Ship(ctx context.Context, id string, req *dto.Shi
 		return nil, errors.New(errDeliveryWarehouseIDRequired)
 	}
 
-	// Ship delivery order
-	if err := u.deliveryOrderRepo.Ship(ctx, id, userID, req.TrackingNumber); err != nil {
-		return nil, err
-	}
+	// Atomic transaction for all stock and status changes
+	err = u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	// Reduce batch quantities, release reservations, and create stock movement
-	for _, item := range deliveryOrder.Items {
-		if item.InventoryBatchID != nil {
-			// Release batch reservation (stock is leaving warehouse, no longer reserved)
-			if err := u.inventoryUC.ReleaseBatchStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
-				return nil, err
-			}
+		log.Printf("[Sales] PROCESSSING SHIP for DO %s (%s)", id, deliveryOrder.Code)
 
-			// Release product-level reservation
-			if err := u.inventoryUC.ReleaseStock(ctx, item.ProductID, item.Quantity); err != nil {
-				return nil, err
-			}
+		// 1. Mark DO as shipped in DB
+		if err := u.deliveryOrderRepo.Ship(txCtx, id, userID, req.TrackingNumber); err != nil {
+			log.Printf("[Sales] SHIP FAILED repo ship: %v", err)
+			return fmt.Errorf("repo ship: %w", err)
+		}
 
-			// Deduct from batch
-			if err := u.inventoryUC.DeductStock(ctx, *item.InventoryBatchID, item.Quantity); err != nil {
-				return nil, err
-			}
+		if deliveryOrder.WarehouseID == nil {
+			log.Printf("[Sales] SHIP FAILED: DO %s missing warehouse ID", deliveryOrder.Code)
+			return fmt.Errorf("delivery order %s has no source warehouse assigned", deliveryOrder.Code)
+		}
 
-			// Create stock movement record (Outbound)
-			movementReq := &inventoryDto.StockMovementRequest{
-				InventoryBatchID: *item.InventoryBatchID,
-				ProductID:        item.ProductID,
-				WarehouseID:      *deliveryOrder.WarehouseID,
-				Type:             "OUT",
-				Quantity:         item.Quantity,
-				ReferenceType:    "DO",
-				ReferenceID:      deliveryOrder.ID,
-				ReferenceNumber:  deliveryOrder.Code,
-				Description:      "Delivery Order Shipment",
-				CreatedBy:        userID,
-			}
+		if len(deliveryOrder.Items) == 0 {
+			log.Printf("[Sales] SHIP FAILED: DO %s has no items", deliveryOrder.Code)
+			return fmt.Errorf("delivery order %s has no items", deliveryOrder.Code)
+		}
 
-			if err := u.inventoryUC.CreateStockMovement(ctx, movementReq); err != nil {
-				return nil, err
+		// 2. Process stock changes for each item
+		for _, item := range deliveryOrder.Items {
+			if item.InventoryBatchID != nil {
+				log.Printf("[Sales] Deducting stock for Product %s, Batch %s, Qty %.2f", item.ProductID, *item.InventoryBatchID, item.Quantity)
+				
+				// Release batch reservation
+				if err := u.inventoryUC.ReleaseBatchStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return fmt.Errorf("release batch stock: %w", err)
+				}
+
+				// Release product-level reservation
+				if err := u.inventoryUC.ReleaseStock(txCtx, item.ProductID, item.Quantity); err != nil {
+					return fmt.Errorf("release product stock: %w", err)
+				}
+
+				// Deduct from batch
+				if err := u.inventoryUC.DeductStock(txCtx, *item.InventoryBatchID, item.Quantity); err != nil {
+					return fmt.Errorf("deduct stock: %w", err)
+				}
+
+				// Create stock movement record (Outbound)
+				movementReq := &inventoryDto.StockMovementRequest{
+					InventoryBatchID: *item.InventoryBatchID,
+					ProductID:        item.ProductID,
+					WarehouseID:      *deliveryOrder.WarehouseID,
+					Type:             "OUT",
+					Quantity:         item.Quantity,
+					ReferenceType:    reference.RefTypeDeliveryOrder,
+					ReferenceID:      deliveryOrder.ID,
+					ReferenceNumber:  deliveryOrder.Code,
+					Description:      "Delivery Order Shipment",
+					CreatedBy:        userID,
+					SkipJournaling:   true, // We trigger a consolidated journal at the end
+				}
+
+				if _, err := u.inventoryUC.CreateStockMovement(txCtx, movementReq); err != nil {
+					return fmt.Errorf("create movement: %w", err)
+				}
 			}
 		}
+
+		// 3. Trigger consolidated journal for the entire DO
+		log.Printf("[Sales] Triggering consolidated journal for DO %s", deliveryOrder.Code)
+		if err := u.inventoryUC.TriggerDocumentJournal(txCtx, tx, reference.RefTypeDeliveryOrder, deliveryOrder.ID); err != nil {
+			return fmt.Errorf("delivery journal: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	// Fetch updated delivery order

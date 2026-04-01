@@ -356,20 +356,18 @@ func main() {
 		corePresentation.RegisterMasterDataRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Finance module (Sprint 10 - COA & Journals)
-		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
-
-		// Travel Planner module (Collaborative Advance)
-		travelPlannerPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		financeDeps := financePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, auditService, permissionService)
 
 		// Inventory Setup (Shared Dependency)
 		invRepo := inventoryRepo.NewInventoryRepository(database.DB)
-		invUC := inventoryUsecase.NewInventoryUsecase(invRepo)
+		invUC := inventoryUsecase.NewInventoryUsecase(database.DB, invRepo, financeDeps.JournalUC, financeDeps.Engine)
 
 		// Sales module (Sprint 5 - Sales Quotation)
 		salesDeps := salesPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, salesPresentation.SalesRouteDeps{
 			InventoryUC: invUC,
 			JournalUC:   financeDeps.JournalUC,
 			CoaUC:       financeDeps.CoaUC,
+			Engine:      financeDeps.Engine,
 		})
 
 		// HRD module (Sprint 13 - Attendance)
@@ -392,11 +390,14 @@ func main() {
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
+		// Travel Planner module
+		travelPlannerPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
 		// General module (Dashboard)
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)

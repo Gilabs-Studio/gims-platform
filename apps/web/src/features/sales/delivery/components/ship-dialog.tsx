@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Truck } from "lucide-react";
+import { Truck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -62,6 +62,23 @@ export function ShipDialog({
             {t("batchSelection.enterTrackingNumber")}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+          <p className="font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Stock & Financial Impact
+          </p>
+          <p className="mt-1">
+            Shipping this order will:
+          </p>
+          <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
+            <li>Deduct stock from <strong>{t("warehouse")}</strong>.</li>
+            <li>Post <strong>COGS Journal</strong> via Accounting Engine.</li>
+          </ul>
+          <p className="mt-2 text-[10px] uppercase font-bold tracking-wider opacity-70">
+            Action is atomic and irreversible.
+          </p>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">

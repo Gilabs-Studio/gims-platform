@@ -64,26 +64,38 @@ type JournalLineResponse struct {
 }
 
 type JournalEntryResponse struct {
-	ID                string                      `json:"id"`
-	EntryDate         time.Time                   `json:"entry_date"`
-	Description       string                      `json:"description"`
-	ReferenceType     *string                     `json:"reference_type"`
-	ReferenceID       *string                     `json:"reference_id"`
-	ReferenceCode     *string                     `json:"reference_code"`
-	Status            financeModels.JournalStatus `json:"status"`
-	PostedAt          *time.Time                  `json:"posted_at"`
-	PostedBy          *string                     `json:"posted_by"`
-	CreatedBy         *string                     `json:"created_by,omitempty"`
-	IsSystemGenerated bool                        `json:"is_system_generated"`
-	SourceDocumentURL *string                     `json:"source_document_url,omitempty"`
-	Lines             []JournalLineResponse       `json:"lines"`
-	DebitTotal        float64                     `json:"debit_total"`
-	CreditTotal       float64                     `json:"credit_total"`
-	IsValuation       bool                        `json:"is_valuation"`
-	Source            string                      `json:"source"`
-	ValuationRunID    *string                     `json:"valuation_run_id,omitempty"`
-	CreatedAt         time.Time                   `json:"created_at"`
-	UpdatedAt         time.Time                   `json:"updated_at"`
+	ID            string                      `json:"id"`
+	EntryDate     time.Time                   `json:"entry_date"`
+	Description   string                      `json:"description"`
+	ReferenceType *string                     `json:"reference_type"`
+	ReferenceID   *string                     `json:"reference_id"`
+	ReferenceCode *string                     `json:"reference_code"`
+	Status        financeModels.JournalStatus `json:"status"`
+	PostedAt      *time.Time                  `json:"posted_at"`
+	PostedBy      *string                     `json:"posted_by"`
+	PostedByName  *string                     `json:"posted_by_name,omitempty"`
+	PostedByEmail *string                     `json:"posted_by_email,omitempty"`
+
+	CreatedBy      *string `json:"created_by,omitempty"`
+	CreatedByName  *string `json:"created_by_name,omitempty"`
+	CreatedByEmail *string `json:"created_by_email,omitempty"`
+
+	ReversedAt      *time.Time `json:"reversed_at,omitempty"`
+	ReversedBy      *string    `json:"reversed_by,omitempty"`
+	ReversedByName  *string    `json:"reversed_by_name,omitempty"`
+	ReversedByEmail *string    `json:"reversed_by_email,omitempty"`
+	ReversalReason  string     `json:"reversal_reason,omitempty"`
+
+	IsSystemGenerated bool                  `json:"is_system_generated"`
+	SourceDocumentURL *string               `json:"source_document_url,omitempty"`
+	Lines             []JournalLineResponse `json:"lines"`
+	DebitTotal        float64               `json:"debit_total"`
+	CreditTotal       float64               `json:"credit_total"`
+	IsValuation       bool                  `json:"is_valuation"`
+	Source            string                `json:"source"`
+	ValuationRunID    *string               `json:"valuation_run_id,omitempty"`
+	CreatedAt         time.Time             `json:"created_at"`
+	UpdatedAt         time.Time             `json:"updated_at"`
 }
 
 type TrialBalanceRow struct {
@@ -177,28 +189,102 @@ type JournalEntryFormDataResponse struct {
 
 // RunValuationRequest is the request payload for triggering a valuation run.
 type RunValuationRequest struct {
-	ValuationType string `json:"valuation_type" binding:"required,oneof=inventory currency depreciation cost"`
+	ValuationType string `json:"valuation_type" binding:"required,oneof=inventory fx depreciation"`
 	PeriodStart   string `json:"period_start" binding:"required"` // YYYY-MM-DD
 	PeriodEnd     string `json:"period_end" binding:"required"`   // YYYY-MM-DD
 	ReferenceID   string `json:"reference_id"`                    // optional, for idempotency
 }
 
+// ValuationItemResponse is the per-item valuation breakdown.
+type ValuationItemResponse struct {
+	ReferenceID string  `json:"reference_id"`
+	ProductID   *string `json:"product_id,omitempty"`
+	Qty         float64 `json:"qty"`
+	BookValue   float64 `json:"book_value"`
+	ActualValue float64 `json:"actual_value"`
+	Delta       float64 `json:"delta"`
+	Direction   string  `json:"direction"`
+}
+
+// ValuationPreviewJournalLine is a journal line preview row.
+type ValuationPreviewJournalLine struct {
+	ChartOfAccountID string  `json:"chart_of_account_id"`
+	Debit            float64 `json:"debit"`
+	Credit           float64 `json:"credit"`
+	Memo             string  `json:"memo"`
+}
+
+// ValuationPreviewResponse returns valuation and journal preview before posting.
+type ValuationPreviewResponse struct {
+	ValuationType string                        `json:"valuation_type"`
+	PeriodStart   string                        `json:"period_start"`
+	PeriodEnd     string                        `json:"period_end"`
+	Items         []ValuationItemResponse       `json:"items"`
+	TotalDelta    float64                       `json:"total_delta"`
+	TotalGain     float64                       `json:"total_gain"`
+	TotalLoss     float64                       `json:"total_loss"`
+	JournalLines  []ValuationPreviewJournalLine `json:"journal_lines"`
+	IsBalanced    bool                          `json:"is_balanced"`
+}
+
+// ApproveValuationRequest is the payload to approve and post a valuation run.
+type ApproveValuationRequest struct {
+	Notes string `json:"notes"`
+}
+
+// UnlockValuationRequest is the payload to unlock a posted (locked) valuation run.
+// Only allowed for admin/finance_manager users to enable corrections if errors are discovered.
+type UnlockValuationRequest struct {
+	UnlockReason string `json:"unlock_reason" binding:"required,min=3"`
+}
+
+// BulkApproveValuationRequest is the payload to bulk approve multiple valuation runs.
+type BulkApproveValuationRequest struct {
+	RunIDs []string `json:"run_ids" binding:"required,min=1,max=100"`
+}
+
+// BulkApproveResult is the status of a single run in bulk approve operation.
+type BulkApproveResult struct {
+	RunID   string `json:"run_id"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// BulkApproveValuationResponse is the response for batch approval operation.
+type BulkApproveValuationResponse struct {
+	Results        []BulkApproveResult `json:"results"`
+	TotalProcessed int                 `json:"total_processed"`
+	SuccessCount   int                 `json:"success_count"`
+	FailureCount   int                 `json:"failure_count"`
+	ProcessedAt    string              `json:"processed_at"`
+}
+
 // ValuationRunResponse is the API response for a valuation run record.
 type ValuationRunResponse struct {
-	ID             string  `json:"id"`
-	ReferenceID    string  `json:"reference_id"`
-	ValuationType  string  `json:"valuation_type"`
-	PeriodStart    string  `json:"period_start"`
-	PeriodEnd      string  `json:"period_end"`
-	Status         string  `json:"status"`
-	TotalDebit     float64 `json:"total_debit"`
-	TotalCredit    float64 `json:"total_credit"`
-	JournalEntryID *string `json:"journal_entry_id,omitempty"`
-	ErrorMessage   *string `json:"error_message,omitempty"`
-	CreatedBy      *string `json:"created_by,omitempty"`
-	CompletedAt    *string `json:"completed_at,omitempty"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID             string                  `json:"id"`
+	ReferenceID    string                  `json:"reference_id"`
+	ValuationType  string                  `json:"valuation_type"`
+	PeriodStart    string                  `json:"period_start"`
+	PeriodEnd      string                  `json:"period_end"`
+	Status         string                  `json:"status"`
+	TotalDebit     float64                 `json:"total_debit"`
+	TotalCredit    float64                 `json:"total_credit"`
+	TotalDelta     float64                 `json:"total_delta"`
+	JournalEntryID *string                 `json:"journal_entry_id,omitempty"`
+	ErrorMessage   *string                 `json:"error_message,omitempty"`
+	
+	// Approval Tracking (audit trail)
+	IsLocked      bool    `json:"is_locked"`
+	LockedAt      *string `json:"locked_at,omitempty"`
+	ApprovedBy    *string `json:"approved_by,omitempty"`
+	ApprovedAt    *string `json:"approved_at,omitempty"`
+	ApprovalNotes string  `json:"approval_notes,omitempty"`
+	
+	CreatedBy   *string                 `json:"created_by,omitempty"`
+	CompletedAt *string                 `json:"completed_at,omitempty"`
+	Items       []ValuationItemResponse `json:"items,omitempty"`
+	CreatedAt   string                  `json:"created_at"`
+	UpdatedAt   string                  `json:"updated_at"`
 }
 
 // ValuationKPIMeta is additional metadata returned with valuation list endpoints.
@@ -215,8 +301,8 @@ type ValuationKPIMeta struct {
 type ListValuationRunsRequest struct {
 	Page          int     `form:"page" binding:"omitempty,min=1"`
 	PerPage       int     `form:"per_page" binding:"omitempty,min=1,max=100"`
-	ValuationType *string `form:"valuation_type" binding:"omitempty,oneof=inventory currency depreciation cost"`
-	Status        *string `form:"status" binding:"omitempty,oneof=requested processing completed no_difference failed"`
+	ValuationType *string `form:"valuation_type" binding:"omitempty,oneof=inventory fx depreciation"`
+	Status        *string `form:"status" binding:"omitempty,oneof=draft pending_approval approved posted no_difference failed"`
 	StartDate     *string `form:"start_date"`
 	EndDate       *string `form:"end_date"`
 	SortBy        string  `form:"sort_by"`

@@ -22,6 +22,7 @@ type GoodsReceiptListResponse struct {
 	RejectedAt                   *time.Time `json:"rejected_at,omitempty"`
 	ConvertedAt                  *time.Time `json:"converted_at,omitempty"`
 	ConvertedToSupplierInvoiceID *string    `json:"converted_to_supplier_invoice_id,omitempty"`
+	JournalEntryID               *string    `json:"journal_entry_id,omitempty"`
 }
 
 type GoodsReceiptPurchaseOrderMini struct {
@@ -59,6 +60,7 @@ type GoodsReceiptDetailResponse struct {
 	RejectedAt                   *time.Time `json:"rejected_at,omitempty"`
 	ConvertedAt                  *time.Time `json:"converted_at,omitempty"`
 	ConvertedToSupplierInvoiceID *string    `json:"converted_to_supplier_invoice_id,omitempty"`
+	JournalEntryID               *string    `json:"journal_entry_id,omitempty"`
 }
 
 type GoodsReceiptPurchaseOrderDetail struct {

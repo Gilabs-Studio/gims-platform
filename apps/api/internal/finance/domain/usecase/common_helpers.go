@@ -32,6 +32,18 @@ func parseDateOptional(value *string) (*time.Time, error) {
 	return &parsed, nil
 }
 
+// parseEndDateOptional parses an optional date and sets it to the end of the day (23:59:59).
+func parseEndDateOptional(value *string) (*time.Time, error) {
+	parsed, err := parseDateOptional(value)
+	if err != nil || parsed == nil {
+		return parsed, err
+	}
+	
+	// Set to end of day
+	eod := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 23, 59, 59, 999999999, parsed.Location())
+	return &eod, nil
+}
+
 // normalizePagination ensures page and perPage are within valid bounds.
 func normalizePagination(page, perPage int) (int, int) {
 	if page < 1 {

@@ -36,4 +36,5 @@ func RegisterSupplierInvoiceRoutes(r *gin.RouterGroup, h *handler.SupplierInvoic
 	g.POST("/:id/reject", middleware.RequirePermission(supplierInvoiceReject), h.Reject)
 	g.POST("/:id/cancel", middleware.RequirePermission(supplierInvoiceCancel), h.Cancel)
 	g.POST("/:id/pending", middleware.RequirePermission(supplierInvoicePending), h.Pending)
+	g.POST("/:id/reverse", middleware.RequirePermission(supplierInvoiceCancel), h.Reverse)
 }

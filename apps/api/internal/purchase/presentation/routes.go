@@ -4,6 +4,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
@@ -25,7 +26,7 @@ type PurchaseDeps struct {
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase) *PurchaseDeps {
+}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine) *PurchaseDeps {
 	_ = r
 
 	prRepo := repositories.NewPurchaseRequisitionRepository(db)
@@ -45,23 +46,23 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	prH := handler.NewPurchaseRequisitionHandler(prUc, poUc)
 	prPrintH := handler.NewPurchaseRequisitionPrintHandler(prUc, db)
 
-	grUc := usecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, invUC, journalUC, coaUC, assetUC)
+	grUc := usecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, invUC, journalUC, coaUC, assetUC, engine)
 	grH := handler.NewGoodsReceiptHandler(grUc)
 	grPrintH := handler.NewGoodsReceiptPrintHandler(grUc, db)
 
-	siUc := usecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, grRepo, auditService, journalUC, coaUC)
+	siUc := usecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, grRepo, auditService, journalUC, coaUC, engine)
 	siH := handler.NewSupplierInvoiceHandler(siUc)
 	siPrintH := handler.NewSupplierInvoicePrintHandler(siUc, db)
 
-	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC)
+	siDpUc := usecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditService, journalUC, coaUC, engine)
 	siDpH := handler.NewSupplierInvoiceDownPaymentHandler(siDpUc)
 	siDpPrintH := handler.NewSupplierInvoiceDPPrintHandler(siDpUc, db)
 
-	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC)
+	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC, engine)
 	payH := handler.NewPurchasePaymentHandler(payUc)
 	payPrintH := handler.NewPurchasePaymentPrintHandler(payUc, db)
 
-	returnUC := usecase.NewPurchaseReturnUsecase(db, returnRepo, invUC, auditService)
+	returnUC := usecase.NewPurchaseReturnUsecase(db, returnRepo, invUC, journalUC, coaUC, auditService, engine)
 	returnH := handler.NewPurchaseReturnHandler(returnUC)
 
 	recapUc := usecase.NewPayableRecapUsecase(recapRepo)

@@ -9,7 +9,25 @@ import (
 	"gorm.io/gorm"
 )
 
+type isReversalKey struct{}
+
+// WithReversalFlag returns a context flagged as a reversal operation.
+// Reversal entries are exempt from period-closed checks because they have net zero impact.
+func WithReversalFlag(ctx context.Context) context.Context {
+	return context.WithValue(ctx, isReversalKey{}, true)
+}
+
+func isReversalContext(ctx context.Context) bool {
+	v, _ := ctx.Value(isReversalKey{}).(bool)
+	return v
+}
+
 func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) error {
+	// Reversal entries are exempt — they have net zero impact on financials
+	if isReversalContext(ctx) {
+		return nil
+	}
+
 	// First, check for explicit closed accounting periods.
 	var period financeModels.AccountingPeriod
 	err := tx.WithContext(ctx).
@@ -41,3 +59,4 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 	}
 	return nil
 }
+

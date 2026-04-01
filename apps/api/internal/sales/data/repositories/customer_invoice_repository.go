@@ -151,6 +151,9 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
 		Preload("DownPaymentInvoice").
+		Preload("Items.Product", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "code", "name", "selling_price", "current_hpp", "image_url")
+		}).
 		Limit(perPage).
 		Offset(offset).
 		Find(&invoices).Error

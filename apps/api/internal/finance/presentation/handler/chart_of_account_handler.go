@@ -82,8 +82,8 @@ func (h *ChartOfAccountHandler) List(c *gin.Context) {
 	if perPage < 1 {
 		perPage = 10
 	}
-	if perPage > 100 {
-		perPage = 100
+	if perPage > 1000 {
+		perPage = 1000
 	}
 	req.Page = page
 	req.PerPage = perPage

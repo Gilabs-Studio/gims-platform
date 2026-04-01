@@ -5,6 +5,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
@@ -505,18 +506,27 @@ func (r *inventoryRepository) GetBatchesByProduct(ctx context.Context, productID
 	return items, nil
 }
 
-func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error {
+func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
 	movement := models.StockMovement{
 		InventoryBatchID: &req.InventoryBatchID,
 		ProductID:        req.ProductID,
 		WarehouseID:      req.WarehouseID,
 		MovementType:     models.StockMovementType(req.Type),
-		RefType:          req.ReferenceType,
+		RefType:          reference.Normalize(req.ReferenceType),
 		RefID:            req.ReferenceID,
 		RefNumber:        req.ReferenceNumber,
 		Source:           req.Description,
 		CreatedBy:        req.CreatedBy,
 		Date:             apptime.Now(),
+	}
+
+	// Costing: Ensure we use the latest Product HPP if not provided on the request
+	// (usually it's on the request for GR, but for Adjust/DO we get it here)
+	movement.Cost = req.Cost
+	if movement.Cost == 0 {
+		var productHPP float64
+		r.DB(ctx).Table("products").Select("COALESCE(current_hpp, 0)").Where("id = ?", req.ProductID).Scan(&productHPP)
+		movement.Cost = productHPP
 	}
 
 	switch {
@@ -537,7 +547,10 @@ func (r *inventoryRepository) CreateStockMovement(ctx context.Context, req *dto.
 		movement.QtyOut = req.Quantity
 	}
 
-	return r.DB(ctx).Create(&movement).Error
+	if err := r.DB(ctx).Create(&movement).Error; err != nil {
+		return "", err
+	}
+	return movement.ID, nil
 }
 
 func (r *inventoryRepository) CreateBatch(ctx context.Context, item *dto.CreateBatchParams) (string, error) {

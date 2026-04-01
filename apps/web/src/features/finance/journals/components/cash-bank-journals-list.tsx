@@ -20,6 +20,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { UnifiedJournalRow } from "./journal-table";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import { useFinanceCashBankSubLedger } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
@@ -67,7 +68,7 @@ export function CashBankJournalsList() {
   const mappedItems = items.map((item) => mapCashBankToUnifiedRow(item));
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (

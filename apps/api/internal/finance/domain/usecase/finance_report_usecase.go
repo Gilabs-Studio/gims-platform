@@ -106,6 +106,9 @@ func (uc *financeReportUsecase) setCachedBalanceSheet(key string, res *dto.Balan
 }
 
 func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.GeneralLedgerResponse, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
@@ -208,6 +211,9 @@ func (uc *financeReportUsecase) GetGeneralLedger(ctx context.Context, startDate,
 }
 
 func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) (*dto.BalanceSheetResponse, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	cacheKey := uc.balanceSheetCacheKey(startDate, endDate, companyID, includeZero)
 	if cached, ok := uc.getCachedBalanceSheet(cacheKey); ok {
 		return cached, nil
@@ -394,6 +400,8 @@ func (uc *financeReportUsecase) GetBalanceSheet(ctx context.Context, startDate, 
 }
 
 func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.ProfitAndLossResponse, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
 	// Helper to compute movement per account type.
 	calcMovement := func(coaType financeModels.AccountType, debit, credit float64) float64 {
 		switch coaType {
@@ -590,6 +598,9 @@ func (uc *financeReportUsecase) GetProfitAndLoss(ctx context.Context, startDate,
 }
 
 func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID *string) (*dto.TrialBalanceResponse, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	balances, err := uc.reportRepo.GetAccountBalances(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
@@ -622,6 +633,9 @@ func (uc *financeReportUsecase) GetTrialBalance(ctx context.Context, startDate, 
 }
 
 func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	data, err := uc.GetGeneralLedger(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err
@@ -678,6 +692,9 @@ func (uc *financeReportUsecase) ExportGeneralLedger(ctx context.Context, startDa
 }
 
 func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID *string, includeZero bool) ([]byte, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	data, err := uc.GetBalanceSheet(ctx, startDate, endDate, companyID, includeZero)
 	if err != nil {
 		return nil, err
@@ -746,6 +763,9 @@ func (uc *financeReportUsecase) ExportBalanceSheet(ctx context.Context, startDat
 }
 
 func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]byte, error) {
+	// Normalize endDate to end of day
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	
 	data, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID)
 	if err != nil {
 		return nil, err

@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
@@ -58,6 +60,7 @@ type JournalEntryUsecase interface {
 	List(ctx context.Context, req *dto.ListJournalEntriesRequest) ([]dto.JournalEntryResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	Reverse(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.JournalEntryResponse, error)
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
 	PostOrUpdateJournal(ctx context.Context, req *dto.CreateJournalEntryRequest) (*dto.JournalEntryResponse, error)
 	GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error)
@@ -69,14 +72,15 @@ type JournalEntryUsecase interface {
 }
 
 type journalEntryUsecase struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
-	repo    repositories.JournalEntryRepository
-	mapper  *mapper.JournalEntryMapper
+	db           *gorm.DB
+	coaRepo      repositories.ChartOfAccountRepository
+	repo         repositories.JournalEntryRepository
+	mapper       *mapper.JournalEntryMapper
+	auditService audit.AuditService
 }
 
-func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.JournalEntryRepository, mapper *mapper.JournalEntryMapper) JournalEntryUsecase {
-	return &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper}
+func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.JournalEntryRepository, mapper *mapper.JournalEntryMapper, auditService audit.AuditService) JournalEntryUsecase {
+	return &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper, auditService: auditService}
 }
 
 // parseDate is kept as an alias for backward compatibility within this file.
@@ -91,19 +95,61 @@ func journalReferenceTypesForDomain(domain *string) []string {
 
 	switch strings.ToLower(strings.TrimSpace(*domain)) {
 	case "sales":
-		return []string{"SALES_INVOICE", "SALES_INVOICE_DP"}
+		return []string{
+			reference.RefTypeSalesInvoice,
+			reference.RefTypeSalesInvoiceDP,
+			reference.RefTypeSalesPayment,
+			"SalesInvoice",
+			"SalesPayment",
+			"SalesInvoiceDP",
+		}
 	case "purchase":
-		return []string{"GOODS_RECEIPT", "SUPPLIER_INVOICE", "SUPPLIER_INVOICE_DP", "PURCHASE_PAYMENT"}
+		return []string{
+			reference.RefTypeGoodsReceipt,
+			reference.RefTypeSupplierInvoice,
+			reference.RefTypeSupplierInvoiceDP,
+			reference.RefTypePurchasePayment,
+			"GoodsReceipt",
+			"SupplierInvoice",
+			"SupplierInvoiceDP",
+			"PurchasePayment",
+		}
 	case "inventory", "stock":
-		return []string{"STOCK_OPNAME", "INVENTORY_ADJUSTMENT"}
+		return []string{
+			reference.RefTypeStockOpname,
+			reference.RefTypeInventoryAdjustment,
+			reference.RefTypeInventoryValuation,
+			reference.RefTypeCostAdjustment,
+		}
 	case "cash_bank":
-		return []string{"CASH_BANK", "PAYMENT", "SALES_PAYMENT"}
+		return []string{
+			reference.RefTypeCashBank,
+			reference.RefTypePayment,
+		}
 	case "finance":
-		return []string{"GENERAL", "NTP", "ASSET_TXN", "ASSET_DEP", "UP_COUNTRY", "year_end_closing", "reversal"}
+		return []string{
+			reference.RefTypeGeneral,
+			reference.RefTypeNonTradePayable,
+			reference.RefTypeAssetTransaction,
+			reference.RefTypeAssetDepreciation,
+			reference.RefTypeUpCountryCost,
+			reference.RefTypePeriodClosing,
+			reference.RefTypeReversal,
+			reference.RefTypeSalaryExpense,
+		}
 	case "adjustment":
-		return []string{"MANUAL_ADJUSTMENT", "ADJUSTMENT", "CORRECTION"}
+		return []string{
+			reference.RefTypeManualAdjustment,
+			reference.RefTypeAdjustment,
+			reference.RefTypeCorrection,
+		}
 	case "valuation":
-		return []string{"INVENTORY_VALUATION", "CURRENCY_REVALUATION", "COST_ADJUSTMENT"}
+		return []string{
+			reference.RefTypeInventoryValuation,
+			reference.RefTypeCurrencyRevaluation,
+			reference.RefTypeCostAdjustment,
+			reference.RefTypeDepreciationValuation,
+		}
 	default:
 		return nil
 	}
@@ -172,12 +218,22 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 			}
 		}
 
+		refTypeNormalized := reference.NormalizePtr(req.ReferenceType)
+		var refTypePtr *string
+		if refTypeNormalized != "" {
+			refTypePtr = &refTypeNormalized
+		}
+
+		debitT, creditT, _ := validateLines(req.Lines)
+
 		entry := &financeModels.JournalEntry{
 			EntryDate:         entryDate,
 			Description:       strings.TrimSpace(req.Description),
-			ReferenceType:     req.ReferenceType,
+			ReferenceType:     refTypePtr,
 			ReferenceID:       req.ReferenceID,
 			Status:            financeModels.JournalStatusDraft,
+			DebitTotal:        debitT,
+			CreditTotal:       creditT,
 			CreatedBy:         &actorID,
 			IsSystemGenerated: req.IsSystemGenerated,
 			SourceDocumentURL: req.SourceDocumentURL,
@@ -258,13 +314,23 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + strings.TrimSpace(ln.Memo) + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
 			existingLineSnapshot[key] = ln
 		}
+		refTypeNormalized := reference.NormalizePtr(req.ReferenceType)
+		var refTypePtr *string
+		if refTypeNormalized != "" {
+			refTypePtr = &refTypeNormalized
+		}
+
+		debitT, creditT, _ := validateLines(req.Lines)
+
 		if err := tx.Model(&financeModels.JournalEntry{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
 				"entry_date":     entryDate,
 				"description":    strings.TrimSpace(req.Description),
-				"reference_type": req.ReferenceType,
+				"reference_type": refTypePtr,
 				"reference_id":   req.ReferenceID,
+				"debit_total":    debitT,
+				"credit_total":   creditT,
 			}).Error; err != nil {
 			return err
 		}
@@ -390,9 +456,15 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	if err != nil {
 		return nil, 0, err
 	}
-	endDate, err := parseDateOptional(req.EndDate)
+	endDate, err := parseEndDateOptional(req.EndDate)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	// Ensure times are in the application timezone if they represent a local end-of-day
+	if endDate != nil {
+		loc := apptime.Location()
+		*endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, loc)
 	}
 
 	params := repositories.JournalEntryListParams{
@@ -407,6 +479,8 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 		ReferenceType:  req.ReferenceType,
 		ReferenceTypes: journalReferenceTypesForDomain(req.Domain),
 	}
+
+	log.Printf("journal_observability: List domain=%v refTypes=%v search=%q startDate=%v endDate=%v", req.Domain, params.ReferenceTypes, params.Search, params.StartDate, params.EndDate)
 
 	items, total, err := uc.repo.List(ctx, params)
 	if err != nil {
@@ -483,6 +557,10 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 }
 
 func (uc *journalEntryUsecase) TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error) {
+	if endDate != nil {
+		eod := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+		endDate = &eod
+	}
 	type aggRow struct {
 		ChartOfAccountID string
 		DebitTotal       float64
@@ -559,9 +637,15 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		"actor_id":       actorID,
 	})
 
+	refTypeNormalized := reference.NormalizePtr(req.ReferenceType)
+	var refTypeQuery interface{} = req.ReferenceType
+	if refTypeNormalized != "" {
+		refTypeQuery = refTypeNormalized
+	}
+
 	var existing financeModels.JournalEntry
 	err := uc.db.WithContext(ctx).
-		Where("reference_type = ? AND reference_id = ?", req.ReferenceType, req.ReferenceID).
+		Where("reference_type = ? AND reference_id = ?", refTypeQuery, req.ReferenceID).
 		First(&existing).Error
 
 	if err == nil {
@@ -655,9 +739,18 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 	return nil, err
 }
 
+// ReverseWithReason creates a new reversing journal entry with a specific reason.
+func (uc *journalEntryUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.JournalEntryResponse, error) {
+	return uc.reverse(ctx, id, reason)
+}
+
 // Reverse creates a new reversing journal entry (swapped debit/credit) for a posted entry,
 // then auto-posts the reversal. This is standard accounting practice for correcting errors.
 func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	return uc.reverse(ctx, id, "Manual reversal")
+}
+
+func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason string) (*dto.JournalEntryResponse, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return nil, errors.New("id is required")
@@ -728,19 +821,51 @@ func (uc *journalEntryUsecase) Reverse(ctx context.Context, id string) (*dto.Jou
 	reversalMeta := &financeModels.JournalReversal{
 		OriginalJournalEntryID: entry.ID,
 		ReversalJournalEntryID: posted.ID,
-		Reason:                 "manual reversal",
+		Reason:                 reason,
 		CreatedBy:              &actorID,
 	}
 	if err := uc.db.WithContext(ctx).Create(reversalMeta).Error; err != nil {
 		return nil, fmt.Errorf("failed to save reversal metadata: %w", err)
 	}
 
-	// Mark the original journal entry as 'reversed'
+	// Update original journal entry with reversal info
+	now := apptime.Now()
 	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
 		Where("id = ?", entry.ID).
-		Update("status", financeModels.JournalStatusReversed).Error; err != nil {
+		Updates(map[string]interface{}{
+			"status":            financeModels.JournalStatusReversed,
+			"reversed_at":       &now,
+			"reversed_by":       &actorID,
+			"reversal_reason":   reason,
+			"original_journal_id": nil, // This is the original
+		}).Error; err != nil {
 		log.Printf("warning: failed to mark original entry %s as reversed: %v", entry.ID, err)
 	}
+
+	// Update reversal journal entry to link back and populate totals
+	var revDebit, revCredit float64
+	for _, rl := range reversedLines {
+		revDebit += rl.Debit
+		revCredit += rl.Credit
+	}
+
+	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+		Where("id = ?", posted.ID).
+		Updates(map[string]interface{}{
+			"original_journal_id": &entry.ID,
+			"reversal_reason":    reason,
+			"reversed_at":        &now, // The reversal itself is "reversed" impact
+			"reversed_by":        &actorID,
+			"debit_total":        revDebit,
+			"credit_total":       revCredit,
+		}).Error; err != nil {
+		log.Printf("warning: failed to update reversal entry %s metadata: %v", posted.ID, err)
+	}
+
+	uc.auditService.LogWithReason(ctx, "journal.reverse", entry.ID, reason, map[string]interface{}{
+		"original_id": entry.ID,
+		"reversal_id": posted.ID,
+	})
 
 	return posted, nil
 }

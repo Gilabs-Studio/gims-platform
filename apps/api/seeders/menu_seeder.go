@@ -438,10 +438,31 @@ func SeedMenus() error {
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
 		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
-		{"Salary", "dollar-sign", "/finance/salary", 15},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
+		{"Salary", "dollar-sign", "/finance/salary", 16},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Finance Settings Group
+	financeSettingsMenu, err := createChildMenu("Finance Settings", "settings", "/finance/settings", &financeMenu.ID, 30)
+	if err != nil {
+		return err
+	}
+
+	financeSettingsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
+	}
+	for _, child := range financeSettingsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}

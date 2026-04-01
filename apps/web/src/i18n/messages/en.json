@@ -189,6 +189,8 @@
     "financialClosing": "Financial Closing",
     "bankingPayments": "Banking & Payments",
     "bankAccounts": "Bank Accounts",
+    "financeSettings": "Finance Settings",
+    "accountingMapping": "Accounting Mapping",
     "receivablesPayables": "Receivables & Payables",
     "nonTradePayables": "Non-Trade Payables",
     "taxInvoices": "Tax Invoices",
@@ -244,6 +246,10 @@
     "travelPlanner": "Travel Planner",
     "chatbot": "Chatbot",
     "settings": "Settings"
+  },
+  "financeSettings": {
+    "title": "Accounting Mapping Settings",
+    "description": "Enterprise Chart of Account Mapping Configuration"
   },
   "travelPlanner": {
     "badge": "Collaborative Advance",

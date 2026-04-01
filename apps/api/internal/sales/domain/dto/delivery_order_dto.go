@@ -128,6 +128,7 @@ type DeliveryOrderResponse struct {
 	CancelledBy         *string                       `json:"cancelled_by"`
 	CancelledAt         *string                       `json:"cancelled_at"`
 	CancellationReason  *string                       `json:"cancellation_reason"`
+	JournalEntryID      *string                       `json:"journal_entry_id,omitempty"`
 	Items               []DeliveryOrderItemResponse    `json:"items,omitempty"`
 	CreatedAt           string                        `json:"created_at"`
 	UpdatedAt           string                        `json:"updated_at"`

@@ -29,11 +29,11 @@ func SeedInventory() error {
 		}
 
 		batch := inventoryModels.InventoryBatch{
-			BatchNumber:     "BATCH-MIN-001",
-			ProductID:       product.ID,
-			WarehouseID:     warehouse.ID,
-			InitialQuantity: 100,
-			CurrentQuantity: 100,
+			BatchNumber:      "BATCH-MIN-001",
+			ProductID:        product.ID,
+			WarehouseID:      warehouse.ID,
+			InitialQuantity:  100,
+			CurrentQuantity:  100,
 			ReservedQuantity: 0,
 		}
 
@@ -93,7 +93,7 @@ func SeedInventory() error {
 		// Distribute across warehouses
 		// Warehouse 1
 		wh1 := warehouses[0]
-		
+
 		scenario := i % 4
 
 		// Base batch creation helper
@@ -115,11 +115,13 @@ func SeedInventory() error {
 			// E.g., Min 100, Max 500. Lets give 200.
 			qty := product.MinStock + (product.MaxStock-product.MinStock)/2
 			batches = append(batches, createBatch(wh1.ID, qty, 365))
-			
+
 		case 1: // Low Stock
 			// E.g., Min 100. Give 50.
 			qty := product.MinStock / 2
-			if qty == 0 { qty = 1 }
+			if qty == 0 {
+				qty = 1
+			}
 			batches = append(batches, createBatch(wh1.ID, qty, 180))
 
 		case 2: // Out of Stock
@@ -137,7 +139,7 @@ func SeedInventory() error {
 			wh2 := warehouses[1]
 			// 50% chance to have stock in WH2
 			if rand.Float32() > 0.5 {
-				batches = append(batches, createBatch(wh2.ID, product.MinStock + 10, 200))
+				batches = append(batches, createBatch(wh2.ID, product.MinStock+10, 200))
 			}
 		}
 	}

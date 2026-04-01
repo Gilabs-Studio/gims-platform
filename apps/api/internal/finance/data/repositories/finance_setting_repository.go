@@ -12,6 +12,7 @@ import (
 // FinanceSettingRepository provides data access for finance_settings.
 type FinanceSettingRepository interface {
 	GetByKey(ctx context.Context, key string) (string, error)
+	FindByKey(ctx context.Context, key string) (*financeModels.FinanceSetting, error)
 	GetAll(ctx context.Context) ([]financeModels.FinanceSetting, error)
 	Upsert(ctx context.Context, key, value, description, category string) error
 }
@@ -60,6 +61,19 @@ func (r *financeSettingRepository) GetByKey(ctx context.Context, key string) (st
 	r.mu.Unlock()
 
 	return setting.Value, nil
+}
+
+// FindByKey returns the full FinanceSetting object for a given key.
+// Used for validation and audit purposes.
+func (r *financeSettingRepository) FindByKey(ctx context.Context, key string) (*financeModels.FinanceSetting, error) {
+	var setting financeModels.FinanceSetting
+	if err := r.db.WithContext(ctx).Where("setting_key = ?", key).First(&setting).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &setting, nil
 }
 
 // GetAll returns all finance settings.

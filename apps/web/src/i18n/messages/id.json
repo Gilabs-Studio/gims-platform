@@ -188,6 +188,8 @@
     "financialClosing": "Penutupan Finansial",
     "bankingPayments": "Perbankan & Pembayaran",
     "bankAccounts": "Akun Bank",
+    "financeSettings": "Pengaturan Finance",
+    "accountingMapping": "Accounting Mapping",
     "receivablesPayables": "Piutang & Hutang",
     "nonTradePayables": "Hutang Non-Trade",
     "taxInvoices": "Faktur Pajak",
@@ -243,6 +245,10 @@
     "travelPlanner": "Travel Planner",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
+  },
+  "financeSettings": {
+    "title": "Pengaturan Mapping Akuntansi",
+    "description": "Konfigurasi Pemetaan Bagan Akun Perusahaan"
   },
   "travelPlanner": {
     "badge": "Kolaboratif Lanjutan",

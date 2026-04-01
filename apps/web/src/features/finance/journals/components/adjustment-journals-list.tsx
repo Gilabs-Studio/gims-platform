@@ -26,6 +26,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { FilterToolbar } from "./filter-toolbar";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import type { JournalEntry } from "../types";
 import {
@@ -93,11 +94,7 @@ export function AdjustmentJournalsList() {
   const reverseMutation = useReverseFinanceAdjustmentJournal();
 
   if (isError) {
-    return (
-      <div className="text-center py-8 text-destructive">
-        {tCommon("error")}
-      </div>
-    );
+    return <FinanceListErrorState message={tCommon("error")} />;
   }
 
   return (
