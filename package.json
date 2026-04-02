@@ -10,7 +10,7 @@
     "dev:web-api": "pnpm run dev:api & pnpm run dev:web",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "type-check": "turbo run check-types",
+    "type-check": "turbo run check-types && turbo run lint --filter=@repo/web",
     "test": "turbo run test",
     "clean": "turbo run clean"
   },

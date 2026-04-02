@@ -19,6 +19,8 @@ export const config = [
     },
     rules: {
       "turbo/no-undeclared-env-vars": "warn",
+      // Disallow explicit `any` types — treat them as errors so lint catches them.
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
   {
