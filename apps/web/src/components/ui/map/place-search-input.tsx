@@ -38,7 +38,15 @@ export function PlaceSearchInput({
 
   // Measure input for portal placement
   useEffect(() => {
-    if (!open) return setRect(null);
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (!open) {
+      // Defer clearing rect to avoid synchronous setState in effect
+      timeoutId = setTimeout(() => setRect(null), 0);
+      return () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    }
+
     const update = () => {
       try {
         setRect(wrapperRef.current?.getBoundingClientRect() ?? null);
@@ -52,6 +60,7 @@ export function PlaceSearchInput({
     return () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [open, searchResults.length]);
 

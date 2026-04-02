@@ -124,7 +124,6 @@ export function HeaderAttendanceButton({ onOpenDrawer }: HeaderAttendanceButtonP
   const t = useTranslations("hrd.attendance");
   const {
     today,
-    record,
     isLoading,
     isClockInPending,
     isPending,

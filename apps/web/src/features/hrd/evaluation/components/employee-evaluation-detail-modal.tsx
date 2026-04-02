@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
-  CalendarRange,
   CheckCircle2,
   ClipboardCheck,
   Eye,
@@ -11,7 +10,6 @@ import {
   Send,
   Star,
   Trash2,
-  UserRound,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

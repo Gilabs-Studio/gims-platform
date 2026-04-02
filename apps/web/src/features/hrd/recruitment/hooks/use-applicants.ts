@@ -11,7 +11,6 @@ import type {
   MoveStageData,
   CreateActivityData,
   RecruitmentApplicant,
-  RecruitmentApplicantListResponse,
   ConvertApplicantToEmployeeData,
 } from "../types";
 

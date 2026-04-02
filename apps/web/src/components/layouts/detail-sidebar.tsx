@@ -66,9 +66,15 @@ const TreeItem = memo(function TreeItem({
   
   // Auto-expand folders that contain the active item
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     if (shouldBeExpanded && !isExpanded) {
-      setIsExpanded(true);
+      timeoutId = setTimeout(() => {
+        setIsExpanded(true);
+      }, 0);
     }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [shouldBeExpanded, isExpanded]);
 
   // Calculate indent based on level

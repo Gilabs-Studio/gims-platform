@@ -9,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import { CategoryTree } from "./category-tree";
 import type { CategoryTreeNode } from "@/features/master-data/product/types";
 import {

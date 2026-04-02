@@ -39,7 +39,7 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
 
   // Always call the hook (React rules of hooks); only fetch when useRemote is true.
   // Default useRemote=false so the public landing page never calls the protected API.
-  const { data: mapResp, isError, error } = useMapData(
+  const { data: mapResp, error } = useMapData(
     { level: "province" },
     { enabled: useRemote }
   );
@@ -51,7 +51,9 @@ export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e: any = error;
     if (e && (e.response?.status === 401 || e.response?.status === 403)) unauthorized = true;
-  } catch (e) {}
+  } catch {
+    // ignore
+  }
 
   // Disable all scroll / interaction so the map doesn't hijack page scroll
   useEffect(() => {
