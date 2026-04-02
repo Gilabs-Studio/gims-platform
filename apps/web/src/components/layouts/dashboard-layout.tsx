@@ -269,6 +269,17 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
     }
   }, [pathname, menus, isMounted, activeParentId, isDetailSidebarOpen]);
 
+  // Allow pages (e.g. full-screen map pages) to open the mobile sidebar
+  // by dispatching a global event `openMobileSidebar` (window.dispatchEvent).
+  useEffect(() => {
+    const handler = (_e?: Event) => setIsMobileSidebarOpen(true);
+    if (typeof window !== "undefined") {
+      window.addEventListener("openMobileSidebar", handler as EventListener);
+      return () => window.removeEventListener("openMobileSidebar", handler as EventListener);
+    }
+    return undefined;
+  }, []);
+
   const handleSelectParent = useCallback(
     (id: string) => {
       const item = parentItems.find((parent) => parent.id === id);
