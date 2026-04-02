@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { MapProfile } from "./map-config";
 
 // Export types
 export interface MapMarker<T> {
@@ -23,6 +24,7 @@ interface MapViewProps<T> {
   readonly children?: React.ReactNode;
   readonly showLayerControl?: boolean;
   readonly selectedMarkerId?: number | string | null;
+  readonly mapProfile?: MapProfile;
 }
 
 // Dynamically import Inner Map component (SSR false)
