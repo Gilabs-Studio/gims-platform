@@ -44,6 +44,19 @@ export function Drawer({
   const [isHoveringResizeArea, setIsHoveringResizeArea] = React.useState(false);
   const drawerRef = React.useRef<HTMLDivElement>(null);
 
+  // Detect small screens (mobile) so we can disable resizing and force full-screen UI
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const updateIsMobile = () => {
+      // Tailwind's `sm` breakpoint is 640px; treat widths < 640px as mobile
+      const isSmall = typeof window !== "undefined" && (window.matchMedia ? window.matchMedia("(max-width: 639px)").matches : window.innerWidth < 640);
+      setIsMobile(isSmall);
+    };
+    updateIsMobile();
+    window.addEventListener("resize", updateIsMobile);
+    return () => window.removeEventListener("resize", updateIsMobile);
+  }, []);
+
   React.useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -61,13 +74,16 @@ export function Drawer({
     }
   }, [open, defaultWidth]);
 
+  // Only allow resizing on non-mobile and when side is left/right
+  const effectiveCanResize = resizable && (side === "left" || side === "right") && !isMobile;
+
   const handleMouseDown = React.useCallback(
     (e: React.MouseEvent) => {
-      if (!resizable || (side !== "left" && side !== "right")) return;
+      if (!effectiveCanResize) return;
       e.preventDefault();
       setIsResizing(true);
     },
-    [resizable, side],
+    [effectiveCanResize],
   );
 
   React.useEffect(() => {
@@ -102,12 +118,13 @@ export function Drawer({
     };
   }, [isResizing, side, minWidth, maxWidth]);
 
-  const canResize = resizable && (side === "left" || side === "right");
+  // Respect mobile: if mobile, do not apply inline width and use responsive classes
+  const canResize = effectiveCanResize;
 
   const getDefaultWidthClass = () => {
     if (canResize) return undefined;
-    if (side === "left" || side === "right") return "w-full max-w-2xl";
-    return "h-full max-h-[80vh]";
+    if (side === "left" || side === "right") return "w-full sm:max-w-2xl";
+    return "h-full sm:max-h-[80vh]";
   };
 
   const variants = {

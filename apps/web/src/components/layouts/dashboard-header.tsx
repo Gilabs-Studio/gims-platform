@@ -44,6 +44,7 @@ export const DashboardHeader = memo(function DashboardHeader({
   const normalizedAvatarUrl = avatarUrl && avatarUrl.trim() !== "" ? avatarUrl : undefined;
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
+  const [userPopoverOpen, setUserPopoverOpen] = useState(false);
   const currentSrc = avatarLoadFailed ? fallbackAvatarUrl : normalizedAvatarUrl ?? fallbackAvatarUrl;
 
   return (
@@ -107,7 +108,11 @@ export const DashboardHeader = memo(function DashboardHeader({
 
         <div className="mx-2 h-4 w-px shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-1/2 data-[orientation=vertical]:w-px" />
 
-        <Popover key={normalizedAvatarUrl ?? fallbackAvatarUrl}>
+        <Popover
+          key={normalizedAvatarUrl ?? fallbackAvatarUrl}
+          open={userPopoverOpen}
+          onOpenChange={setUserPopoverOpen}
+        >
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
@@ -147,7 +152,10 @@ export const DashboardHeader = memo(function DashboardHeader({
               <button
                 type="button"
                 className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-                onClick={() => setActivityFeedOpen(true)}
+                onClick={() => {
+                  setUserPopoverOpen(false);
+                  setActivityFeedOpen(true);
+                }}
               >
                 <Activity className="h-4 w-4" />
                 {t("myActivities")}
@@ -155,13 +163,17 @@ export const DashboardHeader = memo(function DashboardHeader({
               <Link
                 href="/profile"
                 className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                onClick={() => setUserPopoverOpen(false)}
               >
                 <Settings className="h-4 w-4" />
                 Settings
               </Link>
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => {
+                  setUserPopoverOpen(false);
+                  logout();
+                }}
                 className="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
                 Logout
