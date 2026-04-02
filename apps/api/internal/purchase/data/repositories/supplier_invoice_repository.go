@@ -69,7 +69,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("supplier_invoices.code ILIKE ? OR supplier_invoices.invoice_number ILIKE ?", like, like)
+		q = q.Where("supplier_invoices.supplier_name_snapshot ILIKE ? OR supplier_invoices.invoice_number ILIKE ? OR supplier_invoices.code ILIKE ?", like, like, like)
 	}
 	if st := strings.TrimSpace(params.Status); st != "" {
 		q = q.Where("supplier_invoices.status = ?", st)

@@ -46,7 +46,7 @@ func (r *activityTypeRepository) List(ctx context.Context, params ListParams) ([
 	query := r.db.WithContext(ctx).Model(&models.ActivityType{})
 
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR code ILIKE ? OR description ILIKE ?", search, search, search)
 	}
 

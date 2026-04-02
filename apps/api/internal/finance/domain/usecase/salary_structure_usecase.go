@@ -306,8 +306,8 @@ func (uc *salaryStructureUsecase) ListGrouped(ctx context.Context, req *dto.List
 
 	empQ := uc.db.WithContext(ctx).Model(&orgModels.Employee{}).Where("is_active = ?", true)
 
-	if req.Search != "" {
-		like := "%" + req.Search + "%"
+	if search := strings.TrimSpace(req.Search); search != "" {
+		like := search + "%"
 		empQ = empQ.Where("name ILIKE ? OR employee_code ILIKE ?", like, like)
 	}
 

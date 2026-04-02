@@ -54,10 +54,11 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
 
-	if params.Search != "" {
-		pattern := "%" + params.Search + "%"
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
 		base = base.Where(
-			"code ILIKE ? OR notes ILIKE ? OR order_date ILIKE ?",
+			"purchase_orders.supplier_name_snapshot ILIKE ? OR purchase_orders.code ILIKE ? OR purchase_orders.notes ILIKE ? OR purchase_orders.order_date::text ILIKE ?",
+			pattern,
 			pattern,
 			pattern,
 			pattern,
@@ -75,10 +76,11 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 	}
 
 	query := r.db.WithContext(ctx).Model(&models.PurchaseOrder{})
-	if params.Search != "" {
-		pattern := "%" + params.Search + "%"
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
 		query = query.Where(
-			"code ILIKE ? OR notes ILIKE ? OR order_date ILIKE ?",
+			"purchase_orders.supplier_name_snapshot ILIKE ? OR purchase_orders.code ILIKE ? OR purchase_orders.notes ILIKE ? OR purchase_orders.order_date::text ILIKE ?",
+			pattern,
 			pattern,
 			pattern,
 			pattern,

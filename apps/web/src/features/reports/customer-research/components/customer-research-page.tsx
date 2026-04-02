@@ -6,6 +6,7 @@ import { useRouter } from "@/i18n/routing";
 import { format, startOfYear, subYears } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { PageMotion } from "@/components/motion";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useCustomerResearchKpis } from "../hooks/use-customer-research-kpis";
 import { useRevenueTrend } from "../hooks/use-revenue-trend";
 import { useCustomerResearchList } from "../hooks/use-customer-list";
@@ -35,6 +36,7 @@ export function CustomerResearchPage() {
     "daily"
   );
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
 
@@ -88,7 +90,7 @@ export function CustomerResearchPage() {
   const { customers, pagination, isLoading: isCustomerLoading } =
     useCustomerResearchList({
       ...queryFilters,
-      search,
+      search: debouncedSearch,
       page,
       per_page: perPage,
       sort_by: "revenue",

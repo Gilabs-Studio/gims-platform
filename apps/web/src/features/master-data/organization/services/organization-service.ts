@@ -32,6 +32,19 @@ import type {
 
 const BASE_PATH = "/organization";
 
+function normalizeAreaListParams(params?: ListAreasParams): ListAreasParams | undefined {
+  if (!params) return undefined;
+
+  const search = params.search?.trim();
+  const province = params.province?.trim();
+
+  return {
+    ...params,
+    search: search || undefined,
+    province: province || undefined,
+  };
+}
+
 // Division Service
 export const divisionService = {
   async list(
@@ -231,7 +244,7 @@ export const areaService = {
   ): Promise<OrganizationListResponse<Area>> {
     const response = await apiClient.get<OrganizationListResponse<Area>>(
       `${BASE_PATH}/areas`,
-      { params }
+      { params: normalizeAreaListParams(params) }
     );
     return response.data;
   },

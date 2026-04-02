@@ -63,7 +63,7 @@ func (r *scheduleRepository) List(ctx context.Context, params ScheduleListParams
 	query := r.db.WithContext(ctx).Model(&models.Schedule{})
 
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
+		searchTerm := "%" + params.Search + "%"
 		query = query.Where("title ILIKE ? OR description ILIKE ?", searchTerm, searchTerm)
 	}
 	if params.EmployeeID != "" {

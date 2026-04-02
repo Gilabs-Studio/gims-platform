@@ -50,7 +50,7 @@ func (r *currencyRepository) List(ctx context.Context, params ListParams) ([]mod
 
 	query := r.db.WithContext(ctx).Model(&models.Currency{})
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("code ILIKE ? OR name ILIKE ? OR symbol ILIKE ?", search, search, search)
 	}
 

@@ -51,9 +51,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	// Apply scope-based data filtering (OWN/DIVISION/AREA/ALL)
 	base = security.ApplyScopeFilter(base, ctx, security.PurchaseScopeQueryOptions())
 
-	if strings.TrimSpace(params.Search) != "" {
-		pattern := "%" + strings.TrimSpace(params.Search) + "%"
-		base = base.Where("code ILIKE ? OR notes ILIKE ?", pattern, pattern)
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
+		base = base.Where("goods_receipts.supplier_name_snapshot ILIKE ? OR goods_receipts.code ILIKE ? OR goods_receipts.notes ILIKE ?", pattern, pattern, pattern)
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		base = base.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))
@@ -67,9 +67,9 @@ func (r *goodsReceiptRepository) List(ctx context.Context, params GoodsReceiptLi
 	// Apply scope-based data filtering (must match count query scope)
 	query = security.ApplyScopeFilter(query, ctx, security.PurchaseScopeQueryOptions())
 
-	if strings.TrimSpace(params.Search) != "" {
-		pattern := "%" + strings.TrimSpace(params.Search) + "%"
-		query = query.Where("code ILIKE ? OR notes ILIKE ?", pattern, pattern)
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
+		query = query.Where("goods_receipts.supplier_name_snapshot ILIKE ? OR goods_receipts.code ILIKE ? OR goods_receipts.notes ILIKE ?", pattern, pattern, pattern)
 	}
 	if strings.TrimSpace(params.Status) != "" {
 		query = query.Where("status = ?", strings.ToUpper(strings.TrimSpace(params.Status)))

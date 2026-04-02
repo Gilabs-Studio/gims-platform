@@ -77,7 +77,7 @@ func (r *chatSessionRepository) FindByUserID(ctx context.Context, userID string,
 		query = query.Where("status = ?", status)
 	}
 	if search != "" {
-		query = query.Where("title ILIKE ?", "%"+search+"%")
+		query = query.Where("title ILIKE ?", search + "%")
 	}
 
 	var total int64

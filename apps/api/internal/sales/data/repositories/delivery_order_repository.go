@@ -87,9 +87,12 @@ func (r *deliveryOrderRepository) List(ctx context.Context, req *dto.ListDeliver
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR tracking_number ILIKE ? OR notes ILIKE ?", search, search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.
+			Joins("LEFT JOIN sales_orders ON sales_orders.id = delivery_orders.sales_order_id").
+			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR delivery_orders.receiver_name ILIKE ? OR delivery_orders.code ILIKE ? OR delivery_orders.tracking_number ILIKE ? OR delivery_orders.notes ILIKE ?", search, search, search, search, search, search)
 	}
 
 	// Apply status filter

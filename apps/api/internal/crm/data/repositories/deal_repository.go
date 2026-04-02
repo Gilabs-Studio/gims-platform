@@ -134,7 +134,7 @@ func (r *dealRepository) List(ctx context.Context, params DealListParams) ([]mod
 
 	// Search filter (prefix search for indexed columns)
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
+		searchTerm := "%" + params.Search + "%"
 		query = query.Where(
 			"title ILIKE ? OR code ILIKE ?",
 			searchTerm, searchTerm,
@@ -201,7 +201,7 @@ func (r *dealRepository) ListByStage(ctx context.Context, params DealsByStagePar
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
+		searchTerm := "%" + params.Search + "%"
 		query = query.Where("title ILIKE ? OR code ILIKE ?", searchTerm, searchTerm)
 	}
 	if params.Status != "" {

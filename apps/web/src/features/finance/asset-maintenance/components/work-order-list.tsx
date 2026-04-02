@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useWorkOrders,
   useDeleteWorkOrder,
@@ -50,6 +51,7 @@ interface WorkOrderListProps {
 export function WorkOrderList({ onCreate, onEdit }: WorkOrderListProps) {
   const t = useTranslations("assetMaintenance");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [status, setStatus] = useState<WorkOrderStatus | "all">("all");
   const [priority, setPriority] = useState<WorkOrderPriority | "all">("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -59,6 +61,7 @@ export function WorkOrderList({ onCreate, onEdit }: WorkOrderListProps) {
   const [newStatus, setNewStatus] = useState<WorkOrderStatus | null>(null);
 
   const { data: workOrdersData, isLoading } = useWorkOrders({
+    search: debouncedSearch || undefined,
     status: status === "all" ? undefined : status,
     priority: priority === "all" ? undefined : priority,
   });
@@ -67,16 +70,6 @@ export function WorkOrderList({ onCreate, onEdit }: WorkOrderListProps) {
   const updateStatus = useUpdateWorkOrderStatus();
 
   const workOrders = workOrdersData?.data || [];
-
-  const filteredWorkOrders = workOrders.filter((wo) => {
-    const searchLower = search.toLowerCase();
-    return (
-      wo.wo_number?.toLowerCase().includes(searchLower) ||
-      wo.asset?.name?.toLowerCase().includes(searchLower) ||
-      wo.asset?.code?.toLowerCase().includes(searchLower) ||
-      wo.description?.toLowerCase().includes(searchLower)
-    );
-  });
 
   const handleDeleteClick = (workOrder: WorkOrder) => {
     setWorkOrderToDelete(workOrder);
@@ -224,14 +217,14 @@ export function WorkOrderList({ onCreate, onEdit }: WorkOrderListProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredWorkOrders.length === 0 ? (
+                {workOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       No work orders found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredWorkOrders.map((wo) => (
+                  workOrders.map((wo) => (
                     <TableRow key={wo.id}>
                       <TableCell>
                         <div className="font-medium">{wo.wo_number}</div>

@@ -127,10 +127,10 @@ func (r *journalLineRepository) List(ctx context.Context, params JournalLineList
 
 	// Apply filters
 	if s := strings.TrimSpace(params.Search); s != "" {
-		like := s + "%"
+		like := "%" + s + "%"
 		baseQuery = baseQuery.Where(
 			"(jl.chart_of_account_code_snapshot ILIKE ? OR jl.chart_of_account_name_snapshot ILIKE ? OR jl.memo ILIKE ?)",
-			like, like, "%"+s+"%",
+			like, like, like,
 		)
 	}
 	if id := strings.TrimSpace(params.ChartOfAccountID); id != "" {

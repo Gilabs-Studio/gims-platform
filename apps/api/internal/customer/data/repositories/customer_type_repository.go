@@ -45,7 +45,7 @@ func (r *customerTypeRepository) List(ctx context.Context, params ListParams) ([
 	query := r.db.WithContext(ctx).Model(&models.CustomerType{})
 
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR description ILIKE ?", search, search)
 	}
 

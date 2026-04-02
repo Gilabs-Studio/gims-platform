@@ -102,7 +102,7 @@ func (r *activityRepository) Timeline(ctx context.Context, params ActivityListPa
 
 func (r *activityRepository) applyFilters(query *gorm.DB, params ActivityListParams) *gorm.DB {
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
+		searchTerm := "%" + params.Search + "%"
 		query = query.Where("description ILIKE ?", searchTerm)
 	}
 	if params.Type != "" {

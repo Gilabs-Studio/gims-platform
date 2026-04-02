@@ -517,7 +517,7 @@ func (uc *travelPlanUsecase) ListParticipants(
 		Where("e.is_active = ?", true)
 
 	if search != "" {
-		like := "%" + search + "%"
+		like := search + "%"
 		baseQuery = baseQuery.Where("e.name ILIKE ? OR e.employee_code ILIKE ?", like, like)
 	}
 

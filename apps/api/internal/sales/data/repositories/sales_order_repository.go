@@ -102,9 +102,10 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR notes ILIKE ?", search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR sales_orders.code ILIKE ? OR sales_orders.notes ILIKE ?", search, search, search, search)
 	}
 
 	// Apply status filter

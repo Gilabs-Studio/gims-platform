@@ -75,7 +75,7 @@ func (r *taskRepository) List(ctx context.Context, params TaskListParams) ([]mod
 	query = security.ApplyScopeFilter(query, ctx, security.MixedOwnershipScopeQueryOptions("assigned_to"))
 
 	if params.Search != "" {
-		searchTerm := params.Search + "%"
+		searchTerm := "%" + params.Search + "%"
 		query = query.Where("title ILIKE ? OR description ILIKE ?", searchTerm, searchTerm)
 	}
 	if params.Status != "" {

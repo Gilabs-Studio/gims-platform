@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -94,9 +95,12 @@ func (r *salesVisitRepository) List(ctx context.Context, req *dto.ListSalesVisit
 	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR contact_person ILIKE ? OR purpose ILIKE ? OR notes ILIKE ?", search, search, search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.
+			Joins("LEFT JOIN employees ON employees.id = sales_visits.employee_id").
+			Joins("LEFT JOIN companies ON companies.id = sales_visits.company_id")
+		query = query.Where("companies.name ILIKE ? OR employees.name ILIKE ? OR sales_visits.contact_person ILIKE ? OR sales_visits.code ILIKE ? OR sales_visits.purpose ILIKE ? OR sales_visits.notes ILIKE ?", search, search, search, search, search, search)
 	}
 
 	// Apply status filter
