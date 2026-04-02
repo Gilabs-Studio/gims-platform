@@ -110,6 +110,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
+	arapReconciliationUC := usecase.NewARAPReconciliationUsecase(db, agingRepo, coaRepo, settingsService, accountingEngine)
 	
 	// Reconciliation service for GL vs subledger validation
 	reconciliationSvc := usecase.NewValuationReconciliationService(
@@ -150,6 +151,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Asset Maintenance
 	maintenanceH := handler.NewAssetMaintenanceHandler(maintenanceUC)
+	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -172,6 +174,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
+	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
 
 	return &FinanceDeps{
 		JournalUC:    journalUC,

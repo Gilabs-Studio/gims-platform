@@ -180,7 +180,7 @@ export function useDeliveryForm({ delivery, open, onClose, defaultSalesOrderId }
   );
 
   const schema = isEdit ? getUpdateDeliveryOrderSchema(t) : getDeliveryOrderSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
+  const formResolver = zodResolver(schema as any) as Resolver<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>;
 
   const form = useForm<CreateDeliveryOrderFormData | UpdateDeliveryOrderFormData>({
     resolver: formResolver,

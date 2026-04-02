@@ -9,6 +9,8 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/service"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"time"
 )
 
 // TransactionData holds the data needed by the AccountingEngine to generate journal lines.
@@ -71,6 +73,9 @@ type AccountingEngine interface {
 	// ResolveCOAID resolves a COA ID from a settings key (e.g. "coa.expense").
 	// This is useful for budget checks and manual account lookups.
 	ResolveCOAID(ctx context.Context, settingKey string) (string, error)
+
+	// GetAccountBalance calculates the running balance of a COA account as of a specific date.
+	GetAccountBalance(ctx context.Context, coaID string, asOf time.Time) (float64, error)
 }
 
 type accountingEngine struct {
@@ -193,6 +198,23 @@ func (e *accountingEngine) ResolveCOAID(ctx context.Context, settingKey string) 
 		return "", fmt.Errorf("COA with code '%s' for setting '%s' not found: %w", coaCode, settingKey, err)
 	}
 	return coa.ID, nil
+}
+
+func (e *accountingEngine) GetAccountBalance(ctx context.Context, coaID string, asOf time.Time) (float64, error) {
+	var balance float64
+	// We query the database directly here to avoid circular dependency with JournalEntryUsecase
+	// AccountingEngine is a low-level service that can talk to DB for primitive queries.
+	err := e.coaRepo.GetDB(ctx).Table("journal_lines jl").
+		Select("COALESCE(SUM(jl.debit - jl.credit), 0)").
+		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
+		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date <= ?", 
+			financeModels.JournalStatusPosted, coaID, asOf.Format("2006-01-02")).
+		Scan(&balance).Error
+	
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate account balance: %w", err)
+	}
+	return balance, nil
 }
 
 func (e *accountingEngine) resolveRuleCOA(ctx context.Context, rule PostingRule, data TransactionData) (string, error) {

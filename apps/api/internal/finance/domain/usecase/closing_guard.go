@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -37,7 +38,7 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 	if err == nil {
 		return errors.New("period is closed")
 	}
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != gorm.ErrRecordNotFound {
 		return err
 	}
 
@@ -53,8 +54,11 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 		}
 		return err
 	}
-	// Prevent entries on/before latest closed period end date.
-	if !entryDate.After(closing.PeriodEndDate) {
+	
+	// Prevent entries on/before latest closed period end date, evaluated in application time
+	entryLocal := entryDate.In(apptime.Location())
+	closingLocal := closing.PeriodEndDate.In(apptime.Location())
+	if !entryLocal.After(closingLocal) {
 		return errors.New("period is closed")
 	}
 	return nil

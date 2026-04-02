@@ -338,7 +338,7 @@ export function PurchaseOrderForm({
   const isSubmitting = (isEdit ? updateMutation.isPending : createMutation.isPending) || (isEdit && poQuery.isFetching);
   const isSourceLoading = loadPR.isPending || loadSO.isPending;
   const isProductOptionsLoading =
-    shouldLoadProductOptions && (productCombobox.isLoading || productCombobox.isFetching);
+    shouldLoadProductOptions && productCombobox.isLoading;
 
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
     setValue("supplier_id", item.id, { shouldValidate: true });

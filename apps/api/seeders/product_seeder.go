@@ -13,15 +13,70 @@ import (
 func SeedProduct() error {
 	if isMinimalSeedMode() {
 		db := database.DB
-		product := models.Product{
-			Code:         "PROD-MIN-001",
-			Name:         "Sample Product (Minimal)",
-			CostPrice:    50000,
-			SellingPrice: 100000,
-			TaxType:      "VAT",
-			IsActive:     true,
+
+		// 1. Minimum Category
+		cat := models.ProductCategory{Name: "General", Description: "General Category", IsActive: true}
+		if err := db.Where("name = ?", cat.Name).FirstOrCreate(&cat).Error; err != nil {
+			return err
 		}
-		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "cost_price", "selling_price", "tax_type", "is_active", "updated_at"})}).Create(&product).Error; err != nil {
+
+		// 2. Minimum Brand
+		brand := models.ProductBrand{Name: "Generic", Description: "Generic Brand", IsActive: true}
+		if err := db.Where("name = ?", brand.Name).FirstOrCreate(&brand).Error; err != nil {
+			return err
+		}
+
+		// 3. Minimum Segment
+		segment := models.ProductSegment{Name: "General", Description: "General Segment", IsActive: true}
+		if err := db.Where("name = ?", segment.Name).FirstOrCreate(&segment).Error; err != nil {
+			return err
+		}
+
+		// 4. Minimum Type
+		prodType := models.ProductType{Name: "Goods", Description: "Physical Goods", IsActive: true}
+		if err := db.Where("name = ?", prodType.Name).FirstOrCreate(&prodType).Error; err != nil {
+			return err
+		}
+
+		// 5. Minimum UOM
+		uom := models.UnitOfMeasure{Name: "Piece", Symbol: "Pcs", Description: "Pieces", IsActive: true}
+		if err := db.Where("name = ?", uom.Name).FirstOrCreate(&uom).Error; err != nil {
+			return err
+		}
+
+		// 6. Minimum Packaging
+		pkg := models.Packaging{Name: "Box", Description: "Box", IsActive: true}
+		if err := db.Where("name = ?", pkg.Name).FirstOrCreate(&pkg).Error; err != nil {
+			return err
+		}
+
+		// 7. Minimum Procurement
+		procType := models.ProcurementType{Name: "Buy", Description: "Buy", IsActive: true}
+		if err := db.Where("name = ?", procType.Name).FirstOrCreate(&procType).Error; err != nil {
+			return err
+		}
+
+		product := models.Product{
+			Code:                  "PROD-MIN-001",
+			Name:                  "Sample Product",
+			CategoryID:            &cat.ID,
+			BrandID:               &brand.ID,
+			SegmentID:             &segment.ID,
+			TypeID:                &prodType.ID,
+			UomID:                 &uom.ID,
+			PurchaseUomID:         &uom.ID,
+			PurchaseUomConversion: 1,
+			PackagingID:           &pkg.ID,
+			ProcurementTypeID:     &procType.ID,
+			CostPrice:             50000,
+			SellingPrice:          100000,
+			TaxType:               "PPN",
+			IsTaxInclusive:        true,
+			IsActive:              true,
+			Status:                models.ProductStatusApproved,
+			IsApproved:            true,
+		}
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "category_id", "brand_id", "segment_id", "type_id", "uom_id", "purchase_uom_id", "purchase_uom_conversion", "packaging_id", "procurement_type_id", "cost_price", "selling_price", "tax_type", "is_tax_inclusive", "is_active", "status", "is_approved", "updated_at"})}).Create(&product).Error; err != nil {
 			return err
 		}
 		return nil

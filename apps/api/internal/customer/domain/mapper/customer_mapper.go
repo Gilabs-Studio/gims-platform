@@ -38,6 +38,8 @@ func ToCustomerResponse(m *models.Customer) dto.CustomerResponse {
 		DefaultSalesRepID:     m.DefaultSalesRepID,
 		DefaultPaymentTermsID: m.DefaultPaymentTermsID,
 		DefaultTaxRate:        m.DefaultTaxRate,
+		CreditLimit:           m.CreditLimit,
+		CreditIsActive:        m.CreditIsActive,
 	}
 
 	// Map CustomerType if loaded

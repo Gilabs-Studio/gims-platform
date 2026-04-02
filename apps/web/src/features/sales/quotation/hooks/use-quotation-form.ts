@@ -223,7 +223,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   }, [open]);
 
   const products = useMemo(
-    () => sortOptions(productCombobox.items, (a) => `${a.code} - ${a.name}`),
+    () => sortOptions(productCombobox.items, (a) => (a.code ? `${a.code} - ${a.name}` : a.name)),
     [productCombobox.items],
   );
 
@@ -253,7 +253,7 @@ export function useQuotationForm({ quotation, open, onClose }: UseQuotationFormP
   );
 
   const schema = isEdit ? getUpdateQuotationSchema(t) : getQuotationSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
+  const formResolver = zodResolver(schema as any) as Resolver<CreateQuotationFormData | UpdateQuotationFormData>;
 
   const form = useForm<CreateQuotationFormData | UpdateQuotationFormData>({
     resolver: formResolver,

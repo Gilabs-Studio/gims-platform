@@ -67,11 +67,19 @@ export const getCustomerSchema = (t?: TranslationFn) =>
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
       z.number().min(0).max(100).nullable().optional()
     ),
+    // Credit control
+    credit_limit: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? 0 : Number(v)),
+      z.number().min(0).optional()
+    ),
+    credit_is_active: z.boolean().optional().default(false),
   });
 
 export type CustomerFormDataBase = z.infer<ReturnType<typeof getCustomerSchema>>;
-export type CustomerFormData = Omit<CustomerFormDataBase, "latitude" | "longitude" | "default_tax_rate"> & {
+export type CustomerFormData = Omit<CustomerFormDataBase, "latitude" | "longitude" | "default_tax_rate" | "credit_limit" | "credit_is_active"> & {
   latitude?: number | null;
   longitude?: number | null;
   default_tax_rate?: number | null;
+  credit_limit?: number;
+  credit_is_active?: boolean;
 };

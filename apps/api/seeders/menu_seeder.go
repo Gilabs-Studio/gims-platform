@@ -440,6 +440,7 @@ func SeedMenus() error {
 		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
 		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
 		{"Salary", "dollar-sign", "/finance/salary", 16},
+		{"AR/AP Reconciliation", "scale", "/finance/reconciliation/arap", 17},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {

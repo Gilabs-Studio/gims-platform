@@ -559,15 +559,12 @@ export function QuotationForm({ open, onClose, quotation }: QuotationFormProps) 
                                 hasMore={productCombobox.hasMore}
                                 isLoadingMore={productCombobox.isLoadingMore}
                                 searchDebounceMs={300}
-                                options={products.map((product) => ({
-                                  value: product.id,
-                                  label: `${product.code} - ${product.name}`,
-                                }))}
+                                options={productCombobox.options}
                                 placeholder={t("item.selectProduct")}
                                 createPermission="product.create"
                                 createLabel={`${t("common.create")} "{query}"`}
                                 onCreateClick={(q) => openQuickCreate("product", q, index)}
-                                isLoading={productCombobox.isLoading || productCombobox.isFetching}
+                                isLoading={productCombobox.isLoading}
                               />
                             )}
                           />

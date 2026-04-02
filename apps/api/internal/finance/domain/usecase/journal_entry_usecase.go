@@ -19,6 +19,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func formatFloatKey(v float64) string {
@@ -629,114 +630,190 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	traceKey := journalTraceKey(req.ReferenceType, req.ReferenceID)
-	logJournalEvent("post_or_update.start", map[string]interface{}{
-		"trace_key":      traceKey,
-		"reference_type": safeStringPtr(req.ReferenceType),
-		"reference_id":   safeStringPtr(req.ReferenceID),
-		"line_count":     len(req.Lines),
-		"actor_id":       actorID,
-	})
-
+	
 	refTypeNormalized := reference.NormalizePtr(req.ReferenceType)
-	var refTypeQuery interface{} = req.ReferenceType
-	if refTypeNormalized != "" {
-		refTypeQuery = refTypeNormalized
-	}
+	refID := strings.TrimSpace(*req.ReferenceID)
 
-	var existing financeModels.JournalEntry
-	err := uc.db.WithContext(ctx).
-		Where("reference_type = ? AND reference_id = ?", refTypeQuery, req.ReferenceID).
-		First(&existing).Error
+	var out *dto.JournalEntryResponse
+	// We use a single transaction for the entire lookup-then-upsert-then-post flow to ensure atomicity.
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. Acquire an advisory lock scoped to this specific reference to prevent concurrent processes 
+		// from attempting to create/update the same journal simultaneously.
+		lockKey := fmt.Sprintf("journal:%s:%s", refTypeNormalized, refID)
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+			return fmt.Errorf("failed to acquire advisory lock: %w", err)
+		}
 
-	if err == nil {
-		logJournalEvent("post_or_update.found_existing", map[string]interface{}{
-			"trace_key": traceKey,
-			"entry_id":  existing.ID,
-			"status":    existing.Status,
-		})
+		// 2. Lookup existing entry using the same transaction (with row-level lock redundant but safe)
+		var existing financeModels.JournalEntry
+		lookupErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("reference_type = ? AND reference_id = ?", refTypeNormalized, refID).
+			First(&existing).Error
 
-		if existing.Status == financeModels.JournalStatusPosted {
-			logJournalEvent("post_or_update.blocked_posted_immutable", map[string]interface{}{
+		if lookupErr != nil && lookupErr != gorm.ErrRecordNotFound {
+			return lookupErr
+		}
+
+		// 3. If exists and posted, return it (idempotency success)
+		if lookupErr == nil && existing.Status == financeModels.JournalStatusPosted {
+			logJournalEvent("post_or_update.idempotent_existing_posted", map[string]interface{}{
 				"trace_key": traceKey,
 				"entry_id":  existing.ID,
 			})
-			return nil, ErrJournalPostedImmutable
+			full, err := uc.repo.FindByID(database.WithTx(ctx, tx), existing.ID, true)
+			if err != nil {
+				return err
+			}
+			resp := uc.mapper.ToResponse(full)
+			out = &resp
+			return nil
 		}
 
-		updateReq := &dto.UpdateJournalEntryRequest{
-			EntryDate:     req.EntryDate,
-			Description:   req.Description,
-			ReferenceType: req.ReferenceType,
-			ReferenceID:   req.ReferenceID,
-			Lines:         req.Lines,
+		// 4. Create or Update draft
+		var entryID string
+		if lookupErr == gorm.ErrRecordNotFound {
+			// Create new draft
+			entryDate, err := parseDate(req.EntryDate)
+			if err != nil {
+				return err
+			}
+			if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
+				return err
+			}
+
+			debitT, creditT, _ := validateLines(req.Lines)
+			entry := &financeModels.JournalEntry{
+				EntryDate:         entryDate,
+				Description:       strings.TrimSpace(req.Description),
+				ReferenceType:     &refTypeNormalized,
+				ReferenceID:       &refID,
+				Status:            financeModels.JournalStatusDraft,
+				DebitTotal:        debitT,
+				CreditTotal:       creditT,
+				CreatedBy:         &actorID,
+				IsSystemGenerated: req.IsSystemGenerated,
+				SourceDocumentURL: req.SourceDocumentURL,
+			}
+			if err := tx.Create(entry).Error; err != nil {
+				return err
+			}
+			entryID = entry.ID
+			
+			// Load COAs for snapshots
+			coaIDs := make([]string, 0, len(req.Lines))
+			for _, ln := range req.Lines {
+				coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+			}
+			coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+			if err != nil {
+				return err
+			}
+
+			for _, ln := range req.Lines {
+				coa := coaByID[ln.ChartOfAccountID]
+				if coa == nil {
+					return fmt.Errorf("chart of account %s not found", ln.ChartOfAccountID)
+				}
+				line := &financeModels.JournalLine{
+					JournalEntryID:             entryID,
+					ChartOfAccountID:           ln.ChartOfAccountID,
+					ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
+					ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
+					ChartOfAccountTypeSnapshot: string(coa.Type),
+					Debit:                      ln.Debit,
+					Credit:                     ln.Credit,
+					Memo:                       strings.TrimSpace(ln.Memo),
+				}
+				if err := tx.Create(line).Error; err != nil {
+					return err
+				}
+			}
+		} else {
+			// Update existing draft
+			entryID = existing.ID
+			
+			// Note: We manually perform the update logic to stay within this advisory lock transaction.
+			
+			entryDate, err := parseDate(req.EntryDate)
+			if err != nil {
+				return err
+			}
+			if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
+				return err
+			}
+			
+			debitT, creditT, _ := validateLines(req.Lines)
+			if err := tx.Model(&financeModels.JournalEntry{}).Where("id = ?", entryID).Updates(map[string]interface{}{
+				"entry_date":     entryDate,
+				"description":    strings.TrimSpace(req.Description),
+				"debit_total":    debitT,
+				"credit_total":   creditT,
+				"reference_type": refTypeNormalized,
+				"reference_id":   refID,
+			}).Error; err != nil {
+				return err
+			}
+
+			if err := tx.Where("journal_entry_id = ?", entryID).Delete(&financeModels.JournalLine{}).Error; err != nil {
+				return err
+			}
+
+			coaIDs := make([]string, 0, len(req.Lines))
+			for _, ln := range req.Lines {
+				coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+			}
+			coaByID, err := loadCOAMap(tx.WithContext(ctx), coaIDs)
+			if err != nil {
+				return err
+			}
+
+			for _, ln := range req.Lines {
+				coa := coaByID[ln.ChartOfAccountID]
+				line := &financeModels.JournalLine{
+					JournalEntryID:             entryID,
+					ChartOfAccountID:           ln.ChartOfAccountID,
+					ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
+					ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
+					ChartOfAccountTypeSnapshot: string(coa.Type),
+					Debit:                      ln.Debit,
+					Credit:                     ln.Credit,
+					Memo:                       strings.TrimSpace(ln.Memo),
+				}
+				if err := tx.Create(line).Error; err != nil {
+					return err
+				}
+			}
 		}
 
-		updateres, err := uc.Update(ctx, existing.ID, updateReq)
+		// 5. Post it
+		now := apptime.Now()
+		if err := tx.Model(&financeModels.JournalEntry{}).Where("id = ?", entryID).Updates(map[string]interface{}{
+			"status":    financeModels.JournalStatusPosted,
+			"posted_at": &now,
+			"posted_by": &actorID,
+		}).Error; err != nil {
+			return err
+		}
+
+		// 6. Return response
+		full, err := uc.repo.FindByID(database.WithTx(ctx, tx), entryID, true)
 		if err != nil {
-			logJournalEvent("post_or_update.update_failed", map[string]interface{}{
-				"trace_key": traceKey,
-				"entry_id":  existing.ID,
-				"error":     err.Error(),
-			})
-			return nil, err
+			return err
 		}
-
-		posted, err := uc.Post(ctx, updateres.ID)
-		if err != nil {
-			logJournalEvent("post_or_update.post_after_update_failed", map[string]interface{}{
-				"trace_key": traceKey,
-				"entry_id":  updateres.ID,
-				"error":     err.Error(),
-			})
-			return nil, err
-		}
-
-		logJournalEvent("post_or_update.update_path_success", map[string]interface{}{
-			"trace_key":      traceKey,
-			"entry_id":       posted.ID,
-			"final_status":   posted.Status,
-			"reference_type": safeStringPtr(req.ReferenceType),
-			"reference_id":   safeStringPtr(req.ReferenceID),
-		})
-
-		return posted, nil
-	} else if err == gorm.ErrRecordNotFound {
-		createres, err := uc.Create(ctx, req)
-		if err != nil {
-			logJournalEvent("post_or_update.create_failed", map[string]interface{}{
-				"trace_key": traceKey,
-				"error":     err.Error(),
-			})
-			return nil, err
-		}
-
-		posted, err := uc.Post(ctx, createres.ID)
-		if err != nil {
-			logJournalEvent("post_or_update.post_after_create_failed", map[string]interface{}{
-				"trace_key": traceKey,
-				"entry_id":  createres.ID,
-				"error":     err.Error(),
-			})
-			return nil, err
-		}
-
-		logJournalEvent("post_or_update.create_path_success", map[string]interface{}{
-			"trace_key":      traceKey,
-			"entry_id":       posted.ID,
-			"final_status":   posted.Status,
-			"reference_type": safeStringPtr(req.ReferenceType),
-			"reference_id":   safeStringPtr(req.ReferenceID),
-		})
-
-		return posted, nil
-	}
-
-	logJournalEvent("post_or_update.lookup_failed", map[string]interface{}{
-		"trace_key": traceKey,
-		"error":     err.Error(),
+		resp := uc.mapper.ToResponse(full)
+		out = &resp
+		return nil
 	})
 
-	return nil, err
+	if err != nil {
+		logJournalEvent("post_or_update.failed", map[string]interface{}{
+			"trace_key": traceKey,
+			"error":     err.Error(),
+		})
+		return nil, err
+	}
+
+	return out, nil
 }
 
 // ReverseWithReason creates a new reversing journal entry with a specific reason.
