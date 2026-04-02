@@ -33,6 +33,17 @@ import {
   ClipboardCheck,
   PackageCheck,
   Route,
+  Timer,
+  CalendarClock,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Percent,
+  Building2,
+  RefreshCw,
+  Gauge,
+  Activity,
+  Clock,
+  Brain,
 } from "lucide-react";
 import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
@@ -58,16 +69,33 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ClipboardCheck,
   PackageCheck,
   Route,
+  Timer,
+  CalendarClock,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Percent,
+  Building2,
+  RefreshCw,
+  Gauge,
+  Activity,
+  Clock,
+  Brain,
 };
 
-const CATEGORY_LABELS: Record<WidgetCategory, string> = {
-  overview: "Overview",
-  finance: "Finance",
-  sales: "Sales",
-  purchase: "Purchase",
-  inventory: "Inventory",
-  geographic: "Geographic",
-  hr: "HR",
+const CATEGORY_LABEL_KEYS: Record<WidgetCategory, string> = {
+  overview: "categories.overview",
+  finance: "categories.finance",
+  sales: "categories.sales",
+  purchase: "categories.purchase",
+  inventory: "categories.inventory",
+  geographic: "categories.geographic",
+  hr: "categories.hr",
+  profitability: "categories.profitability",
+  cashflow: "categories.cashflow",
+  logistics: "categories.logistics",
+  asset: "categories.asset",
+  cost: "categories.cost",
+  intelligence: "categories.intelligence",
 };
 
 interface WidgetPickerProps {
@@ -121,7 +149,7 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
               className="cursor-pointer"
               onClick={() => setSelectedCategory(cat)}
             >
-              {CATEGORY_LABELS[cat as WidgetCategory] ?? cat}
+              {t(CATEGORY_LABEL_KEYS[cat as WidgetCategory] as Parameters<typeof t>[0]) ?? cat}
             </Badge>
           ))}
         </div>

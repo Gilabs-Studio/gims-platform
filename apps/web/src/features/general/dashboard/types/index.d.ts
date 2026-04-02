@@ -8,7 +8,13 @@ export type WidgetCategory =
   | "purchase"
   | "inventory"
   | "geographic"
-  | "hr";
+  | "hr"
+  | "profitability"
+  | "cashflow"
+  | "logistics"
+  | "asset"
+  | "cost"
+  | "intelligence";
 
 /** Widget size presets for the grid */
 export type WidgetSize = "sm" | "md" | "lg" | "xl";
@@ -35,6 +41,7 @@ export interface WidgetConfig {
 
 /** All available widget types in the system */
 export type WidgetType =
+  // --- Existing / Legacy ---
   | "total_revenue"
   | "total_orders"
   | "total_customers"
@@ -51,7 +58,6 @@ export type WidgetType =
   | "warehouse_overview"
   | "employee_count"
   | "delivery_status"
-  // New composite widget types for the reference Sales Dashboard layout
   | "revenue_bar_chart"
   | "stat_summary_balance"
   | "stat_summary_revenue"
@@ -60,10 +66,31 @@ export type WidgetType =
   | "best_selling"
   | "track_orders"
   | "track_purchase_orders"
-  // Approval list widgets
   | "pending_approvals_sales"
   | "pending_approvals_purchase"
-  | "travel_planner_overview";
+  | "travel_planner_overview"
+  // --- Owner KPI: Profitability ---
+  | "kpi_roe"
+  | "kpi_net_profit_margin"
+  | "kpi_gross_profit_margin"
+  // --- Owner KPI: Inventory ---
+  | "kpi_inventory_turnover"
+  | "kpi_dio"
+  // --- Owner KPI: Cashflow ---
+  | "kpi_ar_days"
+  | "kpi_ap_days"
+  | "kpi_ccc"
+  // --- Owner KPI: Logistics ---
+  | "kpi_cost_per_delivery"
+  | "kpi_utilization_rate"
+  | "kpi_otd_rate"
+  // --- Owner KPI: Asset ---
+  | "kpi_roa"
+  | "kpi_asset_turnover"
+  // --- Owner KPI: Cost Structure ---
+  | "kpi_opex_vs_capex"
+  // --- Owner Intelligence ---
+  | "owner_intelligence";
 
 /** Widget registry entry - metadata describing a widget */
 export interface WidgetRegistryEntry {
@@ -118,7 +145,8 @@ export type DashboardOverviewScope =
   | "products"
   | "delivery"
   | "geo"
-  | "warehouse";
+  | "warehouse"
+  | "owner-kpi";
 
 // ---- API Response Types ----
 
@@ -236,6 +264,128 @@ export interface WarehouseItem {
   out_of_stock_count: number;
 }
 
+// ---- Owner KPI Types ----
+
+/** Health status for KPI indicators */
+export type KpiHealthStatus = "good" | "warning" | "danger";
+
+/** Single owner KPI metric with health assessment */
+export interface OwnerKpiMetric {
+  value: number;
+  formatted: string;
+  /** Status: good / warning / danger */
+  status: KpiHealthStatus;
+  /** Human-readable status label */
+  status_label: string;
+  /** Change vs previous period (percent) */
+  change_percent?: number;
+  /** Previous period's value */
+  previous_value?: number;
+  previous_formatted?: string;
+  /** Unit for display (%, days, x, Rp, etc.) */
+  unit: string;
+}
+
+/** Profitability KPI group */
+export interface ProfitabilityKpi {
+  roe: OwnerKpiMetric;
+  net_profit_margin: OwnerKpiMetric;
+  gross_profit_margin: OwnerKpiMetric;
+}
+
+/** Inventory KPI group */
+export interface InventoryKpi {
+  inventory_turnover: OwnerKpiMetric;
+  dio: OwnerKpiMetric;
+}
+
+/** Cashflow KPI group */
+export interface CashflowKpi {
+  ar_days: OwnerKpiMetric;
+  ap_days: OwnerKpiMetric;
+  ccc: OwnerKpiMetric;
+}
+
+/** Logistics KPI group */
+export interface LogisticsKpi {
+  cost_per_delivery: OwnerKpiMetric;
+  utilization_rate: OwnerKpiMetric;
+  otd_rate: OwnerKpiMetric;
+}
+
+/** Asset KPI group */
+export interface AssetKpi {
+  roa: OwnerKpiMetric;
+  asset_turnover: OwnerKpiMetric;
+}
+
+/** Cost structure KPI */
+export interface CostStructureKpi {
+  total_opex: number;
+  total_opex_formatted: string;
+  total_capex: number;
+  total_capex_formatted: string;
+  opex_ratio: number;
+  capex_ratio: number;
+  opex_breakdown: CostBreakdownItem[];
+  capex_breakdown: CostBreakdownItem[];
+  depreciation_total: number;
+  depreciation_formatted: string;
+}
+
+export interface CostBreakdownItem {
+  category: string;
+  amount: number;
+  amount_formatted: string;
+  percentage: number;
+}
+
+/** Bottleneck area identified by intelligence layer */
+export type BottleneckArea =
+  | "inventory"
+  | "cashflow"
+  | "asset"
+  | "logistics"
+  | "profitability"
+  | "cost";
+
+/** Owner intelligence layer — auto-generated insights */
+export interface OwnerIntelligence {
+  /** Overall health: good / warning / danger */
+  overall_health: KpiHealthStatus;
+  /** Human-readable summary of business health */
+  health_summary: string;
+  /** Detected primary bottleneck */
+  primary_bottleneck: BottleneckArea;
+  /** Human-readable bottleneck explanation */
+  bottleneck_summary: string;
+  /** Individual insight items with severity */
+  insights: OwnerInsightItem[];
+  /** Timestamp of the analysis */
+  analyzed_at: string;
+}
+
+export interface OwnerInsightItem {
+  id: string;
+  area: BottleneckArea;
+  severity: KpiHealthStatus;
+  title: string;
+  description: string;
+  /** Recommended action */
+  action?: string;
+}
+
+/** Combined Owner KPI data from backend */
+export interface OwnerKpiData {
+  profitability: ProfitabilityKpi;
+  inventory: InventoryKpi;
+  cashflow: CashflowKpi;
+  logistics?: LogisticsKpi;
+  asset: AssetKpi;
+  cost_structure: CostStructureKpi;
+  intelligence: OwnerIntelligence;
+}
+
 /** Dashboard overview API response (aggregated) */
 export interface DashboardOverviewResponse {
   success: boolean;
@@ -266,5 +416,6 @@ export interface DashboardOverviewData {
   delivery_status: DeliveryStatusData;
   geographic_overview: GeoOverviewData;
   warehouse_overview: WarehouseOverviewData;
+  /** Owner KPI data — returned when scope=owner-kpi */
+  owner_kpi?: OwnerKpiData;
 }
-
