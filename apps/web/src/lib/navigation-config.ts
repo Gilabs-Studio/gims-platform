@@ -472,19 +472,6 @@ export const navigationConfig: NavItem[] = [
             icon: "map-pin",
             permission: "asset_location.read",
           },
-          {
-            name: "Asset Budgets",
-            i18nKey: "assetBudgets",
-            url: "/finance/asset-budgets",
-            icon: "wallet",
-            permission: "asset_budget.read",
-          },
-          {
-            name: "Asset Maintenance",
-            url: "/finance/asset-maintenance",
-            icon: "wrench",
-            permission: "asset_maintenance.read",
-          },
         ],
       },
       {

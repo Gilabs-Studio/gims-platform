@@ -123,10 +123,6 @@ import { financeAssetLocationsEn } from "@/features/finance/asset-locations/i18n
 import { financeAssetLocationsId } from "@/features/finance/asset-locations/i18n/id";
 import { financeAssetsEn } from "@/features/finance/assets/i18n/en";
 import { financeAssetsId } from "@/features/finance/assets/i18n/id";
-import { assetBudgetEn } from "@/features/finance/asset-budgets/i18n/en";
-import { assetBudgetId } from "@/features/finance/asset-budgets/i18n/id";
-import { assetMaintenanceEn } from "@/features/finance/asset-maintenance/i18n/en";
-import { assetMaintenanceId } from "@/features/finance/asset-maintenance/i18n/id";
 import { financeClosingEn } from "@/features/finance/closing/i18n/en";
 import { financeClosingId } from "@/features/finance/closing/i18n/id";
 import { financeTaxInvoicesEn } from "@/features/finance/tax-invoices/i18n/en";
@@ -240,8 +236,6 @@ const messages = {
     financeAssetCategories: financeAssetCategoriesEn,
     financeAssetLocations: financeAssetLocationsEn,
     financeAssets: financeAssetsEn,
-    assetBudget: assetBudgetEn,
-    assetMaintenance: assetMaintenanceEn,
     financeClosing: financeClosingEn,
     financeTaxInvoices: financeTaxInvoicesEn,
     financeNonTradePayables: financeNonTradePayablesEn,
@@ -327,8 +321,6 @@ const messages = {
     financeAssetCategories: financeAssetCategoriesId,
     financeAssetLocations: financeAssetLocationsId,
     financeAssets: financeAssetsId,
-    assetBudget: assetBudgetId,
-    assetMaintenance: assetMaintenanceId,
     financeClosing: financeClosingId,
     financeTaxInvoices: financeTaxInvoicesId,
     financeNonTradePayables: financeNonTradePayablesId,
