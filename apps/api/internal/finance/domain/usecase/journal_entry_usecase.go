@@ -133,6 +133,9 @@ func journalReferenceTypesForDomain(domain *string) []string {
 		return []string{
 			reference.RefTypeCashBank,
 			reference.RefTypePayment,
+			reference.RefTypeSalesPayment,
+			reference.RefTypePurchasePayment,
+			reference.RefTypeNTPPayment,
 		}
 	case "finance":
 		return []string{

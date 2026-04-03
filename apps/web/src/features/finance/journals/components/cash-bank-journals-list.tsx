@@ -27,6 +27,8 @@ import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { JournalDetailModal } from "./journal-detail-modal";
+import { JournalActionMenu } from "./journal-action-menu";
 
 
 export function CashBankJournalsList() {
@@ -44,6 +46,8 @@ export function CashBankJournalsList() {
   const [pageSize, setPageSize] = useState(20);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
+  const [isJournalDetailOpen, setIsJournalDetailOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
@@ -206,6 +210,19 @@ export function CashBankJournalsList() {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
         }}
+        actionRender={(row) => (
+          <JournalActionMenu
+            row={row}
+            onView={(id) => {
+              setSelectedJournalId(id);
+              setIsJournalDetailOpen(true);
+            }}
+            onSourceDetail={(row) => {
+              setSelectedReferenceRow(row);
+              setIsReferenceModalOpen(true);
+            }}
+          />
+        )}
       />
 
       <DataTablePagination
@@ -228,6 +245,11 @@ export function CashBankJournalsList() {
           }
         }}
         row={selectedReferenceRow}
+      />
+      <JournalDetailModal
+        open={isJournalDetailOpen}
+        onOpenChange={setIsJournalDetailOpen}
+        id={selectedJournalId}
       />
     </div>
   );

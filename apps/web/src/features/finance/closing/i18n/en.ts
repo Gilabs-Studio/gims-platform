@@ -18,6 +18,7 @@ export const financeClosingEn = {
     reopen: "Reopen",
     yearEndClose: "Year-End Close",
     view: "View Detail",
+    delete: "Delete",
   },
   detail_title: "Closing Analysis Detail",
   analysis: {
@@ -44,6 +45,7 @@ export const financeClosingEn = {
     approved: "Closing approved",
     reopened: "Closing reopened",
     yearEndClosed: "Year-end closing completed",
+    deleted: "Closing deleted",
     failed: "Action failed",
   },
 };

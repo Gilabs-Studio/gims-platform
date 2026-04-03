@@ -441,6 +441,7 @@ func SeedPermissions() error {
 		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
 		{"/finance/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
 		{"/finance/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
+		{"/finance/closing", "financial_closing.delete", "Delete Financial Closing", "DELETE", "financial_closing"},
 
 		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
 		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},

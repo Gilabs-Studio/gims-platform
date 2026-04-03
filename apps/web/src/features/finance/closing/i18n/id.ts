@@ -18,6 +18,7 @@ export const financeClosingId = {
     reopen: "Buka Kembali",
     yearEndClose: "Tutup Akhir Tahun",
     view: "Lihat Detail",
+    delete: "Hapus",
   },
   detail_title: "Detail Analisis Penutupan",
   analysis: {
@@ -44,6 +45,7 @@ export const financeClosingId = {
     approved: "Tutup buku disetujui",
     reopened: "Tutup buku dibuka kembali",
     yearEndClosed: "Penutupan akhir tahun selesai",
+    deleted: "Tutup buku dihapus",
     failed: "Aksi gagal",
   },
 };

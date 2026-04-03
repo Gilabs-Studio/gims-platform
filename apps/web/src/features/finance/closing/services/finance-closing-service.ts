@@ -41,4 +41,7 @@ export const financeClosingService = {
     const response = await apiClient.get<ApiResponse<FinancialClosingAnalysisResponse>>(`${BASE_URL}/${id}/analysis`);
     return response.data;
   },
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`${BASE_URL}/${id}`);
+  },
 };

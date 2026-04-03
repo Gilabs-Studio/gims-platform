@@ -341,8 +341,13 @@ export const navigationConfig: NavItem[] = [
                 icon: "calculator",
                 permission: "journal_valuation.read",
               },
-
-              // {
+              {
+                name: "Cash & Bank Journal",
+                i18nKey: "cashBankJournal",
+                url: "/finance/journals/cash-bank",
+                icon: "banknote",
+                permission: "cash_bank_journal.read",
+              },
               //   name: "Journal Lines",
               //   i18nKey: "journalLines",
               //   url: "/finance/journal-lines",

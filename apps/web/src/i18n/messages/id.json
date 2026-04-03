@@ -183,6 +183,8 @@
     "purchaseJournal": "Jurnal Pembelian",
     "adjustmentJournal": "Jurnal Penyesuaian",
     "journalValuation": "Penilaian Jurnal",
+    "cashBankJournal": "Jurnal Kas Bank",
+    "journalLines": "Baris Jurnal",
     "financialClosing": "Penutupan Finansial",
     "bankAccounts": "Akun Bank",
     "financeSettings": "Pengaturan Finance",

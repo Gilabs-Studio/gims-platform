@@ -116,3 +116,12 @@ func (h *FinancialClosingHandler) YearEndClose(c *gin.Context) {
 	}
 	response.SuccessResponse(c, res, nil)
 }
+func (h *FinancialClosingHandler) Delete(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	err := h.uc.Delete(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "FINANCIAL_CLOSING_DELETE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, nil, nil)
+}

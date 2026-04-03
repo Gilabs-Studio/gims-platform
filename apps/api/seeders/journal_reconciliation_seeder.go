@@ -13,6 +13,7 @@ import (
 	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/service"
 	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	inventoryRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -74,6 +75,9 @@ func SeedJournalReconciliation() error {
 	purchaseReturnUC := purchaseUsecase.NewPurchaseReturnUsecase(db, purchaseReturnRepo, inventoryUC, journalUC, coaUC, auditSvc, engine)
 	purchasePaymentRepo := purchaseRepos.NewPurchasePaymentRepository(db)
 	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine)
+	
+	financePaymentRepo := financeRepos.NewPaymentRepository(db)
+	financePaymentUC := financeUsecase.NewPaymentUsecase(db, coaRepo, financePaymentRepo, journalUC, financeMapper.NewPaymentMapper(financeMapper.NewChartOfAccountMapper()))
 
 	stockOpnameRepo := stockOpnameRepos.NewStockOpnameRepository(db)
 	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, coaUC)
@@ -139,15 +143,16 @@ func SeedJournalReconciliation() error {
 		return err
 	}
 	for _, pay := range salesPayments {
-		var count int64
-		db.Model(&financeModels.JournalEntry{}).
-			Where("reference_type = ? AND reference_id = ?", "SALES_PAYMENT", pay.ID).
-			Count(&count)
-		if count > 0 {
-			continue
-		}
-		if err := salesPaymentUC.TriggerJournalForPayment(ctx, &pay); err != nil {
-			log.Printf("warning: failed to reconcile sales payment journal (%s): %v", pay.ID, err)
+		var existing financeModels.JournalEntry
+		db.Table("journal_entries").
+			Where("reference_type = ? AND reference_id = ?", reference.RefTypeSalesPayment, pay.ID).
+			First(&existing)
+
+		// Re-trigger if missing OR if totals are 0 (broken seeder data)
+		if existing.ID == "" || (existing.DebitTotal == 0 && existing.CreditTotal == 0) {
+			if err := salesPaymentUC.TriggerJournalForPayment(ctx, &pay); err != nil {
+				log.Printf("warning: failed to reconcile sales payment journal (%s): %v", pay.ID, err)
+			}
 		}
 	}
 
@@ -196,15 +201,38 @@ func SeedJournalReconciliation() error {
 		return err
 	}
 	for _, pp := range purchasePayments {
-		var count int64
-		db.Model(&financeModels.JournalEntry{}).
-			Where("reference_type = ? AND reference_id = ?", "PURCHASE_PAYMENT", pp.ID).
-			Count(&count)
-		if count > 0 {
-			continue
+		var existing financeModels.JournalEntry
+		db.Table("journal_entries").
+			Where("reference_type = ? AND reference_id = ?", reference.RefTypePurchasePayment, pp.ID).
+			First(&existing)
+
+		// Re-trigger if missing OR if totals are 0 (broken seeder data)
+		if existing.ID == "" || (existing.DebitTotal == 0 && existing.CreditTotal == 0) {
+			if err := purchasePaymentUC.TriggerJournalForPayment(ctx, &pp); err != nil {
+				log.Printf("warning: failed to reconcile purchase payment journal (%s): %v", pp.ID, err)
+			}
 		}
-		if err := purchasePaymentUC.TriggerJournalForPayment(ctx, &pp); err != nil {
-			log.Printf("warning: failed to reconcile purchase payment journal (%s): %v", pp.ID, err)
+	}
+
+	// Sync Finance Payments (Generic Payment module)
+	var financePayments []financeModels.Payment
+	if err := db.Where("status = ?", financeModels.PaymentStatusPosted).Find(&financePayments).Error; err == nil {
+		for _, fp := range financePayments {
+			var existing financeModels.JournalEntry
+			// Standard Finance module uses RefTypePayment
+			refType := reference.RefTypePayment
+
+			db.Table("journal_entries").
+				Where("reference_type = ? AND reference_id = ?", refType, fp.ID).
+				First(&existing)
+
+			// Re-trigger if missing OR if totals are 0
+			if existing.ID == "" || (existing.DebitTotal == 0 && existing.CreditTotal == 0) {
+				// Trigger using Approve (which handles the journal creation logic)
+				if _, err := financePaymentUC.Approve(ctx, fp.ID); err != nil {
+					log.Printf("warning: failed to reconcile finance payment journal (%s): %v", fp.ID, err)
+				}
+			}
 		}
 	}
 
