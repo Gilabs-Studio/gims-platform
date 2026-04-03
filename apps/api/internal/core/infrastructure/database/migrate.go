@@ -345,6 +345,12 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not remove leave request days_requested column: %v", err)
 	}
 
+	// Add linkedin_url column to recruitment_applicants table (Sprint 15)
+	// WHY: Allow storing LinkedIn profile URLs for applicants
+	if err := migrations.AddApplicantLinkedInURLMigration(DB); err != nil {
+		log.Printf("Warning: Could not add linkedin_url column: %v", err)
+	}
+
 	return nil
 }
 
