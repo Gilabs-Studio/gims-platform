@@ -11,16 +11,17 @@ import (
 
 // RecruitmentApplicant represents a job applicant for a recruitment request
 type RecruitmentApplicant struct {
-	ID                   string     `gorm:"type:uuid;primaryKey" json:"id"`
-	RecruitmentRequestID string     `gorm:"type:uuid;not null;index:idx_applicant_request" json:"recruitment_request_id"`
-	StageID              string     `gorm:"type:uuid;not null;index:idx_applicant_stage" json:"stage_id"`
+	ID                   string `gorm:"type:uuid;primaryKey" json:"id"`
+	RecruitmentRequestID string `gorm:"type:uuid;not null;index:idx_applicant_request" json:"recruitment_request_id"`
+	StageID              string `gorm:"type:uuid;not null;index:idx_applicant_stage" json:"stage_id"`
 
 	// Personal Info
-	FullName  string  `gorm:"type:varchar(255);not null" json:"full_name"`
-	Email     string  `gorm:"type:varchar(255);not null" json:"email"`
-	Phone     *string `gorm:"type:varchar(20)" json:"phone"`
-	ResumeURL *string `gorm:"type:varchar(500)" json:"resume_url"`
-	Source    string  `gorm:"type:varchar(50);not null" json:"source"` // linkedin, jobstreet, glints, referral, direct, other
+	FullName    string  `gorm:"type:varchar(255);not null" json:"full_name"`
+	Email       string  `gorm:"type:varchar(255);not null" json:"email"`
+	Phone       *string `gorm:"type:varchar(20)" json:"phone"`
+	ResumeURL   *string `gorm:"type:varchar(500)" json:"resume_url"`
+	LinkedinURL *string `gorm:"type:varchar(500)" json:"linkedin_url"`   // LinkedIn profile URL
+	Source      string  `gorm:"type:varchar(50);not null" json:"source"` // linkedin, jobstreet, glints, referral, direct, other
 
 	// Tracking
 	AppliedAt      time.Time `gorm:"not null" json:"applied_at"`
@@ -31,12 +32,12 @@ type RecruitmentApplicant struct {
 	Notes  *string `gorm:"type:text" json:"notes"`
 
 	// Relations
-	Stage              ApplicantStage      `gorm:"foreignKey:StageID" json:"stage,omitempty"`
-	RecruitmentRequest RecruitmentRequest  `gorm:"foreignKey:RecruitmentRequestID" json:"recruitment_request,omitempty"`
+	Stage              ApplicantStage     `gorm:"foreignKey:StageID" json:"stage,omitempty"`
+	RecruitmentRequest RecruitmentRequest `gorm:"foreignKey:RecruitmentRequestID" json:"recruitment_request,omitempty"`
 
 	// Link to Employee (set when converted)
-	EmployeeID *string                         `gorm:"type:uuid;index;column:employee_id" json:"employee_id"`
-	Employee   *organizationModels.Employee     `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
+	EmployeeID *string                      `gorm:"type:uuid;index;column:employee_id" json:"employee_id"`
+	Employee   *organizationModels.Employee `gorm:"foreignKey:EmployeeID" json:"employee,omitempty"`
 
 	// Timestamps
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`

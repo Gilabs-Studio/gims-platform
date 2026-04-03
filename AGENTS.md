@@ -104,6 +104,57 @@ now := apptime.NowForCompany(companyID)
 - DB timestamp columns in HRD use `timestamptz` (not `timestamp`)
 - DSN includes `TimeZone=UTC` for consistent storage
 - Company model has `Timezone` field (IANA string, default `Asia/Jakarta`)
+
+### Attendance Check-in Time Validation
+
+**Rule**: Employee can only check in at or after their scheduled start time
+
+**Implementation:**
+
+```go
+// Backend: Check earliest allowed check-in time
+var earliestCheckInTime string
+if ws.IsFlexible && ws.FlexibleStartTime != "" {
+    earliestCheckInTime = ws.FlexibleStartTime
+} else {
+    earliestCheckInTime = ws.StartTime
+}
+
+if now.Before(earliestCheckInToday) {
+    return fmt.Errorf("TOO_EARLY_TO_CHECK_IN: Cannot check in before %s", earliestCheckInTime)
+}
+```
+
+**Frontend:**
+
+```typescript
+// Hook calculates if it's too early
+const checkInTimeInfo = (() => {
+  if (!ws) return { isTooEarly: false, earliestTime: null };
+
+  const now = new Date();
+  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Use flexible start time if schedule is flexible
+  const earliestTimeStr = ws.is_flexible && ws.flexible_start_time
+    ? ws.flexible_start_time
+    : ws.start_time;
+
+  const [earliestHour, earliestMinute] = earliestTimeStr.split(':').map(Number);
+  const earliestTimeMinutes = earliestHour * 60 + earliestMinute;
+
+  return {
+    isTooEarly: currentTimeMinutes < earliestTimeMinutes,
+    earliestTime: earliestTimeStr
+  };
+})();
+
+// Disable button when too early
+<Button disabled={isPending || isDenied || checkInTimeInfo.isTooEarly}>
+```
+
+**Note**: Button must be disabled on frontend AND validated on backend
+
 - Holiday model has `CompanyID` (nullable UUID): NULL = global, non-NULL = company-specific
 - Docs: `docs/features/core/apptime-timezone-support.md`
 
@@ -255,10 +306,26 @@ tCommon("description");
 
 **Preventing Missing Translation Errors:**
 
+- **CRITICAL: Always add translation keys BEFORE using them in code.** Never use dynamic text without corresponding translation keys.
+- **For status badges and dynamic values:** Always provide translation keys for ALL possible values (e.g., `status.PENDING`, `status.APPROVED`, `status.REJECTED`, `status.CANCELED` and their lowercase variants)
 - Check browser console for `IntlError: MISSING_MESSAGE`
-- Always add keys to both language files
+- Always add keys to both `en.ts` AND `id.ts` (or `en.json` AND `id.json`)
 - Use `tCommon` for shared/common translations
 - Test both EN and ID locales
+- **Pattern for status fields:** Use both uppercase keys (for display) and lowercase keys (for mapping from database):
+  ```typescript
+  // In translations
+  status: {
+    PENDING: "Pending",    // For display
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    CANCELED: "Canceled",
+    pending: "Pending",    // For lowercase mapping
+    approved: "Approved",
+    rejected: "Rejected",
+    canceled: "Canceled"
+  }
+  ```
 
 ### Tailwind CSS
 

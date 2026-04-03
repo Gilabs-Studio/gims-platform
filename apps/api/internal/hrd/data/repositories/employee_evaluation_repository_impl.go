@@ -17,7 +17,7 @@ func NewEmployeeEvaluationRepository(db *gorm.DB) EmployeeEvaluationRepository {
 	return &employeeEvaluationRepositoryImpl{db: db}
 }
 
-func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, employeeID, evaluationGroupID, status, evaluationType string) ([]models.EmployeeEvaluation, int64, error) {
+func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, employeeID, evaluationGroupID, evaluationType string) ([]models.EmployeeEvaluation, int64, error) {
 	var evaluations []models.EmployeeEvaluation
 	var total int64
 
@@ -40,11 +40,6 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 	// Filter by evaluation_group_id
 	if evaluationGroupID != "" {
 		query = query.Where("evaluation_group_id = ?", evaluationGroupID)
-	}
-
-	// Filter by status
-	if status != "" {
-		query = query.Where("status = ?", status)
 	}
 
 	// Filter by evaluation_type

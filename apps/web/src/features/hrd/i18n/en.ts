@@ -59,8 +59,10 @@ export const hrdEn = {
       historySubtitle: "View your attendance calendar and leave requests",
       historyAction: "Attendance History",
       requestLeaveAction: "Request Leave",
+      overtimeAction: "My Overtime",
       calendarTab: "Calendar",
       leaveTab: "Leave Request",
+      overtimeTab: "Overtime",
       clockIn: "Clock In",
       clockOut: "Clock Out",
       clockedIn: "Clocked In",
@@ -95,6 +97,21 @@ export const hrdEn = {
         ABSENT: "Absent",
         HALF_DAY: "Half Day",
         LEAVE: "Leave",
+        WFH: "Work From Home",
+        FIELD_WORK: "Field Work",
+        // Lowercase variants for dynamic status mapping
+        pending: "Pending",
+        approved: "Approved",
+        rejected: "Rejected",
+        canceled: "Canceled",
+        holiday: "Holiday",
+        present: "Present",
+        late: "Late",
+        absent: "Absent",
+        half_day: "Half Day",
+        leave: "Leave",
+        wfh: "Work From Home",
+        field_work: "Field Work",
       },
 
       // Check-in type
@@ -135,6 +152,8 @@ export const hrdEn = {
         address: "Address",
         isManualEntry: "Manual Entry",
         manualEntryReason: "Manual Entry Reason",
+        photo: "Photo",
+        checkInPhoto: "Check-in Photo",
       },
 
       // Form
@@ -187,19 +206,19 @@ export const hrdEn = {
 
       // Messages
       messages: {
-        clockInSuccess: "Successfully clocked in",
-        clockOutSuccess: "Successfully clocked out",
-        createSuccess: "Attendance record created successfully",
-        updateSuccess: "Attendance record updated successfully",
-        deleteSuccess: "Attendance record deleted successfully",
+        clockInSuccess: "Clock in successful",
+        clockOutSuccess: "Clock out successful",
+        manualEntrySuccess: "Manual entry created successfully",
+        notClockedInYet: "You have not clocked in yet",
+        alreadyClockedOut: "Already clocked out for today",
+        confirmDelete: "Are you sure you want to delete this record?",
         deleteConfirm:
           "Are you sure you want to delete this attendance record?",
-        deleteConfirmDesc:
-          "This action cannot be undone. The attendance record will be permanently removed.",
-        locationRequired: "Location access is required for clock in/out",
-        outsideRadius: "You are outside the allowed location radius",
-        alreadyClockedIn: "You have already clocked in today",
-        notClockedInYet: "You haven't clocked in yet",
+        deleteConfirmDesc: "This action cannot be undone.",
+        overtimeDetected:
+          "Overtime detected: {duration}. Waiting for approval.",
+        viewOvertime: "View",
+        checkInAvailableAt: "Check-in available at {time}",
       },
 
       // Errors
@@ -335,6 +354,12 @@ export const hrdEn = {
           },
         },
       },
+    },
+
+    // Leave Request
+    leaveRequest: {
+      title: "Leave Request",
+      description: "Manage your leave requests and view leave history",
     },
 
     // Work Schedule
@@ -518,7 +543,28 @@ export const hrdEn = {
         rejectConfirm: "Please provide a reason for rejection",
         autoDetectedInfo:
           "This overtime was automatically detected based on your clock out time",
+        cancelError: "Failed to cancel overtime request",
+        fetchFailed: "Failed to load overtime requests",
       },
+
+      requestTypes: {
+        autoDetected: "Auto Detected",
+        manualClaim: "Manual Claim",
+        preApproved: "Pre Approved",
+      },
+
+      emptyState: {
+        noOvertime: "No overtime requests",
+        autoDetectInfo:
+          "Overtime will be automatically detected when you clock out after work schedule ends",
+      },
+
+      cancelDialog: {
+        title: "Cancel Overtime Request",
+        description: "Are you sure you want to cancel this overtime request?",
+      },
+
+      approvedBy: "Approved by",
 
       stats: {
         totalRequested: "Total Requested",
@@ -542,6 +588,10 @@ export const hrdEn = {
         REJECTED: "Rejected",
         CANCELED: "Canceled",
         HOLIDAY: "Holiday",
+        pending: "Pending",
+        approved: "Approved",
+        rejected: "Rejected",
+        canceled: "Canceled",
       },
 
       fields: {
@@ -564,6 +614,7 @@ export const hrdEn = {
         approvedAt: "Approved At",
         rejectedBy: "Rejected By",
         rejectionReason: "Rejection Reason",
+        rejectReason: "Reject Reason",
         division: "Division",
         taskDetails: "Task Details",
       },
@@ -603,6 +654,7 @@ export const hrdEn = {
 
       errors: {
         loadFailed: "Failed to load overtime requests",
+        fetchFailed: "Failed to load overtime requests",
       },
 
       validation: {

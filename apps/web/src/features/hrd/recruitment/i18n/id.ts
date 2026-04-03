@@ -20,7 +20,8 @@ export const recruitmentId = {
       select: "Pilih",
       selectDate: "Pilih tanggal",
       all: "Semua",
-      confirmDelete: "Apakah Anda yakin ingin menghapus permintaan rekrutmen ini?",
+      confirmDelete:
+        "Apakah Anda yakin ingin menghapus permintaan rekrutmen ini?",
       deleteWarning: "Tindakan ini tidak dapat dibatalkan.",
       page: "Halaman",
       of: "dari",
@@ -184,7 +185,8 @@ export const recruitmentId = {
       notes: "Catatan",
       addDescription: "Tambahkan pelamar baru ke permintaan rekrutmen ini",
       editDescription: "Perbarui informasi pelamar",
-      deleteDesc: "Apakah Anda yakin ingin menghapus pelamar ini? Tindakan ini tidak dapat dibatalkan.",
+      deleteDesc:
+        "Apakah Anda yakin ingin menghapus pelamar ini? Tindakan ini tidak dapat dibatalkan.",
       created: "Pelamar berhasil ditambahkan",
       updated: "Pelamar berhasil diperbarui",
       deleted: "Pelamar berhasil dihapus",
@@ -194,6 +196,7 @@ export const recruitmentId = {
         email: "Email",
         phone: "Telepon",
         resume: "URL Resume/CV",
+        linkedin: "Profil LinkedIn",
         source: "Sumber",
         rating: "Penilaian",
         appliedAt: "Tanggal Melamar",
@@ -221,7 +224,14 @@ export const recruitmentId = {
         email: "Masukkan alamat email",
         phone: "Masukkan nomor telepon",
         resume: "Unggah CV/Resume (PDF, DOC, DOCX)",
+        linkedin: "https://linkedin.com/in/username",
         notes: "Tambahkan catatan tentang pelamar...",
+      },
+
+      errors: {
+        alreadyConverted:
+          "Tidak dapat mengubah tahapan. Pelamar ini sudah dikonversi menjadi karyawan.",
+        invalidLinkedIn: "Masukkan URL profil LinkedIn yang valid",
       },
 
       sources: {
@@ -248,7 +258,8 @@ export const recruitmentId = {
         fromStage: "Tahapan Saat Ini",
         toStage: "Tahapan Tujuan",
         reason: "Alasan",
-        reasonPlaceholder: "Masukkan alasan perpindahan tahapan (wajib untuk penolakan)...",
+        reasonPlaceholder:
+          "Masukkan alasan perpindahan tahapan (wajib untuk penolakan)...",
         notes: "Catatan Tambahan",
         notesPlaceholder: "Tambahkan catatan tambahan...",
         confirm: "Pindahkan Pelamar",
@@ -258,8 +269,10 @@ export const recruitmentId = {
       convertToEmployee: "Konversi ke Karyawan",
       converting: "Mengonversi...",
       convertTitle: "Konversi Pelamar ke Karyawan",
-      convertDescription: "Konfirmasi untuk mengkonversi pelamar ini menjadi karyawan.",
-      convertInfo: "Data karyawan akan dibuat menggunakan informasi pelamar. Anda dapat melengkapi detail lainnya di menu Master Data > Karyawan setelah konversi.",
+      convertDescription:
+        "Konfirmasi untuk mengkonversi pelamar ini menjadi karyawan.",
+      convertInfo:
+        "Data karyawan akan dibuat menggunakan informasi pelamar. Anda dapat melengkapi detail lainnya di menu Master Data > Karyawan setelah konversi.",
       employeeInfo: "Informasi Karyawan",
       employeeCode: "Kode Karyawan",
       viewEmployee: "Lihat Profil Karyawan",

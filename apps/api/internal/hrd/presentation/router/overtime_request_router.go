@@ -12,6 +12,7 @@ func RegisterOvertimeRequestRoutes(rg *gin.RouterGroup, h *handler.OvertimeReque
 
 	// Employee self-service routes
 	g.POST("", h.Create)                      // Submit overtime request
+	g.GET("/my", h.GetMyRequests)             // Get own overtime requests
 	g.GET("/my-summary", h.GetMonthlySummary) // Get own monthly summary
 	g.POST("/:id/cancel", h.Cancel)           // Cancel own request
 

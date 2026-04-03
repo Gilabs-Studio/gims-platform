@@ -18,11 +18,6 @@ export interface EvaluationTypeOption {
   label: string;
 }
 
-export interface EvaluationStatusOption {
-  value: string;
-  label: string;
-}
-
 // ---- Evaluation Group ----
 
 export interface EvaluationGroup {
@@ -94,12 +89,6 @@ export interface UpdateEvaluationCriteriaData {
 
 // ---- Employee Evaluation ----
 
-export type EmployeeEvaluationStatus =
-  | "DRAFT"
-  | "SUBMITTED"
-  | "REVIEWED"
-  | "FINALIZED";
-
 export type EvaluationType = "SELF" | "MANAGER";
 
 export interface EvaluationCriteriaScore {
@@ -124,7 +113,6 @@ export interface EmployeeEvaluation {
   period_start: string;
   period_end: string;
   overall_score: number;
-  status: EmployeeEvaluationStatus;
   notes?: string | null;
   criteria_scores?: EvaluationCriteriaScore[];
   created_at: string;
@@ -157,16 +145,10 @@ export interface UpdateEmployeeEvaluationData {
   criteria_scores?: CreateEvaluationCriteriaScoreData[];
 }
 
-export interface UpdateEvaluationStatusData {
-  status: EmployeeEvaluationStatus;
-  notes?: string;
-}
-
 export type ListEmployeeEvaluationsParams = {
   page?: number;
   per_page?: number;
   search?: string;
-  status?: EmployeeEvaluationStatus;
   evaluation_type?: EvaluationType;
   employee_id?: string;
 };
@@ -272,7 +254,6 @@ export interface EmployeeEvaluationFormDataResponse {
     employees: EmployeeSimple[];
     evaluation_groups: EvaluationGroupSimple[];
     evaluation_types: EvaluationTypeOption[];
-    statuses: EvaluationStatusOption[];
   };
   timestamp: string;
   request_id: string;

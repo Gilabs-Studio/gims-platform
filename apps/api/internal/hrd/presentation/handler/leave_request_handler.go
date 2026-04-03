@@ -526,6 +526,8 @@ func handleUsecaseError(c *gin.Context, err error) {
 		errors.ErrorResponse(c, "INVALID_DATE_FORMAT", map[string]interface{}{"message": errMsg}, nil)
 	case strings.Contains(errMsg, "INVALID_STATUS"):
 		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": errMsg}, nil)
+	case strings.Contains(errMsg, "INVALID_DATE"):
+		errors.ErrorResponse(c, "INVALID_DATE", map[string]interface{}{"message": errMsg}, nil)
 	case strings.Contains(errMsg, "VALIDATION_ERROR"):
 		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": errMsg}, nil)
 	case strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "NOT_FOUND"):

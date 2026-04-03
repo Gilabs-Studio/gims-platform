@@ -200,6 +200,7 @@ export interface RecruitmentApplicant {
   email: string;
   phone?: string;
   resume_url?: string;
+  linkedin_url?: string;
   source: ApplicantSource;
   applied_at: string;
   last_activity_at: string;
@@ -330,6 +331,7 @@ export interface CreateApplicantData {
   source: ApplicantSource;
   notes?: string;
   resume_url?: string;
+  linkedin_url?: string;
 }
 
 export interface UpdateApplicantData {
@@ -339,6 +341,7 @@ export interface UpdateApplicantData {
   source?: ApplicantSource;
   notes?: string;
   resume_url?: string;
+  linkedin_url?: string;
   rating?: number;
 }
 
@@ -366,11 +369,11 @@ export interface ConvertApplicantToEmployeeData {
   nik?: string;
   date_of_birth?: string;
   place_of_birth?: string;
-  gender?: 'male' | 'female';
+  gender?: "male" | "female";
   religion?: string;
   address?: string;
   village_id?: string;
-  contract_type?: 'PKWTT' | 'PKWT' | 'Intern';
+  contract_type?: "PKWTT" | "PKWT" | "Intern";
   contract_number?: string;
   start_date?: string;
   end_date?: string;

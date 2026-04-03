@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import { useAttendanceRecords } from "../hooks/use-attendance-records";
 import type { AttendanceRecord } from "../types";
+import { formatAttendanceTime, getUserTimezone } from "@/lib/utils";
 
 interface AttendanceDayViewProps {
   readonly selectedDate: Date;
@@ -42,13 +43,14 @@ interface AttendanceDayViewProps {
   readonly onPerPageChange: (perPage: number) => void;
 }
 
-function formatTime(value: string | null | undefined) {
-  if (!value) return "-";
-  const part = value.split(" ")[1] ?? value;
-  return part.substring(0, 8);
+function formatTime(value: string | null | undefined, date?: string) {
+  return formatAttendanceTime(value, date, getUserTimezone());
 }
 
-function getStatusBadge(t: ReturnType<typeof useTranslations>, status: AttendanceRecord["status"]) {
+function getStatusBadge(
+  t: ReturnType<typeof useTranslations>,
+  status: AttendanceRecord["status"],
+) {
   const label = t(`status.${status}`) ?? status;
 
   switch (status) {
@@ -151,34 +153,34 @@ export function AttendanceDayView({
         }
         return acc;
       },
-      { total: records.length, present: 0, late: 0, absent: 0 }
+      { total: records.length, present: 0, late: 0, absent: 0 },
     );
   }, [records]);
 
   return (
     <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="h-8 w-8 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">
-              {new Date(selectedDate).toLocaleDateString(locale, {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {t("fields.date")}: {dateKey}
-            </p>
-          </div>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          className="h-8 w-8 cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">
+            {new Date(selectedDate).toLocaleDateString(locale, {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t("fields.date")}: {dateKey}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -188,15 +190,21 @@ export function AttendanceDayView({
         </div>
         <div className="rounded-lg border border-border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">{t("status.PRESENT")}</p>
-          <p className="mt-1 text-xl font-semibold text-success">{dayStats.present}</p>
+          <p className="mt-1 text-xl font-semibold text-success">
+            {dayStats.present}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">{t("status.LATE")}</p>
-          <p className="mt-1 text-xl font-semibold text-warning">{dayStats.late}</p>
+          <p className="mt-1 text-xl font-semibold text-warning">
+            {dayStats.late}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card px-4 py-3">
           <p className="text-xs text-muted-foreground">{t("status.ABSENT")}</p>
-          <p className="mt-1 text-xl font-semibold text-destructive">{dayStats.absent}</p>
+          <p className="mt-1 text-xl font-semibold text-destructive">
+            {dayStats.absent}
+          </p>
         </div>
       </div>
 
@@ -230,15 +238,26 @@ export function AttendanceDayView({
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-16" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-6 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-8 w-16" />
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : records.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={5}
+                      className="py-8 text-center text-muted-foreground"
+                    >
                       {t("noRecords")}
                     </TableCell>
                   </TableRow>
@@ -253,13 +272,21 @@ export function AttendanceDayView({
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{row.employee_name}</p>
-                            <p className="truncate text-xs text-muted-foreground">{row.employee_code}</p>
+                            <p className="truncate text-sm font-semibold">
+                              {row.employee_name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {row.employee_code}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{formatTime(row.check_in_time)}</TableCell>
-                      <TableCell className="font-medium">{formatTime(row.check_out_time)}</TableCell>
+                      <TableCell className="font-medium">
+                        {formatTime(row.check_in_time, row.date)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatTime(row.check_out_time, row.date)}
+                      </TableCell>
                       <TableCell>{getStatusBadge(t, row.status)}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">

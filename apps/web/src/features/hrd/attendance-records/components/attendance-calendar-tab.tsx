@@ -16,6 +16,7 @@ import {
   Clock4,
   TreePalm,
   CalendarIcon,
+  Camera,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Calendar } from "@/components/ui/calendar";
@@ -25,6 +26,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMyAttendanceHistory } from "../hooks/use-attendance-records";
 import { useHolidaysByYear } from "../../holidays/hooks/use-holidays";
 import type { AttendanceRecord } from "../types";
+import {
+  formatAttendanceTime,
+  getUserTimezone,
+  resolveImageUrl,
+} from "@/lib/utils";
 
 function getStatusVariant(
   status: string,
@@ -41,10 +47,8 @@ function getStatusVariant(
   }
 }
 
-function formatTime(value: string | null | undefined): string {
-  if (!value) return "-";
-  const part = value.split(" ")[1] ?? value;
-  return part.substring(0, 8);
+function formatTime(value: string | null | undefined, date?: string): string {
+  return formatAttendanceTime(value, date, getUserTimezone());
 }
 
 function getCheckInTypeLabel(
@@ -283,7 +287,10 @@ export function AttendanceCalendarTab() {
               <div className="flex items-center justify-end gap-2">
                 <Clock4 className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="font-medium">
-                  {formatTime(selectedRecord.check_in_time)}
+                  {formatTime(
+                    selectedRecord.check_in_time,
+                    selectedRecord.date,
+                  )}
                 </span>
               </div>
               <span className="text-muted-foreground">
@@ -294,6 +301,40 @@ export function AttendanceCalendarTab() {
                   {getCheckInTypeLabel(t, selectedRecord.check_in_type)}
                 </Badge>
               </div>
+              {/* Show photo for WFH and FIELD_WORK check-in types */}
+              {(selectedRecord.check_in_type === "WFH" ||
+                selectedRecord.check_in_type === "FIELD_WORK") &&
+                selectedRecord.photo_url && (
+                  <>
+                    <span className="text-muted-foreground">
+                      {t("fields.photo")}
+                    </span>
+                    <div className="flex justify-end">
+                      <a
+                        href={
+                          resolveImageUrl(selectedRecord.photo_url) ??
+                          selectedRecord.photo_url
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative inline-block h-20 w-20 overflow-hidden rounded-lg border border-border hover:border-primary transition-colors"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={
+                            resolveImageUrl(selectedRecord.photo_url) ??
+                            selectedRecord.photo_url
+                          }
+                          alt={t("fields.checkInPhoto")}
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/20 transition-colors">
+                          <Camera className="h-5 w-5 text-white opacity-0 hover:opacity-100" />
+                        </div>
+                      </a>
+                    </div>
+                  </>
+                )}
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/60 pt-2">
               <span className="text-muted-foreground">
@@ -302,7 +343,10 @@ export function AttendanceCalendarTab() {
               <div className="flex items-center justify-end gap-2">
                 <Clock4 className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="font-medium">
-                  {formatTime(selectedRecord.check_out_time)}
+                  {formatTime(
+                    selectedRecord.check_out_time,
+                    selectedRecord.date,
+                  )}
                 </span>
               </div>
             </div>

@@ -36,16 +36,15 @@ const CarryOverExpiryMonth = 3 // March 31
 
 // LeaveRequest represents a leave request submitted by an employee
 type LeaveRequest struct {
-	ID            string        `gorm:"type:uuid;primaryKey" json:"id"`
-	EmployeeID    string        `gorm:"type:uuid;not null;index:idx_leave_employee" json:"employee_id"`
-	LeaveTypeID   string        `gorm:"type:uuid;not null;index:idx_leave_type" json:"leave_type_id"`
-	StartDate     time.Time     `gorm:"type:date;not null;index:idx_leave_dates" json:"start_date"`
-	EndDate       time.Time     `gorm:"type:date;not null;index:idx_leave_dates" json:"end_date"`
-	Duration      LeaveDuration `gorm:"size:20;not null;default:'FULL_DAY'" json:"duration"`
-	TotalDays     float64       `gorm:"type:decimal(4,2);not null" json:"total_days"` // 0.5 for half day
-	Reason        string        `gorm:"type:text;not null" json:"reason"`
-	Status        LeaveStatus   `gorm:"size:20;not null;default:'PENDING';index:idx_leave_status" json:"status"`
-	DaysRequested int           `gorm:"not null" json:"days_requested"`
+	ID          string        `gorm:"type:uuid;primaryKey" json:"id"`
+	EmployeeID  string        `gorm:"type:uuid;not null;index:idx_leave_employee" json:"employee_id"`
+	LeaveTypeID string        `gorm:"type:uuid;not null;index:idx_leave_type" json:"leave_type_id"`
+	StartDate   time.Time     `gorm:"type:date;not null;index:idx_leave_dates" json:"start_date"`
+	EndDate     time.Time     `gorm:"type:date;not null;index:idx_leave_dates" json:"end_date"`
+	Duration    LeaveDuration `gorm:"size:20;not null;default:'FULL_DAY'" json:"duration"`
+	TotalDays   float64       `gorm:"type:decimal(4,2);not null" json:"total_days"` // Total calendar days (inclusive)
+	Reason      string        `gorm:"type:text;not null" json:"reason"`
+	Status      LeaveStatus   `gorm:"size:20;not null;default:'PENDING';index:idx_leave_status" json:"status"`
 
 	// Attachment for supporting documents (e.g., medical certificate)
 	AttachmentURL *string `gorm:"size:500" json:"attachment_url"`
@@ -138,9 +137,9 @@ func (lr *LeaveRequest) BeforeUpdate(tx *gorm.DB) error {
 }
 
 // IsEditable checks if the leave request can be edited
-// WHY: Only PENDING or REJECTED leaves can be edited by employee
+// WHY: Only PENDING leaves can be edited by employee (REJECTED cannot be edited, must create new request)
 func (lr *LeaveRequest) IsEditable() bool {
-	return lr.Status == LeaveStatusPending || lr.Status == LeaveStatusRejected
+	return lr.Status == LeaveStatusPending
 }
 
 // CanBeApproved checks if the leave request can be approved

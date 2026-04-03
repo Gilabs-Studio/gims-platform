@@ -7,14 +7,12 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  
   User,
   FileText,
   CalendarIcon,
   Home,
   Coffee,
   Briefcase,
-  
   Shield,
   AlertCircle,
 } from "lucide-react";
@@ -34,8 +32,12 @@ import {
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatAttendanceTime, getUserTimezone } from "@/lib/utils";
 import type { AttendanceRecord, AttendanceStatus } from "../types";
+
+function formatTime(value: string | null | undefined, date?: string): string {
+  return formatAttendanceTime(value, date, getUserTimezone());
+}
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AttendanceDetailModalProps {
@@ -59,7 +61,7 @@ export function AttendanceDetailModal({
   // Fetch full detail
   const { data: detailData, isLoading } = useAttendanceRecord(
     record?.id ?? "",
-    { enabled: open && !!record?.id }
+    { enabled: open && !!record?.id },
   );
 
   const canEdit = useUserPermission("attendance.update");
@@ -244,7 +246,9 @@ export function AttendanceDetailModal({
                     <p className="text-xs font-medium text-muted-foreground">
                       {t("fields.status")}
                     </p>
-                    <div className="mt-1">{getStatusBadge(displayRecord.status)}</div>
+                    <div className="mt-1">
+                      {getStatusBadge(displayRecord.status)}
+                    </div>
                   </div>
                   <Shield className="h-6 w-6 text-primary" />
                 </div>
@@ -302,7 +306,10 @@ export function AttendanceDetailModal({
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-muted-foreground">Time:</span>
                       <span className="col-span-2 font-medium">
-                        {displayRecord.check_in_time ?? "-"}
+                        {formatTime(
+                          displayRecord.check_in_time,
+                          displayRecord.date,
+                        )}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -321,16 +328,16 @@ export function AttendanceDetailModal({
                         </span>
                       </div>
                     )}
-                    {(displayRecord.check_in_latitude != null && displayRecord.check_in_longitude != null) && (
-                      <div className="grid grid-cols-3 gap-2">
-                        <span className="text-muted-foreground">
-                          GPS:
-                        </span>
-                        <span className="col-span-2 font-mono text-xs">
-                          {displayRecord.check_in_latitude?.toFixed(6)}, {displayRecord.check_in_longitude?.toFixed(6)}
-                        </span>
-                      </div>
-                    )}
+                    {displayRecord.check_in_latitude != null &&
+                      displayRecord.check_in_longitude != null && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <span className="text-muted-foreground">GPS:</span>
+                          <span className="col-span-2 font-mono text-xs">
+                            {displayRecord.check_in_latitude?.toFixed(6)},{" "}
+                            {displayRecord.check_in_longitude?.toFixed(6)}
+                          </span>
+                        </div>
+                      )}
                     {displayRecord.check_in_note && (
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-muted-foreground">
@@ -352,7 +359,10 @@ export function AttendanceDetailModal({
                     <div className="grid grid-cols-3 gap-2">
                       <span className="text-muted-foreground">Time:</span>
                       <span className="col-span-2 font-medium">
-                        {displayRecord.check_out_time ?? "-"}
+                        {formatTime(
+                          displayRecord.check_out_time,
+                          displayRecord.date,
+                        )}
                       </span>
                     </div>
                     {displayRecord.check_out_address && (
@@ -365,16 +375,16 @@ export function AttendanceDetailModal({
                         </span>
                       </div>
                     )}
-                    {(displayRecord.check_out_latitude != null && displayRecord.check_out_longitude != null) && (
-                      <div className="grid grid-cols-3 gap-2">
-                        <span className="text-muted-foreground">
-                          GPS:
-                        </span>
-                        <span className="col-span-2 font-mono text-xs">
-                          {displayRecord.check_out_latitude?.toFixed(6)}, {displayRecord.check_out_longitude?.toFixed(6)}
-                        </span>
-                      </div>
-                    )}
+                    {displayRecord.check_out_latitude != null &&
+                      displayRecord.check_out_longitude != null && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <span className="text-muted-foreground">GPS:</span>
+                          <span className="col-span-2 font-mono text-xs">
+                            {displayRecord.check_out_latitude?.toFixed(6)},{" "}
+                            {displayRecord.check_out_longitude?.toFixed(6)}
+                          </span>
+                        </div>
+                      )}
                     {displayRecord.check_out_note && (
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-muted-foreground">
@@ -427,16 +437,13 @@ export function AttendanceDetailModal({
                         ? `${displayRecord.early_leave_minutes}m`
                         : "-"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Early Leave
-                    </p>
+                    <p className="text-xs text-muted-foreground">Early Leave</p>
                   </div>
                 </div>
               </div>
 
               {/* Notes & Manual Entry */}
-              {(displayRecord.notes ||
-                displayRecord.is_manual_entry) && (
+              {(displayRecord.notes || displayRecord.is_manual_entry) && (
                 <div className="bg-muted/30 p-4 rounded-xl space-y-2">
                   <h3 className="font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4" /> {t("fields.note")}
@@ -471,7 +478,8 @@ export function AttendanceDetailModal({
                         Approved By:
                       </span>
                       <span className="col-span-2 font-medium">
-                        {displayRecord.approved_by_name || displayRecord.approved_by}
+                        {displayRecord.approved_by_name ||
+                          displayRecord.approved_by}
                       </span>
                     </div>
                   )}
@@ -491,7 +499,8 @@ export function AttendanceDetailModal({
                         Work Schedule:
                       </span>
                       <span className="col-span-2 font-medium">
-                        {displayRecord.work_schedule_name || displayRecord.work_schedule_id}
+                        {displayRecord.work_schedule_name ||
+                          displayRecord.work_schedule_id}
                       </span>
                     </div>
                   )}
@@ -499,7 +508,9 @@ export function AttendanceDetailModal({
                     <span className="text-muted-foreground">Created:</span>
                     <span className="col-span-2">
                       {displayRecord.created_at
-                        ? new Date(displayRecord.created_at).toLocaleString("id-ID")
+                        ? new Date(displayRecord.created_at).toLocaleString(
+                            "id-ID",
+                          )
                         : "-"}
                     </span>
                   </div>
@@ -507,7 +518,9 @@ export function AttendanceDetailModal({
                     <span className="text-muted-foreground">Updated:</span>
                     <span className="col-span-2">
                       {displayRecord.updated_at
-                        ? new Date(displayRecord.updated_at).toLocaleString("id-ID")
+                        ? new Date(displayRecord.updated_at).toLocaleString(
+                            "id-ID",
+                          )
                         : "-"}
                     </span>
                   </div>
