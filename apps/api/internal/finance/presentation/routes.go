@@ -63,7 +63,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryRepo := repositories.NewSalaryStructureRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	valuationRunRepo := repositories.NewValuationRunRepository(db)
-	maintenanceRepo := repositories.NewMaintenanceRepository(db)
 
 	coaMapper := mapper.NewChartOfAccountMapper()
 	journalMapper := mapper.NewJournalEntryMapper(coaMapper)
@@ -110,6 +109,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
+
 	arapReconciliationUC := usecase.NewARAPReconciliationUsecase(db, agingRepo, coaRepo, settingsService, accountingEngine)
 	
 	// Reconciliation service for GL vs subledger validation
@@ -123,14 +123,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Export service for audit-ready CSV/PDF generation
 	exportSvc := service.NewValuationExportService(valuationRunRepo)
-
-	// Asset Maintenance
-	maintenanceUC := usecase.NewAssetMaintenanceUsecase(db, maintenanceRepo)
-
-	// Asset Budget (CAPEX Planning)
-	assetBudgetRepo := repositories.NewAssetBudgetRepository(db)
-	assetBudgetMapper := mapper.NewAssetBudgetMapper()
-	assetBudgetUC := usecase.NewAssetBudgetUsecase(db, assetBudgetRepo, assetCategoryRepo, assetBudgetMapper)
 
 	settingsH := handler.NewFinanceSettingsHandler(settingsService)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
@@ -148,10 +140,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
 	salaryH := handler.NewSalaryStructureHandler(salaryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
-	assetBudgetH := handler.NewAssetBudgetHandler(assetBudgetUC)
-
-	// Asset Maintenance
-	maintenanceH := handler.NewAssetMaintenanceHandler(maintenanceUC)
 	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
 
 	group := api.Group("/finance")
@@ -173,8 +161,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
 	router.RegisterSalaryStructureRoutes(group, salaryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
-	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
-	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
 	router.RegisterFinanceSettingsRoutes(group, settingsH)
 

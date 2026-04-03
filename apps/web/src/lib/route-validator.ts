@@ -35,8 +35,6 @@ const EXTRA_VALID_ROUTES = [
   "/finance/assets",
   "/finance/asset-categories",
   "/finance/asset-locations",
-  "/finance/asset-budgets",
-  "/finance/asset-maintenance",
   "/finance/salary",
   "/finance/reports/general-ledger",
   "/finance/reports/balance-sheet",
@@ -79,7 +77,10 @@ const EXTRA_VALID_ROUTES = [
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(
-  new Set([...flattenNavigationRoutes(navigationConfig), ...EXTRA_VALID_ROUTES]),
+  new Set([
+    ...flattenNavigationRoutes(navigationConfig),
+    ...EXTRA_VALID_ROUTES,
+  ]),
 ).sort();
 
 /**

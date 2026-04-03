@@ -150,8 +150,6 @@ func AutoMigrate() error {
 		&finance.AssetAttachment{},
 		&finance.AssetAuditLog{},
 		&finance.AssetAssignmentHistory{},
-		&finance.AssetBudget{},
-		&finance.AssetBudgetCategory{},
 		&finance.FinancialClosing{},
 		&finance.AccountingPeriod{},
 		&finance.FinancialClosingSnapshot{},
@@ -171,12 +169,6 @@ func AutoMigrate() error {
 		&travelPlanner.TravelPlanStop{},
 		&travelPlanner.TravelPlanDayNote{},
 		&travelPlanner.TravelPlanExpense{},
-		// Asset Maintenance entities
-		&finance.AssetMaintenanceSchedule{},
-		&finance.AssetWorkOrder{},
-		&finance.AssetSparePart{},
-		&finance.AssetSparePartLink{},
-		&finance.WorkOrderSparePart{},
 		// Sales entities (Sprint 5)
 		&sales.SalesQuotation{},
 		&sales.SalesQuotationItem{},

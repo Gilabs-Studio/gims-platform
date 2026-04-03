@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -886,25 +885,6 @@ func (uc *assetUsecase) CreateFromPurchase(ctx context.Context, req *dto.CreateA
 
 	if err := tx.Create(&tLog).Error; err != nil {
 		return err
-	}
-
-	// Update Asset Budget Usage
-	var budgetCat financeModels.AssetBudgetCategory
-	fiscalYear := parsedDate.Year()
-	err := tx.Table("asset_budget_categories bc").
-		Joins("JOIN asset_budgets b ON b.id = bc.budget_id").
-		Where("bc.category_id = ? AND b.fiscal_year = ? AND b.status = ?", catID, fiscalYear, financeModels.AssetBudgetStatusActive).
-		First(&budgetCat).Error
-
-	if err == nil {
-		// Category budget found, update usage
-		if err := tx.Model(&financeModels.AssetBudgetCategory{}).
-			Where("id = ?", budgetCat.ID).
-			Updates(map[string]interface{}{
-				"used_amount": gorm.Expr("used_amount + ?", req.AcquisitionCost),
-			}).Error; err != nil {
-			log.Printf("Warning: failed to update asset budget usage: %v", err)
-		}
 	}
 
 	return nil
