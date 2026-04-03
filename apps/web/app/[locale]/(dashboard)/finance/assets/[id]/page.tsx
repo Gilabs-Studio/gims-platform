@@ -1,14 +1,10 @@
-import { redirect } from "next/navigation";
+import { AssetDetailPage } from "@/features/finance/assets/components/asset-detail-page";
 
-/**
- * The asset detail page has been replaced by a modal in the assets list.
- * Redirect any direct navigation to this route back to the assets list.
- */
 export default async function FinanceAssetDetailPage({
   params,
 }: {
   params: { locale: string; id: string } | Promise<{ locale: string; id: string }>;
 }) {
-  const { locale } = await Promise.resolve(params);
-  redirect(`/${locale}/finance/assets`);
+  const { id } = await Promise.resolve(params);
+  return <AssetDetailPage id={id} />;
 }

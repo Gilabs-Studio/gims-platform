@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 import {
   Archive,
   ArrowRightLeft,
@@ -54,7 +55,6 @@ import {
 } from "../hooks/use-finance-assets";
 import { AssetForm } from "./asset-form";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
-import { AssetDetailModal } from "./asset-detail-modal";
 
 type ActionMode =
   | "depreciate"
@@ -117,6 +117,7 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
 export function AssetsList() {
   const t = useTranslations("financeAssets");
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   const canCreate = useUserPermission("asset.create");
   const canUpdate = useUserPermission("asset.update");
@@ -140,8 +141,9 @@ export function AssetsList() {
   const [actionMode, setActionMode] = useState<ActionMode>("depreciate");
   const [actionAsset, setActionAsset] = useState<Asset | null>(null);
 
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailAssetId, setDetailAssetId] = useState<string | null>(null);
+  const handleViewDetail = (assetId: string) => {
+    router.push(`/finance/assets/${assetId}`);
+  };
 
   const { data, isLoading, isError } = useFinanceAssets({
     page,
@@ -244,10 +246,7 @@ export function AssetsList() {
                     <button
                       type="button"
                       className="hover:underline cursor-pointer text-left font-mono"
-                      onClick={() => {
-                        setDetailAssetId(item.id);
-                        setDetailOpen(true);
-                      }}
+                      onClick={() => handleViewDetail(item.id)}
                     >
                       {item.code}
                     </button>
@@ -276,10 +275,7 @@ export function AssetsList() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           className="cursor-pointer"
-                          onClick={() => {
-                            setDetailAssetId(item.id);
-                            setDetailOpen(true);
-                          }}
+                          onClick={() => handleViewDetail(item.id)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           {t("actions.view")}
@@ -463,24 +459,6 @@ export function AssetsList() {
           } catch {
             toast.error(t("toast.failed"));
           }
-        }}
-      />
-
-      <AssetDetailModal
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        assetId={detailAssetId}
-        onEdit={(asset) => {
-          setDetailOpen(false);
-          setFormMode("edit");
-          setEditing(asset);
-          setFormOpen(true);
-        }}
-        onAction={(mode, asset) => {
-          setDetailOpen(false);
-          setActionMode(mode as ActionMode);
-          setActionAsset(asset);
-          setActionOpen(true);
         }}
       />
     </div>
