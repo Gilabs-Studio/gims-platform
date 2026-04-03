@@ -455,6 +455,9 @@ func SeedPermissions() error {
 		{"/travel/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
 		{"/travel/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
 		{"/travel/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
+		{"/travel/visit-planner", "travel.visit.read", "View Visit Planner", "VIEW", "travel_visit"},
+		{"/travel/visit-planner", "travel.visit.create", "Create Visit Planner Logs", "CREATE", "travel_visit"},
+		{"/travel/visit-planner", "travel.visit.admin", "Admin Visit Planner", "ADMIN", "travel_visit"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
@@ -772,6 +775,7 @@ func SeedPermissions() error {
 		"hrd":               "DIVISION",
 		"finance":           "DIVISION",
 		"non_trade_payable": "DIVISION",
+		"travel_visit":      "DIVISION",
 		"stock":             "ALL",
 	}, "ALL")
 
@@ -782,25 +786,28 @@ func SeedPermissions() error {
 		"hrd":               "OWN",
 		"finance":           "OWN",
 		"non_trade_payable": "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
 	assignScopedPermissionsToRole("area_supervisor", map[string]string{
-		"sales":    "AREA",
-		"purchase": "DIVISION",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "AREA",
+		"sales":        "AREA",
+		"purchase":     "DIVISION",
+		"hrd":          "OWN",
+		"finance":      "OWN",
+		"travel_visit": "DIVISION",
+		"stock":        "AREA",
 	}, "ALL")
 
 	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
 	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":    "ALL",
-		"purchase": "DIVISION",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "ALL",
+		"sales":        "ALL",
+		"purchase":     "DIVISION",
+		"hrd":          "OWN",
+		"finance":      "OWN",
+		"travel_visit": "ALL",
+		"stock":        "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
@@ -810,6 +817,7 @@ func SeedPermissions() error {
 		"sales":             "OWN",
 		"purchase":          "OWN",
 		"hrd":               "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — explicit DIVISION scope
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
@@ -825,6 +833,7 @@ func SeedPermissions() error {
 		"sales":             "OWN",
 		"purchase":          "OWN",
 		"hrd":               "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",

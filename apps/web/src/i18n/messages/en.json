@@ -244,6 +244,9 @@
     "aIAssistant": "AI Assistant",
     "aiAssistant": "AI Assistant",
     "travelPlanner": "Travel Planner",
+    "visitPlanner": "Visit Planner",
+    "plannerWorkspace": "Planner Workspace",
+    "visitReport": "Visit Report",
     "chatbot": "Chatbot",
     "settings": "Settings"
   },

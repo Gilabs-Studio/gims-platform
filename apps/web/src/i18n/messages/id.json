@@ -243,6 +243,9 @@
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
     "travelPlanner": "Travel Planner",
+    "visitPlanner": "Visit Planner",
+    "plannerWorkspace": "Workspace Planner",
+    "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
   },

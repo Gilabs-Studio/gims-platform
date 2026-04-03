@@ -478,6 +478,7 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Planner Workspace", "map", "/travel/travel-planner", 1},
+		{"Visit Planner", "map-pin", "/travel/visit-planner", 2},
 	}
 	for _, child := range travelPlannerChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {

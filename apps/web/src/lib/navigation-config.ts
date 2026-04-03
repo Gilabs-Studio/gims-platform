@@ -116,6 +116,22 @@ export const navigationConfig: NavItem[] = [
     icon: "route",
     url: "/travel/travel-planner",
     permission: "travel_planner.read",
+    children: [
+      {
+        name: "Planner Workspace",
+        i18nKey: "plannerWorkspace",
+        url: "/travel/travel-planner",
+        icon: "map",
+        permission: "travel_planner.read",
+      },
+      {
+        name: "Visit Planner",
+        i18nKey: "visitPlanner",
+        url: "/travel/visit-planner",
+        icon: "map-pin",
+        permission: "travel.visit.read",
+      },
+    ],
   },
   {
     name: "Sales",

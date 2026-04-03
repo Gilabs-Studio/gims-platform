@@ -49,19 +49,26 @@ type TravelPlanUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.TravelPlanResponse, error)
 	List(ctx context.Context, req *dto.ListTravelPlansRequest) ([]dto.TravelPlanResponse, int64, int, int, error)
 	GetFormData(ctx context.Context) (*dto.TravelPlannerFormDataResponse, error)
+	GetVisitPlannerFormData(ctx context.Context, req *dto.VisitPlannerFormDataRequest) (*dto.VisitPlannerFormDataResponse, error)
+	CreateVisitPlannerPlan(ctx context.Context, req *dto.CreateVisitPlannerPlanRequest) (*dto.CreateVisitPlannerPlanResponse, error)
 	ListParticipants(ctx context.Context, req *dto.ListTravelPlanParticipantsRequest) ([]dto.EmployeeFormOption, int64, int, int, error)
 	SearchPlaces(ctx context.Context, query string, provider string) ([]dto.PlaceSearchResult, error)
 	OptimizeRoute(ctx context.Context, planID string) (*dto.RouteOptimizationResponse, error)
+	OptimizeRouteForVisit(ctx context.Context, req *dto.OptimizeNavigationRequest) (*dto.OptimizeNavigationResponse, error)
 	GetGoogleMapsLinks(ctx context.Context, planID string) ([]dto.DayGoogleMapsLink, error)
 	ExportPDF(ctx context.Context, planID string, dayIndex *int) ([]byte, string, error)
 	ListExpenses(ctx context.Context, planID string) (*dto.TravelExpenseListResponse, error)
 	CreateExpense(ctx context.Context, planID string, req *dto.CreateTravelExpenseRequest) (*dto.TravelExpenseResponse, error)
 	DeleteExpense(ctx context.Context, planID string, expenseID string) error
+	ListVisitPlannerRoutes(ctx context.Context, req *dto.ListVisitPlannerRoutesRequest) ([]dto.ActiveVisitRouteResponse, int64, int, int, error)
 	ListVisits(ctx context.Context, planID string) ([]dto.TravelPlanVisitResponse, error)
 	ListAvailableVisits(ctx context.Context, search string) ([]dto.TravelPlanVisitResponse, error)
 	LinkVisits(ctx context.Context, planID string, req *dto.LinkTravelPlanVisitsRequest) (int64, error)
 	UnlinkVisit(ctx context.Context, planID string, visitID string) error
 	CreateVisitFromTrip(ctx context.Context, planID string, req *dto.CreateTravelPlanVisitRequest) (*dto.TravelPlanVisitResponse, error)
+	UpsertVisitLog(ctx context.Context, req *dto.UpsertVisitLogRequest) (*dto.VisitLogResponse, error)
+	UpsertLocation(ctx context.Context, req *dto.LocationUpdateRequest) (*dto.LocationUpdateResponse, error)
+	ResolveVisibleEmployeeIDs(ctx context.Context, requested []string) ([]string, error)
 }
 
 type travelPlanUsecase struct {
