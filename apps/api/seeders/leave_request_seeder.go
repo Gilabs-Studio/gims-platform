@@ -73,14 +73,13 @@ func SeedLeaveRequests() error {
 
 	// Define leave requests with various scenarios
 	leaveRequests := []hrdModels.LeaveRequest{
-		// 1. APPROVED - Admin's past annual leave (3 days)
+		// 1. APPROVED - Admin's past annual leave (3 days: Dec 15-17)
 		{
 			ID:            LeaveRequest1ID,
 			EmployeeID:    AdminEmployeeID,
 			LeaveTypeID:   annualLeaveID,
 			StartDate:     date(2024, 12, 15),
 			EndDate:       date(2024, 12, 17),
-			DaysRequested: 3,
 			TotalDays:     3,
 			Duration:      hrdModels.LeaveDurationMultiDay,
 			Reason:        "Family vacation to Bali",
@@ -90,14 +89,13 @@ func SeedLeaveRequests() error {
 			ApprovalNotes: strPtr("Approved. Enjoy your vacation!"),
 		},
 
-		// 2. APPROVED - Manager's past sick leave (2 days)
+		// 2. APPROVED - Manager's past sick leave (2 days: Dec 20-21)
 		{
 			ID:            LeaveRequest2ID,
 			EmployeeID:    ManagerEmployeeID,
 			LeaveTypeID:   sickLeaveID,
 			StartDate:     date(2024, 12, 20),
 			EndDate:       date(2024, 12, 21),
-			DaysRequested: 2,
 			TotalDays:     2,
 			Duration:      hrdModels.LeaveDurationMultiDay,
 			Reason:        "Flu and fever, doctor's note attached",
@@ -107,42 +105,39 @@ func SeedLeaveRequests() error {
 			ApprovalNotes: strPtr("Get well soon. Approved."),
 		},
 
-		// 3. PENDING - Staff's upcoming annual leave (5 days)
+		// 3. PENDING - Staff's upcoming annual leave (5 days: Feb 10-14)
 		{
-			ID:            LeaveRequest3ID,
-			EmployeeID:    StaffEmployeeID,
-			LeaveTypeID:   annualLeaveID,
-			StartDate:     date(2025, 2, 10),
-			EndDate:       date(2025, 2, 14),
-			DaysRequested: 5,
-			TotalDays:     5,
-			Duration:      hrdModels.LeaveDurationMultiDay,
-			Reason:        "Attending sister's wedding in Surabaya",
-			Status:        hrdModels.LeaveStatusPending,
+			ID:          LeaveRequest3ID,
+			EmployeeID:  StaffEmployeeID,
+			LeaveTypeID: annualLeaveID,
+			StartDate:   date(2025, 2, 10),
+			EndDate:     date(2025, 2, 14),
+			TotalDays:   5,
+			Duration:    hrdModels.LeaveDurationMultiDay,
+			Reason:      "Attending sister's wedding in Surabaya",
+			Status:      hrdModels.LeaveStatusPending,
 		},
 
 		// 4. PENDING - Admin's half-day leave (morning)
 		{
-			ID:            LeaveRequest4ID,
-			EmployeeID:    AdminEmployeeID,
-			LeaveTypeID:   annualLeaveID,
-			StartDate:     date(2025, 1, 25),
-			EndDate:       date(2025, 1, 25),
-			DaysRequested: 1,
-			TotalDays:     0.5,
-			Duration:      hrdModels.LeaveDurationHalfDay,
-			Reason:        "Dental appointment at 9 AM",
-			Status:        hrdModels.LeaveStatusPending,
+			ID:          LeaveRequest4ID,
+			EmployeeID:  AdminEmployeeID,
+			LeaveTypeID: annualLeaveID,
+			StartDate:   date(2025, 1, 25),
+			EndDate:     date(2025, 1, 25),
+			TotalDays:   0.5,
+			Duration:    hrdModels.LeaveDurationHalfDay,
+			Reason:      "Dental appointment at 9 AM",
+			Status:      hrdModels.LeaveStatusPending,
 		},
 
-		// 5. REJECTED - Staff's overlapping request
+		// 5. REJECTED - Staff's overlapping request (2 days: Dec 5-6)
 		{
 			ID:             LeaveRequest5ID,
 			EmployeeID:     StaffEmployeeID,
 			LeaveTypeID:    annualLeaveID,
 			StartDate:      date(2024, 12, 5),
 			EndDate:        date(2024, 12, 6),
-			DaysRequested:  2,
 			TotalDays:      2,
 			Duration:       hrdModels.LeaveDurationMultiDay,
 			Reason:         "Personal matters",
@@ -152,15 +147,14 @@ func SeedLeaveRequests() error {
 			RejectionNotes: strPtr("Rejected - Too many staff on leave during this period. Please reschedule."),
 		},
 
-		// 6. REJECTED - Manager's insufficient balance
+		// 6. REJECTED - Manager's insufficient balance (7 days: Dec 28 - Jan 3)
 		{
 			ID:             LeaveRequest6ID,
 			EmployeeID:     ManagerEmployeeID,
 			LeaveTypeID:    annualLeaveID,
 			StartDate:      date(2024, 12, 28),
 			EndDate:        date(2025, 1, 3),
-			DaysRequested:  5,
-			TotalDays:      5,
+			TotalDays:      7,
 			Duration:       hrdModels.LeaveDurationMultiDay,
 			Reason:         "Year-end holiday trip",
 			Status:         hrdModels.LeaveStatusRejected,
@@ -169,28 +163,26 @@ func SeedLeaveRequests() error {
 			RejectionNotes: strPtr("Rejected - Insufficient leave balance remaining."),
 		},
 
-		// 7. CANCELLED - Admin cancelled their own request
+		// 7. CANCELLED - Admin cancelled their own request (1 day)
 		{
-			ID:            LeaveRequest7ID,
-			EmployeeID:    AdminEmployeeID,
-			LeaveTypeID:   annualLeaveID,
-			StartDate:     date(2025, 2, 1),
-			EndDate:       date(2025, 2, 1),
-			DaysRequested: 1,
-			TotalDays:     1,
-			Duration:      hrdModels.LeaveDurationFullDay,
-			Reason:        "Personal day off",
-			Status:        hrdModels.LeaveStatusCancelled,
+			ID:          LeaveRequest7ID,
+			EmployeeID:  AdminEmployeeID,
+			LeaveTypeID: annualLeaveID,
+			StartDate:   date(2025, 2, 1),
+			EndDate:     date(2025, 2, 1),
+			TotalDays:   1,
+			Duration:    hrdModels.LeaveDurationFullDay,
+			Reason:      "Personal day off",
+			Status:      hrdModels.LeaveStatusCancelled,
 		},
 
-		// 8. APPROVED - Staff's long maternity leave (90 days)
+		// 8. APPROVED - Staff's long maternity leave (90 days: Nov 1 - Jan 29)
 		{
 			ID:            LeaveRequest8ID,
 			EmployeeID:    StaffEmployeeID,
 			LeaveTypeID:   maternityLeaveID,
 			StartDate:     date(2024, 11, 1),
 			EndDate:       date(2025, 1, 29),
-			DaysRequested: 90,
 			TotalDays:     90,
 			Duration:      hrdModels.LeaveDurationMultiDay,
 			Reason:        "Maternity leave - expected delivery date: November 15, 2024",
@@ -207,7 +199,7 @@ func SeedLeaveRequests() error {
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"employee_id", "leave_type_id", "start_date", "end_date",
-				"days_requested", "total_days", "duration", "reason", "status",
+				"total_days", "duration", "reason", "status",
 				"approved_by", "approved_at", "approval_notes",
 				"rejected_by", "rejected_at", "rejection_notes", "updated_at",
 			}),

@@ -85,6 +85,10 @@ export const leaveRequestId = {
     rejectionNote: "Catatan Penolakan",
     cancellationInfo: "Informasi Pembatalan",
     cancellationNote: "Catatan Pembatalan",
+    fields: {
+      rejectedBy: "Ditolak Oleh",
+      rejectReason: "Alasan Penolakan",
+    },
     actions: {
       label: "Aksi",
       view: "Lihat",
@@ -116,8 +120,10 @@ export const leaveRequestId = {
         fullDay: "Hari Penuh",
         halfDay: "Setengah Hari",
         multiDay: "Beberapa Hari",
-        description: "Durasi akan otomatis menyesuaikan berdasarkan tanggal yang dipilih",
-        invalidDateRange: "Rentang tanggal tidak sesuai dengan durasi yang dipilih",
+        description:
+          "Durasi akan otomatis menyesuaikan berdasarkan tanggal yang dipilih",
+        invalidDateRange:
+          "Rentang tanggal tidak sesuai dengan durasi yang dipilih",
       },
       startDate: {
         label: "Tanggal Mulai",
@@ -131,6 +137,11 @@ export const leaveRequestId = {
         required: "Tanggal selesai wajib diisi",
         invalid: "Tanggal selesai tidak valid",
         beforeStart: "Tanggal selesai harus setelah tanggal mulai",
+      },
+      dateRange: {
+        label: "Rentang Tanggal",
+        placeholder: "Pilih rentang tanggal",
+        required: "Rentang tanggal wajib diisi",
       },
       daysRequested: "Hari yang Diminta",
       reason: {
@@ -173,6 +184,8 @@ export const leaveRequestId = {
       approveSuccess: "Permintaan cuti berhasil disetujui",
       rejectSuccess: "Permintaan cuti berhasil ditolak",
       cancelSuccess: "Permintaan cuti berhasil dibatalkan",
+      invalidStartDate: "Tanggal mulai tidak boleh di masa lalu",
+      invalidEndDate: "Tanggal selesai tidak boleh di masa lalu",
       createError: "Gagal mengajukan permintaan cuti",
       updateError: "Gagal memperbarui permintaan cuti",
       deleteError: "Gagal menghapus permintaan cuti",
@@ -189,7 +202,8 @@ export const leaveRequestId = {
     },
     emptyState: {
       title: "Tidak ada permintaan cuti",
-      description: "Tidak ada permintaan cuti yang sesuai dengan filter Anda. Coba sesuaikan kriteria pencarian atau buat permintaan cuti baru.",
+      description:
+        "Tidak ada permintaan cuti yang sesuai dengan filter Anda. Coba sesuaikan kriteria pencarian atau buat permintaan cuti baru.",
     },
     filters: {
       allStatus: "Semua Status",
@@ -199,7 +213,8 @@ export const leaveRequestId = {
     },
     deleteDialog: {
       title: "Hapus Permintaan Cuti",
-      description: "Apakah Anda yakin ingin menghapus permintaan cuti ini? Tindakan ini tidak dapat dibatalkan.",
+      description:
+        "Apakah Anda yakin ingin menghapus permintaan cuti ini? Tindakan ini tidak dapat dibatalkan.",
       confirm: "Hapus",
       cancel: "Batal",
     },
@@ -217,7 +232,8 @@ export const leaveRequestId = {
     },
     cancelDialog: {
       title: "Batalkan Permintaan Cuti",
-      description: "Apakah Anda yakin ingin membatalkan permintaan cuti ini? Tindakan ini tidak dapat dibatalkan.",
+      description:
+        "Apakah Anda yakin ingin membatalkan permintaan cuti ini? Tindakan ini tidak dapat dibatalkan.",
       confirm: "Batalkan Permintaan",
       cancel: "Tutup",
     },

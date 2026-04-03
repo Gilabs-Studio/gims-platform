@@ -71,6 +71,7 @@ type OvertimeRequestResponse struct {
 	ApprovedByName     string  `json:"approved_by_name,omitempty"`
 	ApprovedAt         *string `json:"approved_at,omitempty"`
 	RejectedBy         *string `json:"rejected_by,omitempty"`
+	RejectedByName     string  `json:"rejected_by_name,omitempty"`
 	RejectedAt         *string `json:"rejected_at,omitempty"`
 	RejectReason       string  `json:"reject_reason"`
 	AttendanceRecordID *string `json:"attendance_record_id,omitempty"`

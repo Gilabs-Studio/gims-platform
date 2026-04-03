@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
+	"github.com/gilabs/gims/api/internal/organization/domain/service"
 	"gorm.io/gorm"
 )
 
@@ -35,12 +36,16 @@ type CompanyUsecase interface {
 }
 
 type companyUsecase struct {
-	companyRepo repositories.CompanyRepository
+	companyRepo     repositories.CompanyRepository
+	timezoneService service.TimezoneService
 }
 
 // NewCompanyUsecase creates a new CompanyUsecase
-func NewCompanyUsecase(companyRepo repositories.CompanyRepository) CompanyUsecase {
-	return &companyUsecase{companyRepo: companyRepo}
+func NewCompanyUsecase(companyRepo repositories.CompanyRepository, timezoneService service.TimezoneService) CompanyUsecase {
+	return &companyUsecase{
+		companyRepo:     companyRepo,
+		timezoneService: timezoneService,
+	}
 }
 
 func (u *companyUsecase) List(ctx context.Context, req *dto.ListCompaniesRequest) ([]dto.CompanyResponse, *utils.PaginationResult, error) {
@@ -87,6 +92,20 @@ func (u *companyUsecase) GetByID(ctx context.Context, id string) (*dto.CompanyRe
 
 func (u *companyUsecase) Create(ctx context.Context, req *dto.CreateCompanyRequest, createdBy *string) (*dto.CompanyResponse, error) {
 	company := mapper.CompanyFromCreateRequest(req, createdBy)
+
+	// Auto-detect timezone from coordinates if not provided
+	if company.Timezone == "" || company.Timezone == "Asia/Jakarta" {
+		timezone, err := u.timezoneService.GetTimezoneForCompany(ctx, company.Latitude, company.Longitude, company.Timezone)
+		if err != nil {
+			log.Printf("warning: failed to auto-detect timezone for company: %v", err)
+			// Fallback to Asia/Jakarta
+			company.Timezone = "Asia/Jakarta"
+		} else {
+			company.Timezone = timezone
+			log.Printf("auto-detected timezone for company %s: %s", company.Name, timezone)
+		}
+	}
+
 	if err := u.companyRepo.Create(ctx, company); err != nil {
 		return nil, err
 	}
@@ -153,6 +172,17 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 	}
 	if req.Longitude != nil {
 		company.Longitude = req.Longitude
+	}
+
+	// Auto-detect timezone if coordinates changed and timezone not explicitly set
+	if (req.Latitude != nil || req.Longitude != nil) && req.Timezone == "" {
+		timezone, err := u.timezoneService.GetTimezoneForCompany(ctx, company.Latitude, company.Longitude, company.Timezone)
+		if err != nil {
+			log.Printf("warning: failed to auto-detect timezone for company update: %v", err)
+		} else if timezone != company.Timezone {
+			company.Timezone = timezone
+			log.Printf("auto-updated timezone for company %s: %s", company.Name, timezone)
+		}
 	}
 
 	if err := u.companyRepo.Update(ctx, company); err != nil {

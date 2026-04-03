@@ -58,11 +58,17 @@ export function MapPickerModal({
   const [navigateToPosition, setNavigateToPosition] = useState<[number, number] | null>(null);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
     if (open) {
-      setCurrentLat(latitude || DEFAULT_LOCATION[0]);
-      setCurrentLng(longitude || DEFAULT_LOCATION[1]);
-      setNavigateToPosition(null);
+      timeoutId = setTimeout(() => {
+        setCurrentLat(latitude || DEFAULT_LOCATION[0]);
+        setCurrentLng(longitude || DEFAULT_LOCATION[1]);
+        setNavigateToPosition(null);
+      }, 0);
     }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [open, latitude, longitude]);
 
   const handleCoordinateSelect = (lat: number, lng: number) => {

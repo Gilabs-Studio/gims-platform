@@ -163,7 +163,6 @@ func ToEmployeeEvaluationResponse(
 		PeriodStart:       eval.PeriodStart.Format("2006-01-02"),
 		PeriodEnd:         eval.PeriodEnd.Format("2006-01-02"),
 		OverallScore:      eval.OverallScore,
-		Status:            string(eval.Status),
 		Notes:             eval.Notes,
 		CreatedAt:         eval.CreatedAt,
 		UpdatedAt:         eval.UpdatedAt,

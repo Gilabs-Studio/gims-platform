@@ -34,25 +34,10 @@ export const evaluationId = {
       auditTrail: "Audit Trail",
     },
 
-    // Status
-    status: {
-      draft: "Draft",
-      submitted: "Diajukan",
-      reviewed: "Ditinjau",
-      finalized: "Selesai",
-    },
-
     // Evaluation Type
     evaluationType: {
       self: "Penilaian Diri",
       manager: "Penilaian Atasan",
-    },
-
-    // Actions
-    actions: {
-      submit: "Ajukan",
-      review: "Tandai Ditinjau",
-      finalize: "Selesaikan",
     },
 
     details: {
@@ -76,9 +61,6 @@ export const evaluationId = {
         create: "Buat",
         update: "Perbarui",
         delete: "Hapus",
-        submit: "Ajukan",
-        review: "Tinjau",
-        finalize: "Selesaikan",
         view: "Lihat",
         auditTrail: "Audit Trail",
       },
@@ -131,6 +113,8 @@ export const evaluationId = {
       unknown: "Kriteria Tidak Dikenal",
       deleteDesc:
         "Apakah Anda yakin ingin menghapus kriteria ini? Tindakan ini tidak dapat dibatalkan.",
+      maxWeightReached:
+        "Bobot maksimum (100%) tercapai. Tidak dapat menambah kriteria lagi.",
     },
 
     // Employee Evaluation
@@ -161,10 +145,9 @@ export const evaluationId = {
       deleted: "Evaluasi berhasil dihapus",
       created: "Evaluasi berhasil dibuat",
       updated: "Evaluasi berhasil diperbarui",
-      statusUpdated: "Status evaluasi berhasil diperbarui",
       notFound: "Tidak ada evaluasi ditemukan",
       deleteDesc:
-        "Apakah Anda yakin ingin menghapus evaluasi ini? Tindakan ini tidak dapat dibatalkan. Hanya evaluasi draft yang dapat dihapus.",
+        "Apakah Anda yakin ingin menghapus evaluasi ini? Tindakan ini tidak dapat dibatalkan.",
     },
 
     // Validation

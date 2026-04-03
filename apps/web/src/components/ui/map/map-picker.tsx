@@ -39,14 +39,18 @@ export function MapPicker({
     longitude?.toString() ?? defaultLocation.lng.toString()
   );
 
-  // Update inputs when props change
+  // Update inputs when props change (defer to avoid synchronous setState in effect)
   useEffect(() => {
-    if (latitude !== undefined) {
-      setLatInput(latitude.toString());
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (latitude !== undefined || longitude !== undefined) {
+      timeoutId = setTimeout(() => {
+        if (latitude !== undefined) setLatInput(latitude.toString());
+        if (longitude !== undefined) setLngInput(longitude.toString());
+      }, 0);
     }
-    if (longitude !== undefined) {
-      setLngInput(longitude.toString());
-    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [latitude, longitude]);
 
   const currentLat = parseFloat(latInput) || defaultLocation.lat;

@@ -11,6 +11,28 @@
     "emptyDashboard": "Dasbor Anda kosong. Tambahkan widget untuk memulai.",
     "download": "Unduh",
     "compareLastMonth": "Dibanding bulan lalu",
+    "formula": "Formula",
+    "purpose": "Tujuan",
+    "status": {
+      "good": "Sehat",
+      "warning": "Waspada",
+      "danger": "Kritis"
+    },
+    "categories": {
+      "overview": "Overview",
+      "finance": "Finance",
+      "sales": "Sales",
+      "purchase": "Purchase",
+      "inventory": "Inventory",
+      "geographic": "Geographical",
+      "hr": "HR",
+      "profitability": "Profitabilitas",
+      "cashflow": "Cashflow",
+      "logistics": "Logistik",
+      "asset": "Aset",
+      "cost": "Biaya",
+      "intelligence": "Intelligence"
+    },
     "revenueChart": {
       "title": "Grafik Pendapatan",
       "subtitle": "12 periode terakhir",
@@ -183,6 +205,209 @@
           "budget": "Anggaran",
           "spent": "Terpakai",
           "remaining": "Sisa"
+        }
+      },
+      "kpi_roe": {
+        "title": "ROE",
+        "description": "Return on Equity — Laba Bersih / Ekuitas"
+      },
+      "kpi_net_profit_margin": {
+        "title": "Net Profit Margin",
+        "description": "Laba Bersih / Pendapatan — persentase pendapatan yang menjadi laba bersih"
+      },
+      "kpi_gross_profit_margin": {
+        "title": "Gross Profit Margin",
+        "description": "Laba Kotor / Pendapatan — indikator kekuatan harga jual"
+      },
+      "kpi_inventory_turnover": {
+        "title": "Inventory Turnover",
+        "description": "COGS / Rata-rata Persediaan — berapa kali stok terjual per tahun"
+      },
+      "kpi_dio": {
+        "title": "DIO",
+        "description": "Days Inventory Outstanding — rata-rata hari stok tersimpan sebelum terjual"
+      },
+      "kpi_ar_days": {
+        "title": "AR Days (DSO)",
+        "description": "Days Sales Outstanding — rata-rata hari untuk menagih piutang"
+      },
+      "kpi_ap_days": {
+        "title": "AP Days (DPO)",
+        "description": "Days Payable Outstanding — rata-rata hari untuk membayar ke supplier"
+      },
+      "kpi_ccc": {
+        "title": "CCC",
+        "description": "Cash Conversion Cycle — total hari uang terikat di operasi (DIO + DSO − DPO)"
+      },
+      "kpi_cost_per_delivery": {
+        "title": "Biaya/Pengiriman",
+        "description": "Rata-rata biaya per pengiriman — metrik efisiensi logistik"
+      },
+      "kpi_utilization_rate": {
+        "title": "Tingkat Utilisasi",
+        "description": "Utilisasi armada/kapasitas — pemakaian aktual vs total kapasitas"
+      },
+      "kpi_otd_rate": {
+        "title": "OTD Rate",
+        "description": "On-Time Delivery Rate — persentase pengiriman tepat waktu (target >95%)"
+      },
+      "kpi_roa": {
+        "title": "ROA",
+        "description": "Return on Assets — seberapa efisien aset menghasilkan profit"
+      },
+      "kpi_asset_turnover": {
+        "title": "Asset Turnover",
+        "description": "Pendapatan / Total Aset — rasio efisiensi aset"
+      },
+      "kpi_opex_vs_capex": {
+        "title": "Struktur Biaya",
+        "description": "Rincian OPEX vs CAPEX dengan tracking depresiasi"
+      },
+      "owner_intelligence": {
+        "title": "Owner Intelligence",
+        "description": "Analisis kesehatan bisnis otomatis, deteksi bottleneck, dan insight actionable"
+      }
+    },
+    "ownerKpi": {
+      "intelligence": {
+        "title": "Owner Intelligence"
+      },
+      "opex_vs_capex": {
+        "title": "Struktur Biaya"
+      },
+      "noData": "Tidak ada data analisis tersedia",
+      "noCostData": "Tidak ada data biaya tersedia",
+      "primaryBottleneck": "Titik Hambat Utama",
+      "insightsRecommendations": "Insight & Rekomendasi",
+      "insights": {
+        "roe_low": {
+          "title": "ROE sangat rendah",
+          "description": "Imbal hasil ekuitas (ROE) sebesar {formatted} — target ideal minimal 15%.",
+          "action": "Tinjau strategi harga dan struktur biaya untuk meningkatkan profit bersih."
+        },
+        "gpm_low": {
+          "title": "Margin kotor terlalu tipis",
+          "description": "Gross Profit Margin sebesar {formatted} — COGS terlalu tinggi dibanding penjualan.",
+          "action": "Negosiasi ulang harga supplier atau sesuaikan harga jual."
+        },
+        "dio_high": {
+          "title": "Stok mengendap terlalu lama",
+          "description": "DIO sebesar {formatted} — perputaran stok barang di gudang lambat.",
+          "action": "Lakukan promosi cuci gudang untuk barang slow-moving. Tinjau titik reorder."
+        },
+        "ccc_danger": {
+          "title": "Siklus Konversi Kas kritis",
+          "description": "CCC sebesar {formatted} — uang tertahan terlalu lama di operasional.",
+          "action": "Percepat penagihan piutang dan optimalkan jatuh tempo pembayaran supplier."
+        },
+        "ar_slow": {
+          "title": "Penagihan piutang lambat",
+          "description": "AR Days (DSO) sebesar {formatted} — pelanggan membayar terlalu lama.",
+          "action": "Perketat syarat pembayaran. Lakukan follow-up intens pada faktur jatuh tempo."
+        },
+        "otd_low": {
+          "title": "Pengiriman tepat waktu rendah",
+          "description": "OTD Rate sebesar {formatted} — target minimal >95%.",
+          "action": "Tinjau perencanaan rute dan kapasitas armada. Cari hambatan di pengiriman."
+        },
+        "asset_poor": {
+          "title": "Efisiensi aset rendah",
+          "description": "ROA sebesar {formatted} — aset belum menghasilkan profit optimal.",
+          "action": "Evaluasi aset yang tidak produktif. Pertimbangkan skema sewa untuk alat baru."
+        },
+        "opex_high": {
+          "title": "Rasio OPEX tinggi",
+          "description": "Biaya operasional mencapai {formatted} dari total biaya.",
+          "action": "Identifikasi dan kurangi biaya operasional yang tidak mendesak."
+        }
+      },
+      "opex": "OPEX",
+      "capex": "CAPEX",
+      "depreciation": "Depresiasi",
+      "opexBreakdown": "Rincian OPEX",
+      "capexBreakdown": "Rincian CAPEX",
+      "healthStatus": {
+        "good": "Bisnis Sehat",
+        "warning": "Perlu Perhatian",
+        "danger": "Kondisi Kritis"
+      },
+      "healthSummaries": {
+        "good": "Bisnis dalam kondisi sehat. Seluruh metrik utama berada dalam rentang aman.",
+        "warning": "Bisnis butuh perhatian. Beberapa KPI menunjukkan gejala waspada yang perlu segera ditangani.",
+        "danger": "Kesehatan bisnis kritis. Berbagai lini KPI menunjukkan masalah signifikan yang butuh aksi cepat."
+      },
+      "bottleneckSummaries": {
+        "inventory": "Manajemen inventori adalah hambatan utama. Stok mengendap terlalu lama dan menyedot arus kas.",
+        "cashflow": "Arus kas adalah hambatan utama. Siklus konversi kas terlalu lambat — butuh aksi penagihan cepat.",
+        "asset": "Efisiensi aset adalah masalah utama. Investasi modal tinggi tapi hasil imbal hasil rendah.",
+        "logistics": "Performa logistik tertinggal. Metrik pengiriman masih di bawah target.",
+        "profitability": "Profitabilitas tertekan. Margin menipis dan imbal hasil di bawah ekspektasi.",
+        "cost": "Struktur biaya butuh optimasi. Pengeluaran operasional terlalu tinggi dibanding pendapatan."
+      },
+      "areas": {
+        "inventory": "Inventori",
+        "cashflow": "Arus Kas",
+        "asset": "Aset",
+        "logistics": "Logistik",
+        "profitability": "Profitabilitas",
+        "cost": "Biaya"
+      },
+      "metrics": {
+        "kpi_ccc": {
+          "formula": "DIO + DSO - DPO",
+          "purpose": "Siklus konversi kas — berapa hari uang terikat di operasi. Semakin kecil semakin baik. KPI paling kritis untuk bisnis."
+        },
+        "kpi_dio": {
+          "formula": "(Persediaan / COGS) x 365",
+          "purpose": "Rata-rata hari stok tersimpan sebelum terjual. Semakin kecil = manajemen persediaan semakin efisien."
+        },
+        "kpi_ar_days": {
+          "formula": "(Piutang / Penjualan) x 365",
+          "purpose": "Rata-rata hari pelanggan membayar (DSO). Semakin kecil = penagihan kas semakin cepat."
+        },
+        "kpi_ap_days": {
+          "formula": "(Hutang / COGS) x 365",
+          "purpose": "Rata-rata hari membayar supplier (DPO). Semakin besar = pengelolaan arus kas lebih baik."
+        },
+        "kpi_roe": {
+          "formula": "Laba Bersih / Ekuitas x 100",
+          "purpose": "Imbal hasil ekuitas — seberapa efektif uang owner menghasilkan profit. Target min 15%."
+        },
+        "kpi_roa": {
+          "formula": "Laba Bersih / Total Aset x 100",
+          "purpose": "Imbal hasil aset — seberapa efisien total aset menghasilkan profit."
+        },
+        "kpi_net_profit_margin": {
+          "formula": "Laba Bersih / Penjualan x 100",
+          "purpose": "Persentase penjualan yang menjadi laba bersih setelah semua biaya. Target min 10%."
+        },
+        "kpi_gross_profit_margin": {
+          "formula": "Laba Kotor / Penjualan x 100",
+          "purpose": "Margin kotor — selisih antara penjualan dan COGS. Indikator kekuatan harga jual."
+        },
+        "kpi_inventory_turnover": {
+          "formula": "COGS / Rata-rata Persediaan",
+          "purpose": "Berapa kali persediaan terjual habis dalam setahun. Semakin tinggi = stok berputar cepat."
+        },
+        "kpi_asset_turnover": {
+          "formula": "Penjualan / Total Aset",
+          "purpose": "Seberapa efisien aset digunakan untuk menghasilkan penjualan."
+        },
+        "kpi_cost_per_delivery": {
+          "formula": "Total Biaya Pengiriman / Jumlah Pengiriman",
+          "purpose": "Biaya rata-rata per pengiriman. Pantau efisiensi operasi logistik."
+        },
+        "kpi_utilization_rate": {
+          "formula": "Penggunaan Aktual / Total Kapasitas x 100",
+          "purpose": "Tingkat utilisasi armada/kapasitas. Target > 80%."
+        },
+        "kpi_otd_rate": {
+          "formula": "Pengiriman Tepat Waktu / Total Pengiriman x 100",
+          "purpose": "Persentase pengiriman tepat waktu. Target > 95%."
+        },
+        "kpi_opex_vs_capex": {
+          "formula": "OPEX vs CAPEX",
+          "purpose": "OPEX = biaya operasional (gaji, sewa, BBM). CAPEX = belanja modal (truck, alat). Pantau depresiasi untuk insight owner."
         }
       }
     },

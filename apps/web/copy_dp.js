@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const srcFeature = 'e:\\projects\\gitlabs\\gims-platform\\apps\\web\\src\\features\\purchase\\supplier-invoice-down-payments';
 const dstFeature = 'e:\\projects\\gitlabs\\gims-platform\\apps\\web\\src\\features\\sales\\customer-invoice-down-payments';

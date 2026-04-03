@@ -15,6 +15,7 @@ interface DateRangePickerProps {
   readonly dateRange: DateRange | undefined;
   readonly onDateChange: (dateRange: DateRange | undefined) => void;
   readonly disabled?: boolean;
+  readonly disabledDays?: (date: Date) => boolean;
 }
 
 // Helper functions to replace date-fns
@@ -71,6 +72,7 @@ export function DateRangePicker({
   dateRange,
   onDateChange,
   disabled = false,
+  disabledDays,
 }: DateRangePickerProps) {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -112,6 +114,25 @@ export function DateRangePicker({
     setMonth(range.to || range.from || today);
   };
 
+  // Check if a date range contains any disabled dates
+  const isRangeDisabled = (range: DateRange): boolean => {
+    if (!disabledDays) return false;
+    if (!range.from) return false;
+
+    const start = new Date(range.from);
+    const end = range.to ? new Date(range.to) : start;
+
+    // Check each day in the range
+    const current = new Date(start);
+    while (current <= end) {
+      if (disabledDays(new Date(current))) {
+        return true;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return false;
+  };
+
   const formatDateRange = (range: DateRange | undefined): string => {
     if (!range?.from) return "Select date range";
     if (range.to) {
@@ -143,6 +164,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled({ from: today, to: today })}
                     onClick={() => {
                       handlePresetClick({
                         from: today,
@@ -156,6 +178,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(yesterday)}
                     onClick={() => handlePresetClick(yesterday)}
                   >
                     Yesterday
@@ -164,6 +187,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(last7Days)}
                     onClick={() => handlePresetClick(last7Days)}
                   >
                     Last 7 days
@@ -172,6 +196,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(last30Days)}
                     onClick={() => handlePresetClick(last30Days)}
                   >
                     Last 30 days
@@ -180,6 +205,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(monthToDate)}
                     onClick={() => handlePresetClick(monthToDate)}
                   >
                     Month to date
@@ -188,6 +214,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(lastMonth)}
                     onClick={() => handlePresetClick(lastMonth)}
                   >
                     Last month
@@ -196,6 +223,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(yearToDate)}
                     onClick={() => handlePresetClick(yearToDate)}
                   >
                     Year to date
@@ -204,6 +232,7 @@ export function DateRangePicker({
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start"
+                    disabled={isRangeDisabled(lastYear)}
                     onClick={() => handlePresetClick(lastYear)}
                   >
                     Last year
@@ -244,6 +273,7 @@ export function DateRangePicker({
                   setMonth(newMonth);
                 }
               }}
+              disabled={disabledDays}
               className="p-2"
             />
           </div>

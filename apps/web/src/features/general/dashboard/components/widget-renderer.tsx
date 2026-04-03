@@ -2,10 +2,26 @@
 
 import { useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import type { WidgetConfig, KpiCardData, WidgetType } from "../types";
+import {
+  Timer,
+  CalendarClock,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Percent,
+  Building2,
+  TrendingUp,
+  BarChart3,
+  RefreshCw,
+  Gauge,
+  Truck,
+  Activity as ActivityIcon,
+  Clock,
+} from "lucide-react";
+import type { WidgetConfig, KpiCardData, WidgetType, OwnerKpiMetric } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
-import { useDashboardWidgetOverview, isOverviewWidget } from "../hooks/use-dashboard";
+import { useDashboardWidgetOverview, isOverviewWidget, isOwnerKpiWidget } from "../hooks/use-dashboard";
+import { useOwnerKpi } from "../hooks/use-owner-kpi";
 import { ChartWidget } from "./chart-widget";
 import { BalanceWidget } from "./balance-widget";
 import { CostsCategoryWidget } from "./costs-category-widget";
@@ -23,6 +39,9 @@ import { TrackPurchaseOrderCard } from "./track-purchase-order-card";
 import { PendingApprovalsSalesWidget } from "./pending-approvals-sales-widget";
 import { PendingApprovalsPurchaseWidget } from "./pending-approvals-purchase-widget";
 import { TravelPlannerWidget } from "./travel-planner-widget";
+import { OwnerKpiCard } from "./owner-kpi-card";
+import { OwnerIntelligenceWidget } from "./owner-intelligence-widget";
+import { OpexCapexWidget } from "./opex-capex-widget";
 import { WidgetAsyncState } from "./widget-async-state";
 import { WIDGET_REGISTRY } from "../config/widget-registry";
 
@@ -45,6 +64,25 @@ function isNonOverviewWidget(type: WidgetType): boolean {
   );
 }
 
+// Tier mapping for visual priority
+const TIER_1_WIDGETS = new Set(["kpi_ccc", "kpi_dio", "kpi_ar_days", "kpi_ap_days"]);
+
+const KPI_ICONS: Record<string, ReactNode> = {
+  kpi_ccc: <Timer className="h-4 w-4" />,
+  kpi_dio: <CalendarClock className="h-4 w-4" />,
+  kpi_ar_days: <ArrowDownToLine className="h-4 w-4" />,
+  kpi_ap_days: <ArrowUpFromLine className="h-4 w-4" />,
+  kpi_roe: <Percent className="h-4 w-4" />,
+  kpi_roa: <Building2 className="h-4 w-4" />,
+  kpi_net_profit_margin: <TrendingUp className="h-4 w-4" />,
+  kpi_gross_profit_margin: <BarChart3 className="h-4 w-4" />,
+  kpi_inventory_turnover: <RefreshCw className="h-4 w-4" />,
+  kpi_asset_turnover: <Gauge className="h-4 w-4" />,
+  kpi_cost_per_delivery: <Truck className="h-4 w-4" />,
+  kpi_utilization_rate: <ActivityIcon className="h-4 w-4" />,
+  kpi_otd_rate: <Clock className="h-4 w-4" />,
+};
+
 export function WidgetRenderer({ widget }: WidgetRendererProps) {
   const t = useTranslations("dashboard");
   const registry = WIDGET_REGISTRY[widget.type];
@@ -56,7 +94,11 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     isError,
     refetch,
   } = useDashboardWidgetOverview(widget.type, {
-    enabled: canView && isOverviewWidget(widget.type),
+    enabled: canView && isOverviewWidget(widget.type) && !isOwnerKpiWidget(widget.type),
+  });
+
+  const ownerKpi = useOwnerKpi({
+    enabled: canView && isOwnerKpiWidget(widget.type),
   });
 
   // Keep hooks order stable across renders to satisfy React hook rules.
@@ -95,6 +137,7 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
   if (!registry) return null;
   if (!canView) return null;
 
+  // ── Non-overview widgets (self-fetching) ──
   if (isNonOverviewWidget(widget.type)) {
     switch (widget.type) {
       case "track_orders":
@@ -110,6 +153,114 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     }
   }
 
+  // ── Owner KPI widgets ──
+  if (isOwnerKpiWidget(widget.type)) {
+    const kpiData = ownerKpi?.data;
+
+    // Special full-width widgets
+    if (widget.type === "owner_intelligence") {
+      return (
+        <WidgetAsyncState
+          isLoading={Boolean(ownerKpi?.isLoading)}
+          isError={Boolean(ownerKpi?.isError)}
+          onRetry={() => {
+            void ownerKpi?.refetch();
+          }}
+        >
+          <OwnerIntelligenceWidget data={kpiData?.intelligence} />
+        </WidgetAsyncState>
+      );
+    }
+
+    if (widget.type === "kpi_opex_vs_capex") {
+      return (
+        <WidgetAsyncState
+          isLoading={Boolean(ownerKpi?.isLoading)}
+          isError={Boolean(ownerKpi?.isError)}
+          onRetry={() => {
+            void ownerKpi?.refetch();
+          }}
+        >
+          <OpexCapexWidget data={kpiData?.cost_structure} />
+        </WidgetAsyncState>
+      );
+    }
+
+    // Individual KPI cards
+    const icon = KPI_ICONS[widget.type];
+    if (!icon) {
+      return null;
+    }
+
+    // Map widget type to the correct metric from owner KPI data
+    const metricMap: Record<string, () => OwnerKpiMetric | undefined> = {
+      kpi_roe: () => kpiData?.profitability?.roe,
+      kpi_net_profit_margin: () => kpiData?.profitability?.net_profit_margin,
+      kpi_gross_profit_margin: () => kpiData?.profitability?.gross_profit_margin,
+      kpi_inventory_turnover: () => kpiData?.inventory?.inventory_turnover,
+      kpi_dio: () => kpiData?.inventory?.dio,
+      kpi_ar_days: () => kpiData?.cashflow?.ar_days,
+      kpi_ap_days: () => kpiData?.cashflow?.ap_days,
+      kpi_ccc: () => kpiData?.cashflow?.ccc,
+      kpi_cost_per_delivery: () => kpiData?.logistics?.cost_per_delivery,
+      kpi_utilization_rate: () => kpiData?.logistics?.utilization_rate,
+      kpi_otd_rate: () => kpiData?.logistics?.otd_rate,
+      kpi_roa: () => kpiData?.asset?.roa,
+      kpi_asset_turnover: () => kpiData?.asset?.asset_turnover,
+    };
+
+    const getMetric = metricMap[widget.type];
+    const metric = getMetric?.();
+
+    const formulaKey = `ownerKpi.metrics.${widget.type}.formula` as const;
+    const purposeKey = `ownerKpi.metrics.${widget.type}.purpose` as const;
+
+    if (!metric) {
+      return (
+        <WidgetAsyncState
+          isLoading={Boolean(ownerKpi?.isLoading)}
+          isError={Boolean(ownerKpi?.isError)}
+          onRetry={() => {
+            void ownerKpi?.refetch();
+          }}
+        >
+          <OwnerKpiCard
+            title={t(registry.titleKey as Parameters<typeof t>[0])}
+            metric={{
+              value: 0,
+              formatted: "—",
+              status: "warning",
+              status_label: "No Data",
+              unit: "",
+            }}
+            formula={t(formulaKey as Parameters<typeof t>[0])}
+            purpose={t(purposeKey as Parameters<typeof t>[0])}
+            icon={icon}
+          />
+        </WidgetAsyncState>
+      );
+    }
+
+    return (
+      <WidgetAsyncState
+        isLoading={Boolean(ownerKpi?.isLoading)}
+        isError={Boolean(ownerKpi?.isError)}
+        onRetry={() => {
+          void ownerKpi?.refetch();
+        }}
+      >
+        <OwnerKpiCard
+          title={t(registry.titleKey as Parameters<typeof t>[0])}
+          metric={metric}
+          formula={t(formulaKey as Parameters<typeof t>[0])}
+          purpose={t(purposeKey as Parameters<typeof t>[0])}
+          icon={icon}
+        />
+      </WidgetAsyncState>
+    );
+  }
+
+  // ── Existing widgets (legacy) ──
   let content: ReactNode = null;
 
   switch (widget.type) {
@@ -212,3 +363,4 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
     </WidgetAsyncState>
   );
 }
+

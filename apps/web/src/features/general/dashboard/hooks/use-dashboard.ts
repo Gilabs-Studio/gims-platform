@@ -31,6 +31,23 @@ const OVERVIEW_WIDGET_SCOPES: Partial<Record<WidgetType, DashboardOverviewScope>
   delivery_status: "delivery",
   geographic_overview: "geo",
   warehouse_overview: "warehouse",
+
+  // Owner KPI widgets — all use the owner-kpi scope
+  kpi_roe: "owner-kpi",
+  kpi_net_profit_margin: "owner-kpi",
+  kpi_gross_profit_margin: "owner-kpi",
+  kpi_inventory_turnover: "owner-kpi",
+  kpi_dio: "owner-kpi",
+  kpi_ar_days: "owner-kpi",
+  kpi_ap_days: "owner-kpi",
+  kpi_ccc: "owner-kpi",
+  kpi_cost_per_delivery: "owner-kpi",
+  kpi_utilization_rate: "owner-kpi",
+  kpi_otd_rate: "owner-kpi",
+  kpi_roa: "owner-kpi",
+  kpi_asset_turnover: "owner-kpi",
+  kpi_opex_vs_capex: "owner-kpi",
+  owner_intelligence: "owner-kpi",
 };
 
 function getOverviewScope(widgetType: WidgetType): DashboardOverviewScope | null {
@@ -39,6 +56,11 @@ function getOverviewScope(widgetType: WidgetType): DashboardOverviewScope | null
 
 export function isOverviewWidget(widgetType: WidgetType): boolean {
   return getOverviewScope(widgetType) !== null;
+}
+
+/** Check if a widget type is an owner KPI widget */
+export function isOwnerKpiWidget(widgetType: WidgetType): boolean {
+  return getOverviewScope(widgetType) === "owner-kpi";
 }
 
 export function useDashboard() {

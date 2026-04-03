@@ -94,12 +94,6 @@ type UpdateEmployeeEvaluationRequest struct {
 	CriteriaScores []CreateEvaluationCriteriaScoreRequest `json:"criteria_scores" binding:"omitempty,dive"`
 }
 
-// SubmitEvaluationRequest represents the request to submit/review/finalize an evaluation
-type SubmitEvaluationRequest struct {
-	Status string  `json:"status" binding:"required,oneof=SUBMITTED REVIEWED FINALIZED"`
-	Notes  *string `json:"notes" binding:"omitempty,max=2000"`
-}
-
 // CreateEvaluationCriteriaScoreRequest represents a single criteria score input
 type CreateEvaluationCriteriaScoreRequest struct {
 	EvaluationCriteriaID string  `json:"evaluation_criteria_id" binding:"required,uuid"`
@@ -120,7 +114,6 @@ type EmployeeEvaluationResponse struct {
 	PeriodStart       string                            `json:"period_start"`
 	PeriodEnd         string                            `json:"period_end"`
 	OverallScore      float64                           `json:"overall_score"`
-	Status            string                            `json:"status"`
 	Notes             *string                           `json:"notes"`
 	CriteriaScores    []EvaluationCriteriaScoreResponse `json:"criteria_scores,omitempty"`
 	CreatedAt         time.Time                         `json:"created_at"`
@@ -143,17 +136,10 @@ type EmployeeEvaluationFormDataResponse struct {
 	Employees        []EmployeeFormOption            `json:"employees"`
 	EvaluationGroups []EvaluationGroupSimpleResponse `json:"evaluation_groups"`
 	EvaluationTypes  []EvaluationTypeOption          `json:"evaluation_types"`
-	Statuses         []EvaluationStatusOption        `json:"statuses"`
 }
 
 // EvaluationTypeOption represents an evaluation type option for dropdowns
 type EvaluationTypeOption struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-}
-
-// EvaluationStatusOption represents an evaluation status option for dropdowns
-type EvaluationStatusOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }

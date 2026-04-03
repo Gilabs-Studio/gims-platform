@@ -9,6 +9,7 @@ import (
 	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database/migrations"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -82,6 +83,9 @@ func AutoMigrate() error {
 		&geographic.City{},
 		&geographic.District{},
 		&geographic.Village{},
+		// Timezone data for auto-detection
+		&core.TimeZone{},
+		&core.Country{},
 		// Organization entities (Sprint 2)
 		&organization.Division{},
 		&organization.JobPosition{},
@@ -278,7 +282,7 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
-		// General: user dashboard layout preferences 
+		// General: user dashboard layout preferences
 		&general.DashboardLayout{},
 	)
 	if err != nil {
@@ -338,6 +342,28 @@ func AutoMigrate() error {
 	// Create triggers to enforce closed accounting periods on journal entries
 	if err := createJournalEntryPeriodLockTrigger(); err != nil {
 		log.Printf("Warning: Failed to create journal entry period lock trigger (this is non-fatal): %v", err)
+	}
+
+	// Migrate timezone data for auto-detection (using longitude-based detection for Indonesia)
+	if err := migrateTimezoneData(); err != nil {
+		log.Printf("Warning: Could not migrate timezone data: %v", err)
+	}
+
+	// Remove status column from employee_evaluations table (Sprint 16)
+	if err := migrations.RemoveEvaluationStatusColumn(DB); err != nil {
+		log.Printf("Warning: Could not remove evaluation status column: %v", err)
+	}
+
+	// Remove days_requested column from leave_requests table (Sprint 14)
+	// WHY: Consolidate to using TotalDays only with inclusive calendar days calculation
+	if err := migrations.RemoveLeaveRequestDaysRequestedMigration(DB); err != nil {
+		log.Printf("Warning: Could not remove leave request days_requested column: %v", err)
+	}
+
+	// Add linkedin_url column to recruitment_applicants table (Sprint 15)
+	// WHY: Allow storing LinkedIn profile URLs for applicants
+	if err := migrations.AddApplicantLinkedInURLMigration(DB); err != nil {
+		log.Printf("Warning: Could not add linkedin_url column: %v", err)
 	}
 
 	// NEW: Normalize journal data (casing/consistent naming)
@@ -880,5 +906,59 @@ func handleConstraintIssues() error {
 		}
 	}
 
+	return nil
+}
+
+// migrateTimezoneData creates timezone tables and inserts Indonesia timezone data
+func migrateTimezoneData() error {
+	log.Println("Migrating timezone data...")
+
+	// Create timezone tables if not exist
+	err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS countries (
+			country_code CHAR(2) PRIMARY KEY,
+			country_name VARCHAR(45)
+		);
+
+		CREATE TABLE IF NOT EXISTS time_zones (
+			id SERIAL PRIMARY KEY,
+			zone_name VARCHAR(35) NOT NULL,
+			country_code CHAR(2) REFERENCES countries(country_code),
+			abbreviation VARCHAR(6) NOT NULL,
+			time_start BIGINT NOT NULL,
+			gmt_offset INT NOT NULL,
+			dst CHAR(1) NOT NULL
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_time_zones_zone_name ON time_zones(zone_name);
+		CREATE INDEX IF NOT EXISTS idx_time_zones_country_code ON time_zones(country_code);
+		CREATE INDEX IF NOT EXISTS idx_time_zones_time_start ON time_zones(time_start);
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to create timezone tables: %w", err)
+	}
+
+	// Insert Indonesia country
+	err = DB.Exec(`
+		INSERT INTO countries (country_code, country_name) VALUES (ID, Indonesia)
+		ON CONFLICT (country_code) DO NOTHING;
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to insert Indonesia country: %w", err)
+	}
+
+	// Insert Indonesia timezones (WIB, WITA, WIT)
+	err = DB.Exec(`
+		INSERT INTO time_zones (zone_name, country_code, abbreviation, time_start, gmt_offset, dst) VALUES
+		(Asia/Jakarta, ID, WIB, 0, 25200, 0),
+		(Asia/Makassar, ID, WITA, 0, 28800, 0),
+		(Asia/Jayapura, ID, WIT, 0, 32400, 0)
+		ON CONFLICT DO NOTHING;
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to insert Indonesia timezones: %w", err)
+	}
+
+	log.Println("Timezone data migration completed")
 	return nil
 }

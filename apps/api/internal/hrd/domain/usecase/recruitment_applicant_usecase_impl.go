@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -19,6 +21,61 @@ import (
 	orgUsecase "github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"gorm.io/datatypes"
 )
+
+// validateLinkedInURL validates that the URL is a valid LinkedIn profile URL and extracts the username
+// Returns the extracted username or empty string if invalid
+func validateLinkedInURL(url string) (string, error) {
+	if url == "" {
+		return "", nil // Empty is valid (optional field)
+	}
+
+	// Normalize URL
+	url = strings.TrimSpace(url)
+
+	// Remove protocol if present for easier parsing
+	urlWithoutProtocol := url
+	if strings.HasPrefix(url, "http://") {
+		urlWithoutProtocol = strings.TrimPrefix(url, "http://")
+	} else if strings.HasPrefix(url, "https://") {
+		urlWithoutProtocol = strings.TrimPrefix(url, "https://")
+	}
+
+	// Remove www. if present
+	urlWithoutProtocol = strings.TrimPrefix(urlWithoutProtocol, "www.")
+
+	// LinkedIn URL patterns to match
+	// linkedin.com/in/username
+	// linkedin.com/pub/username
+	// linkedin.com/profile/view?id=...
+
+	// Pattern for /in/username
+	inPattern := regexp.MustCompile(`^linkedin\.com/in/([a-zA-Z0-9\-]+)/?$`)
+	if matches := inPattern.FindStringSubmatch(urlWithoutProtocol); matches != nil && len(matches) > 1 {
+		return matches[1], nil
+	}
+
+	// Pattern for /pub/username
+	pubPattern := regexp.MustCompile(`^linkedin\.com/pub/([a-zA-Z0-9\-]+)/?$`)
+	if matches := pubPattern.FindStringSubmatch(urlWithoutProtocol); matches != nil && len(matches) > 1 {
+		return matches[1], nil
+	}
+
+	// Pattern for /profile/view?id=...
+	profilePattern := regexp.MustCompile(`^linkedin\.com/profile/view\?id=[0-9]+/?$`)
+	if profilePattern.MatchString(urlWithoutProtocol) {
+		return "", errors.New("INVALID_LINKEDIN_URL: Profile ID format not supported. Please use the /in/username format")
+	}
+
+	return "", errors.New("INVALID_LINKEDIN_URL: Please enter a valid LinkedIn profile URL (e.g., linkedin.com/in/username)")
+}
+
+// strPtrOrNil returns a pointer to the string if not empty, otherwise nil
+func strPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
 
 type recruitmentApplicantUsecase struct {
 	applicantRepo   repositories.RecruitmentApplicantRepository
@@ -121,6 +178,16 @@ func (u *recruitmentApplicantUsecase) Create(ctx context.Context, req *dto.Creat
 		return nil, errors.New("invalid applicant source")
 	}
 
+	// Validate LinkedIn URL and extract username
+	linkedinUsername := ""
+	if req.LinkedinURL != nil && *req.LinkedinURL != "" {
+		username, err := validateLinkedInURL(*req.LinkedinURL)
+		if err != nil {
+			return nil, err
+		}
+		linkedinUsername = username
+	}
+
 	now := apptime.Now()
 	applicant := &models.RecruitmentApplicant{
 		RecruitmentRequestID: req.RecruitmentRequestID,
@@ -131,6 +198,7 @@ func (u *recruitmentApplicantUsecase) Create(ctx context.Context, req *dto.Creat
 		Source:               req.Source,
 		Notes:                req.Notes,
 		ResumeURL:            req.ResumeURL,
+		LinkedinURL:          strPtrOrNil(linkedinUsername),
 		AppliedAt:            now,
 		LastActivityAt:       now,
 		CreatedBy:            &userID,
@@ -183,6 +251,13 @@ func (u *recruitmentApplicantUsecase) Update(ctx context.Context, id string, req
 	}
 	if req.ResumeURL != nil {
 		applicant.ResumeURL = req.ResumeURL
+	}
+	if req.LinkedinURL != nil {
+		username, err := validateLinkedInURL(*req.LinkedinURL)
+		if err != nil {
+			return nil, err
+		}
+		applicant.LinkedinURL = strPtrOrNil(username)
 	}
 	if req.Rating != nil {
 		oldRating := applicant.Rating
@@ -238,6 +313,11 @@ func (u *recruitmentApplicantUsecase) MoveStage(ctx context.Context, id string, 
 	}
 	if applicant == nil {
 		return nil, errors.New("applicant not found")
+	}
+
+	// Validate: Cannot move stage if applicant has been converted to employee
+	if applicant.EmployeeID != nil && *applicant.EmployeeID != "" {
+		return nil, errors.New("APPLICANT_ALREADY_CONVERTED: Cannot change status after applicant has been converted to employee")
 	}
 
 	// Get current and target stages
@@ -514,6 +594,7 @@ func toApplicantResponse(a *models.RecruitmentApplicant) *dto.RecruitmentApplica
 		Email:                a.Email,
 		Phone:                a.Phone,
 		ResumeURL:            a.ResumeURL,
+		LinkedinURL:          a.LinkedinURL,
 		Source:               a.Source,
 		AppliedAt:            a.AppliedAt,
 		LastActivityAt:       a.LastActivityAt,

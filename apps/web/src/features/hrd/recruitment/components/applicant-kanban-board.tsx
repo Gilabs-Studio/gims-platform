@@ -17,7 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StageScrollLoader } from "@/components/ui/stage-scroll-loader";
-import { useProgressiveApplicantKanban, useMoveApplicantStage } from "../hooks/use-applicants";
+import { toast } from "sonner";
+import {
+  useProgressiveApplicantKanban,
+  useMoveApplicantStage,
+} from "../hooks/use-applicants";
 import { ApplicantCard } from "./applicant-card";
 import { MoveStageDialog } from "./move-stage-dialog";
 import type { RecruitmentApplicant, ApplicantStage } from "../types";
@@ -106,18 +110,21 @@ export function ApplicantKanbanBoard({
 
   const moveStageMutation = useMoveApplicantStage();
 
-  const [activeApplicant, setActiveApplicant] = useState<RecruitmentApplicant | null>(null);
+  const [activeApplicant, setActiveApplicant] =
+    useState<RecruitmentApplicant | null>(null);
   const [moveDialog, setMoveDialog] = useState<{
     applicant: RecruitmentApplicant;
     targetStageId: string;
   } | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    const applicant = event.active.data.current?.applicant as RecruitmentApplicant | undefined;
+    const applicant = event.active.data.current?.applicant as
+      | RecruitmentApplicant
+      | undefined;
     if (applicant) setActiveApplicant(applicant);
   }, []);
 
@@ -127,16 +134,24 @@ export function ApplicantKanbanBoard({
       const { active, over } = event;
       if (!over) return;
 
-      const applicant = active.data.current?.applicant as RecruitmentApplicant | undefined;
+      const applicant = active.data.current?.applicant as
+        | RecruitmentApplicant
+        | undefined;
       const targetStageId = over.id as string;
       if (!applicant) return;
 
       // Don't open dialog if dropped on the same stage
       if (applicant.stage_id === targetStageId) return;
 
+      // Check if applicant is already converted to employee
+      if (applicant.employee_id) {
+        toast.error(t("applicants.errors.alreadyConverted"));
+        return;
+      }
+
       setMoveDialog({ applicant, targetStageId });
     },
-    []
+    [t],
   );
 
   if (isLoading) {
@@ -180,7 +195,10 @@ export function ApplicantKanbanBoard({
                   <div className="flex items-center gap-2">
                     <span
                       className="inline-block h-3 w-3 rounded-full shrink-0"
-                      style={{ backgroundColor: stage.color || "var(--color-muted-foreground)" }}
+                      style={{
+                        backgroundColor:
+                          stage.color || "var(--color-muted-foreground)",
+                      }}
                     />
                     <span className="text-sm font-medium truncate max-w-[140px]">
                       {stage.name}

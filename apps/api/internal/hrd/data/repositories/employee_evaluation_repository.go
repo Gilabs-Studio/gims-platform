@@ -8,7 +8,7 @@ import (
 
 // EmployeeEvaluationRepository defines the interface for employee evaluation data access
 type EmployeeEvaluationRepository interface {
-	FindAll(ctx context.Context, page, perPage int, search string, employeeID, evaluationGroupID, status, evaluationType string) ([]models.EmployeeEvaluation, int64, error)
+	FindAll(ctx context.Context, page, perPage int, search string, employeeID, evaluationGroupID, evaluationType string) ([]models.EmployeeEvaluation, int64, error)
 	FindByID(ctx context.Context, id string) (*models.EmployeeEvaluation, error)
 	FindByIDWithDetails(ctx context.Context, id string) (*models.EmployeeEvaluation, error)
 	Create(ctx context.Context, evaluation *models.EmployeeEvaluation) error

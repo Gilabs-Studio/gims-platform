@@ -231,6 +231,28 @@ func (u *leaveRequestUsecase) GetSelfFormData(ctx context.Context, currentUserID
 	}, nil
 }
 
+// validateLeaveDates validates that leave dates are not in the past
+// WHY: Employees can only request leave for today or future dates
+func (u *leaveRequestUsecase) validateLeaveDates(startDate, endDate time.Time) error {
+	// Get current date (truncate time to compare dates only)
+	now := apptime.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	// Normalize input dates (truncate time)
+	startDateNormalized := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, startDate.Location())
+	endDateNormalized := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 0, 0, 0, 0, endDate.Location())
+
+	if startDateNormalized.Before(today) {
+		return fmt.Errorf("INVALID_START_DATE: start_date cannot be in the past")
+	}
+
+	if endDateNormalized.Before(today) {
+		return fmt.Errorf("INVALID_END_DATE: end_date cannot be in the past")
+	}
+
+	return nil
+}
+
 // Create creates a new leave request
 // WHY: Only approvers/HR can create leave requests for employees (business rule change)
 // WHY: Validates balance, calculates working days, prevents overlapping requests
@@ -256,13 +278,13 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("INVALID_DATE_FORMAT: end_date must be YYYY-MM-DD")
 	}
 
-	// 4. Calculate total days based on duration
-	// WHY: resolve companyID so holidays are scoped (global + company-specific)
-	empCompanyID := ""
-	if employee.CompanyID != nil {
-		empCompanyID = *employee.CompanyID
+	// 4. Validate dates are not in the past
+	if err := u.validateLeaveDates(startDate, endDate); err != nil {
+		return nil, err
 	}
-	totalDays, err := u.calculateTotalDays(ctx, req.Duration, startDate, endDate, empCompanyID)
+
+	// 5. Calculate total days based on duration
+	totalDays, err := u.calculateTotalDays(ctx, req.Duration, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +296,7 @@ func (u *leaveRequestUsecase) Create(ctx context.Context, req *dto.CreateLeaveRe
 		return nil, fmt.Errorf("failed to check overlapping requests: %w", err)
 	}
 	if len(overlapping) > 0 {
-		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: employee already has a leave request for these dates")
+		return nil, fmt.Errorf("OVERLAPPING_LEAVE_REQUEST: Employee already has a leave request for these dates")
 	}
 
 	// 6. Fetch leave type to check if it cuts annual leave
@@ -508,17 +530,19 @@ func (u *leaveRequestUsecase) Update(ctx context.Context, id string, req *dto.Up
 			endDate = parsed
 		}
 
+		// Validate dates are not in the past (only if dates are being changed)
+		if req.StartDate != nil || req.EndDate != nil {
+			if err := u.validateLeaveDates(startDate, endDate); err != nil {
+				return nil, err
+			}
+		}
+
 		duration := string(leaveRequest.Duration)
 		if req.Duration != nil {
 			duration = *req.Duration
 		}
 
-		// WHY: resolve companyID so holidays are scoped (global + company-specific)
-		updCompanyID := ""
-		if employee.CompanyID != nil {
-			updCompanyID = *employee.CompanyID
-		}
-		calculated, err := u.calculateTotalDays(ctx, duration, startDate, endDate, updCompanyID)
+		calculated, err := u.calculateTotalDays(ctx, duration, startDate, endDate)
 		if err != nil {
 			return nil, err
 		}
@@ -642,58 +666,21 @@ func (u *leaveRequestUsecase) CalculateBalance(ctx context.Context, employeeID s
 }
 
 // calculateTotalDays calculates the total days for a leave request
-// WHY: Considers duration type and excludes weekends/holidays for MULTI_DAY
-// companyID is used to scope holidays (global + company-specific)
-func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration string, startDate, endDate time.Time, companyID string) (float64, error) {
+// WHY: Returns inclusive calendar days (2-3 = 2 days, includes weekends)
+// For HALF_DAY: 0.5, FULL_DAY: 1.0, MULTI_DAY: end - start + 1
+func (u *leaveRequestUsecase) calculateTotalDays(ctx context.Context, duration string, startDate, endDate time.Time) (float64, error) {
 	switch duration {
 	case "HALF_DAY":
 		return 0.5, nil
 	case "FULL_DAY":
 		return 1.0, nil
 	case "MULTI_DAY":
-		// Calculate working days (exclude weekends and holidays)
-		return u.calculateWorkingDays(ctx, startDate, endDate, companyID)
+		// Calculate inclusive calendar days (including weekends)
+		days := endDate.Sub(startDate).Hours() / 24
+		return days + 1, nil // +1 for inclusive count
 	default:
 		return 0, fmt.Errorf("INVALID_DURATION: must be FULL_DAY, HALF_DAY, or MULTI_DAY")
 	}
-}
-
-// calculateWorkingDays calculates working days between two dates (excluding weekends and holidays)
-// WHY: Leave days should only count actual working days
-// companyID scopes holidays: global holidays (company_id IS NULL) + company-specific
-func (u *leaveRequestUsecase) calculateWorkingDays(ctx context.Context, startDate, endDate time.Time, companyID string) (float64, error) {
-	// Fetch holidays in the date range (global + company-specific)
-	holidays, err := u.holidayRepo.FindByDateRangeForCompany(ctx, startDate, endDate, companyID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to fetch holidays: %w", err)
-	}
-
-	// Create holiday map for O(1) lookup
-	holidayMap := make(map[string]bool)
-	for _, holiday := range holidays {
-		holidayMap[holiday.Date.Format("2006-01-02")] = true
-	}
-
-	// Count working days
-	workingDays := 0.0
-	currentDate := startDate
-
-	for !currentDate.After(endDate) {
-		// Skip weekends (Saturday = 6, Sunday = 0)
-		weekday := currentDate.Weekday()
-		if weekday != time.Saturday && weekday != time.Sunday {
-			// Check if it's not a holiday
-			dateStr := currentDate.Format("2006-01-02")
-			if !holidayMap[dateStr] {
-				workingDays++
-			}
-		}
-
-		// Move to next day
-		currentDate = currentDate.AddDate(0, 0, 1)
-	}
-
-	return workingDays, nil
 }
 
 // Approve approves a leave request
@@ -856,6 +843,14 @@ func (u *leaveRequestUsecase) Cancel(ctx context.Context, id string, req *dto.Ca
 		// WHY: PENDING and APPROVED statuses can be cancelled
 		if leaveRequest.Status != models.LeaveStatusApproved && leaveRequest.Status != models.LeaveStatusPending {
 			return fmt.Errorf("INVALID_STATUS: only PENDING or APPROVED leave requests can be cancelled (current status: %s)", leaveRequest.Status)
+		}
+
+		// 1b. Check if cancel is performed before leave start date
+		// WHY: Business rule - can only cancel leave requests before the leave period starts
+		today := apptime.Now().Truncate(24 * time.Hour)
+		startDate := leaveRequest.StartDate.Truncate(24 * time.Hour)
+		if !today.Before(startDate) {
+			return fmt.Errorf("INVALID_DATE: leave request can only be cancelled before the start date (start date: %s, today: %s)", startDate.Format("2006-01-02"), today.Format("2006-01-02"))
 		}
 
 		// Track original status for conditional attendance record deletion

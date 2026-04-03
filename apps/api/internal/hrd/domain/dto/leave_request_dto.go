@@ -47,6 +47,11 @@ type LeaveRequestResponseDTO struct {
 	Reason       string  `json:"reason"`
 	Status       string  `json:"status"`
 
+	// Rejection details (for REJECTED status)
+	RejectedBy     *string `json:"rejected_by,omitempty"`
+	RejectedByName string  `json:"rejected_by_name,omitempty"`
+	RejectionNote  *string `json:"rejection_note,omitempty"`
+
 	// Timestamps
 	CreatedAt string `json:"created_at"` // Format: RFC3339
 	UpdatedAt string `json:"updated_at"` // Format: RFC3339

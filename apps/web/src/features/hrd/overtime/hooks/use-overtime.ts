@@ -60,6 +60,14 @@ export function useCancelOvertimeRequest() {
   });
 }
 
+export function useMyOvertimeRequests(params?: ListOvertimeParams) {
+  return useQuery({
+    queryKey: QUERY_KEYS.overtime({ ...params, scope: "my" }),
+    queryFn: () => overtimeService.getMyRequests(params),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 // Manager/Admin hooks
 export function useOvertimeRequests(params?: ListOvertimeParams) {
   return useQuery({

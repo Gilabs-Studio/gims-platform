@@ -85,6 +85,10 @@ export const leaveRequestEn = {
     rejectionNote: "Rejection Note",
     cancellationInfo: "Cancellation Information",
     cancellationNote: "Cancellation Note",
+    fields: {
+      rejectedBy: "Rejected By",
+      rejectReason: "Reject Reason",
+    },
     actions: {
       label: "Actions",
       view: "View",
@@ -132,6 +136,11 @@ export const leaveRequestEn = {
         invalid: "Invalid end date",
         beforeStart: "End date must be after start date",
       },
+      dateRange: {
+        label: "Date Range",
+        placeholder: "Select date range",
+        required: "Date range is required",
+      },
       daysRequested: "Days Requested",
       reason: {
         label: "Reason",
@@ -173,6 +182,8 @@ export const leaveRequestEn = {
       approveSuccess: "Leave request approved successfully",
       rejectSuccess: "Leave request rejected successfully",
       cancelSuccess: "Leave request cancelled successfully",
+      invalidStartDate: "Start date cannot be in the past",
+      invalidEndDate: "End date cannot be in the past",
       createError: "Failed to submit leave request",
       updateError: "Failed to update leave request",
       deleteError: "Failed to delete leave request",
@@ -189,7 +200,8 @@ export const leaveRequestEn = {
     },
     emptyState: {
       title: "No leave requests found",
-      description: "No leave requests match your current filters. Try adjusting your search criteria or create a new leave request.",
+      description:
+        "No leave requests match your current filters. Try adjusting your search criteria or create a new leave request.",
     },
     filters: {
       allStatus: "All Status",
@@ -199,7 +211,8 @@ export const leaveRequestEn = {
     },
     deleteDialog: {
       title: "Delete Leave Request",
-      description: "Are you sure you want to delete this leave request? This action cannot be undone.",
+      description:
+        "Are you sure you want to delete this leave request? This action cannot be undone.",
       confirm: "Delete",
       cancel: "Cancel",
     },
@@ -217,7 +230,8 @@ export const leaveRequestEn = {
     },
     cancelDialog: {
       title: "Cancel Leave Request",
-      description: "Are you sure you want to cancel this leave request? This action cannot be undone.",
+      description:
+        "Are you sure you want to cancel this leave request? This action cannot be undone.",
       confirm: "Cancel Request",
       cancel: "Close",
     },
