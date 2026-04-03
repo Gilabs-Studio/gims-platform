@@ -3,9 +3,9 @@ import { z } from "zod";
 export const paymentAllocationSchema = z.object({
   chart_of_account_id: z.string().min(1),
   amount: z.number().positive(),
-  memo: z.string(),
+  memo: z.string().optional().or(z.literal("")),
   reference_type: z.string().min(1),
-  reference_id: z.string().uuid(),
+  reference_id: z.string().min(1),
 });
 
 export const paymentFormSchema = z.object({

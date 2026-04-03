@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -54,6 +54,92 @@ function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+type DocumentFetcherProps = {
+  refType?: string | null;
+  value?: string | null;
+  onChange: (value: string, item?: any) => void;
+  placeholder?: string;
+};
+
+// Define local document item type
+type DocItem = { id: string; label: string; balance?: number };
+
+function DocumentFetcher({ refType, value, onChange, placeholder }: DocumentFetcherProps) {
+  const t = useTranslations("financePayments");
+
+  const fetcher = useCallback(async (query: string) => {
+    if (!refType) return [];
+    
+    try {
+      console.log(`DocumentFetcher: Fetching ${refType} with query "${query}"`);
+      if (refType === "SUPPLIER_INVOICE") {
+        const res = await supplierInvoicesService.list({ search: query, per_page: 100 });
+        console.log("DocumentFetcher: Invoices result:", res);
+        if (!res?.data || !Array.isArray(res.data)) return [];
+
+        const items = res.data
+          .filter(si => si.remaining_amount > 0 && 
+                  ["APPROVED", "UNPAID", "PARTIAL", "WAITING_PAYMENT"].includes(si.status))
+          .map(si => ({ 
+            id: si.id, 
+            label: `${si.code} - ${si.invoice_number} (${si.supplier_name})`,
+            balance: Number(si.remaining_amount || 0)
+          }));
+        console.log(`DocumentFetcher: Found ${items.length} payable invoices`);
+        return items;
+      } 
+      
+      if (refType === "NON_TRADE_PAYABLE") {
+        const res = await financeNonTradePayablesService.list({ search: query, per_page: 100 });
+        console.log("DocumentFetcher: NTP result:", res);
+        if (!res?.data || !Array.isArray(res.data)) return [];
+
+        const items = res.data
+          .filter(ntp => ntp.amount > 0 && ntp.status !== "PAID")
+          .map(ntp => ({ 
+            id: ntp.id, 
+            label: `${ntp.code} - ${ntp.description}`,
+            balance: Number(ntp.amount || 0)
+          }));
+        console.log(`DocumentFetcher: Found ${items.length} payable NTPs`);
+        return items;
+      }
+
+      if (refType === "UP_COUNTRY_COST") {
+        // Mocking for now, will implement actual Travel Reimbursement service later
+        return [];
+      }
+    } catch (err) {
+      console.error("DocumentFetcher error:", err);
+    }
+    return [];
+  }, [refType]);
+
+  return (
+    <AsyncSelect
+      label="Document"
+      placeholder={placeholder || t("fields.selectDocument")}
+      value={value || ""}
+      fetcher={fetcher}
+      preload={true}
+      getLabel={(it: any) => it.label}
+      getValue={(it: any) => it.id}
+      renderOption={(it: any) => (
+        <div className="flex flex-col py-1">
+          <span className="font-medium text-sm">{it.label}</span>
+          {it.balance !== undefined && (
+            <span className="text-[10px] text-muted-foreground font-mono">
+              Balance: Rp {it.balance.toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
+      onChange={(v) => onChange(v)}
+      width="w-full"
+    />
+  );
 }
 
 export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
@@ -239,106 +325,112 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                 </Button>
               </div>
 
-              <div className="p-3 space-y-4">
-                {fields.map((f, idx) => (
-                  <div key={f.id} className="space-y-3 p-3 border rounded-lg bg-muted/30 relative">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                      <div className="md:col-span-3 space-y-1">
-                        <Label>{t("fields.referenceType")}</Label>
-                        <Select
-                          value={form.watch(`allocations.${idx}.reference_type`) || ""}
-                          onValueChange={(v) => {
-                            form.setValue(`allocations.${idx}.reference_type`, v);
-                            form.setValue(`allocations.${idx}.reference_id`, "");
-                            form.setValue(`allocations.${idx}.chart_of_account_id`, getCoaIdFromMapping(v));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="SUPPLIER_INVOICE">Purchase Invoice</SelectItem>
-                            <SelectItem value="NON_TRADE_PAYABLE">Non-Trade Payable</SelectItem>
-                            <SelectItem value="UP_COUNTRY_COST">Travel Reimbursement</SelectItem>
-                          </SelectContent>
-                        </Select>
+              <div className="p-3 space-y-6">
+                {fields.map((f, idx) => {
+                  const currentRefType = form.watch(`allocations.${idx}.reference_type`);
+                  
+                  return (
+                    <div key={f.id} className="space-y-4 p-4 border rounded-xl bg-card/50 relative shadow-sm border-muted-foreground/10 transition-all hover:border-primary/20">
+                      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+                        <div className="w-full lg:w-[20%] space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.referenceType")}</Label>
+                          <Select
+                            value={currentRefType || ""}
+                            onValueChange={(v) => {
+                              form.setValue(`allocations.${idx}.reference_type`, v);
+                              form.setValue(`allocations.${idx}.reference_id`, "");
+                              form.setValue(`allocations.${idx}.chart_of_account_id`, getCoaIdFromMapping(v));
+                            }}
+                          >
+                            <SelectTrigger className="h-10 bg-background/50">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SUPPLIER_INVOICE" className="cursor-pointer">Purchase Invoice</SelectItem>
+                              <SelectItem value="NON_TRADE_PAYABLE" className="cursor-pointer">Non-Trade Payable</SelectItem>
+                              <SelectItem value="UP_COUNTRY_COST" className="cursor-pointer">Travel Reimbursement</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="w-full lg:w-[45%] space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.selectDocument")}</Label>
+                          <DocumentFetcher
+                            refType={currentRefType}
+                            value={form.watch(`allocations.${idx}.reference_id`)}
+                            onChange={(v, item) => {
+                              form.setValue(`allocations.${idx}.reference_id`, v, { shouldValidate: true });
+                              if (item?.balance) {
+                                form.setValue(`allocations.${idx}.amount`, item.balance, { shouldValidate: true });
+                              }
+                            }}
+                            placeholder={t("fields.selectDocument")}
+                          />
+                        </div>
+
+                        <div className="w-full lg:w-[25%] space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.amount")}</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              className="pl-10 h-10 bg-background/50"
+                              {...form.register(`allocations.${idx}.amount`, { valueAsNumber: true })} 
+                            />
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-[10%] flex justify-end pb-0.5">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-10 w-10 text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            onClick={() => remove(idx)}
+                            disabled={fields.length <= 1}
+                          >
+                            <Trash2 className="h-4.5 w-4.5" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="md:col-span-5 space-y-1">
-                        <Label>{t("fields.selectDocument")}</Label>
-                        <AsyncSelect
-                          label="Document"
-                          placeholder={t("fields.selectDocument")}
-                          value={form.watch(`allocations.${idx}.reference_id`)}
-                          fetcher={async (query) => {
-                            const refType = form.getValues(`allocations.${idx}.reference_type`);
-                            if (refType === "SUPPLIER_INVOICE") {
-                              const res = await supplierInvoicesService.list({ search: query, status: "APPROVED", per_page: 50 });
-                              return res.data.map(si => ({ id: si.id, label: `${si.code} - ${si.invoice_number} (${si.supplier_name})` }));
-                            } else if (refType === "NON_TRADE_PAYABLE") {
-                              const res = await financeNonTradePayablesService.list({ search: query, per_page: 50 });
-                              // Filter for posted/approved payables if possible, or just all for now
-                              return res.data.map(ntp => ({ id: ntp.id, label: `${ntp.code} - ${ntp.description}` }));
-                            }
-                            return [];
-                          }}
-                          getLabel={(it: any) => it.label}
-                          getValue={(it: any) => it.id}
-                          renderOption={(it: any) => <span className="text-sm">{it.label}</span>}
-                          onChange={(v) => form.setValue(`allocations.${idx}.reference_id`, v, { shouldValidate: true })}
-                        />
-                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1 border-t border-muted/30">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                            {t("fields.account")}
+                            <Badge variant="secondary" className="text-[10px] font-medium h-4 py-0 leading-none">SYSTEM MAPPED</Badge>
+                          </Label>
+                          <Select
+                            value={form.watch(`allocations.${idx}.chart_of_account_id`) || ""}
+                            disabled
+                          >
+                            <SelectTrigger className="h-10 bg-muted/50 border-dashed opacity-80 cursor-not-allowed">
+                              <SelectValue placeholder={t("placeholders.systemResolve")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {coaOptions.map((opt) => (
+                                <SelectItem key={opt.id} value={opt.id}>
+                                  {opt.code} - {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <input type="hidden" {...form.register(`allocations.${idx}.chart_of_account_id`)} />
+                        </div>
 
-                      <div className="md:col-span-3 space-y-1">
-                        <Label>{t("fields.amount")}</Label>
-                        <Input type="number" step="0.01" {...form.register(`allocations.${idx}.amount`, { valueAsNumber: true })} />
-                      </div>
-
-                      <div className="md:col-span-1 flex justify-end">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => remove(idx)}
-                          disabled={fields.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.memo")}</Label>
+                          <Input 
+                            className="h-10 bg-background/50"
+                            {...form.register(`allocations.${idx}.memo`)} 
+                            placeholder={t("placeholders.optionalMemo")} 
+                          />
+                        </div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                      <div className="md:col-span-6 space-y-1">
-                        <Label className="flex items-center gap-2">
-                          {t("fields.account")}
-                          <Badge variant="outline" className="text-[10px] font-normal py-0">{t("fields.mappedStatus")}</Badge>
-                        </Label>
-                        <Select
-                          value={form.watch(`allocations.${idx}.chart_of_account_id`) || ""}
-                          disabled
-                        >
-                          <SelectTrigger className="bg-muted opacity-80 cursor-not-allowed">
-                            <SelectValue placeholder={t("placeholders.systemResolve")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {coaOptions.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.id}>
-                                {opt.code} - {opt.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <input type="hidden" {...form.register(`allocations.${idx}.chart_of_account_id`)} />
-                      </div>
-
-                      <div className="md:col-span-6 space-y-1">
-                        <Label>{t("fields.memo")}</Label>
-                        <Input {...form.register(`allocations.${idx}.memo`)} placeholder={t("placeholders.optionalMemo")} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

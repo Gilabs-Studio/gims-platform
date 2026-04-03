@@ -166,13 +166,6 @@ export const navigationConfig: NavItem[] = [
         permission: "sales_return.read",
       },
       {
-        name: "Payments",
-        i18nKey: "payments",
-        url: "/sales/payments",
-        icon: "credit-card",
-        permission: "sales_payment.read",
-      },
-      {
         name: "Receivables Recap",
         i18nKey: "receivablesRecap",
         url: "/sales/receivables-recap",
@@ -230,13 +223,6 @@ export const navigationConfig: NavItem[] = [
         permission: "purchase_return.read",
       },
       {
-        name: "Payments",
-        i18nKey: "payments",
-        url: "/purchase/payments",
-        icon: "credit-card",
-        permission: "purchase_payment.read",
-      },
-      {
         name: "Payable Recap",
         i18nKey: "payableRecap",
         url: "/purchase/payable-recap",
@@ -287,6 +273,13 @@ export const navigationConfig: NavItem[] = [
         icon: "book-open",
         children: [
           {
+            name: "Bank Accounts",
+            i18nKey: "bankAccounts",
+            url: "/finance/bank-accounts",
+            icon: "landmark",
+            permission: "bank_account.read",
+          },
+          {
             name: "Chart of Accounts",
             i18nKey: "chartOfAccounts",
             url: "/finance/coa",
@@ -334,13 +327,7 @@ export const navigationConfig: NavItem[] = [
                 icon: "calculator",
                 permission: "journal_valuation.read",
               },
-              {
-                name: "Cash & Bank Journal",
-                i18nKey: "cashBankJournal",
-                url: "/finance/journals/cash-bank",
-                icon: "banknote",
-                permission: "cash_bank_journal.read",
-              },
+
               // {
               //   name: "Journal Lines",
               //   i18nKey: "journalLines",
@@ -356,28 +343,6 @@ export const navigationConfig: NavItem[] = [
             url: "/finance/closing",
             icon: "shield-check",
             permission: "financial_closing.read",
-          },
-        ],
-      },
-      {
-        name: "Banking & Payments",
-        i18nKey: "bankingPayments",
-        url: "/finance/banking",
-        icon: "landmark",
-        children: [
-          {
-            name: "Bank Accounts",
-            i18nKey: "bankAccounts",
-            url: "/finance/bank-accounts",
-            icon: "landmark",
-            permission: "bank_account.read",
-          },
-          {
-            name: "Payments",
-            i18nKey: "payments",
-            url: "/finance/payments",
-            icon: "credit-card",
-            permission: "payment.read",
           },
         ],
       },
