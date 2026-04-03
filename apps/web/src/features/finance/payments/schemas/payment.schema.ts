@@ -4,8 +4,8 @@ export const paymentAllocationSchema = z.object({
   chart_of_account_id: z.string().min(1),
   amount: z.number().positive(),
   memo: z.string(),
-  reference_type: z.string().nullable().optional(),
-  reference_id: z.string().nullable().optional(),
+  reference_type: z.string().min(1),
+  reference_id: z.string().uuid(),
 });
 
 export const paymentFormSchema = z.object({

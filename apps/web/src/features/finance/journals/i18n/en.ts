@@ -164,5 +164,15 @@ export const financeJournalsEn = {
   bulk_approve_failed: "Failed to approve valuation runs",
   approve: "Approve",
   runs: "Runs",
+  cashBank: {
+    readOnlyBadge: "Auto-generated transactions only",
+    transactionType: "Transaction Type",
+    allTypes: "All Types",
+    cashIn: "Cash In",
+    cashOut: "Cash Out",
+    transfer: "Transfer",
+    sourceModule: "Source Module",
+    allModules: "All Modules",
+  },
 };
 

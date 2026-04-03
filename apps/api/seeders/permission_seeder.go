@@ -408,6 +408,9 @@ func SeedPermissions() error {
 		{"/finance/payments", "payment.delete", "Delete Payments", "DELETE", "payment"},
 		{"/finance/payments", "payment.approve", "Approve Payments", "APPROVE", "payment"},
 
+		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
+		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+
 		{"/finance/tax-invoices", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},

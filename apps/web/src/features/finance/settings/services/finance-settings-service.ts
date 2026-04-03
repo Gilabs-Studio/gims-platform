@@ -1,13 +1,13 @@
 import { apiClient } from "@/lib/api-client";
-import { FinanceSetting, BatchUpsertFinanceSettingsRequest } from "../types";
+import { FinanceSetting, BatchUpsertFinanceSettingsRequest, ApiResponse } from "../types";
 
 export const financeSettingsService = {
-  getAll: async () => {
-    const response = await apiClient.get<{ data: FinanceSetting[] }>("/finance/settings");
-    return response.data.data;
+  getAll: async (): Promise<ApiResponse<FinanceSetting[]>> => {
+    const response = await apiClient.get<ApiResponse<FinanceSetting[]>>("/finance/settings");
+    return response.data;
   },
-  batchUpsert: async (data: BatchUpsertFinanceSettingsRequest) => {
-    const response = await apiClient.put<{ data: FinanceSetting[] }>("/finance/settings", data);
+  batchUpsert: async (data: BatchUpsertFinanceSettingsRequest): Promise<ApiResponse<FinanceSetting[]>> => {
+    const response = await apiClient.put<ApiResponse<FinanceSetting[]>>("/finance/settings", data);
     return response.data;
   },
 };

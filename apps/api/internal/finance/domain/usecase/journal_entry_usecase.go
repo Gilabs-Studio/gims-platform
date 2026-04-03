@@ -16,6 +16,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
@@ -47,10 +48,11 @@ func logJournalEvent(event string, fields map[string]interface{}) {
 }
 
 var (
-	ErrJournalNotFound        = errors.New("journal entry not found")
-	ErrJournalPostedImmutable = errors.New("posted journal entry cannot be modified")
-	ErrJournalUnbalanced      = errors.New("journal entry must be balanced (debit = credit)")
-	ErrJournalInvalidLines    = errors.New("invalid journal lines")
+	ErrJournalNotFound                 = errors.New("journal entry not found")
+	ErrJournalPostedImmutable          = errors.New("posted journal entry cannot be modified")
+	ErrJournalUnbalanced               = errors.New("journal entry must be balanced (debit = credit)")
+	ErrJournalInvalidLines             = errors.New("invalid journal lines")
+	ErrJournalControlAccountRestricted = errors.New("restricted: trade control accounts (AR/AP/Inventory) cannot be used in manual journals. Use the respective business modules (Sales/Purchase/Inventory)")
 )
 
 type JournalEntryUsecase interface {
@@ -73,15 +75,20 @@ type JournalEntryUsecase interface {
 }
 
 type journalEntryUsecase struct {
-	db           *gorm.DB
-	coaRepo      repositories.ChartOfAccountRepository
-	repo         repositories.JournalEntryRepository
-	mapper       *mapper.JournalEntryMapper
-	auditService audit.AuditService
+	db              *gorm.DB
+	coaRepo         repositories.ChartOfAccountRepository
+	repo            repositories.JournalEntryRepository
+	mapper          *mapper.JournalEntryMapper
+	auditService    audit.AuditService
+	settingsService financesettings.SettingsService
 }
 
-func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.JournalEntryRepository, mapper *mapper.JournalEntryMapper, auditService audit.AuditService) JournalEntryUsecase {
-	return &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper, auditService: auditService}
+func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.JournalEntryRepository, mapper *mapper.JournalEntryMapper, auditService audit.AuditService, settingsService ...financesettings.SettingsService) JournalEntryUsecase {
+	uc := &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper, auditService: auditService}
+	if len(settingsService) > 0 {
+		uc.settingsService = settingsService[0]
+	}
+	return uc
 }
 
 // parseDate is kept as an alias for backward compatibility within this file.
@@ -194,6 +201,13 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		return nil, err
 	}
 
+	// Hardening: block manual journals from using trade control accounts (AR/AP/Inventory)
+	if !req.IsSystemGenerated {
+		if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
+			return nil, err
+		}
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	if actorID == "" {
@@ -302,6 +316,11 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, err
 	}
 	if _, _, err := validateLines(req.Lines); err != nil {
+		return nil, err
+	}
+
+	// Hardening: block manual journals from using trade control accounts (AR/AP/Inventory)
+	if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
 		return nil, err
 	}
 
@@ -636,7 +655,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 
 	var out *dto.JournalEntryResponse
 	// We use a single transaction for the entire lookup-then-upsert-then-post flow to ensure atomicity.
-	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		// 1. Acquire an advisory lock scoped to this specific reference to prevent concurrent processes 
 		// from attempting to create/update the same journal simultaneously.
 		lockKey := fmt.Sprintf("journal:%s:%s", refTypeNormalized, refID)
@@ -972,9 +991,15 @@ func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEnt
 // CreateAdjustmentJournal creates a manual correction journal entry.
 // reference_type is always forced to "MANUAL_ADJUSTMENT" and is_system_generated = false.
 // This enforces governance: only Finance-controlled manual adjustments can use this endpoint.
+// Hardening: control accounts (AR/AP/Inventory) are always blocked for adjustments.
 func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error) {
 	if req == nil {
 		return nil, errors.New("request is required")
+	}
+
+	// Hardening: adjustment journals must never touch trade control accounts
+	if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
+		return nil, err
 	}
 
 	refType := "MANUAL_ADJUSTMENT"
@@ -1102,4 +1127,54 @@ func (uc *journalEntryUsecase) RunValuation(ctx context.Context) (*dto.JournalEn
 
 	// We use PostOrUpdateJournal to ensure idempotency and auto-post the result
 	return uc.PostOrUpdateJournal(ctx, req)
+}
+
+// validateControlAccountsForLines checks that journal lines do not reference
+// trade control accounts (AR, AP, Inventory, GRIR, Advance). These accounts
+// must only be touched by their respective operational modules (Sales, Purchase,
+// Inventory) to preserve the single-source-of-truth principle.
+// This is a no-op if settingsService is nil (e.g. in unit tests).
+func (uc *journalEntryUsecase) validateControlAccountsForLines(ctx context.Context, lines []dto.JournalLineRequest) error {
+	if uc.settingsService == nil {
+		return nil
+	}
+
+	restrictedKeys := []string{
+		financeModels.SettingCOASalesReceivable,
+		financeModels.SettingCOASalesAdvance,
+		financeModels.SettingCOAPurchasePayable,
+		financeModels.SettingCOAPurchaseAdvance,
+		financeModels.SettingCOAPurchaseGRIR,
+		financeModels.SettingCOAInventory,
+	}
+
+	restrictedCodes := make(map[string]bool)
+	for _, key := range restrictedKeys {
+		code, err := uc.settingsService.GetCOACode(ctx, key)
+		if err == nil && code != "" {
+			restrictedCodes[strings.TrimSpace(code)] = true
+		}
+	}
+
+	if len(restrictedCodes) == 0 {
+		return nil
+	}
+
+	coaIDs := make([]string, 0, len(lines))
+	for _, ln := range lines {
+		coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+	}
+
+	var coas []financeModels.ChartOfAccount
+	if err := uc.db.WithContext(ctx).Where("id IN ?", coaIDs).Find(&coas).Error; err != nil {
+		return err
+	}
+
+	for _, coa := range coas {
+		if restrictedCodes[strings.TrimSpace(coa.Code)] {
+			return ErrJournalControlAccountRestricted
+		}
+	}
+
+	return nil
 }

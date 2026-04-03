@@ -145,4 +145,14 @@ export const financeJournalsId = {
   bulk_approve_failed: "Gagal menyetujui valuation run",
   approve: "Setujui",
   runs: "Run",
+  cashBank: {
+    readOnlyBadge: "Hanya transaksi otomatis",
+    transactionType: "Tipe Transaksi",
+    allTypes: "Semua Tipe",
+    cashIn: "Kas Masuk",
+    cashOut: "Kas Keluar",
+    transfer: "Transfer",
+    sourceModule: "Modul Sumber",
+    allModules: "Semua Modul",
+  },
 };

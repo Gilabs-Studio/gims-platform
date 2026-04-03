@@ -1,6 +1,6 @@
 "use client";
 
-import { CashBankJournalDetailDialog } from "@/features/finance/cash-bank/components/cash-bank-journal-detail-dialog";
+
 import { ClosingDetail } from "@/features/finance/closing/components/closing-detail";
 import { SupplierInvoiceDPDetailModal } from "@/features/purchase/supplier-invoice-down-payments/components/supplier-invoice-dp-detail-modal";
 import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
@@ -173,21 +173,13 @@ export function JournalSourceDetailModal({ open, onOpenChange, row }: Props) {
       );
     case "finance-journal":
     case "finance-payment":
+    case "cash-bank":
       if (!journalId) return null;
       return (
         <JournalDetailModal
           open={open}
           onOpenChange={onOpenChange}
           id={journalId}
-        />
-      );
-    case "cash-bank":
-      if (!referenceId) return null;
-      return (
-        <CashBankJournalDetailDialog
-          open={open}
-          onOpenChange={onOpenChange}
-          id={referenceId}
         />
       );
     default:

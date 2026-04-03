@@ -1,111 +1,115 @@
-# ERP Enterprise Hardening — Alignment Verification Report
-
-> **Module:** Core ERP (Purchase, Sales, Finance, Inventory)  
-> **Version:** 1.0  
-> **Last Updated:** April 2026
+# ERP Enterprise Hardening Plan: Finance (Banking & Payments)
 
 ---
 
-## Purchase Module
+### 🔐 HARDENING TASK LIST (MANDATORY)
 
-- **Seeder Alignment:** VERIFIED
-  - PR → PO → GR → SI → Payment flow seeded via `purchase_finance_e2e_seeder.go`
-  - Supplier master data with payable accounts
-  - Posting profiles for GoodsReceipt, SupplierInvoice, PurchasePayment all mapped
-  - 3-Way Matching validation active on invoice submission
-- **Frontend Alignment:** VERIFIED
-  - Status buttons correctly gated by state machine (draft→submitted→approved)
-  - Error handling uses `getPurchaseErrorMessage` with known error codes
-  - RBAC enforcement on all action buttons via `useUserPermission`
-  - Error codes: QUANTITY_EXCEEDS_ORDER, OVERPAYMENT, PERIOD_CLOSED handled
-- **End-to-End Flow:** VERIFIED
-  - PR → PO → GR → SI → Payment produces correct journals
-  - Multi-year data (2025-2026) seeded for realistic testing
-- **Journal Integrity:** VERIFIED
-  - Advisory locking prevents duplicate journals
-  - Atomic GR → Journal within same RetryTx block
-- **Notes:** DP (Down Payment) flows covered via `supplier_invoice_down_payment` seeder
+#### Task ID: PAY-001
+- **Module:** Finance (Banking & Payments)
+- **Priority:** CRITICAL
+- **Description:** Integrate Payment with Journal Engine. Replace manual journal creation natively bypassing core logic.
+- **Technical Scope:** `finance/domain/usecase/payment_usecase.go` (Function `Approve`)
+- **Acceptance Criteria:** 
+  - [x] No `tx.Create(&financeModels.JournalEntry{...})` in `payment_usecase`.
+  - [x] `journalEntryService.PostOrUpdateJournal` is invoked.
+  - [x] ReferenceType and ReferenceID strictly passed down.
+- **Status:** VERIFIED
 
----
+#### Task ID: PAY-002
+- **Module:** Finance
+- **Priority:** CRITICAL
+- **Description:** Enforce Journal Idempotency.
+- **Technical Scope:** `finance/domain/usecase/journal_entry_usecase.go` (Function `PostOrUpdateJournal`)
+- **Acceptance Criteria:**
+  - [x] DB constraint handles `reference_type` and `reference_id` uniquely for non-manual journals.
+  - [x] Prevents double journal entry generation.
+- **Status:** VERIFIED
 
-## Sales Module
+#### Task ID: PAY-003
+- **Module:** Finance (Banking & Payments)
+- **Priority:** HIGH
+- **Description:** Implement DB Locking (Pessimistic Lock)
+- **Technical Scope:** `finance/domain/usecase/payment_usecase.go` (Function `Approve`)
+- **Acceptance Criteria:**
+  - [x] Payment retrieval uses `FOR UPDATE`.
+  - [x] Prevents concurrent identical `Approve` API strikes.
+- **Status:** VERIFIED
 
-- **Seeder Alignment:** VERIFIED
-  - SQ → SO → DO → INV → Payment flow seeded via `sales_integration_flow_seeder.go`
-  - Customer credit limits seeded (5 active, 1 inactive COD)
-  - `sales_order.credit_override` permission added
-  - `sales_order.submit` permission added
-  - Posting profiles for SalesInvoice, SalesPayment, COGS all mapped
-- **Frontend Alignment:** VERIFIED
-  - Credit limit exceeded error (`CREDIT_LIMIT_EXCEEDED`) displayed in toast on approve
-  - Submit/Approve button visibility correctly gated per status
-  - Cancel button restricted to draft/submitted only (not approved)
-  - RBAC enforcement: `sales_order.credit_override` permission checked
-  - i18n keys added for credit control errors (EN + ID)
-- **End-to-End Flow:** VERIFIED
-  - SQ → SO → DO → Invoice → Payment → Journal verified
-  - Credit control check enforced at SO approval
-- **Journal Integrity:** VERIFIED
-  - Sales journal entries created atomically with invoice approval
-  - COGS entries created on delivery confirmation
-- **Notes:** Credit control active with permission-based override mechanism
+#### Task ID: PAY-004
+- **Module:** Finance (Banking & Payments)
+- **Priority:** HIGH
+- **Description:** Enforce Strict Allocation Reference.
+- **Technical Scope:** `finance/domain/usecase/payment_usecase.go` (Function `Create` and `Update`)
+- **Acceptance Criteria:**
+  - [x] `PaymentAllocation` must require `reference_type` and `reference_id` strictly.
+  - [x] Ensures payment allocation targets valid AP / Purchase Invoice.
+- **Status:** VERIFIED
 
----
+#### Task ID: PAY-005
+- **Module:** Finance (Banking & Payments)
+- **Priority:** MEDIUM
+- **Description:** Implement Payment Reverse Flow.
+- **Technical Scope:** `finance/domain/usecase/payment_usecase.go` (New Function `Reverse`)
+- **Acceptance Criteria:**
+  - [x] New status `REVERSED` implemented.
+  - [x] Hard deletion of `Posted` payments is blocked.
+  - [x] Flow utilizes `ReverseJournal()`.
+- **Status:** VERIFIED
 
-## Finance Module
+#### Task ID: PAY-006
+- **Module:** Finance
+- **Priority:** HIGH
+- **Description:** Validate Accounting Mapping.
+- **Technical Scope:** `finance/domain/usecase/payment_usecase.go`
+- **Acceptance Criteria:**
+  - [x] Allocations correspond identically to debit offsets.
+  - [x] Selected `BankAccount` issues matching unified credits.
+  - [x] Ledger equals mathematically.
+- **Status:** VERIFIED
 
-- **Seeder Alignment:** VERIFIED
-  - 40+ Chart of Accounts entries seeded
-  - 35+ Finance Settings keys mapped to COA codes
-  - 13 System Account Mappings valid (receivable, payable, GRIR, VAT, etc.)
-  - Finance Settings validation (4-step integrity check) passes
-  - Opening Balances seeder aligns inventory subledger with GL
-  - Journal Reconciliation seeder ensures all transactions have journals
-- **Frontend Alignment:** VERIFIED
-  - Period closing UI respects apptime-aware date comparison
-  - AR/AP reconciliation report pages functional
-  - Error codes PERIOD_CLOSED, DUPLICATE_JOURNAL handled in error utils
-- **End-to-End Flow:** VERIFIED
-  - Journal idempotency with advisory locks confirmed
-  - Period closing guard prevents backdated entries
-  - Financial closing with snapshot and analysis working
-- **Journal Integrity:** VERIFIED
-  - `SUM(debit) - SUM(credit) = 0` validated via `validate_finance` tool
-  - No duplicate `ReferenceID` entries (unique constraint enforced)
-  - `closing_guard.go` now uses `apptime` for timezone-aware period checks
-- **Notes:** Inventory vs GL reconciliation tool added to `validate_finance`
+#### Task ID: PAY-007
+- **Module:** Finance
+- **Priority:** MEDIUM
+- **Description:** Add Concurrency & Failure Test.
+- **Technical Scope:** Backend Test Files `payment_usecase_test.go`
+- **Acceptance Criteria:**
+  - [x] Test ensures double approval rejects nicely.
+  - [x] Rollback restores cleanly without phantom line allocations.
+- **Status:** VERIFIED
 
----
-
-## Inventory Module
-
-- **Seeder Alignment:** VERIFIED
-  - `inventory_seeder.go` seeds initial batch stock
-  - `stock_movement_seeder.go` seeds IN/OUT/TRANSFER movements
-  - `stock_opname_seeder.go` seeds opname scenarios
-  - Inventory COA accounts (asset, gain, loss, adjustment) all mapped
-- **Frontend Alignment:** VERIFIED
-  - Stock availability visible in fulfillment column on SO list
-  - Stock opname approval flow buttons gated by permission
-  - INSUFFICIENT_STOCK error handled in sales error utils
-- **End-to-End Flow:** VERIFIED
-  - GR creates stock IN movement + journal atomically (RetryTx)
-  - DO creates stock OUT movement + COGS journal atomically
-  - Stock opname creates adjustment journals
-- **Journal Integrity:** VERIFIED
-  - Atomic Stock-to-Journal via `database.RetryTx`
-  - Inventory valuation matches GL balance (`validateInventoryVsGL`)
-- **Notes:** Batch costing (FIFO) used for COGS calculation
+#### Task ID: PAY-008
+- **Module:** Finance (UI/UX)
+- **Priority:** HIGH
+- **Description:** Eliminate Duplicate Cash Bank Journal Entry Point.
+- **Technical Scope:** Sidebar Menu Seeders, Next.js UI Frontend Menus (`apps/web/src/features/finance/navigation` / `apps/api/seeders/menu_seeder.go`)
+- **Acceptance Criteria:**
+  - [x] No visible "Cash Bank Journal" menu inside Banking & Payments.
+  - [x] No endpoint mapping allows manual injection from Banking interface.
+  - [x] Core backend routes for Cash Bank Journal remain intact internally.
+  - [x] Single entry flow solely preserved in Accounting module.
+- **Status:** VERIFIED
 
 ---
 
-## Summary
+### 📊 PROGRESS TRACKING TABLE
 
-| Module | Seeder | Frontend | E2E | Journal | Overall |
-|:-------|:-------|:---------|:----|:--------|:--------|
-| Purchase | ✅ | ✅ | ✅ | ✅ | 100% |
-| Sales | ✅ | ✅ | ✅ | ✅ | 100% |
-| Finance | ✅ | ✅ | ✅ | ✅ | 100% |
-| Inventory | ✅ | ✅ | ✅ | ✅ | 100% |
+| Task ID | Description | Status | Verified By | Notes |
+|--------|------------|--------|------------|------|
+| **PAY-001** | Integrate Payment with Journal | VERIFIED | Antigravity AI | Done replacing tx.Create |
+| **PAY-002** | Enforce Journal Idempotency | VERIFIED | Antigravity AI | Inherited from Engine |
+| **PAY-003** | Implement DB Locking | VERIFIED | Antigravity AI | Added FOR UPDATE |
+| **PAY-004** | Enforce Strict Reference | VERIFIED | Antigravity AI | Modified Payment DTO & validation |
+| **PAY-005** | Implement Payment Reverse | VERIFIED | Antigravity AI | Added Reverse(), blocks delete |
+| **PAY-006** | Validate Accounting Mapping | VERIFIED | Antigravity AI | Checked & enforced by journalUC |
+| **PAY-007** | Concurrency & Failure Test | VERIFIED | Antigravity AI | SQLite locked test ensures 1 entry |
+| **PAY-008** | Eliminate Duplicate Entry Point | VERIFIED | Antigravity AI | Updated navigation and seeder |
 
-**Backend + Seeder + Frontend alignment: 100% COMPLETE**
+---
+
+### 🔍 VERIFICATION RULE (VERY IMPORTANT)
+
+For each step executed:
+1. Cannot proceed to the sequentially next ID until current is **VERIFIED**.
+2. Must explain file modifications clearly (Before vs. After).
+3. Test case scenarios must be successfully executed.
+4. Cannot break downstream boundaries.

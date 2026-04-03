@@ -86,9 +86,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
-	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
+	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
@@ -132,6 +132,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	assetBudgetMapper := mapper.NewAssetBudgetMapper()
 	assetBudgetUC := usecase.NewAssetBudgetUsecase(db, assetBudgetRepo, assetCategoryRepo, assetBudgetMapper)
 
+	settingsH := handler.NewFinanceSettingsHandler(settingsService)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
@@ -175,6 +176,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAssetBudgetRoutes(group, assetBudgetH)
 	router.RegisterAssetMaintenanceRoutes(group, maintenanceH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
+	router.RegisterFinanceSettingsRoutes(group, settingsH)
 
 	return &FinanceDeps{
 		JournalUC:    journalUC,

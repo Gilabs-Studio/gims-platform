@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,11 +15,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa";
-import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
+import { useFinanceCoaTree, useFinanceChartOfAccounts } from "@/features/finance/coa/hooks/use-finance-coa";
+import type { ChartOfAccount, ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { paymentFormSchema, type PaymentFormValues } from "../schemas/payment.schema";
 import { useCreateFinancePayment, useFinancePayment, useUpdateFinancePayment } from "../hooks/use-finance-payments";
+import { useFinanceSettings } from "@/features/finance/settings/hooks/use-finance-settings";
+import { useSupplierInvoices } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
+import { useFinanceNonTradePayables } from "@/features/finance/non-trade-payables/hooks/use-finance-non-trade-payables";
+import { AsyncSelect } from "@/components/ui/async-select";
+import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
+import { financeNonTradePayablesService } from "@/features/finance/non-trade-payables/services/finance-non-trade-payables-service";
 
 type Props = {
   open: boolean;
@@ -56,11 +63,40 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   const createMutation = useCreateFinancePayment();
   const updateMutation = useUpdateFinancePayment();
 
-  const { data: coaTree } = useFinanceCoaTree({ only_active: true });
-  const coaOptions = useMemo(() => flattenCoa(coaTree?.data ?? []), [coaTree?.data]);
+  const { data: coaTreeData, isLoading: isCoaLoading } = useFinanceCoaTree({ only_active: true });
+  const coaOptions = useMemo(() => flattenCoa(coaTreeData?.data ?? []), [coaTreeData?.data]);
 
-  const { data: bankAccountsData } = useFinanceBankAccounts({ per_page: 100, is_active: true, sort_by: "name", sort_dir: "asc" });
+  const { data: allCoaData, isLoading: isAllCoaLoading } = useFinanceChartOfAccounts({ per_page: 1000, is_active: true });
+  const allCoas = allCoaData?.data ?? [];
+
+  const { data: bankAccountsData, isLoading: isBankAccountsLoading } = useFinanceBankAccounts({ per_page: 100, is_active: true, sort_by: "name", sort_dir: "asc" });
   const bankAccounts = bankAccountsData?.data ?? [];
+
+  const { data: settingsData, isLoading: isSettingsLoading } = useFinanceSettings();
+  const settings = settingsData?.data ?? [];
+
+  const isLoading = 
+    isCoaLoading || isAllCoaLoading || isBankAccountsLoading || isSettingsLoading || (mode === "edit" && paymentQuery.isLoading);
+
+  const getSetting = (key: string) => {
+    const setting = settings.find((s) => s.setting_key === key);
+    return setting?.value;
+  };
+
+  const getCoaIdFromMapping = (refType: string): string => {
+    let key = "";
+    if (refType === "SUPPLIER_INVOICE") key = "coa.purchase_payable";
+    else if (refType === "NON_TRADE_PAYABLE") key = "coa.non_trade_payable";
+    else if (refType === "UP_COUNTRY_COST") key = "coa.accrued_expense";
+
+    if (!key) return "";
+    const val = getSetting(key);
+    if (!val) return "";
+    
+    // The setting value might be the COA CODE or COA ID. GIMS standard uses IDs in settings usually.
+    const coa = allCoas.find((c) => c.id === val || c.code === val);
+    return coa?.id ?? "";
+  };
 
   const defaultValues: PaymentFormValues = useMemo(() => {
     if (mode === "edit") {
@@ -75,8 +111,8 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
             chart_of_account_id: a.chart_of_account_id,
             amount: Number(a.amount ?? 0),
             memo: a.memo ?? "",
-            reference_type: a.reference_type ?? null,
-            reference_id: a.reference_id ?? null,
+            reference_type: a.reference_type || "",
+            reference_id: a.reference_id || "",
           })),
         };
       }
@@ -87,12 +123,12 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
       description: "",
       bank_account_id: "",
       total_amount: 0,
-      allocations: [{ chart_of_account_id: "", amount: 0, memo: "", reference_type: null, reference_id: null }],
+      allocations: [{ chart_of_account_id: "", amount: 0, memo: "", reference_type: "SUPPLIER_INVOICE", reference_id: "" }],
     };
   }, [mode, paymentQuery.data?.data]);
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentFormSchema),
+    resolver: zodResolver(paymentFormSchema as any),
     defaultValues,
   });
 
@@ -117,8 +153,8 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
           chart_of_account_id: a.chart_of_account_id,
           amount: a.amount,
           memo: a.memo ?? "",
-          reference_type: a.reference_type ?? null,
-          reference_id: a.reference_id ?? null,
+          reference_type: a.reference_type || null,
+          reference_id: a.reference_id || null,
         })),
       };
 
@@ -133,8 +169,9 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
       }
 
       onOpenChange(false);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error: any) {
+      const message = error.response?.data?.message || t("toast.failed");
+      toast.error(message);
     }
   };
 
@@ -195,56 +232,110 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
                   type="button"
                   variant="outline"
                   className="cursor-pointer"
-                  onClick={() => append({ chart_of_account_id: "", amount: 0, memo: "", reference_type: null, reference_id: null })}
+                  onClick={() => append({ chart_of_account_id: "", amount: 0, memo: "", reference_type: "SUPPLIER_INVOICE", reference_id: "" })}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {t("form.addAllocation")}
                 </Button>
               </div>
 
-              <div className="p-3 space-y-3">
+              <div className="p-3 space-y-4">
                 {fields.map((f, idx) => (
-                  <div key={f.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                    <div className="md:col-span-6 space-y-1">
-                      <Label>{t("fields.account")}</Label>
-                      <Select
-                        value={form.watch(`allocations.${idx}.chart_of_account_id`) || ""}
-                        onValueChange={(v) => form.setValue(`allocations.${idx}.chart_of_account_id`, v, { shouldDirty: true })}
-                      >
-                        <SelectTrigger className="cursor-pointer">
-                          <SelectValue placeholder={t("placeholders.select")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {coaOptions.map((opt) => (
-                            <SelectItem key={opt.id} value={opt.id} className="cursor-pointer">
-                              {opt.code} - {opt.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div key={f.id} className="space-y-3 p-3 border rounded-lg bg-muted/30 relative">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                      <div className="md:col-span-3 space-y-1">
+                        <Label>{t("fields.referenceType")}</Label>
+                        <Select
+                          value={form.watch(`allocations.${idx}.reference_type`) || ""}
+                          onValueChange={(v) => {
+                            form.setValue(`allocations.${idx}.reference_type`, v);
+                            form.setValue(`allocations.${idx}.reference_id`, "");
+                            form.setValue(`allocations.${idx}.chart_of_account_id`, getCoaIdFromMapping(v));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SUPPLIER_INVOICE">Purchase Invoice</SelectItem>
+                            <SelectItem value="NON_TRADE_PAYABLE">Non-Trade Payable</SelectItem>
+                            <SelectItem value="UP_COUNTRY_COST">Travel Reimbursement</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="md:col-span-5 space-y-1">
+                        <Label>{t("fields.selectDocument")}</Label>
+                        <AsyncSelect
+                          label="Document"
+                          placeholder={t("fields.selectDocument")}
+                          value={form.watch(`allocations.${idx}.reference_id`)}
+                          fetcher={async (query) => {
+                            const refType = form.getValues(`allocations.${idx}.reference_type`);
+                            if (refType === "SUPPLIER_INVOICE") {
+                              const res = await supplierInvoicesService.list({ search: query, status: "APPROVED", per_page: 50 });
+                              return res.data.map(si => ({ id: si.id, label: `${si.code} - ${si.invoice_number} (${si.supplier_name})` }));
+                            } else if (refType === "NON_TRADE_PAYABLE") {
+                              const res = await financeNonTradePayablesService.list({ search: query, per_page: 50 });
+                              // Filter for posted/approved payables if possible, or just all for now
+                              return res.data.map(ntp => ({ id: ntp.id, label: `${ntp.code} - ${ntp.description}` }));
+                            }
+                            return [];
+                          }}
+                          getLabel={(it: any) => it.label}
+                          getValue={(it: any) => it.id}
+                          renderOption={(it: any) => <span className="text-sm">{it.label}</span>}
+                          onChange={(v) => form.setValue(`allocations.${idx}.reference_id`, v, { shouldValidate: true })}
+                        />
+                      </div>
+
+                      <div className="md:col-span-3 space-y-1">
+                        <Label>{t("fields.amount")}</Label>
+                        <Input type="number" step="0.01" {...form.register(`allocations.${idx}.amount`, { valueAsNumber: true })} />
+                      </div>
+
+                      <div className="md:col-span-1 flex justify-end">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => remove(idx)}
+                          disabled={fields.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="md:col-span-3 space-y-1">
-                      <Label>{t("fields.amount")}</Label>
-                      <Input type="number" step="0.01" {...form.register(`allocations.${idx}.amount`, { valueAsNumber: true })} />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                      <div className="md:col-span-6 space-y-1">
+                        <Label className="flex items-center gap-2">
+                          {t("fields.account")}
+                          <Badge variant="outline" className="text-[10px] font-normal py-0">{t("fields.mappedStatus")}</Badge>
+                        </Label>
+                        <Select
+                          value={form.watch(`allocations.${idx}.chart_of_account_id`) || ""}
+                          disabled
+                        >
+                          <SelectTrigger className="bg-muted opacity-80 cursor-not-allowed">
+                            <SelectValue placeholder={t("placeholders.systemResolve")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {coaOptions.map((opt) => (
+                              <SelectItem key={opt.id} value={opt.id}>
+                                {opt.code} - {opt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <input type="hidden" {...form.register(`allocations.${idx}.chart_of_account_id`)} />
+                      </div>
 
-                    <div className="md:col-span-2 space-y-1">
-                      <Label>{t("fields.memo")}</Label>
-                      <Input {...form.register(`allocations.${idx}.memo`)} />
-                    </div>
-
-                    <div className="md:col-span-1 flex justify-end">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="cursor-pointer"
-                        onClick={() => remove(idx)}
-                        disabled={fields.length <= 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="md:col-span-6 space-y-1">
+                        <Label>{t("fields.memo")}</Label>
+                        <Input {...form.register(`allocations.${idx}.memo`)} placeholder={t("placeholders.optionalMemo")} />
+                      </div>
                     </div>
                   </div>
                 ))}

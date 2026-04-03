@@ -18,7 +18,6 @@ function flattenNavigationRoutes(items: readonly NavItem[]): string[] {
 
 const EXTRA_VALID_ROUTES = [
   "/stock/movements/create",
-  "/finance/journals/inventory",
   "/stock/opname",
   // Finance routes
   "/finance/coa",

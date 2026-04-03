@@ -431,7 +431,6 @@ func SeedMenus() error {
 		{"Tax Invoices", "file-text", "/finance/tax-invoices", 5},
 		{"Non-Trade Payables", "file-minus", "/finance/non-trade-payables", 6},
 		{"Budget", "pie-chart", "/finance/budget", 7},
-		{"Cash Bank Journal", "book", "/finance/cash-bank", 8},
 		{"Financial Closing", "lock", "/finance/closing", 9},
 		{"Asset Management", "briefcase", "/finance/assets", 10},
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
@@ -502,7 +501,7 @@ func SeedMenus() error {
 		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
 		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
 		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
-		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
+		{"Cash Transactions (Journal View)", "banknote", "/finance/journals/cash-bank", 6},
 	}
 	for _, sub := range journalSubMenus {
 		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
@@ -744,6 +743,7 @@ func UpdateMenuStructure() error {
 		"/ai-settings",
 		"/finance/journal-lines",
 		"/finance/reports/trial-balance",
+		"/finance/cash-bank",
 	}
 
 	for _, deprecatedURL := range deprecatedMenuURLs {
