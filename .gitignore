@@ -54,3 +54,5 @@ apps/erp-api/
 apps/erp-front-end/
 
 CLAUDE.md
+.CLAUDE/
+VIBE.md
