@@ -166,6 +166,13 @@ export const navigationConfig: NavItem[] = [
         permission: "sales_return.read",
       },
       {
+        name: "Payments",
+        i18nKey: "payments",
+        url: "/sales/payments",
+        icon: "credit-card",
+        permission: "sales_payment.read",
+      },
+      {
         name: "Receivables Recap",
         i18nKey: "receivablesRecap",
         url: "/sales/receivables-recap",
@@ -221,6 +228,13 @@ export const navigationConfig: NavItem[] = [
         url: "/purchase/returns",
         icon: "rotate-ccw",
         permission: "purchase_return.read",
+      },
+      {
+        name: "Payments",
+        i18nKey: "payments",
+        url: "/purchase/payments",
+        icon: "credit-card",
+        permission: "purchase_payment.read",
       },
       {
         name: "Payable Recap",

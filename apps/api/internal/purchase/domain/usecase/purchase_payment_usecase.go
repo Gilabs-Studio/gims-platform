@@ -465,7 +465,7 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 
 		// ✅ ATOMIC: Trigger journal INSIDE transaction — if journal fails, payment rolls back
 		txCtx := database.WithTx(ctx, tx)
-		loadedPay, loadErr := uc.repo.GetByID(txCtx, confirmedID)
+		loadedPay, loadErr := uc.repo.GetByID(txCtx, pay.ID)
 		if loadErr != nil {
 			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
 		}
