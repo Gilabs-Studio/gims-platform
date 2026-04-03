@@ -113,8 +113,7 @@ import { financePaymentsEn } from "@/features/finance/payments/i18n/en";
 import { financePaymentsId } from "@/features/finance/payments/i18n/id";
 import { financeBudgetEn } from "@/features/finance/budget/i18n/en";
 import { financeBudgetId } from "@/features/finance/budget/i18n/id";
-import { financeCashBankEn } from "@/features/finance/cash-bank/i18n/en";
-import { financeCashBankId } from "@/features/finance/cash-bank/i18n/id";
+
 import { financeAgingReportsEn } from "@/features/finance/aging-reports/i18n/en";
 import { financeAgingReportsId } from "@/features/finance/aging-reports/i18n/id";
 import { financeAssetCategoriesEn } from "@/features/finance/asset-categories/i18n/en";
@@ -172,6 +171,8 @@ import { customerResearchReportEn } from "@/features/reports/customer-research/i
 import { customerResearchReportId } from "@/features/reports/customer-research/i18n/id";
 import { supplierResearchReportEn } from "@/features/reports/supplier-research/i18n/en";
 import { supplierResearchReportId } from "@/features/reports/supplier-research/i18n/id";
+import { visitPlannerEn } from "@/features/travel/visit-planner/i18n/en";
+import { visitPlannerId } from "@/features/travel/visit-planner/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -231,7 +232,7 @@ const messages = {
     financeBankAccounts: financeBankAccountsEn,
     financePayments: financePaymentsEn,
     financeBudget: financeBudgetEn,
-    financeCashBank: financeCashBankEn,
+
     financeAgingReports: financeAgingReportsEn,
     financeAssetCategories: financeAssetCategoriesEn,
     financeAssetLocations: financeAssetLocationsEn,
@@ -260,6 +261,7 @@ const messages = {
     ...geoPerformanceReportEn,
     ...customerResearchReportEn,
     ...supplierResearchReportEn,
+    ...visitPlannerEn,
   },
   id: {
     ...globalIdMessages,
@@ -316,7 +318,7 @@ const messages = {
     financeBankAccounts: financeBankAccountsId,
     financePayments: financePaymentsId,
     financeBudget: financeBudgetId,
-    financeCashBank: financeCashBankId,
+
     financeAgingReports: financeAgingReportsId,
     financeAssetCategories: financeAssetCategoriesId,
     financeAssetLocations: financeAssetLocationsId,
@@ -345,6 +347,7 @@ const messages = {
     ...geoPerformanceReportId,
     ...customerResearchReportId,
     ...supplierResearchReportId,
+    ...visitPlannerId,
   },
 } as const;
 

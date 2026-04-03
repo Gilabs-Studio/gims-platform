@@ -57,9 +57,9 @@ Initial strategy:
 Mandatory first implementation step:
 - Move frontend feature path:
   - from `apps/web/src/features/finance/up-country-cost`
-  - to `apps/web/src/features/travel-planner/up-country-cost`
-- Add parent route `/travel-planner`
-- Main child route `/travel-planner/up-country-cost`
+  - to `apps/web/src/features/travel/travel-planner/up-country-cost`
+- Add parent route `/travel/travel-planner`
+- Main child route `/travel/travel-planner/up-country-cost`
 - Update navigation, route validation, and notification deep links
 
 ### 2. Itinerary Planner
@@ -114,7 +114,7 @@ Mandatory first implementation step:
 ### Frontend Structure (Target)
 
 ```text
-apps/web/src/features/travel-planner/
+apps/web/src/features/travel/travel-planner/
 ├── up-country-cost/                  # existing migrated module
 │   ├── components/
 │   ├── hooks/

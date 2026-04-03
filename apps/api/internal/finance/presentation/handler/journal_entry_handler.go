@@ -216,9 +216,12 @@ func (h *JournalEntryHandler) ListValuationJournals(c *gin.Context) {
 }
 
 // ListCashBankSubLedger handles GET /finance/journal-entries/cash-bank
-// This is a READ-ONLY sub-ledger endpoint that returns posted cash_bank_journals with KPI.
+// HARDENING (CBJ-002): Unified GL-based sub-ledger view.
+// Reads from journal_entries (General Ledger) filtered by cash_bank domain reference types,
+// ensuring ALL cash/bank transactions appear regardless of source module.
+// This replaces the previous isolated cash_bank_journals table query.
 func (h *JournalEntryHandler) ListCashBankSubLedger(c *gin.Context) {
-	var req dto.ListCashBankJournalsRequest
+	var req dto.ListJournalEntriesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
 		return
@@ -235,13 +238,32 @@ func (h *JournalEntryHandler) ListCashBankSubLedger(c *gin.Context) {
 	if perPage > 100 {
 		perPage = 100
 	}
+
 	req.Page = page
 	req.PerPage = perPage
 
-	items, total, kpi, err := h.cashBankUC.ListPosted(c.Request.Context(), &req)
+	// Use "cash_bank" domain which maps to CASH_BANK + PAYMENT reference types
+	domain := "cash_bank"
+	req.Domain = &domain
+
+	items, total, err := h.uc.List(c.Request.Context(), &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_BANK_SUBLEDGER_FAILED", err.Error(), nil, nil)
 		return
+	}
+
+	// Compute KPI from GL-based journal entries
+	var totalInflow, totalOutflow float64
+	for _, item := range items {
+		totalInflow += item.DebitTotal
+		totalOutflow += item.CreditTotal
+	}
+
+	kpi := map[string]interface{}{
+		"total_inflow":  totalInflow,
+		"total_outflow": totalOutflow,
+		"net_movement":  totalInflow - totalOutflow,
+		"total_records": total,
 	}
 
 	paginationMeta := response.NewPaginationMeta(page, perPage, int(total))

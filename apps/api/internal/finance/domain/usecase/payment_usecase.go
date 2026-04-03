@@ -11,6 +11,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -18,6 +19,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -35,17 +37,19 @@ type PaymentUsecase interface {
 	List(ctx context.Context, req *dto.ListPaymentsRequest) ([]dto.PaymentResponse, int64, error)
 	Approve(ctx context.Context, id string) (*dto.PaymentResponse, error)
 	GetFormData(ctx context.Context) (*dto.PaymentFormDataResponse, error)
+	Reverse(ctx context.Context, id string, reason string) (*dto.PaymentResponse, error)
 }
 
 type paymentUsecase struct {
-	db      *gorm.DB
-	coaRepo repositories.ChartOfAccountRepository
-	repo    repositories.PaymentRepository
-	mapper  *mapper.PaymentMapper
+	db        *gorm.DB
+	coaRepo   repositories.ChartOfAccountRepository
+	repo      repositories.PaymentRepository
+	journalUC JournalEntryUsecase
+	mapper    *mapper.PaymentMapper
 }
 
-func NewPaymentUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.PaymentRepository, mapper *mapper.PaymentMapper) PaymentUsecase {
-	return &paymentUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper}
+func NewPaymentUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.PaymentRepository, journalUC JournalEntryUsecase, mapper *mapper.PaymentMapper) PaymentUsecase {
+	return &paymentUsecase{db: db, coaRepo: coaRepo, repo: repo, journalUC: journalUC, mapper: mapper}
 }
 
 func parseDateStrict(value string) (time.Time, error) {
@@ -64,6 +68,12 @@ func validateAllocations(allocs []dto.PaymentAllocationRequest) (float64, error)
 	for _, a := range allocs {
 		if strings.TrimSpace(a.ChartOfAccountID) == "" {
 			return 0, ErrPaymentInvalidAllocations
+		}
+		if a.ReferenceType == nil || strings.TrimSpace(*a.ReferenceType) == "" {
+			return 0, errors.New("reference_type is required for all allocations")
+		}
+		if a.ReferenceID == nil || strings.TrimSpace(*a.ReferenceID) == "" {
+			return 0, errors.New("reference_id is required for all allocations")
 		}
 		if a.Amount <= 0 {
 			return 0, ErrPaymentInvalidAllocations
@@ -193,7 +203,7 @@ func (uc *paymentUsecase) Update(ctx context.Context, id string, req *dto.Update
 		}
 		return nil, err
 	}
-	if p.Status == financeModels.PaymentStatusPosted {
+	if p.Status == financeModels.PaymentStatusPosted || p.Status == financeModels.PaymentStatusReversed {
 		return nil, ErrPaymentPostedImmutable
 	}
 
@@ -339,7 +349,7 @@ func (uc *paymentUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if p.Status == financeModels.PaymentStatusPosted {
+	if p.Status == financeModels.PaymentStatusPosted || p.Status == financeModels.PaymentStatusReversed {
 		return ErrPaymentPostedImmutable
 	}
 	return uc.db.WithContext(ctx).Delete(&financeModels.Payment{}, "id = ?", id).Error
@@ -431,83 +441,80 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 		return nil, errors.New("user not authenticated")
 	}
 
-	p, err := uc.repo.FindByID(ctx, id, true)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrPaymentNotFound
-		}
-		return nil, err
-	}
-	if p.Status == financeModels.PaymentStatusPosted {
-		resp := uc.mapper.ToResponse(p)
-		return &resp, nil
-	}
-
-	var bank coreModels.BankAccount
-	if err := uc.db.WithContext(ctx).First(&bank, "id = ?", p.BankAccountID).Error; err != nil {
-		return nil, err
-	}
-	if bank.ChartOfAccountID == nil || strings.TrimSpace(*bank.ChartOfAccountID) == "" {
-		return nil, errors.New("bank account is not linked to chart_of_account_id")
-	}
-	bankCOAID := strings.TrimSpace(*bank.ChartOfAccountID)
-
 	var postedID string
-	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var p financeModels.Payment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Allocations").
+			First(&p, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrPaymentNotFound
+			}
+			return err
+		}
+
+		if p.Status == financeModels.PaymentStatusPosted {
+			postedID = p.ID
+			return nil
+		}
+
+		var bank coreModels.BankAccount
+		if err := tx.First(&bank, "id = ?", p.BankAccountID).Error; err != nil {
+			return err
+		}
+		if bank.ChartOfAccountID == nil || strings.TrimSpace(*bank.ChartOfAccountID) == "" {
+			return errors.New("bank account is not linked to chart_of_account_id")
+		}
+		bankCOAID := strings.TrimSpace(*bank.ChartOfAccountID)
+
 		if err := ensureNotClosed(ctx, tx, p.PaymentDate); err != nil {
 			return err
 		}
 		now := apptime.Now()
 
-		je := &financeModels.JournalEntry{
-			EntryDate:     p.PaymentDate,
-			Description:   strings.TrimSpace(p.Description),
-			ReferenceType: func() *string { v := reference.RefTypePayment; return &v }(),
-			ReferenceID:   &p.ID,
-			Status:        financeModels.JournalStatusPosted,
-			PostedAt:      &now,
-			PostedBy:      &actorID,
-			CreatedBy:     &actorID,
-		}
-		if err := tx.Create(je).Error; err != nil {
-			return err
-		}
+		refType := reference.RefTypePayment
 
+		journalLines := make([]dto.JournalLineRequest, 0, len(p.Allocations)+1)
 		for _, al := range p.Allocations {
-			// Enforce budget guard — block if over-budget (strict ERP mode).
 			if al.Amount > 0 {
 				if err := EnsureWithinBudget(ctx, tx, al.ChartOfAccountID, p.PaymentDate, al.Amount); err != nil {
 					return fmt.Errorf("budget check failed for account %s: %w", al.ChartOfAccountID, err)
 				}
 			}
-
-			line := &financeModels.JournalLine{
-				JournalEntryID:   je.ID,
+			journalLines = append(journalLines, dto.JournalLineRequest{
 				ChartOfAccountID: al.ChartOfAccountID,
 				Debit:            al.Amount,
 				Credit:           0,
 				Memo:             strings.TrimSpace(al.Memo),
-			}
-			if err := tx.Create(line).Error; err != nil {
-				return err
-			}
+			})
 		}
-		credit := &financeModels.JournalLine{
-			JournalEntryID:   je.ID,
+		journalLines = append(journalLines, dto.JournalLineRequest{
 			ChartOfAccountID: bankCOAID,
 			Debit:            0,
 			Credit:           p.TotalAmount,
 			Memo:             "Payment bank outflow",
+		})
+
+		reqJournal := &dto.CreateJournalEntryRequest{
+			EntryDate:         p.PaymentDate.Format("2006-01-02"),
+			Description:       strings.TrimSpace(p.Description),
+			ReferenceType:     &refType,
+			ReferenceID:       &p.ID,
+			Lines:             journalLines,
+			IsSystemGenerated: true,
 		}
-		if err := tx.Create(credit).Error; err != nil {
-			return err
+
+		txCtx := database.WithTx(ctx, tx)
+		journalResp, err := uc.journalUC.PostOrUpdateJournal(txCtx, reqJournal)
+		if err != nil {
+			return fmt.Errorf("failed to generate journal: %w", err)
 		}
 
 		if err := tx.Model(&financeModels.Payment{}).
 			Where("id = ?", p.ID).
 			Updates(map[string]interface{}{
 				"status":           financeModels.PaymentStatusPosted,
-				"journal_entry_id": je.ID,
+				"journal_entry_id": journalResp.ID,
 				"approved_at":      now,
 				"approved_by":      actorID,
 				"posted_at":        now,
@@ -515,6 +522,7 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 			}).Error; err != nil {
 			return err
 		}
+
 		postedID = p.ID
 		return nil
 	})
@@ -523,6 +531,75 @@ func (uc *paymentUsecase) Approve(ctx context.Context, id string) (*dto.PaymentR
 	}
 
 	full, err := uc.repo.FindByID(ctx, postedID, true)
+	if err != nil {
+		return nil, err
+	}
+	resp := uc.mapper.ToResponse(full)
+	return &resp, nil
+}
+
+func (uc *paymentUsecase) Reverse(ctx context.Context, id string, reason string) (*dto.PaymentResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	var reversedID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var p financeModels.Payment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&p, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrPaymentNotFound
+			}
+			return err
+		}
+
+		if p.Status == financeModels.PaymentStatusReversed {
+			reversedID = p.ID
+			return nil
+		}
+
+		if p.Status != financeModels.PaymentStatusPosted {
+			return errors.New("only posted payments can be reversed")
+		}
+
+		if p.JournalEntryID == nil {
+			return errors.New("no associated journal entry found to reverse")
+		}
+
+		if err := ensureNotClosed(ctx, tx, p.PaymentDate); err != nil {
+			return err
+		}
+
+		txCtx := database.WithTx(ctx, tx)
+		_, err := uc.journalUC.ReverseWithReason(txCtx, *p.JournalEntryID, reason)
+		if err != nil {
+			return fmt.Errorf("failed to reverse journal: %w", err)
+		}
+
+		if err := tx.Model(&financeModels.Payment{}).
+			Where("id = ?", p.ID).
+			Updates(map[string]interface{}{
+				"status": financeModels.PaymentStatusReversed,
+			}).Error; err != nil {
+			return err
+		}
+
+		reversedID = p.ID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	full, err := uc.repo.FindByID(ctx, reversedID, true)
 	if err != nil {
 		return nil, err
 	}

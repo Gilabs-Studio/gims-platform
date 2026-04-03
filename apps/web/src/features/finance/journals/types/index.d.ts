@@ -249,6 +249,7 @@ export interface ListCashBankSubLedgerParams {
   per_page?: number;
   search?: string;
   type?: "cash_in" | "cash_out" | "transfer";
+  source?: string;
   bank_account_id?: string;
   start_date?: string;
   end_date?: string;

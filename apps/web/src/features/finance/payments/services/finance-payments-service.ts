@@ -46,4 +46,8 @@ export const financePaymentsService = {
     const response = await apiClient.post<ApiResponse<Payment>>(`${BASE_URL}/${id}/approve`);
     return response.data;
   },
+  reverse: async (id: string, reason: string): Promise<ApiResponse<Payment>> => {
+    const response = await apiClient.post<ApiResponse<Payment>>(`${BASE_URL}/${id}/reverse`, { reason });
+    return response.data;
+  },
 };

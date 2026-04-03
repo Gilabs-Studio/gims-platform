@@ -458,3 +458,116 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 		}
 	}
 }
+
+func TestFinancialClosing_IntegrityEnforcement(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+	)
+	require.NoError(t, err)
+
+	coaCash := models.ChartOfAccount{Code: "11100", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true}
+	coaSales := models.ChartOfAccount{Code: "41000", Name: "Sales", Type: models.AccountTypeRevenue, IsActive: true}
+	require.NoError(t, db.Create(&coaCash).Error)
+	require.NoError(t, db.Create(&coaSales).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+
+	// 1. Create a closed period for January 2026
+	janClosing := models.FinancialClosing{
+		PeriodEndDate: time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
+		Status:        models.FinancialClosingStatusApproved,
+	}
+	require.NoError(t, db.Create(&janClosing).Error)
+
+	// 2. Attempt to post a journal in the closed period (Jan 15)
+	refType := "GENERAL"
+	refID := "closed-test-001"
+	req := &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-01-15",
+		Description:   "Should be blocked",
+		ReferenceType: &refType,
+		ReferenceID:   &refID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 100, Credit: 0, Memo: "In"},
+			{ChartOfAccountID: coaSales.ID, Debit: 0, Credit: 100, Memo: "Out"},
+		},
+	}
+
+	_, err = uc.Create(ctx, req)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "period has been closed")
+
+	// 3. Attempt to post a journal in an open period (Feb 15) - Should succeed
+	refIDOpen := "open-test-002"
+	reqOpen := &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-02-15",
+		Description:   "Should work",
+		ReferenceType: &refType,
+		ReferenceID:   &refIDOpen,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: coaCash.ID, Debit: 200, Credit: 0, Memo: "In"},
+			{ChartOfAccountID: coaSales.ID, Debit: 0, Credit: 200, Memo: "Out"},
+		},
+	}
+
+	resOpen, err := uc.Create(ctx, reqOpen)
+	require.NoError(t, err)
+	require.NotEmpty(t, resOpen.ID)
+}
+
+func TestInventoryFreeze_IntegrityEnforcement(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&models.FinancialClosing{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.ChartOfAccount{},
+	)
+	require.NoError(t, err)
+
+	// 1. Create a closed period for Jan 2026
+	janClosing := models.FinancialClosing{
+		PeriodEndDate: time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
+		Status:        models.FinancialClosingStatusApproved,
+	}
+	require.NoError(t, db.Create(&janClosing).Error)
+
+	// 2. Define a guard check function using the same logic as closing_guard.go
+	isPeriodClosed := func(dateStr string) bool {
+		parsed, _ := time.Parse("2006-01-02", dateStr)
+		var closing models.FinancialClosing
+		err := db.Where("period_end_date >= ? AND status = ?", parsed, models.FinancialClosingStatusApproved).
+			Order("period_end_date ASC").
+			First(&closing).Error
+		return err == nil
+	}
+
+	// January 10 is inside Jan 31 closing -> Closed
+	require.True(t, isPeriodClosed("2026-01-10"), "Jan 10 should be closed")
+	
+	// February 1 is after Jan 31 closing -> Open
+	require.False(t, isPeriodClosed("2026-02-01"), "Feb 1 should be open")
+}

@@ -186,7 +186,6 @@
     "cashBankJournal": "Jurnal Kas Bank",
     "journalLines": "Baris Jurnal",
     "financialClosing": "Penutupan Finansial",
-    "bankingPayments": "Perbankan & Pembayaran",
     "bankAccounts": "Akun Bank",
     "financeSettings": "Pengaturan Finance",
     "accountingMapping": "Accounting Mapping",
@@ -243,6 +242,9 @@
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
     "travelPlanner": "Travel Planner",
+    "visitPlanner": "Visit Planner",
+    "plannerWorkspace": "Workspace Planner",
+    "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
   },

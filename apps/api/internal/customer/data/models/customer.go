@@ -45,6 +45,8 @@ type Customer struct {
 	DefaultPaymentTermsID  *string                    `gorm:"type:uuid;index" json:"default_payment_terms_id"`
 	DefaultPaymentTerms    *coreModels.PaymentTerms   `gorm:"foreignKey:DefaultPaymentTermsID" json:"default_payment_terms,omitempty"`
 	DefaultTaxRate         *float64                   `gorm:"type:decimal(5,2)" json:"default_tax_rate"`
+	CreditLimit            float64                    `gorm:"type:decimal(15,2);default:0" json:"credit_limit"`
+	CreditIsActive         bool                       `gorm:"default:false" json:"credit_is_active"`
 
 	// Approval workflow
 	CreatedBy  *string        `gorm:"type:uuid" json:"created_by"`

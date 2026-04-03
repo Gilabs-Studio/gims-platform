@@ -85,9 +85,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
-	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, paymentMapper)
+	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
@@ -110,6 +110,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
 
+	arapReconciliationUC := usecase.NewARAPReconciliationUsecase(db, agingRepo, coaRepo, settingsService, accountingEngine)
+	
 	// Reconciliation service for GL vs subledger validation
 	reconciliationSvc := usecase.NewValuationReconciliationService(
 		db,
@@ -122,6 +124,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Export service for audit-ready CSV/PDF generation
 	exportSvc := service.NewValuationExportService(valuationRunRepo)
 
+	settingsH := handler.NewFinanceSettingsHandler(settingsService)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
@@ -137,6 +140,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
 	salaryH := handler.NewSalaryStructureHandler(salaryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
+	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -157,6 +161,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
 	router.RegisterSalaryStructureRoutes(group, salaryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
+	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
+	router.RegisterFinanceSettingsRoutes(group, settingsH)
 
 	return &FinanceDeps{
 		JournalUC:    journalUC,

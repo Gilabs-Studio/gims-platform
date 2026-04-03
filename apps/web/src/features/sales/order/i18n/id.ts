@@ -197,6 +197,10 @@ export const orderId = {
       itemsMin: "Minimal satu item diperlukan",
       invalidStatus: "Status tidak valid",
       invalidEmail: "Format email tidak valid",
+      creditLimitExceeded: "Batas kredit terlampaui. Pelanggan tidak memiliki kredit cukup untuk pesanan ini.",
+      insufficientStock: "Stok tidak mencukupi untuk satu atau lebih item.",
+      duplicateJournal: "Jurnal sudah ada untuk transaksi ini.",
+      overpayment: "Jumlah pembayaran melebihi sisa saldo.",
     },
     // Workflow timestamps
     confirmedAt: "Dikonfirmasi Pada",

@@ -362,7 +362,8 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/master-data/areas") ||
     pathname?.includes("/master-data/geographic") ||
     pathname?.includes("/crm/area-mapping") ||
-    pathname?.includes("/travel-planner");
+    pathname?.includes("/travel-planner") ||
+    pathname?.includes("/visit-planner");
 
   const handleOpenAttendanceDrawer = useCallback(
     (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {

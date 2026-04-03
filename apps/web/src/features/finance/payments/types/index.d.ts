@@ -20,7 +20,7 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type PaymentStatus = "draft" | "posted";
+export type PaymentStatus = "draft" | "posted" | "reversed";
 
 export interface PaymentAllocation {
   id: string;

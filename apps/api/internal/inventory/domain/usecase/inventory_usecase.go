@@ -244,10 +244,8 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
 	var movementID string
 	
-	// Use existing transaction from context if available, otherwise start a new one
-	db := database.GetDB(ctx, u.db)
-	
-	err := db.Transaction(func(tx *gorm.DB) error {
+	// Use RetryTx for atomic operation. Failure in journal = Rollback stock movement.
+	err := database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
 		id, err := u.repo.CreateStockMovement(txCtx, req)
 		if err != nil {
@@ -261,18 +259,22 @@ func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.Sto
 			return nil
 		}
 		
-		return u.triggerInventoryJournal(txCtx, tx, movementID)
+		if err := u.triggerInventoryJournal(txCtx, tx, movementID); err != nil {
+			return fmt.Errorf("triggered journal failed: %w", err)
+		}
+		return nil
 	})
 	
 	if err != nil {
 		log.Printf("[Inventory] FAILED CreateStockMovement for %s %s: %v", req.ReferenceType, req.ReferenceNumber, err)
+		return "", err
 	}
 	
-	return movementID, err
+	return movementID, nil
 }
 
 func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error {
-	return u.db.Transaction(func(tx *gorm.DB) error {
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
 		ctx = database.WithTx(ctx, tx)
 
 		for idx, item := range req.Items {
@@ -413,7 +415,7 @@ func (u *inventoryUsecase) ReleaseBatchStock(ctx context.Context, batchID string
 // Positive variance = surplus (qty found more than system) → IN adjustment
 // Negative variance = shortage (qty found less than system) → OUT adjustment
 func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.AdjustStockFromOpnameRequest) error {
-	return u.db.Transaction(func(tx *gorm.DB) error {
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
 		ctx = database.WithTx(ctx, tx)
 
 		for _, item := range req.Items {
@@ -478,7 +480,7 @@ var ErrTargetWarehouseRequired = errors.New("target warehouse is required for TR
 var ErrInsufficientStock = errors.New("insufficient stock for movement")
 
 func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error {
-	return u.db.Transaction(func(tx *gorm.DB) error {
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
 		ctx = database.WithTx(ctx, tx)
 
 		zeroUUID := "00000000-0000-0000-0000-000000000000"
@@ -635,7 +637,7 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 // AccountingEngine, and posts it via JournalEntryUsecase.
 func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm.DB, movementID string) error {
 	if u.journalUC == nil || u.engine == nil {
-		return nil
+		return fmt.Errorf("journaling engine not configured: physical movement (ID: %s) cancelled", movementID)
 	}
 
 	// 1. Fetch the movement with product info

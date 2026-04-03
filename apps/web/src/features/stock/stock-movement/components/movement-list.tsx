@@ -27,6 +27,9 @@ import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/component
 import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
+
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
   const tCommon = useTranslations("common");
@@ -178,9 +181,17 @@ export function MovementList() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("description")}</p>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("description")}</p>
+          </div>
+          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm font-medium">
+              All inventory movements are recorded via Stock. The Inventory Journal will be automatically managed.
+            </AlertDescription>
+          </Alert>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
           <Button variant="outline" className="cursor-pointer w-full sm:w-auto">

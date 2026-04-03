@@ -209,6 +209,8 @@ func SeedPermissions() error {
 		{"/sales/orders", "sales_order.delete", "Delete Sales Orders", "DELETE", "sales_order"},
 		{"/sales/orders", "sales_order.approve", "Approve Sales Orders", "APPROVE", "sales_order"},
 		{"/sales/orders", "sales_order.print", "Print Sales Orders", "PRINT", "sales_order"},
+		{"/sales/orders", "sales_order.submit", "Submit Sales Orders", "SUBMIT", "sales_order"},
+		{"/sales/orders", "sales_order.credit_override", "Override Credit Limit on Sales Orders", "OVERRIDE", "sales_order"},
 
 		{"/sales/delivery-orders", "delivery_order.read", "View Delivery Orders", "VIEW", "delivery_order"},
 		{"/sales/delivery-orders", "delivery_order.create", "Create Delivery Orders", "CREATE", "delivery_order"},
@@ -406,6 +408,9 @@ func SeedPermissions() error {
 		{"/finance/payments", "payment.delete", "Delete Payments", "DELETE", "payment"},
 		{"/finance/payments", "payment.approve", "Approve Payments", "APPROVE", "payment"},
 
+		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
+		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+
 		{"/finance/tax-invoices", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
@@ -436,6 +441,7 @@ func SeedPermissions() error {
 		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
 		{"/finance/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
 		{"/finance/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
+		{"/finance/closing", "financial_closing.delete", "Delete Financial Closing", "DELETE", "financial_closing"},
 
 		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
 		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
@@ -451,10 +457,13 @@ func SeedPermissions() error {
 		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
 		// Travel Planner
-		{"/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
-		{"/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
-		{"/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
-		{"/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
+		{"/travel/visit-planner", "travel.visit.read", "View Visit Planner", "VIEW", "travel_visit"},
+		{"/travel/visit-planner", "travel.visit.create", "Create Visit Planner Logs", "CREATE", "travel_visit"},
+		{"/travel/visit-planner", "travel.visit.admin", "Admin Visit Planner", "ADMIN", "travel_visit"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
@@ -475,6 +484,7 @@ func SeedPermissions() error {
 		{"/finance/journals/sales", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
 		{"/finance/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
 		{"/finance/reports", "finance_reports_menu.read", "View Finance Reports Menu", "VIEW", "finance_report"},
+		{"/finance/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
 
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
@@ -772,6 +782,7 @@ func SeedPermissions() error {
 		"hrd":               "DIVISION",
 		"finance":           "DIVISION",
 		"non_trade_payable": "DIVISION",
+		"travel_visit":      "DIVISION",
 		"stock":             "ALL",
 	}, "ALL")
 
@@ -782,25 +793,28 @@ func SeedPermissions() error {
 		"hrd":               "OWN",
 		"finance":           "OWN",
 		"non_trade_payable": "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 	}, "ALL")
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
 	assignScopedPermissionsToRole("area_supervisor", map[string]string{
-		"sales":    "AREA",
-		"purchase": "DIVISION",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "AREA",
+		"sales":        "AREA",
+		"purchase":     "DIVISION",
+		"hrd":          "OWN",
+		"finance":      "OWN",
+		"travel_visit": "DIVISION",
+		"stock":        "AREA",
 	}, "ALL")
 
 	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
 	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":    "ALL",
-		"purchase": "DIVISION",
-		"hrd":      "OWN",
-		"finance":  "OWN",
-		"stock":    "ALL",
+		"sales":        "ALL",
+		"purchase":     "DIVISION",
+		"hrd":          "OWN",
+		"finance":      "OWN",
+		"travel_visit": "ALL",
+		"stock":        "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
@@ -810,6 +824,7 @@ func SeedPermissions() error {
 		"sales":             "OWN",
 		"purchase":          "OWN",
 		"hrd":               "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — explicit DIVISION scope
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
@@ -825,6 +840,7 @@ func SeedPermissions() error {
 		"sales":             "OWN",
 		"purchase":          "OWN",
 		"hrd":               "OWN",
+		"travel_visit":      "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",

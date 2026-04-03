@@ -19,6 +19,7 @@ import { useCustomer } from "../../hooks/use-customers";
 import type { Customer } from "../../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerBankList } from "./customer-bank-list";
+import { formatCurrency } from "@/lib/utils";
 
 interface CustomerDetailModalProps {
   readonly open: boolean;
@@ -72,7 +73,9 @@ export function CustomerDetailModal({
     entity.default_business_type_id ||
     entity.default_sales_rep_id ||
     entity.default_payment_terms_id ||
-    entity.default_tax_rate != null;
+    entity.default_tax_rate != null ||
+    entity.credit_is_active ||
+    (entity.credit_limit ?? 0) > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -353,6 +356,22 @@ export function CustomerDetailModal({
                                   <TableRow>
                                     <TableCell className="font-medium bg-muted/50">{t("form.defaultTaxRate")}</TableCell>
                                     <TableCell>{entity.default_tax_rate}%</TableCell>
+                                  </TableRow>
+                                )}
+                                <TableRow>
+                                  <TableCell className="font-medium bg-muted/50">{t("form.creditIsActive")}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={entity.credit_is_active ? "default" : "secondary"}>
+                                      {entity.credit_is_active ? t("common.active") : t("common.inactive")}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                                {entity.credit_is_active && (
+                                  <TableRow>
+                                    <TableCell className="font-medium bg-muted/50">{t("form.creditLimit")}</TableCell>
+                                    <TableCell className="font-semibold text-primary">
+                                      {formatCurrency(entity.credit_limit ?? 0)}
+                                    </TableCell>
                                   </TableRow>
                                 )}
                               </TableBody>

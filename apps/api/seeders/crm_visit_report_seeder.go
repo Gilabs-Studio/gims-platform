@@ -49,6 +49,7 @@ func SeedCRMVisitReports() error {
 	contact3 := ContactID3
 
 	deal1 := DealID1
+	lead1 := LeadID1
 	lead2 := LeadID2
 
 	today := time.Now()
@@ -78,6 +79,7 @@ func SeedCRMVisitReports() error {
 			CustomerID:       &customer1,
 			ContactID:        &contact1,
 			DealID:           &deal1,
+			LeadID:           &lead1,
 			VisitDate:        lastWeek,
 			ScheduledTime:    &scheduledMorning,
 			ActualTime:       &checkIn1,
@@ -173,12 +175,60 @@ func SeedCRMVisitReports() error {
 		}
 	}
 
+	if err := seedVisitReportDetails(); err != nil {
+		log.Printf("Warning: Failed to seed visit report details: %v", err)
+	}
+
 	// Seed progress history
 	if err := seedVisitReportHistory(salesRep1, salesRep2, managerID, adminID, lastWeek, yesterday, twoWeeksAgo); err != nil {
 		log.Printf("Warning: Failed to seed visit report history: %v", err)
 	}
 
 	log.Println("CRM visit reports seeded successfully")
+	return nil
+}
+
+func seedVisitReportDetails() error {
+	type productRow struct {
+		ID string `gorm:"column:id"`
+	}
+
+	products := make([]productRow, 0)
+	if err := database.DB.Table("products").Select("id").Where("deleted_at IS NULL").Order("created_at ASC").Limit(2).Find(&products).Error; err != nil {
+		return err
+	}
+	if len(products) == 0 {
+		return nil
+	}
+
+	details := make([]crm.VisitReportDetail, 0, 2)
+	details = append(details, crm.VisitReportDetail{
+		ID:            VisitReportDetailID1,
+		VisitReportID: VisitReportID1,
+		ProductID:     products[0].ID,
+		InterestLevel: 5,
+		Notes:         "Customer requested urgent quotation",
+	})
+
+	if len(products) > 1 {
+		details = append(details, crm.VisitReportDetail{
+			ID:            VisitReportDetailID2,
+			VisitReportID: VisitReportID2,
+			ProductID:     products[1].ID,
+			InterestLevel: 4,
+			Notes:         "Follow-up product interest from field visit",
+		})
+	}
+
+	for _, detail := range details {
+		if err := database.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"updated_at", "interest_level", "notes"}),
+		}).Create(&detail).Error; err != nil {
+			log.Printf("Warning: Failed to seed visit report detail %s: %v", detail.ID, err)
+		}
+	}
+
 	return nil
 }
 

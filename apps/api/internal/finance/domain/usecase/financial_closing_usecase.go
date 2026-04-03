@@ -33,6 +33,7 @@ type FinancialClosingUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.FinancialClosingResponse, error)
 	List(ctx context.Context, req *dto.ListFinancialClosingsRequest) ([]dto.FinancialClosingResponse, int64, error)
 	GetAnalysis(ctx context.Context, id string) (*dto.FinancialClosingAnalysisResponse, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type financialClosingUsecase struct {
@@ -65,7 +66,7 @@ func (uc *financialClosingUsecase) getClosingPeriodRange(ctx context.Context, en
 	if err == nil {
 		// start is the day after the latest approved closing
 		start = latest.PeriodEndDate.AddDate(0, 0, 1)
-	} else if err != nil && err != gorm.ErrRecordNotFound {
+	} else if err != gorm.ErrRecordNotFound {
 		return time.Time{}, time.Time{}, err
 	}
 	return start, endDate, nil
@@ -393,7 +394,7 @@ func (uc *financialClosingUsecase) Approve(ctx context.Context, id string) (*dto
 		if !item.PeriodEndDate.After(latest.PeriodEndDate) {
 			return nil, errors.New("cannot approve closing period on/before latest approved period")
 		}
-	} else if err != nil && err != gorm.ErrRecordNotFound {
+	} else if err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
 
@@ -904,4 +905,24 @@ func (uc *financialClosingUsecase) YearEndClose(ctx context.Context, req *dto.Ye
 
 	res := uc.mapper.ToResponse(closingItem)
 	return &res, nil
+}
+func (uc *financialClosingUsecase) Delete(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("id is required")
+	}
+
+	item, err := uc.repo.FindByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrFinancialClosingNotFound
+		}
+		return err
+	}
+
+	if item.Status != financeModels.FinancialClosingStatusDraft {
+		return errors.New("only draft financial closings can be deleted")
+	}
+
+	return uc.repo.Delete(ctx, id)
 }
