@@ -72,6 +72,7 @@ export const customerEn = {
       bankAccounts: "Bank Accounts",
       location: "Location",
       coordinates: "Coordinates",
+      creditControl: "Credit Control",
     },
     status: {
       draft: "Draft",
@@ -132,6 +133,9 @@ export const customerEn = {
       defaultTaxRate: "Default Tax Rate (%)",
       defaultTaxRatePlaceholder: "e.g. 11",
       fullArea: "Full Area",
+      creditLimit: "Credit Limit",
+      creditLimitPlaceholder: "Enter credit limit amount",
+      creditIsActive: "Enable Credit Control",
     },
     common: {
       active: "Active",

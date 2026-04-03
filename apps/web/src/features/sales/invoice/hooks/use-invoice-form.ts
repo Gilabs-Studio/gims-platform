@@ -165,7 +165,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
 
 
   const schema = isEdit ? getUpdateInvoiceSchema(t) : getInvoiceSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
+  const formResolver = zodResolver(schema as any) as Resolver<CreateInvoiceFormData | UpdateInvoiceFormData>;
 
   const form = useForm<CreateInvoiceFormData | UpdateInvoiceFormData>({
     resolver: formResolver,

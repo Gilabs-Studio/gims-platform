@@ -12,6 +12,7 @@ const (
 	financialClosingApprove = "financial_closing.approve"
 	financialClosingReopen  = "financial_closing.reopen"
 	financialClosingYearEnd = "financial_closing.year_end"
+	financialClosingDelete  = "financial_closing.delete"
 )
 
 func RegisterFinancialClosingRoutes(r *gin.RouterGroup, h *handler.FinancialClosingHandler) {
@@ -25,4 +26,5 @@ func RegisterFinancialClosingRoutes(r *gin.RouterGroup, h *handler.FinancialClos
 	g.GET("/:id/analysis", middleware.RequirePermission(financialClosingRead), h.GetAnalysis)
 	g.POST("/:id/approve", middleware.RequirePermission(financialClosingApprove), h.Approve)
 	g.POST("/:id/reopen", middleware.RequirePermission(financialClosingReopen), h.Reopen)
+	g.DELETE("/:id", middleware.RequirePermission(financialClosingDelete), h.Delete)
 }

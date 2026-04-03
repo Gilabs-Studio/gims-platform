@@ -259,6 +259,12 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Close reason is required for lost deals",
 	},
 
+	// Sales Errors
+	"CREDIT_LIMIT_EXCEEDED": {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "Customer credit limit exceeded",
+	},
+
 	// HRD - Leave Request Errors
 	"INSUFFICIENT_LEAVE_BALANCE": {
 		HTTPStatus: http.StatusBadRequest,

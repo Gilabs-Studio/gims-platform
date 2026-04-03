@@ -74,6 +74,7 @@ export const customerId: CustomerTranslations = {
       bankAccounts: "Rekening Bank",
       location: "Lokasi",
       coordinates: "Koordinat",
+      creditControl: "Kontrol Kredit",
     },
     status: {
       draft: "Draft",
@@ -134,6 +135,9 @@ export const customerId: CustomerTranslations = {
       defaultTaxRate: "Tarif Pajak Default (%)",
       defaultTaxRatePlaceholder: "Contoh: 11",
       fullArea: "Area Lengkap",
+      creditLimit: "Limit Kredit",
+      creditLimitPlaceholder: "Masukkan jumlah limit kredit",
+      creditIsActive: "Aktifkan Kontrol Kredit",
     },
     common: {
       active: "Aktif",

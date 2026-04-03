@@ -136,35 +136,44 @@ type stubChartOfAccountRepository struct {
 	items []financeModels.ChartOfAccount
 }
 
-func (s stubChartOfAccountRepository) Create(context.Context, *financeModels.ChartOfAccount) error {
+func (s stubChartOfAccountRepository) Create(ctx context.Context, item *financeModels.ChartOfAccount) error {
 	return nil
 }
 
-func (s stubChartOfAccountRepository) FindByID(context.Context, string) (*financeModels.ChartOfAccount, error) {
+func (s stubChartOfAccountRepository) FindByID(ctx context.Context, id string) (*financeModels.ChartOfAccount, error) {
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (s stubChartOfAccountRepository) FindAll(context.Context, bool) ([]financeModels.ChartOfAccount, error) {
+func (s stubChartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {
+	return nil
+}
+
+func (s stubChartOfAccountRepository) FindAll(ctx context.Context, activeOnly bool) ([]financeModels.ChartOfAccount, error) {
 	return s.items, nil
 }
 
-func (s stubChartOfAccountRepository) List(context.Context, repositories.ChartOfAccountListParams) ([]financeModels.ChartOfAccount, int64, error) {
+func (s stubChartOfAccountRepository) List(ctx context.Context, params repositories.ChartOfAccountListParams) ([]financeModels.ChartOfAccount, int64, error) {
 	return s.items, int64(len(s.items)), nil
 }
 
-func (s stubChartOfAccountRepository) Update(context.Context, *financeModels.ChartOfAccount) error {
+func (s stubChartOfAccountRepository) Update(ctx context.Context, item *financeModels.ChartOfAccount) error {
 	return nil
 }
 
-func (s stubChartOfAccountRepository) Delete(context.Context, string) error {
+func (s stubChartOfAccountRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s stubChartOfAccountRepository) ExistsByCode(context.Context, string, *string) (bool, error) {
+func (s stubChartOfAccountRepository) ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error) {
 	return false, nil
 }
 
-func (s stubChartOfAccountRepository) FindByCode(context.Context, string) (*financeModels.ChartOfAccount, error) {
+func (s stubChartOfAccountRepository) FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	for _, item := range s.items {
+		if item.Code == code {
+			return &item, nil
+		}
+	}
 	return nil, gorm.ErrRecordNotFound
 }
 

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LocationPicker } from "../../../geographic/components/location-picker";
@@ -110,10 +112,13 @@ export function CustomerSidePanel({
       default_sales_rep_id: "",
       default_payment_terms_id: "",
       default_tax_rate: null,
+      credit_limit: 0,
+      credit_is_active: false,
     },
   });
 
   const formBanks = (useWatch({ control, name: "bank_accounts" }) as CreateCustomerBankData[]) ?? [];
+  const creditIsActive = useWatch({ control, name: "credit_is_active" });
 
   const {
     data: detailRes,
@@ -179,6 +184,8 @@ export function CustomerSidePanel({
           default_sales_rep_id: entity.default_sales_rep_id ?? "",
           default_payment_terms_id: entity.default_payment_terms_id ?? "",
           default_tax_rate: entity.default_tax_rate ?? null,
+          credit_limit: entity.credit_limit ?? 0,
+          credit_is_active: entity.credit_is_active ?? false,
         });
       });
     } else if (mode === "create") {
@@ -201,10 +208,18 @@ export function CustomerSidePanel({
         default_sales_rep_id: "",
         default_payment_terms_id: "",
         default_tax_rate: null,
+        credit_limit: 0,
+        credit_is_active: false,
       });
     }
     return () => clearTimeout(_timer);
   }, [isOpen, mode, customer?.id, refetchDetail, reset, initialData?.name]);
+
+  useEffect(() => {
+    if (!creditIsActive) {
+      setValue("credit_limit", 0);
+    }
+  }, [creditIsActive, setValue]);
 
   const handleAddBank = (bank: CreateCustomerBankData) => {
     setValue("bank_accounts", [...formBanks, bank]);
@@ -245,6 +260,8 @@ export function CustomerSidePanel({
             default_sales_rep_id: data.default_sales_rep_id || null,
             default_payment_terms_id: data.default_payment_terms_id || null,
             default_tax_rate: data.default_tax_rate ?? null,
+            credit_limit: data.credit_limit ?? 0,
+            credit_is_active: data.credit_is_active ?? false,
           },
         });
 
@@ -269,6 +286,8 @@ export function CustomerSidePanel({
           default_sales_rep_id: data.default_sales_rep_id || undefined,
           default_payment_terms_id: data.default_payment_terms_id || undefined,
           default_tax_rate: data.default_tax_rate ?? undefined,
+          credit_limit: data.credit_limit ?? 0,
+          credit_is_active: data.credit_is_active ?? false,
           bank_accounts: data.bank_accounts as CreateCustomerBankData[],
         });
 
@@ -524,6 +543,47 @@ export function CustomerSidePanel({
           </TabsContent>
 
           <TabsContent forceMount value="financial" className="space-y-4 data-[state=inactive]:hidden">
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium border-b pb-2">
+                {t("customer.sections.creditControl")}
+              </h3>
+
+              <Field orientation="horizontal" className="justify-between">
+                <FieldLabel>{t("customer.form.creditIsActive")}</FieldLabel>
+                <Controller
+                  control={control}
+                  name="credit_is_active"
+                  render={({ field }) => (
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isViewing}
+                    />
+                  )}
+                />
+              </Field>
+
+              {creditIsActive && (
+                <Field orientation="vertical">
+                  <FieldLabel>{t("customer.form.creditLimit")}</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="credit_limit"
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t("customer.form.creditLimitPlaceholder")}
+                        disabled={isViewing}
+                        min={0}
+                      />
+                    )}
+                  />
+                  {errors.credit_limit && <FieldError>{errors.credit_limit.message}</FieldError>}
+                </Field>
+              )}
+            </div>
+
             {fullCustomer?.id ? (
               <CustomerContactsTab customerId={fullCustomer.id} />
             ) : (

@@ -18,7 +18,6 @@ function flattenNavigationRoutes(items: readonly NavItem[]): string[] {
 
 const EXTRA_VALID_ROUTES = [
   "/stock/movements/create",
-  "/finance/journals/inventory",
   "/stock/opname",
   // Finance routes
   "/finance/coa",
@@ -29,11 +28,9 @@ const EXTRA_VALID_ROUTES = [
   "/finance/journals/valuation",
   "/finance/journals/cash-bank",
   "/finance/bank-accounts",
-  "/finance/payments",
   "/finance/tax-invoices",
   "/finance/non-trade-payables",
   "/finance/budget",
-  "/finance/cash-bank",
   "/finance/closing",
   "/finance/assets",
   "/finance/asset-categories",

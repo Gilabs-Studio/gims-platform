@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/customer/data/repositories"
 	"github.com/gilabs/gims/api/internal/customer/domain/dto"
 	"github.com/gilabs/gims/api/internal/customer/domain/mapper"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -87,6 +88,8 @@ func (u *customerUsecase) Create(ctx context.Context, userID string, req dto.Cre
 		DefaultSalesRepID:     req.DefaultSalesRepID,
 		DefaultPaymentTermsID: req.DefaultPaymentTermsID,
 		DefaultTaxRate:        req.DefaultTaxRate,
+		CreditLimit:           utils.Float64Value(req.CreditLimit),
+		CreditIsActive:        utils.BoolValue(req.CreditIsActive),
 	}
 
 	if err := u.repo.Create(ctx, customer); err != nil {
@@ -253,6 +256,12 @@ func (u *customerUsecase) Update(ctx context.Context, id string, req dto.UpdateC
 	}
 	if req.DefaultTaxRate != nil {
 		customer.DefaultTaxRate = req.DefaultTaxRate
+	}
+	if req.CreditLimit != nil {
+		customer.CreditLimit = *req.CreditLimit
+	}
+	if req.CreditIsActive != nil {
+		customer.CreditIsActive = *req.CreditIsActive
 	}
 
 	if err := u.repo.Update(ctx, customer); err != nil {

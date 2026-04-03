@@ -32,6 +32,7 @@ import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -147,8 +148,8 @@ export function OrderList() {
         data: { status, cancellation_reason: cancellationReason },
       });
       toast.success(t("statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
+    } catch (error) {
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -416,7 +417,7 @@ export function OrderList() {
                             <>
                               {canApprove && (
                                 <DropdownMenuItem
-                                  onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch(() => toast.error(t("common.error")))}
+                                  onClick={() => approveOrder.mutateAsync(order.id).then(() => toast.success(t("statusUpdated"))).catch((error) => toast.error(getSalesErrorMessage(error, t("common.error"))))}
                                   className="cursor-pointer text-success focus:text-success"
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -475,7 +476,7 @@ export function OrderList() {
                           )}
 
                           {/** Place Cancel as the bottom-most destructive action for visibility */}
-                          {canUpdate && order.status !== "cancelled" && (
+                          {canUpdate && (order.status === "draft" || order.status === "submitted") && (
                             <DropdownMenuItem
                               onClick={() => handleStatusChange(order.id, "cancelled")}
                               className="text-destructive cursor-pointer focus:text-destructive"

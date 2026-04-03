@@ -1,13 +1,5 @@
-import { PageMotion } from "@/components/motion";
-import { PermissionGuard } from "@/features/auth/components/permission-guard";
-import { InventoryJournalsList } from "@/features/finance/journals/components";
+import { redirect } from "next/navigation";
 
 export default function FinanceInventoryJournalsPage() {
-  return (
-    <PermissionGuard requiredPermission="journal.read">
-      <PageMotion>
-        <InventoryJournalsList />
-      </PageMotion>
-    </PermissionGuard>
-  );
+  redirect("/stock/movements");
 }

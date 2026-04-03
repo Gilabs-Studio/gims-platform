@@ -30,6 +30,25 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
       }
     ).response?.data;
 
+    // Check for specific error codes from backend
+    const errorCode = (responseData?.error as Record<string, unknown>)?.code;
+    if (typeof errorCode === "string" && errorCode) {
+      const knownErrors: Record<string, string> = {
+        QUANTITY_EXCEEDS_ORDER: "Received quantity exceeds the purchase order quantity.",
+        DUPLICATE_JOURNAL: "A journal entry already exists for this transaction.",
+        OVERPAYMENT: "Payment amount exceeds the remaining invoice balance.",
+        PERIOD_CLOSED: "Cannot modify transactions in a closed financial period.",
+        INVALID_STATUS_TRANSITION: "This status change is not allowed.",
+        THREE_WAY_MATCH_FAILED: "3-way matching failed. Price/quantity mismatch between PO, GR, and Invoice.",
+      };
+      if (knownErrors[errorCode]) {
+        const apiDetail = responseData?.error?.details?.message;
+        return typeof apiDetail === "string" && apiDetail.trim().length > 0
+          ? apiDetail
+          : knownErrors[errorCode];
+      }
+    }
+
     const fieldErrors = responseData?.error?.field_errors;
     if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
       const firstFieldError = fieldErrors[0];

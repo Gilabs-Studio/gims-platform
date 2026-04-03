@@ -30,20 +30,20 @@ export const AccountingMappingForm = () => {
   const canUpdate = useUserPermission("finance_settings.update");
 
   const coaList = useMemo(() => {
-    return Array.isArray(_coaData) ? _coaData : (_coaData as any)?.data || [];
+    return _coaData?.data || [];
   }, [_coaData]);
 
   const form = useForm<BatchUpsertFinanceSettingsFormData>({
     resolver: zodResolver(batchUpsertFinanceSettingsSchema as any),
     defaultValues: {
-      settings: [] as any,
+      settings: [],
     },
   });
 
   useEffect(() => {
-    if (settings) {
+    if (settings?.data) {
       form.reset({
-        settings: settings.map((s: FinanceSetting) => ({
+        settings: settings.data.map((s: FinanceSetting) => ({
           setting_key: s.setting_key,
           value: s.value || "",
           description: s.description || "",
@@ -65,7 +65,20 @@ export const AccountingMappingForm = () => {
   };
 
   if (isSettingsLoading || isCoaLoading) {
-    return <div className="p-8 text-center bg-muted/20 rounded-lg animate-pulse">Loading settings...</div>;
+    return (
+      <div className="p-12 text-center bg-muted/10 rounded-xl border border-dashed animate-pulse">
+        <div className="h-6 w-32 bg-muted/30 mx-auto rounded-md mb-2"></div>
+        <div className="text-muted-foreground text-sm">Syncing Ledger Definitions...</div>
+      </div>
+    );
+  }
+
+  if (settings?.success === false || _coaData?.success === false) {
+    return (
+      <div className="p-12 text-center bg-destructive/10 text-destructive rounded-xl border border-destructive/20 font-medium">
+        Sync Failed: Access Denied or Module Unreachable.
+      </div>
+    );
   }
 
   const requiredMappings = [
@@ -106,8 +119,26 @@ export const AccountingMappingForm = () => {
 
               const validCOAs = coaList.filter((c: any) => {
                 const type = c.type?.toUpperCase();
-                if (mapping.targetType === "INCOME") return type === "REVENUE" || type === "INCOME";
-                return type === mapping.targetType;
+                const target = mapping.targetType?.toUpperCase();
+                
+                // Group-based matching
+                switch (target) {
+                  case "ASSET":
+                    return type === "ASSET" || type === "CURRENT_ASSET" || type === "FIXED_ASSET";
+                  case "LIABILITY":
+                    return type === "LIABILITY" || type === "TRADE_PAYABLE";
+                  case "EQUITY":
+                    return type === "EQUITY" || type === "RETAINED_EARNINGS"; // Handle retained earnings subtype if exists
+                  case "INCOME":
+                  case "REVENUE":
+                    return type === "REVENUE" || type === "INCOME";
+                  case "EXPENSE":
+                    return type === "EXPENSE" || type === "COST_OF_GOODS_SOLD" || type === "SALARY_WAGES" || type === "OPERATIONAL";
+                  case "CASH_BANK":
+                    return type === "CASH_BANK";
+                  default:
+                    return type === target;
+                }
               });
 
               const error = form.formState.errors.settings?.[fieldIndex]?.value;

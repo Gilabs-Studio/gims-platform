@@ -36,6 +36,7 @@ var (
 	ErrQuotationNotApproved         = errors.New("quotation must be approved before converting to order")
 	ErrInsufficientStock            = errors.New("insufficient stock available")
 	ErrUnauthorizedAccess           = errors.New("unauthorized access to sales order")
+	ErrCreditLimitExceeded          = errors.New("customer credit limit exceeded")
 )
 
 // SalesOrderUsecase defines the interface for sales order business logic
@@ -228,7 +229,7 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 		return nil, err
 	}
 
-	// Convert request to model
+	// 2. Convert request to model
 	order, err := mapper.ToSalesOrderModel(req, code, createdBy)
 	if err != nil {
 		return nil, err
@@ -238,8 +239,13 @@ func (u *salesOrderUsecase) Create(ctx context.Context, req *dto.CreateSalesOrde
 		return nil, err
 	}
 
-	// Calculate totals
+	// Calculate totals early for credit check
 	u.calculateTotals(order)
+
+	// 3. Perform Credit Control Check
+	if err := u.checkCreditLimit(ctx, order); err != nil {
+		return nil, err
+	}
 
 	// Populate snapshot fields
 	for i := range order.Items {
@@ -423,6 +429,13 @@ func (u *salesOrderUsecase) UpdateStatus(ctx context.Context, id string, req *dt
 	// Validate status transition
 	if !u.isValidStatusTransition(order.Status, newStatus) {
 		return nil, ErrInvalidOrderStatusTransition
+	}
+
+	// Check credit control limit on approval
+	if newStatus == models.SalesOrderStatusApproved {
+		if err := u.checkCreditLimit(ctx, order); err != nil {
+			return nil, err
+		}
 	}
 
 	// Handle stock reservation on approval (wrapped in transaction for atomicity)
@@ -797,6 +810,48 @@ func salesOrderSalesRepName(order *models.SalesOrder) string {
 		return ""
 	}
 	return order.SalesRep.Name
+}
+
+func (u *salesOrderUsecase) checkCreditLimit(ctx context.Context, order *models.SalesOrder) error {
+	if order.CustomerID == nil || *order.CustomerID == "" {
+		return nil
+	}
+
+	customer, err := u.customerRepo.FindByID(ctx, *order.CustomerID)
+	if err != nil {
+		return nil // Customer not found, skip credit check or handle as error?
+	}
+
+	if !customer.CreditIsActive || customer.CreditLimit <= 0 {
+		return nil
+	}
+
+	// Get outstanding balance (Unpaid Invoices)
+	var outstanding float64
+	err = u.db.Table("customer_invoices").
+		Where("customer_id = ? AND status IN ?", *order.CustomerID, []string{
+			"unpaid", "partial", "waiting_payment", "overdue",
+		}).
+		Where("deleted_at IS NULL").
+		Select("COALESCE(SUM(remaining_amount), 0)").
+		Scan(&outstanding).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to check customer credit: %w", err)
+	}
+
+	if outstanding+order.TotalAmount > customer.CreditLimit {
+		// Check for credit override permission
+		perms, ok := ctx.Value("user_permissions").(map[string]bool)
+		if ok && perms["sales_order.credit_override"] {
+			return nil // Override allowed
+		}
+
+		return fmt.Errorf("%w: limit %.2f, outstanding %.2f, new order %.2f",
+			ErrCreditLimitExceeded, customer.CreditLimit, outstanding, order.TotalAmount)
+	}
+
+	return nil
 }
 
 func salesOrderAuditSnapshot(order *models.SalesOrder) map[string]interface{} {

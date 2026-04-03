@@ -1,3 +1,10 @@
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  meta?: any;
+  error?: any;
+}
+
 export interface FinanceSetting {
   id: string;
   setting_key: string;

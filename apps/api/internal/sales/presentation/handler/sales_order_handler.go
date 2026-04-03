@@ -124,6 +124,12 @@ func (h *SalesOrderHandler) Create(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -166,6 +172,12 @@ func (h *SalesOrderHandler) Update(c *gin.Context) {
 		if err == usecase.ErrOrderProductNotFound {
 			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"message": "One or more products not found",
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
 			}, nil)
 			return
 		}
@@ -249,6 +261,12 @@ func (h *SalesOrderHandler) UpdateStatus(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -284,6 +302,12 @@ func (h *SalesOrderHandler) Approve(c *gin.Context) {
 		if err == usecase.ErrInvalidOrderStatusTransition {
 			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Order must be in sent status to approve",
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
 			}, nil)
 			return
 		}

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type { SalesOrder } from "../types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
@@ -41,6 +42,8 @@ import { InvoiceForm } from "../../invoice/components/invoice-form";
 import { useInvoices } from "../../invoice/hooks/use-invoices";
 import { useCustomerInvoiceDPs } from "../../customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
+import { CreditLimitIndicator } from "./credit-limit-indicator";
+import { useCustomer } from "@/features/master-data/customer/hooks/use-customers";
 
 interface OrderDetailModalProps {
   readonly open: boolean;
@@ -113,6 +116,12 @@ export function OrderDetailModal({
   const { data: dpData } = useCustomerInvoiceDPs(
     { sales_order_id: displayOrder?.id, per_page: 20 },
     { enabled: open && !!displayOrder?.id && activeTab === "general" },
+  );
+
+  // Fetch customer credit info for display
+  const { data: customerCreditData } = useCustomer(
+    displayOrder?.customer_id ?? "",
+    { enabled: open && !!displayOrder?.customer_id },
   );
 
   const financialOverview = useMemo(() => {
@@ -242,7 +251,7 @@ export function OrderDetailModal({
       toast.success(t("statusUpdated"));
     } catch (error) {
       console.error("Failed to approve order:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -256,7 +265,7 @@ export function OrderDetailModal({
       toast.success(t("statusUpdated"));
     } catch (error) {
       console.error("Failed to submit order:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -270,7 +279,7 @@ export function OrderDetailModal({
       toast.success(t("statusUpdated"));
     } catch (error) {
       console.error("Failed to cancel order:", error);
-      toast.error(t("common.error"));
+      toast.error(getSalesErrorMessage(error, t("common.error")));
     }
   };
 
@@ -332,7 +341,7 @@ export function OrderDetailModal({
                     <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
-                {displayOrder?.status !== "cancelled" && canCancel && (
+                {(displayOrder?.status === "draft" || displayOrder?.status === "submitted") && canCancel && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -489,6 +498,15 @@ export function OrderDetailModal({
                       </div>
                     </div>
                   </>
+                )}
+
+                {/* Credit Limit Indicator */}
+                {customerCreditData?.data && displayOrder.total_amount > 0 && (
+                  <CreditLimitIndicator
+                    creditLimit={customerCreditData.data.credit_limit ?? 0}
+                    creditIsActive={customerCreditData.data.credit_is_active ?? false}
+                    orderTotal={displayOrder.total_amount}
+                  />
                 )}
 
                 {/* Financial Summary Table */}

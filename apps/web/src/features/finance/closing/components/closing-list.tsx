@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus, RotateCcw, CalendarCheck } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Plus, RotateCcw, CalendarCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import type { FinancialClosing } from "../types";
-import { useApproveFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
+import { useApproveFinanceClosing, useDeleteFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
 import { ClosingForm } from "./closing-form";
 import { ClosingDetail } from "./closing-detail";
 
@@ -82,6 +82,7 @@ export function ClosingList() {
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenFinancialClosingFromURL);
   const [approving, setApproving] = useState<FinancialClosing | null>(null);
   const [reopening, setReopening] = useState<FinancialClosing | null>(null);
+  const [deleting, setDeleting] = useState<FinancialClosing | null>(null);
   const [yearEndOpen, setYearEndOpen] = useState(false);
 
   const { data, isLoading, isError } = useFinanceClosings({
@@ -96,6 +97,7 @@ export function ClosingList() {
 
   const approveMutation = useApproveFinanceClosing();
   const reopenMutation = useReopenFinanceClosing();
+  const deleteMutation = useDeleteFinanceClosing();
   const yearEndMutation = useYearEndClose();
 
   useEffect(() => {
@@ -214,6 +216,15 @@ export function ClosingList() {
                             {t("actions.reopen")}
                           </DropdownMenuItem>
                         )}
+                        {canCreate && item.status === "draft" && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleting(item)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t("actions.delete")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -282,6 +293,26 @@ export function ClosingList() {
           }
         }}
         isLoading={reopenMutation.isPending}
+      />
+
+      <DialogConfirm
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+        title={t("actions.delete")}
+        onConfirm={async () => {
+          const id = deleting?.id ?? "";
+          if (!id) return;
+          try {
+            await deleteMutation.mutateAsync(id);
+            toast.success(t("toast.deleted"));
+            setDeleting(null);
+          } catch {
+            toast.error(t("toast.failed"));
+          }
+        }}
+        isLoading={deleteMutation.isPending}
       />
 
       <DialogYearEndClose
