@@ -326,7 +326,7 @@ export function LocationPicker({
     <div className={className ?? "space-y-4"}>
       {/* Primary: Pick from Map button */}
       {!disabled && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2">
           <Button
             type="button"
             variant="outline"
@@ -335,20 +335,6 @@ export function LocationPicker({
           >
             <MapPin className="h-4 w-4" />
             {labels.pickFromMap}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full cursor-pointer justify-center gap-2"
-            onClick={handleUseCurrentLocation}
-            disabled={reverseGeocode.isPending}
-          >
-            {reverseGeocode.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <MapPin className="h-4 w-4" />
-            )}
-            {labels.useCurrentLocation}
           </Button>
         </div>
       )}
@@ -614,6 +600,8 @@ export function LocationPicker({
         latitude={latitude ?? DEFAULT_CENTER[0]}
         longitude={longitude ?? DEFAULT_CENTER[1]}
         onCoordinateSelect={handleCoordinateSelect}
+        onUseCurrentLocation={handleUseCurrentLocation}
+        useCurrentLocationLabel={labels.useCurrentLocation}
         title={labels.mapPickerTitle}
         description={labels.mapPickerDescription}
       />

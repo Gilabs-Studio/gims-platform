@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
@@ -24,6 +26,7 @@ func TestAdjustmentJournal_ShouldCreatePostAndReverse(t *testing.T) {
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
+		&coreModels.AuditLog{},
 		&models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
@@ -40,7 +43,8 @@ func TestAdjustmentJournal_ShouldCreatePostAndReverse(t *testing.T) {
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	auditService := audit.NewAuditService(db)
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 

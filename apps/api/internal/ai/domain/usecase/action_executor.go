@@ -2354,7 +2354,7 @@ func (e *ActionExecutor) executeSimpleListByTable(ctx context.Context, table, en
 
 	search := strings.TrimSpace(getStringParam(params, "search"))
 	if search != "" && len(searchableColumns) > 0 {
-		like := "%" + search + "%"
+		like := search + "%"
 		conds := make([]string, 0, len(searchableColumns))
 		args := make([]interface{}, 0, len(searchableColumns))
 		for _, col := range searchableColumns {
@@ -2551,7 +2551,7 @@ func buildSearchCondition(search string, searchableColumns []string) (string, []
 	if len(searchableColumns) == 0 {
 		return "", nil
 	}
-	like := "%" + search + "%"
+	like := search + "%"
 	conds := make([]string, 0, len(searchableColumns))
 	args := make([]interface{}, 0, len(searchableColumns))
 	for _, col := range searchableColumns {

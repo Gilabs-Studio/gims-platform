@@ -52,6 +52,9 @@ type StockMovement struct {
 	InventoryBatchID *string         `gorm:"type:uuid;index" json:"inventory_batch_id,omitempty"`
 	InventoryBatch   *InventoryBatch `gorm:"foreignKey:InventoryBatchID" json:"inventory_batch,omitempty"`
 
+	// Link to Journal Entry for financial traceability
+	JournalEntryID *string `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
+
 	// Audit
 	CreatedBy   *string          `gorm:"type:uuid;default:null" json:"created_by"`
 	Creator     *userModels.User `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`

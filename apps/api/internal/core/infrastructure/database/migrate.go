@@ -28,6 +28,7 @@ import (
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
 	stockOpname "github.com/gilabs/gims/api/internal/stock_opname/data/models"
 	supplier "github.com/gilabs/gims/api/internal/supplier/data/models"
+	travelPlanner "github.com/gilabs/gims/api/internal/travel_planner/data/models"
 	user "github.com/gilabs/gims/api/internal/user/data/models"
 	warehouse "github.com/gilabs/gims/api/internal/warehouse/data/models"
 )
@@ -65,12 +66,7 @@ func AutoMigrate() error {
 		USING reference_id::varchar;
 	`)
 
-	// Use a custom migration approach that handles constraint errors gracefully
-	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
-	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
-	// If Role migrates first, the scope column from RolePermission gets lost.
-	// By migrating RolePermission first, the table is created with scope, and Role's
-	// many2many reuses the existing table without dropping scope.
+	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		&user.User{},
 		&role.RolePermission{},
@@ -164,9 +160,17 @@ func AutoMigrate() error {
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
 		&finance.ValuationRun{},
+		&finance.ValuationRunDetail{},
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		&finance.SystemAccountMapping{},
+		// Travel Planner entities
+		&travelPlanner.TravelPlan{},
+		&travelPlanner.TravelPlanDay{},
+		&travelPlanner.TravelPlanStop{},
+		&travelPlanner.TravelPlanDayNote{},
+		&travelPlanner.TravelPlanExpense{},
 		// Asset Maintenance entities
 		&finance.AssetMaintenanceSchedule{},
 		&finance.AssetWorkOrder{},
@@ -287,6 +291,17 @@ func AutoMigrate() error {
 
 	log.Println("Database migrations completed")
 
+	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
+	// This fixes issues where seeders or manual imports missed the remaining amount.
+	DB.Exec(`UPDATE customer_invoices 
+             SET remaining_amount = amount - paid_amount 
+             WHERE (remaining_amount = 0 OR remaining_amount IS NULL) 
+             AND amount > 0 AND paid_amount < amount`)
+	DB.Exec(`UPDATE supplier_invoices 
+             SET remaining_amount = amount - paid_amount 
+             WHERE (remaining_amount = 0 OR remaining_amount IS NULL) 
+             AND amount > 0 AND paid_amount < amount`)
+
 	// Migrate contract data from employees table to employee_contracts table
 	if err := migrateEmployeeContractData(); err != nil {
 		log.Printf("Warning: Could not migrate employee contract data: %v", err)
@@ -351,7 +366,33 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not add linkedin_url column: %v", err)
 	}
 
+	// NEW: Normalize journal data (casing/consistent naming)
+	if err := normalizeJournalData(); err != nil {
+		log.Printf("Warning: Failed to normalize journal data: %v", err)
+	}
+
 	return nil
+}
+
+func normalizeJournalData() error {
+	log.Println("Normalizing Journal Entry reference types...")
+	// Normalize to SCREAMING_SNAKE_CASE
+	return DB.Exec(`
+		UPDATE journal_entries 
+		SET reference_type = CASE 
+			WHEN lower(reference_type) IN ('goodsreceipt', 'goods_receipt', 'goods receipt') THEN 'GOODS_RECEIPT'
+			WHEN lower(reference_type) IN ('supplierinvoice', 'supplier_invoice', 'supplier invoice') THEN 'SUPPLIER_INVOICE'
+			WHEN lower(reference_type) IN ('salesinvoice', 'sales_invoice', 'sales invoice', 'customerinvoice', 'customer_invoice') THEN 'SALES_INVOICE'
+			WHEN lower(reference_type) IN ('salespayment', 'sales_payment', 'sales payment') THEN 'SALES_PAYMENT'
+			WHEN lower(reference_type) IN ('purchasepayment', 'purchase_payment', 'purchase payment') THEN 'PURCHASE_PAYMENT'
+			WHEN lower(reference_type) IN ('stockopname', 'stock_opname', 'stock opname') THEN 'STOCK_OPNAME'
+			WHEN lower(reference_type) IN ('assetdepreciation', 'asset_depreciation', 'asset depreciation') THEN 'ASSET_DEPRECIATION'
+			ELSE reference_type
+		END
+		WHERE reference_type NOT IN (
+			'GOODS_RECEIPT', 'SUPPLIER_INVOICE', 'SALES_INVOICE', 'SALES_PAYMENT', 'PURCHASE_PAYMENT', 'STOCK_OPNAME', 'ASSET_DEPRECIATION'
+		);
+	`).Error
 }
 
 func createJournalEntryPeriodLockTrigger() error {

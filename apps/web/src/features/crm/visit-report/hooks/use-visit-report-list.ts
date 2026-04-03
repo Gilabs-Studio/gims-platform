@@ -4,12 +4,12 @@ import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useVisitReports, useDeleteVisitReport, useCheckInVisitReport, useCheckOutVisitReport, useSubmitVisitReport } from "./use-visit-reports";
+import { useVisitReports, useDeleteVisitReport, useCheckInVisitReport, useCheckOutVisitReport } from "./use-visit-reports";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useRouter } from "@/i18n/routing";
-import type { VisitReport, VisitReportStatus, VisitReportOutcome } from "../types";
+import type { VisitReport, VisitReportOutcome } from "../types";
 
 export function useVisitReportList() {
   const t = useTranslations("crmVisitReport");
@@ -30,7 +30,6 @@ export function useVisitReportList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState<string>("");
   const [outcomeFilter, setOutcomeFilter] = useState<string>("");
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -39,13 +38,11 @@ export function useVisitReportList() {
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
-    status: (statusFilter || undefined) as VisitReportStatus | undefined,
     outcome: (outcomeFilter || undefined) as VisitReportOutcome | undefined,
   });
   const deleteMutation = useDeleteVisitReport();
   const checkInMutation = useCheckInVisitReport();
   const checkOutMutation = useCheckOutVisitReport();
-  const submitMutation = useSubmitVisitReport();
 
   const items = useMemo(() => data?.data ?? [], [data?.data]);
   const pagination = data?.meta?.pagination;
@@ -53,14 +50,10 @@ export function useVisitReportList() {
   // Compute summary metrics from loaded items for scope-aware dashboards
   const hasTeamView = readScope === "ALL" || readScope === "DIVISION" || readScope === "AREA";
   const metrics = useMemo(() => {
-    const statusCounts = { draft: 0, submitted: 0, approved: 0, rejected: 0 };
     const outcomeCounts = { positive: 0, neutral: 0, negative: 0, very_positive: 0 };
     let withCheckIn = 0;
 
     for (const item of items) {
-      if (item.status in statusCounts) {
-        statusCounts[item.status as VisitReportStatus] += 1;
-      }
       if (item.outcome && item.outcome in outcomeCounts) {
         outcomeCounts[item.outcome as VisitReportOutcome] += 1;
       }
@@ -71,7 +64,6 @@ export function useVisitReportList() {
 
     return {
       total: pagination?.total ?? items.length,
-      statusCounts,
       outcomeCounts,
       checkInRate: items.length > 0 ? Math.round((withCheckIn / items.length) * 100) : 0,
     };
@@ -159,21 +151,11 @@ export function useVisitReportList() {
     }
   };
 
-  const handleSubmit = async (id: string) => {
-    try {
-      await submitMutation.mutateAsync({ id });
-      toast.success(t("submitted"));
-    } catch {
-      toast.error(tCommon("error"));
-    }
-  };
-
   return {
     state: {
       search,
       page,
       pageSize,
-      statusFilter,
       outcomeFilter,
       deleteId,
     },
@@ -181,7 +163,6 @@ export function useVisitReportList() {
       setSearch,
       setPage,
       setPageSize,
-      setStatusFilter,
       setOutcomeFilter,
       setDeleteId,
       handleCreate,
@@ -190,7 +171,6 @@ export function useVisitReportList() {
       handleDialogClose,
       handleCheckIn,
       handleCheckOut,
-      handleSubmit,
     },
     data: {
       items,

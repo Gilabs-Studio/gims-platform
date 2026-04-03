@@ -34,6 +34,9 @@ export function resolveWidgetSpan(
 
 /** Complete registry of all available dashboard widgets */
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
+  // ════════════════════════════════════════════════════════════════════════
+  // Legacy / existing widgets
+  // ════════════════════════════════════════════════════════════════════════
   total_revenue: {
     type: "total_revenue",
     category: "finance",
@@ -347,18 +350,245 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     descriptionKey: "widgets.pending_approvals_purchase.description",
     icon: "PackageCheck",
   },
+  travel_planner_overview: {
+    type: "travel_planner_overview",
+    category: "sales",
+    defaultSize: "xl",
+    defaultColSpan: 4,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 2,
+    titleKey: "widgets.travel_planner_overview.title",
+    descriptionKey: "widgets.travel_planner_overview.description",
+    icon: "Route",
+    permission: "travel_planner.read",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Owner KPI widgets — Tier 1 (Cashflow — most critical)
+  // ════════════════════════════════════════════════════════════════════════
+  kpi_ccc: {
+    type: "kpi_ccc",
+    category: "cashflow",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_ccc.title",
+    descriptionKey: "widgets.kpi_ccc.description",
+    icon: "Timer",
+    permission: "journal.read",
+  },
+  kpi_dio: {
+    type: "kpi_dio",
+    category: "inventory",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_dio.title",
+    descriptionKey: "widgets.kpi_dio.description",
+    icon: "CalendarClock",
+    permission: "inventory.read",
+  },
+  kpi_ar_days: {
+    type: "kpi_ar_days",
+    category: "cashflow",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_ar_days.title",
+    descriptionKey: "widgets.kpi_ar_days.description",
+    icon: "ArrowDownToLine",
+    permission: "customer_invoice.read",
+  },
+  kpi_ap_days: {
+    type: "kpi_ap_days",
+    category: "cashflow",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_ap_days.title",
+    descriptionKey: "widgets.kpi_ap_days.description",
+    icon: "ArrowUpFromLine",
+    permission: "journal.read",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Owner KPI widgets — Tier 2 (Profitability & Asset)
+  // ════════════════════════════════════════════════════════════════════════
+  kpi_roe: {
+    type: "kpi_roe",
+    category: "profitability",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_roe.title",
+    descriptionKey: "widgets.kpi_roe.description",
+    icon: "Percent",
+    permission: "journal.read",
+  },
+  kpi_roa: {
+    type: "kpi_roa",
+    category: "asset",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_roa.title",
+    descriptionKey: "widgets.kpi_roa.description",
+    icon: "Building2",
+    permission: "journal.read",
+  },
+  kpi_net_profit_margin: {
+    type: "kpi_net_profit_margin",
+    category: "profitability",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_net_profit_margin.title",
+    descriptionKey: "widgets.kpi_net_profit_margin.description",
+    icon: "TrendingUp",
+    permission: "journal.read",
+  },
+  kpi_gross_profit_margin: {
+    type: "kpi_gross_profit_margin",
+    category: "profitability",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_gross_profit_margin.title",
+    descriptionKey: "widgets.kpi_gross_profit_margin.description",
+    icon: "BarChart3",
+    permission: "journal.read",
+  },
+  kpi_inventory_turnover: {
+    type: "kpi_inventory_turnover",
+    category: "inventory",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_inventory_turnover.title",
+    descriptionKey: "widgets.kpi_inventory_turnover.description",
+    icon: "RefreshCw",
+    permission: "inventory.read",
+  },
+  kpi_asset_turnover: {
+    type: "kpi_asset_turnover",
+    category: "asset",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_asset_turnover.title",
+    descriptionKey: "widgets.kpi_asset_turnover.description",
+    icon: "Gauge",
+    permission: "journal.read",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Owner KPI widgets — Tier 3 (Logistics & Cost)
+  // ════════════════════════════════════════════════════════════════════════
+  kpi_cost_per_delivery: {
+    type: "kpi_cost_per_delivery",
+    category: "logistics",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_cost_per_delivery.title",
+    descriptionKey: "widgets.kpi_cost_per_delivery.description",
+    icon: "Truck",
+    permission: "delivery_order.read",
+  },
+  kpi_utilization_rate: {
+    type: "kpi_utilization_rate",
+    category: "logistics",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_utilization_rate.title",
+    descriptionKey: "widgets.kpi_utilization_rate.description",
+    icon: "Activity",
+    permission: "delivery_order.read",
+  },
+  kpi_otd_rate: {
+    type: "kpi_otd_rate",
+    category: "logistics",
+    defaultSize: "sm",
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    titleKey: "widgets.kpi_otd_rate.title",
+    descriptionKey: "widgets.kpi_otd_rate.description",
+    icon: "Clock",
+    permission: "delivery_order.read",
+  },
+  kpi_opex_vs_capex: {
+    type: "kpi_opex_vs_capex",
+    category: "cost",
+    defaultSize: "md",
+    defaultColSpan: 2,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 1,
+    titleKey: "widgets.kpi_opex_vs_capex.title",
+    descriptionKey: "widgets.kpi_opex_vs_capex.description",
+    icon: "PieChart",
+    permission: "journal.read",
+  },
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Owner Intelligence
+  // ════════════════════════════════════════════════════════════════════════
+  owner_intelligence: {
+    type: "owner_intelligence",
+    category: "intelligence",
+    defaultSize: "xl",
+    defaultColSpan: 4,
+    defaultRowSpan: 2,
+    minColSpan: 2,
+    minRowSpan: 2,
+    titleKey: "widgets.owner_intelligence.title",
+    descriptionKey: "widgets.owner_intelligence.description",
+    icon: "Brain",
+  },
 };
 
-/** Default layout for new users — mirrors the reference Sales Dashboard design */
+/**
+ * Default layout for new users — Owner KPI Dashboard
+ * 
+ * Layout structure (4-col grid):
+ * Row 0:     Owner Intelligence (full width)
+ * Row 1:     Tier 1 KPIs — CCC, DIO, AR Days, AP Days
+ * Row 2:     Tier 2 KPIs — ROE, ROA, NPM, GPM
+ * Row 3-4:   Revenue chart (3 col) + Cost structure (2 col, side)
+ * Row 5:     Tier 3 — Inventory Turnover, Asset Turnover, cost_per_delivery, OTD Rate
+ * Row 6-7:   Track Orders + Track Purchase Orders
+ */
 export const DEFAULT_WIDGETS: WidgetConfig[] = [
-  { id: "w-1", type: "revenue_bar_chart",    title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 0, visible: true },
-  { id: "w-2", type: "stat_summary_balance", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "w-3", type: "stat_summary_revenue", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "w-4", type: "stat_summary_expense", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
-  { id: "w-5", type: "stat_summary_orders",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
-  { id: "w-6", type: "best_selling",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
-  { id: "w-7", type: "track_orders",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
-  { id: "w-8", type: "track_purchase_orders", title: "", size: "md", colSpan: 4, rowSpan: 2, order: 7, visible: true },
+  // ── Owner Intelligence (full-width hero) ──
+  { id: "w-1",  type: "owner_intelligence",      title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 0,  visible: true },
+
+  // ── Tier 1 KPIs: Cashflow & Inventory (priority) ──
+  { id: "w-2",  type: "kpi_ccc",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1,  visible: true },
+  { id: "w-3",  type: "kpi_dio",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2,  visible: true },
+  { id: "w-4",  type: "kpi_ar_days",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3,  visible: true },
+  { id: "w-5",  type: "kpi_ap_days",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4,  visible: true },
+
+  // ── Tier 2 KPIs: Profitability & Asset ──
+  { id: "w-6",  type: "kpi_roe",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 5,  visible: true },
+  { id: "w-7",  type: "kpi_net_profit_margin",   title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 6,  visible: true },
+  { id: "w-8",  type: "kpi_gross_profit_margin",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 7,  visible: true },
+  { id: "w-9",  type: "kpi_roa",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 8,  visible: true },
+
+  // ── Revenue chart + OPEX/CAPEX ──
+  { id: "w-10", type: "revenue_bar_chart",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 9,  visible: true },
+  { id: "w-11", type: "kpi_opex_vs_capex",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 10, visible: true },
+
+  // ── Tier 3: Remaining KPIs ──
+  { id: "w-12", type: "kpi_inventory_turnover",   title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 11, visible: true },
+  { id: "w-13", type: "kpi_asset_turnover",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 12, visible: true },
+  { id: "w-14", type: "kpi_otd_rate",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 13, visible: true },
+  { id: "w-15", type: "kpi_utilization_rate",     title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 14, visible: true },
+
+  // ── Operational widgets ──
+  { id: "w-16", type: "track_orders",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 15, visible: true },
+  { id: "w-17", type: "track_purchase_orders",    title: "", size: "md", colSpan: 2, rowSpan: 2, order: 16, visible: true },
 ];
 
 /** Widget types grouped by category for the picker UI */

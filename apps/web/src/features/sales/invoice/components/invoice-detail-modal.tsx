@@ -182,7 +182,7 @@ export function InvoiceDetailModal({
     try {
       await updateStatus.mutateAsync({
         id: invoice.id,
-        data: { status: "sent" },
+        data: { status: "submitted" },
       });
       toast.success(t("statusUpdated"));
     } catch (error) {

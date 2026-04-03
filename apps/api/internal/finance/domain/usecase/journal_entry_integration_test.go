@@ -10,6 +10,8 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,7 +27,8 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.ChartOfAccount{},
+		&coreModels.AuditLog{},
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
@@ -41,7 +44,7 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 	refType := "GENERAL"
@@ -84,7 +87,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.ChartOfAccount{},
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
@@ -99,7 +102,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 	refType := "SALES_INVOICE"
@@ -148,7 +151,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.ChartOfAccount{},
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
@@ -163,7 +166,7 @@ func TestJournalEntry_ShouldExposeSalesDomainAndTrialBalance_FromPostedSalesInvo
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 	refType := "SALES_INVOICE_DP"
@@ -219,6 +222,7 @@ func TestJournalEntryRepository_ShouldFilterByReferenceTypes(t *testing.T) {
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
+		&coreModels.AuditLog{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 	)
@@ -260,7 +264,7 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.ChartOfAccount{},
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
@@ -278,7 +282,8 @@ func TestFinanceReports_ShouldReadOnlyPostedJournals_ForStatementsAndExport(t *t
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	auditService := audit.NewAuditService(db)
+	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
@@ -374,7 +379,7 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
-		&models.ChartOfAccount{},
+		&coreModels.AuditLog{}, &models.ChartOfAccount{},
 		&models.JournalEntry{},
 		&models.JournalLine{},
 		&models.FinancialClosing{},
@@ -390,7 +395,8 @@ func TestFinanceReports_ShouldOrderLedgerTransactionsDeterministically_ByDateThe
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	auditService := audit.NewAuditService(db)
+	journalUC := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 	reportUC := NewFinanceReportUsecase(db, coaRepo, reportRepo)
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")

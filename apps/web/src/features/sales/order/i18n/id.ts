@@ -140,6 +140,9 @@ export const orderId = {
     convertFromQuotation: "Konversi dari Penawaran",
     print: "Cetak",
     export: "Ekspor PDF",
+    exportCsv: "Ekspor",
+    exporting: "Mengekspor",
+    exportSuccess: "Ekspor berhasil dibuat",
 
     // Item
     item: {

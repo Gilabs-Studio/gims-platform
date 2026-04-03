@@ -5,11 +5,11 @@
 */
 
 .marker-cluster {
-  background-color: white !important;
+  background-color: hsl(var(--background)) !important;
   background-image: none !important;
   color: hsl(var(--primary)) !important;
-  border: 1.5px solid rgba(16,24,40,0.06) !important;
-  box-shadow: 0 4px 8px rgba(2,6,23,0.06) !important;
+  border: 1.5px solid hsl(var(--border)) !important;
+  box-shadow: 0 4px 8px hsl(var(--foreground) / 0.08) !important;
   border-radius: 999px !important;
 }
 

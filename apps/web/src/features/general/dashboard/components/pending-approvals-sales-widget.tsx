@@ -163,7 +163,7 @@ export function PendingApprovalsSalesWidget() {
     refetch: iRefetch,
   } = useInvoices(
     {
-      status: "sent",
+      status: "submitted",
       per_page: PER_PAGE,
     },
     { enabled: canViewInvoice },

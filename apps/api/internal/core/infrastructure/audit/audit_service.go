@@ -12,7 +12,9 @@ import (
 
 type AuditService interface {
 	Log(ctx context.Context, action string, targetID string, metadata map[string]interface{})
+	LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{})
 	LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{})
+	LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{})
 }
 
 type databaseAuditService struct {
@@ -26,10 +28,18 @@ func NewAuditService(db *gorm.DB) AuditService {
 }
 
 func (s *databaseAuditService) Log(ctx context.Context, action string, targetID string, metadata map[string]interface{}) {
-	s.LogWithChanges(ctx, action, targetID, metadata, nil)
+	s.LogWithChangesFull(ctx, action, targetID, "", metadata, nil)
+}
+
+func (s *databaseAuditService) LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}) {
+	s.LogWithChangesFull(ctx, action, targetID, reason, metadata, nil)
 }
 
 func (s *databaseAuditService) LogWithChanges(ctx context.Context, action string, targetID string, metadata map[string]interface{}, changes interface{}) {
+	s.LogWithChangesFull(ctx, action, targetID, "", metadata, changes)
+}
+
+func (s *databaseAuditService) LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{}) {
 	// Extract actor from context (assumes AuthMiddleware sets "user_id" and "user_email")
 	actorID := ""
 	if v := ctx.Value("user_id"); v != nil {
@@ -68,6 +78,7 @@ func (s *databaseAuditService) LogWithChanges(ctx context.Context, action string
 		Action:         action,
 		IPAddress:      ip,
 		UserAgent:      userAgent,
+		Reason:         reason,
 		Metadata:       string(metaJSON),
 		Changes:        changesStr,
 		ResultStatus:   "success", // Default to success if logged after action

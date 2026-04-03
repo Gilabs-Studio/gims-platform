@@ -21,20 +21,21 @@ const (
 
 // VisitReportListParams defines filtering/sorting/pagination for visit report queries
 type VisitReportListParams struct {
-	Search     string
-	SortBy     string
-	SortDir    string
-	Limit      int
-	Offset     int
-	Status     string
-	CustomerID string
-	EmployeeID string
-	ContactID  string
-	DealID     string
-	LeadID     string
-	Outcome    string
-	DateFrom   string
-	DateTo     string
+	Search            string
+	SortBy            string
+	SortDir           string
+	Limit             int
+	Offset            int
+	CustomerID        string
+	EmployeeID        string
+	ContactID         string
+	DealID            string
+	LeadID            string
+	TravelPlanID      string
+	WithoutTravelPlan bool
+	Outcome           string
+	DateFrom          string
+	DateTo            string
 }
 
 // VisitReportRepository defines data access methods for visit reports
@@ -46,11 +47,12 @@ type VisitReportRepository interface {
 	Update(ctx context.Context, report *models.VisitReport) error
 	Delete(ctx context.Context, id string) error
 	GetNextCode(ctx context.Context) (string, error)
-	UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error
 	CheckIn(ctx context.Context, id string, location string, checkInAt time.Time) error
 	CheckOut(ctx context.Context, id string, location string, checkOutAt time.Time) error
+	UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error
 	CreateProgressHistory(ctx context.Context, history *models.VisitReportProgressHistory) error
 	ListProgressHistory(ctx context.Context, visitReportID string, limit, offset int) ([]models.VisitReportProgressHistory, int64, error)
+
 	ListInterestQuestions(ctx context.Context) ([]salesModels.SalesVisitInterestQuestion, error)
 	UpdatePhotos(ctx context.Context, id string, photos string) error
 	// GetEmployeeSummary returns per-employee visit report counts and latest visit date, scope-filtered.
@@ -128,14 +130,9 @@ func (r *visitReportRepository) List(ctx context.Context, params *VisitReportLis
 
 	// Search filter
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("code ILIKE ? OR contact_person ILIKE ? OR purpose ILIKE ? OR notes ILIKE ?",
 			search, search, search, search)
-	}
-
-	// Status filter
-	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
 	}
 
 	// Customer filter
@@ -161,6 +158,14 @@ func (r *visitReportRepository) List(ctx context.Context, params *VisitReportLis
 	// Lead filter
 	if params.LeadID != "" {
 		query = query.Where("lead_id = ?", params.LeadID)
+	}
+
+	// Travel plan linkage filter
+	if params.WithoutTravelPlan {
+		query = query.Where("travel_plan_id IS NULL")
+	}
+	if params.TravelPlanID != "" {
+		query = query.Where("travel_plan_id = ?", params.TravelPlanID)
 	}
 
 	// Outcome filter
@@ -243,19 +248,6 @@ func (r *visitReportRepository) Create(ctx context.Context, report *models.Visit
 			}
 		}
 
-		// Create initial progress history
-		initialHistory := models.VisitReportProgressHistory{
-			VisitReportID: report.ID,
-			FromStatus:    "",
-			ToStatus:      report.Status,
-			Notes:         "Visit report created",
-			ChangedBy:     report.CreatedBy,
-			CreatedAt:     apptime.Now(),
-		}
-		if err := tx.Create(&initialHistory).Error; err != nil {
-			return err
-		}
-
 		return nil
 	})
 }
@@ -323,11 +315,6 @@ func (r *visitReportRepository) Delete(ctx context.Context, id string) error {
 			return err
 		}
 
-		// Delete progress history
-		if err := tx.Where(visitQueryByVisitReportID, id).Delete(&models.VisitReportProgressHistory{}).Error; err != nil {
-			return err
-		}
-
 		// Soft delete the report
 		return tx.Delete(&models.VisitReport{}, visitQueryByID, id).Error
 	})
@@ -355,12 +342,6 @@ func (r *visitReportRepository) GetNextCode(ctx context.Context) (string, error)
 	return fmt.Sprintf("%s%05d", prefix, seq), nil
 }
 
-func (r *visitReportRepository) UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error {
-	return r.getDB(ctx).Model(&models.VisitReport{}).
-		Where(visitQueryByID, id).
-		Update("status", status).Error
-}
-
 func (r *visitReportRepository) CheckIn(ctx context.Context, id string, location string, checkInAt time.Time) error {
 	updates := map[string]interface{}{
 		"check_in_at":       checkInAt,
@@ -380,6 +361,12 @@ func (r *visitReportRepository) CheckOut(ctx context.Context, id string, locatio
 	return r.getDB(ctx).Model(&models.VisitReport{}).
 		Where(visitQueryByID, id).
 		Updates(updates).Error
+}
+
+func (r *visitReportRepository) UpdateStatus(ctx context.Context, id string, status models.VisitReportStatus) error {
+	return r.getDB(ctx).Model(&models.VisitReport{}).
+		Where(visitQueryByID, id).
+		Update("status", status).Error
 }
 
 func (r *visitReportRepository) CreateProgressHistory(ctx context.Context, history *models.VisitReportProgressHistory) error {
@@ -457,14 +444,14 @@ func (r *visitReportRepository) GetEmployeeSummary(ctx context.Context, search s
 			scopeClause = "AND vr_scoped.employee_id = ?"
 			scopeArgs = append(scopeArgs, employeeID)
 		}
-	// default (ALL or empty): no restriction
+		// default (ALL or empty): no restriction
 	}
 
 	// Employee name/code search predicate
 	searchClause := ""
 	var searchArgs []interface{}
 	if search != "" {
-		s := "%" + search + "%"
+		s := search + "%"
 		searchClause = "AND (e.name ILIKE ? OR e.employee_code ILIKE ?)"
 		searchArgs = append(searchArgs, s, s)
 	}

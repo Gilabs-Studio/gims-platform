@@ -55,10 +55,13 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 		baseQuery = baseQuery.Where("status = ?", params.Status)
 	}
 
-	if params.Search != "" {
-		pattern := "%" + params.Search + "%"
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
+		baseQuery = baseQuery.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
 		baseQuery = baseQuery.Where(
-			"code ILIKE ? OR notes ILIKE ? OR request_date ILIKE ?",
+			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
+			pattern,
+			pattern,
 			pattern,
 			pattern,
 			pattern,
@@ -74,10 +77,13 @@ func (r *purchaseRequisitionRepository) List(ctx context.Context, params Purchas
 	if params.Status != "" {
 		query = query.Where("status = ?", params.Status)
 	}
-	if params.Search != "" {
-		pattern := "%" + params.Search + "%"
+	if s := strings.TrimSpace(params.Search); s != "" {
+		pattern := "%" + s + "%"
+		query = query.Joins("LEFT JOIN employees ON employees.id = purchase_requisitions.employee_id")
 		query = query.Where(
-			"code ILIKE ? OR notes ILIKE ? OR request_date ILIKE ?",
+			"purchase_requisitions.supplier_name_snapshot ILIKE ? OR employees.name ILIKE ? OR purchase_requisitions.code ILIKE ? OR purchase_requisitions.notes ILIKE ? OR purchase_requisitions.request_date::text ILIKE ?",
+			pattern,
+			pattern,
 			pattern,
 			pattern,
 			pattern,

@@ -19,6 +19,12 @@ import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import {
+  getMapContainerOptions,
+  resolveMapTileLayer,
+  type MapProfile,
+  type MapStyle,
+} from "./map-config";
 
 // Turbopack may return a plain string or a StaticImageData object for PNG imports.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,28 +52,6 @@ export interface MapMarker<T> {
   data: T;
 }
 
-// Map tile providers
-type MapStyle = "auto" | "street" | "light" | "dark" | "satellite";
-
-const TILE_LAYERS: Record<Exclude<MapStyle, "auto">, { url: string; attribution: string }> = {
-  street: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
-  light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: '&copy; <a href="https://www.esri.com/">Esri</a> &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-  },
-};
-
 interface MapInnerProps<T> {
   readonly markers: MapMarker<T>[];
   readonly renderMarkers: (markers: MapMarker<T>[]) => React.ReactNode;
@@ -79,6 +63,7 @@ interface MapInnerProps<T> {
   readonly children?: React.ReactNode;
   readonly showLayerControl?: boolean;
   readonly selectedMarkerId?: number | string | null;
+  readonly mapProfile?: MapProfile;
 }
 
 // Component to handle map movement and bounds
@@ -156,27 +141,14 @@ export default function MapInner<T>({
   children,
   showLayerControl = true,
   selectedMarkerId,
+  mapProfile = "balanced",
 }: MapInnerProps<T>) {
   const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
   const isMobile = useIsMobile();
   const { resolvedTheme } = useTheme();
-
-  // Get the active tile layer based on style and theme
-  const getActiveTileLayer = () => {
-    if (mapStyle === "light") {
-      return TILE_LAYERS.street;
-    }
-    if (mapStyle === "satellite") {
-      return TILE_LAYERS.satellite;
-    }
-    if (mapStyle === "dark") {
-      return TILE_LAYERS.dark;
-    }
-    // Auto mode - follow system theme
-    return resolvedTheme === "dark" ? TILE_LAYERS.dark : TILE_LAYERS.street;
-  };
-
-  const activeTileLayer = getActiveTileLayer();
+  const tileLayer = resolveMapTileLayer(mapStyle, resolvedTheme);
+  const shouldShowLayerControl = showLayerControl && mapProfile !== "driver";
+  const mapContainerOptions = getMapContainerOptions(mapProfile);
 
   const validMarkers = markers.filter(
     (m) => m.latitude != null && m.longitude != null && !isNaN(Number(m.latitude)) && !isNaN(Number(m.longitude))
@@ -203,7 +175,7 @@ export default function MapInner<T>({
       )}
 
       {/* Layer Control */}
-      {showLayerControl && (
+      {shouldShowLayerControl && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -256,15 +228,17 @@ export default function MapInner<T>({
         center={defaultCenter}
         zoom={defaultZoom}
         className="h-full w-full z-0"
-        scrollWheelZoom={true}
-        touchZoom={true}
-        doubleClickZoom={true}
-        dragging={true}
+        scrollWheelZoom={mapContainerOptions.scrollWheelZoom}
+        touchZoom={mapContainerOptions.touchZoom}
+        doubleClickZoom={mapContainerOptions.doubleClickZoom}
+        dragging={mapContainerOptions.dragging}
+        zoomControl={mapContainerOptions.zoomControl}
+        preferCanvas={mapContainerOptions.preferCanvas}
       >
         <TileLayer
-          key={`${mapStyle}-${resolvedTheme}`}
-          attribution={activeTileLayer.attribution}
-          url={activeTileLayer.url}
+          key={`${mapStyle}-${resolvedTheme}-${mapProfile}`}
+          attribution={tileLayer.attribution}
+          url={tileLayer.url}
         />
         <MapController 
           markers={validMarkers}

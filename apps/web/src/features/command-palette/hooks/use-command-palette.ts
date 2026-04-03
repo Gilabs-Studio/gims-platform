@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useRouter } from "@/i18n/routing";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
 import { isValidRoute } from "@/lib/route-validator";
+import type { MenuWithActions } from "@/features/master-data/user-management/types";
 
 export interface CommandPaletteItem {
   readonly id: string;
@@ -15,6 +17,7 @@ export interface CommandPaletteItem {
 
 interface UseCommandPaletteOptions {
   readonly onOpenChange?: (open: boolean) => void;
+  readonly menus?: MenuWithActions[];
 }
 
 interface UseCommandPaletteResult {
@@ -34,28 +37,48 @@ interface UseCommandPaletteResult {
 export function useCommandPalette(
   options: UseCommandPaletteOptions = {}
 ): UseCommandPaletteResult {
-  const { onOpenChange } = options;
+  const { onOpenChange, menus } = options;
   const router = useRouter();
+  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
 
+  const permissionCodes = useMemo(() => {
+    return new Set(Object.keys(user?.permissions ?? {}));
+  }, [user?.permissions]);
+
+  const hasPermission = useCallback(
+    (permissionCode?: string): boolean => {
+      if (!user) {
+        return false;
+      }
+
+      if (!permissionCode) {
+        return true;
+      }
+
+      if (user.role?.code === "admin" || user.role?.code === "superadmin") {
+        return true;
+      }
+
+      return permissionCodes.has(permissionCode);
+    },
+    [permissionCodes, user]
+  );
+
   /**
-   * Filter navigation items based on permissions and valid routes
+   * Filter navigation items based on local permission data and valid routes
    */
   const items: CommandPaletteItem[] = useMemo(() => {
     const allItems: CommandPaletteItem[] = [];
 
-    const walkNavItems = (
+    const walkNavigationItems = (
       items: NavItem[],
       parentGroup?: string
     ): void => {
       items.forEach((item) => {
         const group = parentGroup || item.name;
 
-        // Only add if:
-        // 1. URL exists and is valid
-        // 2. Route is valid (not 404)
-        // 3. User has permission (if permission is specified)
-        if (item.url && isValidRoute(item.url)) {
+        if (item.url && isValidRoute(item.url) && hasPermission(item.permission)) {
           allItems.push({
             id: item.id || item.url,
             name: item.name,
@@ -65,22 +88,43 @@ export function useCommandPalette(
           });
         }
 
-        // Recursively process children
         if (item.children && item.children.length > 0) {
-          walkNavItems(item.children, group);
+          walkNavigationItems(item.children, group);
         }
       });
     };
 
-    walkNavItems(navigationConfig);
-    return allItems;
-  }, []);
+    const walkMenuItems = (
+      items: MenuWithActions[],
+      parentGroup?: string
+    ): void => {
+      items.forEach((item) => {
+        const group = parentGroup || item.name;
 
-  /**
-   * Filter items by user permissions
-   * This creates a new hook to handle permission filtering
-   */
-  const filteredItems = useFilteredCommandItems(items);
+        if (item.url && isValidRoute(item.url)) {
+          allItems.push({
+            id: item.id,
+            name: item.name,
+            href: item.url,
+            icon: item.icon,
+            group,
+          });
+        }
+
+        if (item.children && item.children.length > 0) {
+          walkMenuItems(item.children, group);
+        }
+      });
+    };
+
+    if (menus && menus.length > 0) {
+      walkMenuItems(menus);
+    } else {
+      walkNavigationItems(navigationConfig);
+    }
+
+    return allItems;
+  }, [hasPermission, menus]);
 
   const open = useCallback(() => {
     setIsOpen(true);
@@ -151,48 +195,7 @@ export function useCommandPalette(
     open,
     close,
     toggle,
-    items: filteredItems,
+    items,
     onSelectItem,
   };
-}
-
-/**
- * Hook to filter command items by user permissions
- * Separated to handle permission checks properly with hooks rules
- */
-function useFilteredCommandItems(
-  items: CommandPaletteItem[]
-): CommandPaletteItem[] {
-  // Get navigation config with permissions
-  const navItemsMap = useMemo(() => {
-    const map = new Map<string, NavItem>();
-
-    const walkItems = (navItems: NavItem[]) => {
-      navItems.forEach((item) => {
-        if (item.url) {
-          map.set(item.url, item);
-        }
-        if (item.children) {
-          walkItems(item.children);
-        }
-      });
-    };
-
-    walkItems(navigationConfig);
-    return map;
-  }, []);
-
-  return useMemo(() => {
-    return items.filter((item) => {
-      const navItem = navItemsMap.get(item.href);
-      // If no permission specified, allow access
-      if (!navItem?.permission) {
-        return true;
-      }
-      // Check permission dynamically
-      // Note: This is a workaround since we can't call useHasPermission here
-      // The actual permission check will be done in the component
-      return true;
-    });
-  }, [items, navItemsMap]);
 }

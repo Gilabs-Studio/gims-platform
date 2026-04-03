@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"gorm.io/gorm"
@@ -37,6 +38,10 @@ func NewSalesPaymentRepository(db *gorm.DB) SalesPaymentRepository {
 	return &salesPaymentRepository{db: db}
 }
 
+func (r *salesPaymentRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 var salesPaymentAllowedSort = map[string]string{
 	"created_at":       "sales_payments.created_at",
 	"updated_at":       "sales_payments.updated_at",
@@ -51,7 +56,7 @@ func (r *salesPaymentRepository) List(ctx context.Context, params SalesPaymentLi
 	var items []*models.SalesPayment
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.SalesPayment{}).
+	q := r.getDB(ctx).Model(&models.SalesPayment{}).
 		Preload("CustomerInvoice").
 		Preload("BankAccount")
 
@@ -110,7 +115,7 @@ func (r *salesPaymentRepository) List(ctx context.Context, params SalesPaymentLi
 
 func (r *salesPaymentRepository) GetByID(ctx context.Context, id string) (*models.SalesPayment, error) {
 	var p models.SalesPayment
-	if err := r.db.WithContext(ctx).
+	if err := r.getDB(ctx).
 		Preload("CustomerInvoice").
 		Preload("BankAccount").
 		First(&p, "id = ?", id).Error; err != nil {
@@ -120,9 +125,9 @@ func (r *salesPaymentRepository) GetByID(ctx context.Context, id string) (*model
 }
 
 func (r *salesPaymentRepository) Create(ctx context.Context, p *models.SalesPayment) error {
-	return r.db.WithContext(ctx).Create(p).Error
+	return r.getDB(ctx).Create(p).Error
 }
 
 func (r *salesPaymentRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SalesPayment{}, "id = ?", id).Error
+	return r.getDB(ctx).Delete(&models.SalesPayment{}, "id = ?", id).Error
 }

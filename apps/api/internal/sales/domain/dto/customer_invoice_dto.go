@@ -45,7 +45,7 @@ type ListCustomerInvoicesRequest struct {
 	Page         int    `form:"page" binding:"omitempty,min=1"`
 	PerPage      int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search       string `form:"search"`
-	Status       string `form:"status" binding:"omitempty,oneof=draft sent submitted approved rejected unpaid waiting_payment partial paid cancelled DRAFT SENT SUBMITTED APPROVED REJECTED UNPAID WAITING_PAYMENT PARTIAL PAID CANCELLED"`
+	Status       string `form:"status" binding:"omitempty,oneof=draft submitted approved rejected unpaid waiting_payment partial paid cancelled DRAFT SUBMITTED APPROVED REJECTED UNPAID WAITING_PAYMENT PARTIAL PAID CANCELLED"`
 	Type         string `form:"type" binding:"omitempty,oneof=regular proforma down_payment"`
 	DateFrom     string `form:"date_from"`
 	DateTo       string `form:"date_to"`
@@ -64,7 +64,7 @@ type ListCustomerInvoiceItemsRequest struct {
 
 // UpdateCustomerInvoiceStatusRequest represents the request to update invoice status
 type UpdateCustomerInvoiceStatusRequest struct {
-	Status     string   `json:"status" binding:"required,oneof=sent submitted approved rejected unpaid waiting_payment partial paid cancelled SUBMITTED APPROVED REJECTED UNPAID PAID CANCELLED"`
+	Status     string   `json:"status" binding:"required,oneof=submitted approved rejected unpaid waiting_payment partial paid cancelled SUBMITTED APPROVED REJECTED UNPAID PAID CANCELLED"`
 	PaidAmount *float64 `json:"paid_amount" binding:"omitempty,gte=0"`
 	PaymentAt  *string  `json:"payment_at"`
 }

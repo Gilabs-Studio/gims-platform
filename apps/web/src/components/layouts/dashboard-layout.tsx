@@ -317,6 +317,17 @@ export const DashboardLayout = memo(function DashboardLayout({
     }
   }, [pathname, menus, isMounted, activeParentId, isDetailSidebarOpen]);
 
+  // Allow pages (e.g. full-screen map pages) to open the mobile sidebar
+  // by dispatching a global event `openMobileSidebar` (window.dispatchEvent).
+  useEffect(() => {
+    const handler = () => setIsMobileSidebarOpen(true);
+    if (typeof window !== "undefined") {
+      window.addEventListener("openMobileSidebar", handler as EventListener);
+      return () => window.removeEventListener("openMobileSidebar", handler as EventListener);
+    }
+    return undefined;
+  }, []);
+
   const handleSelectParent = useCallback(
     (id: string) => {
       const item = parentItems.find((parent) => parent.id === id);
@@ -350,7 +361,8 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/master-data/customers") ||
     pathname?.includes("/master-data/areas") ||
     pathname?.includes("/master-data/geographic") ||
-    pathname?.includes("/crm/area-mapping");
+    pathname?.includes("/crm/area-mapping") ||
+    pathname?.includes("/travel-planner");
 
   const handleOpenAttendanceDrawer = useCallback(
     (tab: AttendanceDrawerTab, openCreateLeave?: boolean) => {
@@ -471,7 +483,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           onOpenChange={setIsOvertimeDrawerOpen}
         />
 
-        <CommandPalette />
+        <CommandPalette menus={menus} />
         {!isAIChatbotPage && <AIChatWidget />}
       </div>
     </TooltipProvider>

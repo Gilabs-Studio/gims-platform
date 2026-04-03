@@ -16,8 +16,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { getMenuIcon } from "@/lib/menu-icons";
-import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { navigationConfig } from "@/lib/navigation-config";
+import type { MenuWithActions } from "@/features/master-data/user-management/types";
 import {
   useCommandPalette,
   type CommandPaletteItem,
@@ -26,6 +25,7 @@ import {
 interface CommandPaletteProps {
   readonly open?: boolean;
   readonly onOpenChange?: (open: boolean) => void;
+  readonly menus?: MenuWithActions[];
 }
 
 /**
@@ -40,19 +40,18 @@ interface CommandPaletteProps {
 export function CommandPalette({
   open,
   onOpenChange,
+  menus,
 }: CommandPaletteProps) {
   const t = useTranslations("commandPalette");
-  
+
   const commandPalette = useCommandPalette({
     onOpenChange,
+    menus,
   });
-
-  // Filter items by permissions
-  const filteredItems = usePermissionFilteredItems(commandPalette.items);
 
   // Group items by category
   const groupedItems = useMemo(() => {
-    return filteredItems.reduce<Record<string, CommandPaletteItem[]>>(
+    return commandPalette.items.reduce<Record<string, CommandPaletteItem[]>>(
       (groups, item) => {
         const group = item.group || t("groups.menus");
         if (!groups[group]) {
@@ -63,7 +62,7 @@ export function CommandPalette({
       },
       {}
     );
-  }, [filteredItems, t]);
+  }, [commandPalette.items, t]);
 
   // Use controlled state if provided, otherwise use internal state
   const isOpen = open !== undefined ? open : commandPalette.isOpen;
@@ -112,65 +111,4 @@ export function CommandPalette({
       </DialogContent>
     </Dialog>
   );
-}
-
-/**
- * Hook to filter command items based on user permissions
- * This handles the permission check for each menu item
- */
-function usePermissionFilteredItems(
-  items: CommandPaletteItem[]
-): CommandPaletteItem[] {
-  const { user } = useAuthStore();
-
-  // Build a map of navigation items with their permissions
-  const navItemsMap = useMemo(() => {
-    const map = new Map<string, { permission?: string }>();
-
-    const walkItems = (navItems: typeof navigationConfig) => {
-      navItems.forEach((item) => {
-        if (item.url) {
-          map.set(item.url, { permission: item.permission });
-        }
-        if (item.children) {
-          walkItems(item.children);
-        }
-      });
-    };
-
-    walkItems(navigationConfig);
-    return map;
-  }, []);
-
-  // Check if user has permission
-  const hasPermission = useMemo(() => {
-    return (permissionCode?: string): boolean => {
-      // If no user, no permission
-      if (!user) {
-        return false;
-      }
-
-      // If no permission required, allow access
-      if (!permissionCode) {
-        return true;
-      }
-
-      // Admin bypass - admin and superadmin have all permissions
-      if (user.role?.code === "admin" || user.role?.code === "superadmin") {
-        return true;
-      }
-
-      // Check the permissions map (code -> scope)
-      const permissions = user.permissions ?? {};
-      return permissionCode in permissions;
-    };
-  }, [user]);
-
-  // Filter items based on permissions
-  return useMemo(() => {
-    return items.filter((item) => {
-      const navItem = navItemsMap.get(item.href);
-      return hasPermission(navItem?.permission);
-    });
-  }, [items, navItemsMap, hasPermission]);
 }

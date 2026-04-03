@@ -5,12 +5,9 @@ import type {
   UpdateVisitReportData,
   VisitReportListParams,
   VisitReportFormDataResponse,
-  VisitReportProgressHistory,
   CheckInData,
   CheckOutData,
   SubmitVisitData,
-  ApproveVisitData,
-  RejectVisitData,
   ApiResponse,
   VisitReportEmployeeSummary,
   VisitReportEmployeeListParams,
@@ -59,16 +56,6 @@ export const visitReportService = {
     return response.data;
   },
 
-  approve: async (id: string, data?: ApproveVisitData): Promise<ApiResponse<VisitReport>> => {
-    const response = await apiClient.post<ApiResponse<VisitReport>>(`${BASE_URL}/${id}/approve`, data ?? {});
-    return response.data;
-  },
-
-  reject: async (id: string, data: RejectVisitData): Promise<ApiResponse<VisitReport>> => {
-    const response = await apiClient.post<ApiResponse<VisitReport>>(`${BASE_URL}/${id}/reject`, data);
-    return response.data;
-  },
-
   uploadPhotos: async (id: string, photoUrls: string[]): Promise<ApiResponse<VisitReport>> => {
     const response = await apiClient.post<ApiResponse<VisitReport>>(`${BASE_URL}/${id}/photos`, {
       photo_urls: photoUrls,
@@ -87,11 +74,6 @@ export const visitReportService = {
 
   getFormData: async (): Promise<ApiResponse<VisitReportFormDataResponse>> => {
     const response = await apiClient.get<ApiResponse<VisitReportFormDataResponse>>(`${BASE_URL}/form-data`);
-    return response.data;
-  },
-
-  getProgressHistory: async (id: string): Promise<ApiResponse<VisitReportProgressHistory[]>> => {
-    const response = await apiClient.get<ApiResponse<VisitReportProgressHistory[]>>(`${BASE_URL}/${id}/history`);
     return response.data;
   },
 

@@ -111,6 +111,13 @@ export const navigationConfig: NavItem[] = [
     ],
   },
   {
+    name: "Travel Planner",
+    i18nKey: "travelPlanner",
+    icon: "route",
+    url: "/travel-planner",
+    permission: "travel_planner.read",
+  },
+  {
     name: "Sales",
     i18nKey: "sales",
     icon: "shopping-cart",
@@ -314,6 +321,12 @@ export const navigationConfig: NavItem[] = [
                 permission: "purchase_journal.read",
               },
               {
+                name: "Inventory Journal",
+                url: "/finance/journals/inventory",
+                icon: "boxes",
+                permission: "journal.read",
+              },
+              {
                 name: "Adjustment Journal",
                 i18nKey: "adjustmentJournal",
                 url: "/finance/journals/adjustment",
@@ -429,13 +442,6 @@ export const navigationConfig: NavItem[] = [
             url: "/finance/salary",
             icon: "coins",
             permission: "salary.read",
-          },
-          {
-            name: "Up Country Cost",
-            i18nKey: "upCountryCost",
-            url: "/finance/up-country-cost",
-            icon: "map-pin",
-            permission: "up_country_cost.read",
           },
         ],
       },

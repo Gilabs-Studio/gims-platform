@@ -25,7 +25,7 @@ func (r *employeeEvaluationRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 	// Apply search filter on employee name, evaluation group name, and notes
 	if search != "" {
-		searchPattern := search + "%"
+		searchPattern := "%" + search + "%"
 		query = query.Where(
 			"employee_evaluations.notes ILIKE ? OR employee_evaluations.employee_id::text IN (SELECT id::text FROM employees WHERE name ILIKE ? AND deleted_at IS NULL) OR employee_evaluations.evaluation_group_id::text IN (SELECT id::text FROM evaluation_groups WHERE name ILIKE ? AND deleted_at IS NULL)",
 			searchPattern, searchPattern, searchPattern,

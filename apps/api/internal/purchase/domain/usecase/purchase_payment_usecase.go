@@ -14,9 +14,12 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -37,6 +40,8 @@ type PurchasePaymentUsecase interface {
 	Create(ctx context.Context, req *dto.CreatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Confirm(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
+	Reverse(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
+	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchasePaymentAuditTrailEntry, int64, error)
 	ExportCSV(ctx context.Context, params repositories.PurchasePaymentListParams) ([]byte, error)
 	TriggerJournalForPayment(ctx context.Context, pay *models.PurchasePayment) error
@@ -50,10 +55,11 @@ type purchasePaymentUsecase struct {
 	mapper       *mapper.PurchasePaymentMapper
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
+	engine       accounting.AccountingEngine
 }
 
-func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) PurchasePaymentUsecase {
-	return &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC}
+func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine) PurchasePaymentUsecase {
+	return &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
 }
 
 func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePaymentAddResponse, error) {
@@ -172,13 +178,17 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 		}
 
 		// Prevent duplicate payment creation for the same invoice.
-		var existingPaymentCount int64
+		var pendingCount int64
 		if err := tx.Model(&models.PurchasePayment{}).
-			Where("supplier_invoice_id = ?", inv.ID).
-			Count(&existingPaymentCount).Error; err != nil {
+			Where("supplier_invoice_id = ? AND status = ?", inv.ID, models.PurchasePaymentStatusPending).
+			Count(&pendingCount).Error; err != nil {
 			return err
 		}
-		if existingPaymentCount > 0 {
+		if pendingCount > 0 {
+			return ErrPurchasePaymentConflict
+		}
+
+		if req.Amount > inv.RemainingAmount+0.0001 {
 			return ErrPurchasePaymentConflict
 		}
 
@@ -453,6 +463,16 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 			}
 		}
 
+		// ✅ ATOMIC: Trigger journal INSIDE transaction — if journal fails, payment rolls back
+		txCtx := database.WithTx(ctx, tx)
+		loadedPay, loadErr := uc.repo.GetByID(txCtx, confirmedID)
+		if loadErr != nil {
+			return fmt.Errorf("failed to load payment for journal: %w", loadErr)
+		}
+		if err := uc.triggerJournalEntry(txCtx, loadedPay); err != nil {
+			return fmt.Errorf("failed to create journal for purchase payment: %w", err)
+		}
+
 		confirmedID = pay.ID
 		return nil
 	})
@@ -468,117 +488,194 @@ func (uc *purchasePaymentUsecase) Confirm(ctx context.Context, id string) (*dto.
 		return nil, err
 	}
 
-	// Trigger journal entry for this payment
-	if err := uc.triggerJournalEntry(ctx, out); err != nil {
-		// Log error but don't fail the confirm
-		fmt.Printf("⚠️ Failed to create journal entry for purchase payment %s: %v\n", id, err)
-	}
-
 	uc.auditService.Log(ctx, "purchase_payment.confirm", id, map[string]interface{}{"after": out})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 
-func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
-	// Credit: Bank/Cash (From BankAccount.ChartOfAccountID)
-	// Debit: AP (21000) for normal invoices
-	//        OR Purchase Advances/DP (11900) for down payment invoices
+func (uc *purchasePaymentUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error) {
+	return uc.reverse(ctx, id, reason)
+}
 
-	// Need to fetch BankAccount if not preloaded with COA ID
-	var ba coreModels.BankAccount
-	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
-		ba = *pay.BankAccount
-	} else {
-		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err != nil {
+func (uc *purchasePaymentUsecase) Reverse(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error) {
+	return uc.reverse(ctx, id, "Manual reversal")
+}
+
+func (uc *purchasePaymentUsecase) reverse(ctx context.Context, id string, reason string) (*dto.PurchasePaymentDetailResponse, error) {
+	var reversed *models.PurchasePayment
+	err := uc.db.Transaction(func(tx *gorm.DB) error {
+		pay, err := uc.repo.GetByID(database.WithTx(ctx, tx), id)
+		if err != nil {
 			return err
 		}
-	}
 
-	var creditAccountID string
-	if ba.ChartOfAccountID != nil {
-		creditAccountID = *ba.ChartOfAccountID
-	} else {
-		// Fallback to cash account
-		def, err := uc.coaUC.GetByCode(ctx, "11100")
-		if err != nil {
-			return errors.New("bank account has no linked COA and default cash account 11100 not found")
+		if pay.Status != models.PurchasePaymentStatusConfirmed {
+			return fmt.Errorf("only confirmed payments can be reversed")
 		}
-		creditAccountID = def.ID
+
+		// Update payment status
+		if err := tx.Model(pay).Update("status", models.PurchasePaymentStatusReversed).Error; err != nil {
+			return err
+		}
+
+		// Update invoice
+		var inv models.SupplierInvoice
+		if err := tx.First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
+			return err
+		}
+
+		// Recalculate invoice status
+		type paySumRow struct{ Total float64 }
+		var row paySumRow
+		if err := tx.Model(&models.PurchasePayment{}).
+			Select("COALESCE(SUM(amount),0) as total").
+			Where("supplier_invoice_id = ?", inv.ID).
+			Where("status = ?", models.PurchasePaymentStatusConfirmed).
+			Where("deleted_at IS NULL").
+			Scan(&row).Error; err != nil {
+			return err
+		}
+
+		// DP total already tracked in inv.DownPaymentAmount
+		totalSettled := row.Total + inv.DownPaymentAmount
+		newRemaining := math.Max(0, inv.Amount-totalSettled)
+
+		newStatus := models.SupplierInvoiceStatusUnpaid
+		if newRemaining <= 0.0001 && inv.Amount > 0 {
+			newStatus = models.SupplierInvoiceStatusPaid
+		} else if totalSettled > 0 {
+			newStatus = models.SupplierInvoiceStatusPartial
+		}
+
+		updateData := map[string]interface{}{
+			"status":           newStatus,
+			"paid_amount":      row.Total,
+			"remaining_amount": newRemaining,
+			"updated_at":       apptime.Now(),
+		}
+		if newStatus != models.SupplierInvoiceStatusPaid {
+			updateData["payment_at"] = nil
+		}
+
+		if err := tx.Model(&inv).Updates(updateData).Error; err != nil {
+			return err
+		}
+
+		// Trigger journal reversal
+		if err := uc.triggerJournalReversed(database.WithTx(ctx, tx), pay, reason); err != nil {
+			return fmt.Errorf("failed to reverse journal: %w", err)
+		}
+
+		reversed = pay
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	// Determine debit account based on invoice type
-	var debitAccountCode string
-	var description string
-	if pay.SupplierInvoice != nil && pay.SupplierInvoice.Type == models.SupplierInvoiceTypeDownPayment {
-		debitAccountCode = "11900" // Purchase Advances / Uang Muka Pembelian
-		description = "Supplier Down Payment"
-	} else {
-		debitAccountCode = "21000" // Accounts Payable / Hutang Usaha
-		description = "Supplier Payment"
+	uc.auditService.Log(ctx, "purchase_payment.reverse", id, map[string]interface{}{
+		"status": "REVERSED",
+		"reason": reason,
+	})
+
+	return uc.mapper.ToDetailResponse(reversed), nil
+}
+
+func (uc *purchasePaymentUsecase) triggerJournalReversed(ctx context.Context, pay *models.PurchasePayment, reason string) error {
+	if pay == nil || uc.journalUC == nil {
+		return nil
 	}
 
-	debitAcct, err := uc.coaUC.GetByCode(ctx, debitAccountCode)
+	refType := reference.RefTypePurchasePayment
+	var existing financeModels.JournalEntry
+	err := database.GetDB(ctx, uc.db).
+		Where("reference_type = ? AND reference_id = ?", refType, pay.ID).
+		Where("status = ?", financeModels.JournalStatusPosted).
+		First(&existing).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
 
-	refNum := ""
+	_, err = uc.journalUC.ReverseWithReason(ctx, existing.ID, reason)
+	return err
+}
+
+func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *models.PurchasePayment) error {
+	if pay == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
+	}
+
+	// Fetch BankAccount COA ID
+	var baCOAID string
+	if pay.BankAccount != nil && pay.BankAccount.ChartOfAccountID != nil {
+		baCOAID = *pay.BankAccount.ChartOfAccountID
+	} else {
+		var ba coreModels.BankAccount
+		if err := uc.db.WithContext(ctx).First(&ba, "id = ?", pay.BankAccountID).Error; err == nil && ba.ChartOfAccountID != nil {
+			baCOAID = *ba.ChartOfAccountID
+		}
+	}
+
+	// Default to cash if bank account has no COA
+	if baCOAID == "" {
+		def, err := uc.coaUC.GetByCode(ctx, "11100")
+		if err == nil {
+			baCOAID = def.ID
+		}
+	}
+
+	reqRefNum := ""
 	if pay.ReferenceNumber != nil {
-		refNum = *pay.ReferenceNumber
+		reqRefNum = *pay.ReferenceNumber
 	}
 
-	lines := []finDto.JournalLineRequest{
-		{
-			ChartOfAccountID: debitAcct.ID,
-			Debit:            pay.Amount,
-			Credit:           0,
-			Memo:             fmt.Sprintf("%s %s", description, refNum),
-		},
-		{
-			ChartOfAccountID: creditAccountID,
-			Debit:            0,
-			Credit:           pay.Amount,
-			Memo:             fmt.Sprintf("Outbound Payment %s", refNum),
-		},
+	invoiceCode := ""
+	isDP := false
+	if pay.SupplierInvoice != nil {
+		invoiceCode = pay.SupplierInvoice.Code
+		isDP = (pay.SupplierInvoice.Type == models.SupplierInvoiceTypeDownPayment)
 	}
 
-	refID := pay.ID
-	refType := "PURCHASE_PAYMENT"
-	traceKey := refType + ":" + refID
-	actorID, _ := ctx.Value("user_id").(string)
-	actorID = strings.TrimSpace(actorID)
-
-	req := &finDto.CreateJournalEntryRequest{
-		EntryDate:     pay.PaymentDate,
-		Description:   fmt.Sprintf("%s %s", description, refNum),
-		ReferenceID:   &refID,
-		ReferenceType: &refType,
-		Lines:         lines,
+	profile := accounting.ProfilePurchasePayment
+	if isDP {
+		profile = accounting.ProfilePurchasePaymentDP
 	}
 
-	log.Printf("journal_observability event=trigger.start fields=%+v", map[string]interface{}{
-		"trace_key":      traceKey,
-		"module":         "purchase_payment",
-		"reference_type": refType,
-		"reference_id":   refID,
-		"line_count":     len(lines),
-		"actor_id":       actorID,
-	})
+	data := accounting.TransactionData{
+		ReferenceType:    "PURCHASE_PAYMENT",
+		ReferenceID:      pay.ID,
+		EntryDate:        pay.PaymentDate,
+		Description:      fmt.Sprintf("Supplier Payment %s (Ref: %s)", invoiceCode, reqRefNum),
+		TotalAmount:      pay.Amount,
+		BankAccountCOAID: baCOAID,
+		DescriptionArgs:  []interface{}{invoiceCode, reqRefNum},
+	}
 
+	req, err := uc.engine.GenerateJournal(ctx, profile, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate purchase payment journal: %w", err)
+	}
+
+	// Balance check
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated purchase payment journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
+	}
+
+	req.IsSystemGenerated = true
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
 	if err != nil {
-		log.Printf("journal_observability event=trigger.failed fields=%+v", map[string]interface{}{
-			"trace_key": traceKey,
-			"module":    "purchase_payment",
-			"error":     err.Error(),
-		})
-		return err
+		return fmt.Errorf("failed to post purchase payment journal: %w", err)
 	}
 
-	log.Printf("journal_observability event=trigger.success fields=%+v", map[string]interface{}{
-		"trace_key": traceKey,
-		"module":    "purchase_payment",
-	})
-
+	log.Printf("journal_observability event=trigger.success module=purchase_payment reference_id=%s", pay.ID)
 	return nil
 }
 

@@ -24,6 +24,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { SalesPaymentPrintDialog } from "./sales-payment-print-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -34,7 +35,6 @@ import {
   useSalesPayments,
 } from "../hooks/use-sales-payments";
 import type { SalesPaymentListItem } from "../types";
-import { salesPaymentsService } from "../services/sales-payments-service";
 import { SalesPaymentForm } from "./sales-payment-form";
 import { SalesPaymentDetail } from "./sales-payment-detail";
 
@@ -78,6 +78,7 @@ export function SalesPaymentsList() {
 
   const deleteMutation = useDeleteSalesPayment();
   const confirmMutation = useConfirmSalesPayment();
+  const exportProgress = useExportProgress();
 
   const handleView = (id: string) => {
     setDetailId(id);
@@ -90,20 +91,15 @@ export function SalesPaymentsList() {
 
   const handleExport = async () => {
     try {
-      const blob = await salesPaymentsService.exportCsv({
+      await exportProgress.runWithProgress({
+        endpoint: "/sales/payments/export",
+        params: {
         search: debouncedSearch || undefined,
         sort_by: "created_at",
         sort_dir: "desc",
-        limit: 10000,
+        limit: 100,
+        },
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "sales_payments.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -131,9 +127,9 @@ export function SalesPaymentsList() {
         </div>
         <div className="flex-1" />
         {canExport && (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
         {canCreate && (

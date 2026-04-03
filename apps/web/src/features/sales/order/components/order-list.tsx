@@ -15,7 +15,7 @@ import { DOStatusBadge } from "./do-status-badge";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { DOLinkedDialog } from "./do-linked-dialog";
 import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, FileText, Package, Truck, PieChart, Send, Receipt, Printer, Banknote } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Package, Truck, Send, Receipt, Printer, Banknote, Download } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -31,6 +31,7 @@ import type { Employee as MdEmployee } from "@/features/master-data/employee/typ
 import type { SalesOrder, SalesOrderStatus } from "../types";
 import type { SalesQuotation } from "../../quotation/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useExportProgress } from "@/lib/use-export-progress";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
@@ -101,6 +102,7 @@ export function OrderList() {
   const [createInvoiceDPForOrderId, setCreateInvoiceDPForOrderId] = useState<string | null>(null);
   const [createInvoiceDPDefaultAmount, setCreateInvoiceDPDefaultAmount] = useState<number | undefined>(undefined);
   const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
+  const exportProgress = useExportProgress();
 
   const deleteOrder = useDeleteOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -150,7 +152,20 @@ export function OrderList() {
     }
   };
 
-
+  const handleExport = async () => {
+    try {
+      await exportProgress.runWithProgress({
+        endpoint: "/sales/sales-orders/export",
+        params: {
+          search: debouncedSearch || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+        },
+      });
+      toast.success(t("exportSuccess"));
+    } catch {
+      toast.error(t("common.error"));
+    }
+  };
 
   if (isError) {
     return (
@@ -201,6 +216,10 @@ export function OrderList() {
           </SelectContent>
         </Select>
         <div className="flex-1" />
+        <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
+          <Download className="h-4 w-4 mr-2" />
+          {exportProgress.label(t("exportCsv"), t("exporting"))}
+        </Button>
         {canCreate && (
           <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />

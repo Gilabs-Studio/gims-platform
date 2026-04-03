@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ChevronDown, ChevronRight, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
@@ -15,10 +15,10 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
 
 import { useProfitAndLoss } from "../profit-loss/hooks/use-profit-loss";
-import { profitLossService } from "../profit-loss/services/profit-loss-service";
 import type { ReportRow as PLReportRow } from "../profit-loss/types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
+import { useExportProgress } from "@/lib/use-export-progress";
 
 function toApiDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -46,6 +46,17 @@ export function ProfitLossView() {
 
   const { data, isLoading, isError } = useProfitAndLoss(dateRange);
   const report = data?.data;
+  const exportProgress = useExportProgress();
+
+  const toggleExpand = (accountID?: string) => {
+    if (!accountID) {
+      return;
+    }
+    setExpanded((previous) => ({
+      ...previous,
+      [accountID]: !(previous[accountID] ?? true),
+    }));
+  };
 
   const openGeneralLedger = (row: PLReportRow) => {
     const accountID = row.account_id;
@@ -84,15 +95,10 @@ export function ProfitLossView() {
 
   const handleExport = async () => {
     try {
-      const blob = await profitLossService.exportProfitAndLoss(dateRange);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `profit_loss_${dateRange.start_date}_${dateRange.end_date}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/finance/reports/export/profit-loss",
+        params: dateRange,
+      });
     } catch {
       toast.error(tCommon("exportFailed"));
     }
@@ -121,7 +127,7 @@ export function ProfitLossView() {
 
       <FilterToolbar>
         <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
-        {canExport ? <ExportButton label={t("export")} onClick={handleExport} /> : null}
+        {canExport ? <ExportButton label={exportProgress.label(t("export"))} onClick={handleExport} disabled={exportProgress.isExporting} /> : null}
       </FilterToolbar>
 
       {/* Summary metrics */}
@@ -179,7 +185,7 @@ export function ProfitLossView() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 cursor-pointer"
-                            onClick={() => row.account_id && setExpanded((prev) => ({ ...prev, [row.account_id]: !prev[row.account_id] }))}
+                            onClick={() => toggleExpand(row.account_id)}
                           >
                             {row.account_id && (expanded[row.account_id] ?? true) ? (
                               <ChevronDown className="h-4 w-4" />
@@ -244,7 +250,7 @@ export function ProfitLossView() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 cursor-pointer"
-                            onClick={() => row.account_id && setExpanded((prev) => ({ ...prev, [row.account_id]: !prev[row.account_id] }))}
+                            onClick={() => toggleExpand(row.account_id)}
                           >
                             {row.account_id && (expanded[row.account_id] ?? true) ? (
                               <ChevronDown className="h-4 w-4" />
@@ -309,7 +315,7 @@ export function ProfitLossView() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 cursor-pointer"
-                            onClick={() => row.account_id && setExpanded((prev) => ({ ...prev, [row.account_id]: !prev[row.account_id] }))}
+                            onClick={() => toggleExpand(row.account_id)}
                           >
                             {row.account_id && (expanded[row.account_id] ?? true) ? (
                               <ChevronDown className="h-4 w-4" />

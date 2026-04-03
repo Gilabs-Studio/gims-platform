@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -395,42 +396,53 @@ func (h *PurchaseRequisitionHandler) Export(c *gin.Context) {
 		Offset:  0,
 	}
 
-	items, _, err := h.uc.List(c.Request.Context(), params)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		items, _, err := h.uc.List(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		var b strings.Builder
+		b.WriteString("code,request_date,supplier,status,subtotal,tax_amount,delivery_cost,other_cost,total_amount,notes,created_at\n")
+		for _, it := range items {
+			supplier := ""
+			if it.Supplier != nil {
+				supplier = it.Supplier.Name
+			}
+			row := []string{
+				csvEscape(it.Code),
+				csvEscape(it.RequestDate),
+				csvEscape(supplier),
+				csvEscape(string(it.Status)),
+				fmt.Sprintf("%v", it.Subtotal),
+				fmt.Sprintf("%v", it.TaxAmount),
+				fmt.Sprintf("%v", it.DeliveryCost),
+				fmt.Sprintf("%v", it.OtherCost),
+				fmt.Sprintf("%v", it.TotalAmount),
+				csvEscape(it.Notes),
+				csvEscape(it.CreatedAt),
+			}
+			b.WriteString(strings.Join(row, ","))
+			b.WriteString("\n")
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    "purchase_requisitions.csv",
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       []byte(b.String()),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	filename := "purchase_requisitions.csv"
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Status(http.StatusOK)
-
-	var b strings.Builder
-	b.WriteString("code,request_date,supplier,status,subtotal,tax_amount,delivery_cost,other_cost,total_amount,notes,created_at\n")
-	for _, it := range items {
-		supplier := ""
-		if it.Supplier != nil {
-			supplier = it.Supplier.Name
-		}
-		row := []string{
-			csvEscape(it.Code),
-			csvEscape(it.RequestDate),
-			csvEscape(supplier),
-			csvEscape(string(it.Status)),
-			fmt.Sprintf("%v", it.Subtotal),
-			fmt.Sprintf("%v", it.TaxAmount),
-			fmt.Sprintf("%v", it.DeliveryCost),
-			fmt.Sprintf("%v", it.OtherCost),
-			fmt.Sprintf("%v", it.TotalAmount),
-			csvEscape(it.Notes),
-			csvEscape(it.CreatedAt),
-		}
-		b.WriteString(strings.Join(row, ","))
-		b.WriteString("\n")
-	}
-
-	_, _ = c.Writer.WriteString(b.String())
+	exportjob.WriteSyncFile(c, file)
 }
 
 func csvEscape(s string) string {

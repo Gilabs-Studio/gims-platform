@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useMaintenanceSchedules,
   useDeleteMaintenanceSchedule,
@@ -52,12 +53,14 @@ export function MaintenanceScheduleList({
 }: MaintenanceScheduleListProps) {
   const t = useTranslations("assetMaintenance");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [scheduleType, setScheduleType] = useState<MaintenanceScheduleType | "all">("all");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<MaintenanceSchedule | null>(null);
 
   const { data: schedulesData, isLoading } = useMaintenanceSchedules({
+    search: debouncedSearch || undefined,
     schedule_type: scheduleType === "all" ? undefined : scheduleType,
     is_active: status === "all" ? undefined : status === "active",
   });
@@ -65,15 +68,6 @@ export function MaintenanceScheduleList({
   const deleteSchedule = useDeleteMaintenanceSchedule();
 
   const schedules = schedulesData?.data || [];
-
-  const filteredSchedules = schedules.filter((schedule) => {
-    const searchLower = search.toLowerCase();
-    return (
-      schedule.asset?.name?.toLowerCase().includes(searchLower) ||
-      schedule.asset?.code?.toLowerCase().includes(searchLower) ||
-      schedule.description?.toLowerCase().includes(searchLower)
-    );
-  });
 
   const handleDeleteClick = (schedule: MaintenanceSchedule) => {
     setScheduleToDelete(schedule);
@@ -195,14 +189,14 @@ export function MaintenanceScheduleList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSchedules.length === 0 ? (
+                {schedules.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       No maintenance schedules found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredSchedules.map((schedule) => (
+                  schedules.map((schedule) => (
                     <TableRow key={schedule.id}>
                       <TableCell>
                         <div className="font-medium">{schedule.asset?.name}</div>

@@ -1,11 +1,12 @@
 package handler
 
 import (
-	"net/http"
+	"context"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -276,13 +277,26 @@ func (h *SalesPaymentHandler) Export(c *gin.Context) {
 		Offset:    0,
 	}
 
-	data, err := h.uc.ExportCSV(c.Request.Context(), params)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		data, err := h.uc.ExportCSV(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    "sales_payments.csv",
+			ContentType: "text/csv",
+			Bytes:       data,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	c.Header("Content-Type", "text/csv")
-	c.Header("Content-Disposition", "attachment; filename=sales_payments.csv")
-	c.Data(http.StatusOK, "text/csv", data)
+	exportjob.WriteSyncFile(c, file)
 }

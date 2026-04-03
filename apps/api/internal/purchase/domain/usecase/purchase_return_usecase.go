@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -11,7 +12,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -19,6 +23,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -45,22 +50,37 @@ type PurchaseReturnUsecase interface {
 	UpdateStatus(ctx context.Context, id string, status string) (*dto.PurchaseReturnResponse, error)
 	Delete(ctx context.Context, id string) error
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.PurchaseReturnAuditTrailEntry, int64, error)
+	TriggerJournalForReturn(ctx context.Context, ret *models.PurchaseReturn) error
 }
 
 type purchaseReturnUsecase struct {
 	db           *gorm.DB
 	repo         repositories.PurchaseReturnRepository
 	invUC        invUsecase.InventoryUsecase
+	journalUC    finUsecase.JournalEntryUsecase
+	coaUC        finUsecase.ChartOfAccountUsecase
 	auditService audit.AuditService
+	engine       accounting.AccountingEngine
 }
 
 func NewPurchaseReturnUsecase(
 	db *gorm.DB,
 	repo repositories.PurchaseReturnRepository,
 	invUC invUsecase.InventoryUsecase,
+	journalUC finUsecase.JournalEntryUsecase,
+	coaUC finUsecase.ChartOfAccountUsecase,
 	auditService audit.AuditService,
+	engine accounting.AccountingEngine,
 ) PurchaseReturnUsecase {
-	return &purchaseReturnUsecase{db: db, repo: repo, invUC: invUC, auditService: auditService}
+	return &purchaseReturnUsecase{
+		db:           db,
+		repo:         repo,
+		invUC:        invUC,
+		journalUC:    journalUC,
+		coaUC:        coaUC,
+		auditService: auditService,
+		engine:       engine,
+	}
 }
 
 func (u *purchaseReturnUsecase) GetFormData(ctx context.Context) (*dto.PurchaseReturnFormDataResponse, error) {
@@ -225,9 +245,72 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 	}
 
 	if nextStatus == models.PurchaseReturnStatusApproved {
-		actorID, _ := ctx.Value("user_id").(string)
-		actorID = strings.TrimSpace(actorID)
-		if err := u.createStockMovementsFromRows(ctx, row.Items, row.WarehouseID, row.Code, actorID); err != nil {
+		err = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			actorID, _ := ctx.Value("user_id").(string)
+			actorID = strings.TrimSpace(actorID)
+			
+			// 1. Create Stock Movements
+			if err := u.createStockMovementsFromRows(database.WithTx(ctx, tx), row.Items, row.WarehouseID, row.Code, actorID); err != nil {
+				return err
+			}
+
+			// 2. Trigger Journal Entry
+			if err := u.TriggerJournalForReturn(database.WithTx(ctx, tx), row); err != nil {
+				log.Printf("⚠️ Failed to trigger journal for purchase return %s: %v\n", id, err)
+			}
+
+			// 3. Update Related Invoices (The Business Fix)
+			// We look for invoices linked to the same PO or GR
+			var invoices []models.SupplierInvoice
+			query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("purchase_order_id = ? AND status NOT IN ?", row.PurchaseOrderID, []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusPaid, models.SupplierInvoiceStatusCancelled, models.SupplierInvoiceStatusRejected})
+			
+			if row.GoodsReceiptID != "" {
+				query = query.Where("goods_receipt_id = ?", row.GoodsReceiptID)
+			}
+			
+			if err := query.Find(&invoices).Error; err != nil {
+				return err
+			}
+
+			remainingToDeduct := row.TotalAmount
+			for i := range invoices {
+				inv := &invoices[i]
+				if remainingToDeduct <= 0 {
+					break
+				}
+
+				deduction := math.Min(remainingToDeduct, inv.RemainingAmount)
+				newRemaining := round2dp(inv.RemainingAmount - deduction)
+				remainingToDeduct = round2dp(remainingToDeduct - deduction)
+
+				newStatus := inv.Status
+				if newRemaining <= 0.001 {
+					newStatus = models.SupplierInvoiceStatusPaid
+				} else if newRemaining < inv.Amount {
+					newStatus = models.SupplierInvoiceStatusPartial
+				}
+
+				updates := map[string]interface{}{
+					"remaining_amount": newRemaining,
+					"status":           newStatus,
+					"updated_at":       apptime.Now(),
+				}
+				if newStatus == models.SupplierInvoiceStatusPaid && inv.PaymentAt == nil {
+					now := apptime.Now()
+					updates["payment_at"] = &now
+				}
+
+				if err := tx.Model(inv).Updates(updates).Error; err != nil {
+					return err
+				}
+				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f", 
+					inv.Code, row.Code, deduction, newRemaining)
+			}
+
+			return nil
+		})
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -709,6 +792,50 @@ func (u *purchaseReturnUsecase) getAvailableGoodsReceiptQtyByProduct(ctx context
 	}
 
 	return availableByProduct, nil
+}
+
+func (u *purchaseReturnUsecase) TriggerJournalForReturn(ctx context.Context, ret *models.PurchaseReturn) error {
+	if ret == nil || u.journalUC == nil || u.engine == nil {
+		return nil
+	}
+
+	if ret.TotalAmount <= 0 {
+		return nil
+	}
+
+	data := accounting.TransactionData{
+		ReferenceType:   "PURCHASE_RETURN",
+		ReferenceID:     ret.ID,
+		EntryDate:       apptime.Now().Format("2006-01-02"),
+		Description:     fmt.Sprintf("Purchase Return %s", ret.Code),
+		TotalAmount:     ret.TotalAmount,
+		SubTotal:        ret.TotalAmount, // Assuming no tax split on return for now
+		DescriptionArgs: []interface{}{ret.Code},
+	}
+
+	req, err := u.engine.GenerateJournal(ctx, accounting.ProfilePurchaseReturn, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate purchase return journal: %w", err)
+	}
+
+	// Balance check
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated purchase return journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
+	}
+
+	req.IsSystemGenerated = true
+	_, err = u.journalUC.PostOrUpdateJournal(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to post purchase return journal: %w", err)
+	}
+
+	log.Printf("journal_observability event=trigger.success module=purchase_return reference_id=%s", ret.ID)
+	return nil
 }
 
 func mapPurchaseReturnRow(row *models.PurchaseReturn) *dto.PurchaseReturnResponse {

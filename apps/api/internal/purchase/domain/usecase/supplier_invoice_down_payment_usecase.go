@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
@@ -37,6 +38,7 @@ type SupplierInvoiceDownPaymentUsecase interface {
 	Reject(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
 	Cancel(ctx context.Context, id string) (*dto.SupplierInvoiceDownPaymentDetailResponse, error)
 	ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error)
+	TriggerJournalForInvoiceDP(ctx context.Context, si *models.SupplierInvoice) error
 }
 
 type supplierInvoiceDownPaymentUsecase struct {
@@ -47,10 +49,11 @@ type supplierInvoiceDownPaymentUsecase struct {
 	mapper       *mapper.SupplierInvoiceMapper
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
+	engine       accounting.AccountingEngine
 }
 
-func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase) SupplierInvoiceDownPaymentUsecase {
-	return &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC}
+func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine) SupplierInvoiceDownPaymentUsecase {
+	return &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceDownPaymentAddResponse, error) {
@@ -547,52 +550,50 @@ func (uc *supplierInvoiceDownPaymentUsecase) Cancel(ctx context.Context, id stri
 	return uc.mapper.ToDownPaymentDetailResponse(out), nil
 }
 
-func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
-	// DP Invoice recognition:
-	// Debit: Purchase Advances (from settings) - asset representing advance paid to supplier
-	// Credit: AP (from settings) - liability to pay the supplier
+func (uc *supplierInvoiceDownPaymentUsecase) TriggerJournalForInvoiceDP(ctx context.Context, si *models.SupplierInvoice) error {
+	return uc.triggerDPJournalEntry(ctx, si)
+}
 
-	advAcct, err := uc.coaUC.GetByCode(ctx, "11900") // Purchase Advances
-	if err != nil {
-		return err
-	}
-	apAcct, err := uc.coaUC.GetByCode(ctx, "21000") // Accounts Payable
-	if err != nil {
-		return err
+func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.Context, si *models.SupplierInvoice) error {
+	if si == nil || uc.journalUC == nil || uc.engine == nil {
+		return nil
 	}
 
 	if si.Amount <= 0 {
 		return nil
 	}
 
-	lines := []finDto.JournalLineRequest{
-		{
-			ChartOfAccountID: advAcct.ID,
-			Debit:            si.Amount,
-			Credit:           0,
-			Memo:             fmt.Sprintf("Purchase Advance - %s", si.InvoiceNumber),
-		},
-		{
-			ChartOfAccountID: apAcct.ID,
-			Debit:            0,
-			Credit:           si.Amount,
-			Memo:             fmt.Sprintf("AP for DP Invoice %s", si.Code),
-		},
+	data := accounting.TransactionData{
+		ReferenceType:   "SUPPLIER_INVOICE_DP",
+		ReferenceID:     si.ID,
+		EntryDate:       si.InvoiceDate,
+		Description:     fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
+		TotalAmount:     si.Amount,
+		DescriptionArgs: []interface{}{si.InvoiceNumber, si.Code},
 	}
 
-	refID := si.ID
-	refType := "SUPPLIER_INVOICE_DP"
+	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoiceDP, data)
+	if err != nil {
+		return fmt.Errorf("failed to generate supplier invoice DP journal: %w", err)
+	}
 
-	req := &finDto.CreateJournalEntryRequest{
-		EntryDate:     si.InvoiceDate,
-		Description:   fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
-		ReferenceID:   &refID,
-		ReferenceType: &refType,
-		Lines:         lines,
+	// Balance check
+	var debitTotal, creditTotal float64
+	for _, l := range req.Lines {
+		debitTotal += l.Debit
+		creditTotal += l.Credit
+	}
+	if math.Abs(debitTotal-creditTotal) > 0.001 {
+		return fmt.Errorf("generated supplier invoice DP journal is unbalanced: debit=%.2f credit=%.2f", debitTotal, creditTotal)
 	}
 
 	_, err = uc.journalUC.PostOrUpdateJournal(ctx, req)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to post supplier invoice DP journal: %w", err)
+	}
+
+	log.Printf("journal_observability event=trigger.success module=purchase_supplier_invoice_dp reference_id=%s", si.ID)
+	return nil
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) ListAuditTrail(ctx context.Context, id string, page, perPage int) ([]dto.SupplierInvoiceAuditTrailEntry, int64, error) {

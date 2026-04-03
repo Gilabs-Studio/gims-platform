@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -364,6 +365,29 @@ func (h *SupplierInvoiceHandler) Pending(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// Reverse handles POST /purchase/supplier-invoices/:id/reverse
+func (h *SupplierInvoiceHandler) Reverse(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "ID is required"}, nil)
+		return
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		errors.ErrorResponse(c, "INVALID_PATH_PARAM", map[string]interface{}{"message": "Invalid ID format"}, nil)
+		return
+	}
+	res, err := h.uc.Reverse(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrSupplierInvoiceNotFound {
+			errors.NotFoundResponse(c, "supplier_invoice", id)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 // AuditTrail handles GET /purchase/supplier-invoices/:id/audit-trail
 func (h *SupplierInvoiceHandler) AuditTrail(c *gin.Context) {
 	id := c.Param("id")
@@ -420,44 +444,55 @@ func (h *SupplierInvoiceHandler) Export(c *gin.Context) {
 		limit = 10000
 	}
 
-	items, _, err := h.uc.List(c.Request.Context(), repositories.SupplierInvoiceListParams{
-		Search:  search,
-		Status:  status,
-		SortBy:  sortBy,
-		SortDir: sortDir,
-		Limit:   limit,
-		Offset:  0,
-	})
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		items, _, err := h.uc.List(ctx, repositories.SupplierInvoiceListParams{
+			Search:  search,
+			Status:  status,
+			SortBy:  sortBy,
+			SortDir: sortDir,
+			Limit:   limit,
+			Offset:  0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var b strings.Builder
+		b.WriteString("code,invoice_number,invoice_date,due_date,purchase_order_code,supplier_name,amount,status\n")
+		for _, it := range items {
+			poCode := ""
+			if it.PurchaseOrder != nil {
+				poCode = it.PurchaseOrder.Code
+			}
+			row := []string{
+				csvEscape(it.Code),
+				csvEscape(it.InvoiceNumber),
+				csvEscape(it.InvoiceDate),
+				csvEscape(it.DueDate),
+				csvEscape(poCode),
+				csvEscape(it.SupplierName),
+				csvEscape(fmt.Sprintf("%v", it.Amount)),
+				csvEscape(it.Status),
+			}
+			b.WriteString(strings.Join(row, ","))
+			b.WriteString("\n")
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    "supplier_invoices.csv",
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       []byte(b.String()),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	filename := "supplier_invoices.csv"
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Status(http.StatusOK)
-
-	var b strings.Builder
-	b.WriteString("code,invoice_number,invoice_date,due_date,purchase_order_code,supplier_name,amount,status\n")
-	for _, it := range items {
-		poCode := ""
-		if it.PurchaseOrder != nil {
-			poCode = it.PurchaseOrder.Code
-		}
-		row := []string{
-			csvEscape(it.Code),
-			csvEscape(it.InvoiceNumber),
-			csvEscape(it.InvoiceDate),
-			csvEscape(it.DueDate),
-			csvEscape(poCode),
-			csvEscape(it.SupplierName),
-			csvEscape(fmt.Sprintf("%v", it.Amount)),
-			csvEscape(it.Status),
-		}
-		b.WriteString(strings.Join(row, ","))
-		b.WriteString("\n")
-	}
-
-	_, _ = c.Writer.WriteString(b.String())
+	exportjob.WriteSyncFile(c, file)
 }

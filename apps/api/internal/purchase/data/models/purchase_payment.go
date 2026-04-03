@@ -16,6 +16,7 @@ type PurchasePaymentMethod string
 const (
 	PurchasePaymentStatusPending   PurchasePaymentStatus = "PENDING"
 	PurchasePaymentStatusConfirmed PurchasePaymentStatus = "CONFIRMED"
+	PurchasePaymentStatusReversed  PurchasePaymentStatus = "REVERSED"
 )
 
 const (

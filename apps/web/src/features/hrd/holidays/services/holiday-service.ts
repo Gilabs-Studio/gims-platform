@@ -14,6 +14,7 @@ export const holidayService = {
   async list(params?: {
     page?: number;
     per_page?: number;
+    search?: string;
     year?: number;
     type?: string;
     is_active?: boolean;

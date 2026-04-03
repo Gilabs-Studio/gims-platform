@@ -1,24 +1,42 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/service"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gin-gonic/gin"
 )
 
 type JournalEntryHandler struct {
-	uc          usecase.JournalEntryUsecase
-	valuationUC usecase.ValuationRunUsecase
-	cashBankUC  usecase.CashBankJournalUsecase
+	uc                usecase.JournalEntryUsecase
+	valuationUC       usecase.ValuationRunUsecase
+	cashBankUC        usecase.CashBankJournalUsecase
+	reconciliationSvc usecase.ValuationReconciliationService
+	exportSvc         service.ValuationExportService
 }
 
-func NewJournalEntryHandler(uc usecase.JournalEntryUsecase, valuationUC usecase.ValuationRunUsecase, cashBankUC usecase.CashBankJournalUsecase) *JournalEntryHandler {
-	return &JournalEntryHandler{uc: uc, valuationUC: valuationUC, cashBankUC: cashBankUC}
+func NewJournalEntryHandler(
+	uc usecase.JournalEntryUsecase,
+	valuationUC usecase.ValuationRunUsecase,
+	cashBankUC usecase.CashBankJournalUsecase,
+	reconciliationSvc usecase.ValuationReconciliationService,
+	exportSvc service.ValuationExportService,
+) *JournalEntryHandler {
+	return &JournalEntryHandler{
+		uc:                uc,
+		valuationUC:       valuationUC,
+		cashBankUC:        cashBankUC,
+		reconciliationSvc: reconciliationSvc,
+		exportSvc:         exportSvc,
+	}
 }
 
 func (h *JournalEntryHandler) Create(c *gin.Context) {
@@ -238,6 +256,20 @@ func (h *JournalEntryHandler) ListCashBankSubLedger(c *gin.Context) {
 
 // RunValuation handles POST /finance/journal-entries/valuation/run
 // Enhanced: accepts RunValuationRequest with type, period, and optional reference_id.
+func (h *JournalEntryHandler) PreviewValuation(c *gin.Context) {
+	var req dto.RunValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Preview(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALUATION_PREVIEW_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *JournalEntryHandler) RunValuation(c *gin.Context) {
 	var req dto.RunValuationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -254,6 +286,43 @@ func (h *JournalEntryHandler) RunValuation(c *gin.Context) {
 		return
 	}
 	response.SuccessResponseCreated(c, res, nil)
+}
+
+func (h *JournalEntryHandler) ApproveValuation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.ApproveValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err.Error() != "EOF" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Approve(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALUATION_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// UnlockValuation handles POST /finance/journal-entries/valuation/runs/:id/unlock
+// RBAC-gated admin operation to unlock a posted (locked) valuation run.
+// Only allowed for corrections when errors are discovered post-posting.
+func (h *JournalEntryHandler) UnlockValuation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.UnlockValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	if strings.TrimSpace(req.UnlockReason) == "" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "unlock_reason is required", nil, nil)
+		return
+	}
+	res, err := h.valuationUC.Unlock(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALUATION_UNLOCK_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
 }
 
 // ListValuationRuns handles GET /finance/journal-entries/valuation/runs
@@ -303,6 +372,100 @@ func (h *JournalEntryHandler) GetValuationRun(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, res, nil)
+}
+
+// GetValuationReconciliation handles GET /finance/journal-entries/valuation/runs/:id/reconciliation
+// Returns reconciliation report comparing GL posting vs subledger for audit trail.
+func (h *JournalEntryHandler) GetValuationReconciliation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+
+	if h.reconciliationSvc == nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "RECONCILIATION_SERVICE_UNAVAILABLE", "Reconciliation service not configured", nil, nil)
+		return
+	}
+
+	report, err := h.reconciliationSvc.GenerateReconciliationReport(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "RECONCILIATION_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, report, nil)
+}
+
+// ExportValuation handles GET /finance/journal-entries/valuation/runs/:id/export?format=csv|pdf
+// Returns CSV or PDF export of valuation run for auditors and analysis.
+func (h *JournalEntryHandler) ExportValuation(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
+
+	if h.exportSvc == nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_SERVICE_UNAVAILABLE", "Export service not configured", nil, nil)
+		return
+	}
+
+	if format != "csv" && format != "pdf" {
+		response.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORMAT", "format must be 'csv' or 'pdf'", nil, nil)
+		return
+	}
+
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		var file *service.ExportedFile
+		var err error
+
+		switch format {
+		case "csv":
+			file, err = h.exportSvc.ExportAsCSV(ctx, id)
+		case "pdf":
+			file, err = h.exportSvc.ExportAsPDF(ctx, id)
+		default:
+			return nil, fmt.Errorf("format must be 'csv' or 'pdf'")
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    file.FileName,
+			ContentType: file.ContentType,
+			Bytes:       file.Content,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "EXPORT_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	exportjob.WriteSyncFile(c, file)
+}
+
+// BulkApproveValuation handles POST /finance/journal-entries/valuation/runs/bulk-approve
+// Approves multiple valuation runs in batch for efficiency.
+func (h *JournalEntryHandler) BulkApproveValuation(c *gin.Context) {
+	var req dto.BulkApproveValuationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	if len(req.RunIDs) == 0 {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "at least one run_id is required", nil, nil)
+		return
+	}
+
+	result, err := h.valuationUC.BulkApprove(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "BULK_APPROVE_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
 }
 
 func (h *JournalEntryHandler) listByDomain(c *gin.Context, domain string) {

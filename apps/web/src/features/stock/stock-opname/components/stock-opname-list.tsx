@@ -266,18 +266,22 @@ export function StockOpnameList() {
                         <TableCell><StockOpnameStatusBadge status={row.status} /></TableCell>
                         <TableCell className="text-center">
                             {(() => {
-                                const variance = row.total_variance_qty;
-                                if (variance === 0 || variance === undefined) {
+                                const negativeVariance = row.total_negative_variance_qty ?? 0;
+                                const positiveVariance = row.total_positive_variance_qty ?? 0;
+
+                                if (negativeVariance === 0 && positiveVariance === 0) {
                                      return <span className="text-muted-foreground text-sm">-</span>;
                                 }
-                                return variance > 0 ? (
-                                     <span className="font-medium" style={{ color: 'hsl(var(--chart-2))' }}>
-                                         +{variance}
-                                     </span>
-                                ) : (
-                                     <span className="font-medium" style={{ color: 'hsl(var(--chart-4))' }}>
-                                         {variance}
-                                     </span>
+
+                                return (
+                                    <div className="flex items-center gap-2 text-sm font-medium leading-none justify-center">
+                                        {negativeVariance !== 0 && (
+                                            <span className="text-destructive">{negativeVariance}</span>
+                                        )}
+                                        {positiveVariance !== 0 && (
+                                            <span className="text-success">+{positiveVariance}</span>
+                                        )}
+                                    </div>
                                 );
                             })()}
                         </TableCell>

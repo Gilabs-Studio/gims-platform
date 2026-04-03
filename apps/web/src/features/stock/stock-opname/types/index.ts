@@ -12,6 +12,8 @@ export interface StockOpname {
   // Statistics
   total_items: number;
   total_variance_qty: number;
+  total_negative_variance_qty: number;
+  total_positive_variance_qty: number;
   
   created_at: string;
   updated_at: string;
@@ -31,6 +33,7 @@ export interface StockOpnameItem {
   system_qty: number;
   physical_qty: number | null;
   variance_qty: number;
+  unit_cost: number;
   
   notes?: string;
 }

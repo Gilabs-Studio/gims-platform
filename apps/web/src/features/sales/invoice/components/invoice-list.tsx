@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CreditCard, XCircle, CheckCircle2, AlertTriangle, Send, Printer } from "lucide-react";
+import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CreditCard, XCircle, CheckCircle2, AlertTriangle, Send, Printer, Download } from "lucide-react";
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus, useApproveInvoice } from "../hooks/use-invoices";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,8 @@ import type { SalesOrder, SalesOrderListResponse } from "../../order/types";
 import type { DeliveryOrder } from "../../delivery/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { runAsyncExport } from "@/lib/async-export";
+import { useExportProgress } from "@/lib/use-export-progress";
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { InvoiceStatusBadge } from "../../order/components/invoice-status-badge";
@@ -133,6 +135,7 @@ export function InvoiceList() {
 
   const [printingInvoiceId, setPrintingInvoiceId] = useState<string | null>(null);
   const [createPaymentForInvoiceId, setCreatePaymentForInvoiceId] = useState<string | null>(null);
+  const exportProgress = useExportProgress();
   const [isPaymentDetailOpen, setIsPaymentDetailOpen] = useState(false);
   const [selectedInvoiceForPayments, setSelectedInvoiceForPayments] = useState<{ id: string; code: string } | null>(null);
 
@@ -260,6 +263,22 @@ export function InvoiceList() {
     if (invoice.status === "paid" || invoice.status === "cancelled") return false;
     if (!invoice.due_date) return false;
     return new Date(invoice.due_date) < new Date();
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportProgress.runWithProgress({
+        endpoint: "/sales/customer-invoices/export",
+        params: {
+          search: debouncedSearch || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          type: "regular",
+        },
+      });
+      toast.success(t("exportSuccess"));
+    } catch {
+      toast.error(t("common.error"));
+    }
   };
 
   const renderInvoiceRows = () => {
@@ -426,14 +445,14 @@ export function InvoiceList() {
                   )}
                   {canUpdate && status === "draft" && (
                     <DropdownMenuItem
-                      onClick={() => handleStatusChange(invoice.id, "sent")}
+                      onClick={() => handleStatusChange(invoice.id, "submitted")}
                       className="cursor-pointer text-primary focus:text-primary"
                     >
                       <Send className="h-4 w-4 mr-2" />
                       {t("actions.submit")}
                     </DropdownMenuItem>
                   )}
-                  {status === "sent" && (
+                  {status === "submitted" && (
                     <>
                       {canApprove && (
                         <DropdownMenuItem
@@ -541,7 +560,7 @@ export function InvoiceList() {
           <SelectContent>
             <SelectItem value="all">{t("common.filterBy")} {t("common.status")}</SelectItem>
             <SelectItem value="draft">{t("status.draft")}</SelectItem>
-            <SelectItem value="sent">{t("status.pending")}</SelectItem>
+            <SelectItem value="submitted">{t("status.pending")}</SelectItem>
             <SelectItem value="approved">{t("status.approved")}</SelectItem>
             <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
             <SelectItem value="unpaid">{t("status.unpaid")}</SelectItem>
@@ -552,6 +571,10 @@ export function InvoiceList() {
           </SelectContent>
         </Select>
         <div className="flex-1" />
+        <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
+          <Download className="h-4 w-4 mr-2" />
+          {exportProgress.label(t("exportCsv"), t("exporting"))}
+        </Button>
         {canCreate && (
           <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />

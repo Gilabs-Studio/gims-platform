@@ -70,7 +70,7 @@ func (r *userRepository) List(ctx context.Context, req *dto.ListUsersRequest) ([
 
 	// Apply filters
 	if req.Search != "" {
-		search := req.Search + "%" // Prefix search for better performance with GIN index
+		search := "%" + req.Search + "%" // Prefix search for better performance with GIN index
 		// Search across name, email, and role name
 		query = query.Where(
 			"users.name ILIKE ? OR users.email ILIKE ? OR EXISTS (SELECT 1 FROM roles WHERE roles.id = users.role_id AND roles.name ILIKE ?)",

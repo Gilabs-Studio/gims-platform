@@ -38,7 +38,8 @@ func SeedIntegrationFlow() error {
 		var adminUser userModels.User
 		if err := tx.Where("email = ?", defaultEmail).First(&adminUser).Error; err != nil {
 			if err := tx.First(&adminUser).Error; err != nil {
-				log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+				log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+				return nil
 			}
 		}
 		adminID := adminUser.ID
@@ -49,27 +50,32 @@ func SeedIntegrationFlow() error {
 		// 2) Get common dependencies
 		var supplier supplierModels.Supplier
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&supplier).Error; err != nil {
-			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var pt coreModels.PaymentTerms
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&pt).Error; err != nil {
-			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var bu orgModels.BusinessUnit
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bu).Error; err != nil {
-			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var warehouse warehouseModels.Warehouse
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&warehouse).Error; err != nil {
-			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var bankAccount coreModels.BankAccount
 		if err := tx.Where("is_active = ?", true).Order("created_at ASC").First(&bankAccount).Error; err != nil {
-			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		// 3) Get Products
@@ -101,53 +107,53 @@ func SeedIntegrationFlow() error {
 				continue
 			}
 
-// A) Purchase Order — status is varied per index to cover all flow states.
-		poQty := 10.0 + float64(i*5)
-		poPrice := prod.CostPrice
-		if poPrice <= 0 {
-			poPrice = 50000.0 + float64(i*1000)
-		}
-		subtotal := poQty * poPrice
-		taxRate := 11.0
-		tax := subtotal * (taxRate / 100)
-		total := subtotal + tax
+			// A) Purchase Order — status is varied per index to cover all flow states.
+			poQty := 10.0 + float64(i*5)
+			poPrice := prod.CostPrice
+			if poPrice <= 0 {
+				poPrice = 50000.0 + float64(i*1000)
+			}
+			subtotal := poQty * poPrice
+			taxRate := 11.0
+			tax := subtotal * (taxRate / 100)
+			total := subtotal + tax
 
-		var poStatus purchaseModels.PurchaseOrderStatus
-		switch i {
-		case 1:
-			poStatus = purchaseModels.PurchaseOrderStatusDraft
-		case 2:
-			poStatus = purchaseModels.PurchaseOrderStatusSubmitted
-		default:
-			poStatus = purchaseModels.PurchaseOrderStatusApproved
-		}
+			var poStatus purchaseModels.PurchaseOrderStatus
+			switch i {
+			case 1:
+				poStatus = purchaseModels.PurchaseOrderStatusDraft
+			case 2:
+				poStatus = purchaseModels.PurchaseOrderStatusSubmitted
+			default:
+				poStatus = purchaseModels.PurchaseOrderStatusApproved
+			}
 
-		po := purchaseModels.PurchaseOrder{
-			Code:                 poCode,
-			SupplierID:           nilIfEmpty(supplier.ID),
-			SupplierCodeSnapshot: supplier.Code,
-			SupplierNameSnapshot: supplier.Name,
-			PaymentTermsID:       nilIfEmpty(pt.ID),
-			BusinessUnitID:       nilIfEmpty(bu.ID),
-			CreatedBy:            adminID,
-			OrderDate:            now.AddDate(0, 0, -i*2).Format("2006-01-02"),
-			Status:               poStatus,
-			TaxRate:              taxRate,
-			TaxAmount:            tax,
-			SubTotal:             subtotal,
-			TotalAmount:          total,
-			Items: []purchaseModels.PurchaseOrderItem{
-				{
-					ProductID: prod.ID,
-					Quantity:  poQty,
-					Price:     poPrice,
-					Subtotal:  subtotal,
+			po := purchaseModels.PurchaseOrder{
+				Code:                 poCode,
+				SupplierID:           nilIfEmpty(supplier.ID),
+				SupplierCodeSnapshot: supplier.Code,
+				SupplierNameSnapshot: supplier.Name,
+				PaymentTermsID:       nilIfEmpty(pt.ID),
+				BusinessUnitID:       nilIfEmpty(bu.ID),
+				CreatedBy:            adminID,
+				OrderDate:            now.AddDate(0, 0, -i*2).Format("2006-01-02"),
+				Status:               poStatus,
+				TaxRate:              taxRate,
+				TaxAmount:            tax,
+				SubTotal:             subtotal,
+				TotalAmount:          total,
+				Items: []purchaseModels.PurchaseOrderItem{
+					{
+						ProductID: prod.ID,
+						Quantity:  poQty,
+						Price:     poPrice,
+						Subtotal:  subtotal,
+					},
 				},
-			},
-		}
-		if err := tx.Create(&po).Error; err != nil {
-			return err
-		}
+			}
+			if err := tx.Create(&po).Error; err != nil {
+				return err
+			}
 
 			// GR, SI, and Payment are skipped for DRAFT and SUBMITTED orders.
 			if poStatus != purchaseModels.PurchaseOrderStatusApproved {

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { financeJournalsService } from "../services/finance-journals-service";
 import type {
+  ApproveValuationInput,
   CreateJournalEntryInput,
   ListJournalEntriesParams,
   ListValuationRunsParams,
@@ -21,6 +22,8 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "sales-list", params] as const,
   purchaseList: (params?: ListJournalEntriesParams) =>
     [...financeJournalKeys.all, "purchase-list", params] as const,
+  inventoryList: (params?: ListJournalEntriesParams) =>
+    [...financeJournalKeys.all, "inventory-list", params] as const,
   adjustmentList: (params?: ListJournalEntriesParams) =>
     [...financeJournalKeys.all, "adjustment-list", params] as const,
   valuationList: (params?: ListJournalEntriesParams) =>
@@ -56,6 +59,13 @@ export function useFinancePurchaseJournals(params?: ListJournalEntriesParams) {
   return useQuery({
     queryKey: financeJournalKeys.purchaseList(params),
     queryFn: () => financeJournalsService.listPurchase(params),
+  });
+}
+
+export function useFinanceInventoryJournals(params?: ListJournalEntriesParams) {
+  return useQuery({
+    queryKey: financeJournalKeys.inventoryList(params),
+    queryFn: () => financeJournalsService.listInventory(params),
   });
 }
 
@@ -228,6 +238,27 @@ export function useRunFinanceValuationJournal() {
   });
 }
 
+export function usePreviewFinanceValuationJournal() {
+  return useMutation({
+    mutationFn: (data: RunValuationInput) =>
+      financeJournalsService.previewValuation(data),
+  });
+}
+
+export function useApproveFinanceValuationRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: ApproveValuationInput }) =>
+      financeJournalsService.approveValuation(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRunDetail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationList() });
+    },
+  });
+}
+
 export function useValuationRuns(params?: ListValuationRunsParams) {
   return useQuery({
     queryKey: financeJournalKeys.valuationRunList(params),
@@ -254,5 +285,47 @@ export function useTrialBalance(
     queryFn: () => financeJournalsService.trialBalance(params),
     enabled: options?.enabled !== undefined ? options.enabled : true,
     staleTime: 60_000,
+  });
+}
+
+export function useValuationReconciliation(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...financeJournalKeys.valuationRuns(), "reconciliation", id],
+    queryFn: () => financeJournalsService.getValuationReconciliation(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+    staleTime: 30_000,
+  });
+}
+
+export function useUnlockFinanceValuation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      financeJournalsService.unlockValuation(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRunDetail(id) });
+    },
+  });
+}
+
+export function useExportFinanceValuation() {
+  return useMutation({
+    mutationFn: ({ id, format }: { id: string; format: "csv" | "pdf" }) =>
+      financeJournalsService.exportValuation(id, format),
+  });
+}
+
+export function useBulkApproveFinanceValuations() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runIds: string[]) =>
+      financeJournalsService.bulkApproveValuations(runIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationRuns() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.valuationList() });
+    },
   });
 }

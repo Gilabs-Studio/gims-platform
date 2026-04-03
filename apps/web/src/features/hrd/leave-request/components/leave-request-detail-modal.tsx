@@ -67,8 +67,6 @@ export function LeaveRequestDetailModal({
   // Use detailed data if available, otherwise use passed leave request.
   // We keep hooks order stable even when leaveRequest changes.
   const displayLeaveRequest = detailData?.data ?? leaveRequest;
-  const isDetailedData = !!detailData?.data;
-  const hasData = Boolean(displayLeaveRequest);
 
   const getStatusBadge = (status?: string) => {
     switch (status?.toUpperCase()) {

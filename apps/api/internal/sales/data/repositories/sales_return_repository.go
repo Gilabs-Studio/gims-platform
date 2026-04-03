@@ -54,7 +54,8 @@ func (r *salesReturnRepository) List(ctx context.Context, params SalesReturnList
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("sales_returns.code ILIKE ? OR sales_returns.reason ILIKE ?", like, like)
+		q = q.Joins("LEFT JOIN customers ON customers.id = sales_returns.customer_id")
+		q = q.Where("customers.name ILIKE ? OR sales_returns.code ILIKE ? OR sales_returns.reason ILIKE ?", like, like, like)
 	}
 	if s := strings.TrimSpace(params.Status); s != "" {
 		q = q.Where("sales_returns.status = ?", strings.ToUpper(s))

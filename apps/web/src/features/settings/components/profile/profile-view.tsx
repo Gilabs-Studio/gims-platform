@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Suspense, useState } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Phone, Mail, MapPin, Calendar as CalendarIcon, Briefcase, Hash } from "lucide-react";
@@ -35,6 +35,30 @@ function MetricsLoadingSkeletons() {
   );
 }
 
+type LabelValueRowProps = {
+  label: string | ReactNode;
+  value: ReactNode;
+  icon?: ReactNode;
+};
+
+function LabelValueRow({ label, value, icon }: LabelValueRowProps) {
+  const labelText = typeof label === "string" ? label.replace(/:\s*$/, "") : label;
+  return (
+    <div className="w-full">
+      <div className="flex items-start gap-3">
+        {icon && <div className="shrink-0 mt-0.5 text-muted-foreground">{icon}</div>}
+        <div className="flex flex-col w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center w-full gap-1">
+            <span className="text-muted-foreground sm:w-28">{labelText}</span>
+            <span className="hidden sm:inline-block w-6 text-center text-muted-foreground">:</span>
+            <span className="text-foreground sm:flex-1 wrap-break-word">{value}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileSidebar() {
   const t = useTranslations("profile");
   const user = useAuthStore((state) => state.user);
@@ -61,14 +85,16 @@ function ProfileSidebar() {
       <div className="space-y-4">
         <h3 className="font-semibold text-sm">{t("about")}</h3>
         <div className="space-y-4 text-sm">
-          <div className="flex items-center gap-3">
-            <Phone className="h-4 w-4 text-muted-foreground" />
-            <span className="text-foreground">-</span>
-          </div>
-          <div className="flex items-center gap-3 break-all">
-            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-foreground">{user?.email}</span>
-          </div>
+          <LabelValueRow
+            icon={<Phone className="h-4 w-4 text-muted-foreground" />}
+            label={"Phone"}
+            value={"-"}
+          />
+          <LabelValueRow
+            icon={<Mail className="h-4 w-4 text-muted-foreground shrink-0" />}
+            label={t("email")}
+            value={user?.email ?? "-"}
+          />
         </div>
       </div>
 
@@ -78,15 +104,9 @@ function ProfileSidebar() {
         <div className="space-y-4 text-sm">
           <div className="flex items-start gap-3">
             <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
-                <span className="text-muted-foreground">{t("addressLabel")}</span>
-                <span className="text-foreground">-</span>
-              </div>
-              <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
-                <span className="text-muted-foreground">{t("cityState")}</span>
-                <span className="text-foreground">-</span>
-              </div>
+            <div className="flex flex-col gap-3 w-full">
+              <LabelValueRow label={t("addressLabel")} value={"-"} />
+              <LabelValueRow label={t("cityState")} value={"-"} />
             </div>
           </div>
         </div>
@@ -96,27 +116,21 @@ function ProfileSidebar() {
       <div className="space-y-4">
         <h3 className="font-semibold text-sm">{t("employeeDetails")}</h3>
         <div className="space-y-4 text-sm">
-          <div className="flex items-start gap-3">
-            <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <div className="grid grid-cols-[100px_1fr] gap-2 items-center w-full">
-              <span className="text-muted-foreground">{t("dateOfBirth")}</span>
-              <span className="text-foreground">-</span>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <div className="grid grid-cols-[100px_1fr] gap-2 items-center w-full">
-              <span className="text-muted-foreground">{t("titleLabel")}</span>
-              <span className="text-foreground">{user?.role?.name || "-"}</span>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-             <Hash className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-             <div className="grid grid-cols-[100px_1fr] gap-2 items-center w-full">
-               <span className="text-muted-foreground">{t("hireDateLabel")}</span>
-               <span className="text-foreground">-</span>
-             </div>
-          </div>
+          <LabelValueRow
+            icon={<CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+            label={t("dateOfBirth")}
+            value={"-"}
+          />
+          <LabelValueRow
+            icon={<Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+            label={t("titleLabel")}
+            value={user?.role?.name || "-"}
+          />
+          <LabelValueRow
+            icon={<Hash className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />}
+            label={t("hireDateLabel")}
+            value={"-"}
+          />
         </div>
       </div>
     </div>
@@ -137,7 +151,7 @@ export function ProfileView() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* Clean top Tabs bar identical to reference image */}
         <div className="border-b border-border/40 w-full mb-6 relative">
-          <TabsList className="flex w-full justify-start h-auto bg-transparent p-0 gap-6 overflow-x-auto overflow-y-hidden no-scrollbar rounded-none items-end">
+          <TabsList className="hidden md:flex w-full justify-start h-auto bg-transparent p-0 gap-6 overflow-x-auto overflow-y-hidden no-scrollbar rounded-none items-end">
             <TabsTrigger 
               value="overview" 
               className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
@@ -167,6 +181,29 @@ export function ProfileView() {
 
           {/* Main Content Area */}
           <div className="col-span-1 md:col-span-8 lg:col-span-9 min-w-0 py-2">
+            {/* Mobile tabs: shown only on small screens and positioned between sidebar and content */}
+            <div className="md:hidden mb-4">
+              <TabsList className="flex w-full justify-start h-auto bg-transparent p-0 gap-6 overflow-x-auto overflow-y-hidden no-scrollbar rounded-none items-end">
+                <TabsTrigger 
+                  value="overview" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                >
+                  {t("overview")}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="general" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                >
+                  {t("general")}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="security" 
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                >
+                  {t("security")}
+                </TabsTrigger>
+              </TabsList>
+            </div>
             <TabsContent value="overview" className="mt-0 space-y-10 animate-in fade-in-50 duration-500">
               
               {/* Job Information Header identical to reference image */}
@@ -206,14 +243,18 @@ export function ProfileView() {
             </TabsContent>
 
             <TabsContent value="general" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
-              <div className="grid gap-6 max-w-2xl">
-                <ProfileForm />
-                <PreferencesForm />
+              <div className="grid gap-6">
+                <div className="w-full">
+                  <ProfileForm />
+                </div>
+                <div className="w-full">
+                  <PreferencesForm />
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="security" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
-              <div className="grid gap-6 max-w-2xl">
+              <div className="grid gap-6">
                 <PasswordForm />
               </div>
             </TabsContent>

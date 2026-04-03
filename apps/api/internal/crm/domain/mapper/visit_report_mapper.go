@@ -15,35 +15,32 @@ func MapVisitReportToResponse(report *models.VisitReport) *dto.VisitReportRespon
 	}
 
 	resp := &dto.VisitReportResponse{
-		ID:              report.ID,
-		Code:            report.Code,
-		CustomerID:      report.CustomerID,
-		ContactID:       report.ContactID,
-		DealID:          report.DealID,
-		LeadID:          report.LeadID,
-		EmployeeID:      report.EmployeeID,
-		VisitDate:       report.VisitDate.Format("2006-01-02"),
-		Address:         report.Address,
-		VillageID:       report.VillageID,
-		Latitude:        report.Latitude,
-		Longitude:       report.Longitude,
-		Purpose:         report.Purpose,
-		Notes:           report.Notes,
-		Result:          report.Result,
-		Outcome:         report.Outcome,
-		NextSteps:       report.NextSteps,
-		ContactPerson:   report.ContactPerson,
-		ContactPhone:    report.ContactPhone,
-		Photos:          report.Photos,
-		Status:          string(report.Status),
-		ApprovedBy:      report.ApprovedBy,
-		RejectedBy:      report.RejectedBy,
-		RejectionReason: report.RejectionReason,
-		CreatedBy:       report.CreatedBy,
-		CheckInLocation: report.CheckInLocation,
+		ID:               report.ID,
+		Code:             report.Code,
+		CustomerID:       report.CustomerID,
+		ContactID:        report.ContactID,
+		DealID:           report.DealID,
+		LeadID:           report.LeadID,
+		TravelPlanID:     report.TravelPlanID,
+		EmployeeID:       report.EmployeeID,
+		VisitDate:        report.VisitDate.Format("2006-01-02"),
+		Address:          report.Address,
+		VillageID:        report.VillageID,
+		Latitude:         report.Latitude,
+		Longitude:        report.Longitude,
+		Purpose:          report.Purpose,
+		Notes:            report.Notes,
+		Result:           report.Result,
+		Outcome:          report.Outcome,
+		NextSteps:        report.NextSteps,
+		ContactPerson:    report.ContactPerson,
+		ContactPhone:     report.ContactPhone,
+		Photos:           report.Photos,
+		CreatedBy:        report.CreatedBy,
+		CheckInLocation:  report.CheckInLocation,
 		CheckOutLocation: report.CheckOutLocation,
-		CreatedAt:       report.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:       report.UpdatedAt.Format(time.RFC3339),
+		CreatedAt:        report.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        report.UpdatedAt.Format(time.RFC3339),
 	}
 
 	if report.ScheduledTime != nil {
@@ -61,14 +58,6 @@ func MapVisitReportToResponse(report *models.VisitReport) *dto.VisitReportRespon
 	if report.CheckOutAt != nil {
 		co := report.CheckOutAt.Format(time.RFC3339)
 		resp.CheckOutAt = &co
-	}
-	if report.ApprovedAt != nil {
-		aa := report.ApprovedAt.Format(time.RFC3339)
-		resp.ApprovedAt = &aa
-	}
-	if report.RejectedAt != nil {
-		ra := report.RejectedAt.Format(time.RFC3339)
-		resp.RejectedAt = &ra
 	}
 
 	// Map Employee
@@ -221,11 +210,12 @@ func MapVisitReportsToResponse(reports []models.VisitReport) []dto.VisitReportRe
 	return result
 }
 
-// MapVisitReportProgressHistoryToResponse converts a progress history model to response
+// MapVisitReportProgressHistoryToResponse converts a progress history model to response.
 func MapVisitReportProgressHistoryToResponse(h *models.VisitReportProgressHistory) *dto.VisitReportProgressHistoryResponse {
 	if h == nil {
 		return nil
 	}
+
 	return &dto.VisitReportProgressHistoryResponse{
 		ID:            h.ID,
 		VisitReportID: h.VisitReportID,
@@ -237,12 +227,13 @@ func MapVisitReportProgressHistoryToResponse(h *models.VisitReportProgressHistor
 	}
 }
 
-// MapVisitReportProgressHistoryListToResponse converts a slice of progress history models
+// MapVisitReportProgressHistoryListToResponse converts a slice of progress history models.
 func MapVisitReportProgressHistoryListToResponse(historyList []models.VisitReportProgressHistory) []dto.VisitReportProgressHistoryResponse {
 	result := make([]dto.VisitReportProgressHistoryResponse, len(historyList))
 	for i, h := range historyList {
 		result[i] = *MapVisitReportProgressHistoryToResponse(&h)
 	}
+
 	return result
 }
 

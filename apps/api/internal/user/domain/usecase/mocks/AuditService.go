@@ -23,6 +23,16 @@ func (_m *AuditService) LogWithChanges(ctx context.Context, action string, targe
 	_m.Called(ctx, action, targetID, metadata, changes)
 }
 
+// LogWithChangesFull provides a mock function with given fields: ctx, action, targetID, reason, metadata, changes
+func (_m *AuditService) LogWithChangesFull(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}, changes interface{}) {
+	_m.Called(ctx, action, targetID, reason, metadata, changes)
+}
+
+// LogWithReason provides a mock function with given fields: ctx, action, targetID, reason, metadata
+func (_m *AuditService) LogWithReason(ctx context.Context, action string, targetID string, reason string, metadata map[string]interface{}) {
+	_m.Called(ctx, action, targetID, reason, metadata)
+}
+
 // NewAuditService creates a new instance of AuditService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewAuditService(t interface {

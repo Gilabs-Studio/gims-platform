@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { useGeneralLedger } from "../general-ledger/hooks/use-general-ledger";
-import { generalLedgerService } from "../general-ledger/services/general-ledger-service";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import type { GeneralLedgerAccount, GLTransactionRow } from "../general-ledger/types";
@@ -46,9 +46,21 @@ export function GeneralLedgerView() {
   const t = useTranslations("financeReports");
   const tCommon = useTranslations("common");
   const canExport = useUserPermission("general_ledger_report.export");
+  const exportProgress = useExportProgress();
   const searchParams = useSearchParams();
 
   const now = useMemo(() => new Date(), []);
+  const initialStart = useMemo(
+    () => parseApiDate(searchParams.get("start_date"), new Date(now.getFullYear(), 0, 1)),
+    [searchParams, now],
+  );
+  const initialEnd = useMemo(
+    () => parseApiDate(searchParams.get("end_date"), now),
+    [searchParams, now],
+  );
+  const initialCompany = useMemo(() => searchParams.get("company_id") ?? "", [searchParams]);
+  const initialAccountID = useMemo(() => searchParams.get("account_id"), [searchParams]);
+
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
     from: initialStart,
     to: initialEnd,
@@ -137,15 +149,10 @@ export function GeneralLedgerView() {
 
   const handleExport = async () => {
     try {
-      const blob = await generalLedgerService.exportGeneralLedger(dateRange);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `General_Ledger_${dateRange.start_date}_to_${dateRange.end_date}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/finance/reports/export/general-ledger",
+        params: dateRange,
+      });
     } catch {
       toast.error(tCommon("exportFailed"));
     }
@@ -200,7 +207,7 @@ export function GeneralLedgerView() {
             ))}
           </SelectContent>
         </Select>
-        {canExport ? <ExportButton label={t("export")} onClick={handleExport} /> : null}
+        {canExport ? <ExportButton label={exportProgress.label(t("export"))} onClick={handleExport} disabled={exportProgress.isExporting} /> : null}
       </FilterToolbar>
 
       {isLoading ? (

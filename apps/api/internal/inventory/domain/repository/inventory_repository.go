@@ -19,7 +19,7 @@ type InventoryRepository interface {
 	UpdateProductReservedStock(ctx context.Context, productID string, quantity float64) error
 	UpdateBatchQuantity(ctx context.Context, batchID string, quantity float64) error
 	GetBatchesByProduct(ctx context.Context, productID string) ([]dto.InventoryBatchItem, error)
-	CreateStockMovement(ctx context.Context, movement *dto.StockMovementRequest) error
+	CreateStockMovement(ctx context.Context, movement *dto.StockMovementRequest) (string, error)
 
 	// Stock Receiving
 	CreateBatch(ctx context.Context, batch *dto.CreateBatchParams) (string, error)

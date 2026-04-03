@@ -145,9 +145,9 @@ func (r *PayableRecapRepository) FindAll(params PayableRecapListParams) ([]Payab
 	where := ""
 	var args []interface{}
 
-	if strings.TrimSpace(params.Search) != "" {
+	if search := strings.TrimSpace(params.Search); search != "" {
 		where = " WHERE supplier_name ILIKE $1"
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+search+"%")
 	}
 
 	// Count
@@ -203,9 +203,9 @@ func (r *PayableRecapRepository) FindAllForExport(params PayableRecapListParams)
 	where := ""
 	var args []interface{}
 
-	if strings.TrimSpace(params.Search) != "" {
+	if search := strings.TrimSpace(params.Search); search != "" {
 		where = " WHERE supplier_name ILIKE $1"
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+search+"%")
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"

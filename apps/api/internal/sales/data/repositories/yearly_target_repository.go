@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -62,9 +63,10 @@ func (r *yearlyTargetRepository) List(ctx context.Context, req *dto.ListYearlyTa
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR notes ILIKE ?", search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.Joins("LEFT JOIN areas ON areas.id = yearly_targets.area_id")
+		query = query.Where("areas.name ILIKE ? OR yearly_targets.code ILIKE ? OR yearly_targets.notes ILIKE ?", search, search, search)
 	}
 
 	// Apply year filter

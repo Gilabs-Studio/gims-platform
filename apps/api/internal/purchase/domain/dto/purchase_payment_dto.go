@@ -82,3 +82,12 @@ type PurchasePaymentAuditTrailEntry struct {
 	User           *AuditTrailUser        `json:"user,omitempty"`
 	CreatedAt      time.Time              `json:"created_at"`
 }
+
+type APReconciliationResult struct {
+	TotalAmount      float64 `json:"total_amount"`
+	TotalPayments    float64 `json:"total_payments"`
+	TotalReturns     float64 `json:"total_returns"`
+	TotalOutstanding float64 `json:"total_outstanding"`
+	MismatchFound    bool    `json:"mismatch_found"`
+	Description      string  `json:"description"`
+}

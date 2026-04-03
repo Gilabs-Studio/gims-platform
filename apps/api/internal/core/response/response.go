@@ -105,6 +105,19 @@ func SuccessResponseCreated(c *gin.Context, data interface{}, meta *Meta) {
 	c.JSON(http.StatusCreated, response)
 }
 
+// SuccessResponseAccepted creates a success response for accepted async processing.
+func SuccessResponseAccepted(c *gin.Context, data interface{}, meta *Meta) {
+	response := &APIResponse{
+		Success:   true,
+		Data:      data,
+		Meta:      meta,
+		Timestamp: apptime.Now().Format(time.RFC3339),
+		RequestID: getRequestID(c),
+	}
+
+	c.JSON(http.StatusAccepted, response)
+}
+
 // SuccessResponseNoContent creates a success response with no content
 func SuccessResponseNoContent(c *gin.Context) {
 	c.Status(http.StatusNoContent)

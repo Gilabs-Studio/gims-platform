@@ -35,7 +35,7 @@ func SeedSalesTargets() error {
 	for _, area := range areas {
 		for _, year := range yearsToSeed {
 			// Generate target: base + variation per area
-			baseTarget := 5000000000.0 // 5B base
+			baseTarget := 5000000000.0                      // 5B base
 			areaVariation := float64(rand.Intn(3000000000)) // +0-3B variation
 			totalTarget := baseTarget + areaVariation
 
@@ -73,20 +73,20 @@ func SeedSalesTargets() error {
 				// Add±10% variation per month
 				variance := (rand.Float64() - 0.5) * 0.2
 				targetAmount := baseMonthly * (1 + variance)
-				
+
 				mt := models.MonthlyTarget{
 					ID:             uuid.NewString(),
 					YearlyTargetID: yearlyTarget.ID,
 					Month:          month,
 					TargetAmount:   targetAmount,
 					// Real actuals are calculated from transactions, not seeded.
-					ActualAmount:   0,
-					CreatedAt:      time.Now(),
-					UpdatedAt:      time.Now(),
+					ActualAmount: 0,
+					CreatedAt:    time.Now(),
+					UpdatedAt:    time.Now(),
 				}
 				// Calculate achievement
 				mt.CalculateAchievement()
-				
+
 				monthlyTargets = append(monthlyTargets, mt)
 			}
 

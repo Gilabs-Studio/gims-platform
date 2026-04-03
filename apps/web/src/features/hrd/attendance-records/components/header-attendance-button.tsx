@@ -130,7 +130,6 @@ export function HeaderAttendanceButton({
   const t = useTranslations("hrd.attendance");
   const {
     today,
-    record,
     isLoading,
     isClockInPending,
     isPending,

@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -109,16 +111,28 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		bytes, err := h.uc.ExportGeneralLedger(ctx, startDate, endDate, companyID)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    "general_ledger.xlsx",
+			ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			Bytes:       bytes,
+		}, nil
+	}
 
-	bytes, err := h.uc.ExportGeneralLedger(c.Request.Context(), startDate, endDate, companyID)
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
 	}
-
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=general_ledger.xlsx")
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes)
+	exportjob.WriteSyncFile(c, file)
 }
 
 func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
@@ -127,15 +141,28 @@ func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 	companyID := parseOptionalCompanyID(c)
 	includeZero := parseIncludeZero(c)
 
-	bytes, err := h.uc.ExportBalanceSheet(c.Request.Context(), startDate, endDate, companyID, includeZero)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		bytes, err := h.uc.ExportBalanceSheet(ctx, startDate, endDate, companyID, includeZero)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    "balance_sheet.xlsx",
+			ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			Bytes:       bytes,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
 	}
-
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=balance_sheet.xlsx")
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes)
+	exportjob.WriteSyncFile(c, file)
 }
 
 func (h *FinanceReportHandler) ExportProfitAndLoss(c *gin.Context) {
@@ -143,13 +170,26 @@ func (h *FinanceReportHandler) ExportProfitAndLoss(c *gin.Context) {
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
 
-	bytes, err := h.uc.ExportProfitAndLoss(c.Request.Context(), startDate, endDate, companyID)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		bytes, err := h.uc.ExportProfitAndLoss(ctx, startDate, endDate, companyID)
+		if err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    "profit_and_loss.xlsx",
+			ContentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			Bytes:       bytes,
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
 		return
 	}
-
-	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=profit_and_loss.xlsx")
-	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes)
+	exportjob.WriteSyncFile(c, file)
 }

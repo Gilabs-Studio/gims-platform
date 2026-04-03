@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	"gorm.io/gorm"
 )
 
@@ -53,8 +54,17 @@ type JournalEntry struct {
 	ReferenceID   *string `gorm:"type:varchar(255);index;uniqueIndex:idx_journal_entry_reference" json:"reference_id"`
 
 	Status   JournalStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	PostedAt *time.Time    `json:"posted_at"`
 	PostedBy *string       `gorm:"type:uuid" json:"posted_by"`
+	PostedAt *time.Time    `json:"posted_at"`
+
+	ReversedBy *string    `gorm:"type:uuid" json:"reversed_by,omitempty"`
+	ReversedAt *time.Time `json:"reversed_at,omitempty"`
+
+	DebitTotal  float64 `gorm:"type:decimal(18,2);default:0" json:"debit_total"`
+	CreditTotal float64 `gorm:"type:decimal(18,2);default:0" json:"credit_total"`
+
+	OriginalJournalID *string `gorm:"type:uuid;index" json:"original_journal_id,omitempty"`
+	ReversalReason    string  `gorm:"type:text" json:"reversal_reason,omitempty"`
 
 	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
 
@@ -70,6 +80,10 @@ type JournalEntry struct {
 
 	Lines       []JournalLine       `gorm:"foreignKey:JournalEntryID;constraint:OnDelete:CASCADE" json:"lines,omitempty"`
 	Attachments []JournalAttachment `gorm:"foreignKey:JournalEntryID;constraint:OnDelete:CASCADE" json:"attachments,omitempty"`
+
+	CreatedByUser  *userModels.User `gorm:"foreignKey:CreatedBy" json:"created_by_user,omitempty"`
+	PostedByUser   *userModels.User `gorm:"foreignKey:PostedBy" json:"posted_by_user,omitempty"`
+	ReversedByUser *userModels.User `gorm:"foreignKey:ReversedBy" json:"reversed_by_user,omitempty"`
 }
 
 func (JournalEntry) TableName() string {

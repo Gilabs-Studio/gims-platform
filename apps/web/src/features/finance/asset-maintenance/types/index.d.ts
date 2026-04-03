@@ -296,6 +296,7 @@ export interface CreateAssetSparePartLinkInput {
 export interface ListMaintenanceSchedulesParams {
   page?: number;
   per_page?: number;
+  search?: string;
   asset_id?: string;
   schedule_type?: MaintenanceScheduleType;
   is_active?: boolean;
@@ -308,6 +309,7 @@ export interface ListMaintenanceSchedulesParams {
 export interface ListWorkOrdersParams {
   page?: number;
   per_page?: number;
+  search?: string;
   asset_id?: string;
   wo_type?: WorkOrderType;
   status?: WorkOrderStatus;

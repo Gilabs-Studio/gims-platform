@@ -65,6 +65,24 @@ export const geographicEn = {
       selectDistrictFirst: "Select district first",
     },
 
+    // Place search
+    placeSearch: {
+      searchPlaceholder: "Search for a location...",
+      searchPlaceholderAdvanced: "Search for a location (e.g., restaurant, address, business)...",
+      searchResults: "Search Results",
+      noLocationsFound: "No locations found",
+      loadingLocation: "Loading location...",
+      selectLocation: "Select Location",
+      pickFromMap: "Pick from Map",
+      useCurrentLocation: "Use Current Location",
+      confirmLocation: "Confirm Location",
+      mapPickerTitle: "Select Location",
+      mapPickerDescription: "Click on the map or drag the marker to set location",
+      searchVia: "Powered by OpenStreetMap (Nominatim)",
+      latitude: "Latitude",
+      longitude: "Longitude",
+    },
+
     // Validation
     validation: {
       nameMin: "Name must be at least 2 characters",

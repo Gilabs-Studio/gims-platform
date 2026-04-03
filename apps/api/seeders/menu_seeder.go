@@ -185,6 +185,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 11. Travel Planner
+	travelPlannerMenu := &permission.Menu{
+		Name:   "Travel Planner",
+		Icon:   "route",
+		URL:    "/travel-planner",
+		Order:  11,
+		Status: "active",
+	}
+	if err := createMenu(travelPlannerMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -427,10 +439,48 @@ func SeedMenus() error {
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
 		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
 		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
-		{"Salary", "dollar-sign", "/finance/salary", 15},
+		{"Salary", "dollar-sign", "/finance/salary", 16},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Finance Settings Group
+	financeSettingsMenu, err := createChildMenu("Finance Settings", "settings", "/finance/settings", &financeMenu.ID, 30)
+	if err != nil {
+		return err
+	}
+
+	financeSettingsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
+	}
+	for _, child := range financeSettingsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// ============================================================
+	// TRAVEL PLANNER SUB-MENUS
+	// ============================================================
+
+	travelPlannerChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Planner Workspace", "map", "/travel-planner", 1},
+	}
+	for _, child := range travelPlannerChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
 			return err
 		}
 	}

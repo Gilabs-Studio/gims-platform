@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { setPasswordResetTokenPrefill } from "@/lib/password-reset-token-prefill";
 
 import {
-  useMarkAllAsRead,
   useMarkAsRead,
   useNotifications,
 } from "../hooks/use-notifications";
@@ -21,6 +20,11 @@ import type { Notification } from "../types";
 function extractResetToken(message: string): string | null {
   const match = message.match(/token\s*:\s*([A-Za-z0-9._-]+)/i);
   return match?.[1] ?? null;
+}
+
+function getNotificationTimestamp(createdAt: string): number {
+  const parsed = Date.parse(createdAt);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function NotificationList() {
@@ -40,17 +44,11 @@ export function NotificationList() {
   });
 
   const markAsRead = useMarkAsRead();
-  const markAllAsRead = useMarkAllAsRead();
-
   const notifications = response?.data ?? [];
   const pagination = response?.meta?.pagination;
 
   const handleMarkAsRead = async (id: string) => {
     await markAsRead.mutateAsync(id);
-  };
-
-  const handleMarkAllAsRead = async () => {
-    await markAllAsRead.mutateAsync();
   };
 
   const resolveEntityLink = (notification: Notification): string | null => {
@@ -89,8 +87,8 @@ export function NotificationList() {
         return `/finance/closing?open_financial_closing=${notification.entity_id}`;
       case "asset_maintenance":
         return `/finance/asset-maintenance?open_asset_maintenance=${notification.entity_id}`;
-      case "up_country_cost":
-        return `/finance/up-country-cost?open_up_country_cost=${notification.entity_id}`;
+      case "travel_plan":
+        return `/travel-planner?open_trip=${notification.entity_id}`;
       case "leave_request":
         return `/hrd/leave-requests?open_leave_request=${notification.entity_id}`;
       case "overtime":
@@ -131,7 +129,7 @@ export function NotificationList() {
         setPasswordResetTokenPrefill({
           userId: notification.entity_id,
           token,
-          createdAt: Date.now(),
+          createdAt: getNotificationTimestamp(notification.created_at),
         });
       }
       router.push(`/master-data/users?reset_user=${notification.entity_id}&open_change_password=1`);
@@ -186,8 +184,6 @@ export function NotificationList() {
       </Card>
     );
   }
-
-  const unreadCount = notifications.filter((item) => !item.is_read).length;
 
   return (
     <div className="space-y-4">
@@ -287,7 +283,7 @@ function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationIt
       setPasswordResetTokenPrefill({
         userId: notification.entity_id,
         token: rawToken,
-        createdAt: Date.now(),
+        createdAt: getNotificationTimestamp(notification.created_at),
       });
 
       if (!notification.is_read) {
@@ -299,7 +295,6 @@ function NotificationItem({ notification, onMarkAsRead, onOpen }: NotificationIt
       // Keep silent and rely on existing UI behavior.
     }
   };
-
   return (
     <Card
       className={`cursor-pointer transition-all hover:shadow-sm ${

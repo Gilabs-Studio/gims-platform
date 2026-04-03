@@ -64,6 +64,7 @@ func (r *paymentRepository) List(ctx context.Context, params PaymentListParams) 
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if s := strings.TrimSpace(params.Search); s != "" {
+		// Prefix search keeps queries index-friendly on large tables.
 		like := "%" + s + "%"
 		q = q.Where("payments.description ILIKE ?", like)
 	}

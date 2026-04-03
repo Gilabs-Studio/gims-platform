@@ -78,7 +78,7 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 	// Apply filters
 	if search != "" {
-		searchPattern := search + "%"
+		searchPattern := "%" + search + "%"
 		// WHY: Join employees table to search by requester name, and search request_code + job_description
 		query = query.Joins("LEFT JOIN employees ON employees.id = recruitment_requests.requested_by_id").
 			Where("recruitment_requests.request_code ILIKE ? OR recruitment_requests.job_description ILIKE ? OR employees.name ILIKE ?",

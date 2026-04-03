@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { ThemeToggleButton } from "@/components/ui/theme-toggle";
 import { NotificationBadge } from "@/features/notifications/components/notification-badge";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useAreas, useDeleteArea } from "../../hooks/use-areas";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -36,6 +37,7 @@ export function AreaList() {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [detailAreaId, setDetailAreaId] = useState<string | null>(null);
+  const debouncedSearch = useDebounce(search, 300);
 
   const t = useTranslations("organization");
   const isMobile = useIsMobile();
@@ -43,7 +45,10 @@ export function AreaList() {
   const canUpdate = useHasPermission("area.update");
   const canDelete = useHasPermission("area.delete");
 
-  const { data: areasData, isLoading } = useAreas({ per_page: 20 });
+  const { data: areasData, isLoading } = useAreas({
+    per_page: 20,
+    search: debouncedSearch || undefined,
+  });
   const deleteArea = useDeleteArea();
   const areas = areasData?.data ?? [];
 
@@ -52,16 +57,9 @@ export function AreaList() {
       const matchStatus =
         statusFilter === "all" ||
         (statusFilter === "active" ? a.is_active : !a.is_active);
-      const q = search.toLowerCase().trim();
-      const matchSearch =
-        !q ||
-        a.name.toLowerCase().includes(q) ||
-        (a.code ?? "").toLowerCase().includes(q) ||
-        (a.province ?? "").toLowerCase().includes(q) ||
-        (a.manager?.name ?? "").toLowerCase().includes(q);
-      return matchStatus && matchSearch;
+      return matchStatus;
     });
-  }, [areas, search, statusFilter]);
+  }, [areas, statusFilter]);
 
   const handleEdit = useCallback((area: Area) => { setEditingArea(area); }, []);
   const handleView = useCallback((area: Area) => { setDetailAreaId(area.id); }, []);

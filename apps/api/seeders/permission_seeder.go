@@ -388,6 +388,7 @@ func SeedPermissions() error {
 		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
 		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
 		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
+		{"/finance/journals/valuation", "journal_valuation.approve", "Approve Journal Valuation", "APPROVE", "journal_valuation"},
 		{"/finance/journals/valuation", "journal_valuation.export", "Export Journal Valuation", "EXPORT", "journal_valuation"},
 
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
@@ -449,14 +450,11 @@ func SeedPermissions() error {
 		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
 		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
-		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.delete", "Delete Up Country Cost", "DELETE", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.approve", "Approve Up Country Cost", "APPROVE", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.submit", "Submit Up Country Cost", "SUBMIT", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.reject", "Reject Up Country Cost", "REJECT", "up_country_cost"},
-		{"/finance/up-country-cost", "up_country_cost.pay", "Pay Up Country Cost", "PAY", "up_country_cost"},
+		// Travel Planner
+		{"/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
+		{"/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
+		{"/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
+		{"/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},

@@ -481,8 +481,8 @@ func resolveEntityTableName(entityType string) (string, bool) {
 		return "supplier_invoices", true
 	case "non_trade_payable":
 		return "non_trade_payables", true
-	case "up_country_cost":
-		return "up_country_costs", true
+	case "travel_plan":
+		return "travel_plans", true
 	case "leave_request":
 		return "leave_requests", true
 	case "recruitment":

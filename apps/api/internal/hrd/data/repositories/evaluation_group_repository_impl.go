@@ -25,7 +25,7 @@ func (r *evaluationGroupRepositoryImpl) FindAll(ctx context.Context, page, perPa
 
 	// Apply search filter (prefix search for GIN index)
 	if search != "" {
-		searchPattern := search + "%"
+		searchPattern := "%" + search + "%"
 		query = query.Where("name ILIKE ?", searchPattern)
 	}
 

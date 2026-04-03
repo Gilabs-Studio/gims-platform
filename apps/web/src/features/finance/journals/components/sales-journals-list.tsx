@@ -8,12 +8,15 @@ import type { UnifiedJournalRow } from "./journal-table";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import { useFinanceSalesJournals } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { JournalActionMenu } from "./journal-action-menu";
+import { JournalDetailModal } from "./journal-detail-modal";
 
 export function SalesJournalsList() {
   const t = useTranslations("financeJournals");
@@ -26,6 +29,8 @@ export function SalesJournalsList() {
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
@@ -51,7 +56,7 @@ export function SalesJournalsList() {
   const mappedItems = items.map(mapJournalToUnifiedRow);
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (
@@ -69,15 +74,29 @@ export function SalesJournalsList() {
 
       <FilterToolbar
         search={search}
-        dateRange={dateRange}
+        startDate={startDate}
+        endDate={endDate}
         searchPlaceholder={t("search")}
-        dateRangeLabel={t("fields.dateRange")}
+        startDateLabel="From Date"
+        endDateLabel="To Date"
         onSearchChange={(value) => {
           setSearch(value);
           setPage(1);
         }}
-        onDateRangeChange={(value) => {
-          setDateRange(value);
+        onStartDateChange={(val) => {
+          if (dateRange?.to) {
+            setDateRange({ from: new Date(val), to: dateRange.to });
+          } else {
+            setDateRange({ from: new Date(val), to: new Date() });
+          }
+          setPage(1);
+        }}
+        onEndDateChange={(val) => {
+          if (dateRange?.from) {
+            setDateRange({ from: dateRange.from, to: new Date(val) });
+          } else {
+            setDateRange({ from: new Date(), to: new Date(val) });
+          }
           setPage(1);
         }}
       />
@@ -91,6 +110,19 @@ export function SalesJournalsList() {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
         }}
+        actionRender={(row) => (
+          <JournalActionMenu
+            row={row}
+            onView={(id) => {
+              setSelectedId(id);
+              setViewOpen(true);
+            }}
+            onSourceDetail={(r) => {
+              setSelectedReferenceRow(r);
+              setIsReferenceModalOpen(true);
+            }}
+          />
+        )}
       />
 
       <DataTablePagination
@@ -102,6 +134,15 @@ export function SalesJournalsList() {
           setPageSize(size);
           setPage(1);
         }}
+      />
+
+      <JournalDetailModal
+        open={viewOpen}
+        onOpenChange={(open) => {
+          setViewOpen(open);
+          if (!open) setSelectedId(null);
+        }}
+        id={selectedId}
       />
 
       <JournalSourceDetailModal

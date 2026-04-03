@@ -70,6 +70,7 @@ export function useOrderAuditTrail(
     placeholderData: (previousData) => previousData,
   });
 }
+ 
 
 // Create order mutation
 export function useCreateOrder() {
@@ -133,78 +134,76 @@ export function useDeleteOrder() {
 // Update order status mutation
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
+  return useMutation<unknown, unknown, { id: string; data: UpdateSalesOrderStatusData }, { previous?: SalesOrderListResponse }>(
+    {
+      mutationFn: ({ id, data }: { id: string; data: UpdateSalesOrderStatusData }) =>
+        orderService.updateStatus(id, data),
+      onMutate: async (variables) => {
+        const { id, data } = variables;
+        await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
 
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: UpdateSalesOrderStatusData;
-    }) => orderService.updateStatus(id, data),
-    onMutate: async (variables) => {
-      const { id, data } = variables;
-      await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+        const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
 
-      const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
+        queryClient.setQueriesData<SalesOrderListResponse | undefined>({ queryKey: orderKeys.lists() }, (old) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: data.status } : order)),
+          };
+        });
 
-      // Optimistically update list entries
-      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
-        if (!old?.data) return old;
-        return {
-          ...old,
-          data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: data.status } : order)),
-        };
-      });
-
-      return { previous };
-    },
-    onError: (_err, _variables, context: any) => {
-      if (context?.previous) {
-        queryClient.setQueryData(orderKeys.lists(), context.previous);
-      }
-    },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.id) });
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-  });
+        return { previous };
+      },
+      onError: (_err, _variables, context) => {
+        const ctx = context as { previous?: SalesOrderListResponse } | undefined;
+        if (ctx?.previous) {
+          queryClient.setQueryData(orderKeys.lists(), ctx.previous);
+        }
+      },
+      onSuccess: (_data, variables) => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.id) });
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      },
+    }
+  );
 }
 
 // Approve order mutation (requires sales_order.approve permission)
 export function useApproveOrder() {
   const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => orderService.approve(id),
-    onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
-      const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
-      queryClient.setQueriesData({ queryKey: orderKeys.lists() }, (old: any) => {
-        if (!old?.data) return old;
-        return {
-          ...old,
-          data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: "approved" } : order)),
-        };
-      });
-      return { previous };
-    },
-    onError: (_err, _id, context: any) => {
-      if (context?.previous) {
-        queryClient.setQueryData(orderKeys.lists(), context.previous);
-      }
-    },
-    onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-  });
+  return useMutation<unknown, unknown, string, { previous?: SalesOrderListResponse }>(
+    {
+      mutationFn: (id: string) => orderService.approve(id),
+      onMutate: async (id: string) => {
+        await queryClient.cancelQueries({ queryKey: orderKeys.lists() });
+        const previous = queryClient.getQueryData(orderKeys.lists()) as SalesOrderListResponse | undefined;
+        queryClient.setQueriesData<SalesOrderListResponse | undefined>({ queryKey: orderKeys.lists() }, (old) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((order: SalesOrder) => (order.id === id ? { ...order, status: "approved" } : order)),
+          };
+        });
+        return { previous };
+      },
+      onError: (_err, _id, context) => {
+        const ctx = context as { previous?: SalesOrderListResponse } | undefined;
+        if (ctx?.previous) {
+          queryClient.setQueryData(orderKeys.lists(), ctx.previous);
+        }
+      },
+      onSuccess: (_data, id) => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      },
+    }
+  );
 }
 
 // Convert quotation to order mutation

@@ -129,9 +129,9 @@ export const DashboardMobileSidebar = memo(function DashboardMobileSidebar({
 
                 if (!item.hasChildren && item.href) {
                   return (
-                    <button
+                    <Link
                       key={item.id}
-                      type="button"
+                      href={item.href}
                       onClick={() => {
                         onSelectParent(item.id);
                         onClose();
@@ -146,7 +146,7 @@ export const DashboardMobileSidebar = memo(function DashboardMobileSidebar({
                     >
                       <span className="[&>svg]:h-5 [&>svg]:w-5">{item.icon}</span>
                       {!showDetailColumn && <span className="text-sm font-medium">{item.name}</span>}
-                    </button>
+                    </Link>
                   );
                 }
 

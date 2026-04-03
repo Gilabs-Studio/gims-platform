@@ -47,7 +47,7 @@ func SeedStockOpname() error {
 			Date:         time.Now().AddDate(0, 0, -1),
 			Status:       models.StockOpnameStatusPending,
 			Description:  "Pending approval opname",
-            TotalItems:   0,
+			TotalItems:   0,
 		},
 	}
 

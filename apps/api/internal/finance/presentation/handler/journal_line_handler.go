@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -75,13 +78,28 @@ func (h *JournalLineHandler) ExportLines(c *gin.Context) {
 	}
 	filename += ".csv"
 
-	c.Header("Content-Type", "text/csv")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		var buffer bytes.Buffer
+		if err := h.uc.ExportLinesCSV(ctx, &req, &buffer); err != nil {
+			return nil, err
+		}
+		return &exportjob.GeneratedFile{
+			FileName:    filename,
+			ContentType: "text/csv",
+			Bytes:       buffer.Bytes(),
+		}, nil
+	}
 
-	if err := h.uc.ExportLinesCSV(c.Request.Context(), &req, c.Writer); err != nil {
-		// If we already started writing, we can't change the status code
-		// Log the error but don't try to write an error response
-		_ = err
+	if exportjob.QueueIfRequested(c, generator) {
 		return
 	}
+
+	file, err := generator(c.Request.Context())
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "EXPORT_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.FileName))
+	exportjob.WriteSyncFile(c, file)
 }

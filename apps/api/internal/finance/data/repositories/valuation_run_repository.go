@@ -6,6 +6,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ValuationRunRepository handles persistence for valuation runs.
@@ -13,8 +14,11 @@ type ValuationRunRepository interface {
 	Create(ctx context.Context, run *financeModels.ValuationRun) error
 	FindByID(ctx context.Context, id string) (*financeModels.ValuationRun, error)
 	FindByReferenceID(ctx context.Context, refID string) (*financeModels.ValuationRun, error)
-	HasProcessingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error)
+	HasPendingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error)
+	FindByIDForUpdate(ctx context.Context, tx *gorm.DB, id string) (*financeModels.ValuationRun, error)
 	Update(ctx context.Context, run *financeModels.ValuationRun) error
+	CreateDetails(ctx context.Context, tx *gorm.DB, details []financeModels.ValuationRunDetail) error
+	ListDetails(ctx context.Context, runID string) ([]financeModels.ValuationRunDetail, error)
 	List(ctx context.Context, params ValuationRunListParams) ([]financeModels.ValuationRun, int64, error)
 }
 
@@ -45,7 +49,7 @@ func (r *valuationRunRepository) Create(ctx context.Context, run *financeModels.
 
 func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := r.db.WithContext(ctx).First(&run, "id = ?", id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Details").First(&run, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
@@ -53,21 +57,24 @@ func (r *valuationRunRepository) FindByID(ctx context.Context, id string) (*fina
 
 func (r *valuationRunRepository) FindByReferenceID(ctx context.Context, refID string) (*financeModels.ValuationRun, error) {
 	var run financeModels.ValuationRun
-	if err := r.db.WithContext(ctx).First(&run, "reference_id = ?", refID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("Details").First(&run, "reference_id = ?", refID).Error; err != nil {
 		return nil, err
 	}
 	return &run, nil
 }
 
-// HasProcessingRun checks if there is already a run in "processing" state
-// for the given valuation type and overlapping period. This prevents concurrent runs.
-func (r *valuationRunRepository) HasProcessingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error) {
+// HasPendingRun checks if there is already a valuation run awaiting completion for the period.
+func (r *valuationRunRepository) HasPendingRun(ctx context.Context, valuationType string, periodStart, periodEnd time.Time) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&financeModels.ValuationRun{}).
-		Where("valuation_type = ? AND status = ? AND period_start = ? AND period_end = ?",
+		Where("valuation_type = ? AND status IN ? AND period_start = ? AND period_end = ?",
 			valuationType,
-			financeModels.ValuationRunStatusProcessing,
+			[]financeModels.ValuationRunStatus{
+				financeModels.ValuationRunStatusDraft,
+				financeModels.ValuationRunStatusPendingApproval,
+				financeModels.ValuationRunStatusApproved,
+			},
 			periodStart,
 			periodEnd,
 		).
@@ -78,8 +85,38 @@ func (r *valuationRunRepository) HasProcessingRun(ctx context.Context, valuation
 	return count > 0, nil
 }
 
+func (r *valuationRunRepository) FindByIDForUpdate(ctx context.Context, tx *gorm.DB, id string) (*financeModels.ValuationRun, error) {
+	var run financeModels.ValuationRun
+	if err := tx.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Details").
+		First(&run, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &run, nil
+}
+
 func (r *valuationRunRepository) Update(ctx context.Context, run *financeModels.ValuationRun) error {
 	return r.db.WithContext(ctx).Save(run).Error
+}
+
+func (r *valuationRunRepository) CreateDetails(ctx context.Context, tx *gorm.DB, details []financeModels.ValuationRunDetail) error {
+	if len(details) == 0 {
+		return nil
+	}
+	return tx.WithContext(ctx).Create(&details).Error
+}
+
+func (r *valuationRunRepository) ListDetails(ctx context.Context, runID string) ([]financeModels.ValuationRunDetail, error) {
+	items := make([]financeModels.ValuationRunDetail, 0)
+	err := r.db.WithContext(ctx).
+		Where("valuation_run_id = ?", runID).
+		Order("created_at asc").
+		Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 var valuationRunAllowedSort = map[string]string{

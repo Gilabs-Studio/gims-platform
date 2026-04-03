@@ -3,6 +3,7 @@ package presentation
 import (
 	"github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/domain/usecase"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/presentation/handler"
@@ -39,6 +40,7 @@ func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, 
 	leaveTypeH := handler.NewLeaveTypeHandler(leaveTypeUC)
 	currencyH := handler.NewCurrencyHandler(currencyUC)
 	bankAccountH := handler.NewBankAccountHandler(bankAccountUC)
+	exportJobH := handler.NewExportJobHandler(exportjob.DefaultManager)
 
 	// Create master-data group under API with auth middleware
 	group := api.Group("/master-data")
@@ -55,4 +57,8 @@ func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, 
 	financeGroup := api.Group("/finance")
 	financeGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
 	router.RegisterBankAccountRoutes(financeGroup, bankAccountH)
+
+	exportGroup := api.Group("")
+	exportGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	router.RegisterExportJobRoutes(exportGroup, exportJobH)
 }

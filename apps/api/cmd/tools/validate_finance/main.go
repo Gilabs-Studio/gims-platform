@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -58,7 +59,8 @@ func runValidation(ctx context.Context) error {
 
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	auditService := audit.NewAuditService(db)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 
 	financialClosingRepo := repositories.NewFinancialClosingRepository(db)
 	accountingPeriodRepo := repositories.NewAccountingPeriodRepository(db)

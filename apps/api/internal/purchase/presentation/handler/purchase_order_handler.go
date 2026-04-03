@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -55,13 +56,13 @@ func (h *PurchaseOrderHandler) List(c *gin.Context) {
 	sortDir := c.DefaultQuery("sort_dir", "desc")
 
 	params := repositories.PurchaseOrderListParams{
-		Search:  search,
-		Status:  status,
+		Search:     search,
+		Status:     status,
 		SupplierID: supplierID,
-		SortBy:  sortBy,
-		SortDir: sortDir,
-		Limit:   perPage,
-		Offset:  (page - 1) * perPage,
+		SortBy:     sortBy,
+		SortDir:    sortDir,
+		Limit:      perPage,
+		Offset:     (page - 1) * perPage,
 	}
 
 	items, total, err := h.uc.List(c.Request.Context(), params)
@@ -374,51 +375,62 @@ func (h *PurchaseOrderHandler) Export(c *gin.Context) {
 	status := c.Query("status")
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortDir := c.DefaultQuery("sort_dir", "desc")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "1000"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	if limit < 1 {
-		limit = 1000
+		limit = 100
 	}
-	if limit > 10000 {
-		limit = 10000
+	if limit > 100 {
+		limit = 100
 	}
 
-	items, _, err := h.uc.List(c.Request.Context(), repositories.PurchaseOrderListParams{
-		Search:  search,
-		Status:  status,
-		SortBy:  sortBy,
-		SortDir: sortDir,
-		Limit:   limit,
-		Offset:  0,
-	})
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		items, _, err := h.uc.List(ctx, repositories.PurchaseOrderListParams{
+			Search:  search,
+			Status:  status,
+			SortBy:  sortBy,
+			SortDir: sortDir,
+			Limit:   limit,
+			Offset:  0,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		var b strings.Builder
+		b.WriteString("code,order_date,due_date,status,total_amount\n")
+		for _, it := range items {
+			due := ""
+			if it.DueDate != nil {
+				due = *it.DueDate
+			}
+			row := []string{
+				csvEscape(it.Code),
+				csvEscape(it.OrderDate),
+				csvEscape(due),
+				csvEscape(it.Status),
+				fmt.Sprintf("%v", it.TotalAmount),
+			}
+			b.WriteString(strings.Join(row, ","))
+			b.WriteString("\n")
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    "purchase_orders.csv",
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       []byte(b.String()),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	filename := "purchase_orders.csv"
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Status(http.StatusOK)
-
-	var b strings.Builder
-	b.WriteString("code,order_date,due_date,status,total_amount\n")
-	for _, it := range items {
-		due := ""
-		if it.DueDate != nil {
-			due = *it.DueDate
-		}
-		row := []string{
-			csvEscape(it.Code),
-			csvEscape(it.OrderDate),
-			csvEscape(due),
-			csvEscape(it.Status),
-			fmt.Sprintf("%v", it.TotalAmount),
-		}
-		b.WriteString(strings.Join(row, ","))
-		b.WriteString("\n")
-	}
-
-	_, _ = c.Writer.WriteString(b.String())
+	exportjob.WriteSyncFile(c, file)
 }
 
 // handlePurchaseOrderError centralises error-to-HTTP mapping for purchase order actions.

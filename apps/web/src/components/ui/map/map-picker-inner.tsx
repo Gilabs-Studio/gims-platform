@@ -5,6 +5,11 @@ import { Marker } from "react-leaflet";
 import { useEffect, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import {
+  getMapContainerOptions,
+  resolveMapTileLayer,
+  type MapProfile,
+} from "./map-config";
 
 // Fix missing marker icons — static imports ensure icons are available
 // before any Marker renders (same approach as map-inner.tsx)
@@ -34,17 +39,32 @@ interface MapPickerInnerProps {
   readonly initialPosition: [number, number];
   readonly onCoordinateSelect: (lat: number, lng: number) => void;
   readonly defaultZoom?: number;
+  readonly navigateToPosition?: [number, number] | null;
+  readonly mapProfile?: MapProfile;
 }
 
 /**
  * Syncs the map view when the initial position changes (e.g. dialog re-opens
- * at a different location).
+ * at a different location). Also handles navigation to a specific position
+ * when a place is selected from search results.
  */
-function MapSync({ position, defaultZoom }: { readonly position: [number, number]; readonly defaultZoom: number }) {
+function MapSync({
+  position,
+  defaultZoom,
+  navigateToPosition,
+}: {
+  readonly position: [number, number];
+  readonly defaultZoom: number;
+  readonly navigateToPosition?: [number, number] | null;
+}) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView(position, map.getZoom() !== defaultZoom ? map.getZoom() : defaultZoom);
-  }, [map, position, defaultZoom]);
+    // Priority: navigate to search result, then sync initial position
+    const targetPosition = navigateToPosition || position;
+    map.setView(targetPosition, map.getZoom() !== defaultZoom ? map.getZoom() : defaultZoom);
+  }, [map, position, defaultZoom, navigateToPosition]);
+
   return null;
 }
 
@@ -97,31 +117,41 @@ export default function MapPickerInner({
   initialPosition,
   onCoordinateSelect,
   defaultZoom = 13,
+  navigateToPosition = null,
+  mapProfile = "driver",
 }: MapPickerInnerProps) {
   // Delay rendering interactive children until the map reports ready.
   // This prevents React StrictMode's double-invoke from attempting to add/
   // remove a Marker before the Leaflet map is fully initialised, which
   // causes both the "iconUrl not set" and "_leaflet_events" errors.
   const [mapReady, setMapReady] = useState(false);
+  const tileLayer = resolveMapTileLayer("light", null);
+  const mapContainerOptions = getMapContainerOptions(mapProfile);
 
   return (
     <MapContainer
-      center={initialPosition}
+      center={navigateToPosition || initialPosition}
       zoom={defaultZoom}
       className="h-full w-full"
-      scrollWheelZoom
-      touchZoom
-      doubleClickZoom
-      dragging
+      scrollWheelZoom={mapContainerOptions.scrollWheelZoom}
+      touchZoom={mapContainerOptions.touchZoom}
+      doubleClickZoom={mapContainerOptions.doubleClickZoom}
+      dragging={mapContainerOptions.dragging}
+      zoomControl={mapContainerOptions.zoomControl}
+      preferCanvas={mapContainerOptions.preferCanvas}
       whenReady={() => setMapReady(true)}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={tileLayer.attribution}
+        url={tileLayer.url}
       />
       {mapReady && (
         <>
-          <MapSync position={initialPosition} defaultZoom={defaultZoom} />
+          <MapSync
+            position={initialPosition}
+            defaultZoom={defaultZoom}
+            navigateToPosition={navigateToPosition}
+          />
           <ClickHandler
             initialPosition={initialPosition}
             onCoordinateSelect={onCoordinateSelect}

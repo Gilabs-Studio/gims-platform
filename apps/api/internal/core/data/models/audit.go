@@ -17,6 +17,7 @@ type AuditLog struct {
 	IPAddress      string         `gorm:"type:varchar(45)" json:"ip_address"`
 	UserAgent      string         `gorm:"type:text" json:"user_agent"`
 	ResultStatus   string         `gorm:"type:varchar(50)" json:"result_status"`
+	Reason         string         `gorm:"type:text" json:"reason,omitempty"`
 	Metadata       string         `gorm:"type:jsonb" json:"metadata"` // Additional details (JSON)
 	Changes        string         `gorm:"type:jsonb" json:"changes"`  // Array of FieldChange JSON
 	CreatedAt      time.Time      `gorm:"index" json:"created_at"`
