@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import {
   useAssetBudgets,
@@ -75,6 +76,7 @@ function getStatusBadge(status: AssetBudgetStatus) {
 export function BudgetList({ onCreate, onEdit, onView }: BudgetListProps) {
   const t = useTranslations("assetBudget");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [deleteBudget, setDeleteBudget] = useState<AssetBudget | null>(null);
   const [actionBudget, setActionBudget] = useState<{
@@ -89,7 +91,7 @@ export function BudgetList({ onCreate, onEdit, onView }: BudgetListProps) {
   const { data, isLoading } = useAssetBudgets({
     page,
     per_page: 10,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const deleteMutation = useDeleteAssetBudget();

@@ -20,12 +20,15 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import type { UnifiedJournalRow } from "./journal-table";
+import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
 
 import { useFinanceCashBankSubLedger } from "../hooks/use-finance-journals";
 import { ExportButton } from "./export-button";
 import { FilterToolbar } from "./filter-toolbar";
-import { JournalTable, mapCashBankToUnifiedRow } from "./journal-table";
+import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { JournalDetailModal } from "./journal-detail-modal";
+import { JournalActionMenu } from "./journal-action-menu";
 
 
 export function CashBankJournalsList() {
@@ -38,10 +41,13 @@ export function CashBankJournalsList() {
     to: now,
   });
   const [transactionType, setTransactionType] = useState<string>("all");
+  const [sourceModule, setSourceModule] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
+  const [isJournalDetailOpen, setIsJournalDetailOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const startDate = dateRange?.from ? dateRange.from.toISOString().slice(0, 10) : undefined;
@@ -56,18 +62,20 @@ export function CashBankJournalsList() {
     start_date: startDate || undefined,
     end_date: endDate || undefined,
     type: transactionType !== "all" ? (transactionType as "cash_in" | "cash_out" | "transfer") : undefined,
+    source: sourceModule !== "all" ? sourceModule : undefined,
     sort_by: "transaction_date",
     sort_dir: "desc",
   });
 
-  const items = data?.data ?? [];
+  const items = (data?.data ?? []) as any[];
   const pagination = data?.meta?.pagination;
-  const kpi = data?.meta?.additional?.kpi;
+  const kpi = data?.meta?.additional?.kpi as any;
 
-  const mappedItems = items.map((item) => mapCashBankToUnifiedRow(item));
+  // HARDENING: Use mapJournalToUnifiedRow since backend now returns unified JournalEntry
+  const mappedItems = items.map((item) => mapJournalToUnifiedRow(item));
 
   if (isError) {
-    return <div className="text-center py-8 text-destructive">{t("toast.failed")}</div>;
+    return <FinanceListErrorState message={t("toast.failed")} />;
   }
 
   return (
@@ -76,9 +84,9 @@ export function CashBankJournalsList() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold tracking-tight">{t("cashBankTitle")}</h1>
-            <Badge variant="secondary" className="font-normal text-xs">
+            <Badge variant="secondary" className="font-normal text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
               <Lock className="w-3 h-3 mr-1" />
-              Read-Only Subledger
+              {t("cashBank.readOnlyBadge")}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">{t("cashBankDescription")}</p>
@@ -90,7 +98,7 @@ export function CashBankJournalsList() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-card/50 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-emerald-500/20">
           <CardContent className="p-6">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2">
               <p className="text-sm font-medium">Total Inflow</p>
@@ -101,7 +109,7 @@ export function CashBankJournalsList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card/50 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-rose-500/20">
           <CardContent className="p-6">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2">
               <p className="text-sm font-medium">Total Outflow</p>
@@ -145,25 +153,49 @@ export function CashBankJournalsList() {
             }}
           />
         </div>
-        <div className="w-full sm:w-[200px] flex gap-2 flex-col">
-          <Label className="text-xs">Transaction Type</Label>
-          <Select
-            value={transactionType}
-            onValueChange={(val) => {
-              setTransactionType(val);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="cash_in">Cash In</SelectItem>
-              <SelectItem value="cash_out">Cash Out</SelectItem>
-              <SelectItem value="transfer">Transfer</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex gap-4 w-full sm:w-auto">
+          <div className="w-full sm:w-[180px] flex gap-2 flex-col">
+            <Label className="text-xs">{t("cashBank.transactionType")}</Label>
+            <Select
+              value={transactionType}
+              onValueChange={(val) => {
+                setTransactionType(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("cashBank.allTypes")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("cashBank.allTypes")}</SelectItem>
+                <SelectItem value="cash_in">{t("cashBank.cashIn")}</SelectItem>
+                <SelectItem value="cash_out">{t("cashBank.cashOut")}</SelectItem>
+                <SelectItem value="transfer">{t("cashBank.transfer")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full sm:w-[180px] flex gap-2 flex-col">
+            <Label className="text-xs">{t("cashBank.sourceModule")}</Label>
+            <Select
+              value={sourceModule}
+              onValueChange={(val) => {
+                setSourceModule(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={t("cashBank.allModules")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("cashBank.allModules")}</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="purchase">Purchase</SelectItem>
+                <SelectItem value="finance">Finance</SelectItem>
+                <SelectItem value="inventory">Inventory</SelectItem>
+                <SelectItem value="payroll">Payroll</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -178,6 +210,19 @@ export function CashBankJournalsList() {
           setSelectedReferenceRow(row);
           setIsReferenceModalOpen(true);
         }}
+        actionRender={(row) => (
+          <JournalActionMenu
+            row={row}
+            onView={(id) => {
+              setSelectedJournalId(id);
+              setIsJournalDetailOpen(true);
+            }}
+            onSourceDetail={(row) => {
+              setSelectedReferenceRow(row);
+              setIsReferenceModalOpen(true);
+            }}
+          />
+        )}
       />
 
       <DataTablePagination
@@ -200,6 +245,11 @@ export function CashBankJournalsList() {
           }
         }}
         row={selectedReferenceRow}
+      />
+      <JournalDetailModal
+        open={isJournalDetailOpen}
+        onOpenChange={setIsJournalDetailOpen}
+        id={selectedJournalId}
       />
     </div>
   );

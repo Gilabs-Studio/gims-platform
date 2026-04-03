@@ -9,6 +9,7 @@ import (
 	ai "github.com/gilabs/gims/api/internal/ai/data/models"
 	core "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database/migrations"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -65,12 +66,7 @@ func AutoMigrate() error {
 		USING reference_id::varchar;
 	`)
 
-	// Use a custom migration approach that handles constraint errors gracefully
-	// CRITICAL: RolePermission MUST be migrated BEFORE Role.
-	// Role has `many2many:role_permissions` which creates the junction table with only 2 columns.
-	// If Role migrates first, the scope column from RolePermission gets lost.
-	// By migrating RolePermission first, the table is created with scope, and Role's
-	// many2many reuses the existing table without dropping scope.
+	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		&user.User{},
 		&role.RolePermission{},
@@ -87,6 +83,9 @@ func AutoMigrate() error {
 		&geographic.City{},
 		&geographic.District{},
 		&geographic.Village{},
+		// Timezone data for auto-detection
+		&core.TimeZone{},
+		&core.Country{},
 		// Organization entities (Sprint 2)
 		&organization.Division{},
 		&organization.JobPosition{},
@@ -161,9 +160,11 @@ func AutoMigrate() error {
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
 		&finance.ValuationRun{},
+		&finance.ValuationRunDetail{},
 		&finance.UpCountryCost{},
 		&finance.UpCountryCostEmployee{},
 		&finance.UpCountryCostItem{},
+		&finance.SystemAccountMapping{},
 		// Travel Planner entities
 		&travelPlanner.TravelPlan{},
 		&travelPlanner.TravelPlanDay{},
@@ -281,7 +282,7 @@ func AutoMigrate() error {
 		&crm.Schedule{},
 		// CRM Area Mapping entities (Sprint 24)
 		&crm.AreaCapture{},
-		// General: user dashboard layout preferences 
+		// General: user dashboard layout preferences
 		&general.DashboardLayout{},
 	)
 	if err != nil {
@@ -289,6 +290,17 @@ func AutoMigrate() error {
 	}
 
 	log.Println("Database migrations completed")
+
+	// FIX: Ensure RemainingAmount is initialized for all invoices (Customer & Supplier)
+	// This fixes issues where seeders or manual imports missed the remaining amount.
+	DB.Exec(`UPDATE customer_invoices 
+             SET remaining_amount = amount - paid_amount 
+             WHERE (remaining_amount = 0 OR remaining_amount IS NULL) 
+             AND amount > 0 AND paid_amount < amount`)
+	DB.Exec(`UPDATE supplier_invoices 
+             SET remaining_amount = amount - paid_amount 
+             WHERE (remaining_amount = 0 OR remaining_amount IS NULL) 
+             AND amount > 0 AND paid_amount < amount`)
 
 	// Migrate contract data from employees table to employee_contracts table
 	if err := migrateEmployeeContractData(); err != nil {
@@ -332,7 +344,55 @@ func AutoMigrate() error {
 		log.Printf("Warning: Failed to create journal entry period lock trigger (this is non-fatal): %v", err)
 	}
 
+	// Migrate timezone data for auto-detection (using longitude-based detection for Indonesia)
+	if err := migrateTimezoneData(); err != nil {
+		log.Printf("Warning: Could not migrate timezone data: %v", err)
+	}
+
+	// Remove status column from employee_evaluations table (Sprint 16)
+	if err := migrations.RemoveEvaluationStatusColumn(DB); err != nil {
+		log.Printf("Warning: Could not remove evaluation status column: %v", err)
+	}
+
+	// Remove days_requested column from leave_requests table (Sprint 14)
+	// WHY: Consolidate to using TotalDays only with inclusive calendar days calculation
+	if err := migrations.RemoveLeaveRequestDaysRequestedMigration(DB); err != nil {
+		log.Printf("Warning: Could not remove leave request days_requested column: %v", err)
+	}
+
+	// Add linkedin_url column to recruitment_applicants table (Sprint 15)
+	// WHY: Allow storing LinkedIn profile URLs for applicants
+	if err := migrations.AddApplicantLinkedInURLMigration(DB); err != nil {
+		log.Printf("Warning: Could not add linkedin_url column: %v", err)
+	}
+
+	// NEW: Normalize journal data (casing/consistent naming)
+	if err := normalizeJournalData(); err != nil {
+		log.Printf("Warning: Failed to normalize journal data: %v", err)
+	}
+
 	return nil
+}
+
+func normalizeJournalData() error {
+	log.Println("Normalizing Journal Entry reference types...")
+	// Normalize to SCREAMING_SNAKE_CASE
+	return DB.Exec(`
+		UPDATE journal_entries 
+		SET reference_type = CASE 
+			WHEN lower(reference_type) IN ('goodsreceipt', 'goods_receipt', 'goods receipt') THEN 'GOODS_RECEIPT'
+			WHEN lower(reference_type) IN ('supplierinvoice', 'supplier_invoice', 'supplier invoice') THEN 'SUPPLIER_INVOICE'
+			WHEN lower(reference_type) IN ('salesinvoice', 'sales_invoice', 'sales invoice', 'customerinvoice', 'customer_invoice') THEN 'SALES_INVOICE'
+			WHEN lower(reference_type) IN ('salespayment', 'sales_payment', 'sales payment') THEN 'SALES_PAYMENT'
+			WHEN lower(reference_type) IN ('purchasepayment', 'purchase_payment', 'purchase payment') THEN 'PURCHASE_PAYMENT'
+			WHEN lower(reference_type) IN ('stockopname', 'stock_opname', 'stock opname') THEN 'STOCK_OPNAME'
+			WHEN lower(reference_type) IN ('assetdepreciation', 'asset_depreciation', 'asset depreciation') THEN 'ASSET_DEPRECIATION'
+			ELSE reference_type
+		END
+		WHERE reference_type NOT IN (
+			'GOODS_RECEIPT', 'SUPPLIER_INVOICE', 'SALES_INVOICE', 'SALES_PAYMENT', 'PURCHASE_PAYMENT', 'STOCK_OPNAME', 'ASSET_DEPRECIATION'
+		);
+	`).Error
 }
 
 func createJournalEntryPeriodLockTrigger() error {
@@ -846,5 +906,59 @@ func handleConstraintIssues() error {
 		}
 	}
 
+	return nil
+}
+
+// migrateTimezoneData creates timezone tables and inserts Indonesia timezone data
+func migrateTimezoneData() error {
+	log.Println("Migrating timezone data...")
+
+	// Create timezone tables if not exist
+	err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS countries (
+			country_code CHAR(2) PRIMARY KEY,
+			country_name VARCHAR(45)
+		);
+
+		CREATE TABLE IF NOT EXISTS time_zones (
+			id SERIAL PRIMARY KEY,
+			zone_name VARCHAR(35) NOT NULL,
+			country_code CHAR(2) REFERENCES countries(country_code),
+			abbreviation VARCHAR(6) NOT NULL,
+			time_start BIGINT NOT NULL,
+			gmt_offset INT NOT NULL,
+			dst CHAR(1) NOT NULL
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_time_zones_zone_name ON time_zones(zone_name);
+		CREATE INDEX IF NOT EXISTS idx_time_zones_country_code ON time_zones(country_code);
+		CREATE INDEX IF NOT EXISTS idx_time_zones_time_start ON time_zones(time_start);
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to create timezone tables: %w", err)
+	}
+
+	// Insert Indonesia country
+	err = DB.Exec(`
+		INSERT INTO countries (country_code, country_name) VALUES (ID, Indonesia)
+		ON CONFLICT (country_code) DO NOTHING;
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to insert Indonesia country: %w", err)
+	}
+
+	// Insert Indonesia timezones (WIB, WITA, WIT)
+	err = DB.Exec(`
+		INSERT INTO time_zones (zone_name, country_code, abbreviation, time_start, gmt_offset, dst) VALUES
+		(Asia/Jakarta, ID, WIB, 0, 25200, 0),
+		(Asia/Makassar, ID, WITA, 0, 28800, 0),
+		(Asia/Jayapura, ID, WIT, 0, 32400, 0)
+		ON CONFLICT DO NOTHING;
+	`).Error
+	if err != nil {
+		return fmt.Errorf("failed to insert Indonesia timezones: %w", err)
+	}
+
+	log.Println("Timezone data migration completed")
 	return nil
 }

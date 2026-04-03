@@ -62,3 +62,11 @@ export function useFinanceClosingAnalysis(id: string, options?: { enabled?: bool
     enabled: options?.enabled !== undefined ? options.enabled : !!id,
   });
 }
+
+export function useDeleteFinanceClosing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeClosingService.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: financeClosingKeys.lists() }),
+  });
+}

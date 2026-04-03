@@ -2,13 +2,24 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -18,22 +29,17 @@ import {
   Pencil,
   Trash2,
   Eye,
-  Send,
-  CheckCircle2,
-  FileText,
-  ClipboardCheck,
   Star,
 } from "lucide-react";
 import {
   useEmployeeEvaluations,
   useDeleteEmployeeEvaluation,
-  useUpdateEmployeeEvaluationStatus,
 } from "../hooks/use-evaluations";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { EmployeeEvaluationForm } from "./employee-evaluation-form";
 import { EmployeeEvaluationDetailModal } from "./employee-evaluation-detail-modal";
-import type { EmployeeEvaluation, EmployeeEvaluationStatus } from "../types";
+import type { EmployeeEvaluation } from "../types";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { formatDate } from "@/lib/utils";
 
@@ -43,17 +49,17 @@ export function EmployeeEvaluationList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState<EmployeeEvaluationStatus | "all">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEvaluation, setEditingEvaluation] = useState<EmployeeEvaluation | null>(null);
-  const [viewingEvaluation, setViewingEvaluation] = useState<EmployeeEvaluation | null>(null);
+  const [editingEvaluation, setEditingEvaluation] =
+    useState<EmployeeEvaluation | null>(null);
+  const [viewingEvaluation, setViewingEvaluation] =
+    useState<EmployeeEvaluation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useEmployeeEvaluations({
     page,
     per_page: pageSize,
     search: debouncedSearch || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
   });
 
   const canCreate = useUserPermission("evaluation.create");
@@ -62,7 +68,6 @@ export function EmployeeEvaluationList() {
   const canView = useUserPermission("evaluation.read");
 
   const deleteEvaluation = useDeleteEmployeeEvaluation();
-  const updateStatus = useUpdateEmployeeEvaluationStatus();
   const evaluations = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -90,50 +95,6 @@ export function EmployeeEvaluationList() {
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingEvaluation(null);
-  };
-
-  const handleStatusChange = async (id: string, status: EmployeeEvaluationStatus) => {
-    try {
-      await updateStatus.mutateAsync({ id, data: { status } });
-      toast.success(t("evaluation.statusUpdated"));
-    } catch {
-      toast.error(t("common.error"));
-    }
-  };
-
-  const getStatusBadge = (status: EmployeeEvaluationStatus) => {
-    switch (status) {
-      case "DRAFT":
-        return (
-          <Badge variant="secondary">
-            <FileText className="h-3 w-3 mr-1" />
-            {t("status.draft")}
-          </Badge>
-        );
-      case "SUBMITTED":
-        return (
-          <Badge variant="info">
-            <Send className="h-3 w-3 mr-1" />
-            {t("status.submitted")}
-          </Badge>
-        );
-      case "REVIEWED":
-        return (
-          <Badge variant="warning">
-            <ClipboardCheck className="h-3 w-3 mr-1" />
-            {t("status.reviewed")}
-          </Badge>
-        );
-      case "FINALIZED":
-        return (
-          <Badge variant="success">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {t("status.finalized")}
-          </Badge>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
   };
 
   const getTypeBadge = (type: string) => {
@@ -171,27 +132,12 @@ export function EmployeeEvaluationList() {
             className="pl-9"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v as EmployeeEvaluationStatus | "all");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder={t("common.filterBy")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("common.all")}</SelectItem>
-            <SelectItem value="DRAFT">{t("status.draft")}</SelectItem>
-            <SelectItem value="SUBMITTED">{t("status.submitted")}</SelectItem>
-            <SelectItem value="REVIEWED">{t("status.reviewed")}</SelectItem>
-            <SelectItem value="FINALIZED">{t("status.finalized")}</SelectItem>
-          </SelectContent>
-        </Select>
         <div className="flex-1" />
         {canCreate && (
-          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button
+            onClick={() => setIsFormOpen(true)}
+            className="cursor-pointer"
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t("evaluation.add")}
           </Button>
@@ -207,7 +153,6 @@ export function EmployeeEvaluationList() {
               <TableHead>{t("evaluation.type")}</TableHead>
               <TableHead>{t("evaluation.period")}</TableHead>
               <TableHead>{t("evaluation.score")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>
           </TableHeader>
@@ -215,14 +160,17 @@ export function EmployeeEvaluationList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={6}>
                     <div className="h-8 w-full animate-pulse rounded bg-muted" />
                   </TableCell>
                 </TableRow>
               ))
             ) : evaluations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   {t("evaluation.notFound")}
                 </TableCell>
               </TableRow>
@@ -238,13 +186,19 @@ export function EmployeeEvaluationList() {
                       >
                         <Avatar className="h-9 w-9">
                           <AvatarFallback
-                            dataSeed={evaluation.employee?.employee_code ?? evaluation.employee?.name ?? "employee"}
+                            dataSeed={
+                              evaluation.employee?.employee_code ??
+                              evaluation.employee?.name ??
+                              "employee"
+                            }
                           >
                             {evaluation.employee?.name ?? "-"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{evaluation.employee?.name ?? "-"}</p>
+                          <p className="truncate font-medium">
+                            {evaluation.employee?.name ?? "-"}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {evaluation.employee?.employee_code ?? "-"}
                           </p>
@@ -254,13 +208,19 @@ export function EmployeeEvaluationList() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
                           <AvatarFallback
-                            dataSeed={evaluation.employee?.employee_code ?? evaluation.employee?.name ?? "employee"}
+                            dataSeed={
+                              evaluation.employee?.employee_code ??
+                              evaluation.employee?.name ??
+                              "employee"
+                            }
                           >
                             {evaluation.employee?.name ?? "-"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{evaluation.employee?.name ?? "-"}</p>
+                          <p className="truncate font-medium">
+                            {evaluation.employee?.name ?? "-"}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground">
                             {evaluation.employee?.employee_code ?? "-"}
                           </p>
@@ -268,8 +228,12 @@ export function EmployeeEvaluationList() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{evaluation.evaluation_group?.name ?? "-"}</TableCell>
-                  <TableCell>{getTypeBadge(evaluation.evaluation_type)}</TableCell>
+                  <TableCell>
+                    {evaluation.evaluation_group?.name ?? "-"}
+                  </TableCell>
+                  <TableCell>
+                    {getTypeBadge(evaluation.evaluation_type)}
+                  </TableCell>
                   <TableCell className="text-sm">
                     {evaluation.period_start
                       ? formatDate(evaluation.period_start)
@@ -282,59 +246,43 @@ export function EmployeeEvaluationList() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Star className="h-3 w-3 text-warning" />
-                      <span className="font-medium">{formatScore(evaluation.overall_score)}</span>
+                      <span className="font-medium">
+                        {formatScore(evaluation.overall_score)}
+                      </span>
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(evaluation.status)}</TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="cursor-pointer"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {canView && (
-                            <DropdownMenuItem onClick={() => handleView(evaluation)} className="cursor-pointer">
+                            <DropdownMenuItem
+                              onClick={() => handleView(evaluation)}
+                              className="cursor-pointer"
+                            >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("common.view")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && evaluation.status === "DRAFT" && (
-                            <DropdownMenuItem onClick={() => handleEdit(evaluation)} className="cursor-pointer">
+                          {canUpdate && (
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(evaluation)}
+                              className="cursor-pointer"
+                            >
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}
                             </DropdownMenuItem>
                           )}
-                          {canUpdate && evaluation.status === "DRAFT" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(evaluation.id, "SUBMITTED")}
-                              className="cursor-pointer"
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              {t("actions.submit")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && evaluation.status === "SUBMITTED" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(evaluation.id, "REVIEWED")}
-                              className="cursor-pointer"
-                            >
-                              <ClipboardCheck className="h-4 w-4 mr-2" />
-                              {t("actions.review")}
-                            </DropdownMenuItem>
-                          )}
-                          {canUpdate && evaluation.status === "REVIEWED" && (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(evaluation.id, "FINALIZED")}
-                              className="cursor-pointer"
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              {t("actions.finalize")}
-                            </DropdownMenuItem>
-                          )}
-                          {canDelete && evaluation.status === "DRAFT" && (
+                          {canDelete && (
                             <DropdownMenuItem
                               onClick={() => setDeletingId(evaluation.id)}
                               className="text-destructive cursor-pointer"

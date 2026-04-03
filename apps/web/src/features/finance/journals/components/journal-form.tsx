@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -32,6 +32,8 @@ import {
   useCreateFinanceAdjustmentJournal,
   useUpdateFinanceAdjustmentJournal
 } from "../hooks/use-finance-journals";
+import { COAValidationError } from "./coa-validation-error";
+import { isCOAValidationError, parseApiError } from "../utils/error-parser";
 
 type Props = {
   open: boolean;
@@ -65,6 +67,8 @@ function todayISO(): string {
 
 export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false }: Props) {
   const t = useTranslations("financeJournals");
+
+  const [coaValidationError, setCoaValidationError] = useState<string | null>(null);
 
   const { data: coaData } = useFinanceCoaTree({ only_active: true });
   const coaOptions = useMemo(() => flattenCoa(coaData?.data ?? []), [coaData?.data]);
@@ -125,6 +129,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = async (values: JournalFormValues) => {
+    setCoaValidationError(null);
     try {
       const payload = {
         entry_date: values.entry_date,
@@ -147,8 +152,15 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
         toast.success(t("toast.updated"));
       }
       onOpenChange(false);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      // Check if it's a COA validation error
+      if (isCOAValidationError(error)) {
+        const parsedError = parseApiError(error);
+        setCoaValidationError(parsedError.message);
+        toast.error("Missing required accounting settings");
+      } else {
+        toast.error(t("toast.failed"));
+      }
     }
   };
 
@@ -158,6 +170,13 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
+
+        {coaValidationError && (
+          <COAValidationError
+            error={coaValidationError}
+            onDismiss={() => setCoaValidationError(null)}
+          />
+        )}
 
         {mode === "edit" && journalQuery.isLoading ? (
           <div className="space-y-3">

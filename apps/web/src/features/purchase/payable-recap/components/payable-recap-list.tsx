@@ -22,9 +22,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePayableRecap, usePayableSummary } from "../hooks/use-payable-recap";
-import { payableRecapService } from "../services/payable-recap-service";
 
 function AgingBadge({ category }: { category: string }) {
   switch (category) {
@@ -83,6 +83,7 @@ export function PayableRecapList() {
   const { data, isLoading } = usePayableRecap(params);
   const { data: summaryData, isLoading: summaryLoading } = usePayableSummary();
   const hasSupplierPermission = useHasPermission("supplier.read");
+  const exportProgress = useExportProgress();
 
   const items = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -90,13 +91,10 @@ export function PayableRecapList() {
 
   const handleExport = async () => {
     try {
-      const blob = await payableRecapService.exportCsv(params);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "payable_recap.csv";
-      link.click();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/payable-recap/export",
+        params,
+      });
       toast.success(t("exportSuccess"));
     } catch {
       toast.error(t("exportError"));
@@ -154,9 +152,9 @@ export function PayableRecapList() {
             className="pl-9"
           />
         </div>
-        <Button variant="outline" size="sm" onClick={handleExport} id="payable-recap-export" className="cursor-pointer">
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={exportProgress.isExporting} id="payable-recap-export" className="cursor-pointer">
           <Download className="mr-2 h-4 w-4" />
-          {t("export")}
+          {exportProgress.label(t("export"))}
         </Button>
       </div>
 

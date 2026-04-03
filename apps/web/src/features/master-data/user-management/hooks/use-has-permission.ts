@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { hasPermissionCode } from "@/lib/permission-utils";
 
 /**
  * Hook to check if the current user has a specific permission.
@@ -23,9 +24,8 @@ export function useHasPermission(permissionCode: string): boolean {
     }
 
 
-    // Check the permissions map (code -> scope)
     const permissions = user.permissions ?? {};
-    return permissionCode in permissions;
+    return hasPermissionCode(permissions, permissionCode);
   }, [user, permissionCode]);
 
   return hasPermission;

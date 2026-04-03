@@ -41,6 +41,7 @@ export interface StockMovement {
     name: string;
   };
 
+  journal_entry_id?: string;
   created_at: string;
 }
 

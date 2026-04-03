@@ -10,6 +10,7 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	customerModels "github.com/gilabs/gims/api/internal/customer/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -64,22 +65,26 @@ func SeedSalesIntegrationFlow() error {
 
 		var customer customerModels.Customer
 		if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var pt coreModels.PaymentTerms
 		if err := tx.Where("is_active = ?", true).First(&pt).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var bankAccount coreModels.BankAccount
 		if err := tx.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var warehouse warehouseModels.Warehouse
 		if err := tx.Where("is_active = ?", true).First(&warehouse).Error; err != nil {
-			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err); return nil
+			log.Printf("Skipping sales_integration_flow_seeder.go due to missing dependency: %v", err)
+			return nil
 		}
 
 		var products []productModels.Product
@@ -482,7 +487,8 @@ func createJournalEntry(tx *gorm.DB, date time.Time, desc, refType, refID, admin
 	journalRepo := financeRepositories.NewJournalEntryRepository(tx)
 	coaMapper := financeMapper.NewChartOfAccountMapper()
 	journalMapper := financeMapper.NewJournalEntryMapper(coaMapper)
-	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper)
+	auditSvc := audit.NewAuditService(tx)
+	journalUC := financeUsecase.NewJournalEntryUsecase(tx, coaRepo, journalRepo, journalMapper, auditSvc)
 
 	reqLines := make([]financeDto.JournalLineRequest, 0, len(lines))
 	for _, l := range lines {

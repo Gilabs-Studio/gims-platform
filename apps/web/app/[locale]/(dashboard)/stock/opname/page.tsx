@@ -12,7 +12,8 @@ const StockOpnameList = dynamic(
   { loading: () => null }
 );
 
-export async function generateMetadata({ params: { locale } }: { params: { locale: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "stock_opname" });
   return {
     title: t("title") + " | GIMS",

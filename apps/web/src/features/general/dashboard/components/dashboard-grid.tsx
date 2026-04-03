@@ -93,23 +93,22 @@ export function DashboardGrid() {
     saveLayout([]);
   }, [resetLayout, saveLayout]);
 
-  const handleAddWidget = useCallback(
-    (type: WidgetType) => {
-      const registry = WIDGET_REGISTRY[type];
-      if (!registry) return;
-      addWidget({
-        id: `w-${Date.now()}`,
-        type,
-        title: "",
-        size: registry.defaultSize,
-        colSpan: registry.defaultColSpan,
-        rowSpan: registry.defaultRowSpan,
-        order: widgets.length,
-        visible: true,
-      });
-    },
-    [addWidget, widgets.length],
-  );
+  const handleAddWidget = useCallback(async (type: WidgetType) => {
+    const registry = WIDGET_REGISTRY[type];
+    if (!registry) return;
+    addWidget({
+      id: `w-${Date.now()}`,
+      type,
+      title: "",
+      size: registry.defaultSize,
+      colSpan: registry.defaultColSpan,
+      rowSpan: registry.defaultRowSpan,
+      order: widgets.length,
+      visible: true,
+    });
+    // Return a resolved promise so callers can await if needed
+    return Promise.resolve();
+  }, [addWidget, widgets.length]);
 
   const dateRange: DateRange | undefined =
     dateFilter.from || dateFilter.to

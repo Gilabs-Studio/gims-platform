@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { runAsyncExport } from "@/lib/async-export";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
 import { SalesPaymentForm } from "@/features/sales/payments/components/sales-payment-form";
@@ -61,7 +63,6 @@ import {
   usePendingCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
-import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
 import type { CustomerInvoiceDPListItem, CustomerInvoiceDPStatus } from "../types";
 
 const CustomerInvoiceDPFormDialog = dynamic(
@@ -233,16 +234,14 @@ export function CustomerInvoiceDPList() {
   const canCreatePayment = useUserPermission("sales_payment.create");
   const canViewCustomer = useUserPermission("customer.read");
   const canViewSalesOrder = useUserPermission("sales_order.read");
+  const exportProgress = useExportProgress();
 
   async function handleExport() {
     try {
-      const blob = await customerInvoiceDPService.exportCsv(listParams);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "customer-invoice-down-payments.csv";
-      a.click();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/sales/customer-invoice-down-payments/export",
+        params: listParams,
+      });
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -362,9 +361,9 @@ export function CustomerInvoiceDPList() {
         <div className="flex-1" />
 
         {canExport ? (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         ) : null}
 

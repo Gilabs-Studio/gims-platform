@@ -30,6 +30,7 @@ export interface OvertimeRequest {
   readonly approved_by_name?: string;
   readonly approved_at?: string;
   readonly rejected_by?: string;
+  readonly rejected_by_name?: string;
   readonly rejected_at?: string;
   readonly reject_reason?: string;
   readonly created_at: string;

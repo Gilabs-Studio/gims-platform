@@ -6,32 +6,57 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	travelVisitReadPermission  = "travel.visit.read"
+	travelVisitCreatePermission = "travel.visit.create"
+	travelPlannerReadPermission = "travel_planner.read"
+	travelPlannerUpdatePermission = "travel_planner.update"
+	travelPlannerDeletePermission = "travel_planner.delete"
+	travelPlannerCreatePermission = "travel_planner.create"
+)
+
 func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) {
-	// Fixed routes before /plans/:id to avoid route shadowing.
-	r.GET("/form-data", middleware.RequirePermission("travel_planner.read"), h.GetFormData)
-	r.GET("/place-search", middleware.RequirePermission("travel_planner.read"), h.SearchPlaces)
-	r.GET("/visits/available", middleware.RequirePermission("travel_planner.read"), h.ListAvailableVisits)
+	r.GET("/visit-planner/form-data", middleware.RequirePermission(travelVisitReadPermission), h.GetVisitPlannerFormData)
+	r.GET("/visit-planner/routes", middleware.RequirePermission(travelVisitReadPermission), h.ListVisitPlannerRoutes)
+	r.POST("/visit-planner/plans", middleware.RequirePermission(travelVisitCreatePermission), h.CreateVisitPlannerPlan)
+	r.POST("/navigation/optimize", middleware.RequirePermission(travelVisitReadPermission), h.OptimizeNavigationForVisit)
+	r.POST("/visits", middleware.RequirePermission(travelVisitCreatePermission), h.UpsertVisitLog)
+	r.POST("/locations", middleware.RequirePermission(travelVisitCreatePermission), h.UpsertLocation)
 
-	plans := r.Group("/plans")
+	planner := r.Group("/travel-planner")
 	{
-		plans.GET("", middleware.RequirePermission("travel_planner.read"), h.List)
-		plans.POST("", middleware.RequirePermission("travel_planner.create"), h.Create)
+		// Fixed routes before /plans/:id to avoid route shadowing.
+		planner.GET("/form-data", middleware.RequirePermission(travelPlannerReadPermission), h.GetFormData)
+		planner.GET("/participants", middleware.RequirePermission(travelPlannerReadPermission), h.ListParticipants)
+		planner.GET("/place-search", middleware.RequirePermission(travelPlannerReadPermission), h.SearchPlaces)
+		planner.GET("/visits/available", middleware.RequirePermission(travelPlannerReadPermission), h.ListAvailableVisits)
 
-		plans.GET("/:id", middleware.RequirePermission("travel_planner.read"), h.GetByID)
-		plans.PUT("/:id", middleware.RequirePermission("travel_planner.update"), h.Update)
-		plans.DELETE("/:id", middleware.RequirePermission("travel_planner.delete"), h.Delete)
+		plans := planner.Group("/plans")
+		{
+			plans.GET("", middleware.RequirePermission(travelPlannerReadPermission), h.List)
+			plans.POST("", middleware.RequirePermission(travelPlannerCreatePermission), h.Create)
 
-		plans.POST("/:id/optimize-route", middleware.RequirePermission("travel_planner.update"), h.OptimizeRoute)
-		plans.GET("/:id/google-maps-links", middleware.RequirePermission("travel_planner.read"), h.GetGoogleMapsLinks)
-		plans.GET("/:id/export/pdf", middleware.RequirePermission("travel_planner.read"), h.ExportPDF)
+			plans.GET("/:id", middleware.RequirePermission(travelPlannerReadPermission), h.GetByID)
+			plans.PUT("/:id", middleware.RequirePermission(travelPlannerUpdatePermission), h.Update)
+			plans.PATCH("/:id/participants", middleware.RequirePermission(travelPlannerUpdatePermission), h.UpdateParticipants)
+			plans.DELETE("/:id", middleware.RequirePermission(travelPlannerDeletePermission), h.Delete)
 
-		plans.GET("/:id/expenses", middleware.RequirePermission("travel_planner.read"), h.ListExpenses)
-		plans.POST("/:id/expenses", middleware.RequirePermission("travel_planner.update"), h.CreateExpense)
-		plans.DELETE("/:id/expenses/:expenseId", middleware.RequirePermission("travel_planner.delete"), h.DeleteExpense)
+			plans.POST("/:id/optimize-route", middleware.RequirePermission(travelPlannerUpdatePermission), h.OptimizeRoute)
+			plans.GET("/:id/google-maps-links", middleware.RequirePermission(travelPlannerReadPermission), h.GetGoogleMapsLinks)
+			plans.GET("/:id/export/pdf", middleware.RequirePermission(travelPlannerReadPermission), h.ExportPDF)
 
-		plans.GET("/:id/visits", middleware.RequirePermission("travel_planner.read"), h.ListVisits)
-		plans.POST("/:id/visits", middleware.RequirePermission("travel_planner.create"), h.CreateVisitFromTrip)
-		plans.POST("/:id/visits/link", middleware.RequirePermission("travel_planner.update"), h.LinkVisits)
-		plans.DELETE("/:id/visits/:visitId", middleware.RequirePermission("travel_planner.update"), h.UnlinkVisit)
+			plans.GET("/:id/expenses", middleware.RequirePermission(travelPlannerReadPermission), h.ListExpenses)
+			plans.POST("/:id/expenses", middleware.RequirePermission(travelPlannerUpdatePermission), h.CreateExpense)
+			plans.DELETE("/:id/expenses/:expenseId", middleware.RequirePermission(travelPlannerDeletePermission), h.DeleteExpense)
+
+			plans.GET("/:id/visits", middleware.RequirePermission(travelPlannerReadPermission), h.ListVisits)
+			plans.POST("/:id/visits", middleware.RequirePermission(travelPlannerCreatePermission), h.CreateVisitFromTrip)
+			plans.POST("/:id/visits/link", middleware.RequirePermission(travelPlannerUpdatePermission), h.LinkVisits)
+			plans.DELETE("/:id/visits/:visitId", middleware.RequirePermission(travelPlannerUpdatePermission), h.UnlinkVisit)
+		}
 	}
+}
+
+func RegisterTravelPlannerWebSocketRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) {
+	r.GET("/travel/locations", middleware.RequirePermission(travelVisitReadPermission), h.TravelLocationsWebSocket)
 }

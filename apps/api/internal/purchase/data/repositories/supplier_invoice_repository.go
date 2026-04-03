@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"gorm.io/gorm"
@@ -36,6 +37,10 @@ func NewSupplierInvoiceRepository(db *gorm.DB) SupplierInvoiceRepository {
 	return &supplierInvoiceRepository{db: db}
 }
 
+func (r *supplierInvoiceRepository) getDB(ctx context.Context) *gorm.DB {
+	return database.GetDB(ctx, r.db)
+}
+
 var supplierInvoiceAllowedSort = map[string]string{
 	"created_at":     "supplier_invoices.created_at",
 	"updated_at":     "supplier_invoices.updated_at",
@@ -51,7 +56,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 	var items []*models.SupplierInvoice
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&models.SupplierInvoice{}).
+	q := r.getDB(ctx).Model(&models.SupplierInvoice{}).
 		Preload("PurchaseOrder").
 		Preload("PurchaseOrder.Supplier").
 		Preload("GoodsReceipt").
@@ -64,7 +69,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("supplier_invoices.code ILIKE ? OR supplier_invoices.invoice_number ILIKE ?", like, like)
+		q = q.Where("supplier_invoices.supplier_name_snapshot ILIKE ? OR supplier_invoices.invoice_number ILIKE ? OR supplier_invoices.code ILIKE ?", like, like, like)
 	}
 	if st := strings.TrimSpace(params.Status); st != "" {
 		q = q.Where("supplier_invoices.status = ?", st)
@@ -102,7 +107,7 @@ func (r *supplierInvoiceRepository) List(ctx context.Context, params SupplierInv
 
 func (r *supplierInvoiceRepository) GetByID(ctx context.Context, id string) (*models.SupplierInvoice, error) {
 	var si models.SupplierInvoice
-	err := r.db.WithContext(ctx).
+	err := r.getDB(ctx).
 		Preload("PurchaseOrder").
 		Preload("GoodsReceipt").
 		Preload("PaymentTerms").
@@ -118,20 +123,20 @@ func (r *supplierInvoiceRepository) GetByID(ctx context.Context, id string) (*mo
 }
 
 func (r *supplierInvoiceRepository) Create(ctx context.Context, si *models.SupplierInvoice) error {
-	return r.db.WithContext(ctx).Create(si).Error
+	return r.getDB(ctx).Create(si).Error
 }
 
 func (r *supplierInvoiceRepository) Update(ctx context.Context, si *models.SupplierInvoice) error {
-	return r.db.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(si).Error
+	return r.getDB(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(si).Error
 }
 
 func (r *supplierInvoiceRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Delete(&models.SupplierInvoice{}, "id = ?", id).Error
+	return r.getDB(ctx).Delete(&models.SupplierInvoice{}, "id = ?", id).Error
 }
 
 func (r *supplierInvoiceRepository) GetLatestDownPaymentByPO(ctx context.Context, purchaseOrderID string) (*models.SupplierInvoice, error) {
 	var si models.SupplierInvoice
-	err := r.db.WithContext(ctx).
+	err := r.getDB(ctx).
 		Model(&models.SupplierInvoice{}).
 		Where("purchase_order_id = ?", purchaseOrderID).
 		Where("type = ?", models.SupplierInvoiceTypeDownPayment).

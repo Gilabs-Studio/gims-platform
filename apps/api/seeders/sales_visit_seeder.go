@@ -64,11 +64,11 @@ func SeedSalesVisit() error {
 
 	// Create sample visits
 	visitsData := []struct {
-		status      salesModels.SalesVisitStatus
-		daysOffset  int
-		purpose     string
-		result      string
-		notes       string
+		status     salesModels.SalesVisitStatus
+		daysOffset int
+		purpose    string
+		result     string
+		notes      string
 	}{
 		{
 			status:     salesModels.SalesVisitStatusCompleted,
@@ -130,7 +130,7 @@ func SeedSalesVisit() error {
 		visitDate := date(vData.daysOffset)
 		// Set time part to all 0 for date field
 		visitDateOnly := time.Date(visitDate.Year(), visitDate.Month(), visitDate.Day(), 0, 0, 0, 0, time.UTC)
-		
+
 		scheduledTime := visitDateOnly.Add(9 * time.Hour) // 09:00
 
 		// Generate code

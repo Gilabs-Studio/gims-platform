@@ -12,10 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency } from "@/lib/utils";
 
 import { useProfitAndLoss } from "../hooks/use-profit-loss";
-import { profitLossService } from "../services/profit-loss-service";
 import type { ReportRow } from "../types";
 import { ExportButton } from "@/features/finance/journals/components/export-button";
 import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
@@ -47,20 +47,16 @@ export function ProfitLossView() {
 
   const { data, isLoading, isError } = useProfitAndLoss(dateRange);
   const report = data?.data;
+  const exportProgress = useExportProgress();
 
   const netProfit = report?.net_profit ?? 0;
 
   const handleExport = async () => {
     try {
-      const blob = await profitLossService.exportProfitAndLoss(dateRange);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `profit_loss_${dateRange.start_date}_${dateRange.end_date}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/finance/reports/export/profit-loss",
+        params: dateRange,
+      });
     } catch {
       toast.error(tCommon("exportFailed"));
     }
@@ -90,7 +86,7 @@ export function ProfitLossView() {
       <FilterToolbar>
         <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
         {canExport ? (
-          <ExportButton label={t("export")} onClick={handleExport} />
+          <ExportButton label={exportProgress.label(t("export"))} onClick={handleExport} disabled={exportProgress.isExporting} />
         ) : null}
       </FilterToolbar>
 

@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSpareParts,
   useDeleteSparePart,
@@ -42,11 +43,12 @@ interface SparePartListProps {
 export function SparePartList({ onCreate, onEdit }: SparePartListProps) {
   const t = useTranslations("assetMaintenance");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sparePartToDelete, setSparePartToDelete] = useState<SparePart | null>(null);
 
   const { data: sparePartsData, isLoading } = useSpareParts({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const deleteSparePart = useDeleteSparePart();

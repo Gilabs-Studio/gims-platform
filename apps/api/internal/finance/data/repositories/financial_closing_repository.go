@@ -20,6 +20,7 @@ type FinancialClosingRepository interface {
 	FindByID(ctx context.Context, id string) (*financeModels.FinancialClosing, error)
 	List(ctx context.Context, params FinancialClosingListParams) ([]financeModels.FinancialClosing, int64, error)
 	LatestApproved(ctx context.Context) (*financeModels.FinancialClosing, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type financialClosingRepository struct {
@@ -87,4 +88,7 @@ func (r *financialClosingRepository) LatestApproved(ctx context.Context) (*finan
 		return nil, err
 	}
 	return &item, nil
+}
+func (r *financialClosingRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&financeModels.FinancialClosing{}, "id = ?", id).Error
 }

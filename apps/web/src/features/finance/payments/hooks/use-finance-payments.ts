@@ -65,3 +65,14 @@ export function useApproveFinancePayment() {
     },
   });
 }
+
+export function useReverseFinancePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => financePaymentsService.reverse(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financePaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: financePaymentKeys.detail(id) });
+    },
+  });
+}

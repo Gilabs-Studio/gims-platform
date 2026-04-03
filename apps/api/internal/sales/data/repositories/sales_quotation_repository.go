@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
@@ -82,9 +83,10 @@ func (r *salesQuotationRepository) List(ctx context.Context, req *dto.ListSalesQ
 	query = security.ApplyScopeFilter(query, ctx, security.SalesScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR notes ILIKE ?", search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.Joins("LEFT JOIN employees ON employees.id = sales_quotations.sales_rep_id")
+		query = query.Where("sales_quotations.customer_name ILIKE ? OR employees.name ILIKE ? OR sales_quotations.code ILIKE ? OR sales_quotations.notes ILIKE ?", search, search, search, search)
 	}
 
 	// Apply status filter

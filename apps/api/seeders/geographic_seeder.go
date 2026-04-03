@@ -89,7 +89,8 @@ func SeedGeographic() error {
 		return err
 	}
 	if err := db.Where("code = ?", "ID").First(&indonesia).Error; err != nil {
-		log.Printf("Skipping geographic_seeder.go due to missing dependency: %v", err); return nil
+		log.Printf("Skipping geographic_seeder.go due to missing dependency: %v", err)
+		return nil
 	}
 
 	// Parse village-level GeoJSON
@@ -103,9 +104,9 @@ func SeedGeographic() error {
 	type cityKey struct{ bpsCode, name, provinceBPS string }
 	type districtKey struct{ bpsCode, name, cityBPS string }
 
-	uniqueProvinces := map[string]string{}              // bps → name
-	uniqueCities := map[string]cityKey{}                 // bpsCode → cityKey
-	uniqueDistricts := map[string]districtKey{}          // bpsCode → districtKey
+	uniqueProvinces := map[string]string{}      // bps → name
+	uniqueCities := map[string]cityKey{}        // bpsCode → cityKey
+	uniqueDistricts := map[string]districtKey{} // bpsCode → districtKey
 
 	// Geometry collection maps for reverse geocode — aggregate polygons
 	// from district-level features into province/city/district geometries

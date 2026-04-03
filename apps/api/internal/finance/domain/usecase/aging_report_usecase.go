@@ -61,6 +61,9 @@ func addBuckets(a dto.AgingBuckets, b dto.AgingBuckets) dto.AgingBuckets {
 }
 
 func (uc *agingReportUsecase) ARAging(ctx context.Context, asOf time.Time, search string, page, perPage int) (*dto.ARAgingReportResponse, int64, error) {
+	// Normalize asOf to end of day
+	asOf = time.Date(asOf.Year(), asOf.Month(), asOf.Day(), 23, 59, 59, 999999999, asOf.Location())
+	
 	if uc.repo == nil {
 		return nil, 0, errors.New("repository is not configured")
 	}
@@ -112,6 +115,9 @@ func (uc *agingReportUsecase) ARAging(ctx context.Context, asOf time.Time, searc
 }
 
 func (uc *agingReportUsecase) APAging(ctx context.Context, asOf time.Time, search string, page, perPage int) (*dto.APAgingReportResponse, int64, error) {
+	// Normalize asOf to end of day
+	asOf = time.Date(asOf.Year(), asOf.Month(), asOf.Day(), 23, 59, 59, 999999999, asOf.Location())
+	
 	if uc.repo == nil {
 		return nil, 0, errors.New("repository is not configured")
 	}

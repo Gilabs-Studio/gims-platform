@@ -4,24 +4,25 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { navigationConfig, type NavItem } from "@/lib/navigation-config";
+import { hasPermissionCode } from "@/lib/permission-utils";
 import type { MenuWithActions, Action } from "@/features/master-data/user-management/types";
 
-function isItemVisible(item: NavItem, permissionCodes: string[]): boolean {
+function isItemVisible(item: NavItem, permissionMap: Record<string, string>): boolean {
   if (item.permission) {
-    return permissionCodes.includes(item.permission);
+    return hasPermissionCode(permissionMap, item.permission);
   }
   if (item.children) {
-    return item.children.some((child) => isItemVisible(child, permissionCodes));
+    return item.children.some((child) => isItemVisible(child, permissionMap));
   }
   return true; 
 }
 
-function transformItem(item: NavItem, permissionCodes: string[], t: (key: string) => string): MenuWithActions | null {
-  if (!isItemVisible(item, permissionCodes)) return null;
+function transformItem(item: NavItem, permissionMap: Record<string, string>, t: (key: string) => string): MenuWithActions | null {
+  if (!isItemVisible(item, permissionMap)) return null;
 
   const children = item.children
     ? item.children
-        .map((child) => transformItem(child, permissionCodes, t))
+        .map((child) => transformItem(child, permissionMap, t))
         .filter((c): c is MenuWithActions => c !== null)
     : undefined;
 
@@ -54,10 +55,9 @@ export function useNavigation() {
   const t = useTranslations("navigation");
   
   const menus = useMemo(() => {
-    // Extract permission codes from the permissions map (code -> scope)
-    const permissionCodes = Object.keys(user?.permissions ?? {});
+    const permissionMap = user?.permissions ?? {};
     return navigationConfig
-      .map((item) => transformItem(item, permissionCodes, t))
+      .map((item) => transformItem(item, permissionMap, t))
       .filter((item): item is MenuWithActions => item !== null);
   }, [user?.permissions, t]);
 

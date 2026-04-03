@@ -10,7 +10,7 @@
     "dev:web-api": "pnpm run dev:api & pnpm run dev:web",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "type-check": "turbo run check-types",
+    "type-check": "turbo run check-types && turbo run lint --filter=@repo/web",
     "test": "turbo run test",
     "clean": "turbo run clean"
   },
@@ -32,8 +32,10 @@
   "pnpm": {
     "overrides": {
       "ajv": "6.14.0",
-      "flatted": "3.4.0",
+      "brace-expansion": "5.0.5",
+      "flatted": "3.4.2",
       "minimatch": "9.0.7",
+      "picomatch": "4.0.4",
       "js-yaml": "4.1.1"
     }
   }

@@ -68,8 +68,6 @@ services:
       - SEED_MINIMAL_DATA=${SEED_MINIMAL_DATA:-true}
       - SEED_ONCE=${SEED_ONCE:-true}
       - MIGRATE_ONCE=${MIGRATE_ONCE:-true}
-      - VALIDATE_FINANCE_START=${VALIDATE_FINANCE_START}
-      - VALIDATE_FINANCE_END=${VALIDATE_FINANCE_END}
       - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Jakarta}
     volumes:
       - uploads_data:/app/uploads

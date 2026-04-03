@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
 import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
@@ -86,7 +87,11 @@ export function PermissionGuard({
 
   // Show nothing while checking permissions or validating role
   if (isLoading || isValidatingRole) {
-    return null;
+    return (
+      <div className="flex h-full min-h-60 w-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   // If role invalid or no permission, don't render children (redirect will happen)

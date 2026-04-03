@@ -2,9 +2,9 @@
 
 > **Module:** HRD (Human Resource Development)  
 > **Sprint:** —  
-> **Version:** 1.0.0  
+> **Version:** 1.1.0  
 > **Status:** ✅ Complete (API + Frontend)  
-> **Last Updated:** February 2026
+> **Last Updated:** April 2026
 
 ---
 
@@ -30,7 +30,9 @@
 
 ## Overview
 
-Employee Evaluation Management provides comprehensive performance evaluation tools for HR teams. The system supports creating evaluation templates with weighted criteria, conducting employee evaluations with per-criteria scoring, and managing evaluation workflows from draft to finalized status.
+Employee Evaluation Management provides comprehensive performance evaluation tools for HR teams. The system supports creating evaluation templates with weighted criteria, conducting employee evaluations with per-criteria scoring, and managing employee performance data efficiently.
+
+**Version 1.1.0 Update:** Status workflow removed - evaluations can now be created, edited, and deleted without status restrictions.
 
 ### Key Features
 
@@ -41,9 +43,9 @@ Employee Evaluation Management provides comprehensive performance evaluation too
 | Employee Evaluation  | Score employees per criterion with automatic overall calculation |
 | Score Calculation    | Overall score = Σ(score × weight / 100)                          |
 | Evaluation Types     | Support SELF and MANAGER evaluations                             |
-| Workflow Status      | DRAFT → SUBMITTED → REVIEWED → FINALIZED                         |
 | Form Data Endpoint   | Single API call for all dropdown options                         |
 | Search & Filter      | Pagination, search, and multi-parameter filtering                |
+| Flexible Editing     | Evaluations can be edited or deleted anytime                     |
 
 ---
 
@@ -86,16 +88,7 @@ Conduct evaluations with scoring:
 | Criteria Scores  | Score per criterion                 |
 | Notes            | Additional comments                 |
 
-### 4. Evaluation Workflow Status
-
-| Status      | Description              |
-| ----------- | ------------------------ |
-| `DRAFT`     | Can be edited or deleted |
-| `SUBMITTED` | Awaiting review          |
-| `REVIEWED`  | Review completed         |
-| `FINALIZED` | Final and locked         |
-
-### 5. Evaluation Types
+### 4. Evaluation Types
 
 | Type      | Description                    |
 | --------- | ------------------------------ |
@@ -210,24 +203,20 @@ apps/web/app/[locale]/(dashboard)/hrd/evaluation/
 
 ### EmployeeEvaluation
 
-| Field               | Type      | Description                           |
-| ------------------- | --------- | ------------------------------------- |
-| id                  | UUID      | Primary key                           |
-| employee_id         | UUID      | FK to Employee (evaluatee)            |
-| evaluation_group_id | UUID      | FK to EvaluationGroup                 |
-| evaluator_id        | UUID      | FK to Employee (evaluator)            |
-| evaluation_type     | ENUM      | SELF or MANAGER                       |
-| period_start        | DATE      | Evaluation period start               |
-| period_end          | DATE      | Evaluation period end                 |
-| overall_score       | FLOAT     | Calculated overall score              |
-| status              | ENUM      | DRAFT, SUBMITTED, REVIEWED, FINALIZED |
-| notes               | TEXT      | General notes                         |
-| submitted_at        | TIMESTAMP | When submitted                        |
-| reviewed_at         | TIMESTAMP | When reviewed                         |
-| finalized_at        | TIMESTAMP | When finalized                        |
-| created_at          | TIMESTAMP | Record creation                       |
-| updated_at          | TIMESTAMP | Last update                           |
-| deleted_at          | TIMESTAMP | Soft delete timestamp                 |
+| Field               | Type      | Description                |
+| ------------------- | --------- | -------------------------- |
+| id                  | UUID      | Primary key                |
+| employee_id         | UUID      | FK to Employee (evaluatee) |
+| evaluation_group_id | UUID      | FK to EvaluationGroup      |
+| evaluator_id        | UUID      | FK to Employee (evaluator) |
+| evaluation_type     | ENUM      | SELF or MANAGER            |
+| period_start        | DATE      | Evaluation period start    |
+| period_end          | DATE      | Evaluation period end      |
+| overall_score       | FLOAT     | Calculated overall score   |
+| notes               | TEXT      | General notes              |
+| created_at          | TIMESTAMP | Record creation            |
+| updated_at          | TIMESTAMP | Last update                |
+| deleted_at          | TIMESTAMP | Soft delete timestamp      |
 
 ### EmployeeEvaluationCriteria
 
@@ -264,18 +253,6 @@ Example:
 - Technical: score 90, weight 40% → 90 × 40 / 100 = 36.0
 - Teamwork: score 80, weight 30% → 80 × 30 / 100 = 24.0
 - Overall: 25.5 + 36.0 + 24.0 = 85.5
-```
-
-### Status Workflow
-
-```
-DRAFT → SUBMITTED → REVIEWED → FINALIZED
-
-Rules:
-- Only DRAFT can be edited or deleted
-- Evaluation cannot be submitted without criteria scores
-- Status transitions are one-way (forward only)
-- FINALIZED evaluations are immutable
 ```
 
 ### Weight Snapshot
@@ -319,27 +296,25 @@ Both dates required
 
 ### Employee Evaluations
 
-| Method | Endpoint                               | Permission        | Description                            |
-| ------ | -------------------------------------- | ----------------- | -------------------------------------- |
-| GET    | `/hrd/employee-evaluations`            | evaluation.read   | List evaluations (paginated, filtered) |
-| GET    | `/hrd/employee-evaluations/:id`        | evaluation.read   | Get evaluation with full details       |
-| GET    | `/hrd/employee-evaluations/form-data`  | Auth              | Get form dropdown data                 |
-| POST   | `/hrd/employee-evaluations`            | evaluation.create | Create evaluation with scores          |
-| PUT    | `/hrd/employee-evaluations/:id`        | evaluation.update | Update evaluation (DRAFT only)         |
-| POST   | `/hrd/employee-evaluations/:id/status` | evaluation.update | Transition status                      |
-| DELETE | `/hrd/employee-evaluations/:id`        | evaluation.delete | Delete evaluation (DRAFT only)         |
+| Method | Endpoint                              | Permission        | Description                            |
+| ------ | ------------------------------------- | ----------------- | -------------------------------------- |
+| GET    | `/hrd/employee-evaluations`           | evaluation.read   | List evaluations (paginated, filtered) |
+| GET    | `/hrd/employee-evaluations/:id`       | evaluation.read   | Get evaluation with full details       |
+| GET    | `/hrd/employee-evaluations/form-data` | Auth              | Get form dropdown data                 |
+| POST   | `/hrd/employee-evaluations`           | evaluation.create | Create evaluation with scores          |
+| PUT    | `/hrd/employee-evaluations/:id`       | evaluation.update | Update evaluation                      |
+| DELETE | `/hrd/employee-evaluations/:id`       | evaluation.delete | Delete evaluation                      |
 
 ### Query Parameters (List)
 
-| Parameter    | Type   | Description                                              |
-| ------------ | ------ | -------------------------------------------------------- |
-| page         | int    | Page number (default: 1)                                 |
-| per_page     | int    | Items per page (default: 20, max: 100)                   |
-| search       | string | Search by employee name, group name, or notes            |
-| status       | string | Filter by status (DRAFT, SUBMITTED, REVIEWED, FINALIZED) |
-| type         | string | Filter by type (SELF, MANAGER)                           |
-| employee_id  | uuid   | Filter by employee                                       |
-| evaluator_id | uuid   | Filter by evaluator                                      |
+| Parameter    | Type   | Description                                   |
+| ------------ | ------ | --------------------------------------------- |
+| page         | int    | Page number (default: 1)                      |
+| per_page     | int    | Items per page (default: 20, max: 100)        |
+| search       | string | Search by employee name, group name, or notes |
+| type         | string | Filter by type (SELF, MANAGER)                |
+| employee_id  | uuid   | Filter by employee                            |
+| evaluator_id | uuid   | Filter by evaluator                           |
 
 ---
 
@@ -364,21 +339,20 @@ Both dates required
 - Group list with total weight display
 - Criteria management within group detail
 - Weight validation with real-time feedback
-- Evaluation list with status badges and actions
+- Evaluation list with search and filter
 - Score auto-clamping to max_score on input
-- Status workflow actions (Submit, Review, Finalize)
 - Detail modal with tabs for Overview and Criteria Scores
 - Search by employee name, group name, notes
+- Edit and delete evaluations anytime
 
 ### i18n Keys
 
-| Key Path                   | Description                                           |
-| -------------------------- | ----------------------------------------------------- |
-| `evaluation.groups.*`      | Evaluation group labels                               |
-| `evaluation.criteria.*`    | Criteria labels                                       |
-| `evaluation.evaluations.*` | Evaluation labels                                     |
-| `evaluation.statuses.*`    | Status labels (DRAFT, SUBMITTED, REVIEWED, FINALIZED) |
-| `evaluation.types.*`       | Type labels (SELF, MANAGER)                           |
+| Key Path                   | Description                 |
+| -------------------------- | --------------------------- |
+| `evaluation.groups.*`      | Evaluation group labels     |
+| `evaluation.criteria.*`    | Criteria labels             |
+| `evaluation.evaluations.*` | Evaluation labels           |
+| `evaluation.types.*`       | Type labels (SELF, MANAGER) |
 
 ---
 
@@ -440,35 +414,7 @@ sequenceDiagram
     API->>DB: Create evaluation + criteria scores
     DB-->>API: Created records
     API-->>UI: EmployeeEvaluationResponse
-    UI-->>HR: Show success, list shows DRAFT status
-
-    HR->>UI: Click "Submit for Review"
-    UI->>API: POST /hrd/employee-evaluations/:id/status
-    API->>DB: Update status to SUBMITTED
-    DB-->>API: Updated record
-    API-->>UI: Success response
-    UI-->>HR: Status changes to SUBMITTED
-```
-
-### Status Workflow Flow
-
-```mermaid
-sequenceDiagram
-    participant HR as HR Admin
-    participant UI as Evaluation Page
-    participant API as Backend API
-
-    HR->>UI: View evaluation in SUBMITTED status
-    HR->>UI: Click "Mark as Reviewed"
-    UI->>API: POST /hrd/employee-evaluations/:id/status
-    API-->>UI: Status updated to REVIEWED
-    UI-->>HR: Show success
-
-    HR->>UI: View evaluation in REVIEWED status
-    HR->>UI: Click "Finalize"
-    UI->>API: POST /hrd/employee-evaluations/:id/status
-    API-->>UI: Status updated to FINALIZED
-    UI-->>HR: Evaluation is now locked
+    UI-->>HR: Show success, refresh list
 ```
 
 ---
@@ -497,7 +443,6 @@ CREATE INDEX idx_evaluation_criteria_name_gin ON evaluation_criteria USING gin(n
 CREATE INDEX idx_employee_evaluations_employee ON employee_evaluations(employee_id);
 CREATE INDEX idx_employee_evaluations_group ON employee_evaluations(evaluation_group_id);
 CREATE INDEX idx_employee_evaluations_evaluator ON employee_evaluations(evaluator_id);
-CREATE INDEX idx_employee_evaluations_status ON employee_evaluations(status);
 CREATE INDEX idx_employee_evaluations_type ON employee_evaluations(evaluation_type);
 ```
 
@@ -547,13 +492,7 @@ cd apps/api && go test ./internal/hrd/...
    - Verify overall_score calculation
    - Verify criteria scores created
 
-4. **Status Transitions:**
-   - Submit DRAFT → SUBMITTED
-   - Review SUBMITTED → REVIEWED
-   - Finalize REVIEWED → FINALIZED
-   - Try to edit FINALIZED → should fail
-
-5. **Search & Filter:**
+4. **Search & Filter:**
    - Search by employee name
    - Filter by status
    - Filter by type
@@ -565,10 +504,9 @@ cd apps/api && go test ./internal/hrd/...
 | Decision                                           | Rationale                                                                                                                                       |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Weight copied to evaluation criteria score**     | Template weight changes don't affect existing evaluations. Preserves historical accuracy. Trade-off: minimal data duplication.                  |
-| **No REJECTED status**                             | One-way forward flow. If reviewer disagrees, they can add notes without advancing status. Trade-off: cannot return to draft.                    |
 | **Criteria scores managed with parent evaluation** | Delete/recreate on update rather than independent soft delete. Trade-off: more writes, simpler logic.                                           |
 | **Snapshot weights at evaluation creation**        | Weight changes to template don't retroactively affect past evaluations. Trade-off: data duplication for accuracy.                               |
-| **Status transition one-way only**                 | Prevents confusion and maintains clear audit trail. Trade-off: less flexibility.                                                                |
+| **No status workflow**                             | Simplified editing - evaluations can be edited/deleted anytime. Trade-off: no audit trail via status.                                           |
 | **GIN indexes for text search**                    | Enable fast prefix search on group names, criteria names, and employee names. Trade-off: slightly more storage, much better search performance. |
 | **Zod UUID regex instead of strict RFC 4122**      | Accepts any UUID-formatted hex string (including seeders). Trade-off: looser validation, better compatibility.                                  |
 | **Criteria scores editable in edit mode**          | Allows corrections before submission. Trade-off: more complex form handling.                                                                    |
@@ -589,6 +527,7 @@ cd apps/api && go test ./internal/hrd/...
 | Status transition method mismatch   | Changed PATCH to POST to match backend                          | `evaluation-service.ts`                  |
 | `is_active` always `true`           | Removed `default:true` GORM tag                                 | `evaluation_group.go`                    |
 | "Invalid Selection" on seeder UUIDs | Replaced `.uuid()` with regex pattern                           | `evaluation.schema.ts`                   |
+| Status workflow removal             | Dropped `status` column, removed status-related code            | Multiple files (see changelog)           |
 
 ### Completed Features
 
@@ -596,13 +535,13 @@ cd apps/api && go test ./internal/hrd/...
 - ✅ Weight validation (total ≤ 100%)
 - ✅ Employee evaluations with scoring
 - ✅ Automatic overall score calculation
-- ✅ Status workflow (DRAFT → SUBMITTED → REVIEWED → FINALIZED)
 - ✅ Form data endpoint
 - ✅ Search and filter
 - ✅ i18n support (EN & ID)
 - ✅ Real-time weight info in criteria form
 - ✅ Score auto-clamping
 - ✅ Detail modal with tabs
+- ✅ Flexible editing (no status workflow)
 
 ### Future Improvements
 
@@ -628,12 +567,45 @@ cd apps/api && go test ./internal/hrd/...
 | `EVALUATION_CRITERIA_NOT_FOUND` | 404         | Criteria not found                 |
 | `EMPLOYEE_EVALUATION_NOT_FOUND` | 404         | Evaluation not found               |
 | `WEIGHT_EXCEEDS_100`            | 400         | Total criteria weight exceeds 100% |
-| `INVALID_STATUS_TRANSITION`     | 400         | Invalid workflow status transition |
-| `EVALUATION_NOT_EDITABLE`       | 400         | Cannot edit non-DRAFT evaluation   |
 | `EMPLOYEE_NOT_FOUND`            | 404         | Employee not found                 |
 | `EVALUATOR_NOT_FOUND`           | 404         | Evaluator not found                |
 | `INVALID_PERIOD`                | 400         | Period end before period start     |
 | `VALIDATION_ERROR`              | 400         | Request body validation failed     |
+
+---
+
+## Changelog
+
+### v1.1.0 (April 2026)
+
+**Removed:**
+
+- `status` column from `employee_evaluations` table
+- Status workflow (DRAFT → SUBMITTED → REVIEWED → FINALIZED)
+- Status update endpoint: `POST /hrd/employee-evaluations/:id/status`
+- Status filter parameter from list endpoint
+- `submitted_at`, `reviewed_at`, `finalized_at` timestamp columns
+- Status-related i18n keys
+- Status-related error codes (`INVALID_STATUS_TRANSITION`, `EVALUATION_NOT_EDITABLE`)
+
+**Changed:**
+
+- Evaluations can now be edited or deleted at any time
+- API endpoints no longer validate status restrictions
+- Frontend components no longer display status badges or workflow actions
+
+**Migration:**
+
+```sql
+-- Migration: remove_evaluation_status
+ALTER TABLE employee_evaluations
+DROP COLUMN IF EXISTS status,
+DROP COLUMN IF EXISTS submitted_at,
+DROP COLUMN IF EXISTS reviewed_at,
+DROP COLUMN IF EXISTS finalized_at;
+
+DROP INDEX IF EXISTS idx_employee_evaluations_status;
+```
 
 ---
 

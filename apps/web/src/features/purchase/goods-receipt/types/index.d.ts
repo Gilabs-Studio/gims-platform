@@ -73,6 +73,7 @@ export interface GoodsReceiptListItem {
   rejected_at?: string | null;
   converted_at?: string | null;
   converted_to_supplier_invoice_id?: string | null;
+  journal_entry_id?: string | null;
 }
 
 export interface GoodsReceiptPurchaseOrderDetail {
@@ -114,6 +115,7 @@ export interface GoodsReceiptDetail {
   rejected_at?: string | null;
   converted_at?: string | null;
   converted_to_supplier_invoice_id?: string | null;
+  journal_entry_id?: string | null;
 }
 
 export interface GoodsReceiptConvertResponse {

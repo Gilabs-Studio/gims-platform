@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -67,8 +68,8 @@ func (r *companyRepository) List(ctx context.Context, req *dto.ListCompaniesRequ
 	query := r.getDB(ctx).Model(&models.Company{})
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
+	if searchTerm := strings.TrimSpace(req.Search); searchTerm != "" {
+		search := "%" + searchTerm + "%"
 		query = query.Where("name ILIKE ? OR email ILIKE ? OR npwp ILIKE ?", search, search, search)
 	}
 

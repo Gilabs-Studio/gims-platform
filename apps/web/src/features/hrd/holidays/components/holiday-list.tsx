@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export function HolidayList() {
   const t = useTranslations("hrd.holiday");
@@ -53,6 +54,7 @@ export function HolidayList() {
 
   const currentYear = new Date().getFullYear();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [yearFilter, setYearFilter] = useState<string>(String(currentYear));
@@ -65,6 +67,7 @@ export function HolidayList() {
   const { data, isLoading, isError, refetch } = useHolidays({
     page,
     per_page: pageSize,
+    search: debouncedSearch || undefined,
     year: yearFilter !== "all" ? Number(yearFilter) : undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
   });

@@ -35,17 +35,17 @@ export function PreferencesForm() {
       <CardContent className="space-y-6">
         
         {/* Theme Preference */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <Label className="text-base">{t("theme")}</Label>
             <p className="text-sm text-muted-foreground">{t("themeDescription")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant={theme === "light" ? "default" : "outline"}
               size="sm"
               onClick={() => setTheme("light")}
-              className="cursor-pointer"
+              className="cursor-pointer w-full sm:w-auto"
             >
               <Sun className="mr-2 h-4 w-4" />
               {t("light")}
@@ -54,7 +54,7 @@ export function PreferencesForm() {
               variant={theme === "dark" ? "default" : "outline"}
               size="sm"
               onClick={() => setTheme("dark")}
-              className="cursor-pointer"
+              className="cursor-pointer w-full sm:w-auto"
             >
               <Moon className="mr-2 h-4 w-4" />
               {t("dark")}
@@ -63,7 +63,7 @@ export function PreferencesForm() {
               variant={theme === "system" ? "default" : "outline"}
               size="sm"
               onClick={() => setTheme("system")}
-              className="cursor-pointer"
+              className="cursor-pointer w-full sm:w-auto"
             >
               <span className="mr-2">💻</span>
               {t("system")}
@@ -72,12 +72,12 @@ export function PreferencesForm() {
         </div>
 
         {/* Language Preference */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
              <Label className="text-base">{t("language")}</Label>
              <p className="text-sm text-muted-foreground">{t("languageDescription")}</p>
           </div>
-          <div className="w-[180px]">
+          <div className="w-full sm:w-[180px]">
              <Select value={currentLocale} onValueChange={handleLanguageChange}>
                <SelectTrigger>
                  <SelectValue placeholder={t("selectLanguage")} />

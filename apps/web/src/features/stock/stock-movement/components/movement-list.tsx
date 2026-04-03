@@ -7,7 +7,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, Plus } from "lucide-react";
+import { Search, Download, Plus, FileText } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useStockMovements } from "../hooks/use-movements";
@@ -24,7 +24,11 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeliveryDetailModal } from "@/features/sales/delivery/components/delivery-detail-modal";
 import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import { StockOpnameDetailDialog } from "@/features/stock/stock-opname/components/stock-opname-detail-dialog";
+import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
 import type { DeliveryOrder } from "@/features/sales/delivery/types";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 export function MovementList() {
   const t = useTranslations("stock_movement"); // Usage: t('title')
@@ -53,6 +57,10 @@ export function MovementList() {
   const [refEntityOpen, setRefEntityOpen] = useState(false);
   const [refEntityType, setRefEntityType] = useState<string | null>(null);
   const [refEntityId, setRefEntityId] = useState<string | null>(null);
+  
+  // Journal detail state
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [journalId, setJournalId] = useState<string | null>(null);
 
   const handleRowClick = (item: StockMovement) => {
     setSelectedItem(item);
@@ -173,9 +181,17 @@ export function MovementList() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("description")}</p>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("description")}</p>
+          </div>
+          <Alert className="bg-muted/50 text-muted-foreground border-primary/20 py-2">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm font-medium">
+              All inventory movements are recorded via Stock. The Inventory Journal will be automatically managed.
+            </AlertDescription>
+          </Alert>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
           <Button variant="outline" className="cursor-pointer w-full sm:w-auto">
@@ -264,6 +280,7 @@ export function MovementList() {
               <TableHead className="text-right">{t("table.out")}</TableHead>
               <TableHead className="text-right">{t("table.balance")}</TableHead>
               <TableHead className="text-right">{t("table.cost")}</TableHead>
+              <TableHead className="text-center">Journal</TableHead>
               <TableHead>{t("table.user")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -271,14 +288,14 @@ export function MovementList() {
             {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                        <TableCell colSpan={9} className="h-16 text-center text-muted-foreground">
+                        <TableCell colSpan={10} className="h-16 text-center text-muted-foreground">
                             {tCommon("loading")}
                         </TableCell>
                     </TableRow>
                 ))
             ) : displayMovements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                    {tCommon("noData")}
                 </TableCell>
               </TableRow>
@@ -321,6 +338,22 @@ export function MovementList() {
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground text-xs">
                     {formatCurrency(item.cost)}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {item.journal_entry_id ? (
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 cursor-pointer text-primary"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setJournalId(item.journal_entry_id!);
+                                setJournalOpen(true);
+                            }}
+                        >
+                            <FileText className="h-4 w-4" />
+                        </Button>
+                     ) : "-"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {item.creator?.name ?? "-"}
@@ -369,6 +402,12 @@ export function MovementList() {
         open={refEntityOpen && refEntityType === "StockOpname"}
         onOpenChange={(open) => { if (!open) setRefEntityOpen(false); }}
         opnameId={refEntityType === "StockOpname" ? refEntityId : null}
+      />
+
+      <JournalDetailModal
+        open={journalOpen}
+        onOpenChange={setJournalOpen}
+        id={journalId}
       />
     </div>
   );

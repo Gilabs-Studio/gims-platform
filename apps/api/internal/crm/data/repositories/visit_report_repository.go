@@ -130,7 +130,7 @@ func (r *visitReportRepository) List(ctx context.Context, params *VisitReportLis
 
 	// Search filter
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("code ILIKE ? OR contact_person ILIKE ? OR purpose ILIKE ? OR notes ILIKE ?",
 			search, search, search, search)
 	}
@@ -451,7 +451,7 @@ func (r *visitReportRepository) GetEmployeeSummary(ctx context.Context, search s
 	searchClause := ""
 	var searchArgs []interface{}
 	if search != "" {
-		s := "%" + search + "%"
+		s := search + "%"
 		searchClause = "AND (e.name ILIKE ? OR e.employee_code ILIKE ?)"
 		searchArgs = append(searchArgs, s, s)
 	}

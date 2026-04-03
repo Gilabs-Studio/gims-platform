@@ -8,6 +8,9 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	"github.com/gilabs/gims/api/internal/finance/domain/service"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"time"
 )
 
 // TransactionData holds the data needed by the AccountingEngine to generate journal lines.
@@ -27,6 +30,11 @@ type TransactionData struct {
 
 	// TotalAmount is the primary amount for the transaction
 	TotalAmount float64
+	SubTotal    float64
+	TaxTotal    float64
+	COGSTotal   float64
+	DepositTotal float64
+	OtherTotal   float64
 
 	// TransactionCOAID is the COA selected by the user on the transaction (e.g. NTP expense account)
 	TransactionCOAID string
@@ -61,23 +69,38 @@ type AccountingEngine interface {
 	// GenerateJournal creates a CreateJournalEntryRequest from the given profile and transaction data.
 	// The caller can then pass the request to JournalEntryUsecase.PostOrUpdateJournal.
 	GenerateJournal(ctx context.Context, profile PostingProfile, data TransactionData) (*dto.CreateJournalEntryRequest, error)
+
+	// ResolveCOAID resolves a COA ID from a settings key (e.g. "coa.expense").
+	// This is useful for budget checks and manual account lookups.
+	ResolveCOAID(ctx context.Context, settingKey string) (string, error)
+
+	// GetAccountBalance calculates the running balance of a COA account as of a specific date.
+	GetAccountBalance(ctx context.Context, coaID string, asOf time.Time) (float64, error)
 }
 
 type accountingEngine struct {
-	settingsService financesettings.SettingsService
-	coaRepo         repositories.ChartOfAccountRepository
+	settingsService  financesettings.SettingsService
+	coaRepo          repositories.ChartOfAccountRepository
+	coaValidationSvc service.COAValidationService
 }
 
-// NewAccountingEngine creates a new central accounting engine.
-func NewAccountingEngine(settingsService financesettings.SettingsService, coaRepo repositories.ChartOfAccountRepository) AccountingEngine {
+// NewAccountingEngine creates a new central accounting engine with COA validation.
+func NewAccountingEngine(settingsService financesettings.SettingsService, coaRepo repositories.ChartOfAccountRepository, coaValidationSvc service.COAValidationService) AccountingEngine {
 	return &accountingEngine{
-		settingsService: settingsService,
-		coaRepo:         coaRepo,
+		settingsService:  settingsService,
+		coaRepo:          coaRepo,
+		coaValidationSvc: coaValidationSvc,
 	}
 }
 
 // GenerateJournal builds a balanced journal entry request from a posting profile.
+// It validates that all required COA settings are configured before processing.
 func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingProfile, data TransactionData) (*dto.CreateJournalEntryRequest, error) {
+	// VALIDATION: Ensure all required COA settings are configured
+	if err := e.validateProfileCOAs(ctx, profile); err != nil {
+		return nil, fmt.Errorf("accounting engine validation failed: %w", err)
+	}
+
 	var lines []dto.JournalLineRequest
 
 	for _, rule := range profile.Rules {
@@ -87,6 +110,9 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 		}
 
 		amount := e.resolveAmount(rule, data)
+		if amount == 0 {
+			continue
+		}
 		memo := e.resolveMemo(rule, data)
 
 		var debit, credit float64
@@ -162,8 +188,43 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 	return req, nil
 }
 
-// resolveRuleCOA resolves the COA ID for a posting rule.
+func (e *accountingEngine) ResolveCOAID(ctx context.Context, settingKey string) (string, error) {
+	coaCode, err := e.settingsService.GetCOACode(ctx, settingKey)
+	if err != nil {
+		return "", err
+	}
+	coa, err := e.coaRepo.FindByCode(ctx, coaCode)
+	if err != nil {
+		return "", fmt.Errorf("COA with code '%s' for setting '%s' not found: %w", coaCode, settingKey, err)
+	}
+	return coa.ID, nil
+}
+
+func (e *accountingEngine) GetAccountBalance(ctx context.Context, coaID string, asOf time.Time) (float64, error) {
+	var balance float64
+	// We query the database directly here to avoid circular dependency with JournalEntryUsecase
+	// AccountingEngine is a low-level service that can talk to DB for primitive queries.
+	err := e.coaRepo.GetDB(ctx).Table("journal_lines jl").
+		Select("COALESCE(SUM(jl.debit - jl.credit), 0)").
+		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
+		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date <= ?", 
+			financeModels.JournalStatusPosted, coaID, asOf.Format("2006-01-02")).
+		Scan(&balance).Error
+	
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate account balance: %w", err)
+	}
+	return balance, nil
+}
+
 func (e *accountingEngine) resolveRuleCOA(ctx context.Context, rule PostingRule, data TransactionData) (string, error) {
+	if rule.UseTransactionCOA {
+		if data.TransactionCOAID == "" {
+			return "", fmt.Errorf("transaction COA ID is required by profile but not provided")
+		}
+		return data.TransactionCOAID, nil
+	}
+
 	if rule.COASettingKey != "" {
 		// Resolve from settings
 		coaCode, err := e.settingsService.GetCOACode(ctx, rule.COASettingKey)
@@ -204,6 +265,18 @@ func (e *accountingEngine) resolveAmount(rule PostingRule, data TransactionData)
 	switch rule.AmountSource {
 	case "total":
 		return data.TotalAmount
+	case "sub_total":
+		return data.SubTotal
+	case "tax_total":
+		return data.TaxTotal
+	case "cogs_total":
+		return data.COGSTotal
+	case "deposit_total":
+		return data.DepositTotal
+	case "net_total":
+		return data.TotalAmount - data.DepositTotal
+	case "other_total":
+		return data.OtherTotal
 	case "calculated":
 		// For dynamic calculations (e.g. period closing), the amount is in TotalAmount
 		return data.TotalAmount
@@ -221,4 +294,25 @@ func (e *accountingEngine) resolveMemo(rule PostingRule, data TransactionData) s
 		return fmt.Sprintf(rule.MemoTemplate, data.MemoArgs...)
 	}
 	return rule.MemoTemplate
+}
+
+// validateProfileCOAs ensures all COA settings required by the posting profile are configured.
+// Fails fast with a clear error message listing missing settings.
+func (e *accountingEngine) validateProfileCOAs(ctx context.Context, profile PostingProfile) error {
+	// Extract all COA setting keys from the posting profile rules
+	var requiredKeys []string
+	for _, rule := range profile.Rules {
+		// Only validate rules that reference settings (not user-provided COAs)
+		if rule.COASettingKey != "" {
+			requiredKeys = append(requiredKeys, rule.COASettingKey)
+		}
+	}
+
+	// If no settings keys required, no validation needed
+	if len(requiredKeys) == 0 {
+		return nil
+	}
+
+	// Validate all required settings exist and have values
+	return e.coaValidationSvc.ValidateRequiredSettings(ctx, requiredKeys...)
 }

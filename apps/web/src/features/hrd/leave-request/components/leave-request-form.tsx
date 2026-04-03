@@ -3,26 +3,48 @@
 
 /* eslint-disable react-hooks/incompatible-library */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { Loader2, CalendarIcon } from "lucide-react";
-import { getCreateLeaveRequestSchema, getUpdateLeaveRequestSchema } from "../schemas/leave-request.schema";
-import type { CreateLeaveRequestFormData, UpdateLeaveRequestFormData } from "../schemas/leave-request.schema";
+import { Loader2 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import {
+  getCreateLeaveRequestSchema,
+  getUpdateLeaveRequestSchema,
+} from "../schemas/leave-request.schema";
+import type {
+  CreateLeaveRequestFormData,
+  UpdateLeaveRequestFormData,
+} from "../schemas/leave-request.schema";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { cn, formatDate } from "@/lib/utils";
-import { useCreateLeaveRequest, useUpdateLeaveRequest, useLeaveRequest, useLeaveFormData } from "../hooks/use-leave-requests";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import {
+  useCreateLeaveRequest,
+  useUpdateLeaveRequest,
+  useLeaveRequest,
+  useLeaveFormData,
+} from "../hooks/use-leave-requests";
 import type { LeaveRequest, LeaveRequestDetail, LeaveDuration } from "../types";
 import { toast } from "sonner";
 import { ButtonLoading } from "@/components/loading";
-import { differenceInDays, format, isBefore, startOfDay } from "date-fns";
+import { format } from "date-fns";
 
 const STORAGE_KEY = "leave_request_form_cache";
 
@@ -32,7 +54,19 @@ interface LeaveRequestFormProps {
   readonly leaveRequest?: LeaveRequest | LeaveRequestDetail | null;
 }
 
-export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFormProps) {
+// Helper function to calculate inclusive calendar days
+// 2-3 = 2 days (inclusive count)
+function calculateInclusiveDays(startDate: Date, endDate: Date): number {
+  const diffTime = endDate.getTime() - startDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // +1 for inclusive
+}
+
+export function LeaveRequestForm({
+  open,
+  onClose,
+  leaveRequest,
+}: LeaveRequestFormProps) {
   const isEdit = !!leaveRequest;
   const t = useTranslations("leaveRequest");
   const createLeaveRequest = useCreateLeaveRequest();
@@ -40,18 +74,30 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
   const [isFormReady, setIsFormReady] = useState(false);
 
   // Fetch form lookup data FIRST - always refetch when form opens to ensure fresh data
-  const { data: formData, isLoading: isLoadingFormData, isSuccess: isFormDataLoaded } = useLeaveFormData({ enabled: open });
-  const leaveTypes = useMemo(() => formData?.data?.leave_types ?? [], [formData?.data?.leave_types]);
-  const employees = useMemo(() => formData?.data?.employees ?? [], [formData?.data?.employees]);
-
-  // Fetch full leave request data when editing - ONLY AFTER form data is loaded
-  const { data: fullLeaveRequestData, isLoading: isLoadingLeaveRequest } = useLeaveRequest(
-    leaveRequest?.id ?? "",
-    { enabled: open && isEdit && !!leaveRequest?.id && isFormDataLoaded }
+  const {
+    data: formData,
+    isLoading: isLoadingFormData,
+    isSuccess: isFormDataLoaded,
+  } = useLeaveFormData({ enabled: open });
+  const leaveTypes = useMemo(
+    () => formData?.data?.leave_types ?? [],
+    [formData?.data?.leave_types],
+  );
+  const employees = useMemo(
+    () => formData?.data?.employees ?? [],
+    [formData?.data?.employees],
   );
 
-  const schema = isEdit ? getUpdateLeaveRequestSchema(t) : getCreateLeaveRequestSchema(t);
-  
+  // Fetch full leave request data when editing - ONLY AFTER form data is loaded
+  const { data: fullLeaveRequestData, isLoading: isLoadingLeaveRequest } =
+    useLeaveRequest(leaveRequest?.id ?? "", {
+      enabled: open && isEdit && !!leaveRequest?.id && isFormDataLoaded,
+    });
+
+  const schema = isEdit
+    ? getUpdateLeaveRequestSchema(t)
+    : getCreateLeaveRequestSchema(t);
+
   const {
     register,
     handleSubmit,
@@ -80,8 +126,25 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
   // Get selected employee's remaining balance for display
   const selectedEmployee = useMemo(
     () => employees.find((e) => e.id === selectedEmployeeId),
-    [employees, selectedEmployeeId]
+    [employees, selectedEmployeeId],
   );
+
+  // Create date range object for DateRangePicker
+  const dateRange: DateRange | undefined = useMemo(() => {
+    if (!startDate || !endDate) return undefined;
+    return {
+      from: startDate,
+      to: endDate,
+    };
+  }, [startDate, endDate]);
+
+  // Handle date range change from DateRangePicker
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (range?.from) {
+      setValue("start_date", range.from);
+      setValue("end_date", range.to || range.from);
+    }
+  };
 
   // Auto-adjust duration when dates change
   useEffect(() => {
@@ -101,19 +164,7 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
     }
   }, [startDate, endDate, duration, setValue]);
 
-  // Auto-fill end date when start date changes and start_date > end_date
-  const prevStartDateRef = useRef<Date | null>(null);
-  useEffect(() => {
-    if (!startDate || !endDate) return;
-    const prevStart = prevStartDateRef.current;
-    prevStartDateRef.current = startDate;
-    // Only auto-fill if start date actually changed (not on initial render)
-    if (prevStart && prevStart.getTime() !== startDate.getTime() && startDate > endDate) {
-      setValue("end_date", startDate);
-    }
-  }, [startDate, endDate, setValue]);
-
-  // Calculate total days based on duration
+  // Calculate total days based on duration (inclusive calendar days)
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
 
@@ -127,12 +178,8 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
       return 1;
     }
 
-    if (duration === "MULTI_DAY") {
-      return Math.max(0, differenceInDays(endDate, startDate) + 1);
-    }
-
-    // Fallback
-    return Math.max(0, differenceInDays(endDate, startDate) + 1);
+    // For MULTI_DAY or fallback: use inclusive calendar days
+    return calculateInclusiveDays(startDate, endDate);
   }, [startDate, endDate, duration]);
 
   // Reset form when leave request data changes (for edit mode)
@@ -160,11 +207,11 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
 
       if (hasFullLeaveData && hasFormData && !isDataLoading) {
         const data = fullLeaveRequestData.data;
-        
+
         // API returns nested objects 'employee' and 'leave_type', not direct IDs
         const employeeId = data.employee?.id;
         const leaveTypeId = data.leave_type?.id;
-        
+
         // Populate form with fetched data
         reset({
           employee_id: employeeId || "",
@@ -174,7 +221,7 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
           duration: data.duration as LeaveDuration,
           reason: data.reason,
         });
-        
+
         // Mark form as ready to render
         setIsFormReady(true);
       } else {
@@ -192,8 +239,12 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
         reset({
           employee_id: parsedData.employee_id || "",
           ...parsedData,
-          start_date: parsedData.start_date ? new Date(parsedData.start_date) : new Date(),
-          end_date: parsedData.end_date ? new Date(parsedData.end_date) : new Date(),
+          start_date: parsedData.start_date
+            ? new Date(parsedData.start_date)
+            : new Date(),
+          end_date: parsedData.end_date
+            ? new Date(parsedData.end_date)
+            : new Date(),
           duration: parsedData.duration || "FULL_DAY",
         });
       } catch {
@@ -217,22 +268,36 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
         reason: "",
       });
     }
-    
+
     // Mark form as ready for create mode
     setIsFormReady(true);
-  }, [open, isEdit, fullLeaveRequestData, leaveTypes, employees, isLoadingLeaveRequest, isLoadingFormData, reset]);
+  }, [
+    open,
+    isEdit,
+    fullLeaveRequestData,
+    leaveTypes,
+    employees,
+    isLoadingLeaveRequest,
+    isLoadingFormData,
+    reset,
+  ]);
 
   // Auto-save to localStorage on form changes (create mode only)
   useEffect(() => {
     if (!isEdit && open) {
-      const saveToLocalStorage = (data: CreateLeaveRequestFormData | UpdateLeaveRequestFormData) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          ...data,
-          start_date: (data.start_date as Date).toISOString(),
-          end_date: (data.end_date as Date).toISOString(),
-        }));
+      const saveToLocalStorage = (
+        data: CreateLeaveRequestFormData | UpdateLeaveRequestFormData,
+      ) => {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            ...data,
+            start_date: (data.start_date as Date).toISOString(),
+            end_date: (data.end_date as Date).toISOString(),
+          }),
+        );
       };
-      
+
       const subscription = watch((data) => {
         saveToLocalStorage(data as CreateLeaveRequestFormData);
       });
@@ -240,7 +305,9 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
     }
   }, [watch, isEdit, open]);
 
-  const onSubmit = async (data: CreateLeaveRequestFormData | UpdateLeaveRequestFormData) => {
+  const onSubmit = async (
+    data: CreateLeaveRequestFormData | UpdateLeaveRequestFormData,
+  ) => {
     try {
       const payload = {
         leave_type_id: data.leave_type_id,
@@ -275,11 +342,49 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
       });
       onClose();
     } catch (error: unknown) {
-      const errorMessage = error && typeof error === 'object' && 'response' in error 
-        ? (error as {response?: {data?: {message?: string}}}).response?.data?.message
-        : undefined;
+      // Extract specific error message from backend response
+      const axiosError = error as {
+        response?: {
+          data?: {
+            error?: {
+              message?: string;
+              code?: string;
+              details?: { message?: string };
+            };
+          };
+        };
+      };
+      let errorMessage =
+        axiosError?.response?.data?.error?.details?.message ||
+        axiosError?.response?.data?.error?.message;
+
+      // Get error code for specific error handling
+      const errorCode = axiosError?.response?.data?.error?.code || "";
+
+      // Handle specific error codes with translated messages
+      if (errorCode === "INVALID_START_DATE") {
+        toast.error(t("messages.invalidStartDate"));
+        return;
+      }
+      if (errorCode === "INVALID_END_DATE") {
+        toast.error(t("messages.invalidEndDate"));
+        return;
+      }
+
+      // Strip error code prefix (e.g., "OVERLAPPING_LEAVE_REQUEST: " -> "")
+      if (errorMessage) {
+        const colonIndex = errorMessage.indexOf(":");
+        if (
+          colonIndex !== -1 &&
+          errorMessage.substring(0, colonIndex).match(/^[A-Z_]+$/)
+        ) {
+          errorMessage = errorMessage.substring(colonIndex + 1).trim();
+        }
+      }
+
       toast.error(
-        errorMessage || (isEdit ? t("messages.updateError") : t("messages.createError"))
+        errorMessage ||
+          (isEdit ? t("messages.updateError") : t("messages.createError")),
       );
     }
   };
@@ -291,55 +396,77 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
           <DialogTitle>{isEdit ? t("edit") : t("add")}</DialogTitle>
         </DialogHeader>
 
-        {isLoadingLeaveRequest || isLoadingFormData || (isEdit && !isFormReady) ? (
+        {isLoadingLeaveRequest ||
+        isLoadingFormData ||
+        (isEdit && !isFormReady) ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-3 text-muted-foreground">
-              {isEdit ? t("messages.loadingEditData") : t("messages.loadingFormData")}
+              {isEdit
+                ? t("messages.loadingEditData")
+                : t("messages.loadingFormData")}
             </span>
           </div>
         ) : (
-          <form key={leaveRequest?.id || "new"} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            key={leaveRequest?.id || "new"}
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+          >
             <Field>
               <FieldLabel>{t("form.employee.label")} *</FieldLabel>
               <Controller
                 name="employee_id"
                 control={control}
                 render={({ field }) => (
-                  <Select 
-                    key={`employee-${field.value || 'empty'}`} 
-                    value={field.value} 
-                    onValueChange={field.onChange} 
+                  <Select
+                    key={`employee-${field.value || "empty"}`}
+                    value={field.value}
+                    onValueChange={field.onChange}
                     disabled={isEdit}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t("form.employee.placeholder")} />
+                      <SelectValue
+                        placeholder={t("form.employee.placeholder")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {employee.employee_code} - {employee.name}{" "}
-                          ({employee.remaining_balance ?? 0} {t("form.employee.daysRemaining")})
+                          {employee.employee_code} - {employee.name} (
+                          {employee.remaining_balance ?? 0}{" "}
+                          {t("form.employee.daysRemaining")})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              <FieldError>{"employee_id" in errors ? errors.employee_id?.message : undefined}</FieldError>
+              <FieldError>
+                {"employee_id" in errors
+                  ? errors.employee_id?.message
+                  : undefined}
+              </FieldError>
             </Field>
 
             {selectedEmployee && !isEdit && (
               <div className="rounded-lg border bg-muted/50 p-3">
                 <p className="text-sm">
-                  {t("balance.remaining")}: <span className={cn(
-                    "font-semibold",
-                    (selectedEmployee.remaining_balance ?? 0) <= 3 && (selectedEmployee.remaining_balance ?? 0) > 0
-                      ? "text-warning"
-                      : (selectedEmployee.remaining_balance ?? 0) <= 0
-                        ? "text-destructive"
-                        : "text-success"
-                  )}>{selectedEmployee.remaining_balance ?? 0}</span> {t("days")}
+                  {t("balance.remaining")}:{" "}
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      (selectedEmployee.remaining_balance ?? 0) <= 3 &&
+                        (selectedEmployee.remaining_balance ?? 0) > 0
+                        ? "text-warning"
+                        : (selectedEmployee.remaining_balance ?? 0) <= 0
+                          ? "text-destructive"
+                          : "text-success",
+                    )}
+                  >
+                    {selectedEmployee.remaining_balance ?? 0}
+                  </span>{" "}
+                  {t("days")}
                 </p>
               </div>
             )}
@@ -350,13 +477,15 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
                 name="leave_type_id"
                 control={control}
                 render={({ field }) => (
-                  <Select 
-                    key={`leavetype-${field.value || 'empty'}`} 
-                    value={field.value} 
+                  <Select
+                    key={`leavetype-${field.value || "empty"}`}
+                    value={field.value}
                     onValueChange={field.onChange}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t("form.leaveType.placeholder")} />
+                      <SelectValue
+                        placeholder={t("form.leaveType.placeholder")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {leaveTypes.map((leaveType) => (
@@ -371,74 +500,27 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
               <FieldError>{errors.leave_type_id?.message}</FieldError>
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel>{t("form.startDate.label")} *</FieldLabel>
-                <Controller
-                  name="start_date"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal cursor-pointer",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(field.value.toISOString()) : t("form.startDate.placeholder")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date: Date | undefined) => date && field.onChange(date)}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-                <FieldError>{errors.start_date?.message}</FieldError>
-              </Field>
-
-              <Field>
-                <FieldLabel>{t("form.endDate.label")} *</FieldLabel>
-                <Controller
-                  name="end_date"
-                  control={control}
-                  render={({ field }) => (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal cursor-pointer",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {field.value ? formatDate(field.value.toISOString()) : t("form.endDate.placeholder")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date: Date | undefined) => date && field.onChange(date)}
-                          initialFocus
-                          disabled={(date) => startDate ? isBefore(startOfDay(date), startOfDay(startDate)) : false}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                />
-                <FieldError>{errors.end_date?.message}</FieldError>
-              </Field>
-            </div>
+            <Field>
+              <FieldLabel>{t("form.dateRange.label")} *</FieldLabel>
+              <Controller
+                name="start_date"
+                control={control}
+                render={() => (
+                  <DateRangePicker
+                    dateRange={dateRange}
+                    onDateChange={handleDateRangeChange}
+                    disabledDays={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date < today;
+                    }}
+                  />
+                )}
+              />
+              <FieldError>
+                {errors.start_date?.message || errors.end_date?.message}
+              </FieldError>
+            </Field>
 
             <Field>
               <div className="flex items-center space-x-2">
@@ -454,27 +536,39 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
                         if (e.target.checked) {
                           field.onChange("HALF_DAY");
                         } else {
-                          const isSameDate = startDate?.toDateString() === endDate?.toDateString();
+                          const isSameDate =
+                            startDate?.toDateString() ===
+                            endDate?.toDateString();
                           field.onChange(isSameDate ? "FULL_DAY" : "MULTI_DAY");
                         }
                       }}
-                      disabled={startDate?.toDateString() !== endDate?.toDateString()}
+                      disabled={
+                        startDate?.toDateString() !== endDate?.toDateString()
+                      }
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     />
                   )}
                 />
-                <label htmlFor="half-day" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                <label
+                  htmlFor="half-day"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
                   {t("form.duration.halfDay")}
                 </label>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{t("form.duration.description")}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("form.duration.description")}
+              </p>
               <FieldError>{errors.duration?.message}</FieldError>
             </Field>
 
             {totalDays > 0 && (
               <div className="rounded-lg border border-border bg-muted/50 p-3">
                 <p className="text-sm font-medium">
-                  {t("form.daysRequested")}: <span className="text-primary">{totalDays} {t("days")}</span>
+                  {t("form.daysRequested")}:{" "}
+                  <span className="text-primary">
+                    {totalDays} {t("days")}
+                  </span>
                 </p>
               </div>
             )}
@@ -486,7 +580,9 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
                 placeholder={t("form.reason.placeholder")}
                 rows={4}
               />
-              <p className="text-xs text-muted-foreground mt-1">{t("form.reason.description")}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("form.reason.description")}
+              </p>
               <FieldError>{errors.reason?.message}</FieldError>
             </Field>
 
@@ -496,9 +592,12 @@ export function LeaveRequestForm({ open, onClose, leaveRequest }: LeaveRequestFo
               </Button>
               <Button
                 type="submit"
-                disabled={createLeaveRequest.isPending || updateLeaveRequest.isPending}
+                disabled={
+                  createLeaveRequest.isPending || updateLeaveRequest.isPending
+                }
               >
-                {(createLeaveRequest.isPending || updateLeaveRequest.isPending) ? (
+                {createLeaveRequest.isPending ||
+                updateLeaveRequest.isPending ? (
                   <ButtonLoading loading>{t("actions.submit")}</ButtonLoading>
                 ) : (
                   t("actions.submit")

@@ -312,4 +312,3 @@ func SeedCRMDeals() error {
 	log.Println("CRM deals seeded successfully")
 	return nil
 }
-

@@ -186,8 +186,9 @@
     "cashBankJournal": "Jurnal Kas Bank",
     "journalLines": "Baris Jurnal",
     "financialClosing": "Penutupan Finansial",
-    "bankingPayments": "Perbankan & Pembayaran",
     "bankAccounts": "Akun Bank",
+    "financeSettings": "Pengaturan Finance",
+    "accountingMapping": "Accounting Mapping",
     "receivablesPayables": "Piutang & Hutang",
     "nonTradePayables": "Hutang Non-Trade",
     "taxInvoices": "Faktur Pajak",
@@ -241,8 +242,15 @@
     "aIAssistant": "Asisten AI",
     "aiAssistant": "Asisten AI",
     "travelPlanner": "Travel Planner",
+    "visitPlanner": "Visit Planner",
+    "plannerWorkspace": "Workspace Planner",
+    "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
+  },
+  "financeSettings": {
+    "title": "Pengaturan Mapping Akuntansi",
+    "description": "Konfigurasi Pemetaan Bagan Akun Perusahaan"
   },
   "travelPlanner": {
     "badge": "Kolaboratif Lanjutan",

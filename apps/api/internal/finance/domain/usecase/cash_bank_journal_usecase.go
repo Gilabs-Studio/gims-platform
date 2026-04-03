@@ -24,6 +24,7 @@ var (
 	ErrCashBankNotFound        = errors.New("cash bank journal not found")
 	ErrCashBankPostedImmutable = errors.New("posted cash bank journal cannot be modified")
 	ErrCashBankInvalidLines    = errors.New("invalid cash bank journal lines")
+	ErrControlAccountRestricted = errors.New("restricted: trade control accounts (AR/AP/Inventory) cannot be used in manual bank journals. please use the respective business modules (Sales/Purchase)")
 )
 
 type CashBankJournalUsecase interface {
@@ -101,6 +102,10 @@ func (uc *cashBankJournalUsecase) Create(ctx context.Context, req *dto.CreateCas
 
 	sum, err := validateCashBankLines(req.Lines)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := uc.validateControlAccounts(ctx, req.Lines); err != nil {
 		return nil, err
 	}
 
@@ -217,6 +222,10 @@ func (uc *cashBankJournalUsecase) Update(ctx context.Context, id string, req *dt
 	}
 	if math.Abs(sum) < 0.000001 {
 		return nil, ErrCashBankInvalidLines
+	}
+
+	if err := uc.validateControlAccounts(ctx, req.Lines); err != nil {
+		return nil, err
 	}
 
 	bankAccountID := strings.TrimSpace(req.BankAccountID)
@@ -361,21 +370,13 @@ func (uc *cashBankJournalUsecase) List(ctx context.Context, req *dto.ListCashBan
 		perPage = 100
 	}
 
-	var startDate *time.Time
-	if req.StartDate != nil && strings.TrimSpace(*req.StartDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.StartDate))
-		if err != nil {
-			return nil, 0, errors.New("invalid start_date")
-		}
-		startDate = &parsed
+	startDate, err := parseDateOptional(req.StartDate)
+	if err != nil {
+		return nil, 0, err
 	}
-	var endDate *time.Time
-	if req.EndDate != nil && strings.TrimSpace(*req.EndDate) != "" {
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.EndDate))
-		if err != nil {
-			return nil, 0, errors.New("invalid end_date")
-		}
-		endDate = &parsed
+	endDate, err := parseEndDateOptional(req.EndDate)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	items, total, err := uc.repo.List(ctx, repositories.CashBankJournalListParams{
@@ -602,4 +603,41 @@ func (uc *cashBankJournalUsecase) ListPosted(ctx context.Context, req *dto.ListC
 	}
 
 	return items, total, kpi, nil
+}
+
+func (uc *cashBankJournalUsecase) validateControlAccounts(ctx context.Context, lines []dto.CashBankJournalLineRequest) error {
+	restrictedKeys := []string{
+		financeModels.SettingCOASalesReceivable,
+		financeModels.SettingCOASalesAdvance,
+		financeModels.SettingCOAPurchasePayable,
+		financeModels.SettingCOAPurchaseAdvance,
+		financeModels.SettingCOAPurchaseGRIR,
+		financeModels.SettingCOAInventory,
+	}
+
+	restrictedCodes := make(map[string]bool)
+	for _, key := range restrictedKeys {
+		code, err := uc.settingsService.GetCOACode(ctx, key)
+		if err == nil && code != "" {
+			restrictedCodes[strings.TrimSpace(code)] = true
+		}
+	}
+
+	coaIDs := make([]string, 0, len(lines))
+	for _, ln := range lines {
+		coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
+	}
+
+	var coas []financeModels.ChartOfAccount
+	if err := uc.db.WithContext(ctx).Where("id IN ?", coaIDs).Find(&coas).Error; err != nil {
+		return err
+	}
+
+	for _, coa := range coas {
+		if restrictedCodes[strings.TrimSpace(coa.Code)] {
+			return ErrControlAccountRestricted
+		}
+	}
+
+	return nil
 }

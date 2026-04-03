@@ -146,9 +146,9 @@ func (r *ReceivablesRecapRepository) FindAll(params ReceivablesRecapListParams) 
 	where := ""
 	var args []interface{}
 
-	if strings.TrimSpace(params.Search) != "" {
+	if search := strings.TrimSpace(params.Search); search != "" {
 		where = " WHERE customer_name ILIKE $1"
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+search+"%")
 	}
 
 	// Count
@@ -204,9 +204,9 @@ func (r *ReceivablesRecapRepository) FindAllForExport(params ReceivablesRecapLis
 	where := ""
 	var args []interface{}
 
-	if strings.TrimSpace(params.Search) != "" {
+	if search := strings.TrimSpace(params.Search); search != "" {
 		where = " WHERE customer_name ILIKE $1"
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+search+"%")
 	}
 
 	orderBy := " ORDER BY outstanding_amount DESC, aging_days DESC"

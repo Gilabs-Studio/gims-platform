@@ -20,7 +20,8 @@ export const recruitmentEn = {
       select: "Select",
       selectDate: "Select date",
       all: "All",
-      confirmDelete: "Are you sure you want to delete this recruitment request?",
+      confirmDelete:
+        "Are you sure you want to delete this recruitment request?",
       deleteWarning: "This action cannot be undone.",
       page: "Page",
       of: "of",
@@ -184,7 +185,8 @@ export const recruitmentEn = {
       notes: "Notes",
       addDescription: "Add a new applicant to this recruitment request",
       editDescription: "Update applicant information",
-      deleteDesc: "Are you sure you want to delete this applicant? This action cannot be undone.",
+      deleteDesc:
+        "Are you sure you want to delete this applicant? This action cannot be undone.",
       created: "Applicant added successfully",
       updated: "Applicant updated successfully",
       deleted: "Applicant deleted successfully",
@@ -194,6 +196,7 @@ export const recruitmentEn = {
         email: "Email",
         phone: "Phone",
         resume: "Resume/CV URL",
+        linkedin: "LinkedIn Profile",
         source: "Source",
         rating: "Rating",
         appliedAt: "Applied Date",
@@ -221,7 +224,14 @@ export const recruitmentEn = {
         email: "Enter email address",
         phone: "Enter phone number",
         resume: "Upload CV/Resume (PDF, DOC, DOCX)",
+        linkedin: "https://linkedin.com/in/username",
         notes: "Add notes about the applicant...",
+      },
+
+      errors: {
+        alreadyConverted:
+          "Cannot change stage. This applicant has already been converted to an employee.",
+        invalidLinkedIn: "Please enter a valid LinkedIn profile URL",
       },
 
       sources: {
@@ -248,7 +258,8 @@ export const recruitmentEn = {
         fromStage: "Current Stage",
         toStage: "Target Stage",
         reason: "Reason",
-        reasonPlaceholder: "Enter reason for stage change (required for rejection)...",
+        reasonPlaceholder:
+          "Enter reason for stage change (required for rejection)...",
         notes: "Additional Notes",
         notesPlaceholder: "Add any additional notes...",
         confirm: "Move Applicant",
@@ -259,7 +270,8 @@ export const recruitmentEn = {
       converting: "Converting...",
       convertTitle: "Convert Applicant to Employee",
       convertDescription: "Confirm to convert this applicant to an employee.",
-      convertInfo: "Employee data will be created using the applicant's information. You can complete additional details in Master Data > Employees after conversion.",
+      convertInfo:
+        "Employee data will be created using the applicant's information. You can complete additional details in Master Data > Employees after conversion.",
       employeeInfo: "Employee Information",
       employeeCode: "Employee Code",
       viewEmployee: "View Employee Profile",

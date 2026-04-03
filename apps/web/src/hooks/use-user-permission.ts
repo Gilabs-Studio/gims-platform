@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { hasAnyPermission, hasPermissionCode } from "@/lib/permission-utils";
 
 export function useUserPermission(permission: string): boolean {
   const { user } = useAuthStore();
@@ -10,7 +11,7 @@ export function useUserPermission(permission: string): boolean {
   if (!user) return false;
 
   const permissions = user.permissions ?? {};
-  return permission in permissions;
+  return hasPermissionCode(permissions, permission);
 }
 
 export function useUserPermissions(permissions: string[]): boolean {
@@ -21,5 +22,5 @@ export function useUserPermissions(permissions: string[]): boolean {
   }
 
   const userPerms = user.permissions ?? {};
-  return permissions.some((permission) => permission in userPerms);
+  return hasAnyPermission(userPerms, permissions);
 }

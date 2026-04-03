@@ -99,6 +99,10 @@ func ToDeliveryOrderResponse(m *salesModels.DeliveryOrder) dto.DeliveryOrderResp
 		}
 		response.CancellationReason = m.CancellationReason
 	}
+	
+	if m.JournalEntryID != nil {
+		response.JournalEntryID = m.JournalEntryID
+	}
 
 	// Map items
 	if len(m.Items) > 0 {

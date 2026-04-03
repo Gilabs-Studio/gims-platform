@@ -61,7 +61,7 @@ func (r *contactRepository) List(ctx context.Context, params ContactListParams) 
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", search, search, search)
 	}
 
@@ -112,7 +112,7 @@ func (r *contactRepository) ListByCustomerID(ctx context.Context, customerID str
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	if params.Search != "" {
-		search := params.Search + "%"
+		search := "%" + params.Search + "%"
 		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", search, search, search)
 	}
 

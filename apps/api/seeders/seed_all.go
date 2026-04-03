@@ -102,6 +102,29 @@ func SeedAll() error {
 		return err
 	}
 
+	// ================================================================
+	// FINANCE SEEDER - CRITICAL ORDER (DO NOT REORDER)
+	// ================================================================
+	// 1. Chart of Accounts (must come before Finance Settings)
+	if err := SeedChartOfAccounts(); err != nil {
+		return err
+	}
+
+	// 2. Finance Settings (maps all COA keys)
+	if err := SeedFinanceSettings(); err != nil {
+		return err
+	}
+
+	// 3. Validate integrity (fail-fast if broken)
+	if err := ValidateFinanceSeeder(); err != nil {
+		return err
+	}
+	// ================================================================
+
+	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
 	// Purchase Requisition seeder (Sprint 8)
 	if err := SeedPurchaseRequisition(); err != nil {
 		return err
@@ -159,12 +182,6 @@ func SeedAll() error {
 	if err := SeedIntegrationFlow(); err != nil {
 		return err
 	}
-
-	// Reconciliate journal entries after transactional seeders
-	if err := SeedJournalReconciliation(); err != nil {
-		return err
-	}
-
 	// Sales/Purchase Returns seeder (depends on invoices and goods receipts)
 	if err := SeedReturns(); err != nil {
 		return err
@@ -294,6 +311,18 @@ func SeedAll() error {
 		return err
 	}
 
+	// Opening Balances seeder: Creates GL entries for inventory to match subledger
+	// (Must come BEFORE SeedJournalReconciliation)
+	if err := SeedOpeningBalances(); err != nil {
+		return err
+	}
+
+	// Final Journal Reconciliation: ensures all transactional data (Sales, Purchase, Inventory, Returns)
+	// has corresponding journal entries.
+	if err := SeedJournalReconciliation(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -377,6 +406,14 @@ func seedMasterData() error {
 	}
 
 	if err := SeedCustomers(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceSettings(); err != nil {
+		return err
+	}
+
+	if err := SeedSystemAccountMappings(); err != nil {
 		return err
 	}
 

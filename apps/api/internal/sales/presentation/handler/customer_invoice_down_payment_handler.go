@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
@@ -312,45 +313,56 @@ func (h *CustomerInvoiceDownPaymentHandler) Export(c *gin.Context) {
 	req.Page = 1
 	req.PerPage = 1000
 
-	items, _, err := h.uc.List(c.Request.Context(), &req)
+	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
+		items, _, err := h.uc.List(ctx, &req)
+		if err != nil {
+			return nil, err
+		}
+
+		var b strings.Builder
+		b.WriteString("code,invoice_number,invoice_date,due_date,sales_order_code,amount,status,created_at\n")
+		for _, it := range items {
+			soCode := ""
+			if it.SalesOrder != nil {
+				soCode = it.SalesOrder.Code
+			}
+			invNo := ""
+			if it.InvoiceNumber != nil {
+				invNo = *it.InvoiceNumber
+			}
+			dueDate := ""
+			if it.DueDate != nil {
+				dueDate = *it.DueDate
+			}
+			row := []string{
+				it.Code,
+				invNo,
+				it.InvoiceDate,
+				dueDate,
+				soCode,
+				fmt.Sprintf("%v", it.Amount),
+				it.Status,
+				it.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+			b.WriteString(strings.Join(row, ","))
+			b.WriteString("\n")
+		}
+
+		return &exportjob.GeneratedFile{
+			FileName:    "customer_invoice_down_payments.csv",
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       []byte(b.String()),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequested(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context())
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
-
-	filename := "customer_invoice_down_payments.csv"
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Status(http.StatusOK)
-
-	var b strings.Builder
-	b.WriteString("code,invoice_number,invoice_date,due_date,sales_order_code,amount,status,created_at\n")
-	for _, it := range items {
-		soCode := ""
-		if it.SalesOrder != nil {
-			soCode = it.SalesOrder.Code
-		}
-		invNo := ""
-		if it.InvoiceNumber != nil {
-			invNo = *it.InvoiceNumber
-		}
-		dueDate := ""
-		if it.DueDate != nil {
-			dueDate = *it.DueDate
-		}
-		row := []string{
-			it.Code,
-			invNo,
-			it.InvoiceDate,
-			dueDate,
-			soCode,
-			fmt.Sprintf("%v", it.Amount),
-			it.Status,
-			it.CreatedAt.Format("2006-01-02 15:04:05"),
-		}
-		b.WriteString(strings.Join(row, ","))
-		b.WriteString("\n")
-	}
-
-	_, _ = c.Writer.WriteString(b.String())
+	exportjob.WriteSyncFile(c, file)
 }

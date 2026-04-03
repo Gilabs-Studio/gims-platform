@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
@@ -86,14 +87,15 @@ func (r *areaRepository) List(ctx context.Context, req *dto.ListAreasRequest) ([
 	query := r.getDB(ctx).Model(&models.Area{})
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
+	if s := strings.TrimSpace(req.Search); s != "" {
+		// Prefix search keeps queries index-friendly on large tables.
+		search := "%" + s + "%"
 		query = query.Where("name ILIKE ? OR description ILIKE ? OR code ILIKE ? OR province ILIKE ?", search, search, search, search)
 	}
 
 	// Filter by province
-	if req.Province != "" {
-		query = query.Where("province ILIKE ?", "%"+req.Province+"%")
+	if province := strings.TrimSpace(req.Province); province != "" {
+		query = query.Where("province ILIKE ?", province+"%")
 	}
 
 	// Filter by supervisor presence using subquery on employee_areas

@@ -2,16 +2,46 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
-import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle } from "lucide-react";
-import { useEvaluationGroups, useDeleteEvaluationGroup } from "../hooks/use-evaluations";
+import {
+  MoreHorizontal,
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Eye,
+} from "lucide-react";
+import {
+  useEvaluationGroups,
+  useDeleteEvaluationGroup,
+  useUpdateEvaluationGroup,
+} from "../hooks/use-evaluations";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { EvaluationGroupForm } from "./evaluation-group-form";
@@ -25,10 +55,16 @@ export function EvaluationGroupList() {
   const debouncedSearch = useDebounce(search, 500);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [activeFilter, setActiveFilter] = useState<"all" | "true" | "false">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "true" | "false">(
+    "all",
+  );
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<EvaluationGroup | null>(null);
-  const [viewingGroup, setViewingGroup] = useState<EvaluationGroup | null>(null);
+  const [editingGroup, setEditingGroup] = useState<EvaluationGroup | null>(
+    null,
+  );
+  const [viewingGroup, setViewingGroup] = useState<EvaluationGroup | null>(
+    null,
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useEvaluationGroups({
@@ -44,6 +80,7 @@ export function EvaluationGroupList() {
   const canView = useUserPermission("evaluation.read");
 
   const deleteGroup = useDeleteEvaluationGroup();
+  const updateGroup = useUpdateEvaluationGroup();
   const groups = data?.data ?? [];
   const pagination = data?.meta?.pagination;
 
@@ -71,6 +108,18 @@ export function EvaluationGroupList() {
   const handleFormClose = () => {
     setIsFormOpen(false);
     setEditingGroup(null);
+  };
+
+  const handleStatusChange = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateGroup.mutateAsync({
+        id,
+        data: { is_active: !currentStatus },
+      });
+      toast.success(t("group.updated"));
+    } catch {
+      toast.error(t("common.error"));
+    }
   };
 
   if (isError) {
@@ -114,7 +163,10 @@ export function EvaluationGroupList() {
         </Select>
         <div className="flex-1" />
         {canCreate && (
-          <Button onClick={() => setIsFormOpen(true)} className="cursor-pointer">
+          <Button
+            onClick={() => setIsFormOpen(true)}
+            className="cursor-pointer"
+          >
             <Plus className="h-4 w-4 mr-2" />
             {t("group.add")}
           </Button>
@@ -143,7 +195,10 @@ export function EvaluationGroupList() {
               ))
             ) : groups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={5}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   {t("group.notFound")}
                 </TableCell>
               </TableRow>
@@ -160,40 +215,58 @@ export function EvaluationGroupList() {
                     {group.description ?? "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={group.total_weight === 100 ? "success" : "secondary"}>
+                    <Badge
+                      variant={
+                        group.total_weight === 100 ? "success" : "secondary"
+                      }
+                    >
                       {group.total_weight}%
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {group.is_active ? (
-                      <Badge variant="success">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        {t("common.active")}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        {t("common.inactive")}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={group.is_active}
+                        onCheckedChange={() =>
+                          handleStatusChange(group.id, group.is_active)
+                        }
+                        disabled={!canUpdate || updateGroup.isPending}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {group.is_active
+                          ? t("common.active")
+                          : t("common.inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {(canUpdate || canDelete || canView) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="cursor-pointer">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="cursor-pointer"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {canView && (
-                            <DropdownMenuItem onClick={() => handleView(group)} className="cursor-pointer">
+                            <DropdownMenuItem
+                              onClick={() => handleView(group)}
+                              className="cursor-pointer"
+                            >
                               <Eye className="h-4 w-4 mr-2" />
                               {t("common.view")}
                             </DropdownMenuItem>
                           )}
                           {canUpdate && (
-                            <DropdownMenuItem onClick={() => handleEdit(group)} className="cursor-pointer">
+                            <DropdownMenuItem
+                              onClick={() => handleEdit(group)}
+                              className="cursor-pointer"
+                            >
                               <Pencil className="h-4 w-4 mr-2" />
                               {t("common.edit")}
                             </DropdownMenuItem>

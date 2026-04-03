@@ -8,8 +8,8 @@ import (
 
 type PaymentAllocationRequest struct {
 	ChartOfAccountID string  `json:"chart_of_account_id" binding:"required,uuid"`
-	ReferenceType    *string `json:"reference_type"`
-	ReferenceID      *string `json:"reference_id" binding:"omitempty,uuid"`
+	ReferenceType    *string `json:"reference_type" binding:"required"`
+	ReferenceID      *string `json:"reference_id" binding:"required,uuid"`
 	Amount           float64 `json:"amount" binding:"required,gt=0"`
 	Memo             string  `json:"memo"`
 }

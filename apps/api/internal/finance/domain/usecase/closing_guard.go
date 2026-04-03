@@ -5,11 +5,30 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
 
+type isReversalKey struct{}
+
+// WithReversalFlag returns a context flagged as a reversal operation.
+// Reversal entries are exempt from period-closed checks because they have net zero impact.
+func WithReversalFlag(ctx context.Context) context.Context {
+	return context.WithValue(ctx, isReversalKey{}, true)
+}
+
+func isReversalContext(ctx context.Context) bool {
+	v, _ := ctx.Value(isReversalKey{}).(bool)
+	return v
+}
+
 func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) error {
+	// Reversal entries are exempt — they have net zero impact on financials
+	if isReversalContext(ctx) {
+		return nil
+	}
+
 	// First, check for explicit closed accounting periods.
 	var period financeModels.AccountingPeriod
 	err := tx.WithContext(ctx).
@@ -19,7 +38,7 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 	if err == nil {
 		return errors.New("period is closed")
 	}
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != gorm.ErrRecordNotFound {
 		return err
 	}
 
@@ -35,9 +54,13 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 		}
 		return err
 	}
-	// Prevent entries on/before latest closed period end date.
-	if !entryDate.After(closing.PeriodEndDate) {
+	
+	// Prevent entries on/before latest closed period end date, evaluated in application time
+	entryLocal := entryDate.In(apptime.Location())
+	closingLocal := closing.PeriodEndDate.In(apptime.Location())
+	if !entryLocal.After(closingLocal) {
 		return errors.New("period is closed")
 	}
 	return nil
 }
+

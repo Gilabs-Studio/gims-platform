@@ -13,6 +13,18 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { JournalDetailModal } from "@/features/finance/journals/components/journal-detail-modal";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +91,9 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
   const [isCreateReturnOpen, setIsCreateReturnOpen] = useState(false);
   const [itemsPage, setItemsPage] = useState(1);
   const [itemsPageSize, setItemsPageSize] = useState(10);
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const canEdit = useUserPermission("goods_receipt.update");
   const canDelete = useUserPermission("goods_receipt.delete");
@@ -238,7 +253,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={handleApprove}
+                    onClick={() => setIsApproveConfirmOpen(true)}
                     disabled={approveMutation.isPending}
                     className="cursor-pointer text-success hover:text-success hover:bg-green-50"
                     title={t("actions.approve")}
@@ -329,7 +344,6 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                             />
                           )}
                         </TableCell>
-                        <TableCell className="font-medium bg-muted/50">{t("fields.purchaseOrder")}</TableCell>
                         <TableCell>
                           {gr.purchase_order ? (
                             canViewPO ? (
@@ -346,6 +360,22 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
                               <span className="font-mono font-medium text-primary">{gr.purchase_order.code}</span>
                             )
                           ) : "-"}
+                        </TableCell>
+                        <TableCell className="font-medium bg-muted/50">Related Journal</TableCell>
+                        <TableCell>
+                          {gr.journal_entry_id ? (
+                            <button
+                              onClick={() => {
+                                setSelectedJournalId(gr.journal_entry_id!);
+                                setIsJournalOpen(true);
+                              }}
+                              className="text-primary hover:underline cursor-pointer text-left"
+                            >
+                              View Journal Entry
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground italic text-xs">Not generated yet</span>
+                          )}
                         </TableCell>
                       </TableRow>
                       {gr.notes && (
@@ -616,7 +646,7 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
           setIsSIDetailOpen(false);
           setSelectedSIId(null);
         }}
-        invoiceId={selectedSIId}
+        invoiceId={selectedSIId ?? ""}
       />
 
       <SupplierInvoiceFormDialog
@@ -641,6 +671,53 @@ export function GoodsReceiptDetail({ open, onClose, goodsReceiptId }: GoodsRecei
         onOpenChange={setIsCreateReturnOpen}
         goodsReceiptId={gr?.id}
       />
+
+      <JournalDetailModal
+        open={isJournalOpen}
+        onOpenChange={setIsJournalOpen}
+        id={selectedJournalId}
+      />
+
+      <AlertDialog open={isApproveConfirmOpen} onOpenChange={setIsApproveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Goods Receipt?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 text-sm">
+                <p className="font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Inventory & Financial Impact
+                </p>
+                <p className="mt-1">
+                  Approving this Goods Receipt will:
+                </p>
+                <ul className="list-disc list-inside mt-1 ml-2 space-y-0.5">
+                  <li>Increase stock in <strong>{gr?.warehouse?.name}</strong>.</li>
+                  <li>Post <strong>Inventory Accrual Journal</strong>.</li>
+                </ul>
+                <p className="mt-2 text-[10px] uppercase font-bold tracking-wider opacity-70">
+                  This action is atomic and affects the GL.
+                </p>
+              </div>
+              <p>Are you sure you want to approve this receipt?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleApprove();
+                setIsApproveConfirmOpen(false);
+              }}
+              disabled={approveMutation.isPending}
+              className="bg-success hover:bg-success/90"
+            >
+              Confirm Approval
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

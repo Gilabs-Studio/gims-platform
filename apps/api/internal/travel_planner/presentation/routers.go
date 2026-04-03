@@ -16,16 +16,19 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
-	_ = r
-
 	planRepo := repositories.NewTravelPlanRepository(db)
 	planMapper := mapper.NewTravelPlanMapper()
 	planUC := usecase.NewTravelPlanUsecase(db, planRepo, planMapper)
 	planHandler := handler.NewTravelPlanHandler(planUC)
 
-	group := api.Group("/travel-planner")
+	group := api.Group("/travel")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 	group.Use(middleware.ScopeMiddleware(db))
 
 	router.RegisterTravelPlanRoutes(group, planHandler)
+
+	wsGroup := r.Group("/ws")
+	wsGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+	wsGroup.Use(middleware.ScopeMiddleware(db))
+	router.RegisterTravelPlannerWebSocketRoutes(wsGroup, planHandler)
 }

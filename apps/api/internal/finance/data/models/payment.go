@@ -10,8 +10,9 @@ import (
 type PaymentStatus string
 
 const (
-	PaymentStatusDraft  PaymentStatus = "draft"
-	PaymentStatusPosted PaymentStatus = "posted"
+	PaymentStatusDraft    PaymentStatus = "draft"
+	PaymentStatusPosted   PaymentStatus = "posted"
+	PaymentStatusReversed PaymentStatus = "reversed"
 )
 
 type Payment struct {

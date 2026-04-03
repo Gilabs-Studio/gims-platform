@@ -189,7 +189,7 @@ func SeedMenus() error {
 	travelPlannerMenu := &permission.Menu{
 		Name:   "Travel Planner",
 		Icon:   "route",
-		URL:    "/travel-planner",
+		URL:    "/travel/travel-planner",
 		Order:  11,
 		Status: "active",
 	}
@@ -431,17 +431,38 @@ func SeedMenus() error {
 		{"Tax Invoices", "file-text", "/finance/tax-invoices", 5},
 		{"Non-Trade Payables", "file-minus", "/finance/non-trade-payables", 6},
 		{"Budget", "pie-chart", "/finance/budget", 7},
-		{"Cash Bank Journal", "book", "/finance/cash-bank", 8},
 		{"Financial Closing", "lock", "/finance/closing", 9},
 		{"Asset Management", "briefcase", "/finance/assets", 10},
 		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
 		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
 		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
 		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
-		{"Salary", "dollar-sign", "/finance/salary", 15},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
+		{"Salary", "dollar-sign", "/finance/salary", 16},
+		{"AR/AP Reconciliation", "scale", "/finance/reconciliation/arap", 17},
 	}
 	for _, child := range financeChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Finance Settings Group
+	financeSettingsMenu, err := createChildMenu("Finance Settings", "settings", "/finance/settings", &financeMenu.ID, 30)
+	if err != nil {
+		return err
+	}
+
+	financeSettingsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
+	}
+	for _, child := range financeSettingsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
@@ -456,7 +477,8 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Planner Workspace", "map", "/travel-planner", 1},
+		{"Planner Workspace", "map", "/travel/travel-planner", 1},
+		{"Visit Planner", "map-pin", "/travel/visit-planner", 2},
 	}
 	for _, child := range travelPlannerChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
@@ -480,7 +502,7 @@ func SeedMenus() error {
 		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
 		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
 		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
-		{"Cash & Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
+		{"Cash Transactions (Journal View)", "banknote", "/finance/journals/cash-bank", 6},
 	}
 	for _, sub := range journalSubMenus {
 		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
@@ -722,6 +744,7 @@ func UpdateMenuStructure() error {
 		"/ai-settings",
 		"/finance/journal-lines",
 		"/finance/reports/trial-balance",
+		"/finance/cash-bank",
 	}
 
 	for _, deprecatedURL := range deprecatedMenuURLs {

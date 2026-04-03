@@ -4,13 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
+	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	"gorm.io/gorm"
 )
 
 var (
@@ -32,7 +39,7 @@ type InventoryUsecase interface {
 	ReleaseStock(ctx context.Context, productID string, quantity float64) error
 	DeductStock(ctx context.Context, batchID string, quantity float64) error
 	SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error)
-	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error
+	CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error)
 	CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error
 
 	// Integration
@@ -43,15 +50,25 @@ type InventoryUsecase interface {
 	ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error
 	ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error
 	ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error
+	
+	// Audit/Reconciliation/Consolidation
+	TriggerMovementJournal(ctx context.Context, movementID string) error
+	TriggerDocumentJournal(ctx context.Context, tx *gorm.DB, refType, refID string) error
 }
 
 type inventoryUsecase struct {
-	repo repository.InventoryRepository
+	db        *gorm.DB
+	repo      repository.InventoryRepository
+	journalUC finUC.JournalEntryUsecase
+	engine    accounting.AccountingEngine
 }
 
-func NewInventoryUsecase(repo repository.InventoryRepository) InventoryUsecase {
+func NewInventoryUsecase(db *gorm.DB, repo repository.InventoryRepository, journalUC finUC.JournalEntryUsecase, engine accounting.AccountingEngine) InventoryUsecase {
 	return &inventoryUsecase{
-		repo: repo,
+		db:        db,
+		repo:      repo,
+		journalUC: journalUC,
+		engine:    engine,
 	}
 }
 
@@ -161,7 +178,22 @@ func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, q
 }
 
 func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
-	return u.repo.UpdateBatchQuantity(ctx, batchID, -quantity)
+	// First fetch batch to get product ID for aggregate update
+	batch, err := u.repo.GetBatchByID(ctx, batchID)
+	if err != nil {
+		return err
+	}
+	if batch == nil {
+		return ErrBatchNotFound
+	}
+
+	// 1. Update Batch Quantity
+	if err := u.repo.UpdateBatchQuantity(ctx, batchID, -quantity); err != nil {
+		return err
+	}
+
+	// 2. Update Aggregate Product Stock
+	return u.repo.UpdateProductStock(ctx, batch.ProductID, -quantity)
 }
 
 func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error) {
@@ -209,89 +241,128 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 	return selectionItems, nil
 }
 
-func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) error {
-	return u.repo.CreateStockMovement(ctx, req)
+func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
+	var movementID string
+	
+	// Use RetryTx for atomic operation. Failure in journal = Rollback stock movement.
+	err := database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+		id, err := u.repo.CreateStockMovement(txCtx, req)
+		if err != nil {
+			return err
+		}
+		movementID = id
+
+		// Auto-trigger journal for financial impact, unless skipped
+		if req.SkipJournaling {
+			log.Printf("[Inventory] Skipping individual journal for movement %s (Document level trigger expected)", id)
+			return nil
+		}
+		
+		if err := u.triggerInventoryJournal(txCtx, tx, movementID); err != nil {
+			return fmt.Errorf("triggered journal failed: %w", err)
+		}
+		return nil
+	})
+	
+	if err != nil {
+		log.Printf("[Inventory] FAILED CreateStockMovement for %s %s: %v", req.ReferenceType, req.ReferenceNumber, err)
+		return "", err
+	}
+	
+	return movementID, nil
 }
 
 func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.ReceiveStockRequest) error {
-	for idx, item := range req.Items {
-		// 1. Calculate New Average Cost (Weighted Average)
-		currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
-		if err != nil {
-			return err
-		}
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
+		ctx = database.WithTx(ctx, tx)
 
-		totalQty := currentStock + item.Quantity
-		totalValue := (currentStock * currentHpp) + (item.Quantity * item.CostPrice)
-		newHpp := 0.0
-		if totalQty > 0 {
-			newHpp = math.Round((totalValue/totalQty)*100) / 100
-		} else {
-			newHpp = item.CostPrice
-		}
+		for idx, item := range req.Items {
+			// 1. Calculate New Average Cost (Weighted Average)
+			currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
+			if err != nil {
+				return err
+			}
 
-		// 2. Update Product Cost
-		if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, newHpp); err != nil {
-			return err
-		}
+			totalQty := currentStock + item.Quantity
+			totalValue := (currentStock * currentHpp) + (item.Quantity * item.CostPrice)
+			newHpp := 0.0
+			if totalQty > 0 {
+				newHpp = math.Round((totalValue/totalQty)*100) / 100
+			} else {
+				newHpp = item.CostPrice
+			}
 
-		// 3. Create Batch
-		batchToken := sanitizeBatchToken(req.SourceNumber)
-		if batchToken == "" {
-			batchToken = sanitizeBatchToken(req.SourceID)
-		}
-		if batchToken == "" {
-			batchToken = apptime.Now().Format("20060102150405")
-		}
+			// 2. Update Product Cost
+			if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, newHpp); err != nil {
+				return err
+			}
 
-		batchNumber := fmt.Sprintf("GR-%s-%03d", batchToken, idx+1)
-		if len(batchNumber) > 100 {
-			batchNumber = batchNumber[:100]
-		}
-		if item.BatchNumber != nil && *item.BatchNumber != "" {
-			batchNumber = *item.BatchNumber
-		}
+			// 3. Create Batch
+			batchToken := sanitizeBatchToken(req.SourceNumber)
+			if batchToken == "" {
+				batchToken = sanitizeBatchToken(req.SourceID)
+			}
+			if batchToken == "" {
+				batchToken = apptime.Now().Format("20060102150405")
+			}
 
-		// Map DTO to CreateBatchParams
-		batchParams := &dto.CreateBatchParams{
-			ProductID:       item.ProductID,
-			WarehouseID:     req.WarehouseID,
-			BatchNumber:     batchNumber,
-			ExpiryDate:      item.ExpiryDate,
-			InitialQuantity: item.Quantity,
-			CostPrice:       item.CostPrice,
-			ReceivedAt:      req.ReceivedAt,
-		}
+			batchNumber := fmt.Sprintf("GR-%s-%03d", batchToken, idx+1)
+			if len(batchNumber) > 100 {
+				batchNumber = batchNumber[:100]
+			}
+			if item.BatchNumber != nil && *item.BatchNumber != "" {
+				batchNumber = *item.BatchNumber
+			}
 
-		batchID, err := u.repo.CreateBatch(ctx, batchParams)
-		if err != nil {
-			return err
-		}
+			batchParams := &dto.CreateBatchParams{
+				ProductID:       item.ProductID,
+				WarehouseID:     req.WarehouseID,
+				BatchNumber:     batchNumber,
+				ExpiryDate:      item.ExpiryDate,
+				InitialQuantity: item.Quantity,
+				CostPrice:       item.CostPrice,
+				ReceivedAt:      req.ReceivedAt,
+			}
 
-		// 4. Create Stock Movement (IN)
-		createdBy := req.ReceivedBy
-		movementReq := &dto.StockMovementRequest{
-			InventoryBatchID: batchID,
-			ProductID:        item.ProductID,
-			WarehouseID:      req.WarehouseID,
-			Type:             "IN",
-			Quantity:         item.Quantity,
-			ReferenceType:    req.SourceType,
-			ReferenceID:      req.SourceID,
-			ReferenceNumber:  req.SourceNumber,
-			Description:      req.Notes,
-			CreatedBy:        &createdBy,
-		}
-		if err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
-			return err
-		}
+			batchID, err := u.repo.CreateBatch(ctx, batchParams)
+			if err != nil {
+				return err
+			}
 
-		// 5. Update Product Stock (Aggregate)
-		if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.Quantity); err != nil {
-			return err
+			// 4. Create Stock Movement (IN)
+			createdBy := req.ReceivedBy
+			movementReq := &dto.StockMovementRequest{
+				InventoryBatchID: batchID,
+				ProductID:        item.ProductID,
+				WarehouseID:      req.WarehouseID,
+				Type:             "IN",
+				Quantity:         item.Quantity,
+				ReferenceType:    reference.RefTypeGoodsReceipt,
+				ReferenceID:      req.SourceID,
+				ReferenceNumber:  req.SourceNumber,
+				Cost:             item.CostPrice,
+				Description:      req.Notes,
+				CreatedBy:        &createdBy,
+			}
+			
+			// Note: For GR, we usually trigger journal at GoodsReceipt closing
+			// but individual item movement traceability still needs updating
+			if _, err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
+				return err
+			}
+
+			// 5. Update Product Stock (Aggregate)
+			if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return err
+			}
+
+			// 6. Movement is created, but we NO LONGER trigger journal here per item.
+			// The caller (e.g. GoodsReceiptUsecase.Approve) is responsible for calling
+			// TriggerDocumentJournal at the end of the transaction for consolidation.
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func sanitizeBatchToken(value string) string {
@@ -344,186 +415,436 @@ func (u *inventoryUsecase) ReleaseBatchStock(ctx context.Context, batchID string
 // Positive variance = surplus (qty found more than system) → IN adjustment
 // Negative variance = shortage (qty found less than system) → OUT adjustment
 func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.AdjustStockFromOpnameRequest) error {
-	for _, item := range req.Items {
-		if item.VarianceQty == 0 {
-			continue // No adjustment needed for matching items
-		}
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
+		ctx = database.WithTx(ctx, tx)
 
-		// Find the oldest batch for this product+warehouse to attach the movement
-		batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
-		if err != nil {
-			return err
-		}
+		for _, item := range req.Items {
+			if item.VarianceQty == 0 {
+				continue // No adjustment needed for matching items
+			}
 
-		// Determine batch ID — use the first (oldest) batch if available
-		batchID := ""
-		if len(batches) > 0 {
-			batchID = batches[0].ID
-		}
-
-		// Create the ADJUST stock movement
-		// Pass signed variance so the repo can determine QtyIn vs QtyOut
-		// Positive variance = surplus = QtyIn; Negative = shortage = QtyOut
-		movementReq := &dto.StockMovementRequest{
-			InventoryBatchID: batchID,
-			ProductID:        item.ProductID,
-			WarehouseID:      req.WarehouseID,
-			Type:             "ADJUST",
-			Quantity:         item.VarianceQty,
-			ReferenceType:    "OPNAME",
-			ReferenceID:      req.OpnameID,
-			ReferenceNumber:  req.OpnameNumber,
-			Description:      req.Notes,
-			CreatedBy:        &req.PostedBy,
-		}
-
-		if err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
-			return err
-		}
-
-		// Update batch quantity with the variance delta
-		if batchID != "" {
-			if err := u.repo.UpdateBatchQuantity(ctx, batchID, item.VarianceQty); err != nil {
+			// Find the oldest batch for this product+warehouse to attach the movement
+			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
+			if err != nil {
 				return err
 			}
-		}
 
-		// Update aggregate product stock
-		if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.VarianceQty); err != nil {
-			return err
+			// Determine batch ID — use the first (oldest) batch if available
+			batchID := ""
+			if len(batches) > 0 {
+				batchID = batches[0].ID
+			}
+
+			// Create the ADJUST stock movement
+			// Pass signed variance so the repo can determine QtyIn vs QtyOut
+			movementReq := &dto.StockMovementRequest{
+				InventoryBatchID: batchID,
+				ProductID:        item.ProductID,
+				WarehouseID:      req.WarehouseID,
+				Type:             "ADJUST",
+				Quantity:         item.VarianceQty,
+				ReferenceType:    "STOCK_OPNAME",
+				ReferenceID:      req.OpnameID,
+				ReferenceNumber:  req.OpnameNumber,
+				Description:      req.Notes,
+				CreatedBy:        &req.PostedBy,
+			}
+
+			movementID, err := u.repo.CreateStockMovement(ctx, movementReq)
+			if err != nil {
+				return err
+			}
+
+			// Update batch quantity with the variance delta
+			if batchID != "" {
+				if err := u.repo.UpdateBatchQuantity(ctx, batchID, item.VarianceQty); err != nil {
+					return err
+				}
+			}
+
+			// Update aggregate product stock
+			if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.VarianceQty); err != nil {
+				return err
+			}
+
+			// TRIGGER JOURNAL for the adjustment
+			if err := u.triggerInventoryJournal(ctx, tx, movementID); err != nil {
+				return fmt.Errorf("opname journal: %w", err)
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 var ErrTargetWarehouseRequired = errors.New("target warehouse is required for TRANSFER")
 var ErrInsufficientStock = errors.New("insufficient stock for movement")
 
 func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *dto.CreateManualMovementRequest) error {
-	zeroUUID := "00000000-0000-0000-0000-000000000000"
-	
-	if req.ReferenceNumber == "" {
-		req.ReferenceNumber = "MANUAL-" + time.Now().Format("20060102-150405")
-	}
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
+		ctx = database.WithTx(ctx, tx)
 
-	deductStock := func(warehouseID string, qty float64, movementType string) error {
-		batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
-		if err != nil {
-			return err
+		zeroUUID := "00000000-0000-0000-0000-000000000000"
+
+		if req.ReferenceNumber == "" {
+			req.ReferenceNumber = "MANUAL-" + time.Now().Format("20060102-150405")
 		}
 
-		remaining := qty
-		for _, batch := range batches {
-			if remaining <= 0 {
-				break
-			}
-			
-			available := batch.Available
-			if available <= 0 {
-				continue
+		deductStock := func(warehouseID string, qty float64, movementType string) (string, error) {
+			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
+			if err != nil {
+				return "", err
 			}
 
-			toDeduct := math.Min(available, remaining)
+			remaining := qty
+			var lastMovementID string
+			for _, batch := range batches {
+				if remaining <= 0 {
+					break
+				}
+
+				available := batch.Available
+				if available <= 0 {
+					continue
+				}
+
+				toDeduct := math.Min(available, remaining)
+
+				movReq := &dto.StockMovementRequest{
+					InventoryBatchID:  batch.ID,
+					ProductID:         req.ProductID,
+					WarehouseID:       warehouseID,
+					Type:              movementType,
+					Quantity:          toDeduct,
+					ReferenceType:     "INVENTORY_ADJUSTMENT",
+					ReferenceID:       zeroUUID,
+					ReferenceNumber:   req.ReferenceNumber,
+					Description:       req.Description,
+					CreatedBy:         &req.CreatedBy,
+					MovementDirection: "OUT",
+				}
+				movID, err := u.repo.CreateStockMovement(ctx, movReq)
+				if err != nil {
+					return "", err
+				}
+				lastMovementID = movID
+
+				if err := u.repo.UpdateBatchQuantity(ctx, batch.ID, -toDeduct); err != nil {
+					return "", err
+				}
+
+				remaining -= toDeduct
+			}
+
+			if remaining > 0 {
+				return "", ErrInsufficientStock
+			}
+
+			if err := u.repo.UpdateProductStock(ctx, req.ProductID, -qty); err != nil {
+				return "", err
+			}
+
+			return lastMovementID, nil
+		}
+
+		addStock := func(warehouseID string, qty float64, movementType string) (string, error) {
+			currentHpp, _, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
+			if err != nil {
+				return "", err
+			}
+
+			now := apptime.Now()
+			batchNumber := "MB-" + now.Format("060102150405")
+
+			batchParams := &dto.CreateBatchParams{
+				ProductID:       req.ProductID,
+				WarehouseID:     warehouseID,
+				BatchNumber:     batchNumber,
+				InitialQuantity: qty,
+				CostPrice:       currentHpp,
+				ReceivedAt:      now,
+			}
+
+			batchID, err := u.repo.CreateBatch(ctx, batchParams)
+			if err != nil {
+				return "", err
+			}
 
 			movReq := &dto.StockMovementRequest{
-				InventoryBatchID: batch.ID,
-				ProductID:        req.ProductID,
-				WarehouseID:      warehouseID,
-				Type:             movementType,
-				Quantity:         toDeduct,
-				ReferenceType:    "TRANSFER",
-				ReferenceID:      zeroUUID,
-				ReferenceNumber:  req.ReferenceNumber,
-				Description:      req.Description,
-				CreatedBy:        &req.CreatedBy,
-				MovementDirection: "OUT",
+				InventoryBatchID:  batchID,
+				ProductID:         req.ProductID,
+				WarehouseID:       warehouseID,
+				Type:              movementType,
+				Quantity:          qty,
+				ReferenceType:     "INVENTORY_ADJUSTMENT",
+				ReferenceID:       zeroUUID,
+				ReferenceNumber:   req.ReferenceNumber,
+				Description:       req.Description,
+				CreatedBy:         &req.CreatedBy,
+				MovementDirection: "IN",
 			}
-			if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
+			movID, err := u.repo.CreateStockMovement(ctx, movReq)
+			if err != nil {
+				return "", err
+			}
+
+			if err := u.repo.UpdateProductStock(ctx, req.ProductID, qty); err != nil {
+				return "", err
+			}
+
+			return movID, nil
+		}
+
+		var movementID string
+		var err error
+
+		switch req.Type {
+		case "IN":
+			movementID, err = addStock(req.WarehouseID, req.Quantity, "IN")
+		case "OUT":
+			movementID, err = deductStock(req.WarehouseID, req.Quantity, "OUT")
+		case "ADJUST":
+			return errors.New("please use stock opname for adjustments")
+		case "TRANSFER":
+			if req.TargetWarehouseID == nil || *req.TargetWarehouseID == "" {
+				return ErrTargetWarehouseRequired
+			}
+			if _, err := deductStock(req.WarehouseID, req.Quantity, "TRANSFER"); err != nil {
 				return err
 			}
-
-			if err := u.repo.UpdateBatchQuantity(ctx, batch.ID, -toDeduct); err != nil {
+			if _, err := addStock(*req.TargetWarehouseID, req.Quantity, "TRANSFER"); err != nil {
 				return err
 			}
-
-			remaining -= toDeduct
+			return nil // Skip journal for internal transfers
 		}
 
-		if remaining > 0 {
-			return ErrInsufficientStock
-		}
-
-		if err := u.repo.UpdateProductStock(ctx, req.ProductID, -qty); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	addStock := func(warehouseID string, qty float64, movementType string) error {
-		currentHpp, _, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
 		if err != nil {
 			return err
 		}
 
-		now := apptime.Now()
-		batchNumber := "MB-" + now.Format("060102150405")
+		// TRIGGER JOURNAL for manual adjustments
+		if movementID != "" {
+			if err := u.triggerInventoryJournal(ctx, tx, movementID); err != nil {
+				return fmt.Errorf("manual adjustment journal: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+// triggerInventoryJournal handles the financial integration for a single stock movement.
+// It resolves the correct posting profile (Gain/Loss), generates the journal via
+// AccountingEngine, and posts it via JournalEntryUsecase.
+func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm.DB, movementID string) error {
+	if u.journalUC == nil || u.engine == nil {
+		return fmt.Errorf("journaling engine not configured: physical movement (ID: %s) cancelled", movementID)
+	}
+
+	// 1. Fetch the movement with product info
+	var movement models.StockMovement
+	if err := tx.Preload("Product").First(&movement, "id = ?", movementID).Error; err != nil {
+		return fmt.Errorf("failed to fetch movement for journal: %w", err)
+	}
+
+	// 2. Determine volume (positive = IN, negative = OUT)
+	volume := movement.QtyIn
+	if movement.QtyOut > 0 {
+		volume = -movement.QtyOut
+	}
+
+	if volume == 0 {
+		return nil // No value change
+	}
+
+	// 4. Resolve Posting Profile based on reference type and volume
+	var profile accounting.PostingProfile
+	refTypeCanonical := reference.Normalize(movement.RefType)
+
+	// Skip journaling for internal transfers
+	if refTypeCanonical == "TRANSFER" {
+		return nil
+	}
+
+	switch refTypeCanonical {
+	case reference.RefTypeGoodsReceipt:
+		profile = accounting.ProfileGoodsReceipt
+	case reference.RefTypeDeliveryOrder:
+		profile = accounting.ProfileCOGS
+	default:
+		if volume > 0 {
+			profile = accounting.ProfileInventoryGain
+		} else {
+			profile = accounting.ProfileInventoryLoss
+		}
+	}
+
+	// 3. Resolve cost-per-unit (use HPP if not set on movement)
+	cost := movement.Cost
+	if cost == 0 && movement.Product != nil {
+		cost = movement.Product.CurrentHpp
+	}
+
+	// 4. Prepare Data for Accounting Engine
+	data := accounting.TransactionData{
+		ReferenceType: "INVENTORY_MOVEMENT", // Link journal directly to the movement ID for 1:1 traceability
+		ReferenceID:   movement.ID,
+		EntryDate:     movement.Date.Format("2006-01-02"),
+		Description:   fmt.Sprintf("%s [%s]: %s", profile.DescriptionTemplate, movement.RefNumber, movement.Source),
+		TotalAmount:   math.Abs(volume * cost),
+		DescriptionArgs: []interface{}{movement.RefNumber},
+	}
+
+	// 5. Generate Journal Request
+	genReq, err := u.engine.GenerateJournal(ctx, profile, data)
+	if err != nil {
+		return fmt.Errorf("accounting engine: %w", err)
+	}
+
+	// 6. Post Journal (Idempotent via reference_type + reference_id)
+	// Passing tx via context to ensure the usecase uses the same transaction.
+	journal, err := u.journalUC.PostOrUpdateJournal(database.WithTx(ctx, tx), genReq)
+	if err != nil {
+		return fmt.Errorf("journal post: %w", err)
+	}
+
+	// 7. Store reference back to movement
+	if err := tx.Model(&movement).Update("journal_entry_id", journal.ID).Error; err != nil {
+		return fmt.Errorf("traceability link: %w", err)
+	}
+
+	return nil
+}
+func (u *inventoryUsecase) TriggerMovementJournal(ctx context.Context, movementID string) error {
+	return u.triggerInventoryJournal(ctx, u.db, movementID)
+}
+
+func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.DB, refType, refID string) error {
+	if tx == nil {
+		tx = database.GetDB(ctx, u.db)
+	}
+
+	// 1. Fetch all movements for this document
+	refType = reference.Normalize(refType)
+	var movements []models.StockMovement
+	if err := tx.WithContext(ctx).
+		Preload("Product").
+		Where("ref_type = ? AND ref_id = ?", refType, refID).
+		Find(&movements).Error; err != nil {
+		return fmt.Errorf("fetch movements: %w", err)
+	}
+
+	if len(movements) == 0 {
+		log.Printf("[Inventory] TriggerDocumentJournal: No movements found for %s %s. Skipping journal.", refType, refID)
+		return nil
+	}
+
+	log.Printf("[Inventory] TriggerDocumentJournal: Processing %d movements for %s %s", len(movements), refType, refID)
+
+	// 2. Group by product and sum up volume*cost
+	// Actually, for a single journal header, we just need the total value if they use the same accounts.
+	// But standard ERP journals might have separate lines per product/batch.
+	// Let's create one consolidated journal per document with 1 Credit (Inventory) and 1 Debit (COGS/Accrual) summary 
+	// or per-item if detail is needed. 
+	// For now, let's keep it simple: 1 consolidated journal with 2 lines (Total Debit, Total Credit).
+
+	var totalValue float64
+	var refNumber string
+	var source string
+	var date time.Time
+
+	for _, m := range movements {
+		cost := m.Cost
+		if cost == 0 && m.Product != nil {
+			cost = m.Product.CurrentHpp
+		}
 		
-		batchParams := &dto.CreateBatchParams{
-			ProductID:       req.ProductID,
-			WarehouseID:     warehouseID,
-			BatchNumber:     batchNumber,
-			InitialQuantity: qty,
-			CostPrice:       currentHpp,
-			ReceivedAt:      now,
+		volume := m.QtyIn - m.QtyOut
+		totalValue += math.Abs(volume * cost)
+		
+		if refNumber == "" {
+			refNumber = m.RefNumber
 		}
+		if source == "" {
+			source = m.Source
+		}
+		if date.IsZero() {
+			date = m.Date
+		}
+	}
 
-		batchID, err := u.repo.CreateBatch(ctx, batchParams)
-		if err != nil {
-			return err
-		}
-
-		movReq := &dto.StockMovementRequest{
-			InventoryBatchID: batchID,
-			ProductID:        req.ProductID,
-			WarehouseID:      warehouseID,
-			Type:             movementType,
-			Quantity:         qty,
-			ReferenceType:    "TRANSFER",
-			ReferenceID:      zeroUUID,
-			ReferenceNumber:  req.ReferenceNumber,
-			Description:      req.Description,
-			CreatedBy:        &req.CreatedBy,
-			MovementDirection: "IN",
-		}
-		if err := u.repo.CreateStockMovement(ctx, movReq); err != nil {
-			return err
-		}
-
-		if err := u.repo.UpdateProductStock(ctx, req.ProductID, qty); err != nil {
-			return err
-		}
-
+	if totalValue <= 0.001 {
 		return nil
 	}
 
-	switch req.Type {
-	case "IN":
-		return addStock(req.WarehouseID, req.Quantity, "IN")
-	case "OUT":
-		return deductStock(req.WarehouseID, req.Quantity, "OUT")
-	case "ADJUST":
-		return errors.New("please use stock opname for adjustments")
-	case "TRANSFER":
-		if req.TargetWarehouseID == nil || *req.TargetWarehouseID == "" {
-			return ErrTargetWarehouseRequired
+	// 3. Resolve Posting Profile
+	var profile accounting.PostingProfile
+	refTypeCanonical := reference.Normalize(refType)
+	
+	switch refTypeCanonical {
+	case reference.RefTypeGoodsReceipt:
+		profile = accounting.ProfileGoodsReceipt
+	case reference.RefTypeDeliveryOrder:
+		profile = accounting.ProfileCOGS
+	default:
+		// Default to gain/loss based on net movement (In vs Out)
+		// But usually documents like DO/GR are unidirectional.
+		if movements[0].QtyIn > movements[0].QtyOut {
+			profile = accounting.ProfileInventoryGain
+		} else {
+			profile = accounting.ProfileInventoryLoss
 		}
-		if err := deductStock(req.WarehouseID, req.Quantity, "TRANSFER"); err != nil {
+	}
+
+	// 4. Prepare Data for Accounting Engine
+	data := accounting.TransactionData{
+		ReferenceType:   refTypeCanonical,
+		ReferenceID:     refID,
+		EntryDate:       date.Format("2006-01-02"),
+		Description:     fmt.Sprintf("%s [%s]: %s", profile.DescriptionTemplate, refNumber, source),
+		TotalAmount:     totalValue,
+		DescriptionArgs: []interface{}{refNumber},
+	}
+
+	// 5. Generate Journal Request
+	genReq, err := u.engine.GenerateJournal(ctx, profile, data)
+	if err != nil {
+		return fmt.Errorf("accounting engine: %w", err)
+	}
+
+	// 6. Post Journal
+	journal, err := u.journalUC.PostOrUpdateJournal(database.WithTx(ctx, tx), genReq)
+	if err != nil {
+		return fmt.Errorf("journal post: %w", err)
+	}
+
+	// 7. Store reference back to ALL movements AND the source document
+	err = tx.Transaction(func(tx *gorm.DB) error {
+		// Update movements
+		if err := tx.Model(&models.StockMovement{}).
+			Where("ref_type = ? AND ref_id = ?", refType, refID).
+			Update("journal_entry_id", journal.ID).Error; err != nil {
 			return err
 		}
-		if err := addStock(*req.TargetWarehouseID, req.Quantity, "TRANSFER"); err != nil {
-			return err
+
+		// Update source document (DO/GR)
+		table := ""
+		switch refTypeCanonical {
+		case reference.RefTypeDeliveryOrder:
+			table = "delivery_orders"
+		case reference.RefTypeGoodsReceipt:
+			table = "goods_receipts"
 		}
+
+		if table != "" {
+			if err := tx.Table(table).Where("id = ?", refID).Update("journal_entry_id", journal.ID).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("traceability link: %w", err)
 	}
 
 	return nil

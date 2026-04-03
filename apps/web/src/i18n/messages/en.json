@@ -187,8 +187,9 @@
     "cashBankJournal": "Cash Bank Journal",
     "journalLines": "Journal Lines",
     "financialClosing": "Financial Closing",
-    "bankingPayments": "Banking & Payments",
     "bankAccounts": "Bank Accounts",
+    "financeSettings": "Finance Settings",
+    "accountingMapping": "Accounting Mapping",
     "receivablesPayables": "Receivables & Payables",
     "nonTradePayables": "Non-Trade Payables",
     "taxInvoices": "Tax Invoices",
@@ -242,8 +243,15 @@
     "aIAssistant": "AI Assistant",
     "aiAssistant": "AI Assistant",
     "travelPlanner": "Travel Planner",
+    "visitPlanner": "Visit Planner",
+    "plannerWorkspace": "Planner Workspace",
+    "visitReport": "Visit Report",
     "chatbot": "Chatbot",
     "settings": "Settings"
+  },
+  "financeSettings": {
+    "title": "Accounting Mapping Settings",
+    "description": "Enterprise Chart of Account Mapping Configuration"
   },
   "travelPlanner": {
     "badge": "Collaborative Advance",

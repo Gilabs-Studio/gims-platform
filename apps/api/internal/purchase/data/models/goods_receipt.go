@@ -53,6 +53,7 @@ type GoodsReceipt struct {
 
 	ConvertedAt                  *time.Time `gorm:"index" json:"converted_at,omitempty"`
 	ConvertedToSupplierInvoiceID *string    `gorm:"type:uuid;index" json:"converted_to_supplier_invoice_id,omitempty"`
+	JournalEntryID               *string    `gorm:"type:uuid;index" json:"journal_entry_id,omitempty"`
 
 	Items []GoodsReceiptItem `gorm:"foreignKey:GoodsReceiptID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
 

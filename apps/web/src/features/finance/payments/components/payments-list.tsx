@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, Search, Trash2, RotateCcw, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import type { Payment } from "../types";
-import { useApproveFinancePayment, useDeleteFinancePayment, useFinancePayments } from "../hooks/use-finance-payments";
+import { useApproveFinancePayment, useDeleteFinancePayment, useFinancePayments, useReverseFinancePayment } from "../hooks/use-finance-payments";
 import { PaymentForm } from "./payment-form";
+import { ReversePaymentDialog } from "./reverse-payment-dialog";
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
@@ -44,6 +45,13 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       return (
         <Badge variant="secondary" className="text-xs font-medium">
           <FileText className="h-3 w-3 mr-1" />
+          {t(`status.${status}`)}
+        </Badge>
+      );
+    case "reversed":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium">
+          <RotateCcw className="h-3 w-3 mr-1" />
           {t(`status.${status}`)}
         </Badge>
       );
@@ -73,8 +81,8 @@ export function PaymentsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
   const [deletingItem, setDeletingItem] = useState<Payment | null>(null);
+  const [reversingItem, setReversingItem] = useState<Payment | null>(null);
 
   const { data, isLoading, isError } = useFinancePayments({
     page,
@@ -89,6 +97,9 @@ export function PaymentsList() {
 
   const deleteMutation = useDeleteFinancePayment();
   const approveMutation = useApproveFinancePayment();
+  const reverseMutation = useReverseFinancePayment();
+
+  const isPendingGlobal = approveMutation.isPending || reverseMutation.isPending || deleteMutation.isPending;
 
   if (isError) {
     return <div className="text-center py-8 text-destructive">{tCommon("error")}</div>;
@@ -139,6 +150,7 @@ export function PaymentsList() {
             <TableRow>
               <TableHead>{t("fields.paymentDate")}</TableHead>
               <TableHead>{t("fields.description")}</TableHead>
+              <TableHead>{t("fields.idJournal")}</TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead className="text-right">{t("fields.totalAmount")}</TableHead>
               <TableHead />
@@ -148,14 +160,14 @@ export function PaymentsList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={6}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -164,6 +176,18 @@ export function PaymentsList() {
                 <TableRow key={item.id}>
                   <TableCell className="tabular-nums">{safeDate(item.payment_date)}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{item.description ?? "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{item.id.split("-")[0].toUpperCase()}</span>
+                      {item.journal_entry_id && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Badge variant="secondary" className="text-[10px] cursor-pointer hover:bg-secondary/80" onClick={() => window.location.href = `/finance/journals?search=${item.journal_entry_id}`}>
+                            Journal <ExternalLink className="h-2 w-2 ml-1" />
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {getStatusBadge(item.status, t)}
                   </TableCell>
@@ -192,12 +216,14 @@ export function PaymentsList() {
                         {canApprove && item.status === "draft" && (
                           <DropdownMenuItem
                             className="cursor-pointer text-success focus:text-success"
+                            disabled={isPendingGlobal}
                             onClick={async () => {
                               try {
                                 await approveMutation.mutateAsync(item.id);
                                 toast.success(t("toast.approved"));
-                              } catch {
-                                toast.error(t("toast.failed"));
+                              } catch (err: any) {
+                                const msg = err.response?.data?.message || t("toast.failed");
+                                toast.error(msg);
                               }
                             }}
                           >
@@ -205,9 +231,20 @@ export function PaymentsList() {
                             {t("actions.approve")}
                           </DropdownMenuItem>
                         )}
+                        {canApprove && (item.status === "posted") && (
+                          <DropdownMenuItem
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            disabled={isPendingGlobal}
+                            onClick={() => setReversingItem(item)}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            {t("actions.reverse")}
+                          </DropdownMenuItem>
+                        )}
                         {canDelete && item.status === "draft" && (
                           <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
+                            disabled={isPendingGlobal}
                             onClick={() => setDeletingItem(item)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
@@ -237,6 +274,25 @@ export function PaymentsList() {
 
       <PaymentForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedId} />
 
+      <ReversePaymentDialog
+        open={!!reversingItem}
+        onOpenChange={(open) => {
+          if (!open) setReversingItem(null);
+        }}
+        isLoading={reverseMutation.isPending}
+        onConfirm={async (reason) => {
+          if (!reversingItem) return;
+          try {
+            await reverseMutation.mutateAsync({ id: reversingItem.id, reason });
+            toast.success(t("toast.reversed"));
+            setReversingItem(null);
+          } catch (err: any) {
+            const msg = err.response?.data?.message || t("toast.failed");
+            toast.error(msg);
+          }
+        }}
+      />
+
       <DeleteDialog
         open={!!deletingItem}
         onOpenChange={(open) => {
@@ -244,6 +300,7 @@ export function PaymentsList() {
         }}
         title={t("actions.delete")}
         description=""
+        isLoading={deleteMutation.isPending}
         onConfirm={async () => {
           const id = deletingItem?.id ?? "";
           if (!id) return;

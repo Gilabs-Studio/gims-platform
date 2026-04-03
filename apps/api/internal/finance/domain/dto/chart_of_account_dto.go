@@ -24,7 +24,7 @@ type UpdateChartOfAccountRequest struct {
 
 type ListChartOfAccountsRequest struct {
 	Page     int                        `form:"page" binding:"omitempty,min=1"`
-	PerPage  int                        `form:"per_page" binding:"omitempty,min=1,max=100"`
+	PerPage  int                        `form:"per_page" binding:"omitempty,min=1,max=1000"`
 	Search   string                     `form:"search"`
 	Type     *financeModels.AccountType `form:"type" binding:"omitempty,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID *string                    `form:"parent_id" binding:"omitempty,uuid"`

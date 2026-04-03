@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
@@ -126,8 +127,8 @@ func (r *employeeRepository) List(ctx context.Context, params EmployeeListParams
 	query := r.db.WithContext(ctx).Model(&models.Employee{})
 
 	// Apply search filter
-	if params.Search != "" {
-		searchPattern := "%" + params.Search + "%"
+	if searchTerm := strings.TrimSpace(params.Search); searchTerm != "" {
+		searchPattern := "%" + searchTerm + "%"
 		query = query.Where(
 			"name ILIKE ? OR employee_code ILIKE ? OR email ILIKE ?",
 			searchPattern, searchPattern, searchPattern,

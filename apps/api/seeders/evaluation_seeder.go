@@ -244,7 +244,7 @@ func SeedEmployeeEvaluations() error {
 	periodEnd := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.Local).AddDate(0, 1, -1)
 
 	evaluations := []models.EmployeeEvaluation{
-		// Staff employee evaluated by manager using Performance Review (FINALIZED)
+		// Staff employee evaluated by manager using Performance Review
 		{
 			ID:                EvalStaffPerformanceID,
 			EmployeeID:        StaffEmployeeID,
@@ -254,10 +254,9 @@ func SeedEmployeeEvaluations() error {
 			PeriodStart:       periodStart,
 			PeriodEnd:         periodEnd,
 			OverallScore:      78.5, // will be recalculated from criteria
-			Status:            models.EvaluationStatusFinalized,
 			Notes:             stringPtr("Good performance overall. Shows strong productivity and teamwork. Needs improvement in initiative."),
 		},
-		// Staff self-evaluation using Leadership template (SUBMITTED)
+		// Staff self-evaluation using Leadership template
 		{
 			ID:                EvalStaffLeadershipID,
 			EmployeeID:        StaffEmployeeID,
@@ -267,10 +266,9 @@ func SeedEmployeeEvaluations() error {
 			PeriodStart:       periodStart,
 			PeriodEnd:         periodEnd,
 			OverallScore:      72.0,
-			Status:            models.EvaluationStatusSubmitted,
 			Notes:             stringPtr("Self-assessment for leadership development program."),
 		},
-		// Manager self-evaluation using Technical template (DRAFT)
+		// Manager self-evaluation using Technical template
 		{
 			ID:                EvalManagerTechnicalID,
 			EmployeeID:        ManagerEmployeeID,
@@ -279,8 +277,7 @@ func SeedEmployeeEvaluations() error {
 			EvaluationType:    models.EvaluationTypeSelf,
 			PeriodStart:       periodStart,
 			PeriodEnd:         periodEnd,
-			OverallScore:      0, // draft, no score yet
-			Status:            models.EvaluationStatusDraft,
+			OverallScore:      0, // no score yet
 			Notes:             nil,
 		},
 	}
@@ -288,7 +285,7 @@ func SeedEmployeeEvaluations() error {
 	for _, e := range evaluations {
 		result := database.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"overall_score", "status", "notes", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"overall_score", "notes", "updated_at"}),
 		}).Create(&e)
 		if result.Error != nil {
 			log.Printf("Error seeding employee evaluation: %v", result.Error)
@@ -308,7 +305,7 @@ func SeedEmployeeEvaluations() error {
 // seedEvaluationCriteriaScores seeds individual criteria scores for evaluations
 func seedEvaluationCriteriaScores() error {
 	scores := []models.EmployeeEvaluationCriteria{
-		// Staff Performance Review scores (finalized)
+		// Staff Performance Review scores
 		{
 			ID:                   EvalScoreID01,
 			EmployeeEvaluationID: EvalStaffPerformanceID,
@@ -350,7 +347,7 @@ func seedEvaluationCriteriaScores() error {
 			Notes:                stringPtr("Excellent attendance record"),
 		},
 
-		// Staff Leadership self-evaluation scores (submitted)
+		// Staff Leadership self-evaluation scores
 		{
 			ID:                   EvalScoreID06,
 			EmployeeEvaluationID: EvalStaffLeadershipID,

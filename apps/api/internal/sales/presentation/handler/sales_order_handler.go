@@ -1,11 +1,18 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/csv"
 	stderrors "errors"
+	"fmt"
 	"strconv"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/exportjob"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/core/utils"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	"github.com/gilabs/gims/api/internal/sales/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -117,6 +124,12 @@ func (h *SalesOrderHandler) Create(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -159,6 +172,12 @@ func (h *SalesOrderHandler) Update(c *gin.Context) {
 		if err == usecase.ErrOrderProductNotFound {
 			errors.ErrorResponse(c, "PRODUCT_NOT_FOUND", map[string]interface{}{
 				"message": "One or more products not found",
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
 			}, nil)
 			return
 		}
@@ -242,6 +261,12 @@ func (h *SalesOrderHandler) UpdateStatus(c *gin.Context) {
 			}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
+			}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -277,6 +302,12 @@ func (h *SalesOrderHandler) Approve(c *gin.Context) {
 		if err == usecase.ErrInvalidOrderStatusTransition {
 			errors.ErrorResponse(c, "INVALID_STATUS_TRANSITION", map[string]interface{}{
 				"message": "Order must be in sent status to approve",
+			}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrCreditLimitExceeded) {
+			errors.ErrorResponse(c, "CREDIT_LIMIT_EXCEEDED", map[string]interface{}{
+				"message": err.Error(),
 			}, nil)
 			return
 		}
@@ -375,6 +406,106 @@ func (h *SalesOrderHandler) ListItems(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, items, meta)
+}
+
+// Export handles CSV export for sales orders.
+func (h *SalesOrderHandler) Export(c *gin.Context) {
+	var req dto.ListSalesOrdersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidQueryParamResponse(c)
+		return
+	}
+
+	generator := func(ctx context.Context, setProgress func(int)) (*exportjob.GeneratedFile, error) {
+		req.Page = 1
+		req.PerPage = 100
+
+		orders, pagination, err := h.orderUC.List(ctx, &req)
+		if err != nil {
+			return nil, err
+		}
+
+		totalPages := pagination.TotalPages
+		if totalPages < 1 {
+			totalPages = 1
+		}
+
+		setProgress(10)
+
+		var buffer bytes.Buffer
+		writer := csv.NewWriter(&buffer)
+		if err := writer.Write([]string{"code", "order_date", "customer_name", "sales_rep", "status", "total_amount"}); err != nil {
+			return nil, err
+		}
+
+		writeOrders := func(rows []dto.SalesOrderResponse) error {
+			for _, row := range rows {
+				salesRep := ""
+				if row.SalesRep != nil {
+					salesRep = row.SalesRep.Name
+				}
+				if err := writer.Write([]string{
+					row.Code,
+					row.OrderDate,
+					row.CustomerName,
+					salesRep,
+					row.Status,
+					fmt.Sprintf("%.2f", row.TotalAmount),
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		if err := writeOrders(orders); err != nil {
+			return nil, err
+		}
+
+		for page := 2; page <= totalPages; page++ {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			req.Page = page
+			rows, _, err := h.orderUC.List(ctx, &req)
+			if err != nil {
+				return nil, err
+			}
+			if err := writeOrders(rows); err != nil {
+				return nil, err
+			}
+
+			setProgress(utils.LinearProgress(page, totalPages, 10, 90))
+		}
+
+		writer.Flush()
+		if err := writer.Error(); err != nil {
+			return nil, err
+		}
+
+		setProgress(95)
+		fileName := fmt.Sprintf("sales_orders_%s.csv", apptime.Now().Format("20060102150405"))
+		return &exportjob.GeneratedFile{
+			FileName:    fileName,
+			ContentType: "text/csv; charset=utf-8",
+			Bytes:       buffer.Bytes(),
+		}, nil
+	}
+
+	if exportjob.QueueIfRequestedWithProgress(c, generator) {
+		return
+	}
+
+	file, err := generator(c.Request.Context(), utils.NoopProgress)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	exportjob.WriteSyncFile(c, file)
 }
 
 // AuditTrail handles list sales order audit trail with pagination.

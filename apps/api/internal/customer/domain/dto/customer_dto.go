@@ -35,6 +35,8 @@ type CreateCustomerRequest struct {
 	DefaultSalesRepID     *string  `json:"default_sales_rep_id" binding:"omitempty,uuid"`
 	DefaultPaymentTermsID *string  `json:"default_payment_terms_id" binding:"omitempty,uuid"`
 	DefaultTaxRate        *float64 `json:"default_tax_rate" binding:"omitempty,min=0,max=100"`
+	CreditLimit           *float64 `json:"credit_limit" binding:"omitempty,min=0"`
+	CreditIsActive        *bool    `json:"credit_is_active"`
 }
 
 // UpdateCustomerRequest for updating an existing customer
@@ -62,6 +64,8 @@ type UpdateCustomerRequest struct {
 	DefaultSalesRepID     *string  `json:"default_sales_rep_id" binding:"omitempty,uuid"`
 	DefaultPaymentTermsID *string  `json:"default_payment_terms_id" binding:"omitempty,uuid"`
 	DefaultTaxRate        *float64 `json:"default_tax_rate" binding:"omitempty,min=0,max=100"`
+	CreditLimit           *float64 `json:"credit_limit" binding:"omitempty,min=0"`
+	CreditIsActive        *bool    `json:"credit_is_active"`
 }
 
 // CustomerResponse is the response DTO for a customer
@@ -103,6 +107,8 @@ type CustomerResponse struct {
 	DefaultPaymentTermsID *string                  `json:"default_payment_terms_id"`
 	DefaultPaymentTerms   *SalesDefaultOptionBrief `json:"default_payment_terms,omitempty"`
 	DefaultTaxRate        *float64                 `json:"default_tax_rate"`
+	CreditLimit           float64                  `json:"credit_limit"`
+	CreditIsActive        bool                     `json:"credit_is_active"`
 	// CRM enrichment
 	ContactsCount int64 `json:"contacts_count"`
 }

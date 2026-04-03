@@ -254,7 +254,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   }, [open]);
 
   const products = useMemo(
-    () => sortOptions(productCombobox.items, (a) => `${a.code} - ${a.name}`),
+    () => sortOptions(productCombobox.items, (a) => (a.code ? `${a.code} - ${a.name}` : a.name)),
     [productCombobox.items],
   );
   
@@ -289,7 +289,7 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
   );
 
   const schema = isEdit ? getUpdateOrderSchema(t) : getOrderSchema(t);
-  const formResolver = zodResolver(schema) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
+  const formResolver = zodResolver(schema as any) as Resolver<CreateOrderFormData | UpdateOrderFormData>;
 
   const form = useForm<CreateOrderFormData | UpdateOrderFormData>({
     resolver: formResolver,
@@ -864,8 +864,19 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     closeQuickCreate();
   }, [closeQuickCreate, setValue]);
 
+  // Derive customer credit info for display
+  const customerCreditInfo = useMemo(() => {
+    const customer = selectedCustomerData?.data;
+    if (!customer || !watchedCustomerId) return null;
+    return {
+      creditLimit: customer.credit_limit ?? 0,
+      creditIsActive: customer.credit_is_active ?? false,
+      customerName: customer.name,
+    };
+  }, [selectedCustomerData?.data, watchedCustomerId]);
+
   const isLoading = createOrder.isPending || updateOrder.isPending;
-  const isProductsLoading = productCombobox.isLoading || productCombobox.isFetching;
+  const isProductsLoading = productCombobox.isLoading;
   const isFormLoading = isEdit && (isLoadingOrder || isFetchingOrder) && !fullOrderData?.data;
 
   const handleDialogChange = (isOpen: boolean) => {
@@ -952,5 +963,6 @@ export function useOrderForm({ order, open, onClose }: UseOrderFormProps) {
     businessTypeCombobox,
     quotationCombobox,
     productCombobox,
+    customerCreditInfo,
   };
 }

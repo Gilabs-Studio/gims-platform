@@ -22,6 +22,7 @@ const (
 	CustomerInvoiceStatusPartial        CustomerInvoiceStatus = "PARTIAL"
 	CustomerInvoiceStatusPaid           CustomerInvoiceStatus = "PAID"
 	CustomerInvoiceStatusCancelled      CustomerInvoiceStatus = "CANCELLED"
+	CustomerInvoiceStatusReversed       CustomerInvoiceStatus = "REVERSED"
 )
 
 // CustomerInvoiceType represents the type of invoice

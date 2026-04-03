@@ -2,6 +2,7 @@
 
 import { Controller } from "react-hook-form";
 import { Loader2, Plus, Trash2, ShoppingCart, DollarSign, FileText, CalendarIcon } from "lucide-react";
+import { CreditLimitIndicator } from "./credit-limit-indicator";
 
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { NumericInput } from "@/components/ui/numeric-input";
@@ -93,6 +94,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
     businessTypeCombobox,
     quotationCombobox,
     productCombobox,
+    customerCreditInfo,
   } = useOrderForm({ order, open, onClose });
 
   return (
@@ -202,6 +204,16 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
 
               {/* Quotation Summary Card */}
 
+              {/* Credit Limit Indicator */}
+              {customerCreditInfo && (
+                <div className="col-span-2">
+                  <CreditLimitIndicator
+                    creditLimit={customerCreditInfo.creditLimit}
+                    creditIsActive={customerCreditInfo.creditIsActive}
+                    orderTotal={calculations.total}
+                  />
+                </div>
+              )}
               
               <Field orientation="vertical">
                 <FieldLabel>{t("orderDate")} *</FieldLabel>
@@ -574,10 +586,7 @@ export function OrderForm({ open, onClose, order }: OrderFormProps) {
                                     hasMore={productCombobox.hasMore}
                                     isLoadingMore={productCombobox.isLoadingMore}
                                     searchDebounceMs={300}
-                                    options={products.map((product) => ({
-                                      value: product.id,
-                                      label: `${product.code} - ${product.name}`,
-                                    }))}
+                                    options={productCombobox.options}
                                     isLoading={isProductsLoading}
                                     placeholder={t("item.selectProduct")}
                                   />

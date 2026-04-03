@@ -60,6 +60,32 @@ function isMutationMethod(method?: string): boolean {
   return ["post", "put", "patch", "delete"].includes(method.toLowerCase());
 }
 
+function normalizeQueryParams(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeQueryParams(item))
+      .filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      const next = normalizeQueryParams(nested);
+      if (next !== undefined) {
+        normalized[key] = next;
+      }
+    }
+    return normalized;
+  }
+
+  return value;
+}
+
 function showGlobalErrorToast(
   title: string,
   options?: {
@@ -249,6 +275,10 @@ const processQueue = (error: AxiosError | null) => {
 // Request interceptor for CSRF token
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    if (config.params !== undefined) {
+      config.params = normalizeQueryParams(config.params) as InternalAxiosRequestConfig["params"];
+    }
+
     // Add CSRF token header for unsafe methods (POST, PUT, PATCH, DELETE)
     const unsafeMethods = ["POST", "PUT", "PATCH", "DELETE"];
     if (config.method && unsafeMethods.includes(config.method.toUpperCase())) {

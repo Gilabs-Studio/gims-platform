@@ -36,6 +36,26 @@ export function getSalesErrorMessage(error: unknown, fallback: string): string {
       }
     ).response?.data;
 
+    // Check for specific error codes from backend
+    const errorCode = responseData?.error?.code;
+    if (errorCode) {
+      const knownErrors: Record<string, string> = {
+        CREDIT_LIMIT_EXCEEDED: "Credit limit exceeded for this customer. Contact finance to override.",
+        INSUFFICIENT_STOCK: "Insufficient stock to fulfill this order.",
+        DUPLICATE_JOURNAL: "A journal entry already exists for this transaction.",
+        OVERPAYMENT: "Payment amount exceeds the remaining invoice balance.",
+        PERIOD_CLOSED: "Cannot modify transactions in a closed financial period.",
+        INVALID_STATUS_TRANSITION: "This status change is not allowed.",
+      };
+      if (knownErrors[errorCode]) {
+        // Prefer detailed message from API if available, otherwise use our mapping
+        const apiDetail = responseData?.error?.details?.message;
+        return typeof apiDetail === "string" && apiDetail.trim().length > 0
+          ? apiDetail
+          : knownErrors[errorCode];
+      }
+    }
+
     const fieldErrors = responseData?.error?.field_errors;
     if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
       const firstFieldError = fieldErrors[0];

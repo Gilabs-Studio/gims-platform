@@ -67,7 +67,7 @@ func NewEmployeeEvaluationUsecase(
 	}
 }
 
-func (u *employeeEvaluationUsecase) GetAll(ctx context.Context, page, perPage int, search, employeeID, evaluationGroupID, status, evaluationType string) ([]*dto.EmployeeEvaluationResponse, *response.PaginationMeta, error) {
+func (u *employeeEvaluationUsecase) GetAll(ctx context.Context, page, perPage int, search, employeeID, evaluationGroupID, evaluationType string) ([]*dto.EmployeeEvaluationResponse, *response.PaginationMeta, error) {
 	// Validate pagination
 	if page < 1 {
 		page = 1
@@ -79,7 +79,7 @@ func (u *employeeEvaluationUsecase) GetAll(ctx context.Context, page, perPage in
 		perPage = 100
 	}
 
-	evaluations, total, err := u.evaluationRepo.FindAll(ctx, page, perPage, search, employeeID, evaluationGroupID, status, evaluationType)
+	evaluations, total, err := u.evaluationRepo.FindAll(ctx, page, perPage, search, employeeID, evaluationGroupID, evaluationType)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch employee evaluations: %w", err)
 	}
@@ -211,19 +211,10 @@ func (u *employeeEvaluationUsecase) GetFormData(ctx context.Context) (*dto.Emplo
 		{Value: "MANAGER", Label: "Manager Evaluation"},
 	}
 
-	// Statuses
-	statuses := []dto.EvaluationStatusOption{
-		{Value: "DRAFT", Label: "Draft"},
-		{Value: "SUBMITTED", Label: "Submitted"},
-		{Value: "REVIEWED", Label: "Reviewed"},
-		{Value: "FINALIZED", Label: "Finalized"},
-	}
-
 	return &dto.EmployeeEvaluationFormDataResponse{
 		Employees:        employeeOptions,
 		EvaluationGroups: groupOptions,
 		EvaluationTypes:  evaluationTypes,
-		Statuses:         statuses,
 	}, nil
 }
 
@@ -283,7 +274,6 @@ func (u *employeeEvaluationUsecase) Create(ctx context.Context, req *dto.CreateE
 		PeriodStart:       periodStart,
 		PeriodEnd:         periodEnd,
 		OverallScore:      0,
-		Status:            models.EvaluationStatusDraft,
 		Notes:             req.Notes,
 	}
 
@@ -344,11 +334,6 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 		return nil, errors.New(errEmployeeEvaluationNotFound)
 	}
 	before := *eval
-
-	// Only DRAFT evaluations can be edited
-	if eval.Status != models.EvaluationStatusDraft {
-		return nil, errors.New("only draft evaluations can be edited")
-	}
 
 	// Update fields
 	if req.EvaluatorID != nil {
@@ -434,75 +419,6 @@ func (u *employeeEvaluationUsecase) Update(ctx context.Context, id string, req *
 	return out, nil
 }
 
-func (u *employeeEvaluationUsecase) UpdateStatus(ctx context.Context, id string, req *dto.SubmitEvaluationRequest) (*dto.EmployeeEvaluationResponse, error) {
-	eval, err := u.evaluationRepo.FindByIDWithDetails(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if eval == nil {
-		return nil, errors.New(errEmployeeEvaluationNotFound)
-	}
-
-	newStatus := models.EvaluationStatus(req.Status)
-
-	// Validate status transitions:
-	// DRAFT → SUBMITTED → REVIEWED → FINALIZED
-	validTransitions := map[models.EvaluationStatus][]models.EvaluationStatus{
-		models.EvaluationStatusDraft:     {models.EvaluationStatusSubmitted},
-		models.EvaluationStatusSubmitted: {models.EvaluationStatusReviewed},
-		models.EvaluationStatusReviewed:  {models.EvaluationStatusFinalized},
-	}
-
-	allowed, ok := validTransitions[eval.Status]
-	if !ok {
-		return nil, errors.New("evaluation is already finalized")
-	}
-
-	isValid := false
-	for _, s := range allowed {
-		if s == newStatus {
-			isValid = true
-			break
-		}
-	}
-	if !isValid {
-		return nil, fmt.Errorf("cannot transition from %s to %s", eval.Status, newStatus)
-	}
-
-	// When submitting, ensure criteria scores are present
-	if newStatus == models.EvaluationStatusSubmitted && len(eval.CriteriaScores) == 0 {
-		return nil, errors.New("cannot submit evaluation without criteria scores")
-	}
-
-	eval.Status = newStatus
-	if req.Notes != nil {
-		eval.Notes = req.Notes
-	}
-
-	if err := u.evaluationRepo.Update(ctx, eval); err != nil {
-		return nil, fmt.Errorf("failed to update evaluation status: %w", err)
-	}
-
-	out, err := u.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	action := "employee_evaluation.update"
-	switch newStatus {
-	case models.EvaluationStatusSubmitted:
-		action = "employee_evaluation.submit"
-	case models.EvaluationStatusReviewed:
-		action = "employee_evaluation.review"
-	case models.EvaluationStatusFinalized:
-		action = "employee_evaluation.finalize"
-	}
-
-	u.auditService.Log(ctx, action, id, map[string]interface{}{"after": out})
-
-	return out, nil
-}
-
 func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error {
 	eval, err := u.evaluationRepo.FindByID(ctx, id)
 	if err != nil {
@@ -510,11 +426,6 @@ func (u *employeeEvaluationUsecase) Delete(ctx context.Context, id string) error
 	}
 	if eval == nil {
 		return errors.New(errEmployeeEvaluationNotFound)
-	}
-
-	// Only DRAFT evaluations can be deleted
-	if eval.Status != models.EvaluationStatusDraft {
-		return errors.New("only draft evaluations can be deleted")
 	}
 
 	// Delete criteria scores first

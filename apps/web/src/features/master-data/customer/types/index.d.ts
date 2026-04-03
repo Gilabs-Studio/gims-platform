@@ -131,6 +131,9 @@ export interface Customer {
   default_payment_terms_id?: string | null;
   default_payment_terms?: SalesDefaultOptionBrief | null;
   default_tax_rate?: number | null;
+  // Credit control
+  credit_limit?: number;
+  credit_is_active?: boolean;
   // CRM enrichment
   contacts_count?: number;
 }
@@ -173,6 +176,8 @@ export interface CreateCustomerData {
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;
+  credit_limit?: number;
+  credit_is_active?: boolean;
 }
 
 export interface UpdateCustomerData {
@@ -199,6 +204,8 @@ export interface UpdateCustomerData {
   default_sales_rep_id?: string | null;
   default_payment_terms_id?: string | null;
   default_tax_rate?: number | null;
+  credit_limit?: number;
+  credit_is_active?: boolean;
 }
 
 // === Form Data Response ===

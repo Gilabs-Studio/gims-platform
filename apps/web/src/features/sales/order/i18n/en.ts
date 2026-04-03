@@ -140,6 +140,9 @@ export const orderEn = {
     convertFromQuotation: "Convert from Quotation",
     print: "Print",
     export: "Export PDF",
+    exportCsv: "Export",
+    exporting: "Exporting",
+    exportSuccess: "Export generated successfully",
 
     // Item
     item: {
@@ -194,6 +197,10 @@ export const orderEn = {
       itemsMin: "At least one item is required",
       invalidStatus: "Invalid status",
       invalidEmail: "Invalid email format",
+      creditLimitExceeded: "Credit limit exceeded. Customer has insufficient credit for this order.",
+      insufficientStock: "Insufficient stock available for one or more items.",
+      duplicateJournal: "Journal entry already exists for this transaction.",
+      overpayment: "Payment amount exceeds the remaining balance.",
     },
     // Workflow timestamps
     confirmedAt: "Confirmed At",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/hrd/data/models"
 	"github.com/gilabs/gims/api/internal/hrd/domain/dto"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
@@ -18,11 +19,25 @@ func NewAttendanceRecordMapper() *AttendanceRecordMapper {
 }
 
 // ToResponse converts AttendanceRecord model to response DTO
-func (m *AttendanceRecordMapper) ToResponse(ar *models.AttendanceRecord) *dto.AttendanceRecordResponse {
-	resp := &dto.AttendanceRecordResponse{
+// If employeeID is provided, times will be converted to employee's local timezone
+func (m *AttendanceRecordMapper) ToResponse(ar *models.AttendanceRecord, employeeID ...string) *dto.AttendanceRecordResponse {
+	// Get employee timezone if provided
+	var loc *time.Location
+	if len(employeeID) > 0 && employeeID[0] != "" {
+		loc = apptime.LocationForEmployee(employeeID[0])
+	} else {
+		loc = apptime.Location()
+	}
+	resp := m.ToResponseWithLocation(ar, loc)
+	return &resp
+}
+
+// ToResponseWithLocation converts AttendanceRecord model to response DTO with specific timezone
+func (m *AttendanceRecordMapper) ToResponseWithLocation(ar *models.AttendanceRecord, loc *time.Location) dto.AttendanceRecordResponse {
+	resp := dto.AttendanceRecordResponse{
 		ID:                ar.ID,
 		EmployeeID:        ar.EmployeeID,
-		Date:              ar.Date.Format("2006-01-02"),
+		Date:              ar.Date.In(loc).Format("2006-01-02"),
 		CheckInType:       string(ar.CheckInType),
 		CheckInLatitude:   ar.CheckInLatitude,
 		CheckInLongitude:  ar.CheckInLongitude,
@@ -47,16 +62,16 @@ func (m *AttendanceRecordMapper) ToResponse(ar *models.AttendanceRecord) *dto.At
 		IsManualEntry:     ar.IsManualEntry,
 		ManualEntryReason: ar.ManualEntryReason,
 		ApprovedBy:        ar.ApprovedBy,
-		CreatedAt:         ar.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:         ar.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:         ar.CreatedAt.In(loc).Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:         ar.UpdatedAt.In(loc).Format("2006-01-02T15:04:05Z07:00"),
 	}
 
 	if ar.CheckInTime != nil {
-		checkInStr := ar.CheckInTime.Format("15:04:05")
+		checkInStr := ar.CheckInTime.In(loc).Format("15:04:05")
 		resp.CheckInTime = &checkInStr
 	}
 	if ar.CheckOutTime != nil {
-		checkOutStr := ar.CheckOutTime.Format("15:04:05")
+		checkOutStr := ar.CheckOutTime.In(loc).Format("15:04:05")
 		resp.CheckOutTime = &checkOutStr
 	}
 
@@ -64,10 +79,19 @@ func (m *AttendanceRecordMapper) ToResponse(ar *models.AttendanceRecord) *dto.At
 }
 
 // ToResponseList converts a list of AttendanceRecord models to response DTOs
-func (m *AttendanceRecordMapper) ToResponseList(records []models.AttendanceRecord) []dto.AttendanceRecordResponse {
+// If employeeID is provided, times will be converted to employee's local timezone
+func (m *AttendanceRecordMapper) ToResponseList(records []models.AttendanceRecord, employeeID ...string) []dto.AttendanceRecordResponse {
+	// Get employee timezone if provided
+	var loc *time.Location
+	if len(employeeID) > 0 && employeeID[0] != "" {
+		loc = apptime.LocationForEmployee(employeeID[0])
+	} else {
+		loc = apptime.Location()
+	}
+
 	responses := make([]dto.AttendanceRecordResponse, len(records))
 	for i, ar := range records {
-		responses[i] = *m.ToResponse(&ar)
+		responses[i] = m.ToResponseWithLocation(&ar, loc)
 	}
 	return responses
 }
@@ -93,7 +117,10 @@ func (m *AttendanceRecordMapper) ToTodayResponse(
 	}
 
 	if ar != nil {
-		resp.AttendanceRecord = m.ToResponse(ar)
+		// Pass nil employeeID since we don't have it in this context
+		// ToResponse will use the loc timezone passed to ToTodayResponse
+		arResp := m.ToResponseWithLocation(ar, loc)
+		resp.AttendanceRecord = &arResp
 	}
 
 	if ws != nil {

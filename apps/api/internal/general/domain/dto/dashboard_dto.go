@@ -22,6 +22,7 @@ const (
 	DashboardOverviewScopeDelivery         DashboardOverviewScope = "delivery"
 	DashboardOverviewScopeGeo              DashboardOverviewScope = "geo"
 	DashboardOverviewScopeWarehouse        DashboardOverviewScope = "warehouse"
+	DashboardOverviewScopeOwnerKPI         DashboardOverviewScope = "owner-kpi"
 )
 
 // IsValid returns true when the scope value is one of the supported scope constants.
@@ -36,7 +37,8 @@ func (s DashboardOverviewScope) IsValid() bool {
 		DashboardOverviewScopeProducts,
 		DashboardOverviewScopeDelivery,
 		DashboardOverviewScopeGeo,
-		DashboardOverviewScopeWarehouse:
+		DashboardOverviewScopeWarehouse,
+		DashboardOverviewScopeOwnerKPI:
 		return true
 	default:
 		return false

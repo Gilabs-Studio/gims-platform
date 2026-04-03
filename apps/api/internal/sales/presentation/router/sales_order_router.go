@@ -10,6 +10,7 @@ import (
 func RegisterSalesOrderRoutes(rg *gin.RouterGroup, h *handler.SalesOrderHandler, printH *handler.SalesOrderPrintHandler) {
 	g := rg.Group("/sales-orders")
 	g.GET("", middleware.RequirePermission("sales_order.read"), h.List)
+	g.GET("/export", middleware.RequirePermission("sales_order.read"), h.Export)
 	g.GET("/:id", middleware.RequirePermission("sales_order.read"), h.GetByID)
 	g.GET("/:id/audit-trail", middleware.RequirePermission("sales_order.read"), h.AuditTrail)
 	g.GET("/:id/items", middleware.RequirePermission("sales_order.read"), h.ListItems)

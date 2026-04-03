@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useDebounce } from "@/hooks/use-debounce";
+import { runAsyncExport } from "@/lib/async-export";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -54,7 +56,6 @@ import {
   useSubmitSupplierInvoice,
   useSupplierInvoices,
 } from "../hooks/use-supplier-invoices";
-import { supplierInvoicesService } from "../services/supplier-invoices-service";
 import type { SupplierInvoiceListItem } from "../types";
 import { SupplierInvoiceDetail } from "./supplier-invoice-detail";
 import { SupplierInvoiceStatusBadge } from "./supplier-invoice-status-badge";
@@ -223,18 +224,14 @@ export function SupplierInvoicesList() {
   const canView = useUserPermission("supplier_invoice.read");
   const canPrint = useUserPermission("supplier_invoice.print");
   const canViewSupplier = useUserPermission("supplier.read");
+  const exportProgress = useExportProgress();
 
   async function handleExport() {
     try {
-      const blob = await supplierInvoicesService.exportCsv(listParams);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "supplier-invoices.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/supplier-invoices/export",
+        params: listParams,
+      });
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -305,9 +302,9 @@ export function SupplierInvoicesList() {
         <div className="flex-1" />
 
         {canExport && (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

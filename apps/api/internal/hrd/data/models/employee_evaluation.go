@@ -6,16 +6,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EvaluationStatus represents the status of an evaluation
-type EvaluationStatus string
-
-const (
-	EvaluationStatusDraft     EvaluationStatus = "DRAFT"
-	EvaluationStatusSubmitted EvaluationStatus = "SUBMITTED"
-	EvaluationStatusReviewed  EvaluationStatus = "REVIEWED"
-	EvaluationStatusFinalized EvaluationStatus = "FINALIZED"
-)
-
 // EvaluationType represents who performed the evaluation
 type EvaluationType string
 
@@ -26,19 +16,18 @@ const (
 
 // EmployeeEvaluation represents a performance evaluation for an employee
 type EmployeeEvaluation struct {
-	ID                string           `gorm:"type:char(36);primaryKey" json:"id"`
-	EmployeeID        string           `gorm:"type:char(36);not null;index" json:"employee_id"`
-	EvaluationGroupID string           `gorm:"type:char(36);not null;index" json:"evaluation_group_id"`
-	EvaluatorID       string           `gorm:"type:char(36);not null;index" json:"evaluator_id"` // the employee doing the evaluation
-	EvaluationType    EvaluationType   `gorm:"type:varchar(20);not null" json:"evaluation_type"`
-	PeriodStart       time.Time        `gorm:"type:date;not null" json:"period_start"`
-	PeriodEnd         time.Time        `gorm:"type:date;not null" json:"period_end"`
-	OverallScore      float64          `gorm:"type:decimal(5,2);not null;default:0" json:"overall_score"` // computed: Σ(score × weight / 100)
-	Status            EvaluationStatus `gorm:"type:varchar(20);not null;default:'DRAFT'" json:"status"`
-	Notes             *string          `gorm:"type:text" json:"notes"`
-	CreatedAt         time.Time        `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt         time.Time        `gorm:"autoUpdateTime" json:"updated_at"`
-	DeletedAt         gorm.DeletedAt   `gorm:"index" json:"deleted_at,omitempty"`
+	ID                string         `gorm:"type:char(36);primaryKey" json:"id"`
+	EmployeeID        string         `gorm:"type:char(36);not null;index" json:"employee_id"`
+	EvaluationGroupID string         `gorm:"type:char(36);not null;index" json:"evaluation_group_id"`
+	EvaluatorID       string         `gorm:"type:char(36);not null;index" json:"evaluator_id"` // the employee doing the evaluation
+	EvaluationType    EvaluationType `gorm:"type:varchar(20);not null" json:"evaluation_type"`
+	PeriodStart       time.Time      `gorm:"type:date;not null" json:"period_start"`
+	PeriodEnd         time.Time      `gorm:"type:date;not null" json:"period_end"`
+	OverallScore      float64        `gorm:"type:decimal(5,2);not null;default:0" json:"overall_score"` // computed: Σ(score × weight / 100)
+	Notes             *string        `gorm:"type:text" json:"notes"`
+	CreatedAt         time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
 	// Relations
 	EvaluationGroup EvaluationGroup              `gorm:"foreignKey:EvaluationGroupID;references:ID" json:"evaluation_group,omitempty"`

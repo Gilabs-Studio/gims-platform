@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -80,9 +81,12 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 	query = security.ApplyScopeFilter(query, ctx, security.DefaultScopeQueryOptions())
 
 	// Apply search filter
-	if req.Search != "" {
-		search := "%" + req.Search + "%"
-		query = query.Where("code ILIKE ? OR invoice_number ILIKE ? OR notes ILIKE ?", search, search, search)
+	if s := strings.TrimSpace(req.Search); s != "" {
+		search := "%" + s + "%"
+		query = query.
+			Joins("LEFT JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
+			Joins("LEFT JOIN employees ON employees.id = sales_orders.sales_rep_id")
+		query = query.Where("sales_orders.customer_name ILIKE ? OR employees.name ILIKE ? OR customer_invoices.invoice_number ILIKE ? OR customer_invoices.code ILIKE ? OR customer_invoices.notes ILIKE ?", search, search, search, search, search)
 	}
 
 	// Apply status filter
@@ -151,6 +155,9 @@ func (r *customerInvoiceRepository) List(ctx context.Context, req *dto.ListCusto
 		Preload("PaymentTerms").
 		Preload("SalesOrder").
 		Preload("DownPaymentInvoice").
+		Preload("Items.Product", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "code", "name", "selling_price", "current_hpp", "image_url")
+		}).
 		Limit(perPage).
 		Offset(offset).
 		Find(&invoices).Error

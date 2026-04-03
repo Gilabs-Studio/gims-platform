@@ -37,6 +37,7 @@ type ChartOfAccountRepository interface {
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error)
 	FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
+	GetDB(ctx context.Context) *gorm.DB
 }
 
 func (r *chartOfAccountRepository) getDB(ctx context.Context) *gorm.DB {
@@ -153,4 +154,8 @@ func (r *chartOfAccountRepository) FindByCode(ctx context.Context, code string) 
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *chartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {
+	return r.getDB(ctx)
 }

@@ -40,7 +40,7 @@ import {
 import { activityKeys, useActivityTimeline } from "@/features/crm/activity/hooks/use-activities";
 import { leadKeys, useLeadProductItems } from "@/features/crm/lead/hooks/use-leads";
 import { dealKeys } from "@/features/crm/deal/hooks/use-deals";
-import { travelPlannerKeys } from "@/features/travel-planner/collaborative/hooks/use-travel-planner";
+import { travelPlannerKeys } from "@/features/travel/travel-planner/collaborative/hooks/use-travel-planner";
 import { toast } from "sonner";
 import { resolveImageUrl } from "@/lib/utils";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";

@@ -106,11 +106,14 @@ export function ReminderDateTimePicker({
   const [selectedDate, setSelectedDate] = useState<Date | null>(initialDate);
   const [selectedTime, setSelectedTime] = useState<string>(initialTime);
 
-  // Update when value prop changes
+  // Update when value prop changes (defer updates to avoid synchronous setState in effect)
   useEffect(() => {
-    const parsed = parseValue(value);
-    setSelectedDate(parsed.date);
-    setSelectedTime(parsed.time);
+    const timeoutId = setTimeout(() => {
+      const parsed = parseValue(value);
+      setSelectedDate(parsed.date);
+      setSelectedTime(parsed.time);
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [value]);
 
   const handleDateSelect = (newDate: Date | undefined) => {

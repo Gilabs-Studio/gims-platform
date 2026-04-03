@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
+  ApproveValuationInput,
   CreateJournalEntryInput,
   JournalEntry,
   ListJournalEntriesParams,
@@ -8,6 +9,7 @@ import type {
   RunValuationInput,
   TrialBalanceResponse,
   UpdateJournalEntryInput,
+  ValuationPreview,
   ValuationApiResponse,
   ValuationRun,
   CashBankSubLedgerEntry,
@@ -43,6 +45,16 @@ export const financeJournalsService = {
   ): Promise<ApiResponse<JournalEntry[]>> => {
     const response = await apiClient.get<ApiResponse<JournalEntry[]>>(
       `${BASE_URL}/purchase`,
+      { params },
+    );
+    return response.data;
+  },
+
+  listInventory: async (
+    params?: ListJournalEntriesParams,
+  ): Promise<ApiResponse<JournalEntry[]>> => {
+    const response = await apiClient.get<ApiResponse<JournalEntry[]>>(
+      `${BASE_URL}/inventory`,
       { params },
     );
     return response.data;
@@ -172,6 +184,27 @@ export const financeJournalsService = {
     return response.data;
   },
 
+  previewValuation: async (
+    data: RunValuationInput,
+  ): Promise<ApiResponse<ValuationPreview>> => {
+    const response = await apiClient.post<ApiResponse<ValuationPreview>>(
+      `${BASE_URL}/valuation/preview`,
+      data,
+    );
+    return response.data;
+  },
+
+  approveValuation: async (
+    id: string,
+    data?: ApproveValuationInput,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.post<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/runs/${id}/approve`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
   listValuationRuns: async (
     params?: ListValuationRunsParams,
   ): Promise<ValuationApiResponse<ValuationRun[]>> => {
@@ -212,6 +245,47 @@ export const financeJournalsService = {
     >(`${BASE_URL}/cash-bank`, {
       params,
     });
+    return response.data;
+  },
+
+  getValuationReconciliation: async (
+    id: string,
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>(
+      `${BASE_URL}/valuation/runs/${id}/reconciliation`,
+    );
+    return response.data;
+  },
+
+  unlockValuation: async (
+    id: string,
+    reason: string,
+  ): Promise<ApiResponse<ValuationRun>> => {
+    const response = await apiClient.post<ApiResponse<ValuationRun>>(
+      `${BASE_URL}/valuation/runs/${id}/unlock`,
+      { unlock_reason: reason },
+    );
+    return response.data;
+  },
+
+  exportValuation: async (
+    id: string,
+    format: "csv" | "pdf",
+  ): Promise<Blob> => {
+    const response = await apiClient.get(
+      `${BASE_URL}/valuation/runs/${id}/export?format=${format}`,
+      { responseType: "blob" },
+    );
+    return response.data;
+  },
+
+  bulkApproveValuations: async (
+    runIds: string[],
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>(
+      `${BASE_URL}/valuation/runs/bulk-approve`,
+      { run_ids: runIds },
+    );
     return response.data;
   },
 };

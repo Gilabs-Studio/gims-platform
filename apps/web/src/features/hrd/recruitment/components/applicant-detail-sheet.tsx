@@ -19,16 +19,10 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Drawer } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useApplicant,
@@ -36,7 +30,11 @@ import {
   useCanConvertToEmployee,
 } from "../hooks/use-applicants";
 import { ConvertToEmployeeDialog } from "./convert-to-employee-dialog";
-import type { RecruitmentApplicant, ApplicantSource, ActivityType } from "../types";
+import type {
+  RecruitmentApplicant,
+  ApplicantSource,
+  ActivityType,
+} from "../types";
 
 interface ApplicantDetailSheetProps {
   applicantId: string | null;
@@ -46,7 +44,10 @@ interface ApplicantDetailSheetProps {
   onDelete?: (applicantId: string) => void;
 }
 
-function getTranslatedSourceLabel(t: (key: string) => string, source: ApplicantSource): string {
+function getTranslatedSourceLabel(
+  t: (key: string) => string,
+  source: ApplicantSource,
+): string {
   const labels: Record<ApplicantSource, string> = {
     linkedin: t("applicants.sources.linkedin"),
     jobstreet: t("applicants.sources.jobstreet"),
@@ -100,6 +101,25 @@ function getActivityIcon(type: ActivityType) {
   }
 }
 
+function getActivityIconBgColor(type: ActivityType): string {
+  switch (type) {
+    case "hired":
+    case "offer_accepted":
+      return "bg-green-100 text-green-700";
+    case "rejected":
+    case "offer_declined":
+      return "bg-red-100 text-red-700";
+    case "interview_scheduled":
+      return "bg-blue-100 text-blue-700";
+    case "converted":
+      return "bg-purple-100 text-purple-700";
+    case "created":
+      return "bg-primary/10 text-primary";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
 function RatingStars({ rating }: { rating?: number }) {
   if (!rating) return null;
 
@@ -131,7 +151,7 @@ export function ApplicantDetailSheet({
 
   const { data: applicantData, isLoading: isLoadingApplicant } = useApplicant(
     applicantId || "",
-    { enabled: !!applicantId && open }
+    { enabled: !!applicantId && open },
   );
 
   const { data: activitiesData, isLoading: isLoadingActivities } =
@@ -141,7 +161,8 @@ export function ApplicantDetailSheet({
 
   const applicant = applicantData?.data;
   const activities = activitiesData?.data || [];
-  const canConvert = canConvertData?.data?.can_convert && !applicant?.employee_id;
+  const canConvert =
+    canConvertData?.data?.can_convert && !applicant?.employee_id;
 
   // Helper function to get full URL for resume
   const getResumeUrl = (resumePath: string) => {
@@ -155,128 +176,150 @@ export function ApplicantDetailSheet({
 
   const isLoading = isLoadingApplicant;
 
+  // Helper function to format date nicely
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md flex flex-col">
-        <SheetHeader className="space-y-4 px-6">
-          {isLoading ? (
-            <>
-              <SheetTitle className="sr-only">{t("applicants.detail")}</SheetTitle>
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </>
-          ) : applicant ? (
-            <>
-              <SheetTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-lg font-semibold text-primary">
-                  {applicant.full_name.charAt(0).toUpperCase()}
+    <Drawer
+      open={open}
+      onOpenChange={onOpenChange}
+      side="right"
+      defaultWidth={672}
+      resizable
+      title={
+        isLoading
+          ? t("applicants.detail")
+          : applicant?.full_name || t("applicants.detail")
+      }
+      headerExtra={
+        !isLoading && applicant ? (
+          <div className="flex items-center gap-2 px-6 pb-2">
+            <RatingStars rating={applicant.rating} />
+            <Badge
+              variant="secondary"
+              className={getSourceColor(applicant.source)}
+            >
+              {getTranslatedSourceLabel(t, applicant.source)}
+            </Badge>
+            {applicant.stage && (
+              <Badge
+                variant="outline"
+                style={{ borderColor: applicant.stage.color }}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full mr-1"
+                  style={{ backgroundColor: applicant.stage.color }}
+                />
+                {applicant.stage.name}
+              </Badge>
+            )}
+          </div>
+        ) : null
+      }
+    >
+      <div className="px-4 py-4 md:px-5 md:py-5 flex flex-col h-full">
+        {isLoading ? (
+          <div className="space-y-4 py-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : applicant ? (
+          <div className="flex-1 space-y-6">
+            {/* Contact Information */}
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold">
+                {t("applicants.contactInfo")}
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span>{applicant.email}</span>
                 </div>
-                <div>
-                  <div>{applicant.full_name}</div>
-                  <RatingStars rating={applicant.rating} />
-                </div>
-              </SheetTitle>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className={getSourceColor(applicant.source)}
-                >
-                  {getTranslatedSourceLabel(t, applicant.source)}
-                </Badge>
-                {applicant.stage && (
-                  <Badge variant="outline" style={{ borderColor: applicant.stage.color }}>
-                    <span
-                      className="inline-block h-2 w-2 rounded-full mr-1"
-                      style={{ backgroundColor: applicant.stage.color }}
-                    />
-                    {applicant.stage.name}
-                  </Badge>
+                {applicant.phone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{applicant.phone}</span>
+                  </div>
+                )}
+                {applicant.linkedin_url && (
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="h-4 w-4 text-primary"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                    </svg>
+                    <a
+                      href={`https://linkedin.com/in/${applicant.linkedin_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      linkedin.com/in/{applicant.linkedin_url}
+                    </a>
+                  </div>
                 )}
               </div>
-            </>
-          ) : null}
-        </SheetHeader>
+            </section>
 
-        <ScrollArea className="flex-1">
-          {isLoading ? (
-            <div className="space-y-4 py-4 px-6">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-20 w-full" />
-            </div>
-          ) : applicant ? (
-            <div className="space-y-6 py-4 px-6">
-              {/* Contact Information */}
-              <section className="space-y-3">
-                <h4 className="text-sm font-semibold">
-                  {t("applicants.contactInfo")}
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span>{applicant.email}</span>
-                  </div>
-                  {applicant.phone && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>{applicant.phone}</span>
-                    </div>
-                  )}
+            <Separator />
+
+            {/* Application Details */}
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold">
+                {t("applicants.applicationDetails")}
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {t("applicants.appliedAt")}:{" "}
+                    {new Date(applicant.applied_at).toLocaleDateString()}
+                  </span>
                 </div>
-              </section>
-
-              <Separator />
-
-              {/* Application Details */}
-              <section className="space-y-3">
-                <h4 className="text-sm font-semibold">
-                  {t("applicants.applicationDetails")}
-                </h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {t("applicants.appliedAt")}:{" "}
-                      {new Date(applicant.applied_at).toLocaleDateString()}
-                    </span>
+                {applicant.resume_url && (
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <a
+                      href={getResumeUrl(applicant.resume_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {t("applicants.viewResume")}
+                    </a>
                   </div>
-                  {applicant.resume_url && (
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <a
-                        href={getResumeUrl(applicant.resume_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {t("applicants.viewResume")}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </section>
+                )}
+              </div>
+            </section>
 
-              {applicant.notes && (
-                <>
-                  <Separator />
-                  <section className="space-y-3">
-                    <h4 className="text-sm font-semibold">
-                      {t("applicants.notes")}
-                    </h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {applicant.notes}
-                    </p>
-                  </section>
-                </>
-              )}
+            {applicant.notes && (
+              <>
+                <Separator />
+                <section className="space-y-3">
+                  <h4 className="text-sm font-semibold">
+                    {t("applicants.notes")}
+                  </h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {applicant.notes}
+                  </p>
+                </section>
+              </>
+            )}
 
-              <Separator />
-
-              {/* Activity History */}
-              <Separator />
-
-              {/* Employee Info (if converted) */}
-              {applicant.employee_id && applicant.employee && (
+            {/* Employee Info (if converted) */}
+            {applicant.employee_id && applicant.employee && (
+              <>
+                <Separator />
                 <section className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-primary" />
@@ -285,16 +328,28 @@ export function ApplicantDetailSheet({
                   <div className="rounded-lg bg-primary/10 p-3 border border-primary/20">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{t("applicants.employeeCode")}</span>
-                        <span className="font-medium">{applicant.employee.employee_code}</span>
+                        <span className="text-muted-foreground">
+                          {t("applicants.employeeCode")}
+                        </span>
+                        <span className="font-medium">
+                          {applicant.employee.employee_code}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{t("applicants.fields.name")}</span>
-                        <span className="font-medium">{applicant.employee.name}</span>
+                        <span className="text-muted-foreground">
+                          {t("applicants.fields.name")}
+                        </span>
+                        <span className="font-medium">
+                          {applicant.employee.name}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">{t("applicants.fields.email")}</span>
-                        <span className="font-medium">{applicant.employee.email}</span>
+                        <span className="text-muted-foreground">
+                          {t("applicants.fields.email")}
+                        </span>
+                        <span className="font-medium">
+                          {applicant.employee.email}
+                        </span>
                       </div>
                       <div className="pt-2">
                         <Link
@@ -311,61 +366,67 @@ export function ApplicantDetailSheet({
                     </div>
                   </div>
                 </section>
-              )}
+              </>
+            )}
 
-              <Separator />
+            <Separator />
 
-              <section className="space-y-3">
-                <h4 className="text-sm font-semibold">
-                  {t("applicants.activityHistory")}
-                </h4>
-                {isLoadingActivities ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                  </div>
-                ) : activities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("applicants.noActivities")}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
+            {/* Activity History - Timeline Design */}
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold">
+                {t("applicants.activityHistory")}
+              </h4>
+              {isLoadingActivities ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : activities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("applicants.noActivities")}
+                </p>
+              ) : (
+                <div className="relative pl-4">
+                  {/* Vertical timeline line */}
+                  <div className="absolute left-6 top-2 bottom-2 w-px bg-border" />
+                  <div className="space-y-4">
                     {activities.map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex gap-3 p-3 rounded-lg bg-muted/50"
-                      >
-                        <div className="shrink-0 mt-0.5">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <div key={activity.id} className="relative flex gap-4">
+                        {/* Timeline dot/icon */}
+                        <div className="relative z-10 shrink-0">
+                          <div
+                            className={`h-8 w-8 rounded-full flex items-center justify-center ${getActivityIconBgColor(
+                              activity.type as ActivityType,
+                            )}`}
+                          >
                             {getActivityIcon(activity.type as ActivityType)}
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
+                        {/* Activity content */}
+                        <div className="flex-1 min-w-0 pt-1">
                           <p className="text-sm">{activity.description}</p>
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span>
-                              {new Date(activity.created_at).toLocaleDateString()}
-                            </span>
+                          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                            <span>{formatDate(activity.created_at)}</span>
                             {activity.created_by_name && (
-                              <>
-                                <span>•</span>
+                              <div className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
                                 <span>{activity.created_by_name}</span>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </section>
-            </div>
-          ) : null}
-        </ScrollArea>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : null}
 
         {/* Actions */}
         {applicant && (
-          <div className="flex flex-col gap-2 pt-4 px-6 border-t">
+          <div className="flex flex-col gap-2 pt-4 pb-6 border-t mt-6">
             {/* Convert to Employee Button */}
             {canConvert && (
               <Button
@@ -406,7 +467,7 @@ export function ApplicantDetailSheet({
             </div>
           </div>
         )}
-      </SheetContent>
+      </div>
 
       {/* Convert to Employee Dialog */}
       <ConvertToEmployeeDialog
@@ -417,6 +478,6 @@ export function ApplicantDetailSheet({
           // Refresh applicant data
         }}
       />
-    </Sheet>
+    </Drawer>
   );
 }

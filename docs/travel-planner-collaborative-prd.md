@@ -65,11 +65,11 @@ Step 1 (must be executed first):
 - Move frontend feature directory from:
   - `apps/web/src/features/finance/up-country-cost`
 - To:
-  - `apps/web/src/features/travel-planner/up-country-cost`
+  - `apps/web/src/features/travel/travel-planner/up-country-cost`
 - Introduce parent route:
-  - `/travel-planner`
+  - `/travel/travel-planner`
 - Move business route to:
-  - `/travel-planner/up-country-cost`
+  - `/travel/travel-planner/up-country-cost`
 
 ## 7. Functional Requirements
 

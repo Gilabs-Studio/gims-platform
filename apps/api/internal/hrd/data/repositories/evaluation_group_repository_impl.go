@@ -25,7 +25,7 @@ func (r *evaluationGroupRepositoryImpl) FindAll(ctx context.Context, page, perPa
 
 	// Apply search filter (prefix search for GIN index)
 	if search != "" {
-		searchPattern := search + "%"
+		searchPattern := "%" + search + "%"
 		query = query.Where("name ILIKE ?", searchPattern)
 	}
 
@@ -45,6 +45,11 @@ func (r *evaluationGroupRepositoryImpl) FindAll(ctx context.Context, page, perPa
 
 	// Order by name ASC
 	query = query.Order("name ASC")
+
+	// Preload criteria to calculate total weight
+	query = query.Preload("Criteria", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order ASC")
+	})
 
 	if err := query.Find(&groups).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to find evaluation groups: %w", err)

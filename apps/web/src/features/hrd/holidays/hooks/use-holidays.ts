@@ -18,6 +18,7 @@ const QUERY_KEYS = {
 export function useHolidays(params?: {
   page?: number;
   per_page?: number;
+  search?: string;
   year?: number;
   type?: string;
   is_active?: boolean;

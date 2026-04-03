@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -58,7 +59,8 @@ func runValidation(ctx context.Context) error {
 
 	journalRepo := repositories.NewJournalEntryRepository(db)
 	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
-	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper)
+	auditService := audit.NewAuditService(db)
+	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService)
 
 	financialClosingRepo := repositories.NewFinancialClosingRepository(db)
 	accountingPeriodRepo := repositories.NewAccountingPeriodRepository(db)
@@ -107,7 +109,14 @@ func runValidation(ctx context.Context) error {
 		fmt.Println("✅ Balance Sheet OK")
 	}
 
-	// 4) Financial Closing
+	// 5) Inventory vs GL
+	if err := validateInventoryVsGL(ctx, start, end); err != nil {
+		fmt.Println("❌ Inventory vs GL validation failed:", err)
+	} else {
+		fmt.Println("✅ Inventory vs GL OK")
+	}
+
+	// 6) Financial Closing
 	if err := validateFinancialClosing(ctx, financialClosingRepo, financialClosingUC); err != nil {
 		fmt.Println("❌ Financial Closing validation failed:", err)
 	} else {
@@ -190,6 +199,42 @@ func validateBalanceSheet(ctx context.Context, uc usecase.FinanceReportUsecase, 
 	if !bs.IsBalanced {
 		return fmt.Errorf("assets %.2f != liabilities+equity %.2f", bs.AssetTotal, bs.LiabilityEquity)
 	}
+	return nil
+}
+
+func validateInventoryVsGL(ctx context.Context, start, end time.Time) error {
+	// Calculate inventory valuation directly from batches
+	var inventoryValuation float64
+	if err := database.DB.Raw(`
+		SELECT COALESCE(SUM(current_quantity * cost_price), 0)
+		FROM inventory_batches
+		WHERE deleted_at IS NULL
+	`).Scan(&inventoryValuation).Error; err != nil {
+		return err
+	}
+
+	// Calculate inventory account balance from GL
+	// We sum balance of all accounts where type = 'CURRENT_ASSET' and system_reserved or name like inventory.
+	// For safer generic check, let's query the specific account if it's set in posting profile,
+	// or we sum all accounts that are inventory accounts.
+	// Let's assume accounts with code prefix '14' or name containing 'Inventory' or configured as default inventory.
+	var glInventoryBalance float64
+	if err := database.DB.Raw(`
+		SELECT COALESCE(SUM(jl.debit - jl.credit), 0)
+		FROM journal_lines jl
+		JOIN journal_entries je ON je.id = jl.journal_entry_id
+		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
+		WHERE je.status = 'posted' 
+		  AND je.entry_date <= ?
+		  AND (coa.name ILIKE '%inventory%' OR coa.name ILIKE '%persediaan%')
+	`, end).Scan(&glInventoryBalance).Error; err != nil {
+		return err
+	}
+
+	if fmt.Sprintf("%.2f", inventoryValuation) != fmt.Sprintf("%.2f", glInventoryBalance) {
+		return fmt.Errorf("inventory valuation %.2f != gl inventory balance %.2f", inventoryValuation, glInventoryBalance)
+	}
+
 	return nil
 }
 

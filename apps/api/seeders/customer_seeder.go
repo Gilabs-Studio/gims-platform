@@ -196,6 +196,8 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate11,
 			ProvinceID:            provJakartaPtr,
 			CityID:                cityJakartaSelatanPtr,
+			CreditLimit:           50000000, // 50 juta
+			CreditIsActive:        true,
 		},
 		{
 			ID:                    Customer2ID,
@@ -217,6 +219,8 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate11,
 			ProvinceID:            provJakartaPtr,
 			CityID:                cityJakartaBaratPtr,
+			CreditLimit:           200000000, // 200 juta (rumah sakit besar)
+			CreditIsActive:        true,
 		},
 		{
 			ID:                    Customer3ID,
@@ -238,6 +242,8 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate11,
 			ProvinceID:            provJabarPtr,
 			CityID:                cityBandungPtr,
+			CreditLimit:           25000000, // 25 juta (klinik kecil)
+			CreditIsActive:        true,
 		},
 		{
 			ID:                    Customer4ID,
@@ -259,6 +265,8 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate11,
 			ProvinceID:            provJatimPtr,
 			CityID:                citySurabayaPtr,
+			CreditLimit:           500000000, // 500 juta (rumah sakit besar)
+			CreditIsActive:        true,
 		},
 		{
 			ID:                    Customer5ID,
@@ -280,6 +288,8 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate11,
 			ProvinceID:            provJabarPtr, // Bekasi is in Jawa Barat province
 			CityID:                cityBekasiPtr,
+			CreditLimit:           75000000, // 75 juta
+			CreditIsActive:        true,
 		},
 		{
 			ID:                    Customer6ID,
@@ -301,8 +311,11 @@ func SeedCustomers() error {
 			DefaultTaxRate:        &taxRate0,
 			ProvinceID:            provJakartaPtr,
 			CityID:                cityJakartaPusatPtr,
+			CreditLimit:           0, // no credit (COD only, pemerintah)
+			CreditIsActive:        false,
 		},
 	}
+
 
 	for _, c := range customers {
 		if err := database.DB.Clauses(clause.OnConflict{
@@ -312,6 +325,7 @@ func SeedCustomers() error {
 				"default_area_id", "default_sales_rep_id",
 				"default_business_type_id", "default_payment_terms_id", "default_tax_rate",
 				"province_id", "city_id",
+				"credit_limit", "credit_is_active",
 			}),
 		}).Create(&c).Error; err != nil {
 			log.Printf("Warning: Failed to seed customer %s: %v", c.Name, err)
@@ -403,4 +417,3 @@ func seedCustomerBankAccounts(customers []models.Customer) {
 		}
 	}
 }
-

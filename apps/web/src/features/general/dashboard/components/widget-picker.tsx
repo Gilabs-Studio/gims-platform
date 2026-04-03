@@ -33,7 +33,19 @@ import {
   ClipboardCheck,
   PackageCheck,
   Route,
+  Timer,
+  CalendarClock,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Percent,
+  Building2,
+  RefreshCw,
+  Gauge,
+  Activity,
+  Clock,
+  Brain,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { getWidgetsByCategory, WIDGET_REGISTRY } from "../config/widget-registry";
 import type { WidgetType, WidgetConfig, WidgetCategory } from "../types";
 
@@ -58,27 +70,46 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ClipboardCheck,
   PackageCheck,
   Route,
+  Timer,
+  CalendarClock,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Percent,
+  Building2,
+  RefreshCw,
+  Gauge,
+  Activity,
+  Clock,
+  Brain,
 };
 
-const CATEGORY_LABELS: Record<WidgetCategory, string> = {
-  overview: "Overview",
-  finance: "Finance",
-  sales: "Sales",
-  purchase: "Purchase",
-  inventory: "Inventory",
-  geographic: "Geographic",
-  hr: "HR",
+const CATEGORY_LABEL_KEYS: Record<WidgetCategory, string> = {
+  overview: "categories.overview",
+  finance: "categories.finance",
+  sales: "categories.sales",
+  purchase: "categories.purchase",
+  inventory: "categories.inventory",
+  geographic: "categories.geographic",
+  hr: "categories.hr",
+  profitability: "categories.profitability",
+  cashflow: "categories.cashflow",
+  logistics: "categories.logistics",
+  asset: "categories.asset",
+  cost: "categories.cost",
+  intelligence: "categories.intelligence",
 };
 
 interface WidgetPickerProps {
   readonly existingWidgets: WidgetConfig[];
-  readonly onAddWidget: (type: WidgetType) => void;
+  // May return a promise if adding involves async work
+  readonly onAddWidget: (type: WidgetType) => void | Promise<void>;
 }
 
 export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps) {
   const t = useTranslations("dashboard");
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [addingSet, setAddingSet] = useState<Set<string>>(new Set());
 
   const grouped = useMemo(() => getWidgetsByCategory(), []);
   const existingTypes = useMemo(
@@ -121,7 +152,7 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
               className="cursor-pointer"
               onClick={() => setSelectedCategory(cat)}
             >
-              {CATEGORY_LABELS[cat as WidgetCategory] ?? cat}
+              {t(CATEGORY_LABEL_KEYS[cat as WidgetCategory] as Parameters<typeof t>[0]) ?? cat}
             </Badge>
           ))}
         </div>
@@ -131,27 +162,64 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
           {filteredWidgets.map((entry) => {
             const Icon = ICON_MAP[entry.icon] ?? DollarSign;
             const exists = existingTypes.has(entry.type);
+            const isAdding = addingSet.has(entry.type);
 
             return (
               <div
                 key={entry.type}
                 className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                  exists
-                    ? "opacity-50"
+                  exists || isAdding
+                    ? "opacity-50 pointer-events-none"
                     : "cursor-pointer hover:bg-secondary"
                 }`}
-                onClick={() => {
-                  if (!exists) {
-                    onAddWidget(entry.type);
-                    setOpen(false);
+                onClick={async () => {
+                  if (exists || isAdding) return;
+                  // mark as adding
+                  setAddingSet((prev) => {
+                    const s = new Set(prev);
+                    s.add(entry.type);
+                    return s;
+                  });
+
+                  try {
+                    const result = onAddWidget(entry.type);
+                    if (result && typeof (result as any).then === "function") {
+                      await result;
+                    } else {
+                      // Ensure UX shows a small progress even for sync adds
+                      await new Promise((r) => setTimeout(r, 600));
+                    }
+                  } finally {
+                    setAddingSet((prev) => {
+                      const s = new Set(prev);
+                      s.delete(entry.type);
+                      return s;
+                    });
                   }
                 }}
                 role="button"
-                tabIndex={exists ? -1 : 0}
-                onKeyDown={(e) => {
-                  if (!exists && (e.key === "Enter" || e.key === " ")) {
-                    onAddWidget(entry.type);
-                    setOpen(false);
+                tabIndex={exists || isAdding ? -1 : 0}
+                onKeyDown={async (e) => {
+                  if (exists || isAdding || !(e.key === "Enter" || e.key === " ")) return;
+                  // same flow as click
+                  setAddingSet((prev) => {
+                    const s = new Set(prev);
+                    s.add(entry.type);
+                    return s;
+                  });
+                  try {
+                    const result = onAddWidget(entry.type);
+                    if (result && typeof (result as any).then === "function") {
+                      await result;
+                    } else {
+                      await new Promise((r) => setTimeout(r, 600));
+                    }
+                  } finally {
+                    setAddingSet((prev) => {
+                      const s = new Set(prev);
+                      s.delete(entry.type);
+                      return s;
+                    });
                   }
                 }}
               >
@@ -170,6 +238,8 @@ export function WidgetPicker({ existingWidgets, onAddWidget }: WidgetPickerProps
                 </div>
                 {exists ? (
                   <Badge variant="secondary">{t("widgetPicker.added")}</Badge>
+                ) : addingSet.has(entry.type) ? (
+                  <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
                 ) : (
                   <Plus className="h-4 w-4 text-muted-foreground" />
                 )}

@@ -5,6 +5,11 @@ import { Marker } from "react-leaflet";
 import { useEffect, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import {
+  getMapContainerOptions,
+  resolveMapTileLayer,
+  type MapProfile,
+} from "./map-config";
 
 // Fix missing marker icons — static imports ensure icons are available
 // before any Marker renders (same approach as map-inner.tsx)
@@ -35,6 +40,7 @@ interface MapPickerInnerProps {
   readonly onCoordinateSelect: (lat: number, lng: number) => void;
   readonly defaultZoom?: number;
   readonly navigateToPosition?: [number, number] | null;
+  readonly mapProfile?: MapProfile;
 }
 
 /**
@@ -112,27 +118,32 @@ export default function MapPickerInner({
   onCoordinateSelect,
   defaultZoom = 13,
   navigateToPosition = null,
+  mapProfile = "driver",
 }: MapPickerInnerProps) {
   // Delay rendering interactive children until the map reports ready.
   // This prevents React StrictMode's double-invoke from attempting to add/
   // remove a Marker before the Leaflet map is fully initialised, which
   // causes both the "iconUrl not set" and "_leaflet_events" errors.
   const [mapReady, setMapReady] = useState(false);
+  const tileLayer = resolveMapTileLayer("light", null);
+  const mapContainerOptions = getMapContainerOptions(mapProfile);
 
   return (
     <MapContainer
       center={navigateToPosition || initialPosition}
       zoom={defaultZoom}
       className="h-full w-full"
-      scrollWheelZoom
-      touchZoom
-      doubleClickZoom
-      dragging
+      scrollWheelZoom={mapContainerOptions.scrollWheelZoom}
+      touchZoom={mapContainerOptions.touchZoom}
+      doubleClickZoom={mapContainerOptions.doubleClickZoom}
+      dragging={mapContainerOptions.dragging}
+      zoomControl={mapContainerOptions.zoomControl}
+      preferCanvas={mapContainerOptions.preferCanvas}
       whenReady={() => setMapReady(true)}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={tileLayer.attribution}
+        url={tileLayer.url}
       />
       {mapReady && (
         <>

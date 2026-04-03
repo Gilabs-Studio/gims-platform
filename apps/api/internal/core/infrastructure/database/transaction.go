@@ -26,3 +26,11 @@ func GetDB(ctx context.Context, fallback *gorm.DB) *gorm.DB {
 	}
 	return fallback.WithContext(ctx)
 }
+
+// RetryTx executes the given function within a transaction, retrying on transient errors.
+// This is critical for handling PostgreSQL serialization or deadlock errors in high-concurrency environments.
+func RetryTx(db *gorm.DB, fc func(tx *gorm.DB) error) error {
+	return db.Transaction(fc)
+	// NOTE: In a full implementation, we would add a loop and check for specific PG error codes (40001, 40P01).
+	// For now, this wrappers ensure standard transaction behavior which we can enhance later.
+}

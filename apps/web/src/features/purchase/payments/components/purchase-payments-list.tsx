@@ -23,6 +23,7 @@ import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -31,7 +32,6 @@ import {
   usePurchasePayments,
 } from "../hooks/use-purchase-payments";
 import type { PurchasePaymentListItem } from "../types";
-import { purchasePaymentsService } from "../services/purchase-payments-service";
 import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail } from "./purchase-payment-detail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
@@ -72,6 +72,7 @@ export function PurchasePaymentsList() {
 
   const deleteMutation = useDeletePurchasePayment();
   const confirmMutation = useConfirmPurchasePayment();
+  const exportProgress = useExportProgress();
 
   if (isError) {
     return (
@@ -81,20 +82,15 @@ export function PurchasePaymentsList() {
 
   const handleExport = async () => {
     try {
-      const blob = await purchasePaymentsService.exportCsv({
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/payments/export",
+        params: {
         search: debouncedSearch || undefined,
         sort_by: "created_at",
         sort_dir: "desc",
-        limit: 10000,
+        limit: 100,
+        },
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "purchase_payments.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -132,10 +128,11 @@ export function PurchasePaymentsList() {
           <Button
             variant="outline"
             onClick={handleExport}
+            disabled={exportProgress.isExporting}
             className="cursor-pointer"
           >
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

@@ -63,12 +63,17 @@ import { AttendanceDetailModal } from "./attendance-detail-modal";
 import { AttendanceRecordForm } from "./attendance-record-form";
 import { useAttendanceCalendar } from "../hooks/use-attendance-calendar";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { formatAttendanceTime, getUserTimezone } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+function formatTime(value: string | null | undefined, date?: string): string {
+  return formatAttendanceTime(value, date, getUserTimezone());
+}
 
 export function AttendanceList() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
@@ -420,12 +425,16 @@ export function AttendanceList() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span>{record.check_in_time ?? "-"}</span>
+                          <span>
+                            {formatTime(record.check_in_time, record.date)}
+                          </span>
                           {record.check_in_type &&
                             getCheckInTypeBadge(record.check_in_type)}
                         </div>
                       </TableCell>
-                      <TableCell>{record.check_out_time ?? "-"}</TableCell>
+                      <TableCell>
+                        {formatTime(record.check_out_time, record.date)}
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <span>{record.working_hours || "-"}</span>

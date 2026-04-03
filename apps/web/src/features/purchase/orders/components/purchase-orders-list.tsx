@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
+import { runAsyncExport } from "@/lib/async-export";
+import { useExportProgress } from "@/lib/use-export-progress";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 
@@ -61,7 +63,6 @@ import {
   useSubmitPurchaseOrder,
 } from "../hooks/use-purchase-orders";
 
-import { purchaseOrdersService } from "../services/purchase-orders-service";
 import type { PurchaseOrderListItem, PurchaseOrderStatus } from "../types";
 import { GoodsReceiptStatusBadge } from "@/features/purchase/goods-receipt/components/goods-receipt-status-badge";
 import { SupplierInvoiceStatusBadge } from "@/features/purchase/supplier-invoices/components/supplier-invoice-status-badge";
@@ -105,6 +106,7 @@ export function PurchaseOrdersList() {
   const [detailId, setDetailId] = useState<string | null>(getInitialOpenPurchaseOrderFromURL);
   const [deletingItem, setDeletingItem] = useState<PurchaseOrderListItem | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const exportProgress = useExportProgress();
 
   // Supplier detail dialog
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
@@ -205,20 +207,15 @@ export function PurchaseOrdersList() {
 
   const handleExport = async () => {
     try {
-      const blob = await purchaseOrdersService.exportCsv({
+      await exportProgress.runWithProgress({
+        endpoint: "/purchase/purchase-orders/export",
+        params: {
         search: debouncedSearch || undefined,
         sort_by: "created_at",
         sort_dir: "desc",
-        limit: 10000,
+        limit: 100,
+        },
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "purchase_orders.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch {
       toast.error(t("toast.failed"));
     }
@@ -325,9 +322,9 @@ export function PurchaseOrdersList() {
         <div className="flex-1" />
 
         {canExport && (
-          <Button variant="outline" onClick={handleExport} className="cursor-pointer">
+          <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
             <Download className="h-4 w-4 mr-2" />
-            {t("actions.export")}
+            {exportProgress.label(t("actions.export"))}
           </Button>
         )}
 

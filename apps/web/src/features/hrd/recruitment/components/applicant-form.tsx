@@ -33,10 +33,16 @@ import {
   FormLabel,
   FormMessage,
 } from "./form";
-import { useApplicantStages, useCreateApplicant, useUpdateApplicant } from "../hooks/use-applicants";
+import {
+  useApplicantStages,
+  useCreateApplicant,
+  useUpdateApplicant,
+} from "../hooks/use-applicants";
 import type { RecruitmentApplicant, ApplicantSource } from "../types";
 
-function useApplicantSources(t: (key: string) => string): { value: ApplicantSource; label: string }[] {
+function useApplicantSources(
+  t: (key: string) => string,
+): { value: ApplicantSource; label: string }[] {
   return [
     { value: "linkedin", label: t("applicants.sources.linkedin") },
     { value: "jobstreet", label: t("applicants.sources.jobstreet") },
@@ -50,12 +56,23 @@ function useApplicantSources(t: (key: string) => string): { value: ApplicantSour
 function getFormSchema(t: (key: string) => string) {
   return z.object({
     full_name: z.string().min(1, t("validation.required")),
-    email: z.string().min(1, t("validation.required")).email(t("validation.invalidEmail")),
+    email: z
+      .string()
+      .min(1, t("validation.required"))
+      .email(t("validation.invalidEmail")),
     phone: z.string().optional(),
-    source: z.enum(["linkedin", "jobstreet", "glints", "referral", "direct", "other"]),
+    source: z.enum([
+      "linkedin",
+      "jobstreet",
+      "glints",
+      "referral",
+      "direct",
+      "other",
+    ]),
     stage_id: z.string().min(1, t("validation.required")),
     notes: z.string().optional(),
     resume_url: z.string().optional().or(z.literal("")),
+    linkedin_url: z.string().optional().or(z.literal("")),
   });
 }
 
@@ -97,6 +114,7 @@ export function ApplicantForm({
       stage_id: defaultStageId || "",
       notes: "",
       resume_url: "",
+      linkedin_url: "",
     },
   });
 
@@ -112,6 +130,7 @@ export function ApplicantForm({
           stage_id: applicant.stage_id,
           notes: applicant.notes || "",
           resume_url: applicant.resume_url || "",
+          linkedin_url: applicant.linkedin_url || "",
         });
       } else {
         form.reset({
@@ -122,6 +141,7 @@ export function ApplicantForm({
           stage_id: defaultStageId || stages[0]?.id || "",
           notes: "",
           resume_url: "",
+          linkedin_url: "",
         });
       }
     }
@@ -139,6 +159,7 @@ export function ApplicantForm({
             source: data.source,
             notes: data.notes || undefined,
             resume_url: data.resume_url || undefined,
+            linkedin_url: data.linkedin_url || undefined,
           },
         });
       } else {
@@ -151,6 +172,7 @@ export function ApplicantForm({
           source: data.source,
           notes: data.notes || undefined,
           resume_url: data.resume_url || undefined,
+          linkedin_url: data.linkedin_url || undefined,
         });
       }
       onClose();
@@ -184,7 +206,10 @@ export function ApplicantForm({
                 <FormItem>
                   <FormLabel>{t("applicants.fields.fullName")}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t("applicants.placeholders.fullName")} {...field} />
+                    <Input
+                      placeholder={t("applicants.placeholders.fullName")}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -222,7 +247,7 @@ export function ApplicantForm({
                         {...field}
                         onChange={(e) => {
                           // Only allow numbers
-                          const value = e.target.value.replace(/\D/g, '');
+                          const value = e.target.value.replace(/\D/g, "");
                           field.onChange(value);
                         }}
                       />
@@ -312,6 +337,24 @@ export function ApplicantForm({
 
             <FormField
               control={form.control}
+              name="linkedin_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("applicants.fields.linkedin")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="url"
+                      placeholder={t("applicants.placeholders.linkedin")}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
@@ -329,15 +372,20 @@ export function ApplicantForm({
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
                 {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting
                   ? t("common.saving")
                   : isEditing
-                  ? t("common.update")
-                  : t("common.create")}
+                    ? t("common.update")
+                    : t("common.create")}
               </Button>
             </DialogFooter>
           </form>

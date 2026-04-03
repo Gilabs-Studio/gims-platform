@@ -1,55 +1,22 @@
-/**
- * Valid dashboard routes configuration
- * These routes correspond to actual page.tsx files in the (dashboard) folder
- */
-const VALID_DASHBOARD_ROUTES = [
-  "/dashboard",
-  // Master Data routes
-  "/master-data/geographic",
-  "/master-data/company",
-  "/master-data/divisions",
-  "/master-data/job-positions",
-  "/master-data/business-units",
-  "/master-data/business-types",
-  "/master-data/areas",
-  "/master-data/employees",
-  "/master-data/suppliers",
-  "/master-data/supplier-types",
-  "/master-data/customers",
-  "/master-data/customer-types",
-  "/master-data/banks",
-  "/master-data/products",
-  "/master-data/product-categories",
-  "/master-data/product-brands",
-  "/master-data/product-segments",
-  "/master-data/product-types",
-  "/master-data/packaging",
-  "/master-data/uom",
-  "/master-data/procurement-types",
-  "/master-data/warehouses",
-  "/master-data/currencies",
-  "/master-data/payment-terms",
-  "/master-data/courier-agencies",
-  "/master-data/so-sources",
-  "/master-data/leave-types",
-  "/master-data/users",
-  // Sales routes
-  "/sales/quotations",
-  "/sales/orders",
-  "/sales/delivery-orders",
-  "/sales/invoices",
-  "/sales/returns",
-  "/sales/targets",
-  // Purchase routes
-  "/purchase/purchase-requisitions",
-  "/purchase/purchase-orders",
-  "/purchase/goods-receipt",
-  "/purchase/supplier-invoices",
-  "/purchase/returns",
-  "/purchase/payments",
-  // Stock routes
-  "/stock/inventory",
-  "/stock/movements",
+import { navigationConfig, type NavItem } from "@/lib/navigation-config";
+
+function flattenNavigationRoutes(items: readonly NavItem[]): string[] {
+  const routes: string[] = [];
+
+  for (const item of items) {
+    if (item.url) {
+      routes.push(item.url);
+    }
+
+    if (item.children && item.children.length > 0) {
+      routes.push(...flattenNavigationRoutes(item.children));
+    }
+  }
+
+  return routes;
+}
+
+const EXTRA_VALID_ROUTES = [
   "/stock/movements/create",
   "/stock/opname",
   // Finance routes
@@ -61,11 +28,9 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/journals/valuation",
   "/finance/journals/cash-bank",
   "/finance/bank-accounts",
-  "/finance/payments",
   "/finance/tax-invoices",
   "/finance/non-trade-payables",
   "/finance/budget",
-  "/finance/cash-bank",
   "/finance/closing",
   "/finance/assets",
   "/finance/asset-categories",
@@ -77,7 +42,8 @@ const VALID_DASHBOARD_ROUTES = [
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",
   // Travel Planner routes
-  "/travel-planner",
+  "/travel/travel-planner",
+  "/travel/visit-planner",
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",
@@ -111,6 +77,10 @@ const VALID_DASHBOARD_ROUTES = [
   "/ai-chatbot",
   "/ai-settings",
 ] as const;
+
+const VALID_DASHBOARD_ROUTES = Array.from(
+  new Set([...flattenNavigationRoutes(navigationConfig), ...EXTRA_VALID_ROUTES]),
+).sort();
 
 /**
  * Checks if a given route path is valid and exists in the application
