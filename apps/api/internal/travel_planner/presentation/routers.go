@@ -23,7 +23,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	planUC := usecase.NewTravelPlanUsecase(db, planRepo, planMapper)
 	planHandler := handler.NewTravelPlanHandler(planUC)
 
-	group := api.Group("/travel-planner")
+	group := api.Group("/travel/travel-planner")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 	group.Use(middleware.ScopeMiddleware(db))
 

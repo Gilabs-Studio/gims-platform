@@ -8,7 +8,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
 const TravelPlannerContainer = dynamic(
   () =>
-    import("@/features/travel-planner/components").then((mod) => ({
+    import("@/features/travel/travel-planner/components").then((mod) => ({
       default: mod.TravelPlannerPage,
     })),
   { loading: () => null },

@@ -20,7 +20,7 @@ import type {
   EmployeeListParams,
 } from "../types";
 
-const BASE_URL = "/travel-planner";
+const BASE_URL = "/travel/travel-planner";
 
 export const travelPlannerService = {
   listPlans: async (params?: TravelPlanListParams): Promise<ApiEnvelope<TravelPlan[]>> => {

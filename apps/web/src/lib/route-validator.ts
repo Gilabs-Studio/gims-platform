@@ -45,7 +45,7 @@ const EXTRA_VALID_ROUTES = [
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",
   // Travel Planner routes
-  "/travel-planner",
+  "/travel/travel-planner",
   // HRD routes
   "/hrd/attendance",
   "/hrd/leave-requests",

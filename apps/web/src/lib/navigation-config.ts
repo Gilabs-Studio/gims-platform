@@ -114,7 +114,7 @@ export const navigationConfig: NavItem[] = [
     name: "Travel Planner",
     i18nKey: "travelPlanner",
     icon: "route",
-    url: "/travel-planner",
+    url: "/travel/travel-planner",
     permission: "travel_planner.read",
   },
   {

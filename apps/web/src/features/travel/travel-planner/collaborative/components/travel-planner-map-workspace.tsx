@@ -203,7 +203,7 @@ export function TravelPlannerMapWorkspace() {
   const { user } = useAuthStore();
 
   const pathname = usePathname();
-  const isFullPage = pathname?.includes("/travel-planner") ?? false;
+  const isFullPage = pathname?.includes("/travel/travel-planner") ?? false;
   const isMobile = useIsMobile();
 
   const canReadTravelPlanner = useHasPermission("travel_planner.read");

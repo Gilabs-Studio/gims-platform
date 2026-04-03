@@ -189,7 +189,7 @@ func SeedMenus() error {
 	travelPlannerMenu := &permission.Menu{
 		Name:   "Travel Planner",
 		Icon:   "route",
-		URL:    "/travel-planner",
+		URL:    "/travel/travel-planner",
 		Order:  11,
 		Status: "active",
 	}
@@ -477,7 +477,7 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Planner Workspace", "map", "/travel-planner", 1},
+		{"Planner Workspace", "map", "/travel/travel-planner", 1},
 	}
 	for _, child := range travelPlannerChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {

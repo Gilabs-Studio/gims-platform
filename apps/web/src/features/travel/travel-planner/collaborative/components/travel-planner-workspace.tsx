@@ -360,7 +360,7 @@ export function TravelPlannerWorkspace() {
 
     try {
       await exportProgress.runWithProgress({
-        endpoint: `/travel-planner/plans/${activePlanId}/export/pdf`,
+        endpoint: `/travel/travel-planner/plans/${activePlanId}/export/pdf`,
         params: {
           day_index: dayIndex,
         },

@@ -8,8 +8,8 @@ import { useRouter } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTravelPlans, travelPlannerKeys } from "@/features/travel-planner/collaborative/hooks/use-travel-planner";
-import { travelPlannerService } from "@/features/travel-planner/collaborative/services/travel-planner-service";
+import { useTravelPlans, travelPlannerKeys } from "@/features/travel/travel-planner/collaborative/hooks/use-travel-planner";
+import { travelPlannerService } from "@/features/travel/travel-planner/collaborative/services/travel-planner-service";
 import { formatCurrency, formatTime } from "@/lib/utils";
 import { WidgetAsyncState } from "./widget-async-state";
 
@@ -172,7 +172,7 @@ export function TravelPlannerWidget() {
               variant="outline"
               size="sm"
               className="cursor-pointer"
-              onClick={() => router.push("/travel-planner")}
+              onClick={() => router.push("/travel/travel-planner")}
             >
               <ArrowUpRight className="h-4 w-4 mr-1" />
               {t("widgets.travel_planner_overview.open")}
@@ -222,7 +222,7 @@ export function TravelPlannerWidget() {
                       key={plan.id}
                       type="button"
                       className="w-full rounded-lg border px-3 py-2 text-left hover:bg-muted/40 transition-colors cursor-pointer"
-                      onClick={() => router.push(`/travel-planner?plan_id=${plan.id}`)}
+                      onClick={() => router.push(`/travel/travel-planner?plan_id=${plan.id}`)}
                     >
                       <div className="grid grid-cols-[minmax(0,1fr)_150px_20px] items-center gap-3">
                         <div className="min-w-0">

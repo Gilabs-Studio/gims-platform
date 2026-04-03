@@ -451,10 +451,10 @@ func SeedPermissions() error {
 		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
 		// Travel Planner
-		{"/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
-		{"/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
-		{"/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
-		{"/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.create", "Create Travel Planner", "CREATE", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.update", "Edit Travel Planner", "EDIT", "travel_planner"},
+		{"/travel/travel-planner", "travel_planner.delete", "Delete Travel Planner", "DELETE", "travel_planner"},
 
 		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
 		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
