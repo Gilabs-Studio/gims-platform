@@ -6,6 +6,8 @@
 > **Status:** Draft (Packaging + Navigation Strategy)  
 > **Last Updated:** April 2026
 
+Related PRD: [floor-layout-designer-prd.md](floor-layout-designer-prd.md)
+
 ---
 
 ## Table of Contents
