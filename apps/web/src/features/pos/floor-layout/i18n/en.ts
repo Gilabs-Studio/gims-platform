@@ -50,6 +50,7 @@ export const floorLayoutEn = {
       decorations: "Decorations",
       // Inspector
       label: "Label",
+      highlightText: "Area Highlight Text",
       tableNumber: "Table No.",
       capacity: "Seats",
       shape: "Shape",

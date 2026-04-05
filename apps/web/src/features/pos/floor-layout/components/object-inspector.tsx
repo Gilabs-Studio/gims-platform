@@ -94,7 +94,7 @@ export function ObjectInspector({ editor }: ObjectInspectorProps) {
           </div>
 
           {/* Label */}
-          <InspectorField label={t("label")}>
+          <InspectorField label={obj.type === "zone" ? t("highlightText") : t("label")}>
             <Input
               value={obj.label ?? ""}
               onChange={(e) => handleUpdate({ label: e.target.value })}

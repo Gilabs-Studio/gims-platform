@@ -282,8 +282,7 @@ function FloorPlanCard({
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate">{floorPlan.name}</h3>
               <p className="text-xs text-muted-foreground">
-                {t("floor")} {floorPlan.floor_number}
-                {floorPlan.company_name && ` - ${floorPlan.company_name}`}
+                {floorPlan.company_name ?? "-"}
               </p>
             </div>
             <Badge

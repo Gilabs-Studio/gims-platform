@@ -49,6 +49,13 @@ interface BoxSelectRect {
   currentY: number;
 }
 
+interface ZoneDraftRect {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
+
 interface Point {
   x: number;
   y: number;
@@ -250,6 +257,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   const [rotationState, setRotationState] = useState<RotationState | null>(null);
   const [cornerDragState, setCornerDragState] = useState<CornerDragState | null>(null);
   const [boxSelectRect, setBoxSelectRect] = useState<BoxSelectRect | null>(null);
+  const [zoneDraftRect, setZoneDraftRect] = useState<ZoneDraftRect | null>(null);
   const suppressNextClick = useRef(false);
 
   // Alias for readability
@@ -274,6 +282,17 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       };
     },
     [editor.zoom, editor.panOffset],
+  );
+
+  const snapPoint = useCallback(
+    (point: Point): Point => {
+      if (!editor.snapToGrid || editor.gridSize <= 0) return point;
+      return {
+        x: Math.round(point.x / editor.gridSize) * editor.gridSize,
+        y: Math.round(point.y / editor.gridSize) * editor.gridSize,
+      };
+    },
+    [editor.gridSize, editor.snapToGrid],
   );
 
   const handleResizeStart = useCallback(
@@ -393,6 +412,11 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         return;
       }
 
+      // Zone tool uses drag-to-create rectangle, not click placement.
+      if (tool === "zone") {
+        return;
+      }
+
       editor.addObject(tool as LayoutObjectType, pos.x, pos.y);
     },
     [editor, screenToCanvas, draggingId, activeWallState, setActiveWallState, wallEndpoints],
@@ -496,9 +520,16 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       if (editor.activeTool === "select" && isEmptyCanvas) {
         const pos = screenToCanvas(e.clientX, e.clientY);
         setBoxSelectRect({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
+        return;
+      }
+
+      // Zone tool: drag to define area size.
+      if (editor.activeTool === "zone" && isEmptyCanvas) {
+        const pos = snapPoint(screenToCanvas(e.clientX, e.clientY));
+        setZoneDraftRect({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
       }
     },
-    [editor.activeTool, screenToCanvas],
+    [editor.activeTool, screenToCanvas, snapPoint],
   );
 
   const handleMouseMove = useCallback(
@@ -570,6 +601,12 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         return;
       }
 
+      if (zoneDraftRect) {
+        const snapped = snapPoint(pos);
+        setZoneDraftRect((prev) => (prev ? { ...prev, currentX: snapped.x, currentY: snapped.y } : null));
+        return;
+      }
+
       if (draggingId && dragStart) {
         editor.moveObject(draggingId, dragStart.objX + (pos.x - dragStart.x), dragStart.objY + (pos.y - dragStart.y), true);
         return;
@@ -582,7 +619,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         setPanStart({ x: e.clientX, y: e.clientY });
       }
     },
-    [cornerDragState, resizeState, rotationState, activeWallState, setActiveWallState, wallEndpoints, boxSelectRect, draggingId, dragStart, isPanning, panStart, editor, screenToCanvas],
+    [cornerDragState, resizeState, rotationState, activeWallState, setActiveWallState, wallEndpoints, boxSelectRect, zoneDraftRect, snapPoint, draggingId, dragStart, isPanning, panStart, editor, screenToCanvas],
   );
 
   const handleMouseUp = useCallback(
@@ -627,6 +664,25 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         return;
       }
 
+      if (zoneDraftRect) {
+        const minX = Math.min(zoneDraftRect.startX, zoneDraftRect.currentX);
+        const maxX = Math.max(zoneDraftRect.startX, zoneDraftRect.currentX);
+        const minY = Math.min(zoneDraftRect.startY, zoneDraftRect.currentY);
+        const maxY = Math.max(zoneDraftRect.startY, zoneDraftRect.currentY);
+        const width = Math.max(MIN_OBJECT_SIZE, maxX - minX);
+        const height = Math.max(MIN_OBJECT_SIZE, maxY - minY);
+
+        editor.addObject("zone", minX, minY, {
+          width,
+          height,
+          label: "Area Highlight",
+        });
+
+        setZoneDraftRect(null);
+        suppressNextClick.current = true;
+        return;
+      }
+
       if (draggingId) {
         const draggedObj = editor.objects.find((o) => o.id === draggingId);
         if (draggedObj?.type === "door") {
@@ -663,7 +719,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       }
       setIsPanning(false);
     },
-    [cornerDragState, resizeState, rotationState, boxSelectRect, draggingId, editor],
+    [cornerDragState, resizeState, rotationState, boxSelectRect, zoneDraftRect, draggingId, editor],
   );
 
   const handleWheel = useCallback(
@@ -705,6 +761,13 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
     y: Math.min(boxSelectRect.startY, boxSelectRect.currentY),
     width: Math.abs(boxSelectRect.currentX - boxSelectRect.startX),
     height: Math.abs(boxSelectRect.currentY - boxSelectRect.startY),
+  } : null;
+
+  const zoneRect = zoneDraftRect ? {
+    x: Math.min(zoneDraftRect.startX, zoneDraftRect.currentX),
+    y: Math.min(zoneDraftRect.startY, zoneDraftRect.currentY),
+    width: Math.abs(zoneDraftRect.currentX - zoneDraftRect.startX),
+    height: Math.abs(zoneDraftRect.currentY - zoneDraftRect.startY),
   } : null;
 
   return (
@@ -843,6 +906,21 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               stroke="#3b82f6"
               strokeWidth={1}
               strokeDasharray="4 2"
+              className="pointer-events-none"
+            />
+          )}
+
+          {/* Zone drag-create preview */}
+          {zoneRect && (
+            <rect
+              x={zoneRect.x}
+              y={zoneRect.y}
+              width={Math.max(1, zoneRect.width)}
+              height={Math.max(1, zoneRect.height)}
+              fill="rgba(59,130,246,0.12)"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
               className="pointer-events-none"
             />
           )}

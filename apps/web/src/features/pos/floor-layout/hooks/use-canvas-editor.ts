@@ -349,7 +349,7 @@ export function useCanvasEditor(floorPlanId: string) {
 
   // Add a new object to the canvas
   const addObject = useCallback(
-    (type: LayoutObjectType, x: number, y: number): string => {
+    (type: LayoutObjectType, x: number, y: number, initial?: Partial<LayoutObject>): string => {
       const snapped = snapToGrid(x, y);
       const defaults = OBJECT_DEFAULTS[type];
 
@@ -389,14 +389,21 @@ export function useCanvasEditor(floorPlanId: string) {
         ...(type === "cashier" && { label: "Cashier" }),
       };
 
+      const finalObject: LayoutObject = {
+        ...newObject,
+        ...initial,
+        id: newObject.id,
+        type: newObject.type,
+      };
+
       saveUndoState();
-      const chairs = type === "table" ? generateChairsForTable(newObject, newObject.capacity ?? 4) : [];
-      store.setObjects([...store.objects, newObject, ...chairs]);
-      store.setSelectedObjectId(newObject.id);
+      const chairs = type === "table" ? generateChairsForTable(finalObject, finalObject.capacity ?? 4) : [];
+      store.setObjects([...store.objects, finalObject, ...chairs]);
+      store.setSelectedObjectId(finalObject.id);
       store.setIsDirty(true);
       // Switch back to select tool after placing
       store.setActiveTool("select");
-      return newObject.id;
+      return finalObject.id;
     },
     [snapToGrid, saveUndoState, store],
   );

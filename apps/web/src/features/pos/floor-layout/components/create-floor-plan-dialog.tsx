@@ -115,7 +115,7 @@ export function CreateFloorPlanDialog({
             <Label>{t("name")}</Label>
             <Input
               {...form.register("name")}
-              placeholder="e.g. Ground Floor"
+              placeholder="e.g. Dining Area Layout"
             />
             {form.formState.errors.name && (
               <p className="text-xs text-destructive">

@@ -51,6 +51,7 @@ export const floorLayoutId = {
       decorations: "Dekorasi",
       // Inspector
       label: "Label",
+      highlightText: "Teks Highlight Area",
       tableNumber: "No. Meja",
       capacity: "Kursi",
       shape: "Bentuk",
