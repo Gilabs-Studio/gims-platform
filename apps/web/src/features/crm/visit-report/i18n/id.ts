@@ -151,6 +151,7 @@ export const crmVisitReportId = {
       total: "Total Kunjungan",
       pending: "Menunggu Persetujuan",
       approved: "Disetujui",
+      withOutcome: "Dengan Outcome",
       checkInRate: "Rasio Check-in",
     },
     calendar: {

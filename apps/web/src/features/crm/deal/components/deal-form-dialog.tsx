@@ -98,6 +98,7 @@ export function DealFormDialog({
     setValue,
     getValues,
     reset,
+    trigger,
     formState: { errors },
   } = useForm<CreateDealFormData>({
     resolver: zodResolver(createDealSchema) as Resolver<CreateDealFormData>,
@@ -279,6 +280,13 @@ export function DealFormDialog({
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
+
+  const handleNext = async () => {
+    const isValid = await trigger(["title", "pipeline_stage_id"]);
+    if (isValid) {
+      setActiveTab("items");
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -589,7 +597,7 @@ export function DealFormDialog({
                   <Button
                     type="button"
                     className="cursor-pointer"
-                    onClick={() => setActiveTab("items")}
+                    onClick={handleNext}
                   >
                     {t("btnNext")}
                   </Button>

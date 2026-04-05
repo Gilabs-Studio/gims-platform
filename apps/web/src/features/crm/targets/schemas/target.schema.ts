@@ -8,7 +8,7 @@ export const monthlyTargetSchema = z.object({
 
 export const getTargetSchema = (t: (key: string) => string) =>
   z.object({
-    area_id: z.string().uuid(t("validation.invalidUUID")).optional(),
+    area_id: z.string().uuid(t("validation.invalidUUID")),
     year: z.coerce.number().min(2020).max(2100),
     total_target: z.coerce.number().min(0),
     notes: z.string().optional(),
