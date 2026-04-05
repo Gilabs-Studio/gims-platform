@@ -31,7 +31,9 @@
 
 ## Overview
 
-This PRD defines the POS live operations experience for F&B outlets. The experience is centered on a small number of highly consistent pages that share the same visual language as the floor layout designer: dot-grid surfaces, drag-and-drop interactions, strong spatial cues, and a game-like operational feel.
+This PRD defines the F&B mode of the POS live operations experience. The experience is centered on a small number of highly consistent pages that share the same visual language as the floor layout designer: dot-grid surfaces, drag-and-drop interactions, strong spatial cues, and a game-like operational feel.
+
+Goods / distributor mode is a separate POS branch and does not require table view.
 
 The module is intentionally focused on live outlet work, not full ERP administration.
 

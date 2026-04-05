@@ -96,27 +96,35 @@ Interpretation note for this revision:
 
 ## Proposed POS Navigation Tree
 
-The POS module should appear as a new parent menu in the navigation tree. Existing ERP and CRM menus stay intact and unchanged.
+The POS platform should appear as a new parent menu in the navigation tree. Existing ERP and CRM menus stay intact and unchanged.
+This navigation tree is the F&B branch only; goods / distributor mode should use a separate menu tree under the same POS shell.
 
 ```text
 POS
 ├── Overview
-├── Live Table Map
-├── Reservation
-│   ├── Reservation List
-│   └── Waiting List
-└── Floor & Layout Designer
+├── F&B Mode
+│   ├── Live Table Map
+│   ├── Reservation
+│   │   ├── Reservation List
+│   │   └── Waiting List
+│   └── Floor & Layout Designer
+└── Goods / Distributor Mode
+    ├── Quick Sale
+    ├── Sales Basket
+    ├── Delivery / Pickup
+    └── Returns / Exchange
 ```
 
 ### UI Recommendation
 
-- `Live Table Map` should be the default operational surface for cashier and host roles.
+- `Live Table Map` should be the default operational surface for cashier and host roles in F&B mode.
 - Clicking a table should open the order drawer in-place or as a slide-over, not navigate away to a separate page.
 - The order drawer is a UI state inside `Live Table Map`, not a separate top-level menu.
-- `Reservation` and `Floor & Layout Designer` remain separate because they are different work modes.
+- `Reservation` and `Floor & Layout Designer` remain separate because they are different work modes inside F&B mode.
 - `Waiting List` is not a top-level POS menu; it lives inside `Reservation` as the host queue for full-house scenarios.
 - `Settings` is removed from the POS tree.
 - Billing handoff goes to `Sales`, so the POS surface stays light and fast.
+- Goods / distributor mode must not show table-specific navigation.
 
 ### Menu Purpose by Section
 
