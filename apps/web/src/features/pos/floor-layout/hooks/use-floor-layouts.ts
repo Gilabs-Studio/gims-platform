@@ -94,6 +94,9 @@ export function useSaveLayoutData(id: string) {
       floorLayoutService.saveLayoutData(id, layoutData),
     onSuccess: (data) => {
       queryClient.setQueryData(floorLayoutKeys.detail(id), data);
+      queryClient.invalidateQueries({
+        queryKey: floorLayoutKeys.lists(),
+      });
     },
   });
 }

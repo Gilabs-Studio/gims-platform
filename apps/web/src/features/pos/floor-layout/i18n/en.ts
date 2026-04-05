@@ -33,6 +33,8 @@ export const floorLayoutEn = {
     deleteConfirm: "Are you sure you want to delete this floor plan?",
     openEditor: "Open Editor",
     viewVersions: "Version History",
+    previewEmpty: "Empty",
+    previewObjects: "{count} objects",
     // Editor
     editor: {
       palette: "Tools",

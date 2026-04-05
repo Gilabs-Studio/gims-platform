@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { PlusIcon, LayoutIcon, SearchIcon, Trash2Icon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ import {
 
 import { useFloorLayouts, useFloorLayoutFormData, useDeleteFloorLayout } from "../hooks/use-floor-layouts";
 import { CreateFloorPlanDialog } from "./create-floor-plan-dialog";
-import type { FloorPlan } from "../types";
+import type { FloorPlan, LayoutObject } from "../types";
 
 interface FloorLayoutListProps {
   readonly onOpenEditor: (id: string) => void;
@@ -201,41 +201,44 @@ function FloorPlanCard({
   readonly onDelete: () => void;
   readonly t: ReturnType<typeof useTranslations>;
 }) {
-  // Count objects in layout
-  let objectCount = 0;
-  if (floorPlan.layout_data) {
+  const objects = useMemo<LayoutObject[]>(() => {
+    if (!floorPlan.layout_data) return [];
     try {
-      const objects = JSON.parse(floorPlan.layout_data);
-      objectCount = Array.isArray(objects) ? objects.length : 0;
+      const parsed = JSON.parse(floorPlan.layout_data);
+      return Array.isArray(parsed) ? (parsed as LayoutObject[]) : [];
     } catch {
-      objectCount = 0;
+      return [];
     }
-  }
+  }, [floorPlan.layout_data]);
+
+  const objectCount = objects.length;
 
   return (
     <Card className="group hover:border-primary/30 transition-all duration-200 hover:shadow-md">
       <CardContent className="p-0">
         {/* Preview area */}
-        <div
+        <button
+          type="button"
+          aria-label={t("openEditor")}
           onClick={onOpen}
-          className="h-28 bg-muted/30 rounded-t-xl flex items-center justify-center cursor-pointer overflow-hidden"
+          className="h-28 w-full bg-muted/30 rounded-t-xl flex items-center justify-center cursor-pointer overflow-hidden"
         >
           {objectCount > 0 ? (
-            <div className="text-center">
-              <LayoutIcon className="h-8 w-8 text-primary/40 mx-auto" />
-              <span className="text-xs text-muted-foreground mt-1 block">
-                {objectCount} objects
-              </span>
+            <div className="w-full h-full relative">
+              <FloorPlanThumbnail floorPlan={floorPlan} objects={objects} />
+              <div className="absolute bottom-2 right-2 rounded bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-sm">
+                {t("previewObjects", { count: objectCount })}
+              </div>
             </div>
           ) : (
             <div className="text-center">
               <LayoutIcon className="h-8 w-8 text-muted-foreground/30 mx-auto" />
               <span className="text-xs text-muted-foreground/50 mt-1 block">
-                Empty
+                {t("previewEmpty")}
               </span>
             </div>
           )}
-        </div>
+        </button>
 
         {/* Info */}
         <div className="px-4 py-3 space-y-2">
@@ -283,5 +286,70 @@ function FloorPlanCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function FloorPlanThumbnail({
+  floorPlan,
+  objects,
+}: {
+  readonly floorPlan: FloorPlan;
+  readonly objects: LayoutObject[];
+}) {
+  const width = Math.max(1, floorPlan.width || 1200);
+  const height = Math.max(1, floorPlan.height || 800);
+  const tableFillClass = "text-primary/70";
+  const chairFillClass = "text-foreground/55";
+  const wallFillClass = "text-foreground/75";
+  const doorFillClass = "text-primary/55";
+  const zoneFillClass = "text-primary/20";
+  const cashierFillClass = "text-foreground/65";
+  const decorationFillClass = "text-muted-foreground/60";
+
+  return (
+    <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={floorPlan.name}>
+      <rect x={0} y={0} width={width} height={height} className="fill-background" />
+      {objects.map((obj) => {
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+        const transform = `rotate(${obj.rotation || 0} ${centerX} ${centerY})`;
+
+        if (obj.type === "table" && obj.tableShape === "circle") {
+          return (
+            <g key={obj.id} className={tableFillClass} transform={transform}>
+              <circle cx={centerX} cy={centerY} r={Math.max(4, Math.min(obj.width, obj.height) / 2)} fill="currentColor" />
+            </g>
+          );
+        }
+
+        const fillClass =
+          obj.type === "table"
+            ? tableFillClass
+            : obj.type === "chair"
+              ? chairFillClass
+              : obj.type === "wall"
+                ? wallFillClass
+                : obj.type === "door"
+                  ? doorFillClass
+                  : obj.type === "zone"
+                    ? zoneFillClass
+                    : obj.type === "cashier"
+                      ? cashierFillClass
+                      : decorationFillClass;
+
+        return (
+          <g key={obj.id} className={fillClass} transform={transform}>
+            <rect
+              x={obj.x}
+              y={obj.y}
+              width={Math.max(2, obj.width)}
+              height={Math.max(2, obj.height)}
+              rx={obj.type === "chair" ? 3 : 2}
+              fill="currentColor"
+            />
+          </g>
+        );
+      })}
+    </svg>
   );
 }

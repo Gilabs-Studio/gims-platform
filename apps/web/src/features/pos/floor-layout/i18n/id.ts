@@ -34,6 +34,8 @@ export const floorLayoutId = {
     deleteConfirm: "Apakah Anda yakin ingin menghapus denah lantai ini?",
     openEditor: "Buka Editor",
     viewVersions: "Riwayat Versi",
+    previewEmpty: "Kosong",
+    previewObjects: "{count} objek",
     // Editor
     editor: {
       palette: "Alat",
