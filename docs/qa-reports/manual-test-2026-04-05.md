@@ -74,6 +74,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** 404 "Page Not Found"
 - **Impact:** HIGH - Users cannot access Purchase Orders
 - **Root Cause:** The correct route is `/en/purchase/purchase-orders`, but navigation links point to `/en/purchase/orders`.
+- **Status:** **FIXED** — Navigation config and app router already use `/purchase/purchase-orders`; backend menu seeder includes URL migration from `/purchase/orders` to `/purchase/purchase-orders`. Verified via Playwright that `/en/purchase/purchase-orders` loads correctly.
 
 ### Bug #5: Purchase Order Create Missing Client-Side Validation on "Next"
 - **Module:** Purchase
@@ -227,7 +228,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 #### READ
 | Test Case | Result | Notes |
 |-----------|--------|-------|
-| Load page via `/purchase/orders` | **BUG** | 404. See Bug #4. |
+| Load page via `/purchase/orders` | **FIXED** | Route now resolves to `/purchase/purchase-orders` via navigation config and menu seeder migration. See Bug #4. |
 | Load page via `/purchase/purchase-orders` | PASS | List renders with seed data |
 | Pagination | PASS | Works |
 
@@ -461,7 +462,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 | Endpoint / Page | Status | Notes |
 |-----------------|--------|-------|
 | `/en/settings` | 404 | Confirmed. See Bug #1. |
-| `/en/purchase/orders` | 404 | Confirmed. See Bug #4. |
+| `/en/purchase/orders` | **FIXED** | Resolved via navigation config and menu seeder migration. See Bug #4. |
 | `/en/hrd/employees` | 404 | Confirmed. See Bug #9. |
 | `POST /api/v1/finance/chart-of-accounts` | 400 | Triggered by extreme Name length. See Bug #11. |
 | `POST /crm/deals/.../convert-to-quotation` | 500 | Confirmed. See Bug #8. |
