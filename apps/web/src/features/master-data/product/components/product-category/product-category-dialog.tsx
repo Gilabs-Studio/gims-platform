@@ -37,7 +37,6 @@ export function ProductCategoryDialog({
   const {
     form,
     t,
-    tValidation,
     isEditing,
     isSubmitting,
     parentOptions,
@@ -64,7 +63,7 @@ export function ProductCategoryDialog({
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input placeholder={t("form.name")} {...register("name")} />
-            {errors.name && <FieldError>{tValidation("required")}</FieldError>}
+            {errors.name && <FieldError>{errors.name.message}</FieldError>}
           </Field>
 
           <Field>
@@ -94,7 +93,7 @@ export function ProductCategoryDialog({
               className="resize-none"
               {...register("description")}
             />
-            {errors.description && <FieldError>{tValidation("maxLength")}</FieldError>}
+            {errors.description && <FieldError>{errors.description.message}</FieldError>}
           </Field>
 
           <div className="flex justify-end gap-2 pt-4">

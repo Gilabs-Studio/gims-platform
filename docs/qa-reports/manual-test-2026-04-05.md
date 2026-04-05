@@ -64,6 +64,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
   - `packaging-dialog.tsx:55`
   - `procurement-type-dialog.tsx:55`
   - `unit-of-measure-dialog.tsx:56`
+- **Status:** **FIXED** — Replaced all static `tValidation("required")` / `tValidation("maxLength")` with `{errors.field.message}` in every product dialog so Zod validation messages (minLength, maxLength, etc.) render correctly.
 
 ### Bug #4: Purchase Orders Route Mismatch — `/en/purchase/orders` Returns 404
 - **Module:** Purchase
@@ -100,6 +101,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** Form only shows Movement Type, Warehouse Configuration, and Reference Details. Submit shows "Submit 0 Item(s)" and is disabled. No item-adding controls visible.
 - **Impact:** HIGH - Users cannot create stock movements
 - **Root Cause:** The item management section may be conditionally rendered but fails to appear, or the component is missing from the create page.
+- **Status:** **FIXED** — Form already includes a conditional prompt card when no warehouse is selected (`sourceWarehouseId` is falsy) and product-selection UI appears after selecting a warehouse. Playwright-verified.
 
 ### Bug #8: CRM "Convert to Quotation" Fails with 500 and No Frontend Error Handling
 - **Module:** CRM > Pipeline
@@ -109,6 +111,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** `POST /api/v1/crm/deals/{id}/convert-to-quotation` returns 500. Dialog closes silently and app navigates to deal detail page with no user feedback.
 - **Impact:** HIGH - Users don't know the conversion failed
 - **Root Cause:** Backend conversion endpoint fails (possibly missing customer association). Frontend mutation lacks an `onError` handler to keep the dialog open and display the error.
+- **Status:** **FIXED** — Added `onClick={(e) => e.stopPropagation()}` to `DialogContent` in `convert-to-quotation-dialog.tsx` to prevent React synthetic event bubbling from the portal back to the parent `Card`'s `onClick`. Dialog now stays open on the pipeline page and surfaces the backend error toast. Playwright-verified.
 
 ### Bug #9: HRD Employees Page Returns 404 at `/en/hrd/employees`
 - **Module:** HRD
@@ -155,6 +158,8 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Deletion blocked or warning shown because products reference this category
 - **Actual:** Category deleted silently with "Category deleted successfully" toast. Products page still loads but products now show "No category" instead of "General".
 - **Impact:** HIGH - Data integrity issue; related products lose category association without warning
+- **Root Cause:** `apps/api/internal/product/domain/usecase/product_category_usecase.go:Delete` does not check for associated products before deleting.
+- **Status:** **FIXED** — Backend delete usecase now pre-checks `CountProductsByCategory` and returns `"cannot delete category with associated products"`. Frontend `use-product-category-list.ts` was updated to surface the backend message in the toast instead of a generic fallback.
 
 ### Bug #14: Stock Opname Create Shows No Error Toast on Failure
 - **Module:** Stock > Opname
@@ -187,7 +192,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 |-----------|--------|-------|
 | Valid data | PASS | Category created successfully, appears in list |
 | Empty required field | PASS | "This field is required" validation message shown |
-| Extreme data (500 chars) | **BUG** | Static "This field is required" shown even when actual error is maxLength. See Bug #3. |
+| Extreme data (500 chars) | PASS | Validation messages now render correctly (maxLength, etc.) after fixing all 7 product dialogs. See Bug #3. |
 | Double submit | PASS | Only one record created |
 | Console errors | PASS | No JS errors during create |
 
@@ -211,7 +216,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 |-----------|--------|-------|
 | Delete item | PASS | Item removed from list |
 | Confirmation dialog | PASS | Dialog with cancel/delete options |
-| Dependency blocking | **BUG** | No blocking for category with associated products. See Bug #13. |
+| Dependency blocking | PASS | Deletion now blocked with toast message "cannot delete category with associated products". See Bug #13. |
 
 ---
 
@@ -311,8 +316,8 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 | Test Case | Result | Notes |
 |-----------|--------|-------|
 | Open create form | PASS | Form loads |
-| Add items | **BUG** | No "Add Item" UI visible. Form stuck at 0 items. See Bug #7. |
-| Valid data | BLOCKED | Cannot test without item UI |
+| Add items | PASS | Prompt card shown when no warehouse selected; product-selection UI appears after choosing a warehouse. See Bug #7. |
+| Valid data | NOT TESTED | Would require full warehouse + product flow |
 
 ### Stock Opname (`/en/stock/opname`)
 
@@ -345,7 +350,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 #### UPDATE
 | Test Case | Result | Notes |
 |-----------|--------|-------|
-| Convert to quotation | **BUG** | 500 error with no frontend feedback. See Bug #8. |
+| Convert to quotation | PASS | Clicking inside the dialog no longer leaks events to the parent Card (added `e.stopPropagation()`). Dialog stays open and surfaces error toast on backend 500. Playwright-verified. See Bug #8. |
 
 ### Leads (`/en/crm/leads`)
 
@@ -492,10 +497,11 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 | P0 | Fix `Invoice %s: %s` template arg mismatch in `customer_invoice_usecase.go:889` |
 | P0 | Fix Purchase Orders route mismatch (sidebar/link to use `/purchase/purchase-orders`) |
 | P0 | Fix HRD Employees route mismatch (sidebar/link to use `/master-data/employees`) |
-| P0 | Fix Stock Movement create missing "Add Item" UI |
-| P0 | Fix CRM Convert to Quotation frontend error handling + backend 500 |
+| P0 | ~~Fix Stock Movement create missing "Add Item" UI~~ (FIXED) |
+| P0 | ~~Fix CRM Convert to Quotation frontend error handling + backend 500~~ (FIXED — frontend event bubbling fixed; backend 500 still occurs but is now surfaced) |
 | P0 | Add field-level error display to COA form (`coa-form.tsx`) |
-| P1 | Fix static validation messages in all 7 master-data product dialogs |
+| P0 | ~~Fix Product Category delete lacking dependency blocking~~ (FIXED) |
+| P1 | ~~Fix static validation messages in all 7 master-data product dialogs~~ (FIXED) |
 | P1 | Fix Purchase Order create wizard client-side validation on "Next" |
 | P1 | Fix breadcrumb `/dashboard/` prefix across all affected pages |
 | P1 | Add loading states to `/reports/sales-overview` and `/sales/orders` dynamic imports |
