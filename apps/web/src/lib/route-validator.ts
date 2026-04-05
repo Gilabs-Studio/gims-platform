@@ -75,7 +75,14 @@ const EXTRA_VALID_ROUTES = [
   "/ai-chatbot",
   "/ai-settings",
   // POS
-  "/pos/floor-layout",
+  "/pos",
+  "/pos/fb",
+  "/pos/fb/floor-layout",
+  "/pos/goods",
+  "/pos/goods/quick-sale",
+  "/pos/goods/basket",
+  "/pos/goods/delivery-pickup",
+  "/pos/goods/returns-exchange",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

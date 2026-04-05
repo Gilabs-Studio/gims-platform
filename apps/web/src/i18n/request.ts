@@ -173,8 +173,8 @@ import { supplierResearchReportEn } from "@/features/reports/supplier-research/i
 import { supplierResearchReportId } from "@/features/reports/supplier-research/i18n/id";
 import { visitPlannerEn } from "@/features/travel/visit-planner/i18n/en";
 import { visitPlannerId } from "@/features/travel/visit-planner/i18n/id";
-import { floorLayoutEn } from "@/features/pos/floor-layout/i18n/en";
-import { floorLayoutId } from "@/features/pos/floor-layout/i18n/id";
+import { floorLayoutEn } from "@/features/pos/fb/floor-layout/i18n/en";
+import { floorLayoutId } from "@/features/pos/fb/floor-layout/i18n/id";
 
 // Merge all messages
 const messages = {

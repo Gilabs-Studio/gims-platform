@@ -8,7 +8,7 @@ import { PermissionGuard } from "@/features/auth/components/permission-guard";
 
 const FloorLayoutContainer = dynamic(
   () =>
-    import("@/features/pos/floor-layout/components").then((mod) => ({
+    import("@/features/pos/fb/floor-layout/components").then((mod) => ({
       default: mod.FloorLayoutContainer,
     })),
   { loading: () => null },
