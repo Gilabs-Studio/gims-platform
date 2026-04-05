@@ -29,6 +29,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** "Page Not Found" - 404 error
 - **Impact:** HIGH - Users cannot access settings from the sidebar
 - **Root Cause:** `apps/web/src/components/layouts/icon-sidebar.tsx:144` hardcodes `<Link href="/settings">`, but `/settings` is **not registered** in `apps/web/src/lib/route-validator.ts` and has no corresponding Next.js App Router page file. `/profile` works correctly.
+- **Status:** **FIXED** — Changed link to `/profile` in `icon-sidebar.tsx`.
 
 ### Bug #2: Go Format String Error in Journal Descriptions
 - **Module:** Finance > Journal Entries
@@ -46,6 +47,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
   DescriptionTemplate: "Invoice %s: %s",
   ```
   `fmt.Sprintf` produces `%!s(MISSING)` when too few arguments are provided.
+- **Status:** **FIXED** — Added `safeInvoiceNumber(invoice.InvoiceNumber)` as the second argument to `DescriptionArgs`.
 
 ### Bug #3: Form Validation Messages Are Static and Misleading (Master Data)
 - **Module:** Master Data > Product
@@ -114,6 +116,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** 404 "Page Not Found"
 - **Impact:** HIGH - HRD sidebar link is broken
 - **Root Cause:** The working route is `/en/master-data/employees`, but the HRD sidebar links to `/en/hrd/employees`.
+- **Status:** **FIXED** — Updated `hrd-dashboard-client.tsx` link to `/master-data/employees`.
 
 ### Bug #10: Sales Order Shows Raw Zod Error for Empty Customer
 - **Module:** Sales
@@ -139,6 +142,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Toast shows "Attendance record created successfully"
 - **Actual:** Toast displays raw key: `hrd.attendance.messages.createSuccess`. Console throws `IntlError: MISSING_MESSAGE: Could not resolve hrd.attendance.messages.createSuccess in messages for locale en.`
 - **Impact:** MEDIUM - Unprofessional UI and missing localization
+- **Status:** **FIXED** — Added missing translation keys (`createSuccess`, `updateSuccess`, `deleteSuccess`) to `apps/web/src/features/hrd/i18n/en.ts`.
 
 ### Bug #13: Product Category Delete Lacks Dependency Blocking
 - **Module:** Master Data > Product Categories
@@ -156,6 +160,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** Catch block only does `console.error("Failed to create opname", error)` with no toast or UI feedback.
 - **Impact:** MEDIUM - Users won't know if creation failed
 - **Root Cause:** `apps/web/src/features/stock/stock-opname/components/stock-opname-form.tsx:88-90` catches errors but does not show any toast.
+- **Status:** **FIXED** — Added `toast.error(tCommon("error"))` in the catch block and imported `toast` from `sonner`.
 
 ### Bug #15: Finance COA Form Lacks All Field-Level Error Display
 - **Module:** Finance > Chart of Accounts
