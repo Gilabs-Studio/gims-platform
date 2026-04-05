@@ -7,8 +7,8 @@ export const coaTypeSchema = z.enum([
 ]);
 
 export const coaFormSchema = z.object({
-  code: z.string().trim().min(1),
-  name: z.string().trim().min(1),
+  code: z.string().trim().min(1, "Code is required").max(50, "Code must not exceed 50 characters"),
+  name: z.string().trim().min(1, "Name is required").max(200, "Name must not exceed 200 characters"),
   type: coaTypeSchema,
   parent_id: z.string().uuid().nullable().optional(),
   is_active: z.boolean().optional(),

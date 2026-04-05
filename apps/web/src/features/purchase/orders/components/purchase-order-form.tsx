@@ -173,6 +173,7 @@ export function PurchaseOrderForm({
     setValue,
     reset,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<PurchaseOrderFormData>({
     resolver,
@@ -430,6 +431,31 @@ export function PurchaseOrderForm({
   const taxAmount = subtotal * (Number(taxRate) / 100);
   const totalAmount = subtotal + taxAmount + Number(deliveryCost) + Number(otherCost);
   const formatMoney = useCallback((v: number) => formatCurrency(v), []);
+
+  const handleNext = async () => {
+    const fieldsToValidate: (keyof PurchaseOrderFormData)[] = ["order_date"];
+    if (source === "pr") fieldsToValidate.push("purchase_requisitions_id");
+    if (source === "so") fieldsToValidate.push("sales_order_id");
+
+    const isValid = await trigger(fieldsToValidate);
+    if (isValid) {
+      setActiveTab("items");
+    } else {
+        const fieldNameMap: Record<string, string> = {
+        order_date: t("fields.orderDate") || "Order Date",
+        purchase_requisitions_id: t("fields.purchaseRequisitionId") || "Purchase Requisition ID",
+        sales_order_id: t("fields.salesOrderId") || "Sales Order ID",
+      };
+      const fieldNames = fieldsToValidate
+        .filter((f) => errors[f])
+        .map((f) => fieldNameMap[f] || f);
+      toast.error(
+        fieldNames.length
+          ? `${t("validation.required") || "Required"}: ${fieldNames.join(", ")}`
+          : t("validation.required") || "Please fill all required fields"
+      );
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -809,7 +835,7 @@ export function PurchaseOrderForm({
                 <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
                   {t("actions.cancel")}
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+                <Button type="button" onClick={handleNext} className="cursor-pointer">
                   {t("actions.next") || "Next"}
                 </Button>
               </div>

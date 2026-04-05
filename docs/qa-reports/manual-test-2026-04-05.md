@@ -29,6 +29,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** "Page Not Found" - 404 error
 - **Impact:** HIGH - Users cannot access settings from the sidebar
 - **Root Cause:** `apps/web/src/components/layouts/icon-sidebar.tsx:144` hardcodes `<Link href="/settings">`, but `/settings` is **not registered** in `apps/web/src/lib/route-validator.ts` and has no corresponding Next.js App Router page file. `/profile` works correctly.
+- **Status:** **FIXED** — Changed link to `/profile` in `icon-sidebar.tsx`.
 
 ### Bug #2: Go Format String Error in Journal Descriptions
 - **Module:** Finance > Journal Entries
@@ -46,6 +47,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
   DescriptionTemplate: "Invoice %s: %s",
   ```
   `fmt.Sprintf` produces `%!s(MISSING)` when too few arguments are provided.
+- **Status:** **FIXED** — Added `safeInvoiceNumber(invoice.InvoiceNumber)` as the second argument to `DescriptionArgs`.
 
 ### Bug #3: Form Validation Messages Are Static and Misleading (Master Data)
 - **Module:** Master Data > Product
@@ -79,6 +81,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Validation errors prevent proceeding
 - **Actual:** The Basic Info tab allows clicking "Next" without client-side validation; validation only appears later or on server
 - **Impact:** HIGH - Users can proceed with incomplete data
+- **Status:** **FIXED** — Added `trigger()` validation for `order_date`, `purchase_requisitions_id` (when source=PR), and `sales_order_id` (when source=SO) before switching tabs in `purchase-order-form.tsx`.
 
 ### Bug #6: Breadcrumb Links Use Incorrect `/dashboard/` Prefix Causing 404
 - **Module:** Multiple (Stock, CRM, HRD, Purchase)
@@ -87,6 +90,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Navigates to the correct parent page
 - **Actual:** Links point to `/en/dashboard/stock`, `/en/dashboard/crm`, `/en/dashboard/crm/pipeline` — all 404
 - **Impact:** MEDIUM - Navigation via breadcrumbs is broken across multiple modules
+- **Status:** **FIXED** — Changed fallback path builder initial `currentPath` from `"/dashboard"` to `""` in `use-breadcrumb.ts` so segment-built links no longer include the `/dashboard` prefix.
 
 ### Bug #7: Stock Movement Create Page Missing "Add Item" UI
 - **Module:** Stock / Inventory
@@ -114,6 +118,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** 404 "Page Not Found"
 - **Impact:** HIGH - HRD sidebar link is broken
 - **Root Cause:** The working route is `/en/master-data/employees`, but the HRD sidebar links to `/en/hrd/employees`.
+- **Status:** **FIXED** — Updated `hrd-dashboard-client.tsx` link to `/master-data/employees`.
 
 ### Bug #10: Sales Order Shows Raw Zod Error for Empty Customer
 - **Module:** Sales
@@ -123,6 +128,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** Displays raw Zod error: `"Invalid input: expected string, received undefined"`
 - **Impact:** LOW - Unprofessional error message leaks to UI
 - **Root Cause:** The Customer Zod schema falls through to the default error instead of a custom translation string.
+- **Status:** **FIXED** — Added `customer_id: ""` to `useForm` defaultValues and both `reset()` branches in create mode so the schema reaches `.min(1, ...)` and surfaces "Customer is required" instead of the default Zod message.
 
 ### Bug #11: COA Create Extreme Data Returns 400 with Generic Error Toast
 - **Module:** Finance > Chart of Accounts
@@ -131,6 +137,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Field-level validation error (e.g., "Name cannot exceed 100 characters") or clear backend error message
 - **Actual:** Toast shows generic "Something went wrong". Dialog stays open with no field feedback. Console shows `400 (Bad Request)` on `POST /api/v1/finance/chart-of-accounts`.
 - **Impact:** HIGH - Users cannot tell what is wrong with their input
+- **Status:** **FIXED** — Added `.max(50)` to `code` and `.max(200)` to `name` in `coa.schema.ts` with clear error messages so extreme data is caught client-side before hitting the backend.
 
 ### Bug #12: HRD Attendance Create Shows Raw Translation Key on Success
 - **Module:** HRD > Attendance
@@ -139,6 +146,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Expected:** Toast shows "Attendance record created successfully"
 - **Actual:** Toast displays raw key: `hrd.attendance.messages.createSuccess`. Console throws `IntlError: MISSING_MESSAGE: Could not resolve hrd.attendance.messages.createSuccess in messages for locale en.`
 - **Impact:** MEDIUM - Unprofessional UI and missing localization
+- **Status:** **FIXED** — Added missing translation keys (`createSuccess`, `updateSuccess`, `deleteSuccess`) to `apps/web/src/features/hrd/i18n/en.ts`.
 
 ### Bug #13: Product Category Delete Lacks Dependency Blocking
 - **Module:** Master Data > Product Categories
@@ -156,6 +164,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** Catch block only does `console.error("Failed to create opname", error)` with no toast or UI feedback.
 - **Impact:** MEDIUM - Users won't know if creation failed
 - **Root Cause:** `apps/web/src/features/stock/stock-opname/components/stock-opname-form.tsx:88-90` catches errors but does not show any toast.
+- **Status:** **FIXED** — Added `toast.error(tCommon("error"))` in the catch block and imported `toast` from `sonner`.
 
 ### Bug #15: Finance COA Form Lacks All Field-Level Error Display
 - **Module:** Finance > Chart of Accounts
@@ -165,6 +174,7 @@ Systematic manual browser testing across major GIMS ERP modules following CRUD t
 - **Actual:** No inline errors are shown for `code`, `name`, `type`, or `parent_id` fields. The `coa-form.tsx` component renders inputs but never displays `form.formState.errors.code`, `errors.name`, etc.
 - **Impact:** HIGH - Even basic client-side validation (e.g., empty required fields) gives zero visual feedback in the form.
 - **Root Cause:** `apps/web/src/features/finance/coa/components/coa-form.tsx` missing error rendering for all primary fields.
+- **Status:** **FIXED** — Added `<p className="text-sm text-destructive">{errors.field.message}</p>` blocks under `code`, `name`, `type`, and `parent_id` inputs in `coa-form.tsx`.
 
 ---
 
