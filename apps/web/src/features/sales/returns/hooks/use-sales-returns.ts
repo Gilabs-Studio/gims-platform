@@ -1,7 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { salesReturnsService } from "../services/sales-returns-service";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type { CreateSalesReturnInput, SalesReturnListParams, SalesReturnStatus } from "../types";
 
 export const salesReturnsKeys = {
@@ -61,6 +63,9 @@ export function useCreateSalesReturn() {
       queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create sales return"));
+    },
   });
 }
 
@@ -75,6 +80,9 @@ export function useUpdateSalesReturnStatus() {
       queryClient.invalidateQueries({ queryKey: salesReturnsKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update sales return status"));
+    },
   });
 }
 
@@ -85,6 +93,9 @@ export function useDeleteSalesReturn() {
     mutationFn: (id: string) => salesReturnsService.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete sales return"));
     },
   });
 }

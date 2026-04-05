@@ -1,9 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { orderKeys } from "../../order/hooks/use-orders";
 import type { CustomerInvoiceSummary, SalesOrder, SalesOrderListResponse } from "../../order/types";
 import { customerInvoiceDPService } from "../services/customer-invoice-dp-service";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type {
   CreateCustomerInvoiceDPInput,
   CustomerInvoiceDPDetail,
@@ -125,10 +127,11 @@ export function useCreateCustomerInvoiceDP() {
 
       return { previous };
     },
-    onError: (_err, _newDP, context?: { previous?: SalesOrderListResponse | undefined }) => {
+    onError: (error, _newDP, context?: { previous?: SalesOrderListResponse | undefined }) => {
       if (context?.previous) {
         queryClient.setQueriesData({ queryKey: orderKeys.lists() }, context.previous);
       }
+      toast.error(getSalesErrorMessage(error, "Failed to create down payment invoice"));
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
@@ -161,6 +164,9 @@ export function useUpdateCustomerInvoiceDP() {
         queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       }
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update down payment invoice"));
+    },
   });
 }
 
@@ -171,6 +177,9 @@ export function useDeleteCustomerInvoiceDP() {
     mutationFn: (id: string) => customerInvoiceDPService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete down payment invoice"));
     },
   });
 }
@@ -185,6 +194,9 @@ export function usePendingCustomerInvoiceDP() {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
       applyDPToSalesOrderLists(queryClient, response?.data);
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to set down payment invoice to pending"));
+    },
   });
 }
 
@@ -197,6 +209,9 @@ export function useApproveCustomerInvoiceDP() {
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
       queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
       applyDPToSalesOrderLists(queryClient, response?.data);
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to approve down payment invoice"));
     },
   });
 }

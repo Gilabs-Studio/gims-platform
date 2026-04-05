@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { quotationService } from "../services/quotation-service";
+import { getSalesErrorMessage } from "../../utils/error-utils";
 import type {
   ListSalesQuotationsParams,
   ListSalesQuotationItemsParams,
@@ -82,6 +84,9 @@ export function useCreateQuotation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
     },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to create quotation"));
+    },
   });
 }
 
@@ -118,9 +123,10 @@ export function useUpdateQuotation() {
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
     },
-    onError: () => {
+    onError: (error) => {
       // Refetch on error to revert optimistic update
       queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+      toast.error(getSalesErrorMessage(error, "Failed to update quotation"));
     },
   });
 }
@@ -133,6 +139,9 @@ export function useDeleteQuotation() {
     mutationFn: (id: string) => quotationService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to delete quotation"));
     },
   });
 }
@@ -156,6 +165,9 @@ export function useUpdateQuotationStatus() {
       });
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: quotationKeys.lists() });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update quotation status"));
     },
   });
 }

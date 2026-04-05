@@ -9,7 +9,9 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
 
 // Customer Invoice Item Schema
 export const getInvoiceItemSchema = (t?: TranslationFn) => z.object({
-  product_id: z.string().uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
+  product_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Product is required"))
+    .uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
     .min(0.001, getMsg(t, "validation.quantityMin", "Quantity must be at least 0.001")),
@@ -28,13 +30,16 @@ export const getInvoiceItemSchema = (t?: TranslationFn) => z.object({
 export const getInvoiceSchema = (t?: TranslationFn) => z.object({
   invoice_date: z.string()
     .min(1, getMsg(t, "validation.required", "Invoice date is required")),
-  due_date: z.string().optional(),
+  due_date: z.string()
+    .min(1, getMsg(t, "validation.required", "Due date is required")),
   type: z.enum(["regular", "proforma"] as const).default("regular"),
-  sales_order_id: z.string().uuid().optional(),
+  sales_order_id: z.string()
+    .min(1, getMsg(t, "validation.required", "Sales order is required"))
+    .uuid(getMsg(t, "validation.invalidId", "Invalid sales order ID")),
   delivery_order_id: z.string().uuid().optional(),
   payment_terms_id: z.string()
-    .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID"))
-    .optional(),
+    .min(1, getMsg(t, "validation.required", "Payment terms is required"))
+    .uuid(getMsg(t, "validation.invalidId", "Invalid payment terms ID")),
   tax_rate: z.number()
     .min(0, getMsg(t, "validation.taxRateMin", "Tax rate cannot be negative"))
     .max(100, getMsg(t, "validation.taxRateMax", "Tax rate cannot exceed 100%"))

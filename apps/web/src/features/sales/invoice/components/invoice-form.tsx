@@ -144,6 +144,9 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     </Select>
                   )}
                 />
+                {errors.sales_order_id && (
+                  <FieldError>{errors.sales_order_id.message}</FieldError>
+                )}
               </Field>
 
               <Field orientation="vertical">

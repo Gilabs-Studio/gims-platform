@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { useDeliveryOrder, useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
 import { useOrder } from "@/features/sales/order/hooks/use-orders";
 import { useCreateSalesReturn, useSalesReturnFormData, useSalesReturns } from "../hooks/use-sales-returns";
-import { salesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
+import { getSalesReturnSchema, type SalesReturnFormData } from "../schemas/sales-return.schema";
 import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
 
 interface SalesReturnFormProps {
@@ -49,7 +49,7 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, onSuccess
   const [shouldLoadReferenceData, setShouldLoadReferenceData] = useState(!!defaultDeliveryId);
 
   const form = useForm<SalesReturnFormData>({
-    resolver: zodResolver(salesReturnSchema),
+    resolver: zodResolver(getSalesReturnSchema(t)),
     defaultValues: {
       invoice_id: defaultInvoiceId ?? "",
       delivery_id: defaultDeliveryId ?? "",
