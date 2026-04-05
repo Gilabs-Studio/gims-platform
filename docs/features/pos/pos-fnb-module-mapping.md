@@ -23,6 +23,8 @@
 11. [Implementation Phases](#implementation-phases)
 12. [Risks and Mitigation](#risks-and-mitigation)
 13. [Final Recommendation](#final-recommendation)
+14. [Documentation Map](#documentation-map)
+15. [Menu-Based Module Inventory](#menu-based-module-inventory)
 
 ---
 
@@ -34,7 +36,7 @@ Current platform is strong in ERP + CRM for distributor workflows. F&B POS requi
 - Table and floor plan operations with a 2D gamified layout
 - Real-time reservation handling and table assignment
 - Billing and settlement live in the Sales module
-- Ingredient inventory, reports, and company profile live in their own parent modules
+- Inventory stock, reports, and company data live in their own parent modules
 - Customer master data for loyalty and feedback lives under `Master Data -> Customer`
 
 ### Non-Negotiable Scope Rule
@@ -57,7 +59,7 @@ Recommended approach:
 - Apply tenant model: one company record is treated as one outlet in POS context.
 - Keep customer identity, loyalty, and feedback under `Master Data -> Customer`.
 - Keep company/outlet profile under `Master Data -> Organization -> Company`.
-- Keep ingredient inventory under `Stock` and operational reports under `Reports`.
+- Keep inventory stock under `Stock`, surface recipe stock as a filtered view there, keep recipe detail on `Product`, and keep operational reports under `Reports`.
 - Keep invoice, payment, and settlement under `Sales`.
 
 ---
@@ -71,9 +73,9 @@ Interpretation note for this revision:
 
 | Current Menu/Module (Read-Only Source) | Perlu Diubah di Target Module | Target Tree |
 |---|---|---|
-| Master Data Company | Company profile is the tenant source for POS | `Master Data -> Organization -> Company` |
-| Master Data Product (Distributor SKU) | POS catalog projection for menu display and recipe linkage | `Master Data -> Product` + POS catalog projection |
-| Stock Inventory | Ingredient stock, recipe/BOM, and stock reservation live here | `Stock -> Ingredient Inventory / Recipe / BOM / Stock Reservation` |
+| Master Data Company | Company data is the tenant source for POS | `Master Data -> Organization -> Company` |
+| Master Data Product (goods + F&B) | Product type split, recipe detail, and POS catalog projection | `Master Data -> Product` + POS product recipe overlay |
+| Stock Inventory | Inventory stock deduction, reservation, valuation, and recipe-stock filtering remain here | `Stock -> Inventory Stock` |
 | Sales Order | Order capture, order audit trail, and settlement view | `Sales -> Sales Orders` |
 | Sales Invoice | Invoice generation and billing lifecycle | `Sales -> Customer Invoices` |
 | Payments | Payment capture and payment settlement | `Sales -> Payments` |
@@ -86,10 +88,10 @@ Interpretation note for this revision:
 ### Requested Example Mapping Format
 
 - menu1 (perlu diubah) -> menu2
-- Master Data Company (perlu diubah via company profile) -> Master Data -> Organization -> Company
-- Master Data Product (perlu diubah via POS catalog projection) -> Master Data -> Product
+- Master Data Company (perlu diubah via company data) -> Master Data -> Organization -> Company
+- Master Data Product (perlu diubah via goods/F&B type split dan recipe detail) -> Master Data -> Product
 - Sales Invoice B2B (perlu diubah via Sales billing lifecycle) -> Sales -> Customer Invoices
-- Stock Inventory umum (perlu diubah via stock module ownership) -> Stock -> Ingredient Inventory
+- Stock Inventory umum (perlu diubah via inventory stock ownership dan recipe-stock filter) -> Stock -> Inventory Stock
 - CRM Feedback umum (perlu diubah via customer master subtree) -> Master Data -> Customer -> Feedback
 
 ---
@@ -133,13 +135,13 @@ POS
 | Overview | Ringkasan outlet, sales hari ini, status meja, order berjalan | POS order state, reservation state |
 | Live Table Map | Satu UI 2D untuk table selection, live orders, and handoff to Sales | Live table state, order state |
 | Reservation | Manage reservations and waiting queue for full-house flow | Table availability, queue state |
-| Floor & Layout Designer | Configure floor, room, table, and cashier placement | Outlet/company profile |
+| Floor & Layout Designer | Configure floor, room, table, and cashier placement | Master Data -> Organization -> Company |
 
 ---
 
 ## Module Split and Shared Menus
 
-The POS package should stay focused on live operations. Customer engagement, company profile, inventory, reports, and billing are owned by their own parent modules.
+The POS package should stay focused on live operations. Customer engagement, company data, inventory, reports, and billing are owned by their own parent modules.
 
 ### Sibling Module Trees
 
@@ -156,14 +158,12 @@ Master Data
 └── Organization
     └── Company
         ├── Company List
-        └── Company Profile
+        └── Company Details
 ```
 
 ```text
 Stock
-├── Ingredient Inventory
-├── Recipe / BOM
-└── Stock Reservation
+└── Inventory Stock
 ```
 
 ```text
@@ -185,8 +185,8 @@ Sales
 | Domain | Parent Module | In POS Tree? | Notes |
 |---|---|---|---|
 | Customer, Loyalty, Feedback | Master Data -> Customer | No | shared customer management |
-| Company / outlet profile | Master Data -> Organization -> Company | No | outlet identity and company profile |
-| Ingredient inventory | Stock | No | stock module owns ingredients and BOM |
+| Company / outlet data | Master Data -> Organization -> Company | No | outlet identity and company data |
+| Inventory stock | Stock | No | stock module owns inventory; product recipe drives deduction and replenishment |
 | Operational reports | Reports | No | reporting module owns analytics |
 | Billing, invoicing, payments | Sales | No | Sales owns the commercial transaction lifecycle |
 | POS live operations | POS | Yes | only live table map, reservation, and floor layout |
@@ -208,13 +208,13 @@ Master Data
 └── Organization
     └── Company
         ├── Company List
-        └── Company Profile
+        └── Company Details
 ```
 
 Notes:
 - Loyalty earns and redeems are recorded per outlet (company = outlet) but managed here.
 - Feedback entries should reference `outlet_id`, `table_id`, and `invoice_id` where applicable.
-- Outlet profile belongs to company profile, so POS does not need a dedicated outlet profile menu.
+- Outlet profile belongs to the company module, so POS does not need a dedicated outlet profile menu or POS-specific doc.
 
 ---
 
@@ -245,11 +245,12 @@ ERP / CRM Existing Core
 | Existing Module | Relation to POS | Notes |
 |---|---|---|
 | Master Data Company | POS uses it as outlet tenant source | In POS context, `company = outlet` |
-| Master Data Product | POS uses a channel-specific catalog projection | Distributor product behavior stays intact |
+| Master Data Product | POS uses a goods/F&B projection with recipe detail | Distributor product behavior stays intact |
 | Master Data Customer | POS uses it for guest/member reference and customer engagement | Feedback and loyalty live under master data customer |
 | Master Data Organization / Company | POS reads outlet identity from here | Outlet profile is not a POS menu |
 | Master Data Payment & Courier | Not part of POS-only package | Hidden unless another package requires it |
-| Stock | POS reads ingredient stock through bridge | Ingredient inventory lives in Stock |
+| Stock | POS reads inventory stock through bridge | F&B recipe detail on Product drives stock deduction |
+| Purchase | POS can inform replenishment signals from recipe consumption | Purchase order planning stays in the purchase module |
 | Reports | POS sends operational metrics to reporting module | Analytics are not in the POS tree |
 | Sales | POS hands off order, invoice, and payment lifecycle | Sales owns billing and settlement |
 | Finance | POS posts payment and settlement data through bridge | Finance remains the accounting source of truth |
@@ -336,7 +337,7 @@ So the best UX is a single `Live Table Map` workspace with an embedded order dra
 |---|---|---|
 | Master Data (Company/Org) | Outlet, Floor, Table, Station | In POS context: 1 company = 1 outlet; floor/table/station managed by POS |
 | Product Master | Menu Catalog | Menu display and item selection use product master as source |
-| Inventory/Stock | Ingredient Ledger | Ingredient stock changes are owned by Stock |
+| Inventory/Stock | Inventory stock ledger | Inventory stock changes are owned by Stock; F&B recipe detail lives on Product |
 | Sales | Sales Orders / Customer Invoices / Payments | Sales owns order finalization, billing, and settlement |
 | Finance | Journal/AR/Cash Bank | Payment posted to finance; status invoice updated in Sales |
 | CRM | Customer events only | Customer points, feedback, and loyalty stay in Master Data -> Customer |
@@ -401,5 +402,35 @@ So the best UX is a single `Live Table Map` workspace with an embedded order dra
 - Keep invoice, payment, and settlement in `Sales`.
 - Put customer, loyalty, and feedback in `Master Data -> Customer`.
 - Put company/outlet profile in `Master Data -> Organization -> Company`.
-- Put ingredient inventory in `Stock` and analytics in `Reports`.
+- Put inventory stock in `Stock`, recipe detail on `Product`, and analytics in `Reports`.
 - Prioritize an in-place order drawer so the cashier never feels like they are bouncing between two equivalent screens.
+
+### Documentation Map
+
+General POS docs stay at the root of this folder. Menu-specific docs are split into separate files so each menu boundary stays clear.
+
+| Doc | Scope | Notes |
+|---|---|---|
+| [pos-dual-mode-architecture.md](pos-dual-mode-architecture.md) | General POS platform architecture | Shared F&B and goods/distributor split. |
+| [pos-live-operations-prd.md](pos-live-operations-prd.md) | POS F&B live operations | Overview, live table map, reservation, and waiting list. |
+| [layout/floor-layout-designer.md](layout/floor-layout-designer.md) | Floor & Layout Designer | Specific editor feature doc. |
+| [layout/floor-layout-designer-prd.md](layout/floor-layout-designer-prd.md) | Floor & Layout Designer PRD | Specific planning doc for the layout editor. |
+| [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) | Customer loyalty and feedback delta | POS-facing changes needed in Master Data -> Customer. |
+| [product/product-fnb-prd.md](product/product-fnb-prd.md) | Product F&B + recipe extension | POS-facing changes needed in Master Data -> Product and inventory stock flow. |
+| [sales/sales-pos-prd.md](sales/sales-pos-prd.md) | Sales POS menu branch | POS-facing changes needed for goods / distributor mode. |
+| [pos-menu-inventory.md](pos-menu-inventory.md) | POS menu inventory index | One-page inventory of changed and added POS modules. |
+
+## Menu-Based Module Inventory
+
+This section is the quick list of POS modules that change or get added.
+
+| Menu Group | Status | Module |
+|---|---|---|
+| Layout Floor | Updated | [layout/floor-layout-designer.md](layout/floor-layout-designer.md), [layout/floor-layout-designer-prd.md](layout/floor-layout-designer-prd.md) |
+| Live Table Map | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
+| Reservation | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
+| Waiting List | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
+| Product | Updated | [product/product-fnb-prd.md](product/product-fnb-prd.md) |
+| Inventory Stock | Updated indirectly | Stock inventory feature; recipe-stock tab/filter for F&B ingredients. |
+| Sales POS | New | [sales/sales-pos-prd.md](sales/sales-pos-prd.md) |
+| Customer Loyalty & Feedback | Updated | [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) |

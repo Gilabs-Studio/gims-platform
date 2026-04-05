@@ -73,7 +73,6 @@ POS navigation should branch by mode after outlet resolution.
 ```text
 POS
 ├── Overview
-├── Mode Switcher
 ├── F&B Mode
 │   ├── Live Table Map
 │   ├── Reservation
@@ -90,7 +89,6 @@ POS
 ### Navigation Rules
 
 - `Overview` is the common entry point for both modes.
-- `Mode Switcher` is shown only when the user or outlet is allowed to access more than one mode.
 - `F&B Mode` is the only mode that shows Live Table Map, Reservation, and Floor & Layout Designer.
 - `Goods / Distributor Mode` must never require table view.
 - The UI should never force users to pass through Live Table Map unless they are explicitly in F&B mode.
@@ -198,7 +196,7 @@ Product master should remain the source of orderable items for both modes.
 
 ```text
 +-------------------------------------------------------------------------------+
-| POS | Outlet A | Mode: F&B / Goods | [Overview] [Mode Switcher] [Profile]    |
+| POS | Outlet A | Mode: F&B / Goods | [Overview] | [Profile]    |
 +----------------------+--------------------------------------------------------+
 | Sidebar              | Workspace                                             |
 |----------------------|--------------------------------------------------------|

@@ -37,6 +37,8 @@ Goods / distributor mode is a separate POS branch and does not require table vie
 
 The module is intentionally focused on live outlet work, not full ERP administration.
 
+Detailed module deltas for customer, product, and inventory stock / recipe ownership live in [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) and [product/product-fnb-prd.md](product/product-fnb-prd.md). Company data is owned by Master Data -> Organization -> Company.
+
 ### Primary Pages
 
 | Page | Purpose |
@@ -86,9 +88,9 @@ The module is intentionally focused on live outlet work, not full ERP administra
 - Table-level order lifecycle entry and invoice handoff.
 - Wait-time based recommendation list in order drawer for items that should be served first.
 - Integration with payments and finance through the sales boundary.
-- POS order item input sourced from Master Data Product catalog.
-- Integration with ingredient inventory for automatic stock deduction after sales.
-- Barcode or QR-based customer feedback entry.
+- POS order item input sourced from the product F&B projection documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
+- Inventory stock deduction follows the recipe detail on F&B products, also documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
+- Barcode or QR-based customer feedback entry through the flow documented in [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md).
 - Loyalty points and redemption visibility at the customer layer.
 
 ### Out of Scope
@@ -383,15 +385,16 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 
 | Domain | Ownership | Notes |
 |---|---|---|
-| Company / outlet | Master Data | POS reads company as outlet tenant. |
-| Product catalog | Master Data -> Product | POS reads products as orderable menu items. |
+| Company / outlet | Master Data -> Organization -> Company | POS reads company as outlet tenant. Outlet profile is owned by the master company module. |
+| Product catalog | Master Data -> Product | POS reads products as orderable menu items. See [product/product-fnb-prd.md](product/product-fnb-prd.md) for the goods/F&B product split and recipe overlay. |
 | Table / room / floor / cashier station | POS | Live layout and seating state are POS-owned. |
 | Reservation | POS | Reservation lifecycle is managed inside POS. |
 | Waiting list | POS | Queue state and SLA warnings are POS-owned. |
 | Sales invoice | Sales | POS hands off table orders to sales for billing. |
 | Payment | Sales / Finance bridge | POS does not own the accounting ledger. |
-| Ingredient stock | Stock | POS consumes stock via integration after sales. |
-| Customer loyalty and feedback | Master Data -> Customer | POS can trigger the experience but not own the master data. |
+| Inventory stock | Stock | POS consumes stock via integration after sales. Recipe detail lives on the product extension in [product/product-fnb-prd.md](product/product-fnb-prd.md). |
+| Customer loyalty and feedback | Master Data -> Customer | POS can trigger the experience but not own the master data. See [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md). |
+| Purchase planning | Purchase | Recipe consumption can inform replenishment and supplier invoice flows. |
 
 ### Integration Boundary
 
@@ -410,9 +413,15 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 - Table management with warning thresholds.
 - Invoice handoff from table view to sales.
 - Waiting list and reservation synchronization.
-- Ingredient inventory linked to menu consumption.
+- Inventory stock linked to recipe-driven menu consumption.
 - Public feedback barcode per outlet.
 - Loyalty program with point accrual and redemption.
+
+### Related Module Deltas
+
+- Company / outlet data is owned by Master Data -> Organization -> Company.
+- [product/product-fnb-prd.md](product/product-fnb-prd.md) for the goods/F&B product split and recipe-driven stock deduction.
+- [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) for customer lookup, loyalty, and feedback.
 
 ## Business Rules
 
@@ -423,12 +432,12 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 - A table can only have one active live order session at a time.
 - Waiting time warnings must appear before a guest exceeds the configured SLA threshold.
 - Order drawer must show serving-priority recommendations based on waiting duration.
-- Product selection in POS orders must come from Master Data Product.
+- Product selection in POS orders must come from Master Data Product through the F&B product recipe projection.
 - A reservation cannot be seated if the target table is already occupied or blocked.
 - Live Table Map must remain the single source of truth for table placement and live status.
 - The order drawer must stay in the same surface as the table map.
 - Invoice and payment settlement are handed off to Sales.
-- Ingredient deduction happens after the sale is committed.
+- Inventory deduction for F&B products happens after the sale is committed, using the product recipe snapshot.
 - Feedback QR or barcode must be outlet-specific so franchise branches do not mix data.
 
 ## Permissions
