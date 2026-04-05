@@ -40,6 +40,13 @@ interface Point {
   y: number;
 }
 
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 type WallEndpointName = "start" | "end";
 
 function wallSegmentFromObject(wall: LayoutObject): { start: Point; end: Point } {
@@ -80,6 +87,58 @@ function projectPointToSegment(point: Point, start: Point, end: Point): Point {
   if (len2 <= 0.0001) return start;
   const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2));
   return { x: start.x + t * vx, y: start.y + t * vy };
+}
+
+function rectFromObject(obj: LayoutObject): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: Math.max(1, obj.width),
+    height: Math.max(1, obj.height),
+  };
+}
+
+function isRectInside(outer: Rect, inner: Rect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
+function isRectOverlap(a: Rect, b: Rect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+function boundsOfObjects(objects: LayoutObject[]): Rect {
+  if (objects.length === 0) {
+    return { x: 0, y: 0, width: 1, height: 1 };
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const obj of objects) {
+    minX = Math.min(minX, obj.x);
+    minY = Math.min(minY, obj.y);
+    maxX = Math.max(maxX, obj.x + obj.width);
+    maxY = Math.max(maxY, obj.y + obj.height);
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
+  };
 }
 
 function alignAttachedDoorsToWalls(objects: LayoutObject[], changedWallIds?: Set<string>): LayoutObject[] {
@@ -913,10 +972,39 @@ export function useCanvasEditor(floorPlanId: string) {
           ? [store.selectedObjectId]
           : [];
     if (ids.length === 0) return;
-    const idSet = new Set(ids);
-    const toCopy = store.objects.filter(
-      (o) => idSet.has(o.id) || (o.parentId && idSet.has(o.parentId)),
+    const includeSet = new Set(ids);
+
+    // If a zone is selected, include all objects fully inside that zone as one room group.
+    const selectedZones = store.objects.filter(
+      (o) => includeSet.has(o.id) && o.type === "zone",
     );
+    if (selectedZones.length > 0) {
+      for (const zone of selectedZones) {
+        const zoneRect = rectFromObject(zone);
+        for (const obj of store.objects) {
+          if (includeSet.has(obj.id)) continue;
+          if (obj.parentId && includeSet.has(obj.parentId)) continue;
+          if (isRectInside(zoneRect, rectFromObject(obj))) {
+            includeSet.add(obj.id);
+          }
+        }
+      }
+    }
+
+    // Expand descendants recursively to keep parent-child integrity.
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const obj of store.objects) {
+        if (!obj.parentId) continue;
+        if (includeSet.has(obj.parentId) && !includeSet.has(obj.id)) {
+          includeSet.add(obj.id);
+          expanded = true;
+        }
+      }
+    }
+
+    const toCopy = store.objects.filter((o) => includeSet.has(o.id));
     store.setClipboard(structuredClone(toCopy));
   }, [store]);
 
@@ -924,7 +1012,32 @@ export function useCanvasEditor(floorPlanId: string) {
   const paste = useCallback(() => {
     if (!store.clipboard || store.clipboard.length === 0) return;
     saveUndoState();
-    const offset = store.gridSize * 2;
+    const clipBounds = boundsOfObjects(store.clipboard);
+    const stepX = Math.max(store.gridSize * 2, clipBounds.width + store.gridSize);
+    let offsetX = stepX;
+    let offsetY = 0;
+
+    // Push pasted group to the right side until it no longer overlaps existing objects.
+    for (let i = 0; i < 24; i++) {
+      const wouldOverlap = store.clipboard.some((clipObj) => {
+        const movedRect = {
+          x: clipObj.x + offsetX,
+          y: clipObj.y + offsetY,
+          width: Math.max(1, clipObj.width),
+          height: Math.max(1, clipObj.height),
+        };
+        return store.objects.some((existing) => isRectOverlap(movedRect, rectFromObject(existing)));
+      });
+
+      if (!wouldOverlap) break;
+
+      offsetX += stepX;
+      if (offsetX > store.canvasWidth * 2) {
+        offsetX = stepX;
+        offsetY += Math.max(store.gridSize * 2, clipBounds.height + store.gridSize);
+      }
+    }
+
     const idMap = new Map<string, string>();
     for (const obj of store.clipboard) {
       idMap.set(obj.id, generateId());
@@ -932,8 +1045,8 @@ export function useCanvasEditor(floorPlanId: string) {
     const newObjects = store.clipboard.map((obj) => ({
       ...structuredClone(obj),
       id: idMap.get(obj.id) ?? generateId(),
-      x: obj.x + offset,
-      y: obj.y + offset,
+      x: obj.x + offsetX,
+      y: obj.y + offsetY,
       parentId: obj.parentId ? (idMap.get(obj.parentId) ?? undefined) : undefined,
       ...(obj.type === "table" && { tableNumber: ++tableCounter, label: `T${tableCounter}` }),
     }));

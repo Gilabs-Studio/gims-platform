@@ -34,6 +34,12 @@ interface ResizeState {
   wallSnapEndpoints?: WallEndpoint[];
 }
 
+interface DragStartState {
+  x: number;
+  y: number;
+  items: Array<{ id: string; objX: number; objY: number }>;
+}
+
 interface RotationState {
   id: string;
   centerX: number;
@@ -251,7 +257,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [dragStart, setDragStart] = useState<{ x: number; y: number; objX: number; objY: number } | null>(null);
+  const [dragStart, setDragStart] = useState<DragStartState | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const [rotationState, setRotationState] = useState<RotationState | null>(null);
@@ -436,11 +442,23 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       const obj = editor.objects.find((o) => o.id === id);
       if (!obj || obj.locked) return;
 
-      editor.setSelectedObjectId(id);
-      editor.setSelectedObjectIds([id]);
+      const currentSelection = editor.selectedObjectIds.length > 0
+        ? editor.selectedObjectIds
+        : (editor.selectedObjectId ? [editor.selectedObjectId] : []);
+      const keepGroupSelection = currentSelection.length > 1 && currentSelection.includes(id);
+      const dragIds = keepGroupSelection ? currentSelection : [id];
+
+      if (!keepGroupSelection) {
+        editor.setSelectedObjectId(id);
+        editor.setSelectedObjectIds([id]);
+      }
+
       editor.startDrag();
       const pos = screenToCanvas(e.clientX, e.clientY);
-      setDragStart({ x: pos.x, y: pos.y, objX: obj.x, objY: obj.y });
+      const dragItems = editor.objects
+        .filter((o) => dragIds.includes(o.id) && !o.locked)
+        .map((o) => ({ id: o.id, objX: o.x, objY: o.y }));
+      setDragStart({ x: pos.x, y: pos.y, items: dragItems });
       setDraggingId(id);
     },
     [editor, screenToCanvas],
@@ -608,7 +626,11 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       }
 
       if (draggingId && dragStart) {
-        editor.moveObject(draggingId, dragStart.objX + (pos.x - dragStart.x), dragStart.objY + (pos.y - dragStart.y), true);
+        const dx = pos.x - dragStart.x;
+        const dy = pos.y - dragStart.y;
+        for (const item of dragStart.items) {
+          editor.moveObject(item.id, item.objX + dx, item.objY + dy, true);
+        }
         return;
       }
 
