@@ -197,6 +197,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 12. POS
+	posMenu := &permission.Menu{
+		Name:   "POS",
+		Icon:   "store",
+		URL:    "/pos",
+		Order:  12,
+		Status: "active",
+	}
+	if err := createMenu(posMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -484,6 +496,14 @@ func SeedMenus() error {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &travelPlannerMenu.ID, child.order); err != nil {
 			return err
 		}
+	}
+
+	// ============================================================
+	// POS SUB-MENUS
+	// ============================================================
+
+	if _, err := createChildMenu("Floor & Layout Designer", "layout-list", "/pos/floor-layout", &posMenu.ID, 1); err != nil {
+		return err
 	}
 
 	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)

@@ -74,6 +74,8 @@ const EXTRA_VALID_ROUTES = [
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",
+  // POS
+  "/pos/floor-layout",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

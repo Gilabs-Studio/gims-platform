@@ -578,6 +578,10 @@ func SeedPermissions() error {
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+
+		// POS
+		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
+		{"/pos/floor-layout", "pos.layout.manage", "Manage POS Floor Layout", "MANAGE", "pos_layout"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
@@ -783,6 +787,7 @@ func SeedPermissions() error {
 		"finance":           "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"travel_visit":      "DIVISION",
+		"pos":               "OWN",
 		"stock":             "ALL",
 	}, "ALL")
 
@@ -794,6 +799,7 @@ func SeedPermissions() error {
 		"finance":           "OWN",
 		"non_trade_payable": "OWN",
 		"travel_visit":      "OWN",
+		"pos":               "OWN",
 		"stock":             "OWN",
 	}, "ALL")
 
@@ -804,6 +810,7 @@ func SeedPermissions() error {
 		"hrd":          "OWN",
 		"finance":      "OWN",
 		"travel_visit": "DIVISION",
+		"pos":          "OWN",
 		"stock":        "AREA",
 	}, "ALL")
 
@@ -814,6 +821,7 @@ func SeedPermissions() error {
 		"hrd":          "OWN",
 		"finance":      "OWN",
 		"travel_visit": "ALL",
+		"pos":          "OWN",
 		"stock":        "ALL",
 	}, "ALL")
 
@@ -825,6 +833,7 @@ func SeedPermissions() error {
 		"purchase":          "OWN",
 		"hrd":               "OWN",
 		"travel_visit":      "OWN",
+		"pos":               "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — explicit DIVISION scope
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
@@ -841,6 +850,7 @@ func SeedPermissions() error {
 		"purchase":          "OWN",
 		"hrd":               "OWN",
 		"travel_visit":      "OWN",
+		"pos":               "OWN",
 		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",

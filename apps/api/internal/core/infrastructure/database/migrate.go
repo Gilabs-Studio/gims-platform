@@ -21,6 +21,7 @@ import (
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
+	pos "github.com/gilabs/gims/api/internal/pos/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
@@ -276,6 +277,9 @@ func AutoMigrate() error {
 		&crm.AreaCapture{},
 		// General: user dashboard layout preferences
 		&general.DashboardLayout{},
+		// POS entities (Floor Layout Designer)
+		&pos.FloorPlan{},
+		&pos.LayoutVersion{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

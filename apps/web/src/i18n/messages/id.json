@@ -246,7 +246,9 @@
     "plannerWorkspace": "Workspace Planner",
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
-    "settings": "Pengaturan"
+    "settings": "Pengaturan",
+    "pos": "POS",
+    "floorLayoutDesigner": "Desain Tata Letak Lantai"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

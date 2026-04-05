@@ -247,7 +247,9 @@
     "plannerWorkspace": "Planner Workspace",
     "visitReport": "Visit Report",
     "chatbot": "Chatbot",
-    "settings": "Settings"
+    "settings": "Settings",
+    "pos": "POS",
+    "floorLayoutDesigner": "Floor & Layout Designer"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

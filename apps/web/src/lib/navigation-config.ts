@@ -16,6 +16,21 @@ export const navigationConfig: NavItem[] = [
     url: "/dashboard",
     permission: "dashboard.view",
   },
+  {
+    name: "POS",
+    i18nKey: "pos",
+    icon: "store",
+    url: "/pos",
+    children: [
+      {
+        name: "Floor & Layout Designer",
+        i18nKey: "floorLayoutDesigner",
+        url: "/pos/floor-layout",
+        icon: "layout-list",
+        permission: "pos.layout.manage",
+      },
+    ],
+  },
   // CRM before Sales (lead -> opportunity -> order flow)
   {
     name: "CRM",
