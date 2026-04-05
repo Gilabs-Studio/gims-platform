@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -87,6 +88,7 @@ export function CreateStockOpnameDialog({ open, onOpenChange }: Props) {
         setStep(1);
     } catch (error) {
         console.error("Failed to create opname", error);
+        toast.error(tCommon("error"));
     }
   };
 

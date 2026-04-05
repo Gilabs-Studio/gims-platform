@@ -61,8 +61,9 @@ export function useProductCategoryList() {
       await deleteMutation.mutateAsync(deleteId);
       toast.success(t("deleted"));
       setDeleteId(null);
-    } catch {
-      toast.error("Failed to delete category");
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { message?: string } } };
+      toast.error(apiError?.response?.data?.message ?? "Failed to delete category");
     }
   };
 

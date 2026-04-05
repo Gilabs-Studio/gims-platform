@@ -886,7 +886,7 @@ func (uc *customerInvoiceUsecase) triggerSalesInvoiceJournal(ctx context.Context
 		TaxTotal:      invoice.TaxAmount,
 		DepositTotal:  invoice.DownPaymentAmount,
 		COGSTotal:     cogsTotal,
-		DescriptionArgs: []interface{}{invoice.Code},
+		DescriptionArgs: []interface{}{invoice.Code, safeInvoiceNumber(invoice.InvoiceNumber)},
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSalesInvoice, data)

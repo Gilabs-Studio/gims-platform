@@ -375,7 +375,7 @@ export function StockMovementForm() {
       </Card>
 
       {/* ── Section 3: Item Selection ─────────────────────────────────── */}
-      {sourceWarehouseId && (
+      {sourceWarehouseId ? (
         <Card>
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -516,6 +516,13 @@ export function StockMovementForm() {
                 })}
               </div>
             )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-muted/30 border-dashed">
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
+            <WarehouseIcon className="h-10 w-10 opacity-30" />
+            <p className="text-sm font-medium">Please select a warehouse to view available products</p>
           </CardContent>
         </Card>
       )}
