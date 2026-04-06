@@ -88,6 +88,7 @@ Detailed module deltas for customer, product, and inventory stock / recipe owner
 - Table-level order lifecycle entry and invoice handoff.
 - Wait-time based recommendation list in order drawer for items that should be served first.
 - Integration with payments and finance through the sales boundary.
+- QRIS payment in order taking uses Midtrans, with mandatory account connection per outlet before payment can be created.
 - POS order item input sourced from the product F&B projection documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
 - Inventory stock deduction follows the recipe detail on F&B products, also documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
 - Barcode or QR-based customer feedback entry through the flow documented in [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md).
@@ -391,7 +392,7 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 | Reservation | POS | Reservation lifecycle is managed inside POS. |
 | Waiting list | POS | Queue state and SLA warnings are POS-owned. |
 | Sales invoice | Sales | POS hands off table orders to sales for billing. |
-| Payment | Sales / Finance bridge | POS does not own the accounting ledger. |
+| Payment | Sales / Finance bridge | POS does not own the accounting ledger. QRIS is processed through Sales using Midtrans integration. |
 | Inventory stock | Stock | POS consumes stock via integration after sales. Recipe detail lives on the product extension in [product/product-fnb-prd.md](product/product-fnb-prd.md). |
 | Customer loyalty and feedback | Master Data -> Customer | POS can trigger the experience but not own the master data. See [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md). |
 | Purchase planning | Purchase | Recipe consumption can inform replenishment and supplier invoice flows. |
@@ -402,6 +403,8 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 - POS reads orderable items from Master Data Product for product input in order drawer.
 - POS uses outlet-scoped RBAC to prevent cross-branch access.
 - Table orders move to Sales for invoice generation and payment capture.
+- QRIS payment in Sales is created through Midtrans only when the outlet has an active Midtrans connection.
+- If Midtrans is not connected, POS must show a "Connect Midtrans" action and block QRIS payment attempts.
 - Sales posts settlement to Finance.
 - Stock is reduced by ingredient consumption after the sale is finalized.
 - Customer feedback is captured through a public barcode or QR flow tied to outlet ID.
@@ -437,6 +440,8 @@ Waiting List is the live queue view for walk-in guests and overflow situations.
 - Live Table Map must remain the single source of truth for table placement and live status.
 - The order drawer must stay in the same surface as the table map.
 - Invoice and payment settlement are handed off to Sales.
+- QRIS payment option must be disabled when Midtrans connection status is `not_connected` or `expired`.
+- Outlet managers must connect Midtrans credentials before cashiers can process QRIS payment.
 - Inventory deduction for F&B products happens after the sale is committed, using the product recipe snapshot.
 - Feedback QR or barcode must be outlet-specific so franchise branches do not mix data.
 
@@ -471,6 +476,10 @@ POS requires outlet-scoped RBAC in addition to module permissions.
 | POST | /pos/outlets/{outletId}/waiting-list | pos.waiting-list.manage | Add a walk-in guest to the queue. |
 | POST | /pos/outlets/{outletId}/waiting-list/{id}/seat | pos.waiting-list.manage | Seat a waiting guest at a table. |
 | POST | /pos/outlets/{outletId}/tables/{tableId}/invoice | pos.table.manage | Hand off the table order to Sales invoice flow. |
+| GET | /pos/outlets/{outletId}/integrations/midtrans/status | pos.table.manage | Get Midtrans connection status used by order drawer payment actions. |
+| POST | /pos/outlets/{outletId}/integrations/midtrans/connect | pos.outlet.scope | Start or update outlet Midtrans connection for QRIS payment. |
+| DELETE | /pos/outlets/{outletId}/integrations/midtrans/connect | pos.outlet.scope | Disconnect Midtrans integration for the selected outlet. |
+| POST | /pos/outlets/{outletId}/tables/{tableId}/payments/qris | pos.table.manage | Create QRIS payment through Sales using Midtrans for the active invoice. |
 | POST | /pos/outlets/{outletId}/feedback/{barcodeId} | public | Submit outlet feedback from a public barcode or QR page. |
 
 ## Frontend Components
@@ -484,6 +493,7 @@ POS requires outlet-scoped RBAC in addition to module permissions.
 | OrderDrawer | Inline order and invoice handoff drawer on the table map. |
 | ServePriorityPanel | Drawer section that recommends which items should be served first by wait time. |
 | ProductOrderPicker | Product search and picker sourced from Master Data Product. |
+| MidtransConnectionBanner | Shows Midtrans status and "Connect Midtrans" call-to-action before QRIS checkout. |
 | ReservationWorkspace | Parent shell for reservation list and waiting list. |
 | ReservationList | Reservation table and detail panel. |
 | WaitingListPanel | Queue table and SLA warning actions. |
@@ -512,6 +522,9 @@ Open POS
   |        +--> Select table
   |        +--> Open order drawer
   |        +--> Send invoice to Sales
+  |        +--> Check Midtrans connection status
+  |        +--> If connected: create QRIS via Midtrans
+  |        +--> If not connected: prompt outlet manager to connect Midtrans
   |
   +--> Reservation
            |
@@ -536,8 +549,11 @@ Open POS
 7. Add a guest to Waiting List and verify SLA warnings.
 8. Assign a table from Waiting List and confirm the table updates on Live Table Map.
 9. Hand off a table order to Sales and verify invoice creation.
-10. Confirm stock deduction and finance handoff happen after payment settlement.
-11. Scan the outlet feedback barcode and submit feedback from the public page.
+10. Verify Midtrans status appears in the order drawer before QRIS checkout.
+11. If Midtrans is not connected, verify QRIS action is blocked and "Connect Midtrans" is shown.
+12. Connect Midtrans for the outlet, then create QRIS payment and verify success callback updates payment state.
+13. Confirm stock deduction and finance handoff happen after payment settlement.
+14. Scan the outlet feedback barcode and submit feedback from the public page.
 
 ### Automated Testing
 
@@ -546,6 +562,8 @@ Open POS
 - Reservation lifecycle tests.
 - Waiting list SLA tests.
 - Invoice handoff integration tests.
+- Midtrans connection state tests for QRIS eligibility.
+- QRIS payment callback idempotency tests.
 - Feedback barcode routing tests.
 
 ## Technical Decisions
@@ -568,6 +586,12 @@ Open POS
 - **Reason**: It preserves ownership boundaries and reduces duplicate transaction logic.
 - **Trade-off**: POS must integrate cleanly with Sales handoff states.
 
+### Midtrans as QRIS Gateway
+
+- **Decision**: Standardize QRIS payment in order taking through Midtrans integration per outlet.
+- **Reason**: Single gateway simplifies operational setup and settlement consistency across outlets.
+- **Trade-off**: Outlet onboarding must include Midtrans connection before QRIS can be used.
+
 ### Public Feedback via Barcode
 
 - **Decision**: Expose feedback through a public outlet-specific barcode or QR page.
@@ -581,6 +605,7 @@ Open POS
 | Table map becomes too dense | Usability drops | Add zoom, room filters, and state layers. |
 | Outlet scope leaks across franchises | High security risk | Enforce outlet-scoped RBAC everywhere. |
 | Inventory handoff fails after payment | Stock mismatch | Make the sales-to-stock event idempotent. |
+| Midtrans disconnect during checkout | QRIS cannot proceed | Cache status with TTL and force recheck before payment creation. |
 | Waiting list grows too large | Operational delays | Add SLA warnings and queue prioritization. |
 | Feedback barcode is abused | Low quality data | Tie barcode to outlet and validate source constraints. |
 
