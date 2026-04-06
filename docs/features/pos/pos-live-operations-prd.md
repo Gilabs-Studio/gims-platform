@@ -1,8 +1,8 @@
-# POS Live Operations Product Requirements Document
+# POS Live Operations PRD
 
 > **Module:** POS -> Live Operations
 > **Sprint:** Draft Planning
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Status:** Draft
 > **Last Updated:** April 2026
 
@@ -11,606 +11,533 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Product Goals](#product-goals)
-3. [Scope](#scope)
-4. [Information Architecture](#information-architecture)
-5. [Shared UX Principles](#shared-ux-principles)
-6. [Page Specifications](#page-specifications)
-7. [ASCII Layouts](#ascii-layouts)
-8. [Data Ownership and Integration](#data-ownership-and-integration)
-9. [Business Rules](#business-rules)
-10. [Permissions](#permissions)
-11. [API Reference](#api-reference)
-12. [Frontend Components](#frontend-components)
-13. [User Flow](#user-flow)
-14. [Testing Strategy](#testing-strategy)
-15. [Technical Decisions](#technical-decisions)
-16. [Risks and Open Questions](#risks-and-open-questions)
+2. [Goals](#goals)
+3. [Live Operations Scope](#live-operations-scope)
+4. [POS Session Management](#pos-session-management)
+5. [Order Lifecycle](#order-lifecycle)
+6. [Order Types](#order-types)
+7. [Payment Processing](#payment-processing)
+8. [Kitchen Display System](#kitchen-display-system)
+9. [Table Management](#table-management)
+10. [Receipt and Printing](#receipt-and-printing)
+11. [Stock Deduction Flow](#stock-deduction-flow)
+12. [Discount and Promotion](#discount-and-promotion)
+13. [Void and Return](#void-and-return)
+14. [User Roles in POS Operations](#user-roles-in-pos-operations)
+15. [Real-Time Requirements](#real-time-requirements)
+16. [API Reference](#api-reference)
+17. [Frontend Components](#frontend-components)
+18. [Business Rules](#business-rules)
+19. [Technical Decisions](#technical-decisions)
+20. [Notes and Improvements](#notes-and-improvements)
 
 ---
 
 ## Overview
 
-This PRD defines the F&B mode of the POS live operations experience. The experience is centered on a small number of highly consistent pages that share the same visual language as the floor layout designer: dot-grid surfaces, drag-and-drop interactions, strong spatial cues, and a game-like operational feel.
+Live Operations covers everything that happens during an active POS session: opening a shift, creating and managing orders, processing payments, kitchen coordination, and closing the session with reconciliation. This document applies to both Goods (Mode A) and F&B (Mode B) operation modes.
 
-Goods / distributor mode is a separate POS branch and does not require table view.
+## Goals
 
-The module is intentionally focused on live outlet work, not full ERP administration.
+- Fast, intuitive order entry for cashiers and wait staff.
+- Real-time order status tracking across devices.
+- Accurate stock deduction (direct for STOCK, recipe explosion for RECIPE).
+- Reliable payment processing with multi-payment support.
+- End-of-shift reconciliation with cash drawer tracking.
+- Kitchen-to-table coordination for F&B mode.
 
-Detailed module deltas for customer, product, and inventory stock / recipe ownership live in [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) and [product/product-fnb-prd.md](product/product-fnb-prd.md). Company data is owned by Master Data -> Organization -> Company.
-
-### Primary Pages
-
-| Page | Purpose |
-|---|---|
-| Overview | Outlet snapshot for managers and supervisors. |
-| Live Table Map | Gamified 2D operational surface for table handling, order entry, and handoff to sales. |
-| Reservation | Workspace for guest planning and queue control. |
-| Reservation List | Structured list of reservations with status and assignment actions. |
-| Waiting List | Walk-in queue management with SLA warnings and table assignment. |
-
-### Product Intent
-
-- Keep POS fast for cashiers, hosts, and outlet managers.
-- Make the live table surface feel like a physical room that can be understood at a glance.
-- Reuse the same spatial language from the floor layout designer so users do not learn two different metaphors.
-- Support multi-company as multi-outlet, with outlet-scoped RBAC where outlet context is resolved from permission scope.
-
-### Non-Goals
-
-- No ERP master data redesign.
-- No deep finance screen inside POS.
-- No separate stock management screen inside POS.
-- No customer master rework inside POS.
-- No CRM campaign management inside POS.
-
-## Product Goals
-
-| Goal | Description |
-|---|---|
-| Outlet-first operations | Every screen should work in the context of one outlet/company. |
-| Spatial clarity | Staff can see table status, queue pressure, and available space immediately. |
-| Gamified layout consistency | Live screens should feel like an extension of floor planning, not a separate app. |
-| Fast handoff to sales | Table orders move to invoice and payment with minimal friction. |
-| Queue control | Waiting list and reservations reduce chaos during peak hours. |
-| Franchise RBAC | Outlet/company scope prevents cross-branch access leakage. |
-
-## Scope
+## Live Operations Scope
 
 ### In Scope
 
-- Multi-company / multi-outlet access based on master data company records.
-- Outlet-scoped permissions for franchise operations, with outlet selection visible only for users with `ALL` scope.
-- Overview page with operational KPIs and alerts.
-- Live Table Map with dot-grid room visualization, drag-and-drop table editing, and live table state.
-- Reservation workspace with list and queue views.
-- Waiting time warnings for tables and queued guests.
-- Table-level order lifecycle entry and invoice handoff.
-- Wait-time based recommendation list in order drawer for items that should be served first.
-- Integration with payments and finance through the sales boundary.
-- QRIS payment in order taking uses Midtrans, with mandatory account connection per outlet before payment can be created.
-- POS order item input sourced from the product F&B projection documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
-- Inventory stock deduction follows the recipe detail on F&B products, also documented in [product/product-fnb-prd.md](product/product-fnb-prd.md).
-- Barcode or QR-based customer feedback entry through the flow documented in [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md).
-- Loyalty points and redemption visibility at the customer layer.
+- POS session open/close with cash drawer.
+- Order CRUD (create, modify, cancel, complete).
+- Payment processing (cash, card, QRIS, multi-payment).
+- Kitchen display and order routing.
+- Table status management (F&B mode).
+- Receipt generation and printing.
+- Stock deduction on order completion.
+- Basic discounts (item-level, order-level, percentage, fixed).
+- Void and return with stock reversal.
 
 ### Out of Scope
 
-- Full sales billing module design.
-- Finance ledger UI.
-- Inventory purchasing UI.
-- Customer master maintenance UI.
-- Report authoring UI.
+- Loyalty point complex rules (see customer-loyalty-feedback.md).
+- Multi-pricing / price lists (future sprint).
+- Offline mode and sync (future sprint).
+- Delivery / takeaway integration (future sprint).
+- Reservation management (future sprint).
 
-## Information Architecture
+## POS Session Management
 
-### POS Navigation Tree
+### Session Lifecycle
 
-```text
-POS
-├── Overview
-├── Live Table Map
-├── Reservation
-│   ├── Reservation List
-│   └── Waiting List
+```
+Open Session
+    → Set opening cash balance
+    → Assign cashier employee
+    → Assign outlet (warehouse)
+    → Session active
+    
+During Session
+    → Create/manage orders
+    → Process payments
+    → Cash in/out events
+    
+Close Session
+    → Count closing cash
+    → System calculates expected cash
+    → Variance = counted - expected
+    → Generate shift report
+    → Session closed
 ```
 
-### Navigation Rules
+### Session Fields
 
-- `Live Table Map` is the primary working surface for cashiers and hosts.
-- `Overview` is the manager surface for performance and outlet health.
-- `Reservation` is a parent section with two operational views: reservations and waiting list.
-- The order drawer stays inside `Live Table Map`; it is not a separate top-level page.
-- The visual language must stay consistent with the floor layout designer.
-- Outlet context is derived from RBAC scope: users with `OWN` are auto-bound to one outlet, users with `ALL` may switch outlet.
-
-## Shared UX Principles
-
-1. Use a dark, high-contrast spatial canvas with a dotted or grid-based background.
-2. Keep a fixed POS shell across pages so users always know the outlet context.
-3. Use room, table, chair, cashier, and queue metaphors instead of generic cards.
-4. Prioritize quick actions over forms.
-5. Show warnings in-place: waiting time, table occupancy, and queue overflow.
-6. Use draggable and clickable objects where the task is spatial.
-7. Keep tables visually distinct from chairs, cashier stations, and empty zones.
-8. Preserve a consistent header, action bar, and side panels across all pages.
-
-## Page Specifications
-
-### 1. Overview
-
-The Overview page is the outlet command center. It gives managers a quick read on how the outlet is performing without opening detailed operational screens.
-
-#### Primary Responsibilities
-
-- Show outlet status, shift health, and high-level sales signals.
-- Surface live alerts for table congestion, reservation delay, and queue pressure.
-- Display quick entry points to Live Table Map, Reservation List, and Waiting List.
-- Present outlet-scoped context only; no cross-outlet mixing.
-
-#### Key Widgets
-
-- Today sales summary.
-- Active table count.
-- Occupancy percentage.
-- Waiting list count.
-- Reservation count.
-- Warning feed for overdue tables.
-- Shortcut cards for cashier, host, and manager actions.
-
-#### Empty States
-
-- No active shift.
-- No live tables.
-- No reservations for today.
-- No waiting list entries.
-
-### 2. Live Table Map
-
-Live Table Map is the heart of POS. It should feel like a controlled game board: the user can read the room, drag objects, select tables, and open the order drawer without leaving the workspace.
-
-#### Primary Responsibilities
-
-- Render floor, room, wall, cashier, and table objects on a dot-grid canvas.
-- Support drag-and-drop table and chair placement in view mode where allowed.
-- Show live state of each table: open, occupied, reserved, waiting, billed, or blocked.
-- Show how long a table has been occupied or waiting.
-- Open the invoice/order drawer when a table is selected.
-- Show recommendation list in drawer for items that need immediate serving based on waiting time.
-- Load order items from Master Data Product and allow direct input into POS order flow.
-- Allow handoff from POS order state to Sales invoice flow.
-
-#### Key Interactions
-
-- Click a table to open table detail and order drawer.
-- Drag a table or object only when edit mode is enabled.
-- Hover a table to preview guest count, elapsed time, and active items.
-- Use room tabs or floor selectors for multi-floor outlets.
-- Use warning badges for tables that exceed the configured waiting threshold.
-- Prioritize drawer recommendations by waiting duration and service urgency rules.
-
-#### Visual Rules
-
-- Dot-grid background.
-- Rooms outlined by line geometry.
-- Tables rendered as dots, rounded blocks, or framed shapes depending on density.
-- Chairs appear as smaller companion objects.
-- Cashier station remains visually anchored and never mixes with customer seating.
-
-### 3. Reservation
-
-Reservation is the parent workspace for guest planning. It should be split into two operational views: Reservation List and Waiting List.
-
-#### Primary Responsibilities
-
-- Manage booked reservations.
-- Manage walk-in waiting guests.
-- Show table availability before assigning a guest.
-- Capture arrival, confirm, reschedule, cancel, and assign actions.
-- Keep reservation and waiting state synchronized with Live Table Map.
-
-#### Shared Behaviors
-
-- Reservation and waiting entries must be outlet-scoped.
-- The same outlet context must persist when switching between list and queue.
-- Staff should be able to assign a table without navigating away from the reservation workspace.
-
-### 4. Reservation List
-
-Reservation List is the structured planning view for upcoming guests.
-
-#### Primary Responsibilities
-
-- Show reservations by time, guest name, party size, and status.
-- Allow quick confirmation, rescheduling, cancellation, and table assignment.
-- Mark late arrivals and no-shows.
-- Display table readiness and seating suggestions.
-
-#### Important States
-
-- Confirmed.
-- Pending.
-- Arrived.
-- Seated.
-- Rescheduled.
-- Cancelled.
-- No-show.
-
-### 5. Waiting List
-
-Waiting List is the live queue view for walk-in guests and overflow situations.
-
-#### Primary Responsibilities
-
-- Show queued guests in arrival order.
-- Display estimated wait time and warning states.
-- Allow manual prioritization where policy permits.
-- Suggest a table when one becomes available.
-- Sync guest assignment back to Live Table Map.
-
-#### Important States
-
-- Waiting.
-- Notified.
-- Seated.
-- Expired.
-- Escalated.
-
-## ASCII Layouts
-
-### Overview
-
-```text
-+----------------------------------------------------------------------------------+
-| POS | Outlet A | Overview | Shift: 12:00 - 22:00 | [Outlet] [Search] [Profile]  |
-+----------------------+-----------------------------------------------------------+
-| Navigation           | Overview Dashboard                                        |
-|----------------------|-----------------------------------------------------------|
-| Overview             | +-----------+ +-----------+ +-----------+               |
-| Live Table Map       | | Sales     | | Tables    | | Waiting   |               |
-| Reservation          | | Today     | | Occupied  | | Queue     |               |
-|  - Reservation List  | +-----------+ +-----------+ +-----------+               |
-|  - Waiting List      |                                                           |
-|                      | +-------------------------------------------------------+ |
-| Quick Actions        | | Live Alerts                                           | |
-| - Open Tables        | | - Table 12 waiting too long                          | |
-| - New Reservation    | | - Reservation at 19:00 needs confirmation           | |
-| - View Queue         | | - Bar zone near capacity                             | |
-| - Go to Map          | +-------------------------------------------------------+ |
-|                      | +-------------------------------------------------------+ |
-| Outlet Summary       | | Mini room status / occupancy / sales trend           | |
-| - Occupancy 82%      | +-------------------------------------------------------+ |
-| - Active Shift       |                                                           |
-+----------------------+-----------------------------------------------------------+
-```
-
-### Live Table Map
-
-```text
-+----------------------------------------------------------------------------------+
-| POS | Outlet A | Live Table Map | Floor 1 | Edit: Off | [Order] [Reserve] [Pay] |
-+----------------------+-----------------------------------------------------------+
-| Floor / Room Tabs    | Gamified Table Canvas                                      |
-|----------------------|-----------------------------------------------------------|
-| Floor 1              | . . . . . . . . . . . . . . . . . . . . . . . . . .      |
-| Floor 2              | .  +------------------------ Room A -------------------+  |
-| Floor 3              | .  |  [T01]   [T02]   [T03]     chairs as small dots    |  |
-|                      | .  |                                                  |  |
-| Table Legend         | .  |  [T04]   [T05]   [T06]     waiter lane / aisle   |  |
-| - Available          | .  |                                                  |  |
-| - Occupied           | .  |  [Cashier]   [Bar]   [Service]   [T07] [T08]      |  |
-| - Reserved           | .  +--------------------------------------------------+  |
-| - Waiting            |                                                           |
-| - Billed             | +--------------------+  +-----------------------------+ |
-|                      | | Selected Table     |  | Order Drawer / Invoice      | |
-| Object Tools         | | Table 05           |  | Guest: 4 pax                | |
-| - Select             | | Waiting: 18 min    |  | Items from Product Master   | |
-| - Drag               | | Status: Occupied   |  | Serve Now: soup, appetizer  | |
-| - Rotate             | | Actions: open/pay  |  +-----------------------------+ |
-| - Snap Grid          |                                                           |
-+----------------------+-----------------------------------------------------------+
-```
-
-### Reservation
-
-```text
-+----------------------------------------------------------------------------------+
-| POS | Outlet A | Reservation | [Reservation List] [Waiting List] [New Booking]  |
-+----------------------+-----------------------------------------------------------+
-| Reservation Shell    | Reservation Workspace                                     |
-|----------------------|-----------------------------------------------------------|
-| Summary              | +-------------------+ +-------------------+               |
-| - Booked Today       | | Upcoming          | | Queue Pressure    |               |
-| - Confirmed          | | Reservations      | | Warning           |               |
-| - Waiting            | +-------------------+ +-------------------+               |
-| - Late Arrivals      |                                                           |
-| Quick Filters        | +-------------------------------------------------------+ |
-| - Today             | | Context help / outlet rule / seating suggestions       | |
-| - Tomorrow          | | Reservation actions depend on table availability       | |
-| - Pending           | +-------------------------------------------------------+ |
-| - Arrived            |                                                           |
-| Actions              | +-------------------------------------------------------+ |
-| - Confirm            | | Selected entry details and quick actions               | |
-| - Assign Table       | | Confirm | Reschedule | Cancel | Seat | Notify          | |
-| - Notify Guest       | +-------------------------------------------------------+ |
-+----------------------+-----------------------------------------------------------+
-```
-
-### Reservation List
-
-```text
-+----------------------------------------------------------------------------------+
-| POS | Outlet A | Reservation List | Sort: Time | Filter: Today | [Create]       |
-+----------------------+-----------------------------------------------------------+
-| Filters              | Reservation Table                                         |
-|----------------------|-----------------------------------------------------------|
-| Status               | Time   | Guest        | Pax | Status     | Table | Action |
-| - All                |----------------------------------------------------------|
-| - Pending            | 18:00  | Lina         | 4   | Confirmed  | T05   | View   |
-| - Confirmed          | 18:30  | Bima         | 2   | Pending    | -     | Assign |
-| - Arrived            | 19:00  | Rina         | 6   | Late       | T08   | Notify |
-| - Cancelled          | 19:30  | Bayu         | 3   | No-show    | -     | Close  |
-| Date                 | 20:00  | Sari         | 5   | Confirmed  | T11   | View   |
-| - Today              |----------------------------------------------------------|
-| - Tomorrow           | Selected reservation detail and timeline preview         |
-|                      | Actions: confirm, reschedule, cancel, assign table     |
-+----------------------+-----------------------------------------------------------+
-```
-
-### Waiting List
-
-```text
-+----------------------------------------------------------------------------------+
-| POS | Outlet A | Waiting List | SLA Warning: ON | [Call Next] [Seat Guest]      |
-+----------------------+-----------------------------------------------------------+
-| Queue Controls       | Waiting Queue                                             |
-|----------------------|-----------------------------------------------------------|
-| Priority Mode        | Pos | Guest | Pax | Wait Time | Status     | Suggestion  |
-| - FIFO               |----------------------------------------------------------|
-| - Priority           | 01  | Dika  | 2   | 08 min    | Waiting    | T03         |
-| - VIP                | 02  | Nia   | 4   | 19 min    | Warning    | T07         |
-| SLA Threshold        | 03  | Arif  | 3   | 27 min    | Escalated  | T09         |
-| - 15 min             | 04  | Maya  | 6   | 04 min    | Notified   | T12         |
-| - 20 min             |                                                           |
-| Quick Actions        | +-------------------------------------------------------+ |
-| - Notify Next Guest  | | Selected queue entry details                            | |
-| - Mark Arrived       | | Wait time, party size, preference, note, alert level    | |
-| - Assign Table       | | Actions: notify | seat | skip | remove                  | |
-| - Remove             | +-------------------------------------------------------+ |
-+----------------------+-----------------------------------------------------------+
-```
-
-## Data Ownership and Integration
-
-### Ownership Model
-
-| Domain | Ownership | Notes |
+| Field | Type | Description |
 |---|---|---|
-| Company / outlet | Master Data -> Organization -> Company | POS reads company as outlet tenant. Outlet profile is owned by the master company module. |
-| Product catalog | Master Data -> Product | POS reads products as orderable menu items. See [product/product-fnb-prd.md](product/product-fnb-prd.md) for the goods/F&B product split and recipe overlay. |
-| Table / room / floor / cashier station | POS | Live layout and seating state are POS-owned. |
-| Reservation | POS | Reservation lifecycle is managed inside POS. |
-| Waiting list | POS | Queue state and SLA warnings are POS-owned. |
-| Sales invoice | Sales | POS hands off table orders to sales for billing. |
-| Payment | Sales / Finance bridge | POS does not own the accounting ledger. QRIS is processed through Sales using Midtrans integration. |
-| Inventory stock | Stock | POS consumes stock via integration after sales. Recipe detail lives on the product extension in [product/product-fnb-prd.md](product/product-fnb-prd.md). |
-| Customer loyalty and feedback | Master Data -> Customer | POS can trigger the experience but not own the master data. See [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md). |
-| Purchase planning | Purchase | Recipe consumption can inform replenishment and supplier invoice flows. |
+| `id` | UUID | Session identifier |
+| `outlet_id` | UUID | Warehouse (outlet) for this session |
+| `employee_id` | UUID | Cashier/operator |
+| `opened_at` | timestamptz | Session start |
+| `closed_at` | timestamptz | Session end (nullable) |
+| `opening_cash` | decimal | Starting cash amount |
+| `closing_cash` | decimal | Counted cash at close |
+| `expected_cash` | decimal | System-calculated expected |
+| `cash_variance` | decimal | Difference |
+| `status` | enum | OPEN, CLOSED |
 
-### Integration Boundary
+## Order Lifecycle
 
-- POS reads company identity from master data and treats each company as one outlet.
-- POS reads orderable items from Master Data Product for product input in order drawer.
-- POS uses outlet-scoped RBAC to prevent cross-branch access.
-- Table orders move to Sales for invoice generation and payment capture.
-- QRIS payment in Sales is created through Midtrans only when the outlet has an active Midtrans connection.
-- If Midtrans is not connected, POS must show a "Connect Midtrans" action and block QRIS payment attempts.
-- Sales posts settlement to Finance.
-- Stock is reduced by ingredient consumption after the sale is finalized.
-- Customer feedback is captured through a public barcode or QR flow tied to outlet ID.
-- Loyalty points are earned and redeemed in the customer layer, not inside POS core screens.
+### Goods Mode (Mode A)
 
-### Adjacent Features Referenced by This PRD
+```
+DRAFT → CONFIRMED → PAID → COMPLETED
+                 ↘ VOIDED
+```
 
-- Multi-company outlet scoping.
-- Table management with warning thresholds.
-- Invoice handoff from table view to sales.
-- Waiting list and reservation synchronization.
-- Inventory stock linked to recipe-driven menu consumption.
-- Public feedback barcode per outlet.
-- Loyalty program with point accrual and redemption.
+1. **DRAFT**: Items added to cart. No stock impact.
+2. **CONFIRMED**: Order confirmed. Stock check performed.
+3. **PAID**: Payment processed. Stock deducted.
+4. **COMPLETED**: Receipt generated. Final state.
+5. **VOIDED**: Cancelled. Stock reversed if already deducted.
 
-### Related Module Deltas
+### F&B Mode (Mode B)
 
-- Company / outlet data is owned by Master Data -> Organization -> Company.
-- [product/product-fnb-prd.md](product/product-fnb-prd.md) for the goods/F&B product split and recipe-driven stock deduction.
-- [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) for customer lookup, loyalty, and feedback.
+```
+DRAFT → SENT_TO_KITCHEN → IN_PROGRESS → READY → SERVED → PAID → COMPLETED
+                                                       ↘ VOIDED
+```
 
-## Business Rules
+1. **DRAFT**: Staff building order at table.
+2. **SENT_TO_KITCHEN**: Order items routed to kitchen stations.
+3. **IN_PROGRESS**: Kitchen preparing items.
+4. **READY**: Items ready for pickup/serving.
+5. **SERVED**: Items delivered to table.
+6. **PAID**: Payment processed. Stock deducted.
+7. **COMPLETED**: Table released. Final state.
+8. **VOIDED**: Cancelled with manager approval.
 
-- One company record equals one outlet in POS context.
-- Users can only see outlets allowed by their RBAC scope.
-- Users with `OWN` scope cannot switch outlet manually.
-- Users with `ALL` scope can switch outlet using the outlet switcher.
-- A table can only have one active live order session at a time.
-- Waiting time warnings must appear before a guest exceeds the configured SLA threshold.
-- Order drawer must show serving-priority recommendations based on waiting duration.
-- Product selection in POS orders must come from Master Data Product through the F&B product recipe projection.
-- A reservation cannot be seated if the target table is already occupied or blocked.
-- Live Table Map must remain the single source of truth for table placement and live status.
-- The order drawer must stay in the same surface as the table map.
-- Invoice and payment settlement are handed off to Sales.
-- QRIS payment option must be disabled when Midtrans connection status is `not_connected` or `expired`.
-- Outlet managers must connect Midtrans credentials before cashiers can process QRIS payment.
-- Inventory deduction for F&B products happens after the sale is committed, using the product recipe snapshot.
-- Feedback QR or barcode must be outlet-specific so franchise branches do not mix data.
+### Order Fields
 
-## Permissions
-
-POS requires outlet-scoped RBAC in addition to module permissions.
-
-| Permission | Scope | Description |
+| Field | Type | Description |
 |---|---|---|
-| pos.overview.view | OWN / ALL | View outlet summary and alerts. |
-| pos.table.view | OWN / ALL | View live table map and table state. |
-| pos.table.manage | OWN / ALL | Change table state and manage live orders. |
-| pos.reservation.view | OWN / ALL | View reservation data. |
-| pos.reservation.manage | OWN / ALL | Create, update, confirm, cancel, and assign reservations. |
-| pos.waiting-list.manage | OWN / ALL | Manage waiting queue and SLA actions. |
-| pos.outlet.scope | OWN / ALL | Define outlet/company access scope; `OWN` auto-binds outlet, `ALL` can switch outlet. |
+| `id` | UUID | Order identifier |
+| `order_number` | string | Human-readable order number (auto-generated) |
+| `session_id` | UUID | POS session reference |
+| `outlet_id` | UUID | Outlet (warehouse) |
+| `table_id` | UUID (nullable) | Table reference (F&B only) |
+| `customer_id` | UUID (nullable) | Customer reference (optional) |
+| `status` | enum | Order status |
+| `subtotal` | decimal | Sum of line items |
+| `discount_amount` | decimal | Total discount |
+| `tax_amount` | decimal | Calculated tax |
+| `service_charge` | decimal | Service charge (F&B) |
+| `total` | decimal | Final amount |
+| `notes` | text | Order-level notes |
+
+### Order Line Item Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Line item identifier |
+| `order_id` | UUID | Parent order |
+| `product_id` | UUID | Product reference |
+| `product_kind` | string | Snapshot: STOCK, RECIPE, SERVICE |
+| `quantity` | decimal | Ordered quantity |
+| `unit_price` | decimal | Price at time of order |
+| `discount_amount` | decimal | Item-level discount |
+| `subtotal` | decimal | qty * unit_price - discount |
+| `notes` | text | Item notes (e.g., "no ice") |
+| `kitchen_status` | enum | PENDING, PREPARING, READY, SERVED |
+
+## Order Types
+
+| Type | Mode | Description |
+|---|---|---|
+| Dine-in | A, B | Standard in-store order |
+| Takeaway | A, B | Customer takes items away |
+| Counter | A | Quick sale without table |
+
+## Payment Processing
+
+### Supported Methods
+
+| Method | Type | Notes |
+|---|---|---|
+| Cash | Offline | Change calculation |
+| Debit/Credit Card | Online | Terminal integration (future) |
+| QRIS | Online | QR code generation |
+| Multi-payment | Mixed | Split across methods |
+
+### Payment Flow
+
+```
+1. Calculate total (subtotal - discount + tax + service)
+2. Select payment method(s)
+3. For cash: Enter tendered amount, calculate change
+4. For card/QRIS: Process via terminal/QR
+5. For multi: Allocate amounts across methods
+6. Verify total covered
+7. Record payment, trigger stock deduction
+8. Generate receipt
+```
+
+### Payment Fields
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Payment identifier |
+| `order_id` | UUID | Order reference |
+| `method` | enum | CASH, CARD, QRIS |
+| `amount` | decimal | Amount for this method |
+| `tendered` | decimal | Amount given (cash) |
+| `change` | decimal | Change returned (cash) |
+| `reference` | string | External reference (card/QRIS) |
+| `status` | enum | PENDING, COMPLETED, FAILED |
+
+## Kitchen Display System
+
+### Kitchen Stations
+
+| Station | Receives |
+|---|---|
+| Main Kitchen | Hot food items |
+| Drink Bar | Beverages |
+| Dessert | Desserts and pastries |
+| Default | Unassigned items |
+
+Station routing is based on product category mapping (configurable per outlet).
+
+### Kitchen Ticket
+
+```
+┌────────────────────────┐
+│ Order #POS-2026-0042   │
+│ Table: A-3             │
+│ Time: 14:23            │
+│ ────────────────────── │
+│ 2x Nasi Goreng Special │
+│    > Extra spicy       │
+│ 1x Es Teh Manis       │
+│    > Less sugar        │
+│ ────────────────────── │
+│ Status: PREPARING      │
+└────────────────────────┘
+```
+
+### KDS Flow
+
+```
+Order placed → Tickets created per station
+  → Kitchen taps "Start" → IN_PROGRESS
+  → Kitchen taps "Done" → READY
+  → Staff taps "Served" → SERVED
+```
+
+## Table Management
+
+### Table Status States
+
+| Status | Color | Description |
+|---|---|---|
+| AVAILABLE | Green | Empty, ready for seating |
+| OCCUPIED | Red | Guests seated, order in progress |
+| RESERVED | Blue | Reserved for upcoming guest |
+| CLEANING | Yellow | Being cleaned after guests left |
+
+### Table Actions
+
+| Action | From Status | To Status |
+|---|---|---|
+| Seat guests | AVAILABLE | OCCUPIED |
+| Create order | OCCUPIED | OCCUPIED |
+| Close order | OCCUPIED | CLEANING |
+| Clean complete | CLEANING | AVAILABLE |
+| Reserve | AVAILABLE | RESERVED |
+| Cancel reservation | RESERVED | AVAILABLE |
+| Walk-in on reserved | RESERVED | OCCUPIED |
+
+## Receipt and Printing
+
+### Receipt Template
+
+```
+┌──────────────────────────────┐
+│       OUTLET NAME            │
+│     Address Line 1           │
+│     Phone: 021-xxx           │
+│ ──────────────────────────── │
+│ Receipt #: POS-2026-0042    │
+│ Date: 2026-04-15 14:30      │
+│ Cashier: John Doe            │
+│ Table: A-3 (F&B only)       │
+│ ──────────────────────────── │
+│ 2x Nasi Goreng    Rp 70,000 │
+│ 1x Es Teh          Rp 8,000 │
+│ 1x Service Charge Rp 10,000 │
+│ ──────────────────────────── │
+│ Subtotal          Rp 88,000  │
+│ Discount (10%)   -Rp  8,800  │
+│ Tax (11%)         Rp  8,712  │
+│ ──────────────────────────── │
+│ TOTAL             Rp 87,912  │
+│ ──────────────────────────── │
+│ Cash             Rp 100,000  │
+│ Change            Rp 12,088  │
+│ ──────────────────────────── │
+│    Thank you for visiting!   │
+│      www.outlet.com          │
+└──────────────────────────────┘
+```
+
+### Print Routing
+
+| Receipt Type | Printer | Trigger |
+|---|---|---|
+| Customer receipt | Receipt printer | Payment completed |
+| Kitchen ticket | Kitchen printer | Order sent to kitchen |
+| Bar ticket | Bar printer | Drink items ordered |
+| Shift report | Receipt printer | Session closed |
+
+## Stock Deduction Flow
+
+### On Order Confirmation (or Payment)
+
+```
+For each order line item:
+
+  IF product_kind = STOCK:
+    → StockMovement(OUT, product_id, outlet_warehouse_id, qty)
+    → Reduce InventoryBatch (FIFO, FOR UPDATE lock)
+    → Fail if insufficient stock
+
+  IF product_kind = RECIPE:
+    → Load recipe items from product_recipe_items
+    → For each recipe_item:
+        consumed_qty = recipe_item.quantity * order_qty
+        → StockMovement(OUT, ingredient_product_id, outlet_warehouse_id, consumed_qty)
+        → Reduce InventoryBatch per ingredient (FIFO, FOR UPDATE lock)
+    → Fail if ANY ingredient insufficient → rollback all
+
+  IF product_kind = SERVICE:
+    → Skip stock deduction
+```
+
+### Stock Deduction Timing
+
+- **Goods mode**: Deduct on payment confirmation.
+- **F&B mode**: Deduct on payment confirmation (not on kitchen send).
+- **Rationale**: Prevents double-deduction if order is modified between kitchen and payment.
+
+## Discount and Promotion
+
+### Discount Types
+
+| Type | Level | Example |
+|---|---|---|
+| Percentage | Item | 10% off specific item |
+| Fixed amount | Item | Rp 5,000 off item |
+| Percentage | Order | 15% off total |
+| Fixed amount | Order | Rp 50,000 off total |
+
+### Discount Rules
+
+- Item-level discounts applied before order-level.
+- Tax calculated after all discounts.
+- Maximum discount configurable per outlet.
+- Manager override for exceeding maximum discount.
+
+## Void and Return
+
+### Void (Before Payment)
+
+- Cancel order or remove items.
+- No stock impact (stock not yet deducted).
+- Requires reason.
+
+### Void (After Payment)
+
+- Requires manager approval.
+- Stock reversal: StockMovement(IN) per deducted item.
+- For RECIPE: Reverse ingredient-level movements.
+- Payment reversal recorded.
+- Original receipt marked as voided.
+
+### Return
+
+- Post-sale return within configurable window.
+- Creates StockMovement(IN) with reference to original sale.
+- Refund recorded.
+
+## User Roles in POS Operations
+
+| Role | Capabilities |
+|---|---|
+| Cashier | Open session, create orders, process payments, close session |
+| Waiter/Staff | Create orders, modify orders, mark served |
+| Kitchen Staff | View kitchen tickets, update preparation status |
+| Shift Manager | Override discounts, approve voids, view reports |
+| POS Admin | Configure outlet, manage floor layout, view all reports |
+
+## Real-Time Requirements
+
+| Feature | Technology | Priority |
+|---|---|---|
+| Kitchen order sync | WebSocket / SSE | High |
+| Table status updates | WebSocket / SSE | High |
+| Live order tracking | WebSocket / SSE | Medium |
+| Multi-device sync | WebSocket | Medium |
+
+### Fallback
+
+- HTTP polling at 5-second intervals if WebSocket unavailable.
+- Optimistic UI updates with server reconciliation.
 
 ## API Reference
 
+### Session Endpoints
+
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| GET | /pos/outlets | pos.outlet.scope | List outlets visible to the current user. |
-| GET | /pos/outlets/{outletId}/overview | pos.overview.view | Get summary data for the Overview page. |
-| GET | /pos/outlets/{outletId}/live-table-map | pos.table.view | Get live table map data, room layout, and table states. |
-| GET | /pos/outlets/{outletId}/product-catalog | pos.table.manage | Get orderable product list from Master Data Product projection. |
-| GET | /pos/outlets/{outletId}/reservations | pos.reservation.view | List reservations for the outlet. |
-| POST | /pos/outlets/{outletId}/reservations | pos.reservation.manage | Create a reservation. |
-| PUT | /pos/outlets/{outletId}/reservations/{id} | pos.reservation.manage | Update reservation details. |
-| POST | /pos/outlets/{outletId}/reservations/{id}/confirm | pos.reservation.manage | Confirm reservation arrival. |
-| POST | /pos/outlets/{outletId}/reservations/{id}/seat | pos.reservation.manage | Assign reservation to a table. |
-| GET | /pos/outlets/{outletId}/waiting-list | pos.waiting-list.manage | List waiting queue entries. |
-| POST | /pos/outlets/{outletId}/waiting-list | pos.waiting-list.manage | Add a walk-in guest to the queue. |
-| POST | /pos/outlets/{outletId}/waiting-list/{id}/seat | pos.waiting-list.manage | Seat a waiting guest at a table. |
-| POST | /pos/outlets/{outletId}/tables/{tableId}/invoice | pos.table.manage | Hand off the table order to Sales invoice flow. |
-| GET | /pos/outlets/{outletId}/integrations/midtrans/status | pos.table.manage | Get Midtrans connection status used by order drawer payment actions. |
-| POST | /pos/outlets/{outletId}/integrations/midtrans/connect | pos.outlet.scope | Start or update outlet Midtrans connection for QRIS payment. |
-| DELETE | /pos/outlets/{outletId}/integrations/midtrans/connect | pos.outlet.scope | Disconnect Midtrans integration for the selected outlet. |
-| POST | /pos/outlets/{outletId}/tables/{tableId}/payments/qris | pos.table.manage | Create QRIS payment through Sales using Midtrans for the active invoice. |
-| POST | /pos/outlets/{outletId}/feedback/{barcodeId} | public | Submit outlet feedback from a public barcode or QR page. |
+| POST | `/pos/sessions/open` | pos.order.create | Open new POS session |
+| POST | `/pos/sessions/:id/close` | pos.order.create | Close session with reconciliation |
+| GET | `/pos/sessions/:id` | pos.order.read | Get session details |
+| GET | `/pos/sessions/:id/report` | pos.order.read | Shift report |
+
+### Order Endpoints
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| POST | `/pos/orders` | pos.order.create | Create order |
+| GET | `/pos/orders/:id` | pos.order.read | Get order detail |
+| PUT | `/pos/orders/:id` | pos.order.create | Update order (add/remove items) |
+| POST | `/pos/orders/:id/confirm` | pos.order.create | Confirm order |
+| POST | `/pos/orders/:id/void` | pos.order.create | Void order |
+| GET | `/pos/orders?session_id=X` | pos.order.read | List orders for session |
+
+### Payment Endpoints
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| POST | `/pos/orders/:id/pay` | pos.order.create | Process payment |
+| GET | `/pos/orders/:id/receipt` | pos.order.read | Get receipt data |
+
+### Kitchen Endpoints
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| GET | `/pos/kitchen/tickets` | pos.order.read | Get kitchen tickets for station |
+| PUT | `/pos/kitchen/tickets/:id/status` | pos.order.create | Update ticket status |
+
+### Catalog Endpoints
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| GET | `/pos/outlets/:id/product-catalog` | pos.order.read | Get outlet product catalog |
+| GET | `/pos/outlets/:id/tables` | pos.floor.read | Get outlet tables with status |
 
 ## Frontend Components
 
+### POS Main Screen
+
 | Component | Purpose |
 |---|---|
-| PosShell | Shared outlet-scoped app shell for all POS pages. |
-| OverviewDashboard | Outlet health and KPI surface. |
-| LiveTableMap | Gamified table canvas with room, table, chair, and cashier objects. |
-| TableObject | Table node with state, wait time, and quick actions. |
-| OrderDrawer | Inline order and invoice handoff drawer on the table map. |
-| ServePriorityPanel | Drawer section that recommends which items should be served first by wait time. |
-| ProductOrderPicker | Product search and picker sourced from Master Data Product. |
-| MidtransConnectionBanner | Shows Midtrans status and "Connect Midtrans" call-to-action before QRIS checkout. |
-| ReservationWorkspace | Parent shell for reservation list and waiting list. |
-| ReservationList | Reservation table and detail panel. |
-| WaitingListPanel | Queue table and SLA warning actions. |
-| OutletScopeSwitcher | Outlet selector shown only for users with `ALL` scope. |
-| FeedbackBarcodePage | Public feedback page for a specific outlet. |
+| POSLayout | Main POS screen layout (sidebar + main area) |
+| OutletSelector | Select active outlet at session start |
+| SessionPanel | Open/close shift, cash management |
 
-## User Flow
+### Order Components
 
-```text
-Login
-  |
-  v
-Resolve Outlet Scope From Permission
-  |
-  +--> OWN scope: auto-bind to user outlet
-  |
-  +--> ALL scope: choose outlet
-  |
-  v
-Open POS
-  |
-  +--> Overview (manager)
-  |
-  +--> Live Table Map (cashier / host)
-  |        |
-  |        +--> Select table
-  |        +--> Open order drawer
-  |        +--> Send invoice to Sales
-  |        +--> Check Midtrans connection status
-  |        +--> If connected: create QRIS via Midtrans
-  |        +--> If not connected: prompt outlet manager to connect Midtrans
-  |
-  +--> Reservation
-           |
-           +--> Reservation List
-           |
-           +--> Waiting List
-                    |
-                    +--> Seat guest
-                    +--> Sync with Live Table Map
-```
+| Component | Purpose |
+|---|---|
+| ProductCatalogGrid | Grid/list of available products with search |
+| OrderCart | Current order with line items |
+| OrderLineItem | Single item with qty, price, discount, notes |
+| OrderSummary | Subtotal, discount, tax, total |
+| OrderNotes | Order-level notes input |
 
-## Testing Strategy
+### Payment Components
 
-### Manual Testing
+| Component | Purpose |
+|---|---|
+| PaymentDialog | Payment method selection and processing |
+| CashPayment | Cash tendered + change calculator |
+| CardPayment | Card terminal integration |
+| QRISPayment | QR code display |
+| MultiPayment | Split payment across methods |
 
-1. Login as a user with multiple outlet access.
-2. Verify only authorized outlets appear.
-3. Open Overview and confirm KPI cards reflect the selected outlet.
-4. Open Live Table Map and verify the gamified layout, table states, and order drawer behavior.
-5. Drag or inspect layout objects where editing is enabled.
-6. Create a reservation and confirm it appears in Reservation List.
-7. Add a guest to Waiting List and verify SLA warnings.
-8. Assign a table from Waiting List and confirm the table updates on Live Table Map.
-9. Hand off a table order to Sales and verify invoice creation.
-10. Verify Midtrans status appears in the order drawer before QRIS checkout.
-11. If Midtrans is not connected, verify QRIS action is blocked and "Connect Midtrans" is shown.
-12. Connect Midtrans for the outlet, then create QRIS payment and verify success callback updates payment state.
-13. Confirm stock deduction and finance handoff happen after payment settlement.
-14. Scan the outlet feedback barcode and submit feedback from the public page.
+### F&B Components
 
-### Automated Testing
+| Component | Purpose |
+|---|---|
+| FloorLayoutView | Visual table map (read-only for ordering) |
+| TableStatusBadge | Color-coded table status |
+| KitchenDisplay | Kitchen ticket board per station |
+| KitchenTicket | Individual ticket with items and timer |
 
-- POS outlet scope tests.
-- Table state transition tests.
-- Reservation lifecycle tests.
-- Waiting list SLA tests.
-- Invoice handoff integration tests.
-- Midtrans connection state tests for QRIS eligibility.
-- QRIS payment callback idempotency tests.
-- Feedback barcode routing tests.
+### Report Components
+
+| Component | Purpose |
+|---|---|
+| ShiftReport | End-of-shift summary |
+| SalesReport | Sales breakdown by product, category, payment |
+
+## Business Rules
+
+- Session must be open before creating orders.
+- One active session per cashier per outlet at a time.
+- Orders cannot be modified after payment.
+- Void after payment requires manager approval.
+- Stock check on confirmation, deduction on payment.
+- Receipt auto-generated on payment completion.
+- Cash variance tracked per session.
+- Maximum discount threshold per outlet (configurable).
+- Order number format: `POS-{YYYY}-{NNNN}` (per outlet, daily reset).
 
 ## Technical Decisions
 
-### Single Outlet Context Per Company
+- **Stock deduction on payment, not kitchen send**: Prevents phantom deductions when orders are modified.
+- **Order number daily reset per outlet**: Keeps numbers short and readable.
+- **Kitchen routing by category**: Simple and configurable. Avoids complex station-product mapping.
+- **WebSocket for real-time**: Lower latency than polling. SSE as fallback.
+- **Session-based cash tracking**: Industry standard for POS reconciliation.
 
-- **Decision**: Treat each company record as one outlet inside POS.
-- **Reason**: It keeps the franchise model simple and consistent with the requested multi-company scope.
-- **Trade-off**: Cross-company reports must be handled outside the POS surface.
+## Notes and Improvements
 
-### Gamified Live Table Surface
+### Planned
 
-- **Decision**: Use the floor-layout visual language for Live Table Map.
-- **Reason**: Staff already learn one spatial model for layout creation and can reuse that mental model during live operations.
-- **Trade-off**: The canvas layer is more complex than a flat list UI.
+- Offline mode with IndexedDB queue and background sync.
+- Multi-printer support with ESC/POS protocol.
+- Table merge/split for F&B.
+- Order hold/recall for complex F&B scenarios.
+- Delivery/takeaway order type with address management.
+- Happy hour / time-based pricing.
+- Barcode scanner integration for Goods mode.
 
-### Sales as Billing Boundary
+### Known Limitations
 
-- **Decision**: Keep invoice and payment inside Sales, not POS.
-- **Reason**: It preserves ownership boundaries and reduces duplicate transaction logic.
-- **Trade-off**: POS must integrate cleanly with Sales handoff states.
-
-### Midtrans as QRIS Gateway
-
-- **Decision**: Standardize QRIS payment in order taking through Midtrans integration per outlet.
-- **Reason**: Single gateway simplifies operational setup and settlement consistency across outlets.
-- **Trade-off**: Outlet onboarding must include Midtrans connection before QRIS can be used.
-
-### Public Feedback via Barcode
-
-- **Decision**: Expose feedback through a public outlet-specific barcode or QR page.
-- **Reason**: It is simple for guests and supports franchise separation.
-- **Trade-off**: The public page needs careful validation and branding support.
-
-## Risks and Open Questions
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Table map becomes too dense | Usability drops | Add zoom, room filters, and state layers. |
-| Outlet scope leaks across franchises | High security risk | Enforce outlet-scoped RBAC everywhere. |
-| Inventory handoff fails after payment | Stock mismatch | Make the sales-to-stock event idempotent. |
-| Midtrans disconnect during checkout | QRIS cannot proceed | Cache status with TTL and force recheck before payment creation. |
-| Waiting list grows too large | Operational delays | Add SLA warnings and queue prioritization. |
-| Feedback barcode is abused | Low quality data | Tie barcode to outlet and validate source constraints. |
-
-### Open Questions
-
-- Should Live Table Map support edit mode inside the same page, or only read-only live operations?
-- Should waiting list prioritization support VIP or manual override policies per outlet?
-- Should feedback branding be configurable per outlet or per franchise group?
+- No offline support yet (requires internet connection).
+- Single printer only (receipt printer).
+- No reservation management.
+- No delivery integration.

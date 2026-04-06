@@ -40,7 +40,7 @@ It does not own live table state, reservation, queue, invoice, payment, stock de
 |---|---|
 | Fast layout creation | Admins can create and modify a floor map quickly. |
 | Game-like interaction | Layout editing uses drag, drop, rotate, resize, and draw interactions. |
-| Multi-outlet support | One company in master data equals one outlet context. |
+| Multi-outlet support | Each outlet is a warehouse with `is_pos_outlet=true`. See [warehouse-outlet-rbac.md](../shared/warehouse-outlet-rbac.md). |
 | Versioned publishing | Drafts can be saved and published as stable snapshots. |
 | Clear spatial structure | Floors, rooms, zones, tables, chairs, doors, and cashier positions are distinct. |
 

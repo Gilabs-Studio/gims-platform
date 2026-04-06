@@ -1,436 +1,305 @@
-# POS F&B Module Mapping (POS-Only Live Operations)
+# POS F&B Module Mapping
 
-> **Module:** POS + F&B Operations  
-> **Sprint:** Draft Planning  
-> **Version:** 0.5.0  
-> **Status:** Draft (POS-only UX + shared module split)  
+> **Module:** POS -> Architecture -> Module Mapping
+> **Sprint:** Draft Planning
+> **Version:** 0.2.0
+> **Status:** Draft
 > **Last Updated:** April 2026
 
 ---
 
 ## Table of Contents
 
-1. [Context](#context)
-2. [Strategic Recommendation](#strategic-recommendation)
-3. [Menu Mapping (Current -> Adjustment -> Target)](#menu-mapping-current---adjustment---target)
-4. [Proposed POS Navigation Tree](#proposed-pos-navigation-tree)
-5. [Module Split and Shared Menus](#module-split-and-shared-menus)
-6. [Relationship to Existing Modules](#relationship-to-existing-modules)
-7. [Subscription Packaging](#subscription-packaging)
-8. [POS Access Pattern](#pos-access-pattern)
-9. [Data and Module Integration](#data-and-module-integration)
-10. [End-to-End Transaction Flow](#end-to-end-transaction-flow)
-11. [Implementation Phases](#implementation-phases)
-12. [Risks and Mitigation](#risks-and-mitigation)
-13. [Final Recommendation](#final-recommendation)
-14. [Documentation Map](#documentation-map)
-15. [Menu-Based Module Inventory](#menu-based-module-inventory)
+1. [Overview](#overview)
+2. [Module Registry](#module-registry)
+3. [Product Module Extensions](#product-module-extensions)
+4. [Warehouse / Outlet Module](#warehouse--outlet-module)
+5. [Stock / Inventory Module](#stock--inventory-module)
+6. [POS Domain Module](#pos-domain-module)
+7. [Sales Transaction Module](#sales-transaction-module)
+8. [Customer and Loyalty Module](#customer-and-loyalty-module)
+9. [HRD Integration](#hrd-integration)
+10. [Finance Integration](#finance-integration)
+11. [Module Interaction Diagram](#module-interaction-diagram)
+12. [Feature to Module Mapping](#feature-to-module-mapping)
+13. [Data Flow per Transaction Type](#data-flow-per-transaction-type)
+14. [Notes and Improvements](#notes-and-improvements)
 
 ---
 
-## Context
+## Overview
 
-Current platform is strong in ERP + CRM for distributor workflows. F&B POS requires additional operational layers, but the POS package itself should stay focused on live operations only.
+This document maps every POS feature to its owning GIMS module, clarifying which domain is responsible for what. This prevents duplication and ensures each feature is built in the correct vertical slice.
 
-- Multi outlet operations with rule: `company = outlet`
-- Table and floor plan operations with a 2D gamified layout
-- Real-time reservation handling and table assignment
-- Billing and settlement live in the Sales module
-- Inventory stock, reports, and company data live in their own parent modules
-- Customer master data for loyalty and feedback lives under `Master Data -> Customer`
+### Guiding Principle
 
-### Non-Negotiable Scope Rule
+> The POS domain owns **order orchestration** and **floor management**. It **reads** from Product, Warehouse, and Customer. It **writes** to Stock and Sales. It never owns master data.
 
-- Existing ERP and CRM modules must remain unchanged.
-- POS is built as a separate parent module/package that consumes data from existing modules via API or read model.
-- No forced refactor on distributor workflows.
+## Module Registry
 
----
-
-## Strategic Recommendation
-
-Short answer: **Yes, POS F&B should connect to Stock/Inventory and Finance**, but only through module boundaries so ERP/CRM code is not touched.
-
-Recommended approach:
-
-- Keep existing ERP/CRM as source systems only.
-- Build POS as an independent module tree with its own routes, usecases, and UI pages.
-- Use mapping adapters between POS and the shared modules so cross-module contracts stay stable.
-- Apply tenant model: one company record is treated as one outlet in POS context.
-- Keep customer identity, loyalty, and feedback under `Master Data -> Customer`.
-- Keep company/outlet profile under `Master Data -> Organization -> Company`.
-- Keep inventory stock under `Stock`, surface recipe stock as a filtered view there, keep recipe detail on `Product`, and keep operational reports under `Reports`.
-- Keep invoice, payment, and settlement under `Sales`.
-
----
-
-## Menu Mapping (Current -> Adjustment -> Target)
-
-Interpretation note for this revision:
-
-- `Perlu diubah` means added mapping/adapter behavior in the owning module.
-- It does not mean changing existing internals unless the target module is explicitly the owner.
-
-| Current Menu/Module (Read-Only Source) | Perlu Diubah di Target Module | Target Tree |
+| Module | Backend Path | Responsibilities |
 |---|---|---|
-| Master Data Company | Company data is the tenant source for POS | `Master Data -> Organization -> Company` |
-| Master Data Product (goods + F&B) | Product type split, recipe detail, and POS catalog projection | `Master Data -> Product` + POS product recipe overlay |
-| Stock Inventory | Inventory stock deduction, reservation, valuation, and recipe-stock filtering remain here | `Stock -> Inventory Stock` |
-| Sales Order | Order capture, order audit trail, and settlement view | `Sales -> Sales Orders` |
-| Sales Invoice | Invoice generation and billing lifecycle | `Sales -> Customer Invoices` |
-| Payments | Payment capture and payment settlement | `Sales -> Payments` |
-| Master Data Customer | Loyalty and feedback managed in customer master | `Master Data -> Customer -> Loyalty Program / Feedback` |
-| Reports | Sales and operational analytics | `Reports -> Sales Summary / Table Utilization / Ingredient COGS` |
-| Organization/Floor | Floor, room, table, and seating layout live in POS operations | `POS -> Floor & Layout Designer` |
-| Queue Management | Waiting list and SLA warning live in POS operations | `POS -> Reservation / Waiting List` |
-| Master Data Payment & Courier | Hidden from POS-only package | Not shown in POS package |
+| Product | `internal/product/` | Product catalog, product_kind, recipes, categories, pricing |
+| Warehouse | `internal/warehouse/` | Warehouses, outlets (is_pos_outlet), geographic scope |
+| Stock | `internal/stock/` | InventoryBatch, StockMovement, recipe explosion, FIFO deduction |
+| POS | `internal/pos/` | Floor layout, live orders, table management, KDS |
+| Sales | `internal/sales/` | Sales transactions, receipts, returns |
+| Customer | `internal/customer/` | Customer master, loyalty, membership |
+| HRD | `internal/hrd/` | Attendance, shifts, employee scheduling |
+| Finance | `internal/finance/` | Revenue posting, payment reconciliation |
+| Auth/RBAC | `internal/role/`, `internal/user/` | Permissions, WAREHOUSE scope, user-outlet assignment |
 
-### Requested Example Mapping Format
+## Product Module Extensions
 
-- menu1 (perlu diubah) -> menu2
-- Master Data Company (perlu diubah via company data) -> Master Data -> Organization -> Company
-- Master Data Product (perlu diubah via goods/F&B type split dan recipe detail) -> Master Data -> Product
-- Sales Invoice B2B (perlu diubah via Sales billing lifecycle) -> Sales -> Customer Invoices
-- Stock Inventory umum (perlu diubah via inventory stock ownership dan recipe-stock filter) -> Stock -> Inventory Stock
-- CRM Feedback umum (perlu diubah via customer master subtree) -> Master Data -> Customer -> Feedback
+### New Fields (owned by Product module)
 
----
-
-## Proposed POS Navigation Tree
-
-The POS platform should appear as a new parent menu in the navigation tree. Existing ERP and CRM menus stay intact and unchanged.
-This navigation tree is the F&B branch only; goods / distributor mode should use a separate menu tree under the same POS shell.
-
-```text
-POS
-├── Overview
-├── F&B Mode
-│   ├── Live Table Map
-│   ├── Reservation
-│   │   ├── Reservation List
-│   │   └── Waiting List
-│   └── Floor & Layout Designer
-└── Goods / Distributor Mode
-    ├── Quick Sale
-    ├── Sales Basket
-    ├── Delivery / Pickup
-    └── Returns / Exchange
-```
-
-### UI Recommendation
-
-- `Live Table Map` should be the default operational surface for cashier and host roles in F&B mode.
-- Clicking a table should open the order drawer in-place or as a slide-over, not navigate away to a separate page.
-- The order drawer is a UI state inside `Live Table Map`, not a separate top-level menu.
-- `Reservation` and `Floor & Layout Designer` remain separate because they are different work modes inside F&B mode.
-- `Waiting List` is not a top-level POS menu; it lives inside `Reservation` as the host queue for full-house scenarios.
-- `Settings` is removed from the POS tree.
-- Billing handoff goes to `Sales`, so the POS surface stays light and fast.
-- Goods / distributor mode must not show table-specific navigation.
-
-### Menu Purpose by Section
-
-| Menu | Purpose | Depends On |
+| Field | Table | Purpose |
 |---|---|---|
-| Overview | Ringkasan outlet, sales hari ini, status meja, order berjalan | POS order state, reservation state |
-| Live Table Map | Satu UI 2D untuk table selection, live orders, and handoff to Sales | Live table state, order state |
-| Reservation | Manage reservations and waiting queue for full-house flow | Table availability, queue state |
-| Floor & Layout Designer | Configure floor, room, table, and cashier placement | Master Data -> Organization -> Company |
+| `product_kind` | `products` | System behavior enum: STOCK, RECIPE, SERVICE |
+| `is_inventory_tracked` | `products` | Controls inventory batch tracking |
+| `is_pos_available` | `products` | Controls POS catalog visibility |
 
----
+### Recipe Management (owned by Product module)
 
-## Module Split and Shared Menus
-
-The POS package should stay focused on live operations. Customer engagement, company data, inventory, reports, and billing are owned by their own parent modules.
-
-### Sibling Module Trees
-
-```text
-Master Data
-└── Customer
-    ├── Customer List
-    ├── Loyalty Program
-    └── Feedback
-```
-
-```text
-Master Data
-└── Organization
-    └── Company
-        ├── Company List
-        └── Company Details
-```
-
-```text
-Stock
-└── Inventory Stock
-```
-
-```text
-Reports
-├── Sales Summary
-├── Table Utilization
-└── Ingredient COGS
-```
-
-```text
-Sales
-├── Sales Orders
-├── Customer Invoices
-└── Payments
-```
-
-### Ownership Summary
-
-| Domain | Parent Module | In POS Tree? | Notes |
-|---|---|---|---|
-| Customer, Loyalty, Feedback | Master Data -> Customer | No | shared customer management |
-| Company / outlet data | Master Data -> Organization -> Company | No | outlet identity and company data |
-| Inventory stock | Stock | No | stock module owns inventory; product recipe drives deduction and replenishment |
-| Operational reports | Reports | No | reporting module owns analytics |
-| Billing, invoicing, payments | Sales | No | Sales owns the commercial transaction lifecycle |
-| POS live operations | POS | Yes | only live table map, reservation, and floor layout |
-
-### Master Data Navigation Tree (Customer)
-
-```text
-Master Data
-└── Customer
-    ├── Customer List
-    ├── Loyalty Program
-    └── Feedback
-```
-
-### Master Data Navigation Tree (Organization)
-
-```text
-Master Data
-└── Organization
-    └── Company
-        ├── Company List
-        └── Company Details
-```
-
-Notes:
-- Loyalty earns and redeems are recorded per outlet (company = outlet) but managed here.
-- Feedback entries should reference `outlet_id`, `table_id`, and `invoice_id` where applicable.
-- Outlet profile belongs to the company module, so POS does not need a dedicated outlet profile menu or POS-specific doc.
-
----
-
-## Relationship to Existing Modules
-
-POS does not replace existing modules. It consumes them as source data and writes back only through bridge layers where needed.
-
-```text
-ERP / CRM Existing Core
-├── Master Data
-│   ├── Company (used as outlet tenant in POS)
-│   ├── Product (used as source catalog)
-│   └── Customer (used for member / guest identity)
-├── Stock
-│   └── Warehouse stock (used for ingredient adapter)
-├── Sales
-│   ├── Sales order
-│   ├── Customer invoices
-│   └── Payments
-├── Finance
-│   └── Journal / receivable / cash bank (used by finance bridge)
-└── CRM
-    └── Feedback / loyalty campaign (used through integration sync, not direct refactor)
-```
-
-### Module Relationship Summary
-
-| Existing Module | Relation to POS | Notes |
+| Entity | Table | Purpose |
 |---|---|---|
-| Master Data Company | POS uses it as outlet tenant source | In POS context, `company = outlet` |
-| Master Data Product | POS uses a goods/F&B projection with recipe detail | Distributor product behavior stays intact |
-| Master Data Customer | POS uses it for guest/member reference and customer engagement | Feedback and loyalty live under master data customer |
-| Master Data Organization / Company | POS reads outlet identity from here | Outlet profile is not a POS menu |
-| Master Data Payment & Courier | Not part of POS-only package | Hidden unless another package requires it |
-| Stock | POS reads inventory stock through bridge | F&B recipe detail on Product drives stock deduction |
-| Purchase | POS can inform replenishment signals from recipe consumption | Purchase order planning stays in the purchase module |
-| Reports | POS sends operational metrics to reporting module | Analytics are not in the POS tree |
-| Sales | POS hands off order, invoice, and payment lifecycle | Sales owns billing and settlement |
-| Finance | POS posts payment and settlement data through bridge | Finance remains the accounting source of truth |
-| CRM | POS can optionally sync customer events only | CRM module stays untouched |
+| Recipe Items | `product_recipe_items` | BOM lines linking RECIPE product to STOCK ingredients |
 
----
+### Endpoints
 
-## Subscription Packaging
-
-The POS package should be sold as three tiers. Global platform menus like Dashboard and the shared master data modules remain unchanged; the package only controls what appears under the `POS` parent menu.
-
-### Global Modules That Stay Visible
-
-| Module | Status | Why |
+| Endpoint | Module Owner | POS Reads? |
 |---|---|---|
-| Dashboard | Always visible | Platform entry point |
-| Master Data -> Organization | Always visible | Shared company / outlet data |
-| Master Data -> Customer | Always visible | Shared customer engagement data |
-| Stock | Always visible | Shared inventory owner |
-| Reports | Always visible | Shared analytics owner |
-| Sales, Purchase, Finance, HRD, CRM | Existing core modules | Not part of POS subscription gating |
+| `GET /product/products` | Product | Yes (catalog) |
+| `GET /product/products/:id` | Product | Yes (detail + recipe) |
+| `GET /product/products/:id/recipe` | Product | Yes (recipe cost calc) |
+| `PUT /product/products/:id/recipe` | Product | No (admin only) |
+| `GET /product/products/form-data` | Product | Yes (categories, UOMs) |
 
-### Package Menu Matrix
+## Warehouse / Outlet Module
 
-| POS Tier | Included Menus | Access Notes |
+### Outlet Configuration
+
+POS outlets are warehouses with `is_pos_outlet = true`.
+
+| Field | Table | Purpose |
 |---|---|---|
-| Essential | Overview, Live Table Map, Reservation | Base cashier flow for table selection and queue handling |
-| Growth | Essential + Floor & Layout Designer | Adds floor editing, multi-room setup, cashier placement |
-| Franchise | Growth + franchise access controls | Same menus as Growth, with multi-outlet defaults, role-based shortcuts, quick launcher, and custom landing routes |
+| `is_pos_outlet` | `warehouses` | Marks warehouse as POS outlet |
 
-### Packaging Guidance
+### User-Outlet Assignment
 
-- `Dashboard`, `Customer`, `Company`, `Stock`, `Reports`, and `Sales` stay in their own parent modules; they are not sold as POS menus.
-- `Payment & Courier` is hidden from POS-only package exposure.
-- If you want simpler admin, only POS-specific config can be mirrored into `POS -> Floor & Layout Designer` or `POS -> Reservation` state.
-- The menu difference between Growth and Franchise is mostly access control and routing, not extra POS screens.
+| Entity | Table | Purpose |
+|---|---|---|
+| UserWarehouse | `user_warehouses` | Junction: which users can operate which outlets |
 
----
+### Endpoints
 
-## POS Access Pattern
+| Endpoint | Module Owner | Description |
+|---|---|---|
+| `GET /warehouse/warehouses` | Warehouse | List all warehouses |
+| `GET /warehouse/warehouses?is_pos_outlet=true` | Warehouse | List POS outlets |
+| `GET /pos/outlets` | POS (reads Warehouse) | POS-specific outlet list for logged-in user |
 
-The UX feels off when `Live Table Map` is treated as a route jump instead of a working surface. For POS, the fastest pattern is to keep the user inside one context and change state, not page.
+See [warehouse-outlet-rbac.md](shared/warehouse-outlet-rbac.md) for details.
 
-### Recommended Access Flow
+## Stock / Inventory Module
 
-```text
-Sidebar / Top Bar
-└── POS
-    ├── Overview (role-based default for managers)
-    ├── Live Table Map (default operational surface for cashier / host)
-    ├── Reservation
-    └── Floor & Layout Designer
+### Inventory Tracking
+
+| Entity | Table | Purpose |
+|---|---|---|
+| InventoryBatch | `inventory_batches` | Per-product per-warehouse stock balance with batch tracking |
+| StockMovement | `stock_movements` | Append-only ledger: IN, OUT, ADJUST, TRANSFER |
+
+### POS Stock Operations
+
+| Operation | Triggered By | Stock Module Action |
+|---|---|---|
+| Direct sale (STOCK product) | POS order confirmed | StockMovement(OUT), reduce InventoryBatch |
+| Recipe sale (RECIPE product) | POS order confirmed | Recipe explosion → per-ingredient StockMovement(OUT) |
+| Service sale | POS order confirmed | No stock impact |
+| Sale void/return | POS void | StockMovement(IN), increase InventoryBatch |
+
+### Stock Sufficiency Check
+
+Before confirming a sale:
+1. For STOCK: Check `inventory_batches` balance >= ordered qty.
+2. For RECIPE: Check ALL ingredient balances >= consumed qty (recipe_qty * sale_qty).
+3. For SERVICE: Skip stock check.
+
+Insufficient stock on any line item rejects the sale (atomic).
+
+## POS Domain Module
+
+### Owns
+
+| Feature | Description |
+|---|---|
+| Floor Layout | Zones, tables, seats, visual editor |
+| Live Orders | Active order tracking per table/counter |
+| Table Management | Status (available, occupied, reserved, cleaning) |
+| Kitchen Display | Order routing to kitchen stations |
+| POS Session | Shift open/close, cash drawer |
+
+### Does NOT Own
+
+| Feature | Owned By |
+|---|---|
+| Product catalog | Product |
+| Stock deduction | Stock |
+| Sales receipt | Sales |
+| Customer data | Customer |
+| User permissions | Auth/Role |
+| Outlet master data | Warehouse |
+
+## Sales Transaction Module
+
+### POS Transaction Flow
+
+```
+POS Order Confirmed
+    → Stock deduction (Stock module)
+    → Sales Transaction created (Sales module)
+    → Receipt generated (Sales module)
+    → Payment recorded (Finance module)
+    → Loyalty points (Customer module, if applicable)
 ```
 
-### UX Guidance
+### Sales-POS Integration
 
-- Make `POS` a top-level, pinned menu so it is always one click away.
-- Let `Live Table Map` be the default landing screen for cashier and host roles.
-- Clicking a table should open the order drawer in-place or as a slide-over, not move to another full page.
-- Keep the user in the same screen until they hand off the order to `Sales`.
-- Use role-based default landing routes:
-  - cashier -> `POS -> Live Table Map`
-  - host -> `POS -> Reservation`
-  - manager -> `POS -> Overview`
-- Add a keyboard shortcut or quick launcher for POS entry if users switch often between modules.
+| Aspect | Handling |
+|---|---|
+| Transaction type | `POS_SALE` (new enum) |
+| Outlet reference | `warehouse_id` on transaction |
+| Line items | Product references with qty, price, discount |
+| Payment methods | Cash, Card, QRIS, Multi-payment |
 
-### UX Recommendation
+## Customer and Loyalty Module
 
-Yes, one main menu is more comfortable than splitting `Live Table Map` and `Order Panel` into separate top-level items. The split felt off because those are the same cashier mental model:
+### POS Integration Points
 
-- select table
-- add items
-- hand off to Sales
-
-So the best UX is a single `Live Table Map` workspace with an embedded order drawer, not a separate order menu.
-
----
-
-## Data and Module Integration
-
-### Core Integrations
-
-| Source Module | POS Module | Integration Rule |
+| Feature | Module | POS Usage |
 |---|---|---|
-| Master Data (Company/Org) | Outlet, Floor, Table, Station | In POS context: 1 company = 1 outlet; floor/table/station managed by POS |
-| Product Master | Menu Catalog | Menu display and item selection use product master as source |
-| Inventory/Stock | Inventory stock ledger | Inventory stock changes are owned by Stock; F&B recipe detail lives on Product |
-| Sales | Sales Orders / Customer Invoices / Payments | Sales owns order finalization, billing, and settlement |
-| Finance | Journal/AR/Cash Bank | Payment posted to finance; status invoice updated in Sales |
-| CRM | Customer events only | Customer points, feedback, and loyalty stay in Master Data -> Customer |
-| Reports | Reporting bridge | Analytics stay in Reports |
+| Customer lookup | Customer | Search by phone/name at checkout |
+| Loyalty points | Customer | Earn points per transaction |
+| Membership tier | Customer | Tier-based discounts |
+| Customer history | Customer | View past orders |
 
-### Integration Boundary Rules
+See [customer-loyalty-feedback.md](fnb/customer-loyalty-feedback.md) for details.
 
-- ERP/CRM endpoints are consumed by POS, not modified by POS.
-- POS writes only to POS-owned tables for operational flow.
-- Cross-module updates to Finance, Reports, and Customer happen via bridge API/event contract.
-- If packaging is enabled per company, activation is done by feature flags at company level.
+## HRD Integration
 
-### POS Domain Additions (New)
+### Shift Management
 
-- FloorPlan
-- Table
-- TableSession
-- Reservation
-- WaitingList
-- WaitingSLAWarning
-- OrderDraft
-- OrderItemDraft
-- TableActionEvent
-
----
-
-## End-to-End Transaction Flow
-
-1. Company (as outlet tenant) opens active shift at cashier station.
-2. Guest arrives via reservation, walk-in, or waitlist.
-3. Reservation is confirmed or assigned to a table.
-4. Cashier or host opens `Live Table Map`.
-5. User selects the table and adds items in the order drawer.
-6. POS hands the draft order to the `Sales` module.
-7. Sales generates the invoice and handles payment.
-8. Stock module deducts ingredients based on the order.
-9. Finance posts the accounting entry.
-10. Loyalty and feedback are written to `Master Data -> Customer`.
-11. QR/barcode feedback shared for the outlet, table, or invoice.
-
----
-
-## Risks and Mitigation
-
-| Risk | Impact | Mitigation |
+| Feature | Module | POS Usage |
 |---|---|---|
-| POS accidentally couples with ERP/CRM internals | High upgrade risk | Enforce integration boundary, adapter layer, and no direct cross-domain writes |
-| Too many top-level menus | Slower cashier workflow | Keep POS to four items maximum |
-| Sales handoff feels like a context switch | User confusion | Use an embedded order drawer and keep the user on Live Table Map |
-| Module ownership becomes unclear | Maintenance cost | Keep Customer, Company, Stock, Reports, and Sales in sibling module trees |
-| Multi-outlet configuration complexity | Slow onboarding | Provide outlet setup wizard and default templates |
-| Loyalty abuse/fraud | Margin loss | Use rules engine, audit trail, and max redeem constraints |
+| Employee shifts | HRD | Validate cashier is on-shift |
+| Attendance | HRD | Clock-in/out at outlet |
+| Scheduling | HRD | Staff assignment per outlet |
 
----
+## Finance Integration
 
-## Final Recommendation
+### Revenue and Payment
 
-- Keep POS shallow and fast.
-- Use `Live Table Map` as the single main operational screen.
-- Keep `Reservation` and `Floor & Layout Designer` as the only other POS menus.
-- Remove `Settings` from POS.
-- Keep invoice, payment, and settlement in `Sales`.
-- Put customer, loyalty, and feedback in `Master Data -> Customer`.
-- Put company/outlet profile in `Master Data -> Organization -> Company`.
-- Put inventory stock in `Stock`, recipe detail on `Product`, and analytics in `Reports`.
-- Prioritize an in-place order drawer so the cashier never feels like they are bouncing between two equivalent screens.
-
-### Documentation Map
-
-General POS docs stay at the root of this folder. Menu-specific docs are split into separate files so each menu boundary stays clear.
-
-| Doc | Scope | Notes |
+| Feature | Module | POS Usage |
 |---|---|---|
-| [pos-dual-mode-architecture.md](pos-dual-mode-architecture.md) | General POS platform architecture | Shared F&B and goods/distributor split. |
-| [pos-live-operations-prd.md](pos-live-operations-prd.md) | POS F&B live operations | Overview, live table map, reservation, and waiting list. |
-| [layout/floor-layout-designer.md](layout/floor-layout-designer.md) | Floor & Layout Designer | Specific editor feature doc. |
-| [layout/floor-layout-designer-prd.md](layout/floor-layout-designer-prd.md) | Floor & Layout Designer PRD | Specific planning doc for the layout editor. |
-| [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) | Customer loyalty and feedback delta | POS-facing changes needed in Master Data -> Customer. |
-| [product/product-fnb-prd.md](product/product-fnb-prd.md) | Product F&B + recipe extension | POS-facing changes needed in Master Data -> Product and inventory stock flow. |
-| [sales/sales-pos-prd.md](sales/sales-pos-prd.md) | Sales POS menu branch | POS-facing changes needed for goods / distributor mode. |
-| [pos-menu-inventory.md](pos-menu-inventory.md) | POS menu inventory index | One-page inventory of changed and added POS modules. |
+| Payment processing | Finance | Record payment methods and amounts |
+| Revenue posting | Finance | Automatic journal entries per sale |
+| Cash reconciliation | Finance | End-of-shift cash count vs system |
+| Tax calculation | Finance | VAT/service charge per sale |
 
-## Menu-Based Module Inventory
+## Module Interaction Diagram
 
-This section is the quick list of POS modules that change or get added.
+```mermaid
+graph LR
+    POS[POS Domain] -->|reads| PROD[Product]
+    POS -->|reads| WH[Warehouse/Outlet]
+    POS -->|reads| CUST[Customer]
+    POS -->|writes| STOCK[Stock]
+    POS -->|writes| SALES[Sales]
+    SALES -->|writes| FIN[Finance]
+    POS -->|reads| HRD[HRD/Shifts]
+    
+    PROD -->|owns| RECIPE[Recipe Items]
+    WH -->|owns| OUTLET[Outlet Config]
+    STOCK -->|consumes| RECIPE
+    
+    AUTH[Auth/RBAC] -->|scopes| POS
+    AUTH -->|scopes| PROD
+    AUTH -->|scopes| STOCK
+```
 
-| Menu Group | Status | Module |
+## Feature to Module Mapping
+
+| POS Feature | Primary Module | Supporting Modules |
 |---|---|---|
-| Layout Floor | Updated | [layout/floor-layout-designer.md](layout/floor-layout-designer.md), [layout/floor-layout-designer-prd.md](layout/floor-layout-designer-prd.md) |
-| Live Table Map | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
-| Reservation | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
-| Waiting List | Updated | [pos-live-operations-prd.md](pos-live-operations-prd.md) |
-| Product | Updated | [product/product-fnb-prd.md](product/product-fnb-prd.md) |
-| Inventory Stock | Updated indirectly | Stock inventory feature; recipe-stock tab/filter for F&B ingredients. |
-| Sales POS | New | [sales/sales-pos-prd.md](sales/sales-pos-prd.md) |
-| Customer Loyalty & Feedback | Updated | [shared/customer-loyalty-feedback.md](shared/customer-loyalty-feedback.md) |
+| Product catalog display | Product | — |
+| Recipe management | Product | — |
+| Menu/catalog picker | POS (reads Product) | Product |
+| Floor layout editor | POS | — |
+| Table management | POS | — |
+| Order creation | POS | Product, Stock |
+| Stock deduction | Stock | Product (recipe) |
+| Payment processing | Finance | Sales |
+| Receipt generation | Sales | POS |
+| Customer loyalty | Customer | POS |
+| Cashier shift | HRD | POS |
+| Outlet management | Warehouse | POS |
+| User-outlet assignment | Auth/User | Warehouse |
+| POS reports | Report | POS, Sales, Stock |
+| Kitchen display | POS | — |
+
+## Data Flow per Transaction Type
+
+### Goods Sale (Mode A)
+
+```
+1. User scans product (STOCK kind)
+2. POS → Product: Get product detail + price
+3. POS → Stock: Check availability in outlet warehouse
+4. User confirms payment
+5. POS → Stock: StockMovement(OUT) per item
+6. POS → Sales: Create SalesTransaction
+7. POS → Finance: Record payment
+8. POS → Customer: Award loyalty points (optional)
+```
+
+### F&B Sale (Mode B)
+
+```
+1. Staff selects table, takes order (RECIPE + SERVICE items)
+2. POS → Product: Get product detail + recipe items
+3. POS → Kitchen: Send order ticket
+4. Kitchen prepares, marks items ready
+5. Staff serves items
+6. Customer requests bill
+7. POS → Stock: Recipe explosion per RECIPE item
+8.   For each recipe_item: StockMovement(OUT) per ingredient
+9. POS → Sales: Create SalesTransaction with table reference
+10. POS → Finance: Record payment (cash/card/QRIS/split)
+11. POS → Customer: Award loyalty points (optional)
+12. POS: Release table
+```
+
+## Notes and Improvements
+
+### Current State
+
+- Product module extended with product_kind, recipe support.
+- Warehouse module extended with is_pos_outlet.
+- POS domain has floor layout feature.
+- Stock module has InventoryBatch and StockMovement.
+
+### Planned
+
+- Kitchen Display System (KDS) as POS sub-module.
+- Real-time WebSocket for live order and kitchen sync.
+- Offline-first POS mode with sync queue.
+- Multi-printer routing (kitchen, bar, receipt).
+- POS analytics dashboard.
+
+### Module Boundaries to Watch
+
+- Stock deduction logic must stay in Stock module, not POS.
+- Recipe detail must stay in Product module, not POS.
+- Payment processing must stay in Finance module, not POS.
+- POS orchestrates but does not own cross-cutting data.

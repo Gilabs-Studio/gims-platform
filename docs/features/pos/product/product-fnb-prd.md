@@ -2,7 +2,7 @@
 
 > **Module:** POS -> Shared Modules -> Master Data -> Product
 > **Sprint:** Draft Planning
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Status:** Draft
 > **Last Updated:** April 2026
 
@@ -13,137 +13,237 @@
 1. [Overview](#overview)
 2. [What Needs to Change](#what-needs-to-change)
 3. [Scope](#scope)
-4. [Product Type Behavior](#product-type-behavior)
-5. [Data Ownership and Integration](#data-ownership-and-integration)
-6. [Business Rules](#business-rules)
-7. [API Reference](#api-reference)
-8. [Frontend Components](#frontend-components)
-9. [Technical Decisions](#technical-decisions)
-10. [Notes and Open Questions](#notes-and-open-questions)
-11. [Related Links](#related-links)
+4. [Product Kind Behavior](#product-kind-behavior)
+5. [Recipe / BOM System](#recipe--bom-system)
+6. [Ingredient Handling](#ingredient-handling)
+7. [Data Model Changes](#data-model-changes)
+8. [Data Ownership and Integration](#data-ownership-and-integration)
+9. [POS Stock Consumption Flow](#pos-stock-consumption-flow)
+10. [Business Rules](#business-rules)
+11. [API Reference](#api-reference)
+12. [Frontend Components](#frontend-components)
+13. [Technical Decisions](#technical-decisions)
+14. [Notes and Open Questions](#notes-and-open-questions)
+15. [Related Links](#related-links)
 
 ---
 
 ## Overview
 
-Master Data Product remains the source of orderable items for POS. The change needed here is not a separate stock menu. Instead, the Product module must support two product kinds, goods and F&B, where F&B products carry recipe detail that drives inventory stock deduction and can inform purchase planning. The existing Inventory Stock feature can expose a recipe-stock tab or filter for the ingredient view.
+Master Data Product remains the single source of orderable items for POS. The change is not a separate stock menu or ingredient module. Instead, the Product module supports three product kinds — `STOCK`, `RECIPE`, and `SERVICE` — where `RECIPE` products carry recipe detail (BOM) that drives ingredient-level inventory deduction and can inform purchase planning.
 
-This keeps the catalog reusable while allowing restaurant menu behavior without creating a new stock menu surface.
+This keeps the catalog reusable for both distributor (goods) and F&B (restaurant/cafe) workflows while allowing recipe-based menu behavior without creating a new product surface.
+
+### Key Design Principle
+
+- **One Product module** for all product kinds.
+- **`product_kind`** is a system-level behavior enum (controls how the system treats the product).
+- **`TypeID`** remains the user-configurable classification lookup (Medicine, Food, Beverage, etc.).
+- These two fields serve different purposes and do not conflict.
 
 ## What Needs to Change
 
-- Add a product kind field with at least `GOODS` and `FNB` values.
-- Allow F&B products to store recipe detail in the product record or its detail section.
-- Keep goods products unchanged so distributor workflows remain intact.
-- Expose recipe lines that map to stock items, quantities, units, and waste factors.
-- Let POS consume the same product master for live menu display and table order entry.
-- Provide purchase-planning visibility from F&B recipe consumption without creating a separate ingredient inventory menu.
+- Add a `product_kind` field with values: `STOCK` (default), `RECIPE`, `SERVICE`.
+- Add `is_inventory_tracked` boolean (true for STOCK, false by default for RECIPE/SERVICE).
+- Add `is_pos_available` boolean (controls POS catalog visibility).
+- Allow `RECIPE` products to store recipe detail via `product_recipe_items` (existing table).
+- Keep `STOCK` products unchanged so distributor workflows remain intact.
+- Expose recipe lines that map ingredient products to quantities, UOMs, and auto-calculated cost.
+- Let POS consume the same product master for live menu display and table/basket order entry.
+- Provide purchase-planning visibility from F&B recipe consumption.
 
 ## Scope
 
 ### In Scope
 
-- Product kind management.
-- F&B recipe detail on product records.
-- Outlet-specific item visibility and display ordering.
-- POS menu projection.
-- Recipe-driven inventory deduction.
+- Product kind management (`STOCK`, `RECIPE`, `SERVICE`).
+- F&B recipe detail on product records via `product_recipe_items`.
+- Auto-cost calculation: `recipe_cost = SUM(ingredient.cost_price * quantity)`.
+- Outlet-specific item visibility via `is_pos_available` flag.
+- POS menu projection endpoint.
+- Recipe-driven inventory deduction per outlet (warehouse).
 - Purchase replenishment signals based on recipe consumption.
 
 ### Out of Scope
 
-- A separate stock menu.
+- A separate stock/ingredient module.
 - Rewriting the existing stock module UI.
 - Finance posting or billing logic.
 - Customer and loyalty logic.
+- Multi-pricing (POS vs distributor price lists) — future sprint.
+- Recipe versioning/snapshots — future sprint.
 
-## Product Type Behavior
+## Product Kind Behavior
 
-| Product Kind | Behavior | Inventory Impact |
+| Product Kind | Behavior | Inventory Impact | Selling Price | Example |
+|---|---|---|---|---|
+| `STOCK` | Standard sellable item for distributor/retail. Also used for raw ingredients when `is_ingredient=true`. | Direct stock tracking via `inventory_batches`. | Required for sellable items. Optional (0) for ingredients. | Paracetamol 500mg, Rice 25kg, Coffee Beans |
+| `RECIPE` | Menu item composed of ingredient products via BOM. | No direct stock. Deducts ingredient stock per recipe when sold. | Required. | Nasi Goreng, Kopi Susu, Es Teh Manis |
+| `SERVICE` | Non-physical service item. | No stock impact. Not inventory-tracked. | Required. | Delivery Fee, Service Charge |
+
+### Product Kind vs Existing Fields
+
+| Field | Purpose | Changed? |
 |---|---|---|
-| GOODS | Standard sellable item for distributor or retail flows. | No recipe deduction. |
-| FNB | Menu item that includes a recipe detail. | Deduct inventory stock based on the recipe snapshot when sold. |
+| `product_kind` | **NEW** — System behavior discriminator (STOCK/RECIPE/SERVICE) | New field |
+| `TypeID` → `product_types` | User-configurable classification (Medicine, Food, etc.) | Unchanged |
+| `is_ingredient` | Convenience flag for filtering ingredients in recipe builder UI | Unchanged |
+| `is_inventory_tracked` | **NEW** — Controls whether product has inventory batches | New field |
+| `is_pos_available` | **NEW** — Controls POS catalog visibility | New field |
+
+## Recipe / BOM System
 
 ### Recipe Detail Rules
 
-- Recipe detail belongs to the product because it is an attribute of how the product is sold.
-- The recipe is a configuration extension, not a separate menu.
-- Each recipe line should map to a stock item or inventory code and a consumption quantity.
-- The recipe snapshot used for a sale should be versioned so later edits do not rewrite historical transactions.
-- Recipe consumption can be aggregated for purchase planning and supplier replenishment.
+- Recipe detail uses the existing `product_recipe_items` table.
+- Only `RECIPE` kind products can have recipe items.
+- Each recipe line maps to a `STOCK` kind ingredient product with `is_ingredient=true`.
+- Recipe lines specify quantity consumed per one unit of the parent product sold.
+- Cost auto-calculated: `recipe_cost = SUM(ingredient.cost_price * recipe_item.quantity)`.
+- Recipe items can use a different UOM than the ingredient base UOM.
+
+### Recipe Item Structure
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Primary key |
+| `product_id` | UUID | Parent recipe product |
+| `ingredient_product_id` | UUID | Ingredient product (`product_kind=STOCK` + `is_ingredient=true`) |
+| `quantity` | decimal(15,4) | Consumption quantity per unit sold |
+| `uom_id` | UUID (nullable) | Unit of measure for consumed quantity |
+| `notes` | text | Optional notes |
+| `sort_order` | int | Display ordering |
+
+See [recipe-bom-system.md](recipe-bom-system.md) for full Recipe/BOM documentation.
+
+## Ingredient Handling
+
+### Critical Rule: Ingredients Stay in the Product Module
+
+Ingredients are regular `STOCK` products with `is_ingredient=true`. They are **not** a separate module.
+
+| Attribute | Ingredient Product |
+|---|---|
+| `product_kind` | `STOCK` |
+| `is_ingredient` | `true` |
+| `is_inventory_tracked` | `true` |
+| `selling_price` | Can be 0 |
+| `is_pos_available` | Usually `false` |
+| Stock tracking | Via `inventory_batches` per warehouse |
+
+## Data Model Changes
+
+### New Fields on `products` Table
+
+| Field | Type | Default | Index | Description |
+|---|---|---|---|---|
+| `product_kind` | `varchar(20)` | `'STOCK'` | Yes | System behavior: STOCK, RECIPE, SERVICE |
+| `is_inventory_tracked` | `bool` | `true` | — | Whether product has inventory batches |
+| `is_pos_available` | `bool` | `false` | Yes | Visible in POS product catalog |
+
+### Existing: `product_recipe_items` Table
+
+Already implemented. No schema changes needed.
 
 ## Data Ownership and Integration
 
 | Domain | Ownership | Notes |
 |---|---|---|
-| Product core | Master Data -> Product | Source of truth for SKU, category, brand, segment, type, UOM, pricing, and sellability. |
-| F&B recipe detail | Product module extension | Stores recipe lines for F&B products without creating a separate ingredient inventory menu; the existing inventory feature can surface recipe stock as a tab/filter. |
-| Inventory stock deduction | Stock | Stock module owns balances and movements; it consumes the recipe snapshot. |
-| Purchase planning | Purchase | Recipe consumption can drive replenishment suggestions and supplier invoice flows. |
-| POS catalog projection | POS | Read-only overlay used by live table maps and order drawers. |
+| Product core | Master Data -> Product | Source of truth for SKU, category, product_kind, pricing, sellability. |
+| F&B recipe detail | Product module (`product_recipe_items`) | Recipe lines for RECIPE products. |
+| Inventory stock deduction | Stock | Owns balances and movements. Consumes recipe detail for ingredient-level deduction. |
+| Warehouse / Outlet | Warehouse module | POS uses warehouses with `is_pos_outlet=true`. See [warehouse-outlet-rbac.md](../shared/warehouse-outlet-rbac.md). |
+| Purchase planning | Purchase | Recipe consumption drives replenishment suggestions. |
+| POS catalog projection | POS | Read-only, filtered by `is_pos_available=true`. |
 
-### Integration Boundary
+## POS Stock Consumption Flow
 
-- POS must read products from the Product module and should not mutate master data from the live table screen.
-- A POS catalog projection can be cached because the master product source remains authoritative.
-- Goods products should remain sellable even when they have no recipe detail.
-- F&B sale finalization should trigger stock deduction through the existing inventory flow.
-- Purchase planning can use recipe consumption history, but purchase approval and supplier invoice flow remain owned by the Purchase module.
+```
+POS Sale Confirmed
+    |
+    v
+Check product_kind
+    |
+    +-- STOCK --> Direct deduction from warehouse
+    |             StockMovement(OUT) + reduce InventoryBatch
+    |
+    +-- RECIPE --> Recipe explosion:
+    |              For each recipe_item:
+    |                consumed_qty = recipe_item.quantity * sale_quantity
+    |                StockMovement(OUT) per ingredient from warehouse
+    |                Reduce InventoryBatch (FIFO, FOR UPDATE locking)
+    |              Insufficient stock on ANY ingredient --> rollback
+    |
+    +-- SERVICE --> No stock impact
+```
 
 ## Business Rules
 
-- Only active and approved products should appear in the POS catalog.
-- Product search should be prefix-friendly so the catalog remains indexable.
-- The same product can have different display labels or visibility per outlet.
-- F&B products should show recipe status in the detail panel so staff know whether stock deduction will occur.
-- Goods products should not be forced to carry a recipe.
-- When an F&B product is sold, inventory stock must be reduced using the recipe snapshot attached to that product version.
+- Only active, approved products appear in the POS catalog.
+- Product search is prefix-friendly for index usage.
+- `RECIPE` products must have at least one recipe item before sale.
+- Recipe items can only reference `STOCK` products with `is_ingredient=true`.
+- Circular dependencies not allowed.
+- `is_pos_available` controls POS visibility independently of `product_kind`.
+- Insufficient ingredient stock in target warehouse rejects the entire sale.
+- `product_kind` defaults to `STOCK` for backward compatibility.
+- `RECIPE` products display computed `recipe_cost` in detail.
 
 ## API Reference
 
-The Product module already exposes the following routes under `/product`.
+### Existing Endpoints (Updated)
 
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| POST | `/product/products` | product.create | Create a product. |
-| GET | `/product/products` | product.read | List products. |
-| GET | `/product/products/:id` | product.read | Get product detail. |
-| PUT | `/product/products/:id` | product.update | Update a product, including type and recipe detail. |
-| DELETE | `/product/products/:id` | product.delete | Delete a product. |
-| POST | `/product/products/:id/submit` | product.update | Submit product for approval. |
-| POST | `/product/products/:id/approve` | product.approve | Approve product. |
+| POST | `/product/products` | product.create | Create a product. Accepts `product_kind`, `is_inventory_tracked`, `is_pos_available`, optional `recipe_items[]`. |
+| GET | `/product/products` | product.read | List products. Supports `product_kind` and `is_pos_available` filters. |
+| GET | `/product/products/:id` | product.read | Get detail. Includes `recipe_items` for RECIPE and computed `recipe_cost`. |
+| PUT | `/product/products/:id` | product.update | Update product including kind, flags, and recipe items. |
+| DELETE | `/product/products/:id` | product.delete | Delete product. |
 
-### POS Projection Endpoint
+### New Endpoints
 
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| GET | `/pos/outlets/{outletId}/product-catalog` | pos.table.manage | Get the outlet-specific orderable catalog projection for POS. |
+| GET | `/product/products/:id/recipe` | product.read | Get recipe items with ingredient details and computed cost. |
+| PUT | `/product/products/:id/recipe` | product.update | Bulk update recipe items (replaces existing). |
+
+### POS Projection
+
+| Method | Endpoint | Permission | Description |
+|---|---|---|---|
+| GET | `/pos/outlets/{outletId}/product-catalog` | pos.order.read | Outlet-specific orderable catalog. |
 
 ## Frontend Components
 
 | Component | Purpose |
 |---|---|
-| ProductTypeSwitcher | Lets staff mark the product as goods or F&B. |
-| RecipeEditorPanel | Edits the recipe detail for F&B products. |
-| RecipeLineTable | Shows ingredient rows and quantities for the recipe. |
-| StockImpactPreview | Shows how the recipe affects inventory stock when sold. |
-| ProductCatalogPicker | Searchable menu picker used in the POS order drawer. |
-| CatalogSyncStatus | Shows whether POS catalog data is fresh or stale. |
+| ProductKindSelector | Radio/tab selector for STOCK / RECIPE / SERVICE. |
+| RecipeTab | Conditional tab for RECIPE kind. |
+| RecipeItemTable | Editable ingredient rows with qty, UOM, cost preview. |
+| IngredientProductPicker | Product selector filtered by `is_ingredient=true`. |
+| RecipeCostPreview | Real-time `SUM(ingredient.cost_price * qty)` display. |
+| ProductCatalogPicker | POS order drawer menu picker. |
 
 ## Technical Decisions
 
-- **Keep Product master unchanged for goods flows**: The goods side should continue working without recipe overhead.
-- **Store recipe detail on the product**: This keeps menu behavior and inventory impact in one place instead of splitting into a separate ingredient inventory menu.
-- **Use recipe snapshots for sales**: Historical transactions must not change when recipes are edited later.
-- **Let stock own the actual deduction**: Product describes the recipe; Stock applies the movement.
-- **Feed purchase planning from recipe consumption**: The same recipe data can drive replenishment without changing the purchase module ownership model.
+- **`product_kind` separate from `TypeID`**: System behavior vs user taxonomy. Avoids collision with `product_types` table. SaaS scalable.
+- **Keep `is_ingredient` flag**: Fast indexed filtering for recipe builder. An ingredient is `product_kind=STOCK` + `is_ingredient=true`.
+- **Auto-cost not stored**: Computed live from ingredient costs. No stale data.
+- **Recipe uses existing `product_recipe_items`**: No migration for recipe structure.
+- **Stock deduction via recipe explosion**: Per-ingredient StockMovement(OUT) with row-level locking.
+- **Warehouse as outlet**: POS scoped to `is_pos_outlet=true` warehouses.
 
 ## Notes and Open Questions
 
-- Should recipe detail be editable only on approved products, or also in draft state?
-- Should F&B product recipes support modifiers and optional ingredients in the first version?
-- Should purchase planning use live consumption, daily summaries, or both?
+- **Recipe versioning**: Update in-place for now; add snapshots in future sprint for cost auditing.
+- **Recipe modifiers**: Optional/modifier ingredients (extra cheese, no onion) deferred to future sprint.
+- **Stock consumption timing**: Deduct on order confirmation (before payment) to prevent overselling.
+- **Multi-pricing**: Use existing `selling_price` for now; add price list feature later.
 
 ## Related Links
 
-- [../../purchase/supplier-invoice-refactor.md](../../purchase/supplier-invoice-refactor.md) for the purchase flow that can consume recipe-driven replenishment signals.
+- [recipe-bom-system.md](recipe-bom-system.md) — Full Recipe/BOM system documentation.
+- [../shared/warehouse-outlet-rbac.md](../shared/warehouse-outlet-rbac.md) — Warehouse as Outlet and WAREHOUSE scope.
+- [../pos-dual-mode-architecture.md](../pos-dual-mode-architecture.md) — Dual-mode POS architecture.
+- [../sales/sales-pos-prd.md](../sales/sales-pos-prd.md) — Goods/distributor POS sales branch.

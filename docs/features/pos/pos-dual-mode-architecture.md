@@ -1,8 +1,8 @@
-# POS Dual-Mode Architecture Product Requirements Document
+# POS Dual-Mode Architecture
 
-> **Module:** POS Platform
+> **Module:** POS -> Architecture
 > **Sprint:** Draft Planning
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Status:** Draft
 > **Last Updated:** April 2026
 
@@ -11,250 +11,285 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Why Dual Mode](#why-dual-mode)
-3. [Mode Matrix](#mode-matrix)
-4. [Shared POS Core](#shared-pos-core)
-5. [Navigation Model](#navigation-model)
-6. [F&B Mode](#fb-mode)
-7. [Goods / Distributor Mode](#goods--distributor-mode)
-8. [Permissions and Outlet Scope](#permissions-and-outlet-scope)
-9. [Product Master Strategy](#product-master-strategy)
-10. [ASCII Layouts](#ascii-layouts)
+2. [Architecture Modes](#architecture-modes)
+3. [System Architecture](#system-architecture)
+4. [Module Dependency Map](#module-dependency-map)
+5. [Shared Foundation](#shared-foundation)
+6. [Mode A: Goods/Distributor](#mode-a-goodsdistributor)
+7. [Mode B: F&B/Restaurant](#mode-b-fbrestaurant)
+8. [Warehouse as Outlet](#warehouse-as-outlet)
+9. [Stock Consumption Models](#stock-consumption-models)
+10. [Permission and Scope](#permission-and-scope)
 11. [Technical Decisions](#technical-decisions)
-12. [Implementation Guidance](#implementation-guidance)
+12. [Navigation and UX](#navigation-and-ux)
+13. [Notes and Improvements](#notes-and-improvements)
 
 ---
 
 ## Overview
 
-POS should be treated as a platform with two logic flows, not one universal workflow:
+GIMS POS supports two operational modes sharing the same backend infrastructure:
 
-- F&B mode for outlets that need table, room, reservation, and waiting-list behavior.
-- Goods / distributor mode for outlets that sell products without table view.
+- **Mode A: Goods/Distributor** — Traditional POS for retail, pharmacies, small shops selling physical goods.
+- **Mode B: F&B/Restaurant** — Full-service POS with floor layout, table management, recipe-based menu items, and kitchen operations.
 
-The key rule is simple: **table view is optional and only appears in F&B mode**.
+Both modes use the same Product, Warehouse, Inventory, and Transaction modules. The difference lies in workflow, product kind handling, and UI presentation.
 
-## Why Dual Mode
+## Architecture Modes
 
-The current ERP and CRM foundation was built for distributor workflows. F&B adds spatial service behavior, but that should not force the same interaction model onto goods sales.
-
-Dual mode keeps the platform flexible:
-
-- F&B gets table maps, reservations, and layout design.
-- Goods gets quick sale, basket, invoice, delivery, and returns without spatial overhead.
-- Both modes still share the same customer, product, sales, finance, and stock backbone.
-
-## Mode Matrix
-
-| Mode | Primary Use Case | Needs Table View? | Core Screens |
-|---|---|---|---|
-| F&B | Restaurant, cafe, bar, lounge | Yes | Overview, Live Table Map, Reservation, Floor & Layout Designer |
-| Goods / Distributor | Retail, wholesale, direct selling | No | Overview, Quick Sale, Basket, Delivery / Pickup, Returns / Exchange |
-
-## Shared POS Core
-
-The shared core should stay small and stable. Both modes reuse it.
-
-| Core Capability | Shared? | Notes |
+| Aspect | Mode A: Goods | Mode B: F&B |
 |---|---|---|
-| Outlet scope | Yes | One company equals one outlet context in POS. |
-| Product catalog | Yes | Master Data Product remains source of orderable items. |
-| Cart / order draft | Yes | Same order object can be used in both modes. |
-| Pricing / discount / tax | Yes | Calculated in shared commerce logic. |
-| Invoice handoff | Yes | Sales owns billing and settlement. |
-| Payment state | Yes | Payment flows through Sales / Finance boundary. |
-| Customer lookup | Yes | Customer master is shared. |
-| Inventory deduction | Yes | Stock is shared, but consumption rules vary by mode. |
+| Product Kind Focus | `STOCK` items | `RECIPE` and `SERVICE` items |
+| Stock Deduction | Direct from warehouse | Recipe explosion (ingredient-level) |
+| Floor Layout | Not used | Tables, zones, and floor plans |
+| Order Flow | Cart → Payment → Done | Table → Order → Kitchen → Serve → Payment |
+| Kitchen Display | Not applicable | Kitchen ticket routing |
+| Split Billing | Not applicable | Per-table split |
+| Receipt | Standard sales receipt | Restaurant receipt with table info |
 
-## Navigation Model
+## System Architecture
 
-POS navigation should branch by mode after outlet resolution.
-
-```text
-POS
-├── Overview
-├── F&B Mode
-│   ├── Live Table Map
-│   ├── Reservation
-│   │   ├── Reservation List
-│   │   └── Waiting List
-│   └── Floor & Layout Designer
-└── Goods / Distributor Mode
-    ├── Quick Sale
-    ├── Sales Basket
-    ├── Delivery / Pickup
-    └── Returns / Exchange
+```
+┌──────────────────────────────────────────────────────┐
+│                   POS Frontend                       │
+│  ┌─────────────┐   ┌──────────────────────────────┐  │
+│  │ Goods Mode  │   │  F&B Mode                    │  │
+│  │ (Cart POS)  │   │ (Floor → Table → Order)      │  │
+│  └──────┬──────┘   └───────────┬──────────────────┘  │
+│         │                      │                     │
+│         └──────┬───────────────┘                     │
+│                │                                     │
+│         ┌──────▼──────┐                              │
+│         │ POS Service │                              │
+│         │  Layer      │                              │
+│         └──────┬──────┘                              │
+└────────────────┼─────────────────────────────────────┘
+                 │ REST API
+┌────────────────┼─────────────────────────────────────┐
+│                ▼ Backend                             │
+│  ┌─────────────────────────────┐                     │
+│  │      POS Domain             │                     │
+│  │  (Orders, Floor Layout)     │                     │
+│  └──────────┬──────────────────┘                     │
+│             │                                        │
+│  ┌──────────▼──────────────────┐                     │
+│  │  Shared Domains             │                     │
+│  │  ┌─────────┐ ┌───────────┐  │                     │
+│  │  │ Product │ │ Warehouse │  │                     │
+│  │  │ Master  │ │ / Outlet  │  │                     │
+│  │  └────┬────┘ └─────┬─────┘  │                     │
+│  │       │            │        │                     │
+│  │  ┌────▼────────────▼───┐    │                     │
+│  │  │    Stock Module     │    │                     │
+│  │  │  (Inventory Batch,  │    │                     │
+│  │  │   Stock Movement)   │    │                     │
+│  │  └─────────────────────┘    │                     │
+│  └─────────────────────────────┘                     │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Navigation Rules
+## Module Dependency Map
 
-- `Overview` is the common entry point for both modes.
-- `F&B Mode` is the only mode that shows Live Table Map, Reservation, and Floor & Layout Designer.
-- `Goods / Distributor Mode` must never require table view.
-- The UI should never force users to pass through Live Table Map unless they are explicitly in F&B mode.
+```
+POS Domain
+├── reads → Product (catalog, product_kind, recipe items)
+├── reads → Warehouse (outlet info, is_pos_outlet)
+├── writes → Stock (deduction via StockMovement)
+├── reads → Customer (optional loyalty)
+└── writes → Sales (transaction record)
 
-## F&B Mode
+Product Domain (source of truth)
+├── owns → products table (incl. product_kind, is_pos_available)
+├── owns → product_recipe_items table
+└── provides → catalog, pricing, recipe detail
 
-F&B mode is the spatial, table-based experience.
+Stock Domain
+├── owns → inventory_batches, stock_movements
+├── consumes → recipe detail for ingredient explosion
+└── scoped → per warehouse (outlet)
 
-### Core Pages
-
-- Overview
-- Live Table Map
-- Reservation List
-- Waiting List
-- Floor & Layout Designer
-
-### Key Behaviors
-
-- Table selection opens an order drawer in place.
-- Waiting time drives service urgency.
-- Reservation and queue flow are outlet-scoped.
-- Layout design supports floor, room, cashier, table, and chair objects.
-
-### Typical Flow
-
-```text
-Overview
-  -> Live Table Map
-  -> Table Selection
-  -> Order Drawer
-  -> Sales Invoice Handoff
+Warehouse Domain
+├── owns → warehouses table (incl. is_pos_outlet)
+└── provides → outlet list for POS scope
 ```
 
-## Goods / Distributor Mode
+## Shared Foundation
 
-Goods mode is product-first and does not need spatial service primitives.
+Both modes share:
 
-### Core Pages
-
-- Overview
-- Quick Sale
-- Sales Basket
-- Delivery / Pickup
-- Returns / Exchange
-
-### Key Behaviors
-
-- Users search, scan, or pick products directly from the product master projection.
-- Cart items are assembled without table, chair, or room context.
-- The checkout flow can still hand off to Sales and Finance.
-- Stock deduction happens from the sold product or its downstream recipe mapping, depending on business rules.
-
-### Typical Flow
-
-```text
-Overview
-  -> Quick Sale
-  -> Product Search / Scan
-  -> Basket
-  -> Invoice / Payment
-```
-
-## Permissions and Outlet Scope
-
-Outlet scope should be resolved by permission, not by a generic selector for every user.
-
-| Permission / Scope | Behavior |
+| Module | Role |
 |---|---|
-| `OWN` | User is auto-bound to one outlet. No outlet picker is needed. |
-| `ALL` | User may switch outlet and, if allowed, choose mode. |
-| Mode access | Controlled separately from outlet access so one outlet can expose F&B, goods, or both. |
+| Product Master | SKU catalog, pricing, product_kind, recipes |
+| Warehouse | Outlet locations (is_pos_outlet=true) |
+| Inventory | Stock batches and movement tracking |
+| Customer | Optional loyalty and membership |
+| Sales Transaction | Order/receipt records |
+| Auth/RBAC | User → Outlet scope via WAREHOUSE permission |
 
-### Rule of Thumb
+## Mode A: Goods/Distributor
 
-- Permission decides which outlet(s) are visible.
-- Package or feature flag decides which mode(s) are enabled.
-- Mode decides which menu tree is rendered.
+### Workflow
 
-## Product Master Strategy
+1. Cashier selects outlet (warehouse).
+2. Scans/searches products (STOCK kind).
+3. Adds items to cart with quantities.
+4. Applies discounts (item-level or order-level).
+5. Processes payment (cash, card, QRIS).
+6. System deducts stock directly from outlet warehouse.
+7. Receipt generated.
 
-Product master should remain the source of orderable items for both modes.
+### Key Characteristics
 
-### Product Fields That Matter
+- Products are `STOCK` kind with direct inventory.
+- No floor layout or table management.
+- Simple cart-based flow.
+- Stock deduction: 1:1 product-to-inventory.
 
-| Field | Why It Matters |
+## Mode B: F&B/Restaurant
+
+### Workflow
+
+1. Staff selects outlet, sees floor layout.
+2. Assigns customers to table/zone.
+3. Takes order on tablet/POS (RECIPE and STOCK kind items).
+4. Order sent to kitchen display system (KDS).
+5. Kitchen prepares items, marks as ready.
+6. Staff serves items, updates table status.
+7. Customer requests bill, optional split.
+8. Payment processed, stock deducted via recipe explosion.
+9. Table released.
+
+### Key Characteristics
+
+- Products primarily `RECIPE` kind with ingredient-level deduction.
+- Floor layout: zones, tables, seats (see [floor-layout-designer-prd.md](fnb/floor-layout-designer-prd.md)).
+- Real-time table status tracking.
+- Kitchen ticket display routing.
+- Split billing and gratuity support.
+
+## Warehouse as Outlet
+
+POS outlets are warehouses with `is_pos_outlet = true`. This reuses existing warehouse infrastructure without creating a new entity.
+
+See [warehouse-outlet-rbac.md](shared/warehouse-outlet-rbac.md) for full details.
+
+### Navigation Context
+
+| Module | Label | Same Entity |
+|---|---|---|
+| Inventory → Warehouses | "Warehouses" | `warehouses` table |
+| POS → Outlets | "Outlets" | `warehouses` table where `is_pos_outlet=true` |
+
+Both views show the same data, filtered differently based on context. i18n translation keys:
+- Inventory: `warehouse.title` → "Warehouses"
+- POS: `posOutlet.title` → "Outlets"
+
+## Stock Consumption Models
+
+### Mode A: Direct Deduction (STOCK products)
+
+```
+Sale Item (qty=5, product_kind=STOCK)
+  → StockMovement(OUT, product_id, warehouse_id, qty=5)
+  → InventoryBatch balance reduced (FIFO, FOR UPDATE lock)
+```
+
+### Mode B: Recipe Explosion (RECIPE products)
+
+```
+Sale Item (qty=2, product_kind=RECIPE, recipe has 3 ingredients)
+  → For each recipe_item:
+      consumed_qty = recipe_item.quantity * 2 (sale qty)
+      → StockMovement(OUT, ingredient_product_id, warehouse_id, consumed_qty)
+      → InventoryBatch balance reduced per ingredient (FIFO, FOR UPDATE lock)
+  → If ANY ingredient insufficient → rollback entire sale item
+```
+
+### Mode A/B: SERVICE
+
+```
+Sale Item (qty=1, product_kind=SERVICE)
+  → No stock movement
+  → Revenue recorded only
+```
+
+## Permission and Scope
+
+POS adds a `WAREHOUSE` scope that limits users to specific outlets:
+
+| Scope | Access |
 |---|---|
-| id | Stable order reference. |
-| code / barcode | Search and scanning. |
-| name | Display in POS baskets and drawers. |
-| category / type / segment | Menu grouping and filtering. |
-| uom / packaging | Quantity and selling unit. |
-| selling price | Checkout calculation. |
-| tax flags | Fiscal calculation. |
-| status / is_active | Only active items should be sellable. |
+| `WAREHOUSE` | Only assigned outlets (via `user_warehouses` table) |
+| `DIVISION` | All outlets in user's division |
+| `AREA` | All outlets in user's area/geographic scope |
+| `ALL` | All outlets (admin/manager) |
 
-### Mode-Specific Overlay
+See [warehouse-outlet-rbac.md](shared/warehouse-outlet-rbac.md) for implementation details.
 
-- F&B overlays may add modifiers, prep routing, serving priority, or recipe links.
-- Goods overlays may add warehouse source, packaging rules, or distributor price tiers.
-- These overlays should live outside the core product master so the product model stays reusable.
+### POS Permissions
 
-## ASCII Layouts
-
-### POS Shell
-
-```text
-+-------------------------------------------------------------------------------+
-| POS | Outlet A | Mode: F&B / Goods | [Overview] | [Profile]    |
-+----------------------+--------------------------------------------------------+
-| Sidebar              | Workspace                                             |
-|----------------------|--------------------------------------------------------|
-| Overview             | Mode-specific content appears here                    |
-| F&B Mode             |                                                        |
-| Goods / Distributor  |                                                        |
-|                      |                                                        |
-+----------------------+--------------------------------------------------------+
-```
-
-### F&B Branch
-
-```text
-POS
-├── Overview
-├── F&B Mode
-│   ├── Live Table Map
-│   ├── Reservation
-│   │   ├── Reservation List
-│   │   └── Waiting List
-│   └── Floor & Layout Designer
-```
-
-### Goods Branch
-
-```text
-POS
-├── Overview
-├── Goods / Distributor Mode
-│   ├── Quick Sale
-│   ├── Sales Basket
-│   ├── Delivery / Pickup
-│   └── Returns / Exchange
-```
+| Permission | Description |
+|---|---|
+| `pos.outlet.read` | View outlet list and details |
+| `pos.outlet.manage` | Manage outlet settings |
+| `pos.order.create` | Create POS orders |
+| `pos.order.read` | View POS orders |
+| `pos.recipe.read` | View recipe details |
+| `pos.recipe.manage` | Edit recipes |
+| `pos.floor.read` | View floor layouts |
+| `pos.floor.manage` | Edit floor layouts |
 
 ## Technical Decisions
 
-### Separate Mode From Core
+- **Single backend, dual frontend mode**: Reduces code duplication. Mode selection at UI level based on outlet configuration.
+- **Warehouse as outlet**: Leverage existing warehouse infra, inventory, stock movements. No new entity.
+- **Recipe explosion at sale time**: Real-time ingredient deduction prevents overselling.
+- **FIFO batch consumption**: InventoryBatch consumed oldest-first with row-level locking.
+- **ScopeWarehouse**: New scope level for fine-grained outlet access control.
 
-- **Decision**: Keep table-based F&B logic separate from product-first goods logic.
-- **Reason**: This avoids forcing the same UX on two different business models.
-- **Trade-off**: There are more menus and more conditional routing.
+## Navigation and UX
 
-### Shared Order Draft
+### Sidebar Navigation (i18n-driven)
 
-- **Decision**: Use one shared order draft shape with nullable spatial fields like table_id or floor_id.
-- **Reason**: The checkout pipeline stays consistent across modes.
-- **Trade-off**: The domain model needs mode-aware validation.
+POS sidebar uses contextual labels:
 
-### Mode-Driven Menu Tree
+```
+POS
+├── Dashboard (pos.dashboard)
+├── Outlets (pos.outlets)           // Filtered warehouses
+├── Menu Catalog (pos.menuCatalog)  // Product catalog for POS
+├── Floor Layouts (pos.floorLayouts)
+├── Live Orders (pos.liveOrders)
+├── Reports (pos.reports)
+└── Settings (pos.settings)
+```
 
-- **Decision**: Render menus based on mode, not just role.
-- **Reason**: A cashier in goods mode should never see table-centric controls.
-- **Trade-off**: Navigation logic becomes a little more dynamic.
+### Mode Detection
 
-## Implementation Guidance
+The frontend determines mode based on outlet configuration:
+- If outlet has floor layouts → Show F&B mode UI
+- If outlet has no floor layouts → Show Goods mode UI
+- Users can be assigned to outlets of different types
 
-1. Define shared POS core contracts first: outlet scope, product projection, order draft, invoice handoff.
-2. Add mode resolution next: F&B vs goods/distributor based on outlet package or feature flag.
-3. Build F&B and goods as separate menu trees on top of the shared core.
-4. Keep Live Table Map optional and mode-gated so it never becomes mandatory for goods sales.
+## Notes and Improvements
+
+### Completed
+
+- Floor layout designer with zones, tables, and seats.
+- Product model with `product_kind` support.
+- `product_recipe_items` table for recipe/BOM.
+
+### Planned
+
+- Kitchen Display System (KDS) for order routing.
+- Real-time WebSocket for live order tracking.
+- Split billing and gratuity calculation.
+- Offline mode for intermittent connectivity.
+- Multi-printer support (kitchen, bar, receipt).
+- Shift management and cash drawer tracking.
+
+### Known Limitations
+
+- Recipe versioning not yet implemented (in-place update only).
+- No recipe modifiers (extra/remove ingredients) yet.
+- Multi-pricing (different prices per outlet) deferred.

@@ -1,8 +1,8 @@
-# POS Customer Loyalty and Feedback
+# Customer Loyalty and Feedback
 
-> **Module:** POS -> Shared Modules -> Master Data -> Customer
+> **Module:** POS -> Shared -> Customer Loyalty
 > **Sprint:** Draft Planning
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Status:** Draft
 > **Last Updated:** April 2026
 
@@ -11,107 +11,242 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What Needs to Change](#what-needs-to-change)
-3. [Scope](#scope)
-4. [Data Ownership and Integration](#data-ownership-and-integration)
-5. [Business Rules](#business-rules)
-6. [API Reference](#api-reference)
-7. [Frontend Components](#frontend-components)
-8. [Technical Decisions](#technical-decisions)
-9. [Notes and Open Questions](#notes-and-open-questions)
+2. [Loyalty Program](#loyalty-program)
+3. [Membership Tiers](#membership-tiers)
+4. [Point Calculation](#point-calculation)
+5. [Point Redemption](#point-redemption)
+6. [Customer Feedback](#customer-feedback)
+7. [POS Integration](#pos-integration)
+8. [Data Model](#data-model)
+9. [API Reference](#api-reference)
+10. [Frontend Components](#frontend-components)
+11. [Business Rules](#business-rules)
+12. [Technical Decisions](#technical-decisions)
+13. [Notes and Improvements](#notes-and-improvements)
 
 ---
 
 ## Overview
 
-POS does not own customer master data. It needs customer lookup in the order drawer, loyalty visibility for settled transactions, and outlet-scoped feedback capture through a public barcode or QR flow.
+Customer Loyalty and Feedback provides membership-based loyalty rewards and post-transaction feedback for both POS modes (Goods and F&B). The system integrates into the Customer module and is consumed by POS at checkout.
 
-This document describes the POS-facing delta that should sit on top of the existing Customer module.
+### Key Principle
 
-## What Needs to Change
+> Customer and loyalty data are **owned by the Customer module**. POS reads customer info and writes loyalty point transactions.
 
-- Add a POS-ready customer projection so cashier search stays fast in the order drawer.
-- Expose loyalty balance, earn history, and redeem eligibility in a read-only summary.
-- Keep customer CRUD, type management, and approval workflow inside the Customer module.
-- Add outlet-scoped feedback metadata such as `outlet_id`, `table_id`, `invoice_id`, and `barcode_id`.
-- Keep public feedback submission separate from internal CRM campaign logic.
+## Loyalty Program
 
-## Scope
+### Program Structure
 
-### In Scope
+| Component | Description |
+|---|---|
+| Membership | Customer registers (optional) |
+| Points | Earned per transaction based on spend |
+| Tiers | Bronze, Silver, Gold, Platinum (configurable) |
+| Redemption | Points redeemable for discounts |
+| Expiry | Points expire after configurable period |
 
-- Customer lookup for cashier and host workflows.
-- Loyalty points summary and redeem preview.
-- Public outlet feedback submission.
-- Member versus guest identification in live operations.
-- Optional customer selection during POS order creation.
+### Enrollment
 
-### Out of Scope
+- Customer provides name + phone number.
+- System creates customer record in Customer module.
+- Loyalty membership activated automatically.
+- Starting tier: Bronze (default).
 
-- CRM campaign automation.
-- Customer master approval redesign.
-- Credit management or AR policy changes.
-- Advanced segmentation and marketing orchestration.
+## Membership Tiers
 
-## Data Ownership and Integration
-
-| Domain | Ownership | Notes |
+| Tier | Minimum Points | Benefits |
 |---|---|---|
-| Customer core | Master Data -> Customer | Source of truth for identity and customer relations. |
-| Loyalty summary | Master Data -> Customer | Points and redemption data should remain master-driven. |
-| Feedback submission | POS | Public flow uses outlet-scoped metadata and is linked back to customer master. |
-| Order drawer customer lookup | POS | Uses a read-only projection so live operations stay fast. |
+| Bronze | 0 | Base point earning (1x) |
+| Silver | 1,000 | 1.25x point multiplier |
+| Gold | 5,000 | 1.5x multiplier + birthday bonus |
+| Platinum | 20,000 | 2x multiplier + priority service |
 
-### Integration Boundary
+### Tier Evaluation
 
-- POS reads customer data from the existing Customer module and must not duplicate master records.
-- Loyalty changes should happen after the transaction is settled, not during draft creation.
-- Feedback records must be outlet-specific so franchise branches do not mix survey data.
-- Guest orders must still work when no customer is selected.
+- Evaluated monthly based on cumulative points earned (not balance).
+- Tier upgrade: Immediate when threshold met.
+- Tier downgrade: After 3 consecutive months below threshold.
 
-## Business Rules
+## Point Calculation
 
-- Customer selection is optional for walk-in orders.
-- Loyalty points should be granted only after the sale is committed.
-- Loyalty redemption must respect outlet policy and any maximum redemption limit.
-- Feedback must be tied to an outlet, and where relevant to a table or invoice.
-- Public feedback barcodes must not be reusable across outlets.
-- Customer master data must remain the canonical source of contact and identity data.
+### Earning Formula
+
+```
+base_points = FLOOR(transaction_total / point_rate)
+  where point_rate = configurable (default: Rp 10,000 = 1 point)
+
+tier_multiplier = tier.multiplier (1.0 / 1.25 / 1.5 / 2.0)
+
+earned_points = FLOOR(base_points * tier_multiplier)
+```
+
+### Earning Rules
+
+- Points earned only on completed (paid) transactions.
+- Void/returned transactions reverse earned points.
+- SERVICE items are included in total for point calculation.
+- Minimum transaction amount for earning: configurable (default: Rp 10,000).
+- Points are per-outlet (earned at any, redeemable at any).
+
+## Point Redemption
+
+### Redemption Options
+
+| Option | Description |
+|---|---|
+| Discount | Convert points to discount on current transaction |
+| Future credit | Store points for future use |
+
+### Redemption Rate
+
+```
+discount = points_redeemed * redemption_rate
+  where redemption_rate = configurable (default: 1 point = Rp 1,000)
+```
+
+### Redemption Rules
+
+- Minimum redemption: configurable (default: 10 points).
+- Maximum redemption per transaction: configurable (default: 50% of total).
+- Cannot redeem more points than balance.
+- Redemption deducted from oldest points first (FIFO).
+
+## Customer Feedback
+
+### Feedback Collection
+
+- Triggered after payment completion.
+- Optional: cashier asks or customer self-service.
+- Rating: 1-5 stars.
+- Optional comment text.
+
+### Feedback Fields
+
+| Field | Type | Description |
+|---|---|---|
+| transaction_id | UUID | Reference to sales transaction |
+| customer_id | UUID (nullable) | Customer if identified |
+| outlet_id | UUID | Outlet where transaction occurred |
+| rating | int (1-5) | Star rating |
+| comment | text | Optional feedback text |
+| created_at | timestamptz | Timestamp |
+
+### Feedback Aggregation
+
+- Per outlet: Average rating, trend over time.
+- Per product: Rating distribution (future).
+- Dashboard widget for managers.
+
+## POS Integration
+
+### At Checkout
+
+```
+1. Cashier asks for membership (phone number lookup)
+2. IF customer found:
+   a. Display name, tier, point balance
+   b. Ask if redeeming points
+   c. IF yes: Apply point discount to total
+3. Process payment (adjusted total)
+4. Calculate earned points based on final paid amount
+5. Credit points to customer account
+6. Display earned points on receipt
+```
+
+### Without Membership
+
+- Transaction proceeds normally.
+- No points earned or redeemed.
+- Cashier can offer enrollment at checkout.
+
+## Data Model
+
+### Customer Loyalty (owned by Customer module)
+
+| Table | Purpose |
+|---|---|
+| `customers` | Customer master (name, phone, email, tier) |
+| `customer_loyalty_points` | Point transaction ledger |
+| `customer_loyalty_config` | Program configuration per outlet/company |
+
+### Point Transaction Ledger
+
+| Field | Type | Description |
+|---|---|---|
+| id | UUID | Primary key |
+| customer_id | UUID | Customer reference |
+| outlet_id | UUID | Where transaction occurred |
+| transaction_id | UUID (nullable) | Sales transaction reference |
+| type | enum | EARN, REDEEM, EXPIRE, ADJUST |
+| points | int | Amount (positive for earn, negative for redeem) |
+| description | text | Human-readable description |
+| expires_at | timestamptz | Point expiry date |
+| created_at | timestamptz | Transaction time |
+
+### Point Balance
+
+```
+balance = SUM(points) FROM customer_loyalty_points
+  WHERE customer_id = X AND (expires_at IS NULL OR expires_at > NOW())
+```
 
 ## API Reference
 
-The Customer module already exposes the master data routes under `/customer`.
-
 | Method | Endpoint | Permission | Description |
 |---|---|---|---|
-| GET | `/customer/customers` | customer.read | List customers. |
-| GET | `/customer/customers/form-data` | customer.read | Get customer form dropdown data. |
-| GET | `/customer/customers/:id` | customer.read | Get customer detail. |
-| POST | `/customer/customers` | customer.create | Create customer. |
-| PUT | `/customer/customers/:id` | customer.update | Update customer. |
-| DELETE | `/customer/customers/:id` | customer.delete | Delete customer. |
-| GET | `/customer/customer-types` | customer.read | List customer types. |
-| POST | `/pos/outlets/{outletId}/feedback/{barcodeId}` | public | Submit outlet feedback from a public barcode or QR page. |
+| GET | `/customer/customers/lookup?phone=X` | pos.order.read | Lookup customer by phone |
+| GET | `/customer/customers/:id/loyalty` | pos.order.read | Get loyalty info (tier, balance) |
+| POST | `/customer/customers/:id/loyalty/redeem` | pos.order.create | Redeem points |
+| POST | `/customer/customers/:id/loyalty/earn` | system | Earn points (auto on payment) |
+| POST | `/pos/orders/:id/feedback` | pos.order.read | Submit feedback |
+| GET | `/pos/outlets/:id/feedback-summary` | pos.outlet.read | Feedback aggregation |
 
 ## Frontend Components
 
 | Component | Purpose |
 |---|---|
-| CustomerLookupDrawer | Lets cashier search and attach a customer to the order. |
-| LoyaltyPointsChip | Shows current points and redeem eligibility. |
-| MemberRedeemDialog | Confirms redemption before applying it to an order. |
-| FeedbackBarcodePage | Public outlet feedback form opened from QR or barcode. |
-| CustomerInsightCard | Summarizes customer state inside the POS shell. |
+| CustomerLookup | Phone number input + search at checkout |
+| LoyaltyCard | Display customer name, tier, balance |
+| PointRedemption | Redeem points with amount selector |
+| PointEarnedDisplay | Show earned points after payment |
+| FeedbackDialog | Star rating + comment input |
+| FeedbackSummaryWidget | Dashboard feedback aggregation |
+| EnrollmentDialog | Quick customer enrollment form |
+
+## Business Rules
+
+- Phone number is unique identifier for customer lookup.
+- Points calculated on final paid amount (after discounts, before tax).
+- Void/return reverses earned points.
+- Expired points cannot be redeemed.
+- Tier evaluation runs monthly (batch job).
+- Feedback is optional and anonymous if no customer identified.
+- Customer enrollment requires minimum: name + phone.
+- Points are company-wide (not outlet-specific).
 
 ## Technical Decisions
 
-- **Keep customer master separate from POS**: The customer module already owns identity, types, and approval, so POS should consume a projection rather than duplicating the model.
-- **Post loyalty after settlement**: Points must reflect committed sales to avoid reward abuse and reconciliation drift.
-- **Use a public feedback page for guests**: A public outlet-specific page is simpler than forcing feedback inside the cashier workflow.
-- **Preserve guest-first checkout**: POS should still work when a customer is not known or not selected.
+- **Point ledger (append-only)**: Full audit trail, easy to calculate balance and trace history.
+- **Tier on customer record**: Cached for fast lookup. Updated by monthly batch job.
+- **Phone-based lookup**: Most natural identifier in POS context. Avoids card printing.
+- **Feedback on transaction**: Per-transaction granularity for actionable insights.
+- **Points company-wide**: Encourages cross-outlet visits.
 
-## Notes and Open Questions
+## Notes and Improvements
 
-- Should loyalty summary be cached per outlet for the cashier drawer?
-- Should feedback submission support anonymous guest mode only, or allow customer binding when a member is recognized?
-- Should redeem rules be configured per outlet or per franchise group?
+### Planned
+
+- Birthday bonus point awards.
+- Referral program (earn points for referring friends).
+- Point-based rewards catalog (merchandise, vouchers).
+- Automated tier notification (email/SMS on tier change).
+- Customer analytics dashboard.
+- Multi-channel feedback (QR code, WhatsApp).
+
+### Known Limitations
+
+- No card/barcode-based loyalty (phone only).
+- No rewards catalog (discount only).
+- No referral tracking.
+- Tier evaluation is monthly batch, not real-time.
