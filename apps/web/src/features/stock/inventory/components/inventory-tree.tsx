@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   XCircle,
   Layers,
+  FlaskConical,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -185,8 +186,16 @@ function ProductNode({
               </span>
             )}
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium">{product.product_name}</span>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium">{product.product_name}</span>
+              {product.is_ingredient && (
+                <Badge variant="secondary" className="gap-1 text-[10px] px-1 py-0 h-4">
+                  <FlaskConical className="h-2.5 w-2.5" />
+                  Bahan Baku
+                </Badge>
+              )}
+            </div>
             <span className="text-[10px] text-muted-foreground font-mono">{product.product_code}</span>
           </div>
         </div>

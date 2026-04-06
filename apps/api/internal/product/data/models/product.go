@@ -89,6 +89,9 @@ type Product struct {
 	ApprovedBy        *string         `gorm:"type:uuid" json:"approved_by"`
 	ApprovedAt        *time.Time      `json:"approved_at"`
 	
+	// Ingredient flag: true means this product is a raw material/ingredient used in F&B recipes
+	IsIngredient      bool            `gorm:"column:is_ingredient;default:false;index" json:"is_ingredient"`
+
 	// Active status
 	IsActive          bool            `gorm:"default:true;index" json:"is_active"`
 	

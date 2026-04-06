@@ -39,6 +39,7 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		Weight:            m.Weight,
 		Volume:            m.Volume,
 		Notes:             m.Notes,
+		IsIngredient:      m.IsIngredient,
 		Status:            string(m.Status),
 		IsApproved:        m.IsApproved,
 		CreatedBy:         m.CreatedBy,

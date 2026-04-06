@@ -9,7 +9,8 @@ import type { InventoryStockItem, TreeProductsSummary, InventoryTreeWarehouse } 
 export function useProgressiveInventory(
   warehouses: InventoryTreeWarehouse[],
   enabled: boolean = false,
-  expandedWarehouses: Record<string, boolean> = {}
+  expandedWarehouses: Record<string, boolean> = {},
+  isIngredient?: boolean
 ) {
   const [allPagesByWarehouse, setAllPagesByWarehouse] = useState<Record<string, InventoryStockItem[]>>({});
   const [summaryByWarehouse, setSummaryByWarehouse] = useState<Record<string, TreeProductsSummary | null>>({});
@@ -21,8 +22,8 @@ export function useProgressiveInventory(
   // Helper function to fetch warehouse products
   const fetchWarehouseProducts = useCallback(
     (warehouseId: string, page: number) =>
-      inventoryService.getTreeProducts(warehouseId, { page, per_page: 20 }),
-    []
+      inventoryService.getTreeProducts(warehouseId, { page, per_page: 20, is_ingredient: isIngredient }),
+    [isIngredient]
   );
 
   // Initialize pagination state for all warehouses

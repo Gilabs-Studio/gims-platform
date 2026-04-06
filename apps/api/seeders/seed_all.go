@@ -82,6 +82,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// POS F&B ingredient products (ingredient stock foundation)
+	if err := SeedPosIngredients(); err != nil {
+		return err
+	}
+
+	// POS F&B ingredient inventory batches (must run after SeedPosIngredients + SeedWarehouse)
+	if err := SeedPosIngredientInventory(); err != nil {
+		return err
+	}
+
 	// Master Data seeders (Sprint 4)
 	if err := SeedCurrencies(); err != nil {
 		return err

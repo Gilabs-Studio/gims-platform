@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock, Layers, TrendingDown, CalendarX, X } from "lucide-react";
+import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock, Layers, TrendingDown, CalendarX, X, FlaskConical } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useInventory, useInventoryMetrics } from "../hooks/use-inventory";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
@@ -97,6 +98,8 @@ export function InventoryList() {
   const [pageSize, setPageSize] = useState(20);
   const [warehouseId, setWarehouseId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"tree" | "list">("tree");
+  // Tab: "all" = full inventory; "ingredient" = raw material stocks only
+  const [activeTab, setActiveTab] = useState<"all" | "ingredient">("all");
   // Unified metric filter — null means no active filter
   const [activeMetricFilter, setActiveMetricFilter] = useState<MetricFilterKey | null>(null);
 
@@ -116,6 +119,15 @@ export function InventoryList() {
     setPage(1);
   };
 
+  const handleTabChange = (tab: "all" | "ingredient") => {
+    setActiveTab(tab);
+    setActiveMetricFilter(null);
+    setSearch("");
+    setPage(1);
+    // Ingredient tab defaults to list, all tab goes back to tree
+    setViewMode(tab === "ingredient" ? "list" : "tree");
+  };
+
   // Force list view when searching or when a metric filter is active
   const isSearchActive = !!debouncedSearch;
   const currentView = isSearchActive || activeMetricFilter ? "list" : viewMode;
@@ -133,6 +145,7 @@ export function InventoryList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     warehouse_id: warehouseId !== "all" ? warehouseId : undefined,
+    is_ingredient: activeTab === "ingredient" ? true : undefined,
     ...inventoryFilterParams,
   });
 
@@ -195,8 +208,21 @@ export function InventoryList() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      {/* Inventory Metrics Cards */}
-      <div className="flex flex-wrap gap-3">
+      {/* Tab switcher: All stocks vs Ingredient stocks */}
+      <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as "all" | "ingredient")}>
+        <TabsList>
+          <TabsTrigger value="all">{t("tabs.all")}</TabsTrigger>
+          <TabsTrigger value="ingredient" className="gap-1.5">
+            <FlaskConical className="h-3.5 w-3.5" />
+            {t("tabs.ingredient")}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Inventory Metrics Cards — hidden on Ingredient tab (metrics reflect all-stock, not ingredient-specific) */}
+      {activeTab === "all" && (
+        <>
+        <div className="flex flex-wrap gap-3">
         <MetricCard
           label="Total SKU"
           value={metrics?.total_items ?? 0}
@@ -277,6 +303,8 @@ export function InventoryList() {
             </button>
           </Badge>
         </div>
+      )}
+        </>
       )}
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -407,9 +435,15 @@ export function InventoryList() {
                                     </span>
                                 )}
                             </div>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col gap-0.5">
                                 <span className="font-medium text-sm">{item.product_name}</span>
                                 <span className="text-xs text-muted-foreground">{item.product_code}</span>
+                                {item.is_ingredient && (
+                                  <Badge variant="secondary" className="gap-1 text-xs w-fit px-1.5 py-0">
+                                    <FlaskConical className="h-3 w-3" />
+                                    {t("badge.ingredient")}
+                                  </Badge>
+                                )}
                             </div>
                             </div>
                         </TableCell>

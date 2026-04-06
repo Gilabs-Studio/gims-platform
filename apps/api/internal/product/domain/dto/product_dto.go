@@ -33,6 +33,7 @@ type CreateProductRequest struct {
 	Weight            float64 `json:"weight"`
 	Volume            float64 `json:"volume"`
 	Notes             string  `json:"notes"`
+	IsIngredient      bool    `json:"is_ingredient"`
 	IsActive          *bool   `json:"is_active"`
 }
 
@@ -65,6 +66,7 @@ type UpdateProductRequest struct {
 	Weight            *float64 `json:"weight"`
 	Volume            *float64 `json:"volume"`
 	Notes             string  `json:"notes"`
+	IsIngredient      *bool   `json:"is_ingredient"`
 	IsActive          *bool   `json:"is_active"`
 }
 
@@ -168,6 +170,7 @@ type ProductResponse struct {
 	CreatedBy         *string               `json:"created_by"`
 	ApprovedBy        *string               `json:"approved_by"`
 	ApprovedAt        *time.Time            `json:"approved_at"`
+	IsIngredient      bool                  `json:"is_ingredient"`
 	IsActive          bool                  `json:"is_active"`
 	CreatedAt         time.Time             `json:"created_at"`
 	UpdatedAt         time.Time             `json:"updated_at"`
