@@ -130,6 +130,8 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 	// Map recipe items and calculate recipe cost for RECIPE kind products
 	if len(m.RecipeItems) > 0 {
 		var totalCost float64
+		var producibleQuantity float64 = -1 // -1 means unlimited (for non-RECIPE products)
+		
 		recipeItems := make([]dto.RecipeItemResponse, 0, len(m.RecipeItems))
 		for _, item := range m.RecipeItems {
 			ri := dto.RecipeItemResponse{
@@ -146,10 +148,20 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 				ri.CostContribution = costContribution
 				totalCost += costContribution
 				ri.Ingredient = &dto.RecipeIngredientBasic{
-					ID:        item.IngredientProduct.ID,
-					Code:      item.IngredientProduct.Code,
-					Name:      item.IngredientProduct.Name,
-					CostPrice: item.IngredientProduct.CostPrice,
+					ID:           item.IngredientProduct.ID,
+					Code:         item.IngredientProduct.Code,
+					Name:         item.IngredientProduct.Name,
+					CostPrice:    item.IngredientProduct.CostPrice,
+					CurrentStock: item.IngredientProduct.CurrentStock,
+				}
+				
+				// For RECIPE products: calculate how many finished products can be made from this ingredient
+				if m.ProductKind == "RECIPE" && item.Quantity > 0 {
+					canMake := item.IngredientProduct.CurrentStock / item.Quantity
+					// ProducibleQuantity is the minimum (bottleneck ingredient)
+					if producibleQuantity == -1 || canMake < producibleQuantity {
+						producibleQuantity = canMake
+					}
 				}
 			}
 
@@ -165,6 +177,14 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		}
 		resp.RecipeItems = recipeItems
 		resp.RecipeCost = &totalCost
+		
+		// Set ProducibleQuantity for RECIPE products
+		if m.ProductKind == "RECIPE" {
+			if producibleQuantity == -1 {
+				producibleQuantity = 0 // No ingredients = can't produce
+			}
+			resp.ProducibleQuantity = producibleQuantity
+		}
 	}
 
 	return resp

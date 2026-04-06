@@ -352,8 +352,6 @@ export function ProductFnbDetailDialog({
                   {t("section.classification")}
                 </p>
                 <InfoRow label={t("form.category")} value={product.category?.name} />
-                <InfoRow label={t("form.brand")} value={product.brand?.name} />
-                <InfoRow label={t("form.type")} value={product.type?.name} />
                 <InfoRow
                   label={t("form.uom")}
                   value={product.uom ? `${product.uom.name} (${product.uom.symbol})` : undefined}
@@ -394,11 +392,11 @@ export function ProductFnbDetailDialog({
                   {t("section.supplyChain")}
                 </p>
                 <InfoRow
-                  label="Current Stock"
+                  label={t("recipe.producibleQuantity")}
                   value={
                     <span className="flex items-center gap-1">
                       <Package className="h-3 w-3" />
-                      {(product.current_stock ?? 0).toLocaleString("id-ID")}
+                      {Math.floor(product.producible_quantity ?? 0).toLocaleString("id-ID")}
                       {product.uom && ` ${product.uom.symbol ?? product.uom.name}`}
                     </span>
                   }

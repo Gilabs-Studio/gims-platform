@@ -238,9 +238,17 @@ export function ProductCatalog() {
   const pagination = productsData?.meta?.pagination;
   const products = productsData?.data ?? [];
 
+  const getDisplayStockQuantity = (product: Product) => {
+    if (product.product_kind === "RECIPE") {
+      return Math.floor(product.producible_quantity ?? 0);
+    }
+
+    return product.current_stock ?? 0;
+  };
+
   // Derives a stock status for visual badge on card
   const getStockStatus = (product: Product): "ok" | "low" | "out" | "over" => {
-    const qty = product.current_stock ?? 0;
+    const qty = getDisplayStockQuantity(product);
     const min = product.min_stock ?? 0;
     const max = product.max_stock ?? 0;
     if (qty <= 0)           return "out";
@@ -585,7 +593,7 @@ export function ProductCatalog() {
                       <div className="flex items-center justify-between gap-1">
                         {(() => {
                           const s = getStockStatus(product);
-                          const qty = product.current_stock ?? 0;
+                          const qty = getDisplayStockQuantity(product);
                           const colors = {
                             ok:   "bg-success/10 text-success dark:text-success",
                             low:  "bg-warning/10 text-warning dark:text-warning",

@@ -308,6 +308,8 @@ export const productEn = {
       editRecipe: "Edit Recipe",
       empty: "No recipe defined yet",
       searchToAdd: "Search above to add ingredients",
+      producibleQuantity: "Producible Quantity",
+      producibleQuantityDesc: "Maximum units that can be prepared based on ingredient stock",
     },
     fnbProduct: "F&B Product",
     fnbDetail: "F&B Detail",

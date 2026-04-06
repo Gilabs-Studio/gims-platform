@@ -299,6 +299,7 @@ export interface Product {
   is_pos_available: boolean;
   recipe_items?: RecipeItemResponse[];
   recipe_cost?: number | null;
+  producible_quantity: number; // For RECIPE products: max qty that can be produced based on ingredient stock
 
   created_at: string;
   updated_at: string;
@@ -416,6 +417,7 @@ export interface RecipeIngredientBasic {
   code: string;
   name: string;
   cost_price: number;
+  current_stock: number; // Stock available for this ingredient
 }
 
 export interface RecipeItemResponse {

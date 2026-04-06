@@ -307,6 +307,8 @@ export const productId = {
       editRecipe: "Edit Resep",
       empty: "Belum ada resep yang didefinisikan",
       searchToAdd: "Cari bahan di atas untuk ditambahkan",
+      producibleQuantity: "Kuantitas yang Dapat Dibuat",
+      producibleQuantityDesc: "Jumlah unit maksimal yang dapat disiapkan berdasarkan stok bahan",
     },
     fnbProduct: "Produk F&B",
     fnbDetail: "Detail F&B",

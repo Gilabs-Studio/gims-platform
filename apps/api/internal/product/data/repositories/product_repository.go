@@ -67,7 +67,9 @@ func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Pr
 		Preload("RecipeItems", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
-		Preload("RecipeItems.IngredientProduct").
+		Preload("RecipeItems.IngredientProduct", func(db *gorm.DB) *gorm.DB {
+			return db.Select(stockSubquery)
+		}).
 		Preload("RecipeItems.Uom").
 		First(&product, "id = ?", id).Error
 	if err != nil {
@@ -166,7 +168,14 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 		Preload("Packaging").
 		Preload("ProcurementType").
 		Preload("Supplier").
-		Preload("BusinessUnit")
+		Preload("BusinessUnit").
+		Preload("RecipeItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("RecipeItems.IngredientProduct", func(db *gorm.DB) *gorm.DB {
+			return db.Select(stockSubquery)
+		}).
+		Preload("RecipeItems.Uom")
 
 	if err := query.Find(&products).Error; err != nil {
 		return nil, 0, err

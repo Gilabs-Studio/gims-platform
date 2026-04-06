@@ -184,6 +184,7 @@ type ProductResponse struct {
 	IsPosAvailable     bool                  `json:"is_pos_available"`
 	RecipeItems        []RecipeItemResponse  `json:"recipe_items,omitempty"`
 	RecipeCost         *float64              `json:"recipe_cost,omitempty"`
+	ProducibleQuantity float64               `json:"producible_quantity"` // For RECIPE products: max qty that can be produced based on ingredient stock
 	IsActive           bool                  `json:"is_active"`
 	CreatedAt          time.Time             `json:"created_at"`
 	UpdatedAt          time.Time             `json:"updated_at"`
@@ -212,8 +213,9 @@ type RecipeItemResponse struct {
 }
 
 type RecipeIngredientBasic struct {
-	ID        string  `json:"id"`
-	Code      string  `json:"code"`
-	Name      string  `json:"name"`
-	CostPrice float64 `json:"cost_price"`
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	CostPrice    float64 `json:"cost_price"`
+	CurrentStock float64 `json:"current_stock"` // Stock available for this ingredient
 }
