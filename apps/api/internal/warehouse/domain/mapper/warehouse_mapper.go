@@ -34,6 +34,7 @@ func (m *WarehouseMapper) ToResponse(warehouse *models.Warehouse) *dto.Warehouse
 		VillageName: warehouse.VillageName,
 		Latitude:    warehouse.Latitude,
 		Longitude:   warehouse.Longitude,
+		IsPosOutlet: warehouse.IsPosOutlet,
 		IsActive:    warehouse.IsActive,
 		HasStock:    warehouse.HasStock,
 		CreatedAt:   warehouse.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
@@ -117,6 +118,10 @@ func (m *WarehouseMapper) FromCreateRequest(req dto.CreateWarehouseRequest) *mod
 		warehouse.IsActive = *req.IsActive
 	}
 
+	if req.IsPosOutlet != nil {
+		warehouse.IsPosOutlet = *req.IsPosOutlet
+	}
+
 	return warehouse
 }
 
@@ -163,5 +168,8 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 	}
 	if req.IsActive != nil {
 		warehouse.IsActive = *req.IsActive
+	}
+	if req.IsPosOutlet != nil {
+		warehouse.IsPosOutlet = *req.IsPosOutlet
 	}
 }

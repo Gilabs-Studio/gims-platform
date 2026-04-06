@@ -17,6 +17,9 @@ type ProductListParams struct {
 	SupplierID        string
 	Status            string
 	IsApproved        *bool
+	ProductKind       string
+	IsPosAvailable    *bool
+	IsIngredient      *bool
 }
 
 // ProductRepository defines the interface for product data access
@@ -61,6 +64,11 @@ func (r *productRepository) FindByID(ctx context.Context, id string) (*models.Pr
 		Preload("ProcurementType").
 		Preload("Supplier").
 		Preload("BusinessUnit").
+		Preload("RecipeItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("RecipeItems.IngredientProduct").
+		Preload("RecipeItems.Uom").
 		First(&product, "id = ?", id).Error
 	if err != nil {
 		return nil, err
@@ -101,6 +109,15 @@ func (r *productRepository) List(ctx context.Context, params ProductListParams) 
 	}
 	if params.IsApproved != nil {
 		query = query.Where("is_approved = ?", *params.IsApproved)
+	}
+	if params.ProductKind != "" {
+		query = query.Where("product_kind = ?", params.ProductKind)
+	}
+	if params.IsPosAvailable != nil {
+		query = query.Where("is_pos_available = ?", *params.IsPosAvailable)
+	}
+	if params.IsIngredient != nil {
+		query = query.Where("is_ingredient = ?", *params.IsIngredient)
 	}
 
 	// Count total before pagination

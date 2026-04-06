@@ -39,7 +39,10 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 		Weight:            m.Weight,
 		Volume:            m.Volume,
 		Notes:             m.Notes,
-		IsIngredient:      m.IsIngredient,
+		ProductKind:        m.ProductKind,
+		IsIngredient:       m.IsIngredient,
+		IsInventoryTracked: m.IsInventoryTracked,
+		IsPosAvailable:     m.IsPosAvailable,
 		Status:            string(m.Status),
 		IsApproved:        m.IsApproved,
 		CreatedBy:         m.CreatedBy,
@@ -122,6 +125,46 @@ func ToProductResponse(m *models.Product) dto.ProductResponse {
 			ID:   m.BusinessUnit.ID,
 			Name: m.BusinessUnit.Name,
 		}
+	}
+
+	// Map recipe items and calculate recipe cost for RECIPE kind products
+	if len(m.RecipeItems) > 0 {
+		var totalCost float64
+		recipeItems := make([]dto.RecipeItemResponse, 0, len(m.RecipeItems))
+		for _, item := range m.RecipeItems {
+			ri := dto.RecipeItemResponse{
+				ID:                  item.ID,
+				IngredientProductID: item.IngredientProductID,
+				Quantity:            item.Quantity,
+				UomID:               item.UomID,
+				Notes:               item.Notes,
+				SortOrder:           item.SortOrder,
+			}
+
+			if item.IngredientProduct != nil {
+				costContribution := item.IngredientProduct.CostPrice * item.Quantity
+				ri.CostContribution = costContribution
+				totalCost += costContribution
+				ri.Ingredient = &dto.RecipeIngredientBasic{
+					ID:        item.IngredientProduct.ID,
+					Code:      item.IngredientProduct.Code,
+					Name:      item.IngredientProduct.Name,
+					CostPrice: item.IngredientProduct.CostPrice,
+				}
+			}
+
+			if item.Uom != nil {
+				ri.Uom = &dto.UnitOfMeasureBasic{
+					ID:     item.Uom.ID,
+					Name:   item.Uom.Name,
+					Symbol: item.Uom.Symbol,
+				}
+			}
+
+			recipeItems = append(recipeItems, ri)
+		}
+		resp.RecipeItems = recipeItems
+		resp.RecipeCost = &totalCost
 	}
 
 	return resp

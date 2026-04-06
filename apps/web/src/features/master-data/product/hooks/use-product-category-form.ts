@@ -17,6 +17,7 @@ export const productCategoryFormSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name cannot exceed 100 characters"),
   description: z.string().max(500, "Description cannot exceed 500 characters").optional(),
+  category_type: z.enum(["GOODS", "FNB"]).optional(),
   parent_id: z.string().optional().nullable(),
   is_active: z.boolean(),
 });
@@ -57,6 +58,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
     defaultValues: {
       name: "",
       description: "",
+      category_type: "GOODS",
       parent_id: null,
       is_active: true,
     },
@@ -68,6 +70,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
         form.reset({
           name: editingItem.name,
           description: editingItem.description ?? "",
+          category_type: editingItem.category_type ?? "GOODS",
           parent_id: editingItem.parent_id,
           is_active: true,
         });
@@ -75,6 +78,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
         form.reset({
           name: "",
           description: "",
+          category_type: "GOODS",
           parent_id: null,
           is_active: true,
         });
@@ -90,6 +94,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
           data: {
             name: data.name,
             description: data.description || undefined,
+            category_type: data.category_type ?? "GOODS",
             parent_id: data.parent_id || null,
             is_active: true,
           },
@@ -99,6 +104,7 @@ export function useProductCategoryForm({ open, onOpenChange, editingItem, onCrea
         const result = await createMutation.mutateAsync({
           name: data.name,
           description: data.description || undefined,
+          category_type: data.category_type ?? "GOODS",
           parent_id: data.parent_id || null,
           is_active: true,
         });

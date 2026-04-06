@@ -70,6 +70,7 @@ func AutoMigrate() error {
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		&user.User{},
+		&user.UserWarehouse{},
 		&role.RolePermission{},
 		&role.Role{},
 		&permission.Permission{},

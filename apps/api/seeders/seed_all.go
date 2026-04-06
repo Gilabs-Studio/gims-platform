@@ -92,6 +92,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// POS F&B recipe menu items, service products, and BOM recipe items
+	if err := SeedPosRecipeProducts(); err != nil {
+		return err
+	}
+
+	// User-warehouse assignments for POS outlet RBAC
+	if err := SeedUserWarehouses(); err != nil {
+		return err
+	}
+
 	// Master Data seeders (Sprint 4)
 	if err := SeedCurrencies(); err != nil {
 		return err

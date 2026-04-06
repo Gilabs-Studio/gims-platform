@@ -6,15 +6,16 @@ import (
 
 // Valid permission scope values
 const (
-	ScopeOwn      = "OWN"
-	ScopeDivision = "DIVISION"
-	ScopeArea     = "AREA"
-	ScopeAll      = "ALL"
+	ScopeOwn       = "OWN"
+	ScopeWarehouse = "WAREHOUSE"
+	ScopeDivision  = "DIVISION"
+	ScopeArea      = "AREA"
+	ScopeAll       = "ALL"
 )
 
 // ValidScopes returns all valid scope values
 func ValidScopes() []string {
-	return []string{ScopeOwn, ScopeDivision, ScopeArea, ScopeAll}
+	return []string{ScopeOwn, ScopeWarehouse, ScopeDivision, ScopeArea, ScopeAll}
 }
 
 // IsValidScope checks if a scope value is valid

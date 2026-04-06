@@ -27,9 +27,11 @@ type Warehouse struct {
 	// VillageName stores the kelurahan/desa name as free text (preferred over VillageID FK)
 	VillageName *string             `gorm:"type:varchar(255)" json:"village_name,omitempty"`
 	// Location coordinates
-	Latitude  *float64       `gorm:"type:decimal(10,8)" json:"latitude"`
-	Longitude *float64       `gorm:"type:decimal(11,8)" json:"longitude"`
-	IsActive  bool           `gorm:"default:true;index" json:"is_active"`
+	Latitude    *float64       `gorm:"type:decimal(10,8)" json:"latitude"`
+	Longitude   *float64       `gorm:"type:decimal(11,8)" json:"longitude"`
+	// POS outlet flag: true marks this warehouse as a POS outlet
+	IsPosOutlet bool           `gorm:"column:is_pos_outlet;default:false;index" json:"is_pos_outlet"`
+	IsActive    bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

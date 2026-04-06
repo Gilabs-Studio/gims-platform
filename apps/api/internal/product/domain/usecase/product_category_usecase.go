@@ -38,12 +38,17 @@ func (u *productCategoryUsecase) Create(ctx context.Context, req dto.CreateProdu
 		isActive = *req.IsActive
 	}
 
+	categoryType := req.CategoryType
+	if categoryType == "" {
+		categoryType = models.CategoryTypeGoods
+	}
 	category := &models.ProductCategory{
-		ID:          uuid.New().String(),
-		Name:        req.Name,
-		Description: req.Description,
-		ParentID:    req.ParentID,
-		IsActive:    isActive,
+		ID:           uuid.New().String(),
+		Name:         req.Name,
+		Description:  req.Description,
+		CategoryType: categoryType,
+		ParentID:     req.ParentID,
+		IsActive:     isActive,
 	}
 
 	if err := u.repo.Create(ctx, category); err != nil {
@@ -80,6 +85,9 @@ func (u *productCategoryUsecase) Update(ctx context.Context, id string, req dto.
 	}
 	if req.Description != "" {
 		category.Description = req.Description
+	}
+	if req.CategoryType != "" {
+		category.CategoryType = req.CategoryType
 	}
 	if req.ParentID != nil {
 		category.ParentID = req.ParentID
@@ -138,14 +146,19 @@ func (u *productCategoryUsecase) buildTree(ctx context.Context, categories []mod
 	result := make([]dto.CategoryTreeResponse, 0, len(categories))
 
 	for _, cat := range categories {
+		categoryType := cat.CategoryType
+		if categoryType == "" {
+			categoryType = models.CategoryTypeGoods
+		}
 		node := dto.CategoryTreeResponse{
-			ID:          cat.ID,
-			Name:        cat.Name,
-			Description: cat.Description,
-			ParentID:    cat.ParentID,
-			IsActive:    cat.IsActive,
-			Level:       level,
-			Children:    []dto.CategoryTreeResponse{}, // Always initialize as empty array for JSON
+			ID:           cat.ID,
+			Name:         cat.Name,
+			Description:  cat.Description,
+			CategoryType: categoryType,
+			ParentID:     cat.ParentID,
+			IsActive:     cat.IsActive,
+			Level:        level,
+			Children:     []dto.CategoryTreeResponse{}, // Always initialize as empty array for JSON
 		}
 
 		// Check if has children

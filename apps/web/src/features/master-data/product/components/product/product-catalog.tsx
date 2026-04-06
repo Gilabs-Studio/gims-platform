@@ -5,8 +5,6 @@ import { useTranslations } from "next-intl";
 import {
   Plus,
   Search,
-  PanelLeftClose,
-  PanelLeft,
   Pencil,
   Power,
   ImageOff,
@@ -14,6 +12,9 @@ import {
   FolderOpen,
   ArrowUpDown,
   Package,
+  Wheat,
+  ChefHat,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,15 +42,24 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { 
   useCategoryTree, 
   useCategoryTreeState, 
-  getCategoryPath 
+  getCategoryPath,
+  findCategoryInTree,
 } from "../../hooks/use-category-tree";
 import { useProducts, useDeleteProduct, useUpdateProduct } from "../../hooks/use-products";
 import type { Product, CategoryTreeNode } from "../../types";
 import { ProductDialog } from "./product-dialog";
 import { ProductDetailDialog } from "./product-detail-dialog";
+import { ProductFnbCreateDialog } from "./product-fnb-create-dialog";
+import { ProductFnbDetailDialog } from "./product-fnb-detail-dialog";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-// DropdownMenu components not used here
 
 /**
  * ProductCatalog - Enhanced product list with category tree sidebar
@@ -201,13 +211,13 @@ export function ProductCatalog() {
     prefetchChildren,
   } = useCategoryTreeState();
 
-  // Sidebar visibility state
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
+  const [defaultProductKind, setDefaultProductKind] = useState<"STOCK" | "RECIPE" | "SERVICE" | undefined>(undefined);
+  const [fnbCreateDialogOpen, setFnbCreateDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [fnbDetailDialogOpen, setFnbDetailDialogOpen] = useState(false);
   const [viewingItem, setViewingItem] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -253,20 +263,36 @@ export function ProductCatalog() {
     }
   };
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback((kind?: "STOCK" | "RECIPE" | "SERVICE") => {
     setEditingItem(null);
+    setDefaultProductKind(kind);
     setDialogOpen(true);
+  }, []);
+
+  const handleCreateRecipe = useCallback(() => {
+    setEditingItem(null);
+    setDefaultProductKind(undefined);
+    setFnbCreateDialogOpen(true);
   }, []);
 
   const handleEdit = (item: Product, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditingItem(item);
+    setDefaultProductKind(undefined);
     setDialogOpen(true);
   };
 
   const handleView = (item: Product) => {
     setViewingItem(item);
-    setDetailDialogOpen(true);
+    // Open FnB-specific detail for products in FnB categories
+    const productCategory = item.category?.id
+      ? findCategoryInTree(treeData?.data ?? [], item.category.id)
+      : null;
+    if (productCategory?.category_type === "FNB") {
+      setFnbDetailDialogOpen(true);
+    } else {
+      setDetailDialogOpen(true);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -283,6 +309,7 @@ export function ProductCatalog() {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setEditingItem(null);
+    setDefaultProductKind(undefined);
   };
 
   // Open create dialog when linked with #create-product — schedule to avoid setState inside effect
@@ -312,71 +339,38 @@ export function ProductCatalog() {
     <div className="h-full flex flex-col">
       {/* Main Content with Flex Layout */}
       <div className="flex-1 pt-4 min-h-0 flex gap-4">
-        {/* Category Tree Sidebar */}
-        <div
-          className={cn(
-            "flex flex-col border rounded-lg transition-all duration-300 overflow-hidden shrink-0 bg-card",
-            sidebarCollapsed ? "w-16" : "w-72"
-          )}
-        >
+        {/* Category Tree Sidebar — always visible, not collapsible */}
+        <div className="flex flex-col border rounded-lg overflow-hidden shrink-0 bg-card w-72">
           {/* Sidebar Header */}
-          <div
-            className={cn(
-              "flex items-center px-3 py-2 border-b bg-muted/30",
-              sidebarCollapsed ? "justify-center px-1" : "justify-between"
-            )}
-          >
-            {!sidebarCollapsed && (
-              <span className="text-sm font-medium">{t("categories")}</span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-6 w-6 cursor-pointer", sidebarCollapsed && "transform-none")}
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            >
-              {sidebarCollapsed ? (
-                <PanelLeft className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </Button>
+          <div className="flex items-center px-3 py-2 border-b bg-muted/30">
+            <span className="text-sm font-medium">{t("categories")}</span>
           </div>
 
           {/* Category Tree */}
-          {!sidebarCollapsed ? (
-            <div className="flex-1 overflow-hidden">
-              <CategoryTree
-                data={treeData?.data ?? []}
-                selectedId={selectedCategoryId}
-                onSelect={handleCategorySelect}
-                expandedIds={expandedIds}
-                onToggleExpand={toggleExpanded}
-                showProductCount
-                searchable
-                isLoading={treeLoading}
-                height="100%"
-                onNodeHover={prefetchChildren}
-                className="border-0 rounded-none bg-transparent"
-                labels={{
-                  searchPlaceholder: tCommon("searchCategories"),
-                  noCategoriesFound: tCommon("noCategoriesFound"),
-                  noCategories: tCommon("noCategories"),
-                  category: tCommon("categoryRes"),
-                  categories: tCommon("categoriesRes"),
-                  selected: tCommon("selectedRes"),
-                  inactive: tCommon("inactiveRes"),
-                }}
-              />
-            </div>
-          ) : (
-            <CollapsedCategoryView 
+          <div className="flex-1 overflow-hidden">
+            <CategoryTree
               data={treeData?.data ?? []}
               selectedId={selectedCategoryId}
               onSelect={handleCategorySelect}
+              expandedIds={expandedIds}
+              onToggleExpand={toggleExpanded}
+              showProductCount
+              searchable
               isLoading={treeLoading}
+              height="100%"
+              onNodeHover={prefetchChildren}
+              className="border-0 rounded-none bg-transparent"
+              labels={{
+                searchPlaceholder: tCommon("searchCategories"),
+                noCategoriesFound: tCommon("noCategoriesFound"),
+                noCategories: tCommon("noCategories"),
+                category: tCommon("categoryRes"),
+                categories: tCommon("categoriesRes"),
+                selected: tCommon("selectedRes"),
+                inactive: tCommon("inactiveRes"),
+              }}
             />
-          )}
+          </div>
         </div>
 
         {/* Product List Panel */}
@@ -428,13 +422,41 @@ export function ProductCatalog() {
               </Select>
             </div>
 
-            {/* Create button */}
+            {/* Create button — dropdown with Regular / Recipe options */}
             <div className="ml-2">
               {canCreate && (
-                <Button size="sm" onClick={handleCreate} className="cursor-pointer h-8">
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  {t("create")}
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="cursor-pointer h-8 gap-1">
+                      <Plus className="h-3.5 w-3.5" />
+                      {t("create")}
+                      <ChevronDown className="h-3 w-3 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+                      onClick={() => handleCreate(undefined)}
+                    >
+                      <span className="font-medium flex items-center gap-2">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        {t("createRegular")}
+                      </span>
+                      <span className="text-xs text-muted-foreground pl-6">{t("createRegularDesc")}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+                      onClick={handleCreateRecipe}
+                    >
+                      <span className="font-medium flex items-center gap-2">
+                        <ChefHat className="h-4 w-4 text-success" />
+                        {t("createRecipe")}
+                      </span>
+                      <span className="text-xs text-muted-foreground pl-6">{t("createRecipeDesc")}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
             {pagination && (
@@ -543,14 +565,21 @@ export function ProductCatalog() {
                         {product.brand?.name && ` • ${product.brand.name}`}
                       </div>
 
-                      {/* Price */}
-                      <div className="text-sm font-semibold text-primary mb-2">
-                        {product.selling_price > 0
-                          ? `Rp ${product.selling_price.toLocaleString("id-ID")}`
-                          : product.cost_price > 0
-                            ? `Rp ${product.cost_price.toLocaleString("id-ID")}`
-                            : "-"}
-                      </div>
+                      {/* Price — hidden for raw ingredients */}
+                      {product.is_ingredient ? (
+                        <div className="flex items-center gap-1 mb-2">
+                          <Wheat className="h-3 w-3 text-warning" />
+                          <span className="text-xs text-warning font-medium">{t("ingredient")}</span>
+                        </div>
+                      ) : (
+                        <div className="text-sm font-semibold text-primary mb-2">
+                          {product.selling_price > 0
+                            ? `Rp ${product.selling_price.toLocaleString("id-ID")}`
+                            : product.cost_price > 0
+                              ? `Rp ${product.cost_price.toLocaleString("id-ID")}`
+                              : "-"}
+                        </div>
+                      )}
 
                       {/* Stock + UoM row */}
                       <div className="flex items-center justify-between gap-1">
@@ -660,11 +689,23 @@ export function ProductCatalog() {
         open={dialogOpen}
         onOpenChange={handleDialogClose}
         editingItem={editingItem}
+        defaultProductKind={defaultProductKind}
+      />
+
+      <ProductFnbCreateDialog
+        open={fnbCreateDialogOpen}
+        onOpenChange={setFnbCreateDialogOpen}
       />
 
       <ProductDetailDialog
         open={detailDialogOpen}
         onOpenChange={setDetailDialogOpen}
+        product={viewingItem}
+      />
+
+      <ProductFnbDetailDialog
+        open={fnbDetailDialogOpen}
+        onOpenChange={setFnbDetailDialogOpen}
         product={viewingItem}
       />
 
