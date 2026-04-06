@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ChevronDown,
   ChevronRight,
@@ -143,6 +144,7 @@ function ProductNode({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const t = useTranslations("inventory");
   const getStatusColor = (status: string) => {
     switch (status) {
       case "low_stock":
@@ -186,21 +188,19 @@ function ProductNode({
               </span>
             )}
           </div>
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-medium">{product.product_name}</span>
-              {product.is_ingredient && (
-                <Badge variant="secondary" className="gap-1 text-[10px] px-1 py-0 h-4">
-                  <FlaskConical className="h-2.5 w-2.5" />
-                  Bahan Baku
-                </Badge>
-              )}
-            </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">{product.product_name}</span>
             <span className="text-[10px] text-muted-foreground font-mono">{product.product_code}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-6 text-xs tabular-nums mr-4">
+          {product.is_ingredient && (
+            <Badge variant="default" className="gap-1 text-[10px] px-1.5 py-0 h-5 shrink-0">
+              <FlaskConical className="h-2.5 w-2.5" />
+              {t("badge.ingredient")}
+            </Badge>
+          )}
           <div className="flex flex-col items-end">
             <span className="text-muted-foreground">On Hand</span>
             <span className="font-medium">{product.on_hand}</span>

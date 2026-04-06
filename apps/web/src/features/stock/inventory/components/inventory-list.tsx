@@ -439,7 +439,7 @@ export function InventoryList() {
                                 <span className="font-medium text-sm">{item.product_name}</span>
                                 <span className="text-xs text-muted-foreground">{item.product_code}</span>
                                 {item.is_ingredient && (
-                                  <Badge variant="secondary" className="gap-1 text-xs w-fit px-1.5 py-0">
+                                  <Badge variant="default" className="gap-1 text-xs w-fit px-1.5 py-0">
                                     <FlaskConical className="h-3 w-3" />
                                     {t("badge.ingredient")}
                                   </Badge>
