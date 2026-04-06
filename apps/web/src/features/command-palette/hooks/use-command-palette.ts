@@ -13,6 +13,11 @@ export interface CommandPaletteItem {
   readonly href: string;
   readonly icon: string;
   readonly group: string;
+  /**
+   * Stable unique id used for React `key` rendering in lists.
+   * Constructed from the item group + href and deduped at build-time.
+   */
+  readonly uid: string;
 }
 
 interface UseCommandPaletteOptions {
@@ -69,7 +74,13 @@ export function useCommandPalette(
    * Filter navigation items based on local permission data and valid routes
    */
   const items: CommandPaletteItem[] = useMemo(() => {
-    const allItems: CommandPaletteItem[] = [];
+    const allItemsRaw: Array<{
+      id: string;
+      name: string;
+      href: string;
+      icon: string;
+      group: string;
+    }> = [];
 
     const walkNavigationItems = (
       items: NavItem[],
@@ -79,7 +90,7 @@ export function useCommandPalette(
         const group = parentGroup || item.name;
 
         if (item.url && isValidRoute(item.url) && hasPermission(item.permission)) {
-          allItems.push({
+          allItemsRaw.push({
             id: item.id || item.url,
             name: item.name,
             href: item.url,
@@ -102,7 +113,7 @@ export function useCommandPalette(
         const group = parentGroup || item.name;
 
         if (item.url && isValidRoute(item.url)) {
-          allItems.push({
+          allItemsRaw.push({
             id: item.id,
             name: item.name,
             href: item.url,
@@ -123,7 +134,22 @@ export function useCommandPalette(
       walkNavigationItems(navigationConfig);
     }
 
-    return allItems;
+    // Deduplicate by group + href to avoid duplicate React keys when
+    // the same navigation entry appears multiple times.
+    const seen = new Set<string>();
+    const deduped: CommandPaletteItem[] = [];
+
+    for (const raw of allItemsRaw) {
+      const uid = `${raw.group}::${raw.href}`;
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      deduped.push({
+        ...raw,
+        uid,
+      });
+    }
+
+    return deduped;
   }, [hasPermission, menus]);
 
   const open = useCallback(() => {
