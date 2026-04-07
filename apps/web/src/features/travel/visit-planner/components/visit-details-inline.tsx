@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Loader2, MapPin, Navigation, Plus, Trash2, X } from "lucide-react";
+import { Camera, Loader2, MapPin, Navigation, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,6 @@ export interface VisitActionPayload {
   outcome?: string;
   activity_type?: string;
   photos?: string[];
-  distance_m?: number;
   product_interests?: VisitProductInterestInput[];
 }
 
@@ -105,8 +104,33 @@ export function VisitDetailsInline({
   const [notes, setNotes] = useState("");
   const [outcome, setOutcome] = useState("");
   const [activityType, setActivityType] = useState("");
-  const [distanceMeters, setDistanceMeters] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+
+  // Restore draft from sessionStorage on mount (keyed by checkpoint ID).
+  // The component remounts when the checkpoint changes via `key={checkpoint?.id}`,
+  // so this effect reliably loads per-checkpoint drafts.
+  useEffect(() => {
+    if (typeof window === "undefined" || !checkpoint?.id) return;
+    try {
+      const saved = sessionStorage.getItem(`visit-draft-${checkpoint.id}`);
+      if (!saved) return;
+      const draft = JSON.parse(saved) as {
+        notes?: string;
+        outcome?: string;
+        activityType?: string;
+        photoUrls?: string[];
+        productInterests?: ProductInterestEntry[];
+      };
+      if (draft.notes !== undefined) setNotes(draft.notes);
+      if (draft.outcome !== undefined) setOutcome(draft.outcome);
+      if (draft.activityType !== undefined) setActivityType(draft.activityType);
+      if (draft.photoUrls !== undefined) setPhotoUrls(draft.photoUrls);
+      if (draft.productInterests !== undefined) setProductInterests(draft.productInterests);
+    } catch {
+      // Ignore malformed draft data.
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Product interest tab
   const [productInterests, setProductInterests] = useState<ProductInterestEntry[]>([]);
@@ -179,14 +203,12 @@ export function VisitDetailsInline({
 
   const submitAction = async (event: VisitEvent) => {
     if (!checkpoint) return;
-    const parsedDistance = Number(distanceMeters);
     await onSubmitAction({
       event,
       notes: notes.trim() || undefined,
       outcome: outcome || undefined,
       activity_type: activityType || undefined,
       photos: photoUrls.length > 0 ? photoUrls : undefined,
-      distance_m: Number.isFinite(parsedDistance) && parsedDistance >= 0 ? parsedDistance : undefined,
       product_interests:
         productInterests.length > 0
           ? productInterests.map((item) => ({
@@ -198,6 +220,23 @@ export function VisitDetailsInline({
             }))
           : undefined,
     });
+    // Clear saved draft after a successful action submission.
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`visit-draft-${checkpoint.id}`);
+    }
+  };
+
+  const handleSaveNotes = () => {
+    if (!checkpoint) return;
+    try {
+      sessionStorage.setItem(
+        `visit-draft-${checkpoint.id}`,
+        JSON.stringify({ notes, outcome, activityType, photoUrls, productInterests }),
+      );
+      toast.success(t("toast.draftSaved"));
+    } catch {
+      // sessionStorage write failure (e.g. private mode quota) — non-fatal.
+    }
   };
 
   return (
@@ -299,20 +338,6 @@ export function VisitDetailsInline({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="visit-distance">{t("form.distance")}</Label>
-                <Input
-                  id="visit-distance"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={distanceMeters}
-                  onChange={(e) => setDistanceMeters(e.target.value)}
-                  placeholder={t("form.distancePlaceholder")}
-                />
-              </div>
-
-              {/* Photos */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>{t("form.photos.label")}</Label>
@@ -496,7 +521,18 @@ export function VisitDetailsInline({
 
       {/* Action buttons - always anchored at bottom */}
       {checkpoint ? (
-        <div className="shrink-0 border-t p-3">
+        <div className="shrink-0 border-t p-3 space-y-2">
+          {/* Save draft button — persists notes/outcome/photos to sessionStorage */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full cursor-pointer"
+            onClick={handleSaveNotes}
+          >
+            <Save className="h-4 w-4" />
+            {t("form.save")}
+          </Button>
           <div className="grid grid-cols-3 gap-2">
             <Button
               type="button"

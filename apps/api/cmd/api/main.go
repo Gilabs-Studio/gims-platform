@@ -23,6 +23,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	coreRouter "github.com/gilabs/gims/api/internal/core/infrastructure/router"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/ws"
 	"github.com/gilabs/gims/api/internal/core/logger"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -112,6 +113,9 @@ func initInfrastructure() {
 	if err := redis.InitRedis(config.AppConfig); err != nil {
 		log.Printf("Warning: Redis connection failed: %v", err)
 	}
+	// Start the Redis Pub/Sub bridge for cross-instance location broadcasting.
+	// This enables horizontal scaling — each pod fans out events to its local WS clients.
+	ws.InitLocationPubSub()
 	// Defer redis.Close() also needs to be in main
 
 	// Run migrations (optionally only once)
@@ -220,6 +224,7 @@ func main() {
 	// Ensure cleanup
 	defer database.Close()
 	defer redis.Close()
+	defer ws.StopLocationPubSub()
 
 	// 2. Setup JWT
 	jwtManager := setupJWT()

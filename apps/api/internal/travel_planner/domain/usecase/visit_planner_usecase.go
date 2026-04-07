@@ -328,25 +328,139 @@ func (uc *travelPlanUsecase) UpsertLocation(ctx context.Context, req *dto.Locati
 	}
 
 	now := apptime.NowForEmployee(effectiveEmployeeID)
-	travelWS.DefaultLocationHub().PublishLocationUpdate(travelWS.LocationUpdate{
-		EmployeeID:   effectiveEmployeeID,
-		RouteID:      req.RouteID,
-		CheckpointID: req.CheckpointID,
-		Lat:          req.Lat,
-		Lng:          req.Lng,
-		Heading:      req.Heading,
-		Timestamp:    now,
-	})
+
+	// Apply throttle: suppress WS broadcast if the employee published within the last 5 s.
+	// The REST response is always returned so the mobile client knows the request succeeded.
+	if !travelWS.ShouldThrottleLocation(effectiveEmployeeID) {
+		name, avatar := uc.resolveEmployeeDisplayInfo(ctx, effectiveEmployeeID)
+		travelWS.DefaultLocationHub().PublishLocationUpdate(travelWS.LocationUpdate{
+			EmployeeID:        effectiveEmployeeID,
+			RouteID:           req.RouteID,
+			CheckpointID:      req.CheckpointID,
+			Lat:               req.Lat,
+			Lng:               req.Lng,
+			Heading:           req.Heading,
+			Timestamp:         now,
+			NavigationStatus:  "navigating",
+			EmployeeName:      name,
+			EmployeeAvatarURL: avatar,
+		})
+	}
 
 	return &dto.LocationUpdateResponse{
-		EmployeeID:   effectiveEmployeeID,
-		RouteID:      req.RouteID,
-		CheckpointID: req.CheckpointID,
-		Lat:          req.Lat,
-		Lng:          req.Lng,
-		Heading:      req.Heading,
-		Timestamp:    now.Format(time.RFC3339),
+		EmployeeID:       effectiveEmployeeID,
+		RouteID:          req.RouteID,
+		CheckpointID:     req.CheckpointID,
+		Lat:              req.Lat,
+		Lng:              req.Lng,
+		Heading:          req.Heading,
+		NavigationStatus: "navigating",
+		Timestamp:        now.Format(time.RFC3339),
 	}, nil
+}
+
+// StartNavigation broadcasts a navigation_started WebSocket event to all scope-visible
+// supervisors so they can see the sales employee begin their route in real time.
+func (uc *travelPlanUsecase) StartNavigation(ctx context.Context, req *dto.StartNavigationRequest) (*dto.NavigationStatusResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+	if req.Lat < -90 || req.Lat > 90 || req.Lng < -180 || req.Lng > 180 {
+		return nil, ErrInvalidCoordinate
+	}
+
+	effectiveEmployeeID, err := uc.resolveEffectiveEmployeeID(ctx, req.EmployeeID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := apptime.NowForEmployee(effectiveEmployeeID)
+	name, avatar := uc.resolveEmployeeDisplayInfo(ctx, effectiveEmployeeID)
+
+	travelWS.DefaultLocationHub().PublishNavigationUpdate(travelWS.NavigationUpdate{
+		EmployeeID:        effectiveEmployeeID,
+		RouteID:           req.RouteID,
+		Lat:               req.Lat,
+		Lng:               req.Lng,
+		Heading:           req.Heading,
+		Status:            "navigating",
+		Timestamp:         now,
+		EmployeeName:      name,
+		EmployeeAvatarURL: avatar,
+	})
+
+	lat := req.Lat
+	lng := req.Lng
+	return &dto.NavigationStatusResponse{
+		EmployeeID: effectiveEmployeeID,
+		RouteID:    req.RouteID,
+		Lat:        &lat,
+		Lng:        &lng,
+		Status:     "navigating",
+		Timestamp:  now.Format(time.RFC3339),
+	}, nil
+}
+
+// StopNavigation broadcasts a navigation_stopped WebSocket event, clearing the live
+// navigation indicator for supervisors in the visit-planner map view.
+func (uc *travelPlanUsecase) StopNavigation(ctx context.Context, req *dto.StopNavigationRequest) (*dto.NavigationStatusResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
+
+	effectiveEmployeeID, err := uc.resolveEffectiveEmployeeID(ctx, req.EmployeeID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := apptime.NowForEmployee(effectiveEmployeeID)
+	name, avatar := uc.resolveEmployeeDisplayInfo(ctx, effectiveEmployeeID)
+
+	travelWS.DefaultLocationHub().PublishNavigationUpdate(travelWS.NavigationUpdate{
+		EmployeeID:        effectiveEmployeeID,
+		RouteID:           req.RouteID,
+		Lat:               0,
+		Lng:               0,
+		Status:            "idle",
+		Timestamp:         now,
+		EmployeeName:      name,
+		EmployeeAvatarURL: avatar,
+	})
+
+	return &dto.NavigationStatusResponse{
+		EmployeeID: effectiveEmployeeID,
+		RouteID:    req.RouteID,
+		Status:     "idle",
+		Timestamp:  now.Format(time.RFC3339),
+	}, nil
+}
+
+// resolveEmployeeDisplayInfo fetches the employee's display name and avatar URL for
+// enriching WebSocket events.  A best-effort query is used — empty strings are returned
+// on any error so the caller never fails due to display enrichment.
+func (uc *travelPlanUsecase) resolveEmployeeDisplayInfo(ctx context.Context, employeeID string) (name string, avatarURL string) {
+	if strings.TrimSpace(employeeID) == "" {
+		return "", ""
+	}
+
+	var row struct {
+		Name      string  `gorm:"column:name"`
+		AvatarURL *string `gorm:"column:profile_photo_url"`
+	}
+
+	if err := uc.db.WithContext(ctx).
+		Table("employees").
+		Select("COALESCE(name, '') AS name, profile_photo_url").
+		Where("id = ? AND deleted_at IS NULL", employeeID).
+		Limit(1).
+		Scan(&row).Error; err != nil {
+		return "", ""
+	}
+
+	if row.AvatarURL != nil {
+		avatarURL = *row.AvatarURL
+	}
+	return row.Name, avatarURL
 }
 
 func (uc *travelPlanUsecase) upsertVisitProductInterests(tx *gorm.DB, visitID string, items []dto.VisitProductInterestInput) error {
@@ -421,7 +535,8 @@ func (uc *travelPlanUsecase) ListVisitPlannerRoutes(ctx context.Context, req *dt
 		Preload("Customer").
 		Preload("Lead").
 		Preload("Deal").
-		Preload("Deal.Customer")
+		Preload("Deal.Customer").
+		Preload("Details")
 
 	query = security.ApplyScopeFilter(query, ctx, security.HRDScopeQueryOptions())
 
@@ -530,13 +645,15 @@ func (uc *travelPlanUsecase) ListVisitPlannerRoutes(ctx context.Context, req *dt
 		}
 
 		checkpoint := dto.ActiveVisitRouteCheckpoint{
-			VisitID:      visit.ID,
-			CheckpointID: visit.ID,
-			Type:         checkpointType,
-			RefID:        refID,
-			Label:        label,
-			Status:       status,
-			Warning:      warningText,
+			VisitID:              visit.ID,
+			CheckpointID:         visit.ID,
+			Type:                 checkpointType,
+			RefID:                refID,
+			Label:                label,
+			Status:               status,
+			Warning:              warningText,
+			ProductInterestCount: len(visit.Details),
+			DocumentationCount:   countVisitPhotos(visit.Photos),
 		}
 		if lat != nil && lng != nil {
 			checkpoint.Lat = lat
@@ -1479,6 +1596,22 @@ func (uc *travelPlanUsecase) listEmployeeIDsByDivision(ctx context.Context, divi
 		return nil, err
 	}
 	return dedupeStrings(ids), nil
+}
+
+// countVisitPhotos parses the JSONB photos field and returns the number of photo URLs.
+func countVisitPhotos(photos *string) int {
+	if photos == nil {
+		return 0
+	}
+	raw := strings.TrimSpace(*photos)
+	if raw == "" || raw == "null" {
+		return 0
+	}
+	var urls []string
+	if err := json.Unmarshal([]byte(raw), &urls); err != nil {
+		return 0
+	}
+	return len(urls)
 }
 
 func resolveVisitReferenceLocation(visit *crmModels.VisitReport) (*float64, *float64, string) {

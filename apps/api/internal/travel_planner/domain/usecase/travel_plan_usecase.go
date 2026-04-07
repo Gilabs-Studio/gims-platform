@@ -68,6 +68,8 @@ type TravelPlanUsecase interface {
 	CreateVisitFromTrip(ctx context.Context, planID string, req *dto.CreateTravelPlanVisitRequest) (*dto.TravelPlanVisitResponse, error)
 	UpsertVisitLog(ctx context.Context, req *dto.UpsertVisitLogRequest) (*dto.VisitLogResponse, error)
 	UpsertLocation(ctx context.Context, req *dto.LocationUpdateRequest) (*dto.LocationUpdateResponse, error)
+	StartNavigation(ctx context.Context, req *dto.StartNavigationRequest) (*dto.NavigationStatusResponse, error)
+	StopNavigation(ctx context.Context, req *dto.StopNavigationRequest) (*dto.NavigationStatusResponse, error)
 	ResolveVisibleEmployeeIDs(ctx context.Context, requested []string) ([]string, error)
 }
 
