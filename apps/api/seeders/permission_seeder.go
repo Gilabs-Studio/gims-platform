@@ -828,51 +828,18 @@ func SeedPermissions() error {
 		"stock":        "AREA",
 	}, "ALL")
 
-	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
-	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":        "ALL",
-		"purchase":     "DIVISION",
-		"hrd":          "OWN",
-		"finance":      "OWN",
-		"travel_visit": "ALL",
-		"pos":          "OWN",
-		"stock":        "ALL",
-	}, "ALL")
-
-	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
-	assignScopedPermissionsToRole("finance_manager", map[string]string{
-		"finance":           "DIVISION",
-		"non_trade_payable": "DIVISION",
-		"sales":             "OWN",
-		"purchase":          "OWN",
-		"hrd":               "OWN",
-		"travel_visit":      "OWN",
-		"pos":               "OWN",
-		"stock":             "OWN",
-		// Finance journal domain pages — explicit DIVISION scope
-		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
-		//  standard module prefix, so they must be mapped explicitly)
-		"adjustment_journal": "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
-	}, "ALL")
-
-	assignScopedPermissionsToRole("accountant", map[string]string{
-		"finance":           "DIVISION",
-		"non_trade_payable": "DIVISION",
-		"sales":             "OWN",
-		"purchase":          "OWN",
-		"hrd":               "OWN",
-		"travel_visit":      "OWN",
-		"pos":               "OWN",
-		"stock":             "OWN",
-		// Finance journal domain pages — Accountant operates at DIVISION level
-		"adjustment_journal": "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
-	}, "OWN")
-
 	assignViewPermissionsToRole("auditor", "ALL")
+
+	// Tighten outlet_manager permissions:
+	// Only grant OUTLET-scoped access for outlet-related operational modules.
+	// Use a conservative defaultScope (OWN) to avoid granting ALL on master-data.
+	assignScopedPermissionsToRole("outlet_manager", map[string]string{
+		"outlet": "OUTLET",
+		"pos":    "OUTLET",
+		"sales":  "OUTLET",
+		"stock":  "OUTLET",
+		"crm":    "OUTLET",
+	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()

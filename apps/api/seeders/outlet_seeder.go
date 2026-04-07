@@ -18,7 +18,8 @@ func SeedOutlets() error {
 	// Use pointer variables for optional FK fields (Go cannot take address of constants)
 	mieGacoanID := MieGacoanCompanyID
 	kimiaFarmaID := KimiaFarmaCompanyID
-	managerID := ManagerEmployeeID
+	outletManager1ID := OutletManager1EmployeeID
+	outletManager2ID := OutletManager2EmployeeID
 
 	// Coordinates for Mie Gacoan outlets
 	lat1 := -6.2089
@@ -43,7 +44,7 @@ func SeedOutlets() error {
 			Email:       "sudirman@miegacoan.id",
 			Address:     "Jl. Jend. Sudirman Kav. 52, Jakarta Selatan",
 			CompanyID:   &mieGacoanID,
-			ManagerID:   &managerID,
+			ManagerID:   &outletManager1ID,
 			Latitude:    &lat1,
 			Longitude:   &lng1,
 			IsActive:    true,
@@ -57,7 +58,7 @@ func SeedOutlets() error {
 			Email:       "kelapagading@miegacoan.id",
 			Address:     "Mal Kelapa Gading 3, Jl. Bulevar Kelapa Gading, Jakarta Utara",
 			CompanyID:   &mieGacoanID,
-			ManagerID:   &managerID,
+			ManagerID:   &outletManager2ID,
 			Latitude:    &lat2,
 			Longitude:   &lng2,
 			IsActive:    true,
@@ -72,7 +73,7 @@ func SeedOutlets() error {
 			Email:       "sudirman@kimiafarma.co.id",
 			Address:     "Jl. Jend. Sudirman Kav. 44-46, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &managerID,
+			ManagerID:   &outletManager1ID,
 			Latitude:    &lat3,
 			Longitude:   &lng3,
 			IsActive:    true,
@@ -86,7 +87,7 @@ func SeedOutlets() error {
 			Email:       "pondokindah@kimiafarma.co.id",
 			Address:     "Jl. Metro Pondok Indah No.10, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &managerID,
+			ManagerID:   &outletManager2ID,
 			Latitude:    &lat4,
 			Longitude:   &lng4,
 			IsActive:    true,

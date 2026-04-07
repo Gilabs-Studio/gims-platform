@@ -205,6 +205,48 @@ func SeedEmployees() error {
 
 			IsActive: true,
 		},
+		{
+			ID:           OutletManager1EmployeeID,
+			EmployeeCode: "EMP-008",
+			Name:         "Outlet Manager Sudirman",
+			Email:        "outlet-manager1@example.com",
+			Phone:        "081234567897",
+			UserID:       strPtr(OutletManager1UserID),
+
+			CompanyID:     strPtr(MieGacoanCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Jakarta",
+			DateOfBirth:  timePtr(date(1988, 6, 20)),
+			Gender:       models.GenderMale,
+			Religion:     "Islam",
+			Address:      "Jl. Sudirman Kav. 52",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
+		{
+			ID:           OutletManager2EmployeeID,
+			EmployeeCode: "EMP-009",
+			Name:         "Outlet Manager Kelapa Gading",
+			Email:        "outlet-manager2@example.com",
+			Phone:        "081234567898",
+			UserID:       strPtr(OutletManager2UserID),
+
+			CompanyID:     strPtr(MieGacoanCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Jakarta",
+			DateOfBirth:  timePtr(date(1990, 2, 14)),
+			Gender:       models.GenderFemale,
+			Religion:     "Kristen",
+			Address:      "Jl. Kelapa Gading Bulevar",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
 	}
 
 	for _, e := range employees {

@@ -36,12 +36,14 @@ interface AssignPermissionsDrawerProps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCOPE_OPTIONS: PermissionScope[] = ["OWN", "DIVISION", "AREA", "ALL"];
+const SCOPE_OPTIONS: PermissionScope[] = ["OWN", "DIVISION", "AREA", "WAREHOUSE", "OUTLET", "ALL"];
 
 const SCOPE_I18N_KEYS: Record<PermissionScope, string> = {
   OWN: "scope.own",
   DIVISION: "scope.division",
   AREA: "scope.area",
+  WAREHOUSE: "scope.warehouse",
+  OUTLET: "scope.outlet",
   ALL: "scope.all",
 };
 
@@ -49,6 +51,8 @@ const SCOPE_DESC_KEYS: Record<PermissionScope, string> = {
   OWN: "scope.ownDescription",
   DIVISION: "scope.divisionDescription",
   AREA: "scope.areaDescription",
+  WAREHOUSE: "scope.warehouseDescription",
+  OUTLET: "scope.outletDescription",
   ALL: "scope.allDescription",
 };
 

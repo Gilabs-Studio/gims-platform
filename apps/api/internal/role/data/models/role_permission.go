@@ -10,12 +10,37 @@ const (
 	ScopeWarehouse = "WAREHOUSE"
 	ScopeDivision  = "DIVISION"
 	ScopeArea      = "AREA"
+	ScopeOutlet    = "OUTLET"
 	ScopeAll       = "ALL"
 )
 
 // ValidScopes returns all valid scope values
 func ValidScopes() []string {
-	return []string{ScopeOwn, ScopeWarehouse, ScopeDivision, ScopeArea, ScopeAll}
+	return []string{ScopeOwn, ScopeWarehouse, ScopeDivision, ScopeArea, ScopeOutlet, ScopeAll}
+}
+
+// Valid data scope values for role-level data isolation
+const (
+	DataScopeAll      = "ALL"
+	DataScopeDivision = "DIVISION"
+	DataScopeArea     = "AREA"
+	DataScopeOutlet   = "OUTLET"
+	DataScopeOwn      = "OWN"
+)
+
+// ValidDataScopes returns all valid data scope values for roles
+func ValidDataScopes() []string {
+	return []string{DataScopeAll, DataScopeDivision, DataScopeArea, DataScopeOutlet, DataScopeOwn}
+}
+
+// IsValidDataScope checks if a data scope value is valid
+func IsValidDataScope(scope string) bool {
+	for _, s := range ValidDataScopes() {
+		if s == scope {
+			return true
+		}
+	}
+	return false
 }
 
 // IsValidScope checks if a scope value is valid

@@ -27,6 +27,7 @@ export interface User {
 export interface Role {
   code: string;
   name: string;
+  data_scope: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
 }
 
 export interface Menu {

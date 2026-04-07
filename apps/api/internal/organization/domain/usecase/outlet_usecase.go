@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
+	roleModels "github.com/gilabs/gims/api/internal/role/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	warehouseRepo "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"gorm.io/gorm"
@@ -193,10 +194,11 @@ func (uc *outletUsecase) Delete(ctx context.Context, id string) error {
 	return uc.repo.Delete(ctx, id)
 }
 
-// GetFormData returns form data (managers and companies) for outlet create/edit forms
+// GetFormData returns form data (managers and companies) for outlet create/edit forms.
+// Managers are filtered to only include employees whose role has OUTLET data scope.
 func (uc *outletUsecase) GetFormData(ctx context.Context) (*dto.OutletFormDataResponse, error) {
-	// Fetch employees for manager dropdown
-	employees, err := uc.employeeRepo.FindAll(ctx)
+	// Fetch only employees whose role has OUTLET data scope for the manager dropdown
+	employees, err := uc.employeeRepo.FindByRoleDataScope(ctx, roleModels.DataScopeOutlet)
 	if err != nil {
 		return nil, err
 	}

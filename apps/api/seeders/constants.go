@@ -7,18 +7,18 @@ const (
 	StaffRoleID          = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
 	ViewerRoleID         = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
 	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
-	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
-	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
-	AccountantRoleID     = "b8e8a9b0-d1e2-4f3a-5b6c-7d8e9f0a1b2c"
 	AuditorRoleID        = "c9f9b0c1-e2f3-4a5b-6c7d-8e9f0a1b2c3d"
+	OutletManagerRoleID  = "da0ab1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c" // Outlet-scoped manager role
 )
 
 // User IDs (Fixed)
 const (
-	AdminUserID   = "ee0b14e0-c651-4814-a5a2-e7398f81dcf4"
-	ManagerUserID = "2b83a042-45e3-46d4-a957-3f8d22384784"
-	StaffUserID   = "51d45763-8a39-4d6b-b4dc-7d2e057865c6"
-	ViewerUserID  = "98f45a2d-3c21-41b5-82e6-1234567890ab"
+	AdminUserID          = "ee0b14e0-c651-4814-a5a2-e7398f81dcf4"
+	ManagerUserID        = "2b83a042-45e3-46d4-a957-3f8d22384784"
+	StaffUserID          = "51d45763-8a39-4d6b-b4dc-7d2e057865c6"
+	ViewerUserID         = "98f45a2d-3c21-41b5-82e6-1234567890ab"
+	OutletManager1UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d" // Outlet Manager 1
+	OutletManager2UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5e" // Outlet Manager 2
 )
 
 // Organization IDs (Fixed)
@@ -69,8 +69,10 @@ const (
 	StaffEmployeeID        = "33333333-3333-3333-3333-333333333333"
 	SalesRep1EmployeeID    = "44444444-4444-4444-4444-444444444444"
 	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
-	FinanceStaffEmployeeID = "66666666-6666-6666-6666-666666666666"
-	HRStaffEmployeeID      = "77777777-7777-7777-7777-777777777777"
+	FinanceStaffEmployeeID    = "66666666-6666-6666-6666-666666666666"
+	HRStaffEmployeeID         = "77777777-7777-7777-7777-777777777777"
+	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1
+	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)
