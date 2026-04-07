@@ -106,4 +106,9 @@ export const customerInvoiceDPId = {
     cancel: "Batal",
     error: "Terjadi kesalahan",
   },
+  validation: {
+    required: "Field ini wajib diisi",
+    invalidId: "ID tidak valid",
+    amountPositive: "Jumlah harus lebih besar dari 0",
+  },
 };

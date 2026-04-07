@@ -21,6 +21,11 @@ export const salesReturnsId = {
       error: "Terjadi kesalahan",
     },
     validation: {
+      required: "Field ini wajib diisi",
+      invalidId: "ID tidak valid",
+      quantityPositive: "Jumlah harus lebih besar dari 0",
+      priceMin: "Harga harus positif",
+      itemsMin: "Minimal satu item diperlukan",
       duplicateItem: "Produk duplikat tidak diperbolehkan pada item retur.",
       qtyExceeds: "Qty melebihi kuantitas retur yang tersedia untuk {product}. Diminta: {requested}, Terkirim: {delivered}, Sudah diretur: {returned}, Tersedia: {available}",
     },

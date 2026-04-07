@@ -21,6 +21,11 @@ export const salesReturnsEn = {
       error: "Something went wrong",
     },
     validation: {
+      required: "This field is required",
+      invalidId: "Invalid ID",
+      quantityPositive: "Quantity must be greater than 0",
+      priceMin: "Price must be positive",
+      itemsMin: "At least one item is required",
       duplicateItem: "Duplicate products are not allowed in return items.",
       qtyExceeds: "Qty exceeds available return quantity for {product}. Requested: {requested}, Delivered: {delivered}, Already returned: {returned}, Available: {available}",
     },

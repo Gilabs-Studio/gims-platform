@@ -106,4 +106,9 @@ export const customerInvoiceDPEn = {
     cancel: "Cancel",
     error: "Something went wrong",
   },
+  validation: {
+    required: "This field is required",
+    invalidId: "Invalid ID",
+    amountPositive: "Amount must be greater than 0",
+  },
 };

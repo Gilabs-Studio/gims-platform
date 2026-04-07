@@ -312,6 +312,7 @@ export function InvoiceList() {
 
     return invoices.map((invoice) => {
       const status = (invoice.status ?? "").toLowerCase();
+      const normalizedStatus = status === "approved" ? "unpaid" : status;
       return (
         <TableRow key={invoice.id}>
           <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(invoice)}>
@@ -437,13 +438,13 @@ export function InvoiceList() {
                       {t("common.view")}
                     </DropdownMenuItem>
                   )}
-                  {canUpdate && status === "draft" && (
+                  {canUpdate && normalizedStatus === "draft" && (
                     <DropdownMenuItem onClick={() => handleEdit(invoice)} className="cursor-pointer">
                       <Pencil className="h-4 w-4 mr-2" />
                       {t("common.edit")}
                     </DropdownMenuItem>
                   )}
-                  {canUpdate && status === "draft" && (
+                  {canUpdate && normalizedStatus === "draft" && (
                     <DropdownMenuItem
                       onClick={() => handleStatusChange(invoice.id, "submitted")}
                       className="cursor-pointer text-primary focus:text-primary"
@@ -452,7 +453,7 @@ export function InvoiceList() {
                       {t("actions.submit")}
                     </DropdownMenuItem>
                   )}
-                  {status === "submitted" && (
+                  {normalizedStatus === "submitted" && (
                     <>
                       {canApprove && (
                         <DropdownMenuItem
@@ -474,7 +475,7 @@ export function InvoiceList() {
                       )}
                     </>
                   )}
-                  {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(status) && (
+                  {canCreatePayment && ["unpaid", "partial", "waiting_payment"].includes(normalizedStatus) && (
                     <DropdownMenuItem
                       onClick={() => handleOpenCreatePayment(invoice)}
                       className="cursor-pointer text-primary focus:text-primary"
@@ -483,7 +484,7 @@ export function InvoiceList() {
                       {t("actions.createPayment")}
                     </DropdownMenuItem>
                   )}
-                  {canUpdate && status === "unpaid" && (
+                  {canUpdate && normalizedStatus === "unpaid" && (
                     <DropdownMenuItem
                       onClick={() => handleStatusChange(invoice.id, "cancelled")}
                       className="cursor-pointer text-destructive"
@@ -501,7 +502,7 @@ export function InvoiceList() {
                       {t("print")}
                     </DropdownMenuItem>
                   )}
-                  {canDelete && (status === "draft" || status === "unpaid") && (
+                  {canDelete && (normalizedStatus === "draft" || normalizedStatus === "unpaid") && (
                     <DropdownMenuItem
                       onClick={() => setDeletingId(invoice.id)}
                       className="text-destructive cursor-pointer"

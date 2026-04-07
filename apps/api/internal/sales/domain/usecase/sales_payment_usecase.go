@@ -583,7 +583,7 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 			return err
 		}
 
-		if err := ensurePaymentWithinInvoiceLimit(confirmedTotal, payment.Amount, invoice.Amount); err != nil {
+		if err := ensurePaymentWithinInvoiceLimit(payment.Amount, invoice.RemainingAmount); err != nil {
 			return err
 		}
 
@@ -653,8 +653,8 @@ func validateInvoiceStatusForConfirm(status models.CustomerInvoiceStatus) error 
 	return ErrSalesPaymentConflict
 }
 
-func ensurePaymentWithinInvoiceLimit(confirmedTotal, paymentAmount, invoiceAmount float64) error {
-	if confirmedTotal+paymentAmount <= invoiceAmount+0.0001 {
+func ensurePaymentWithinInvoiceLimit(paymentAmount, remainingAmount float64) error {
+	if paymentAmount <= remainingAmount+0.0001 {
 		return nil
 	}
 

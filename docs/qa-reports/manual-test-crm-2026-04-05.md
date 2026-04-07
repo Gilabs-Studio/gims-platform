@@ -10,6 +10,12 @@
 
 Comprehensive manual browser testing of the entire CRM module using Playwright. Testing covered all CRM sub-features: Leads (list, create, table actions, detail), Pipeline (board view, deal actions, convert to quotation, deal detail), Tasks, Visit Reports, Area Mapping, Sales Target, and CRM Settings.
 
+**Bug Tally:**
+- **Total Bugs Found:** 9
+- **Fixed:** 7
+- **New (Unfixed):** 2
+- **Action Missing:** 7
+
 ---
 
 ## Critical / High Priority Bugs
@@ -236,12 +242,269 @@ Comprehensive manual browser testing of the entire CRM module using Playwright. 
 
 ---
 
+## Additional Action Tests — 2026-04-06
+
+Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pertama.
+
+### 1. Leads (`/en/crm/leads`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Delete Lead | **Pass** | Dialog konfirmasi muncul; cancel membatalkan, confirm menghapus lead. `DELETE /api/v1/crm/leads/{id}` → 200 OK. |
+| Search filter | **Pass** | Mengetik "Siti" memfilter tabel ke 1 hasil. Clear search mengembalikan semua. |
+| Source filter | **Pass** | Memilih "Cold Call" memfilter ke 1 hasil. "All Sources" mengembalikan semua. |
+
+### 2. Pipeline / Deals (`/en/crm/pipeline`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Delete Deal | **Pass** | Dari deal detail, dialog konfirmasi berfungsi. `DELETE /api/v1/crm/deals/{id}` → 200 OK. |
+| Add Deal (full + Products & BANT) | **Pass** | Wizard berhasil dibuka, tab Products & BANT diisi, deal tercipta. `POST /api/v1/crm/deals` → 201 Created. |
+| Edit Deal | **Pass** | Edit dialog berfungsi, perubahan disimpan. `PUT /api/v1/crm/deals/{id}` → 200 OK. |
+| Move Stage | **Fixed** | Previously reported Bug #7 now FIXED. Deal moved successfully between stages. API call succeeds and activity feed records the move. |
+
+### 3. Tasks (`/en/crm/tasks`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Task Detail View | **Pass** | Klik task di kalender membuka detail sheet. |
+| Complete/Update Task Status | **Pass** | Tombol "Mark In Progress" ada dan berfungsi. `POST /api/v1/crm/tasks/{id}/in-progress` → 200 OK. |
+| Delete Task | **Pass** | Tombol "Cancel Task" berfungsi sebagai delete. `POST /api/v1/crm/tasks/{id}/cancel` → 200 OK. |
+| Edit Task | **Action Missing** | Tidak ada tombol/menu "Edit" pada task detail sheet. |
+
+### 4. Visit Reports (`/en/crm/visits`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| View Detail | **Pass** | Klik baris navigasi ke detail page `/en/crm/visits/{id}`. |
+| Create | **Action Missing** | Tidak ada tombol "Add" / "Create" di list page. |
+| Edit | **Action Missing** | Tidak ada tombol "Edit" di detail page. |
+| Delete | **Action Missing** | Tidak ada tombol "Delete" di detail page. |
+
+### 5. Area Mapping (`/en/crm/area-mapping`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Create Area | **Action Missing** | Tidak ada tombol "Add" / "Create Area". |
+| Edit Area | **Action Missing** | Tidak ada action edit. |
+| Delete Area | **Action Missing** | Tidak ada action delete. |
+
+### 6. Sales Target (`/en/crm/targets`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Delete Target | **Pass** | Row action dropdown memiliki Delete. Konfirmasi berfungsi. `DELETE /api/v1/sales/yearly-targets/{id}` → 200 OK. |
+| Save Add Target wizard | **Fail** | Tombol "Next" tidak bereaksi. Validasi inline muncul `Invalid ID format` pada field Area. |
+| Edit Target | **Fail** | Dialog Edit terbuka, tapi "Next" diblokir oleh error validasi `Invalid ID format` yang sama. |
+
+### 7. CRM Settings — CRUD Sub-Pages
+| Sub-Page | Create | Edit | Delete |
+|----------|--------|------|--------|
+| `/en/crm/settings/pipeline-stages` | **Pass** | **Fixed** | **Fixed** |
+| `/en/crm/settings/lead-sources` | **Pass** | **Fixed** | **Fixed** |
+| `/en/crm/settings/lead-statuses` | **Pass** | **Fixed** | **Fixed** |
+| `/en/crm/settings/contact-roles` | **Pass** | **Fixed** | **Fixed** |
+| `/en/crm/settings/activity-types` | **Pass** | **Fixed** | **Fixed** |
+
+**Catatan:** Bug #9 (CRM Settings row action dropdowns) telah **FIXED**. Semua dropdown menu kini dapat dibuka dan action Edit/Delete berfungsi normal. Create juga berhasil diuji untuk semua sub-halaman settings.
+
+---
+
+## New Bugs Found (2026-04-06)
+
+### CRM Bug #6 — Deal Detail Page Throws 500 When Referencing Deleted Lead
+**Priority:** High  
+**Type:** Backend / API  
+**Status:** Unfixed
+
+**Description:** Setelah lead dihapus, membuka deal detail yang masih mereferensi lead ID yang sudah tidak ada menyebabkan backend merespons `500 Internal Server Error`.
+
+**Steps:**
+1. Hapus lead dari `/en/crm/leads`.
+2. Buka deal detail yang mereferensi lead tersebut.
+
+**Expected:** Deal detail tetap load dengan indikator lead tidak ditemukan.  
+**Actual:** `GET /api/v1/crm/leads/{deleted_lead_id}` mengembalikan 500. Console error muncul.
+
+---
+
+### CRM Bug #7 — Pipeline Move Stage Button Does Not Trigger API Call
+**Priority:** High  
+**Type:** Frontend / Workflow  
+**Status:** **FIXED** — Playwright-verified 2026-04-06
+
+**Description:** Tombol "Move Stage" di deal detail page membuka dialog, stage dapat dipilih, tetapi tombol "Move Stage" di dalam dialog tidak memicu request API apa pun.
+
+**Steps:**
+1. Buka deal detail page.
+2. Klik "Move Stage".
+3. Pilih target stage.
+4. Klik "Move Stage" di dialog.
+
+**Expected:** Deal stage terupdate dan board refresh.  
+**Actual (resolved):** Deal stage berhasil dipindahkan antar stage. API call sukses dan activity feed mencatat perpindahan stage.
+
+---
+
+### CRM Bug #8 — Sales Target Wizard Blocked by Invalid UUID Validation on Seeded Area IDs
+**Priority:** High  
+**Type:** Frontend / Validation  
+**Status:** Unfixed
+
+**Description:** Wizard Add Target dan Edit Target tidak bisa lanjut ke tab "Monthly Breakdown" karena validasi `z.string().uuid()` pada `area_id` menolak seeded area IDs.
+
+**Steps:**
+1. Buka `/en/crm/targets`, klik "Add Target" atau "Edit" target existing.
+2. Pilih Area.
+3. Klik "Next".
+
+**Expected:** Wizard lanjut ke tab Monthly Breakdown.  
+**Actual:** Muncul error inline `Invalid ID format` pada field Area. Tombol Next diblokir.
+
+**Root Cause:** Seeded area IDs menggunakan format UUID dengan version nibble `a` (e.g. `a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5`), sedangkan Zod `.uuid()` mengharuskan version `1-5`.
+
+---
+
+### CRM Bug #9 — CRM Settings Row Action Dropdowns Are Non-Functional
+**Priority:** High  
+**Type:** Frontend / UI  
+**Status:** **FIXED** — Playwright-verified 2026-04-06
+
+**Description:** Pada semua halaman CRM Settings, tombol action tiga titik di setiap baris list tidak bisa dibuka, sehingga action Edit dan Delete tidak dapat diakses.
+
+**Steps:**
+1. Buka sembarang halaman CRM Settings (e.g. `/en/crm/settings/pipeline-stages`).
+2. Klik tombol action (three-dot) pada salah satu baris.
+
+**Expected:** Dropdown menu muncul dengan pilihan Edit dan Delete.  
+**Actual (resolved):** Dropdown menu kini muncul normal di semua sub-halaman settings. Edit dan Delete dapat diakses dan berfungsi dengan baik.
+
+---
+
+## Final Minor Variations — 2026-04-06
+
+Pengujian terakhir untuk variasi minor yang belum eksplisit diuji.
+
+### Lead Detail Page (`/en/crm/leads/{id}`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Edit Lead from Detail Page | **Pass** | Klik Edit di lead detail `LEAD-202501-00001`, ubah Assigned To dari Budi Santoso ke Dewi Lestari, save berhasil. Detail page terupdate dan activity feed mencatat "Updated lead fields: province_id, city_id". |
+
+### Pipeline Board (`/en/crm/pipeline`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Search/Filter on Board | **Action Missing** | Tidak ada search box atau filter yang spesifik untuk Pipeline Board (selain global search di header). |
+
+### Tasks (`/en/crm/tasks`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Mark Complete | **Action Missing** | Task detail dialog hanya memiliki tombol "Mark In Progress" dan "Cancel Task". Tidak ada tombol "Mark Complete" atau cara untuk mengubah status task menjadi Completed dari UI. |
+
+### Sales Target (`/en/crm/targets`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Search functional | **Pass** | Mengetik "Bali" di search box memfilter tabel dari 10 baris menjadi 1 baris (2026 Bali) secara real-time. |
+
+---
+
+## Supplementary Action Tests — 2026-04-06 (Continued)
+
+Pengujian lanjutan untuk action-action CRM yang masih belum tercakup.
+
+### CRM Settings — Full CRUD Verification
+| Action | Result | Notes |
+|--------|--------|-------|
+| Lead Statuses — Create | **Pass** | Dialog opens and saves successfully. |
+| Lead Statuses — Edit | **Fixed** | Dropdown now works; Edit dialog loads data. |
+| Lead Statuses — Delete | **Fixed** | Dropdown now works; Delete confirmation functions. |
+| Contact Roles — Create | **Pass** | "Test Role" created with custom color #ff6600. |
+| Contact Roles — Edit | **Fixed** | Dropdown works and Edit saves. |
+| Contact Roles — Delete | **Fixed** | Dropdown works and Delete functions. |
+| Activity Types — Create | **Pass** | "Manual Test Activity" created with icon "a-arrow-down". |
+| Activity Types — Edit | **Fixed** | Dropdown works and Edit saves. |
+| Activity Types — Delete | **Fixed** | Dropdown works and Delete functions. |
+| Pipeline Stages — Create | **Pass** | "Testing Stage" created with 25% probability. |
+| Pipeline Stages — Edit | **Fixed** | Dropdown works and Edit saves. |
+| Pipeline Stages — Delete | **Fixed** | Dropdown works and Delete functions. |
+| Pipeline Stages — Reorder (drag-drop) | **N/A** | No visible drag handles in the settings table UI. |
+
+### Area Mapping (`/en/crm/area-mapping`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Map load (Leaflet) | **Pass** | OSM tiles render correctly. |
+| Satellite layer toggle | **Pass** | Satellite button clickable, layers switch. |
+| Filter toggles (All / Leads / Pipeline Deals) | **Pass** | Buttons switch without errors. |
+| View switch (Location View / Regional Intensity) | **Pass** | Tabs switch correctly. |
+
+### End-to-End Workflow Tests
+| Workflow | Result | Notes |
+|----------|--------|-------|
+| Lead → Convert to Pipeline | **Pass** | `LEAD-202501-00001` converted to `DEAL-202604-00001`. Lead status changed to Converted. |
+| Deal → Move Stage | **Fixed** | Previously Bug #7. Deal moved from Closed Lost → Qualification successfully. |
+| Deal → Convert to Quotation | **Pass** | "Diagnostic Kit Bulk Order" converted to sales quotation. UI updated with link to `/en/sales/quotations/{id}`. |
+| Deal → Log Visit | **Pass** | Visit saved successfully despite expected GPS check-in limitation in headless browser. New visit `VISIT-202604-00006` created. |
+| Verify Visit in Reports | **Pass** | `VISIT-202604-00006` visible at top of Visit Reports list with date 06 Apr 2026, Employee Admin User. |
+
+### Final Round — Minor/Edge Actions Tested 2026-04-06
+
+Pengujian menyeluruh untuk action-action minor CRM yang belum pernah diuji.
+
+#### Leads (`/en/crm/leads`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Assign/Reassign Lead | **Pass** | Edit dialog, ganti "Assigned To" dari Budi Santoso ke Dewi Lestari, list terupdate. |
+| Sort by column | **Action Missing** | Header tabel tidak memiliki tombol sort, ikon, atau handler click. |
+| Pagination (Per Page change) | **Pass** | Dropdown 10→20 berfungsi, tabel terupdate. |
+| Export Lead | **Action Missing** | Tidak ada tombol Export/Download/CSV/Excel. |
+| Bulk actions | **Action Missing** | Tidak ada checkbox baris atau bulk action bar. |
+
+#### Pipeline / Deals (`/en/crm/pipeline`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Drag-and-drop deal card | **Action Missing** | Kanban tidak memiliki atribut draggable/dnd di DOM. |
+| Log Activity from Deal Detail | **Pass** | Dialog Log Activity terbuka, isi Meeting + deskripsi, tersimpan, muncul di Activities tab. |
+| Add/Edit Product Item from Deal Detail | **Action Missing** | Tab Product Items hanya menampilkan "No product items" tanpa tombol Add/Edit. |
+| Set Location | **Pass** | Dialog "Select Location" terbuka dengan Leaflet map fungsional. |
+| BANT Qualification update | **Action Missing** | BANT read-only, tidak ada tombol Edit di sekitarnya. |
+| Pipeline List View (Summary tab) | **Pass** | Tab "Pipeline Summary" ada dan menampilkan Total Deals, Open Deals, Won Deals, Lost Deals, Win Rate, Stage Breakdown. |
+| Export/Print deal | **Action Missing** | Tidak ada tombol Export/Print di board maupun deal detail. |
+
+#### Tasks (`/en/crm/tasks`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Filter tabs (My Tasks, Team Tasks, Overdue, Completed) | **Action Missing** | Tidak ada tab tersebut di UI. Hanya ada dropdown "All Statuses" dan legend status. |
+| Reschedule / Change due date | **Action Missing** | Task detail sheet tidak memiliki Edit button; task tidak bisa di-drag di kalender. |
+| Calendar view interactions | **Partial Pass** | Toggle Calendar/Table berfungsi. Tombol prev/next month berfungsi (April→May→April). Tidak ada toggle day/week/month. |
+
+#### Sales Target (`/en/crm/targets`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Year filter | **Pass** | Ganti 2026→2025, tabel terupdate. |
+| Area filter | **Action Missing** | Tidak ada filter Area di UI. |
+| View monthly breakdown detail | **Pass** | Klik baris membuka detail sheet dengan tab Overview / Monthly Breakdown / Achievement. Monthly Breakdown menampilkan data 12 bulan. |
+
+#### Area Mapping (`/en/crm/area-mapping`)
+| Action | Result | Notes |
+|--------|--------|-------|
+| Zoom controls | **Action Missing** | Zoom in/out controls dihilangkan dari Leaflet map. |
+| Pan map | **Pass** | Map memiliki class `leaflet-grab` sehingga bisa dipan dengan drag. |
+| Click pin/polygon detail | **Action Missing** | Map tidak memiliki marker (`leaflet-marker-icon` = 0) maupun polygon (`leaflet-overlay-pane path` = 0). |
+
+#### CRM Settings — Pipeline Stages
+| Action | Result | Notes |
+|--------|--------|-------|
+| Reorder via drag-and-drop | **Action Missing** | Tidak ada drag handle (grip icon) atau atribut draggable di tabel. |
+
+---
+
+### Still-Unfixed Bug
+| Module | Action | Result | Notes |
+|--------|--------|--------|-------|
+| Sales Target | Add / Edit Target | **Fail** | Bug #8 still present. Zod UUID validation rejects seeded Area IDs, blocking wizard Next button. |
+
+---
+
 ## Network Errors (4xx/5xx)
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
 | `POST /api/v1/crm/deals/{id}/convert-to-quotation` | 200 | **FIXED**. See CRM Bug #3. |
 | `GET /api/v1/sales/yearly-targets` | 200 | **FIXED**. See CRM Bug #5. |
+| `GET /api/v1/crm/leads/{deleted_id}` | 500 | See CRM Bug #6. |
 
 ---
 
@@ -253,7 +516,42 @@ Comprehensive manual browser testing of the entire CRM module using Playwright. 
 | P0 | ~~Fix Add Target wizard "Next" button to validate required Area field~~ (FIXED) |
 | P0 | ~~Fix `convert-to-quotation` backend 500 error~~ (FIXED) |
 | P0 | ~~Fix `GET /api/v1/sales/yearly-targets` 400 Bad Request~~ (FIXED) |
+| P0 | ~~Fix Pipeline Move Stage button to actually trigger the update API~~ (FIXED — CRM Bug #7) |
+| P0 | Fix Sales Target wizard UUID validation to accept seeded area IDs (CRM Bug #8) |
+| P0 | ~~Fix CRM Settings row action dropdown so Edit/Delete are accessible~~ (FIXED — CRM Bug #9) |
+| P1 | Handle deleted-lead references gracefully in deal detail backend (CRM Bug #6) |
 | P1 | ~~Add missing `crmVisitReport.metrics.withOutcome` translation keys to `en` and `id` i18n files~~ (FIXED) |
+| P2 | Add Edit action to Tasks UI |
+| P2 | Add Create/Edit/Delete actions to Visit Reports UI |
+| P2 | Add Create/Edit/Delete actions to Area Mapping UI |
+
+---
+
+## GitHub Issues Created
+
+- Issue #79 — Raw Zod validation errors in Sales forms
+- Issue #80 — "Add Invoice" wizard allows proceeding without validating Basic Information fields
+- Issue #81 — Missing error-toast feedback on failed Sales mutations
+- Issue #82 — Approved customer invoices lose action menu items (Create Payment, Cancel, Delete)
+- Issue #83 — Payment confirmation fails with 409 Conflict when invoice remaining_amount > amount
+- Issue #84 — Missing Reverse/Delete actions on Confirmed payments
+- Issue #85 — CIDP missing Approve and Cancel actions in UI
+- Issue #86 — Create Delivery Order: Batch field optional but validated as required
+- Issue #87 — Create Invoice from SO: Due Date and Payment Terms optional but validated as required
+- Issue #88 — Create Invoice from SO: Items not auto-populated from SO
+- Issue #89 — Create Invoice from SO: Internal server error (500) on Create
+- Issue #90 — Delete action missing on Cancelled customer invoices
+- Issue #91 — Convert Quotation to SO throws 500 server error but partially succeeds
+- Issue #92 — Create Delivery Order from SO: Items not auto-populated
+- Issue #93 — Missing Edit/Update action on Returns
+- Issue #94 — Delete action missing on Processed returns
+- Issue #95 — Deal detail page throws 500 when referencing deleted lead
+- Issue #96 — ~~Pipeline Move Stage button does not trigger API call~~ (FIXED — verified 2026-04-06)
+- Issue #97 — Sales Target wizard blocked by invalid UUID validation on seeded Area IDs
+- Issue #98 — ~~CRM Settings row action dropdowns are non-functional~~ (FIXED — verified 2026-04-06)
+- Issue #99 — Missing Edit action on Tasks
+- Issue #100 — Missing Create/Edit/Delete actions on Visit Reports
+- Issue #101 — Missing Create/Edit/Delete actions on Area Mapping
 
 ---
 
