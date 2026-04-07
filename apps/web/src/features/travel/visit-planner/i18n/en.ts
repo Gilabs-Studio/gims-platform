@@ -27,6 +27,8 @@ export const visitPlannerEn = {
       checkpointsTitle: "Checkpoints",
       completed: "completed",
       sequence: "Stop #{value}",
+      createPlan: "Create Plan",
+      backToEmployees: "Back to employees",
     },
     panel: {
       realtime: "Realtime enabled",
@@ -62,6 +64,17 @@ export const visitPlannerEn = {
         maxReached: "Maximum photos reached",
         previewAlt: "Visit photo {index}",
       },
+      product: {
+        addTitle: "Add product interest",
+        selectPlaceholder: "Select product for this visit",
+        add: "Add to list",
+        empty: "No product interests added yet",
+        interestLevel: "Interest (0-5)",
+        qty: "Qty",
+        price: "Price",
+        optionalShort: "Opt.",
+        notesPlaceholder: "Product-specific discussion notes (optional)",
+      },
     },
     status: {
       pending: "Pending",
@@ -69,6 +82,10 @@ export const visitPlannerEn = {
       checkedOut: "Checked Out",
       completed: "Completed",
       skipped: "Skipped",
+    },
+    tabs: {
+      documentation: "Documentation",
+      products: "Product Interest",
     },
     state: {
       loadFailedTitle: "Failed to load visit planner",

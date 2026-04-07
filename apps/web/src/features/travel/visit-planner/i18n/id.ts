@@ -27,6 +27,8 @@ export const visitPlannerId = {
       checkpointsTitle: "Checkpoint",
       completed: "selesai",
       sequence: "Stop #{value}",
+      createPlan: "Buat Plan",
+      backToEmployees: "Kembali ke daftar karyawan",
     },
     panel: {
       realtime: "Realtime aktif",
@@ -62,6 +64,17 @@ export const visitPlannerId = {
         maxReached: "Jumlah foto maksimal tercapai",
         previewAlt: "Foto kunjungan {index}",
       },
+      product: {
+        addTitle: "Tambah minat produk",
+        selectPlaceholder: "Pilih produk untuk kunjungan ini",
+        add: "Tambah ke daftar",
+        empty: "Belum ada minat produk ditambahkan",
+        interestLevel: "Minat (0-5)",
+        qty: "Jml",
+        price: "Harga",
+        optionalShort: "Opt.",
+        notesPlaceholder: "Catatan diskusi spesifik produk (opsional)",
+      },
     },
     status: {
       pending: "Menunggu",
@@ -69,6 +82,10 @@ export const visitPlannerId = {
       checkedOut: "Sudah Check Out",
       completed: "Selesai",
       skipped: "Dilewati",
+    },
+    tabs: {
+      documentation: "Dokumentasi",
+      products: "Minat Produk",
     },
     state: {
       loadFailedTitle: "Gagal memuat visit planner",
