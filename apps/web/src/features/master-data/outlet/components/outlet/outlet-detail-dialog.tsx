@@ -1,55 +1,51 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Store } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { MapPin, Edit } from "lucide-react";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
-import { formatDate } from "@/lib/utils";
-import { useWarehouse } from "../../hooks/use-warehouses";
-import type { Warehouse as WarehouseType } from "../../types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate, formatWhatsAppLink } from "@/lib/utils";
+import { useOutlet } from "../../hooks/use-outlets";
+import type { Outlet } from "../../types";
 
-interface WarehouseDetailModalProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly warehouse?: WarehouseType | null;
-  readonly onEdit?: (warehouse: WarehouseType) => void;
+interface OutletDetailDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  outlet: Outlet | null;
+  onEdit: (outlet: Outlet) => void;
 }
 
-export function WarehouseDetailModal({
+export function OutletDetailDialog({
   open,
   onOpenChange,
-  warehouse,
+  outlet,
   onEdit,
-}: WarehouseDetailModalProps) {
-  const t = useTranslations("warehouse");
+}: OutletDetailDialogProps) {
+  const t = useTranslations("outlet");
 
-  const { data: detailRes, isLoading } = useWarehouse(
-    warehouse?.id ?? "",
-    { enabled: open && !!warehouse?.id }
+  const { data: detailRes, isLoading } = useOutlet(
+    outlet?.id ?? "",
+    { enabled: open && !!outlet?.id }
   );
 
-  const entity = detailRes?.data ?? warehouse;
+  const entity = detailRes?.data ?? outlet;
 
   if (!entity) return null;
 
-  const village = entity.village;
-  const districtVillage = village?.district;
-  const cityVillage = districtVillage?.city;
-  const provinceVillage = cityVillage?.province;
-
-  const district = districtVillage ?? entity.district;
-  const city = cityVillage ?? entity.city;
-  const province = provinceVillage ?? entity.province;
-
-  const areaText = [village?.name, district?.name, city?.name, province?.name]
+  const resolvedArea = [
+    entity.village?.name,
+    entity.district?.name ?? entity.village?.district?.name,
+    entity.city?.name ?? entity.village?.district?.city?.name,
+    entity.province?.name ?? entity.village?.district?.city?.province?.name,
+  ]
     .filter(Boolean)
     .join(", ");
 
@@ -60,20 +56,14 @@ export function WarehouseDetailModal({
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <DialogTitle className="text-xl mb-2">{entity.name}</DialogTitle>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground font-mono">{entity.code}</span>
-                <Badge variant={entity.is_active ? "default" : "secondary"} className="text-xs font-medium">
+                <Badge variant={entity.is_active ? "default" : "inactive"} className="text-xs font-medium">
                   {entity.is_active ? t("common.active") : t("common.inactive")}
                 </Badge>
-                {entity.capacity != null && (
+                {entity.warehouse_id && (
                   <Badge variant="outline" className="text-xs">
-                    Cap: {entity.capacity}
-                  </Badge>
-                )}
-                {entity.outlet_id && (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <Store className="h-3 w-3" />
-                    Outlet
+                    {t("outlet.hasWarehouse")}
                   </Badge>
                 )}
                 {entity.address && (
@@ -84,11 +74,11 @@ export function WarehouseDetailModal({
                 )}
               </div>
             </div>
-            {onEdit && (
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 cursor-pointer"
+                className="cursor-pointer"
                 onClick={() => {
                   onEdit(entity);
                   onOpenChange(false);
@@ -97,7 +87,7 @@ export function WarehouseDetailModal({
               >
                 <Edit className="h-4 w-4" />
               </Button>
-            )}
+            </div>
           </div>
         </DialogHeader>
 
@@ -109,15 +99,42 @@ export function WarehouseDetailModal({
             </div>
           ) : (
             <>
-              {/* Basic Information */}
+              {/* Contact & Management Info */}
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableBody>
                     <TableRow>
-                      <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.description")}</TableCell>
-                      <TableCell>{entity.description || "-"}</TableCell>
-                      <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.capacity")}</TableCell>
-                      <TableCell>{entity.capacity != null ? String(entity.capacity) : "-"}</TableCell>
+                      <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.email")}</TableCell>
+                      <TableCell>
+                        {entity.email ? (
+                          <a href={`mailto:${entity.email}`} className="text-primary text-sm hover:underline cursor-pointer">
+                            {entity.email}
+                          </a>
+                        ) : "-"}
+                      </TableCell>
+                      <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.phone")}</TableCell>
+                      <TableCell>
+                        {entity.phone ? (
+                          <a
+                            href={formatWhatsAppLink(entity.phone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary text-sm hover:underline cursor-pointer"
+                          >
+                            {entity.phone}
+                          </a>
+                        ) : "-"}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">{t("outlet.form.manager")}</TableCell>
+                      <TableCell>{entity.manager?.name ?? "-"}</TableCell>
+                      <TableCell className="font-medium bg-muted/50">{t("outlet.form.company")}</TableCell>
+                      <TableCell>{entity.company?.name ?? "-"}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium bg-muted/50">{t("outlet.form.description")}</TableCell>
+                      <TableCell colSpan={3}>{entity.description || "-"}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-medium bg-muted/50">{t("common.createdAt")}</TableCell>
@@ -129,33 +146,33 @@ export function WarehouseDetailModal({
                 </Table>
               </div>
 
-              {/* Location */}
+              {/* Location Section */}
               <div>
-                <h3 className="text-sm font-semibold mb-3">{t("warehouse.sections.location")}</h3>
+                <h3 className="text-sm font-semibold mb-3">{t("outlet.sections.location")}</h3>
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableBody>
                       <TableRow>
-                        <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.province")}</TableCell>
-                        <TableCell>{province?.name ?? "-"}</TableCell>
-                        <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.city")}</TableCell>
-                        <TableCell>{city?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.province")}</TableCell>
+                        <TableCell>{entity.province?.name ?? entity.village?.district?.city?.province?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.city")}</TableCell>
+                        <TableCell>{entity.city?.name ?? entity.village?.district?.city?.name ?? "-"}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell className="font-medium bg-muted/50">{t("warehouse.form.district")}</TableCell>
-                        <TableCell>{district?.name ?? "-"}</TableCell>
-                        <TableCell className="font-medium bg-muted/50">{t("warehouse.form.village")}</TableCell>
-                        <TableCell>{village?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("outlet.form.district")}</TableCell>
+                        <TableCell>{entity.district?.name ?? entity.village?.district?.name ?? "-"}</TableCell>
+                        <TableCell className="font-medium bg-muted/50">{t("outlet.form.village")}</TableCell>
+                        <TableCell>{entity.village?.name ?? "-"}</TableCell>
                       </TableRow>
-                      {areaText && (
+                      {resolvedArea && (
                         <TableRow>
-                          <TableCell className="font-medium bg-muted/50">Full Area</TableCell>
-                          <TableCell colSpan={3}>{areaText}</TableCell>
+                          <TableCell className="font-medium bg-muted/50">{t("outlet.sections.fullArea")}</TableCell>
+                          <TableCell colSpan={3}>{resolvedArea}</TableCell>
                         </TableRow>
                       )}
                       {entity.address && (
                         <TableRow>
-                          <TableCell className="font-medium bg-muted/50">{t("warehouse.form.address")}</TableCell>
+                          <TableCell className="font-medium bg-muted/50">{t("outlet.form.address")}</TableCell>
                           <TableCell colSpan={3}>{entity.address}</TableCell>
                         </TableRow>
                       )}
@@ -164,19 +181,19 @@ export function WarehouseDetailModal({
                 </div>
               </div>
 
-              {/* Coordinates */}
+              {/* Coordinates Section */}
               {(entity.latitude != null || entity.longitude != null) && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-3">{t("warehouse.sections.coordinates")}</h3>
+                  <h3 className="text-sm font-semibold mb-3">{t("outlet.sections.coordinates")}</h3>
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableBody>
                         <TableRow>
-                          <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.latitude")}</TableCell>
+                          <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.latitude")}</TableCell>
                           <TableCell>
                             <span className="font-mono text-sm">{Number(entity.latitude).toFixed(6)}</span>
                           </TableCell>
-                          <TableCell className="font-medium bg-muted/50 w-48">{t("warehouse.form.longitude")}</TableCell>
+                          <TableCell className="font-medium bg-muted/50 w-48">{t("outlet.form.longitude")}</TableCell>
                           <TableCell>
                             <span className="font-mono text-sm">{Number(entity.longitude).toFixed(6)}</span>
                           </TableCell>

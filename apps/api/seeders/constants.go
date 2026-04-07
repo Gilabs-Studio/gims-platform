@@ -24,7 +24,9 @@ const (
 // Organization IDs (Fixed)
 const (
 	// Company
-	GiLabsCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+	GiLabsCompanyID    = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+	MieGacoanCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
+	KimiaFarmaCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000002"
 
 	// Divisions
 	SalesDivisionID   = "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
@@ -88,4 +90,14 @@ const (
 	Customer4ID = "c0000002-0000-0000-0000-000000000004" // RS Siloam Hospitals Surabaya
 	Customer5ID = "c0000002-0000-0000-0000-000000000005" // Apotek Kimia Farma Cabang Bekasi
 	Customer6ID = "c0000002-0000-0000-0000-000000000006" // Puskesmas Cempaka Putih
+)
+
+// Outlet IDs (Fixed - hex only: 0-9, a-f)
+const (
+	// Mie Gacoan (FnB) outlets
+	MieGacoanOutlet1ID = "0e000001-0000-0000-0000-000000000001" // Mie Gacoan - Outlet Sudirman
+	MieGacoanOutlet2ID = "0e000001-0000-0000-0000-000000000002" // Mie Gacoan - Outlet Kelapa Gading
+	// Kimia Farma (Pharmacy) outlets
+	KimiaFarmaOutlet1ID = "0e000001-0000-0000-0000-000000000003" // Kimia Farma - Cabang Sudirman
+	KimiaFarmaOutlet2ID = "0e000001-0000-0000-0000-000000000004" // Kimia Farma - Cabang Pondok Indah
 )

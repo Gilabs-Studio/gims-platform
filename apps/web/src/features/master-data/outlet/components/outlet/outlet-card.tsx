@@ -1,14 +1,12 @@
 "use client";
 
-import { Building, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Store, MapPin, Eye, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Company } from "../../types";
+import type { Outlet } from "../../types";
 
-
-
-interface CompanyCardProps {
-  readonly company: Company;
+interface OutletCardProps {
+  readonly outlet: Outlet;
   readonly isSelected?: boolean;
   readonly onClick?: () => void;
   readonly t: (key: string) => string;
@@ -19,55 +17,49 @@ interface CompanyCardProps {
   readonly canDelete?: boolean;
 }
 
-export function CompanyCard({ 
-  company, 
-  isSelected, 
-  onClick, 
+export function OutletCard({
+  outlet,
+  isSelected,
+  onClick,
   onDetail,
-  onEdit, 
+  onEdit,
   onDelete,
-  canUpdate, 
-  canDelete 
-}: CompanyCardProps) {
+  canUpdate,
+  canDelete,
+}: OutletCardProps) {
   return (
     <div
       onClick={onClick}
       className={cn(
         "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
         isSelected && "bg-accent border-l-4 border-l-primary",
-        !company.is_active && "opacity-50"
+        !outlet.is_active && "opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
         <div className="rounded-full bg-primary/10 p-2 shrink-0">
-          <Building className="h-4 w-4 text-primary" />
+          <Store className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5">
-            <h4 className="font-medium text-sm truncate">{company.name}</h4>
+            <h4 className="font-medium text-sm truncate">{outlet.name}</h4>
           </div>
-          {company.address && (
+          <p className="font-mono text-xs text-muted-foreground">{outlet.code}</p>
+          {outlet.company?.name && (
+            <Badge variant="outline" className="text-[10px]">
+              {outlet.company.name}
+            </Badge>
+          )}
+          {outlet.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
-              {company.address}
+              {outlet.address}
             </p>
           )}
-          <div className="flex items-center gap-2 flex-wrap">
-            {company.latitude != null && company.longitude != null && (
-              <span className="text-xs text-muted-foreground">
-                {Number(company.latitude).toFixed(4)}, {Number(company.longitude).toFixed(4)}
-              </span>
-            )}
-            {(company.outlet_count ?? 0) > 0 && (
-              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 cursor-default">
-                {company.outlet_count}
-              </Badge>
-            )}
-          </div>
         </div>
       </div>
-      
-      {/* Actions */}
+
+      {/* Hover Actions */}
       <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-full p-1 border shadow-sm">
         {onDetail && (
           <button
@@ -81,7 +73,7 @@ export function CompanyCard({
             <Eye className="h-3.5 w-3.5" />
           </button>
         )}
-        
+
         {canUpdate && onEdit && (
           <button
             onClick={(e) => {

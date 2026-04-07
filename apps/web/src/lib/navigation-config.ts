@@ -687,11 +687,39 @@ export const navigationConfig: NavItem[] = [
         icon: "building",
         children: [
           {
+            name: "Users",
+            i18nKey: "users",
+            url: "/master-data/users",
+            icon: "users",
+            permission: "user.read",
+          },
+          {
+            name: "Employees",
+            i18nKey: "employees",
+            url: "/master-data/employees",
+            icon: "users",
+            permission: "employee.read",
+          },
+          {
             name: "Company",
             i18nKey: "company",
             url: "/master-data/company",
             icon: "building",
             permission: "company.read",
+          },
+          {
+            name: "Outlets",
+            i18nKey: "outlets",
+            url: "/master-data/outlet",
+            icon: "store",
+            permission: "outlet.read",
+          },
+          {
+            name: "Warehouses",
+            i18nKey: "warehouses",
+            url: "/master-data/warehouses",
+            icon: "warehouse",
+            permission: "warehouse.read",
           },
           {
             name: "Divisions",
@@ -730,20 +758,7 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
-      {
-        name: "Employees",
-        i18nKey: "employees",
-        url: "/master-data/employees",
-        icon: "users",
-        permission: "employee.read",
-      },
-      {
-        name: "Banks",
-        i18nKey: "banks",
-        url: "/master-data/banks",
-        icon: "landmark",
-        permission: "bank.read",
-      },
+      
       {
         name: "Supplier",
         i18nKey: "supplier",
@@ -852,13 +867,7 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
-      {
-        name: "Warehouses",
-        i18nKey: "warehouses",
-        url: "/master-data/warehouses",
-        icon: "warehouse",
-        permission: "warehouse.read",
-      },
+      
       {
         name: "Payment & Courier",
         i18nKey: "paymentCourier",
@@ -871,6 +880,13 @@ export const navigationConfig: NavItem[] = [
             url: "/master-data/currencies",
             icon: "coins",
             permission: "currency.read",
+          },
+          {
+            name: "Banks",
+            i18nKey: "banks",
+            url: "/master-data/banks",
+            icon: "landmark",
+            permission: "bank.read",
           },
           {
             name: "Payment Terms",
@@ -902,13 +918,7 @@ export const navigationConfig: NavItem[] = [
         icon: "calendar",
         permission: "leave_type.read",
       },
-      {
-        name: "Users",
-        i18nKey: "users",
-        url: "/master-data/users",
-        icon: "users",
-        permission: "user.read",
-      },
+      
     ],
   },
   {

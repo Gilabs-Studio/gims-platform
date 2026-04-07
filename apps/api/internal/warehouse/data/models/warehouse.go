@@ -31,6 +31,8 @@ type Warehouse struct {
 	Longitude   *float64       `gorm:"type:decimal(11,8)" json:"longitude"`
 	// POS outlet flag: true marks this warehouse as a POS outlet
 	IsPosOutlet bool           `gorm:"column:is_pos_outlet;default:false;index" json:"is_pos_outlet"`
+	// OutletID links this warehouse to an outlet (nullable)
+	OutletID    *string        `gorm:"type:uuid;index" json:"outlet_id"`
 	IsActive    bool           `gorm:"default:true;index" json:"is_active"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

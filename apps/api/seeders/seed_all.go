@@ -52,6 +52,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Outlet seeder (depends on organization/company)
+	if err := SeedOutlets(); err != nil {
+		return err
+	}
+
 	// Employee seeder (Sprint 3)
 	if err := SeedEmployees(); err != nil {
 		return err
@@ -374,6 +379,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedOrganization(); err != nil {
+		return err
+	}
+
+	if err := SeedOutlets(); err != nil {
 		return err
 	}
 

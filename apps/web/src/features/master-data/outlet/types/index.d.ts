@@ -1,5 +1,5 @@
 // ============================================
-// Warehouse Module Types
+// Outlet Module Types
 // ============================================
 
 // === Village (Nested from Geographic) ===
@@ -20,13 +20,14 @@ export interface Village {
   };
 }
 
-// === Warehouse ===
-export interface Warehouse {
+// === Outlet ===
+export interface Outlet {
   id: string;
   code: string;
   name: string;
   description?: string;
-  capacity?: number;
+  phone?: string;
+  email?: string;
   address?: string;
   province_id?: string;
   province?: { id: string; name: string };
@@ -35,61 +36,70 @@ export interface Warehouse {
   district_id?: string;
   district?: { id: string; name: string };
   village_id?: string;
-  village_name?: string;
   village?: Village;
   latitude?: number | null;
   longitude?: number | null;
-  is_pos_outlet?: boolean;
-  outlet_id?: string;
+  manager_id?: string;
+  manager?: { id: string; name: string };
+  company_id?: string;
+  company?: { id: string; name: string };
+  warehouse_id?: string;
   is_active: boolean;
-  has_stock: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export interface CreateWarehouseData {
+export interface CreateOutletData {
   name: string;
   description?: string;
-  capacity?: number;
+  phone?: string;
+  email?: string;
   address?: string;
   province_id?: string;
   city_id?: string;
   district_id?: string;
   village_id?: string;
-  village_name?: string;
   latitude?: number | null;
   longitude?: number | null;
-  outlet_id?: string;
+  manager_id?: string;
+  company_id?: string;
   is_active?: boolean;
+  create_warehouse?: boolean;
 }
 
-export interface UpdateWarehouseData {
-  code?: string;
+export interface UpdateOutletData {
   name?: string;
   description?: string;
-  capacity?: number;
+  phone?: string;
+  email?: string;
   address?: string;
-  // null = explicit clear (set DB column to NULL), string = set to UUID, undefined = always send null (caller must handle)
   province_id?: string | null;
   city_id?: string | null;
   district_id?: string | null;
   village_id?: string | null;
-  village_name?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  outlet_id?: string | null;
+  manager_id?: string | null;
+  company_id?: string | null;
   is_active?: boolean;
 }
 
+// === Form Data ===
+export interface OutletFormData {
+  managers: { id: string; name: string }[];
+  companies: { id: string; name: string }[];
+}
+
 // === API Response Types ===
-export interface WarehouseListParams {
+export interface OutletListParams {
   page?: number;
   per_page?: number;
   search?: string;
   sort_by?: string;
   sort_dir?: "asc" | "desc";
   is_active?: boolean;
-  outlet_id?: string;
+  company_id?: string;
+  warehouse_id?: string;
 }
 
 export interface PaginationMeta {
@@ -101,7 +111,7 @@ export interface PaginationMeta {
   has_prev: boolean;
 }
 
-export interface WarehouseListResponse<T> {
+export interface OutletListResponse<T> {
   success: boolean;
   data: T[];
   meta?: {
@@ -111,7 +121,7 @@ export interface WarehouseListResponse<T> {
   error?: string;
 }
 
-export interface WarehouseSingleResponse<T> {
+export interface OutletSingleResponse<T> {
   success: boolean;
   data: T;
   meta?: Record<string, unknown>;

@@ -26,6 +26,8 @@ import { productEn } from "@/features/master-data/product/i18n/en";
 import { productId } from "@/features/master-data/product/i18n/id";
 import { warehouseEn } from "@/features/master-data/warehouse/i18n/en";
 import { warehouseId } from "@/features/master-data/warehouse/i18n/id";
+import { outletEn } from "@/features/master-data/outlet/i18n/en";
+import { outletId } from "@/features/master-data/outlet/i18n/id";
 import { currencyEn } from "@/features/master-data/currencies/i18n/en";
 import { currencyId } from "@/features/master-data/currencies/i18n/id";
 import { paymentTermEn } from "@/features/master-data/payment-and-couriers/payment-terms/i18n/en";
@@ -190,6 +192,7 @@ const messages = {
     customer: customerEn,
     product: productEn,
     warehouse: warehouseEn,
+    outlet: outletEn,
     currency: currencyEn,
     paymentTerm: paymentTermEn,
     courierAgency: courierAgencyEn,
@@ -278,6 +281,7 @@ const messages = {
     customer: customerId,
     product: productId,
     warehouse: warehouseId,
+    outlet: outletId,
     currency: currencyId,
     paymentTerm: paymentTermId,
     courierAgency: courierAgencyId,

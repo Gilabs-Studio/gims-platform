@@ -39,6 +39,7 @@ func ToCompanyResponse(m *models.Company) *dto.CompanyResponse {
 		IsActive:   m.IsActive,
 		CreatedAt:  m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:  m.UpdatedAt.Format(time.RFC3339),
+		OutletCount: m.OutletCount,
 	}
 
 	if m.ApprovedAt != nil {

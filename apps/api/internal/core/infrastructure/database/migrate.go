@@ -122,6 +122,8 @@ func AutoMigrate() error {
 		&product.ProductRecipeItem{},
 		// Warehouse entities (Sprint 4)
 		&warehouse.Warehouse{},
+		// Outlet entity (Organization)
+		&organization.Outlet{},
 		// Core Master Data entities (Sprint 4)
 		&core.PaymentTerms{},
 		&core.CourierAgency{},

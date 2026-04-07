@@ -1,6 +1,6 @@
 "use client";
 
-import { Warehouse, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Warehouse, MapPin, Eye, Edit, Trash2, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Warehouse as WarehouseType } from "../../types";
 
@@ -36,8 +36,17 @@ export function WarehouseCard({
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-primary/10 p-2 shrink-0">
-          <Warehouse className="h-4 w-4 text-primary" />
+        <div
+          className={cn(
+            "rounded-full p-2 shrink-0",
+            warehouse.outlet_id ? "bg-warning/10" : "bg-primary/10"
+          )}
+        >
+          {warehouse.outlet_id ? (
+            <Store className="h-4 w-4 text-warning" />
+          ) : (
+            <Warehouse className="h-4 w-4 text-primary" />
+          )}
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
@@ -55,12 +64,11 @@ export function WarehouseCard({
                 Capacity: {warehouse.capacity}
               </span>
             )}
-            {warehouse.latitude != null && warehouse.longitude != null && (
-              <span className="text-xs text-muted-foreground">
-                📍 {Number(warehouse.latitude).toFixed(4)},{" "}
-                {Number(warehouse.longitude).toFixed(4)}
-              </span>
-            )}
+              {warehouse.outlet_id && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                  Outlet
+                </span>
+              )}
           </div>
         </div>
       </div>

@@ -231,11 +231,12 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Company", "briefcase", "/master-data/company", 1},
-		{"Divisions", "layers", "/master-data/divisions", 2},
-		{"Job Positions", "user-cog", "/master-data/job-positions", 3},
-		{"Business Units", "grid", "/master-data/business-units", 4},
-		{"Business Types", "tag", "/master-data/business-types", 5},
-		{"Areas", "map", "/master-data/areas", 6},
+		{"Outlets", "store", "/master-data/outlet", 2},
+		{"Divisions", "layers", "/master-data/divisions", 3},
+		{"Job Positions", "user-cog", "/master-data/job-positions", 4},
+		{"Business Units", "grid", "/master-data/business-units", 5},
+		{"Business Types", "tag", "/master-data/business-types", 6},
+		{"Areas", "map", "/master-data/areas", 7},
 	}
 	for _, child := range organizationChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &organizationMenu.ID, child.order); err != nil {

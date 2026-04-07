@@ -156,6 +156,12 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.update", "Edit Warehouses", "EDIT", "warehouse"},
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
 
+		// Master Data - Outlet
+		{"/master-data/outlet", "outlet.read", "View Outlets", "VIEW", "outlet"},
+		{"/master-data/outlet", "outlet.create", "Create Outlets", "CREATE", "outlet"},
+		{"/master-data/outlet", "outlet.update", "Edit Outlets", "EDIT", "outlet"},
+		{"/master-data/outlet", "outlet.delete", "Delete Outlets", "DELETE", "outlet"},
+
 		// Master Data - Payment & Courier
 		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
 		{"/master-data/currencies", "currency.create", "Create Currencies", "CREATE", "currency"},
