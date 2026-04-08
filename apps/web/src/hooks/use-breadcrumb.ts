@@ -111,7 +111,7 @@ export function useBreadcrumb(menus?: MenuWithActions[]): BreadcrumbItem[] {
       }
 
       // Build breadcrumb from path segments
-      let currentPath = "/dashboard";
+      let currentPath = "";
       segments.forEach((segment, index) => {
         currentPath += `/${segment}`;
         const isLast = index === segments.length - 1;
@@ -153,7 +153,7 @@ export function useBreadcrumb(menus?: MenuWithActions[]): BreadcrumbItem[] {
       }
 
       // Build breadcrumb from path segments
-      let currentPath = "/dashboard";
+      let currentPath = "";
       segments.forEach((segment, index) => {
         currentPath += `/${segment}`;
         const isLast = index === segments.length - 1;

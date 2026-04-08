@@ -141,7 +141,7 @@ export const IconSidebar = memo(function IconSidebar({
 
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
-            <Link href="/settings">
+            <Link href="/profile">
               <Button
                 variant="ghost"
                 size="icon"

@@ -108,6 +108,15 @@ func (u *productCategoryUsecase) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return errors.New("product category not found")
 	}
+
+	count, err := u.repo.CountProductsByCategory(ctx, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.New("cannot delete category with associated products")
+	}
+
 	return u.repo.Delete(ctx, id)
 }
 
