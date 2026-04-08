@@ -2,9 +2,10 @@ package repositories
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 )
@@ -78,27 +79,25 @@ func (r *floorPlanRepository) List(ctx context.Context, params FloorPlanListPara
 		return nil, 0, err
 	}
 
-	// Sorting - validate column to prevent SQL injection
-	sortBy := params.SortBy
-	if sortBy == "" {
-		sortBy = "floor_number"
-	}
-	sortDir := params.SortDir
-	if sortDir == "" {
-		sortDir = "asc"
+	// Sorting with whitelist and clause builder to prevent SQL injection.
+	allowedSortColumns := map[string]string{
+		"name":         "name",
+		"floor_number": "floor_number",
+		"created_at":   "created_at",
+		"updated_at":   "updated_at",
+		"status":       "status",
+		"version":      "version",
 	}
 
-	allowedSorts := map[string]bool{
-		"name": true, "floor_number": true, "created_at": true,
-		"updated_at": true, "status": true, "version": true,
+	sortColumn := allowedSortColumns[strings.ToLower(strings.TrimSpace(params.SortBy))]
+	if sortColumn == "" {
+		sortColumn = "floor_number"
 	}
-	if !allowedSorts[sortBy] {
-		sortBy = "floor_number"
-	}
-	if sortDir != "asc" && sortDir != "desc" {
-		sortDir = "asc"
-	}
-	query = query.Order(fmt.Sprintf("%s %s", sortBy, sortDir))
+
+	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
+	isDesc := sortDir == "desc"
+
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortColumn}, Desc: isDesc})
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit).Offset(params.Offset)

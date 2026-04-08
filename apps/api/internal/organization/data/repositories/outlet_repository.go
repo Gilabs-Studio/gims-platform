@@ -3,9 +3,11 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // OutletRepository handles database operations for outlets
@@ -108,13 +110,26 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 		return nil, 0, err
 	}
 
-	// Apply sorting
-	if params.SortBy != "" {
-		order := fmt.Sprintf("%s %s", params.SortBy, params.SortDir)
-		query = query.Order("is_active DESC, " + order)
-	} else {
-		query = query.Order("is_active DESC, name ASC")
+	// Apply sorting with whitelisted columns to prevent SQL injection.
+	allowedSortColumns := map[string]string{
+		"name":       "name",
+		"code":       "code",
+		"address":    "address",
+		"created_at": "created_at",
+		"updated_at": "updated_at",
+		"is_active":  "is_active",
 	}
+
+	sortColumn := allowedSortColumns[strings.ToLower(strings.TrimSpace(params.SortBy))]
+	if sortColumn == "" {
+		sortColumn = "name"
+	}
+
+	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
+	isDesc := sortDir == "desc"
+
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: "is_active"}, Desc: true})
+	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortColumn}, Desc: isDesc})
 
 	// Apply pagination
 	if params.Limit > 0 {
