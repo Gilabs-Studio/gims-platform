@@ -51,7 +51,8 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 			COALESCE(SUM(CASE WHEN ib.expiry_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days') AND ib.current_quantity > 0 THEN 1 ELSE 0 END), 0) > 0 as has_expiring_batches,
 			p.min_stock,
 			p.max_stock,
-			u.name as uom_name
+			u.name as uom_name,
+			p.is_ingredient
 		`).
 		Joins("LEFT JOIN product_categories pc ON pc.id = p.category_id").
 		Joins("LEFT JOIN product_brands pb ON pb.id = p.brand_id").
@@ -86,7 +87,12 @@ func (r *inventoryRepository) GetStockList(ctx context.Context, req *dto.GetInve
 		query = query.Where("p.name ILIKE ? OR p.code ILIKE ?", search, search)
 	}
 
-	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
+	// Apply ingredient filter
+	if req.IsIngredient != nil {
+		query = query.Where("p.is_ingredient = ?", *req.IsIngredient)
+	}
+
+	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name, p.is_ingredient")
 
 	// --- Status / expiry HAVING filters ---
 	// Resolve effective status filter: explicit Status takes precedence; LowStock is legacy shorthand
@@ -261,7 +267,8 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 			COALESCE(SUM(ib.current_quantity) - SUM(ib.reserved_quantity), 0) as available,
 			p.min_stock,
 			p.max_stock,
-			u.name as uom_name
+			u.name as uom_name,
+			p.is_ingredient
 		`).
 		Joins("LEFT JOIN product_categories pc ON pc.id = p.category_id").
 		Joins("LEFT JOIN product_brands pb ON pb.id = p.brand_id").
@@ -277,7 +284,12 @@ func (r *inventoryRepository) GetTreeProducts(ctx context.Context, req *dto.GetI
 		query = query.Where("p.name ILIKE ? OR p.code ILIKE ?", search, search)
 	}
 
-	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name")
+	// Apply ingredient filter
+	if req.IsIngredient != nil {
+		query = query.Where("p.is_ingredient = ?", *req.IsIngredient)
+	}
+
+	query = query.Group("p.id, p.code, p.name, p.image_url, pc.name, pb.name, w.id, w.name, p.min_stock, p.max_stock, u.name, p.is_ingredient")
 
 	// Count Total
 	if err := r.DB(ctx).Table("(?) as sub", query).Count(&total).Error; err != nil {

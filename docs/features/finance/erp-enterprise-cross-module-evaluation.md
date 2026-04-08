@@ -32,43 +32,52 @@ Evaluasi ini menilai konsistensi flow bisnis, correctness akuntansi, dan traceab
 ### A. SO (Sales Order)
 
 Source:
+
 - `apps/api/internal/sales/presentation/router/sales_order_router.go`
 - `apps/api/internal/sales/domain/usecase/sales_order_usecase.go`
 
 Trigger event:
+
 - `POST /sales/sales-orders` create SO
 - `PATCH /sales/sales-orders/:id/status` update status
 - `POST /sales/sales-orders/:id/approve` approve
 
 Valid status transition:
+
 - `draft -> submitted/cancelled`
 - `submitted -> approved/rejected`
 - `approved -> closed/cancelled`
 - `rejected -> draft`
 
 Kontrol penting:
+
 - Saat `approved`, sistem reserve stock (`inventoryUC.ReserveStock`) dalam transaksi.
 - Saat `cancelled`, sistem release stock dalam transaksi.
 
 Journal timing:
+
 - **Tidak ada jurnal langsung di SO** (masih non-financial commitment).
 
 Accounting impact:
+
 - Belum berdampak ke AR/revenue/cash.
 
 ### B. DO (Delivery Order)
 
 Source:
+
 - `apps/api/internal/sales/presentation/router/delivery_order_router.go`
 - `apps/api/internal/sales/domain/usecase/delivery_order_usecase.go`
 
 Trigger event:
+
 - `POST /sales/delivery-orders` create DO
 - `PATCH /sales/delivery-orders/:id/status`
 - `POST /sales/delivery-orders/:id/ship`
 - `POST /sales/delivery-orders/:id/deliver`
 
 Valid status transition:
+
 - `draft -> sent/cancelled`
 - `sent -> approved/rejected`
 - `approved -> prepared/cancelled`
@@ -77,36 +86,44 @@ Valid status transition:
 - `rejected -> draft`
 
 Kontrol penting:
+
 - Cancel DO release reservasi batch + product stock.
 - Ship DO melakukan release reservasi + deduct stock + stock movement outbound.
 
 Journal timing:
+
 - **Tidak ada jurnal langsung di DO** (inventory movement operasional, revenue recognition di invoice).
 
 Accounting impact:
+
 - Tidak langsung ke AR/revenue/cash.
 
 ### C. Customer Invoice
 
 Source:
+
 - `apps/api/internal/sales/presentation/router/customer_invoice_router.go`
 - `apps/api/internal/sales/domain/usecase/customer_invoice_usecase.go`
 
 Trigger event:
+
 - `POST /sales/customer-invoices`
 - `PATCH /sales/customer-invoices/:id/status`
 
 Valid status transition (utama):
+
 - `draft -> submitted/approved/cancelled`
 - `submitted -> approved/unpaid/rejected`
 - `approved -> unpaid/partial/paid/cancelled`
 - `unpaid|waiting_payment|partial -> .../cancelled`
 
 Journal timing:
+
 - Jurnal dibuat saat invoice regular masuk state post-approved: `unpaid/waiting_payment/partial/paid`.
 - Jurnal reversal dipicu saat invoice yang sudah post-approved menjadi `cancelled`.
 
 Akun debit/credit utama:
+
 - DR `11300` Trade Receivables
 - DR `21200` Sales Advance (jika apply DP)
 - CR `4100` Sales Revenue
@@ -115,6 +132,7 @@ Akun debit/credit utama:
 - CR `11400` Inventory
 
 Accounting impact:
+
 - AR naik saat invoicing.
 - Revenue dan output VAT diakui.
 - COGS & inventory movement akuntansi diakui.
@@ -122,29 +140,36 @@ Accounting impact:
 ### D. Sales Payment
 
 Source:
+
 - `apps/api/internal/sales/presentation/router/sales_payment_routers.go`
 - `apps/api/internal/sales/domain/usecase/sales_payment_usecase.go`
 
 Trigger event:
+
 - `POST /sales/payments`
 - `POST /sales/payments/:id/confirm`
 
 Flow status:
+
 - Payment dibuat `pending`.
 - Confirm payment -> `confirmed`, update invoice (`unpaid/partial/paid`), update `paid_amount`, `remaining_amount`, optional close SO.
 
 Journal timing:
+
 - Jurnal dipicu saat `confirm` payment.
 
 Akun debit/credit utama:
+
 - DR Cash/Bank (`bank_account.chart_of_account_id`, fallback `11100`)
 - CR `11300` Trade Receivables (invoice regular)
 - CR `21200` Sales Advances (invoice down payment)
 
 Accounting impact:
+
 - AR turun, cash/bank naik.
 
 Critical note:
+
 - Jika trigger jurnal gagal saat confirm payment, transaksi payment **tetap confirmed** (error hanya log, tidak rollback).
 
 ## 2) Purchase End-to-End Flow: PO -> GR -> Supplier Invoice -> Payment -> Journal
@@ -152,10 +177,12 @@ Critical note:
 ### A. PO (Purchase Order)
 
 Source:
+
 - `apps/api/internal/purchase/presentation/router/purchase_order_routers.go`
 - `apps/api/internal/purchase/domain/usecase/purchase_order_usecase.go`
 
 Trigger event:
+
 - `POST /purchase/purchase-orders`
 - `POST /purchase/purchase-orders/:id/submit`
 - `POST /purchase/purchase-orders/:id/approve`
@@ -163,22 +190,27 @@ Trigger event:
 - `POST /purchase/purchase-orders/:id/close`
 
 Status utama:
+
 - `draft -> submitted -> approved -> closed`
 - `submitted -> rejected`
 
 Journal timing:
+
 - **Tidak ada jurnal langsung di PO** (commitment stage).
 
 Accounting impact:
+
 - Belum berdampak ke AP/inventory/cash.
 
 ### B. GR (Goods Receipt)
 
 Source:
+
 - `apps/api/internal/purchase/presentation/router/goods_receipt_routers.go`
 - `apps/api/internal/purchase/domain/usecase/goods_receipt_usecase.go`
 
 Trigger event:
+
 - `POST /purchase/goods-receipt`
 - `POST /purchase/goods-receipt/:id/submit`
 - `POST /purchase/goods-receipt/:id/approve`
@@ -186,26 +218,32 @@ Trigger event:
 - Legacy `POST /confirm` juga tersedia
 
 Status utama:
+
 - New workflow: `draft -> submitted -> approved -> closed`
 - Legacy path: `draft -> confirmed`
 
 Journal timing:
+
 - Saat GR `close` (dan juga legacy `confirm`), sistem memicu jurnal accrual.
 
 Akun debit/credit utama:
+
 - DR `11400` Inventory
 - CR `21100` GR/IR
 
 Accounting impact:
+
 - Inventory naik, liability accrual GR/IR naik.
 
 ### C. Supplier Invoice
 
 Source:
+
 - `apps/api/internal/purchase/presentation/router/supplier_invoice_routers.go`
 - `apps/api/internal/purchase/domain/usecase/supplier_invoice_usecase.go`
 
 Trigger event:
+
 - `POST /purchase/supplier-invoices`
 - `POST /purchase/supplier-invoices/:id/submit`
 - `POST /purchase/supplier-invoices/:id/approve`
@@ -213,53 +251,65 @@ Trigger event:
 - `POST /purchase/supplier-invoices/:id/cancel`
 
 Status utama:
+
 - `draft -> submitted -> approved -> pending`
 - Dari submitted: `rejected`
 - Cancel diizinkan dari `draft/submitted/approved`
 
 Journal timing:
+
 - Jurnal AP recognition dipicu saat `pending` (inside transaction, blocking on error).
 
 Akun debit/credit utama:
+
 - CR `21000` Accounts Payable (total amount)
 - DR `21100` GR/IR (sub total)
 - DR `11800` VAT Input
 - DR `61000` Delivery/Other expense
 
 Accounting impact:
+
 - AP naik, GR/IR clearing, VAT input claim, additional expense recognition.
 
 ### D. Purchase Payment
 
 Source:
+
 - `apps/api/internal/purchase/presentation/router/purchase_payment_routers.go`
 - `apps/api/internal/purchase/domain/usecase/purchase_payment_usecase.go`
 
 Trigger event:
+
 - `POST /purchase/payments`
 - `POST /purchase/payments/:id/confirm`
 
 Flow status:
+
 - Payment dibuat `pending`.
 - Confirm -> `confirmed`, update supplier invoice `partial/paid`, recalc remaining, optional close PO.
 
 Journal timing:
+
 - Jurnal dipicu saat confirm payment.
 
 Akun debit/credit utama:
+
 - DR `21000` AP (regular invoice)
 - DR `11900` Purchase Advances (DP invoice)
 - CR Cash/Bank (`bank_account.chart_of_account_id`, fallback `11100`)
 
 Accounting impact:
+
 - AP turun, cash/bank turun.
 
 Critical note:
+
 - Jika trigger jurnal gagal saat confirm payment, payment tetap confirmed (non-blocking log only).
 
 ## 3) Journal Logic Technical Evaluation
 
 Source:
+
 - `apps/api/internal/finance/domain/usecase/journal_entry_usecase.go`
 - `apps/api/internal/finance/data/models/journal_entry.go`
 - `apps/api/internal/finance/domain/usecase/closing_guard.go`
@@ -267,6 +317,7 @@ Source:
 ### 3.1 Sumber journal generation
 
 Auto (system-generated):
+
 - Sales invoice posting event
 - Sales payment confirm
 - Goods receipt close/confirm
@@ -275,6 +326,7 @@ Auto (system-generated):
 - Financial closing/year-end
 
 Manual:
+
 - `POST /finance/journal-entries`
 - Adjustment journal endpoints (`/adjustment`)
 
@@ -313,6 +365,7 @@ Manual:
 ## 4) Financial Reports Derivation (Technical)
 
 Source:
+
 - `apps/api/internal/finance/domain/usecase/finance_report_usecase.go`
 - `apps/api/internal/finance/data/repositories/finance_report_repository.go`
 
@@ -384,9 +437,11 @@ Source:
 ## 6) User Journey End-to-End (Transaction to Report to Closing)
 
 Referensi UAT:
+
 - `docs/features/finance/frontend-journey-uat-checklist.md`
 
 Journey target:
+
 1. User membuat transaksi source (SO/PO -> DO/GR -> Invoice -> Payment).
 2. Sistem menghasilkan jurnal via trigger usecase.
 3. User buka report (GL/P&L/BS/TB) yang bersumber dari jurnal posted/reversed.
@@ -394,45 +449,47 @@ Journey target:
 5. User melakukan closing period dan analisis.
 
 Audit traceability readiness:
+
 - **Sebagian besar bisa ditelusuri**, tetapi audit journey belum fully safe dari dead-end saat ada mismatch source-vs-journal akibat non-atomic confirm.
 
 ## 7) Edge-Case Matrix
 
-| Edge Case | Current Handling | Report Impact | Recovery Path | Assessment |
-|---|---|---|---|---|
-| Invoice dibatalkan/dihapus (Sales) | Cancel pada status post-approved memicu reversal jurnal; delete dibatasi draft/unpaid | Umumnya netral setelah reversal | Reverse otomatis via `journalUC.Reverse` | Partially compliant |
-| Supplier invoice dibatalkan | Cancel hanya draft/submitted/approved; tidak ada cancel dari pending | Risiko stuck jika sudah AP recognized dan perlu batal | Perlu credit note/reversal flow eksplisit | Non-compliant |
-| Payment gagal/partial | Partial status diinvoice didukung; pending payment lock ada | Jika confirm sukses, report update; jika confirm gagal aman | Retry payment confirm | Compliant |
-| Jurnal tidak balance | Ditolak di validate/post | Tidak masuk report | Perbaiki lines lalu post ulang | Compliant |
-| Transaksi pada periode closed | `ensureNotClosed` mencegah create/update/post jurnal | Mencegah posting ke periode tertutup | Reopen closing jika diperlukan | Partially compliant |
-| Reversal setelah posting | Didukung (create reversal + mark original reversed) | Report membaca posted+reversed, net effect tercermin | Reversal endpoint | Partially compliant |
-| Payment confirmed tapi jurnal gagal | Confirm tetap commit, jurnal hanya log warning | Risiko mismatch subledger vs GL | Belum ada auto-compensation/retry queue | Non-compliant |
+| Edge Case                           | Current Handling                                                                      | Report Impact                                               | Recovery Path                             | Assessment          |
+| ----------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------- | ------------------- |
+| Invoice dibatalkan/dihapus (Sales)  | Cancel pada status post-approved memicu reversal jurnal; delete dibatasi draft/unpaid | Umumnya netral setelah reversal                             | Reverse otomatis via `journalUC.Reverse`  | Partially compliant |
+| Supplier invoice dibatalkan         | Cancel hanya draft/submitted/approved; tidak ada cancel dari pending                  | Risiko stuck jika sudah AP recognized dan perlu batal       | Perlu credit note/reversal flow eksplisit | Non-compliant       |
+| Payment gagal/partial               | Partial status diinvoice didukung; pending payment lock ada                           | Jika confirm sukses, report update; jika confirm gagal aman | Retry payment confirm                     | Compliant           |
+| Jurnal tidak balance                | Ditolak di validate/post                                                              | Tidak masuk report                                          | Perbaiki lines lalu post ulang            | Compliant           |
+| Transaksi pada periode closed       | `ensureNotClosed` mencegah create/update/post jurnal                                  | Mencegah posting ke periode tertutup                        | Reopen closing jika diperlukan            | Partially compliant |
+| Reversal setelah posting            | Didukung (create reversal + mark original reversed)                                   | Report membaca posted+reversed, net effect tercermin        | Reversal endpoint                         | Partially compliant |
+| Payment confirmed tapi jurnal gagal | Confirm tetap commit, jurnal hanya log warning                                        | Risiko mismatch subledger vs GL                             | Belum ada auto-compensation/retry queue   | Non-compliant       |
 
 ## 8) Accounting Validation Matrix
 
-| Source Transaction | Trigger Journal Point | Expected Accounts | Expected Journal Status | Expected Report Impact | Current Validation |
-|---|---|---|---|---|---|
-| Sales Invoice Regular | Invoice status ke unpaid/waiting/partial/paid | DR AR 11300; CR Revenue 4100; CR VAT Out 21500; DR COGS 5100; CR Inv 11400 | posted | AR, Revenue, COGS, Inventory, Tax | Implemented |
-| Sales Payment | Payment confirm | DR Cash/Bank (BA COA/11100); CR AR 11300 atau Sales Advance 21200 | posted | Cash up, AR down | Implemented but non-atomic |
-| Goods Receipt | GR close/confirm | DR Inventory 11400; CR GRIR 21100 | posted | Inventory up, GRIR up | Implemented |
-| Supplier Invoice | Supplier invoice pending | CR AP 21000; DR GRIR 21100; DR VAT In 11800; DR Expense 61000 | posted | AP recognition, GRIR clearing | Implemented |
-| Purchase Payment | Payment confirm | DR AP 21000 atau DR Advance 11900; CR Cash/Bank | posted | AP down, Cash down | Implemented but non-atomic |
-| Financial Closing | Approve/year-end close | Close P&L ke retained earnings | posted | Lock period + equity transfer | Implemented |
+| Source Transaction    | Trigger Journal Point                         | Expected Accounts                                                          | Expected Journal Status | Expected Report Impact            | Current Validation         |
+| --------------------- | --------------------------------------------- | -------------------------------------------------------------------------- | ----------------------- | --------------------------------- | -------------------------- |
+| Sales Invoice Regular | Invoice status ke unpaid/waiting/partial/paid | DR AR 11300; CR Revenue 4100; CR VAT Out 21500; DR COGS 5100; CR Inv 11400 | posted                  | AR, Revenue, COGS, Inventory, Tax | Implemented                |
+| Sales Payment         | Payment confirm                               | DR Cash/Bank (BA COA/11100); CR AR 11300 atau Sales Advance 21200          | posted                  | Cash up, AR down                  | Implemented but non-atomic |
+| Goods Receipt         | GR close/confirm                              | DR Inventory 11400; CR GRIR 21100                                          | posted                  | Inventory up, GRIR up             | Implemented                |
+| Supplier Invoice      | Supplier invoice pending                      | CR AP 21000; DR GRIR 21100; DR VAT In 11800; DR Expense 61000              | posted                  | AP recognition, GRIR clearing     | Implemented                |
+| Purchase Payment      | Payment confirm                               | DR AP 21000 atau DR Advance 11900; CR Cash/Bank                            | posted                  | AP down, Cash down                | Implemented but non-atomic |
+| Financial Closing     | Approve/year-end close                        | Close P&L ke retained earnings                                             | posted                  | Lock period + equity transfer     | Implemented                |
 
 ## 9) Compliance Scorecard
 
-| Domain | Verdict | Evidence Summary |
-|---|---|---|
-| Business Flow | Partially compliant | Status transition & workflow tersedia, tapi coexist legacy/new path menambah kompleksitas kontrol |
-| Accounting Correctness | Partially compliant | COA mapping dan balancing kuat, tetapi payment confirm non-atomic terhadap journal creation |
-| Traceability | Partially compliant | Reference tracking kuat via `reference_type/reference_id`, namun masih ada risiko orphan journal link pada failure path |
-| Control & Auditability | Partially compliant | Audit log dan closing guard ada, tetapi edge case cancellation/reversal purchase belum komplet |
+| Domain                 | Verdict             | Evidence Summary                                                                                                        |
+| ---------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Business Flow          | Partially compliant | Status transition & workflow tersedia, tapi coexist legacy/new path menambah kompleksitas kontrol                       |
+| Accounting Correctness | Partially compliant | COA mapping dan balancing kuat, tetapi payment confirm non-atomic terhadap journal creation                             |
+| Traceability           | Partially compliant | Reference tracking kuat via `reference_type/reference_id`, namun masih ada risiko orphan journal link pada failure path |
+| Control & Auditability | Partially compliant | Audit log dan closing guard ada, tetapi edge case cancellation/reversal purchase belum komplet                          |
 
 ## 10) Gap List & Prioritized Fix
 
 ## Critical
 
 ### G1. Payment confirm non-atomic terhadap jurnal
+
 - Severity: Critical
 - Affected module: Sales Payment, Purchase Payment
 - Impact: Mismatch subledger vs GL, laporan keuangan bisa under/overstated
@@ -444,6 +501,7 @@ Audit traceability readiness:
 ## High
 
 ### G2. Purchase invoice cancellation setelah AP recognition belum jelas
+
 - Severity: High
 - Affected module: Supplier Invoice / Purchase Journal
 - Impact: Sulit koreksi invoice yang sudah pending/posted tanpa prosedur credit note formal
@@ -452,6 +510,7 @@ Audit traceability readiness:
   - Tambah flow `void/reverse supplier invoice` dengan generated reversing journal dan audit reason wajib.
 
 ### G3. Legacy dan new GR workflow berjalan bersamaan
+
 - Severity: High
 - Affected module: Goods Receipt
 - Impact: Potensi inkonsistensi SOP dan test coverage (confirm vs close path)
@@ -462,6 +521,7 @@ Audit traceability readiness:
 ## Medium
 
 ### G4. Closing validation terlalu ketat terhadap reversed entries
+
 - Severity: Medium
 - Affected module: Financial Closing
 - Impact: Periode bisa gagal close meski koreksi reversal sah secara akuntansi
@@ -470,6 +530,7 @@ Audit traceability readiness:
   - Ubah rule: izinkan reversed jika pasangan reversal posted ada dan net impact valid.
 
 ### G5. Formal reconciliation matrix belum otomatis dieksekusi
+
 - Severity: Medium
 - Affected module: Cross-module controls
 - Impact: Sulit membuktikan completeness source-to-journal ke auditor
@@ -483,6 +544,7 @@ Audit traceability readiness:
 ## Low
 
 ### G6. Standardisasi reference type masih campuran alias legacy
+
 - Severity: Low
 - Affected module: Journal integration/report resolver
 - Impact: Menambah kompleksitas resolver dan potensi salah mapping minor
@@ -511,7 +573,7 @@ Audit traceability readiness:
 1. Evaluasi ini berbasis artefak backend/router/usecase/repository yang disebutkan; tidak semua handler/service/frontend detail diverifikasi baris-per-baris.
 2. Belum diverifikasi data migration historis terkait konsistensi `reference_type` lama.
 3. Belum ada bukti eksekusi full integration test untuk semua edge case dalam satu skenario periode close.
-4. Area selain scope (mis. return, non-trade payable, asset maintenance) tidak dijadikan basis verdict utama.
+4. Area selain scope (mis. return, non-trade payable) tidak dijadikan basis verdict utama.
 
 ## Conclusion
 

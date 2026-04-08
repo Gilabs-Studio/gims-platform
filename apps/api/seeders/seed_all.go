@@ -52,6 +52,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Outlet seeder (depends on organization/company)
+	if err := SeedOutlets(); err != nil {
+		return err
+	}
+
 	// Employee seeder (Sprint 3)
 	if err := SeedEmployees(); err != nil {
 		return err
@@ -79,6 +84,26 @@ func SeedAll() error {
 
 	// Inventory seeder (Sprint 4)
 	if err := SeedInventory(); err != nil {
+		return err
+	}
+
+	// POS F&B ingredient products (ingredient stock foundation)
+	if err := SeedPosIngredients(); err != nil {
+		return err
+	}
+
+	// POS F&B ingredient inventory batches (must run after SeedPosIngredients + SeedWarehouse)
+	if err := SeedPosIngredientInventory(); err != nil {
+		return err
+	}
+
+	// POS F&B recipe menu items, service products, and BOM recipe items
+	if err := SeedPosRecipeProducts(); err != nil {
+		return err
+	}
+
+	// User-warehouse assignments for POS outlet RBAC
+	if err := SeedUserWarehouses(); err != nil {
 		return err
 	}
 
@@ -354,6 +379,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedOrganization(); err != nil {
+		return err
+	}
+
+	if err := SeedOutlets(); err != nil {
 		return err
 	}
 

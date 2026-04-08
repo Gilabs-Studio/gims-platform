@@ -54,3 +54,10 @@ apps/erp-api/
 apps/erp-front-end/
 
 CLAUDE.md
+.CLAUDE/
+VIBE.md
+.playwright-mcp/
+coa-initial.yml
+coa-loaded.yml
+crm-leads-initial.yml
+sales-order-next.yml

@@ -123,11 +123,17 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
           <div className="space-y-2">
             <Label htmlFor="code">{t("fields.code")}</Label>
             <Input id="code" {...form.register("code")} />
+            {form.formState.errors.code && (
+              <p className="text-sm text-destructive">{form.formState.errors.code.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="name">{t("fields.name")}</Label>
             <Input id="name" {...form.register("name")} />
+            {form.formState.errors.name && (
+              <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -150,6 +156,9 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                   ))}
                 </SelectContent>
               </Select>
+              {form.formState.errors.type && (
+                <p className="text-sm text-destructive">{form.formState.errors.type.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -176,6 +185,9 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
                     ))}
                 </SelectContent>
               </Select>
+              {form.formState.errors.parent_id && (
+                <p className="text-sm text-destructive">{form.formState.errors.parent_id.message}</p>
+              )}
             </div>
           </div>
 

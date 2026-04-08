@@ -22,9 +22,10 @@ export interface UseProductFormProps {
   onOpenChange: (open: boolean) => void;
   editingItem: Product | null;
   onCreated?: (item: { id: string; name: string }) => void;
+  defaultProductKind?: "STOCK" | "RECIPE" | "SERVICE";
 }
 
-export function useProductForm({ open, onOpenChange, editingItem, onCreated }: UseProductFormProps) {
+export function useProductForm({ open, onOpenChange, editingItem, onCreated, defaultProductKind }: UseProductFormProps) {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
 
@@ -88,6 +89,11 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
       cost_price: 0,
       min_stock: 0,
       max_stock: 0,
+      product_kind: "STOCK",
+      is_ingredient: false,
+      is_inventory_tracked: true,
+      is_pos_available: false,
+      recipe_items: [],
     },
   });
 
@@ -117,6 +123,17 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
           cost_price: editingItem.cost_price,
           min_stock: editingItem.min_stock,
           max_stock: editingItem.max_stock,
+          product_kind: editingItem.product_kind ?? "STOCK",
+          is_ingredient: editingItem.is_ingredient ?? false,
+          is_inventory_tracked: editingItem.is_inventory_tracked ?? true,
+          is_pos_available: editingItem.is_pos_available ?? false,
+          recipe_items: editingItem.recipe_items?.map((item) => ({
+            ingredient_product_id: item.ingredient_product_id,
+            quantity: item.quantity,
+            uom_id: item.uom_id ?? undefined,
+            notes: item.notes ?? "",
+            sort_order: item.sort_order ?? 0,
+          })) ?? [],
         });
       } else {
         form.reset({
@@ -142,10 +159,15 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated }: U
           cost_price: 0,
           min_stock: 0,
           max_stock: 0,
+          product_kind: defaultProductKind ?? "STOCK",
+          is_ingredient: false,
+          is_inventory_tracked: true,
+          is_pos_available: false,
+          recipe_items: [],
         });
       }
     }
-  }, [open, editingItem, form]);
+  }, [open, editingItem, form, defaultProductKind]);
 
   const handleCategoryCreated = (id: string) => {
     form.setValue("category_id", id, { shouldValidate: true });

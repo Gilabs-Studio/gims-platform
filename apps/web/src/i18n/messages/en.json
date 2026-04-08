@@ -117,6 +117,14 @@
   },
   "navigation": {
     "dashboard": "Dashboard",
+    "pos": "POS",
+    "fbMode": "F&B",
+    "goodsDistributorMode": "Goods / Distributor",
+    "floorLayoutDesigner": "Floor & Layout Designer",
+    "quickSale": "Quick Sale",
+    "salesBasket": "Sales Basket",
+    "deliveryPickup": "Delivery / Pickup",
+    "returnsExchange": "Returns / Exchange",
     "masterData": "Master Data",
     "geographic": "Geographic",
     "organization": "Organization",
@@ -145,6 +153,7 @@
     "unitOfMeasure": "Unit of Measure",
     "procurementTypes": "Procurement Types",
     "warehouses": "Warehouses",
+    "outlets": "Outlets",
     "paymentCourier": "Payment & Courier",
     "currencies": "Currencies",
     "paymentTerms": "Payment Terms",
@@ -247,7 +256,9 @@
     "plannerWorkspace": "Planner Workspace",
     "visitReport": "Visit Report",
     "chatbot": "Chatbot",
-    "settings": "Settings"
+    "settings": "Settings",
+    "pos": "POS",
+    "floorLayoutDesigner": "Floor & Layout Designer"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

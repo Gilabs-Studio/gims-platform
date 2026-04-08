@@ -64,7 +64,7 @@ const hrdModules = [
   {
     id: "employees",
     icon: Users,
-    href: "/hrd/employees",
+    href: "/master-data/employees",
     color: "text-primary",
     bgColor: "bg-primary/10",
     stats: { label: "totalActive", value: "-" },

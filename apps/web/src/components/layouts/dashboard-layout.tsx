@@ -356,6 +356,7 @@ export const DashboardLayout = memo(function DashboardLayout({
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
   const isFullScreenMapPage =
     pathname?.includes("/master-data/company") ||
+    pathname?.includes("/master-data/outlet") ||
     pathname?.includes("/master-data/suppliers") ||
     pathname?.includes("/master-data/warehouses") ||
     pathname?.includes("/master-data/customers") ||

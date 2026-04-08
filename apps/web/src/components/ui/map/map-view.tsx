@@ -25,6 +25,7 @@ interface MapViewProps<T> {
   readonly showLayerControl?: boolean;
   readonly selectedMarkerId?: number | string | null;
   readonly mapProfile?: MapProfile;
+  readonly flyToPosition?: { lat: number; lng: number } | null;
 }
 
 // Dynamically import Inner Map component (SSR false)

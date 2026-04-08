@@ -89,6 +89,7 @@ export function ProductCategoryList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("form.name")}</TableHead>
+              <TableHead>{t("form.categoryType")}</TableHead>
               <TableHead>{t("form.parent")}</TableHead>
               <TableHead>{t("form.description")}</TableHead>
               <TableHead>{t("form.isActive")}</TableHead>
@@ -100,6 +101,7 @@ export function ProductCategoryList() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16" /></TableCell>
@@ -109,7 +111,7 @@ export function ProductCategoryList() {
             ) : data.items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={permissions.canUpdate || permissions.canDelete ? 5 : 4}
+                  colSpan={permissions.canUpdate || permissions.canDelete ? 6 : 5}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {t("empty")}
@@ -119,6 +121,13 @@ export function ProductCategoryList() {
               data.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>
+                    {item.category_type === "FNB" ? (
+                      <Badge variant="success" className="text-[10px]">F&amp;B</Badge>
+                    ) : (
+                      <Badge variant="warning" className="text-[10px]">Goods</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {item.parent ? (
                       <Badge variant="outline">{item.parent.name}</Badge>

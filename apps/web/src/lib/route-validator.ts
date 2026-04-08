@@ -35,8 +35,6 @@ const EXTRA_VALID_ROUTES = [
   "/finance/assets",
   "/finance/asset-categories",
   "/finance/asset-locations",
-  "/finance/asset-budgets",
-  "/finance/asset-maintenance",
   "/finance/salary",
   "/finance/reports/general-ledger",
   "/finance/reports/balance-sheet",
@@ -76,10 +74,22 @@ const EXTRA_VALID_ROUTES = [
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",
+  // POS
+  "/pos",
+  "/pos/fb",
+  "/pos/fb/floor-layout",
+  "/pos/goods",
+  "/pos/goods/quick-sale",
+  "/pos/goods/basket",
+  "/pos/goods/delivery-pickup",
+  "/pos/goods/returns-exchange",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(
-  new Set([...flattenNavigationRoutes(navigationConfig), ...EXTRA_VALID_ROUTES]),
+  new Set([
+    ...flattenNavigationRoutes(navigationConfig),
+    ...EXTRA_VALID_ROUTES,
+  ]),
 ).sort();
 
 /**

@@ -7,6 +7,7 @@ import {
   Pencil,
   Trash2,
   Eye,
+  Store,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,7 +125,15 @@ export function WarehouseList() {
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell className="font-medium">
-                    {item.name}
+                    <div className="flex items-center gap-2">
+                      {item.name}
+                      {item.outlet_id && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          <Store className="h-3 w-3" />
+                          Outlet
+                        </span>
+                      )}
+                    </div>
                     {item.description && (
                       <p className="text-xs text-muted-foreground truncate w-64">
                         {item.description}

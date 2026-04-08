@@ -208,6 +208,9 @@ export const hrdEn = {
       messages: {
         clockInSuccess: "Clock in successful",
         clockOutSuccess: "Clock out successful",
+        createSuccess: "Attendance record created successfully",
+        updateSuccess: "Attendance record updated successfully",
+        deleteSuccess: "Attendance record deleted successfully",
         manualEntrySuccess: "Manual entry created successfully",
         notClockedInYet: "You have not clocked in yet",
         alreadyClockedOut: "Already clocked out for today",

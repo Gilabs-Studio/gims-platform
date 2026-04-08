@@ -30,6 +30,8 @@ import type {
   ApproveProductData,
   ProductListParams,
   LookupListParams,
+  RecipeItemRequest,
+  RecipeItemResponse,
 } from "../types";
 
 
@@ -406,6 +408,21 @@ export const productService = {
     const response = await apiClient.post<ApiResponse<Product>>(
       `${BASE_URL}/products/${id}/approve`,
       data
+    );
+    return response.data;
+  },
+
+  getRecipe: async (id: string): Promise<ApiResponse<RecipeItemResponse[]>> => {
+    const response = await apiClient.get<ApiResponse<RecipeItemResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe`
+    );
+    return response.data;
+  },
+
+  updateRecipe: async (id: string, items: RecipeItemRequest[]): Promise<ApiResponse<RecipeItemResponse[]>> => {
+    const response = await apiClient.put<ApiResponse<RecipeItemResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe`,
+      items
     );
     return response.data;
   },
