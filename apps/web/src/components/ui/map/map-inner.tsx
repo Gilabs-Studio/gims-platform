@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X, Layers, Map, Satellite, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../button";
@@ -64,6 +64,7 @@ interface MapInnerProps<T> {
   readonly showLayerControl?: boolean;
   readonly selectedMarkerId?: number | string | null;
   readonly mapProfile?: MapProfile;
+  readonly flyToPosition?: { lat: number; lng: number } | null;
 }
 
 // Component to handle map movement and bounds
@@ -72,60 +73,57 @@ function MapController<T>({
   selectedMarkerId,
   defaultCenter,
   defaultZoom,
+  flyToPosition,
 }: {
   markers: MapMarker<T>[];
   selectedMarkerId?: number | string | null;
   defaultCenter: [number, number];
   defaultZoom: number;
+  flyToPosition?: { lat: number; lng: number } | null;
 }) {
   const map = useMap();
 
+  // Fly to an externally-requested position (e.g. GPS auto-follow, re-centre button).
   useEffect(() => {
-    if (!map) return;
+    if (!map || !flyToPosition) return;
+    map.flyTo([flyToPosition.lat, flyToPosition.lng], 17, {
+      duration: 0.8,
+      easeLinearity: 0.4,
+    });
+  // flyToPosition is always a fresh object reference on every call — no extra dep needed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, flyToPosition]);
 
-    if (selectedMarkerId) {
-      const selected = markers.find((m) => m.id === selectedMarkerId);
-      if (selected) {
-        map.flyTo([selected.latitude, selected.longitude], 16, {
-          duration: 1.5,
-          easeLinearity: 0.25,
+  const hasFitInitialRef = useRef(false);
+
+  // One-time initial viewport fit: centres on all markers when data first arrives.
+  // After the first successful fit the user can freely pan; only the re-centre
+  // button (`flyToPosition` prop) will programmatically move the camera thereafter.
+  useEffect(() => {
+    if (!map || hasFitInitialRef.current) return;
+    if (markers.length === 0) return; // wait for data to load
+    hasFitInitialRef.current = true;
+
+    const bounds = markers.map((m) => [m.latitude, m.longitude] as [number, number]);
+    try {
+      if (bounds.length === 1) {
+        map.flyTo(bounds[0], Math.max(defaultZoom, 13), {
+          duration: 1.0,
+          easeLinearity: 0.4,
         });
-        return;
+      } else {
+        // @ts-ignore – Leaflet accepts [number, number][] as LatLngBoundsExpression
+        map.fitBounds(bounds, {
+          padding: [60, 60],
+          maxZoom: 14,
+          duration: 1.0,
+          easeLinearity: 0.4,
+        });
       }
+    } catch (e) {
+      console.error("Leaflet fitBounds error", e);
     }
-
-    if (markers.length > 0) {
-      const bounds = markers.map((m) => [m.latitude, m.longitude] as [number, number]);
-      // Verify bounds are valid
-      if (bounds.length > 0 && bounds[0].length === 2 && !isNaN(bounds[0][0])) {
-         try {
-            // If there's only a single marker, use the provided defaultZoom
-            // to avoid Leaflet trying to zoom too far when fitting identical bounds.
-            if (bounds.length === 1) {
-              map.flyTo(bounds[0], defaultZoom, {
-                duration: 1.5,
-                easeLinearity: 0.25,
-              });
-            } else {
-              // @ts-ignore
-              map.fitBounds(bounds, {
-                padding: [50, 50],
-                maxZoom: Math.max(defaultZoom, 12),
-                duration: 1.5,
-                easeLinearity: 0.25,
-              });
-            }
-         } catch(e) {
-            console.error("Leaflet fitBounds error", e);
-         }
-      }
-    } else {
-      map.flyTo(defaultCenter, defaultZoom, {
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
-    }
-  }, [map, markers, selectedMarkerId, defaultCenter, defaultZoom]);
+  }, [map, markers, defaultZoom]);
 
   return null;
 }
@@ -142,6 +140,7 @@ export default function MapInner<T>({
   showLayerControl = true,
   selectedMarkerId,
   mapProfile = "balanced",
+  flyToPosition,
 }: MapInnerProps<T>) {
   const [mapStyle, setMapStyle] = useState<MapStyle>("auto");
   const isMobile = useIsMobile();
@@ -245,6 +244,7 @@ export default function MapInner<T>({
           selectedMarkerId={selectedMarkerId}
           defaultCenter={defaultCenter}
           defaultZoom={defaultZoom}
+          flyToPosition={flyToPosition}
         />
         {children}
         {renderMarkers(validMarkers)}

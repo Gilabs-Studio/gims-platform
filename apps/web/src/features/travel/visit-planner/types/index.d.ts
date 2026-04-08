@@ -98,6 +98,8 @@ export interface VisitCheckpoint {
   lead_id?: string;
   deal_id?: string;
   customer_id?: string;
+  product_interest_count?: number;
+  documentation_count?: number;
 }
 
 export interface ActiveVisitRoute {
@@ -261,14 +263,31 @@ export interface LocationUpdateResponse {
   lat: number;
   lng: number;
   heading?: number | null;
+  navigation_status?: string | null;
   timestamp: string;
   employee_name?: string;
+  employee_avatar?: string;
   activity_type?: string;
   status?: string;
 }
 
 export interface LocationUpdateEvent extends LocationUpdateResponse {
   type?: "location_update";
+}
+
+// Emitted when a sales employee starts navigation (type = "navigation_started")
+// or stops it (type = "navigation_stopped").
+export interface NavigationStatusEvent {
+  type?: "navigation_started" | "navigation_stopped";
+  employee_id: string;
+  employee_name?: string;
+  employee_avatar?: string;
+  route_id?: string | null;
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  status: "navigating" | "idle";
+  timestamp: string;
 }
 
 export interface RouteStatusEvent {
@@ -281,8 +300,31 @@ export interface RouteStatusEvent {
 }
 
 export interface LocationSocketMessage<T> {
-  type: "location_update" | "route_status";
+  type: "location_update" | "route_status" | "navigation_started" | "navigation_stopped";
   data: T;
+}
+
+// Request/response types for navigation lifecycle endpoints.
+export interface StartNavigationRequest {
+  employee_id?: string;
+  route_id?: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+}
+
+export interface StopNavigationRequest {
+  employee_id?: string;
+  route_id?: string;
+}
+
+export interface NavigationStatusResponse {
+  employee_id: string;
+  route_id?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  status: "navigating" | "idle";
+  timestamp: string;
 }
 
 export interface RawActiveVisitRouteCheckpoint {

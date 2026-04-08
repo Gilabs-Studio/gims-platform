@@ -116,6 +116,14 @@
   },
   "navigation": {
     "dashboard": "Dasbor",
+    "pos": "POS",
+    "fbMode": "F&B",
+    "goodsDistributorMode": "Barang / Distributor",
+    "floorLayoutDesigner": "Desainer Tata Letak Lantai",
+    "quickSale": "Penjualan Cepat",
+    "salesBasket": "Keranjang Penjualan",
+    "deliveryPickup": "Pengiriman / Pengambilan",
+    "returnsExchange": "Retur / Tukar",
     "masterData": "Data Master",
     "geographic": "Geografis",
     "organization": "Organisasi",
@@ -144,6 +152,7 @@
     "unitOfMeasure": "Satuan Ukur",
     "procurementTypes": "Jenis Pengadaan",
     "warehouses": "Gudang",
+    "outlets": "Outlet",
     "paymentCourier": "Pembayaran & Kurir",
     "currencies": "Mata Uang",
     "paymentTerms": "Ketentuan Pembayaran",
@@ -246,7 +255,9 @@
     "plannerWorkspace": "Workspace Planner",
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
-    "settings": "Pengaturan"
+    "settings": "Pengaturan",
+    "pos": "POS",
+    "floorLayoutDesigner": "Desain Tata Letak Lantai"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

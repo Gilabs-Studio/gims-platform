@@ -34,6 +34,8 @@ import {
   useWarehouses,
   useDeleteWarehouse,
 } from "../../hooks/use-warehouses";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import L from "leaflet";
 import type { Warehouse as WarehouseType } from "../../types";
 import { WarehouseCard } from "./warehouse-card";
 import { WarehouseSidePanel } from "./warehouse-side-panel";
@@ -81,10 +83,15 @@ export function WarehouseMapView() {
   const canDelete = useUserPermission("warehouse.delete");
 
   // Data fetching
+  const [outletFilter, setOutletFilter] = useState<string>("all");
+
+  const { data: outletsResp } = useOutlets({ per_page: 100, is_active: true });
+
   const { data, isLoading, refetch } = useWarehouses({
     per_page: 20,
     search: debouncedSearch || undefined,
     is_active: activeFilter === "all" ? undefined : activeFilter === "active",
+    outlet_id: outletFilter !== "all" ? outletFilter : undefined,
   });
 
   const deleteWarehouse = useDeleteWarehouse();
@@ -146,19 +153,38 @@ export function WarehouseMapView() {
   };
 
   // Render markers on map
+  // Create a small colored div icon for outlet-linked warehouses
+  function createColoredIcon(color: string): L.DivIcon {
+    return L.divIcon({
+      className: "custom-map-marker",
+      html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+      popupAnchor: [0, -10],
+    });
+  }
+
+  const outletIcon = createColoredIcon("#f59e0b");
+
   const renderMarkers = (markerList: MapMarker<WarehouseType>[]) => (
     <>
       <MarkerClusterGroup chunkedLoading>
         {markerList.map((marker) => {
           const warehouse = marker.data;
+          const markerProps: any = {
+            position: [marker.latitude, marker.longitude],
+            eventHandlers: {
+              click: () => setSelectedWarehouseId(String(marker.id)),
+            },
+          };
+
+          if (warehouse.outlet_id) {
+            markerProps.icon = outletIcon;
+          }
+
           return (
-            <Marker
-              key={marker.id}
-              position={[marker.latitude, marker.longitude]}
-              eventHandlers={{
-                click: () => setSelectedWarehouseId(String(marker.id)),
-              }}
-            >
+            // pass `key` directly to JSX (do not spread it inside props)
+            <Marker key={marker.id} {...markerProps}>
               <Popup>
                 <div className="p-2 min-w-[220px]">
                   <div className="flex items-center gap-2 mb-1">
@@ -270,6 +296,22 @@ export function WarehouseMapView() {
                   <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select
+                value={outletFilter}
+                onValueChange={(val) => setOutletFilter(val)}
+              >
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Outlets</SelectItem>
+                  {outletsResp?.data?.map((o: any) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {canCreate && (
                 <Button
                   onClick={handleCreate}

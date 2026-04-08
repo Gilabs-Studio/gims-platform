@@ -33,7 +33,12 @@ type CreateProductRequest struct {
 	Weight            float64 `json:"weight"`
 	Volume            float64 `json:"volume"`
 	Notes             string  `json:"notes"`
-	IsActive          *bool   `json:"is_active"`
+	ProductKind        string  `json:"product_kind" binding:"omitempty,oneof=STOCK RECIPE SERVICE"`
+	IsIngredient       bool    `json:"is_ingredient"`
+	IsInventoryTracked *bool   `json:"is_inventory_tracked"`
+	IsPosAvailable     bool    `json:"is_pos_available"`
+	RecipeItems        []RecipeItemRequest `json:"recipe_items,omitempty"`
+	IsActive           *bool   `json:"is_active"`
 }
 
 type UpdateProductRequest struct {
@@ -65,7 +70,12 @@ type UpdateProductRequest struct {
 	Weight            *float64 `json:"weight"`
 	Volume            *float64 `json:"volume"`
 	Notes             string  `json:"notes"`
-	IsActive          *bool   `json:"is_active"`
+	ProductKind        string  `json:"product_kind" binding:"omitempty,oneof=STOCK RECIPE SERVICE"`
+	IsIngredient       *bool   `json:"is_ingredient"`
+	IsInventoryTracked *bool   `json:"is_inventory_tracked"`
+	IsPosAvailable     *bool   `json:"is_pos_available"`
+	RecipeItems        []RecipeItemRequest `json:"recipe_items,omitempty"`
+	IsActive           *bool   `json:"is_active"`
 }
 
 type ApproveProductRequest struct {
@@ -168,7 +178,44 @@ type ProductResponse struct {
 	CreatedBy         *string               `json:"created_by"`
 	ApprovedBy        *string               `json:"approved_by"`
 	ApprovedAt        *time.Time            `json:"approved_at"`
-	IsActive          bool                  `json:"is_active"`
-	CreatedAt         time.Time             `json:"created_at"`
-	UpdatedAt         time.Time             `json:"updated_at"`
+	ProductKind        string                `json:"product_kind"`
+	IsIngredient       bool                  `json:"is_ingredient"`
+	IsInventoryTracked bool                  `json:"is_inventory_tracked"`
+	IsPosAvailable     bool                  `json:"is_pos_available"`
+	RecipeItems        []RecipeItemResponse  `json:"recipe_items,omitempty"`
+	RecipeCost         *float64              `json:"recipe_cost,omitempty"`
+	ProducibleQuantity float64               `json:"producible_quantity"` // For RECIPE products: max qty that can be produced based on ingredient stock
+	IsActive           bool                  `json:"is_active"`
+	CreatedAt          time.Time             `json:"created_at"`
+	UpdatedAt          time.Time             `json:"updated_at"`
+}
+
+// === Recipe Item DTOs ===
+
+type RecipeItemRequest struct {
+	IngredientProductID string   `json:"ingredient_product_id" binding:"required"`
+	Quantity            float64  `json:"quantity" binding:"required,gt=0"`
+	UomID               *string  `json:"uom_id"`
+	Notes               string   `json:"notes"`
+	SortOrder           int      `json:"sort_order"`
+}
+
+type RecipeItemResponse struct {
+	ID                  string             `json:"id"`
+	IngredientProductID string             `json:"ingredient_product_id"`
+	Ingredient          *RecipeIngredientBasic `json:"ingredient,omitempty"`
+	Quantity            float64            `json:"quantity"`
+	UomID               *string            `json:"uom_id"`
+	Uom                 *UnitOfMeasureBasic `json:"uom,omitempty"`
+	CostContribution    float64            `json:"cost_contribution"`
+	Notes               string             `json:"notes"`
+	SortOrder           int                `json:"sort_order"`
+}
+
+type RecipeIngredientBasic struct {
+	ID           string  `json:"id"`
+	Code         string  `json:"code"`
+	Name         string  `json:"name"`
+	CostPrice    float64 `json:"cost_price"`
+	CurrentStock float64 `json:"current_stock"` // Stock available for this ingredient
 }

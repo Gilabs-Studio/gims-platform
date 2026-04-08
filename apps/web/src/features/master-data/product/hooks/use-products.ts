@@ -7,6 +7,7 @@ import type {
   UpdateProductData,
   ApproveProductData,
   ProductListParams,
+  RecipeItemRequest,
 } from "../types";
 
 export const productKeys = {
@@ -15,6 +16,7 @@ export const productKeys = {
   list: (params?: ProductListParams) => [...productKeys.lists(), params] as const,
   details: () => [...productKeys.all, "detail"] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
+  recipe: (id: string) => [...productKeys.detail(id), "recipe"] as const,
 };
 
 export function useProducts(params?: ProductListParams, options?: { enabled?: boolean }) {
@@ -84,6 +86,26 @@ export function useApproveProduct() {
       productService.approve(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useProductRecipe(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: productKeys.recipe(id),
+    queryFn: () => productService.getRecipe(id),
+    enabled: (options?.enabled ?? true) && !!id,
+  });
+}
+
+export function useUpdateProductRecipe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, items }: { id: string; items: RecipeItemRequest[] }) =>
+      productService.updateRecipe(id, items),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.recipe(variables.id) });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
     },
   });

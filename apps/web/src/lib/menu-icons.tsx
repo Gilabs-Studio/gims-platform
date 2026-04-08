@@ -20,6 +20,7 @@ import {
   Building2,
   Ruler,
   Store,
+  Utensils,
   Grid,
   Briefcase,
   Heart,
@@ -205,6 +206,7 @@ const iconMap: Record<string, React.ReactNode> = {
   "map-pin": <MapPin className="h-4 w-4" />,
   ruler: <Ruler className="h-4 w-4" />,
   store: <Store className="h-4 w-4" />,
+  utensils: <Utensils className="h-4 w-4" />,
   flag: <Flag className="h-4 w-4" />,
 
   // AI & Bot icons

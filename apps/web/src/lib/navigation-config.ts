@@ -16,6 +16,65 @@ export const navigationConfig: NavItem[] = [
     url: "/dashboard",
     permission: "dashboard.view",
   },
+  {
+    name: "POS",
+    i18nKey: "pos",
+    icon: "store",
+    url: "/pos",
+    children: [
+      {
+        name: "F&B",
+        i18nKey: "fbMode",
+        icon: "utensils",
+        url: "/pos/fb",
+        children: [
+          {
+            name: "Floor & Layout Designer",
+            i18nKey: "floorLayoutDesigner",
+            url: "/pos/fb/floor-layout",
+            icon: "layout-list",
+            permission: "pos.layout.manage",
+          },
+        ],
+      },
+      {
+        name: "Goods",
+        i18nKey: "goodsDistributorMode",
+        icon: "boxes",
+        url: "/pos/goods",
+        children: [
+          {
+            name: "Quick Sale",
+            i18nKey: "quickSale",
+            url: "/pos/goods/quick-sale",
+            icon: "scan-line",
+            permission: "pos.goods.quick_sale.view",
+          },
+          {
+            name: "Sales Basket",
+            i18nKey: "salesBasket",
+            url: "/pos/goods/basket",
+            icon: "shopping-basket",
+            permission: "pos.goods.basket.view",
+          },
+          {
+            name: "Delivery / Pickup",
+            i18nKey: "deliveryPickup",
+            url: "/pos/goods/delivery-pickup",
+            icon: "truck",
+            permission: "pos.goods.delivery.view",
+          },
+          {
+            name: "Returns / Exchange",
+            i18nKey: "returnsExchange",
+            url: "/pos/goods/returns-exchange",
+            icon: "rotate-ccw",
+            permission: "pos.goods.return.view",
+          },
+        ],
+      },
+    ],
+  },
   // CRM before Sales (lead -> opportunity -> order flow)
   {
     name: "CRM",
@@ -628,11 +687,39 @@ export const navigationConfig: NavItem[] = [
         icon: "building",
         children: [
           {
+            name: "Users",
+            i18nKey: "users",
+            url: "/master-data/users",
+            icon: "users",
+            permission: "user.read",
+          },
+          {
+            name: "Employees",
+            i18nKey: "employees",
+            url: "/master-data/employees",
+            icon: "users",
+            permission: "employee.read",
+          },
+          {
             name: "Company",
             i18nKey: "company",
             url: "/master-data/company",
             icon: "building",
             permission: "company.read",
+          },
+          {
+            name: "Outlets",
+            i18nKey: "outlets",
+            url: "/master-data/outlet",
+            icon: "store",
+            permission: "outlet.read",
+          },
+          {
+            name: "Warehouses",
+            i18nKey: "warehouses",
+            url: "/master-data/warehouses",
+            icon: "warehouse",
+            permission: "warehouse.read",
           },
           {
             name: "Divisions",
@@ -671,20 +758,7 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
-      {
-        name: "Employees",
-        i18nKey: "employees",
-        url: "/master-data/employees",
-        icon: "users",
-        permission: "employee.read",
-      },
-      {
-        name: "Banks",
-        i18nKey: "banks",
-        url: "/master-data/banks",
-        icon: "landmark",
-        permission: "bank.read",
-      },
+      
       {
         name: "Supplier",
         i18nKey: "supplier",
@@ -793,13 +867,7 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
-      {
-        name: "Warehouses",
-        i18nKey: "warehouses",
-        url: "/master-data/warehouses",
-        icon: "warehouse",
-        permission: "warehouse.read",
-      },
+      
       {
         name: "Payment & Courier",
         i18nKey: "paymentCourier",
@@ -812,6 +880,13 @@ export const navigationConfig: NavItem[] = [
             url: "/master-data/currencies",
             icon: "coins",
             permission: "currency.read",
+          },
+          {
+            name: "Banks",
+            i18nKey: "banks",
+            url: "/master-data/banks",
+            icon: "landmark",
+            permission: "bank.read",
           },
           {
             name: "Payment Terms",
@@ -843,13 +918,7 @@ export const navigationConfig: NavItem[] = [
         icon: "calendar",
         permission: "leave_type.read",
       },
-      {
-        name: "Users",
-        i18nKey: "users",
-        url: "/master-data/users",
-        icon: "users",
-        permission: "user.read",
-      },
+      
     ],
   },
   {
