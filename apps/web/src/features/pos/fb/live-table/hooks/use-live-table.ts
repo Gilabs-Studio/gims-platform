@@ -10,10 +10,14 @@ const WARN_THRESHOLD_SEC = 30 * 60; // 30 minutes
 
 function deriveStatus(order: { status: string } | null, durationSec: number): LiveTableStatus {
   if (!order) return "AVAILABLE";
-  if (order.status === "SERVED" || order.status === "COMPLETED") return "SERVED";
-  if (order.status === "READY") return "FOOD_READY";
-  if (durationSec > WARN_THRESHOLD_SEC) return "WARN_LONG";
-  return "SEATED";
+  // PAID → table is now occupied (customer paid, waiting for food)
+  if (order.status === "PAID") {
+    return durationSec > WARN_THRESHOLD_SEC ? "WARN_LONG" : "SEATED";
+  }
+  // SERVED → food delivered, customer still at table
+  if (order.status === "SERVED") return "SERVED";
+  // Any other status (DRAFT, IN_PROGRESS, READY, etc.) → still free for walk-ins
+  return "AVAILABLE";
 }
 
 interface UseLiveTableOptions {
@@ -92,7 +96,10 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     const map = new Map<string, (typeof orders)[number]>();
     for (const order of orders) {
       if (!order.table_label) continue;
-      if (["VOIDED", "PAID", "COMPLETED"].includes(order.status)) continue;
+      // Only show a table as occupied when payment has been confirmed (PAID) or
+      // food has been served (SERVED). DRAFT / IN_PROGRESS orders don't occupy
+      // the table on the live view — they are invisible until the cashier pays.
+      if (!["PAID", "SERVED"].includes(order.status)) continue;
       const existing = map.get(order.table_label);
       if (!existing || order.created_at > existing.created_at) {
         map.set(order.table_label, order);

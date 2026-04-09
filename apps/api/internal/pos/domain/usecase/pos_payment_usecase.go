@@ -73,6 +73,12 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}
 
+	// Update customer name on the order if provided (used on receipt/invoice)
+	if req.CustomerName != nil && *req.CustomerName != "" {
+		order.CustomerName = req.CustomerName
+		_ = u.orderRepo.Update(ctx, order)
+	}
+
 	now := apptime.Now()
 	change := req.Amount - order.TotalAmount
 	payment := &models.POSPayment{

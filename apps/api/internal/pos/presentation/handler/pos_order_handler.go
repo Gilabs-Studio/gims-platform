@@ -223,3 +223,23 @@ func handlePOSOrderError(c *gin.Context, err error) {
 		coreErrors.InternalServerErrorResponse(c, "")
 	}
 }
+
+// Serve marks an order as SERVED — food has been delivered to the table.
+func (h *POSOrderHandler) Serve(c *gin.Context) {
+order, err := h.uc.MarkServed(c.Request.Context(), c.Param("id"))
+if err != nil {
+handlePOSOrderError(c, err)
+return
+}
+response.SuccessResponse(c, order, nil)
+}
+
+// Complete marks a paid order as COMPLETED — customer has left the table.
+func (h *POSOrderHandler) Complete(c *gin.Context) {
+order, err := h.uc.MarkCompleted(c.Request.Context(), c.Param("id"))
+if err != nil {
+handlePOSOrderError(c, err)
+return
+}
+response.SuccessResponse(c, order, nil)
+}

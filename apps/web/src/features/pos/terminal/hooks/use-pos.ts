@@ -211,3 +211,25 @@ export function usePOSConfig(outletId: string, options?: { enabled?: boolean }) 
     staleTime: 5 * 60_000, // config rarely changes
   });
 }
+
+// ─── Serve & Complete order ───────────────────────────────────────────────────
+
+export function useServeOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => posOrderService.serve(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+  });
+}
+
+export function useCompleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => posOrderService.complete(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+  });
+}

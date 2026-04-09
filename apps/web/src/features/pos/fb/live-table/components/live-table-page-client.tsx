@@ -9,11 +9,13 @@ import {
   CircleDot,
   Clock,
   LayoutGrid,
+  LogOut,
   MapPin,
-  UtensilsCrossed,
   Users,
   RefreshCw,
+  Utensils,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { useLiveTableData } from "../hooks/use-live-table";
+import { useServeOrder, useCompleteOrder } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
 import type { LayoutObject } from "@/features/pos/fb/floor-layout/types";
@@ -56,13 +59,6 @@ const STATUS_CONFIG: Record<
     card: "border-blue-200/60 bg-blue-50/40 dark:border-blue-800/40 dark:bg-blue-950/20",
     text: "text-blue-700 dark:text-blue-400",
     icon: Users,
-  },
-  FOOD_READY: {
-    label: "Food Ready",
-    dot: "bg-amber-500",
-    card: "border-amber-200/60 bg-amber-50/40 dark:border-amber-800/40 dark:bg-amber-950/20",
-    text: "text-amber-700 dark:text-amber-400",
-    icon: UtensilsCrossed,
   },
   WARN_LONG: {
     label: "Long Wait",
@@ -319,7 +315,6 @@ const STATUS_SVG: Record<
 > = {
   AVAILABLE: { fill: "#f0fdf4", stroke: "#86efac", text: "#166534" },
   SEATED:    { fill: "#eff6ff", stroke: "#93c5fd", text: "#1d4ed8" },
-  FOOD_READY:{ fill: "#fffbeb", stroke: "#fcd34d", text: "#92400e" },
   WARN_LONG: { fill: "#fff1f2", stroke: "#fca5a5", text: "#9f1239" },
   SERVED:    { fill: "#f5f3ff", stroke: "#c4b5fd", text: "#5b21b6" },
 };
@@ -358,7 +353,7 @@ function LiveFloorView({
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
       e.preventDefault();
-      setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.001)));
+      setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.0004)));
     },
     [],
   );
@@ -368,7 +363,7 @@ function LiveFloorView({
       {/* Zoom controls */}
       <div className="absolute right-5 top-5 z-10 flex flex-col gap-1">
         <button
-          onClick={() => setScale((s) => Math.min(3, +(s + 0.15).toFixed(2)))}
+          onClick={() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(2)))}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
           title="Zoom in"
         >
@@ -382,7 +377,7 @@ function LiveFloorView({
           {Math.round(scale * 100)}%
         </button>
         <button
-          onClick={() => setScale((s) => Math.max(0.3, +(s - 0.15).toFixed(2)))}
+          onClick={() => setScale((s) => Math.max(0.3, +(s - 0.1).toFixed(2)))}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
           title="Zoom out"
         >
@@ -567,6 +562,146 @@ function LiveFloorView({
   );
 }
 
+// ─── Table Sidebar ────────────────────────────────────────────────────────────
+
+interface TableSidebarProps {
+  infos: LiveTableInfo[];
+  onServe: (orderId: string) => void;
+  onComplete: (orderId: string) => void;
+  servingId?: string | null;
+  completingId?: string | null;
+}
+
+function TableSidebar({
+  infos,
+  onServe,
+  onComplete,
+  servingId,
+  completingId,
+}: TableSidebarProps) {
+  const occupied = infos.filter((i) => i.status !== "AVAILABLE");
+
+  return (
+    <div className="w-64 shrink-0 border-l bg-muted/10 flex flex-col h-full">
+      {/* Sidebar header */}
+      <div className="px-3 py-2.5 border-b shrink-0">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Active Tables
+        </p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          {occupied.length} table{occupied.length !== 1 ? "s" : ""} occupied
+        </p>
+      </div>
+
+      {/* Table list */}
+      <ScrollArea className="flex-1">
+        {occupied.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <p className="text-xs">All tables available</p>
+          </div>
+        ) : (
+          <div className="p-2 space-y-2">
+            {occupied.map((info) => {
+              const cfg = STATUS_CONFIG[info.status];
+              const Icon = cfg.icon;
+              const tableLabel =
+                info.tableObj.label ??
+                `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+              const orderId = info.order?.id;
+
+              const canServe =
+                info.status === "SEATED" ||
+                info.status === "WARN_LONG";
+              const canComplete = info.status === "SERVED";
+
+              return (
+                <div
+                  key={info.tableObj.id}
+                  className={cn(
+                    "rounded-xl border p-2.5 space-y-2 transition-colors",
+                    cfg.card,
+                  )}
+                >
+                  {/* Table name + status */}
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon className={cn("h-3.5 w-3.5 shrink-0", cfg.text)} />
+                      <span className="font-medium text-sm truncate">
+                        {tableLabel}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0",
+                        cfg.text,
+                        "bg-white/60 dark:bg-black/20",
+                      )}
+                    >
+                      {cfg.label}
+                    </span>
+                  </div>
+
+                  {/* Timer */}
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    <span>{formatDuration(info.durationSec)}</span>
+                    {info.order?.order_number && (
+                      <>
+                        <span className="mx-0.5">·</span>
+                        <span className="truncate font-mono text-[10px]">
+                          {info.order.order_number}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Customer name if any */}
+                  {info.order?.customer_name && (
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {info.order.customer_name}
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
+                  {orderId && (
+                    <div className="space-y-1.5 pt-0.5">
+                      {canServe && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full h-7 text-[11px] cursor-pointer gap-1.5"
+                          disabled={servingId === orderId}
+                          onClick={() => onServe(orderId)}
+                        >
+                          <Utensils className="h-3 w-3" />
+                          {servingId === orderId ? "Menyajikan…" : "Sudah Disajikan"}
+                        </Button>
+                      )}
+                      {canComplete && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="w-full h-7 text-[11px] cursor-pointer gap-1.5 bg-orange-500 hover:bg-orange-600"
+                          disabled={completingId === orderId}
+                          onClick={() => onComplete(orderId)}
+                        >
+                          <LogOut className="h-3 w-3" />
+                          {completingId === orderId ? "Memproses…" : "Customer Sudah Keluar"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function LiveTablePageClient() {
@@ -615,6 +750,41 @@ export function LiveTablePageClient() {
     outletName,
     now,
   });
+
+  const serveOrder = useServeOrder();
+  const completeOrder = useCompleteOrder();
+  const [servingId, setServingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
+
+  const handleServe = useCallback(
+    async (orderId: string) => {
+      setServingId(orderId);
+      try {
+        await serveOrder.mutateAsync(orderId);
+        toast.success("Pesanan sudah disajikan");
+      } catch {
+        toast.error("Gagal memperbarui status");
+      } finally {
+        setServingId(null);
+      }
+    },
+    [serveOrder],
+  );
+
+  const handleComplete = useCallback(
+    async (orderId: string) => {
+      setCompletingId(orderId);
+      try {
+        await completeOrder.mutateAsync(orderId);
+        toast.success("Meja sudah selesai, customer keluar");
+      } catch {
+        toast.error("Gagal memperbarui status");
+      } finally {
+        setCompletingId(null);
+      }
+    },
+    [completeOrder],
+  );
 
   const handleTableClick = useCallback(
     (info: LiveTableInfo) => {
@@ -721,24 +891,36 @@ export function LiveTablePageClient() {
         ))}
       </div>
 
-      {/* ── Table grid / floor layout ── */}
-      <ScrollArea className="flex-1">
-        {liveTableInfos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
-            <p className="text-sm">No tables in this floor plan.</p>
-          </div>
-        ) : viewMode === "grid" ? (
-          <TableGrid infos={liveTableInfos} onTableClick={handleTableClick} />
-        ) : (
-          <LiveFloorView
-            planWidth={plan.width ?? 1200}
-            planHeight={plan.height ?? 800}
-            layoutObjects={layoutObjects}
-            infos={liveTableInfos}
-            onTableClick={handleTableClick}
-          />
-        )}
-      </ScrollArea>
+      {/* ── Main content: table view + sidebar ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Table grid / floor layout */}
+        <ScrollArea className="flex-1">
+          {liveTableInfos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
+              <p className="text-sm">No tables in this floor plan.</p>
+            </div>
+          ) : viewMode === "grid" ? (
+            <TableGrid infos={liveTableInfos} onTableClick={handleTableClick} />
+          ) : (
+            <LiveFloorView
+              planWidth={plan.width ?? 1200}
+              planHeight={plan.height ?? 800}
+              layoutObjects={layoutObjects}
+              infos={liveTableInfos}
+              onTableClick={handleTableClick}
+            />
+          )}
+        </ScrollArea>
+
+        {/* Right sidebar: active table management */}
+        <TableSidebar
+          infos={liveTableInfos}
+          onServe={handleServe}
+          onComplete={handleComplete}
+          servingId={servingId}
+          completingId={completingId}
+        />
+      </div>
 
       <OrderDetailDialog
         info={selectedInfo}

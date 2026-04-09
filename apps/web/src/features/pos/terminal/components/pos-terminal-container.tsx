@@ -24,6 +24,7 @@ import { usePOSUIStore } from "../../stores/use-pos-ui-store";
 import { POSCatalogGrid } from "./pos-catalog-grid";
 import { POSCartPanel } from "./pos-cart-panel";
 import { POSPaymentModal } from "./pos-payment-modal";
+import { POSReceiptDialog } from "./pos-receipt-dialog";
 import { VoidOrderDialog } from "./void-order-dialog";
 import type { CartItem, POSCatalogItem, PosOrderStatus } from "../types";
 
@@ -51,6 +52,9 @@ export function POSTerminalContainer({
   }, [setFullScreen]);
 
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState<typeof activeOrder | null>(null);
+  const [receiptCustomerName, setReceiptCustomerName] = useState<string | undefined>();
+  const [receiptTender, setReceiptTender] = useState<number | undefined>();
   const [voidOpen, setVoidOpen] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -92,16 +96,23 @@ export function POSTerminalContainer({
   }, [activeOrder]);
 
   // Reset cart if order becomes terminal
-  const handleOrderCompleted = useCallback(() => {
-    setCart([]);
-    setActiveOrderId(null);
-    setPaymentOpen(false);
-    setVoidOpen(false);
-    // Navigate back to the live table if this session came from one.
-    if (returnUrl) {
-      router.push(returnUrl);
-    }
-  }, [returnUrl, router]);
+  const handleOrderCompleted = useCallback(
+    (customerName?: string, tenderAmount?: number) => {
+      // Snapshot the order for the receipt before resetting state.
+      if (activeOrder) {
+        setReceiptOrder(activeOrder);
+        setReceiptCustomerName(customerName);
+        setReceiptTender(tenderAmount);
+      }
+      setCart([]);
+      setActiveOrderId(null);
+      setPaymentOpen(false);
+      setVoidOpen(false);
+      // Navigation happens only when the receipt is closed (see handleReceiptClose below),
+      // so the receipt dialog remains visible over the live-table background.
+    },
+    [activeOrder],
+  );
 
   // If payment fails, auto-void the created order so no orphan draft remains.
   const handlePaymentError = useCallback(async () => {
@@ -160,6 +171,14 @@ export function POSTerminalContainer({
       orderCreationInFlight.current = false;
     }
   }
+
+  // Compute a map of product_id → total cart qty so the catalog can show live stock
+  const cartQuantities = useMemo<Record<string, number>>(() => {
+    return cart.reduce<Record<string, number>>((acc, item) => {
+      acc[item.product_id] = item.quantity;
+      return acc;
+    }, {});
+  }, [cart]);
 
   function handleAddItem(item: POSCatalogItem) {
     // Update local cart state only. If an order already exists (from a prior checkout
@@ -296,7 +315,7 @@ export function POSTerminalContainer({
       <div className="flex flex-1 overflow-hidden relative">
         {/* Catalog — full width on mobile, 2/3 on desktop */}
         <div className="flex-1 overflow-hidden">
-          <POSCatalogGrid outletId={outletId} onAddItem={handleAddItem} />
+          <POSCatalogGrid outletId={outletId} onAddItem={handleAddItem} cartQuantities={cartQuantities} />
         </div>
 
         {/* Cart — hidden on mobile, visible on md+ */}
@@ -363,7 +382,7 @@ export function POSTerminalContainer({
             onOpenChange={setPaymentOpen}
             order={activeOrder}
             config={config}
-            onSuccess={handleOrderCompleted}
+            onSuccess={(cName) => handleOrderCompleted(cName)}
             onPaymentError={handlePaymentError}
           />
 
@@ -372,9 +391,26 @@ export function POSTerminalContainer({
             onOpenChange={setVoidOpen}
             orderId={activeOrder.id}
             orderNumber={activeOrder.order_number}
-            onSuccess={handleOrderCompleted}
+            onSuccess={() => handleOrderCompleted()}
           />
         </>
+      )}
+
+      {/* Receipt dialog — shown after successful payment; navigates to returnUrl when closed */}
+      {receiptOrder && (
+        <POSReceiptDialog
+          open={!!receiptOrder}
+          onClose={() => {
+            setReceiptOrder(null);
+            // Navigate back to live table only after the receipt is dismissed
+            if (returnUrl) {
+              router.push(returnUrl);
+            }
+          }}
+          order={receiptOrder}
+          customerName={receiptCustomerName}
+          tenderAmount={receiptTender}
+        />
       )}
     </div>
   );

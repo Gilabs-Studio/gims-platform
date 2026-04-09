@@ -182,6 +182,7 @@ export interface ProcessPaymentRequest {
   method: POSPaymentMethod;
   amount: number;
   notes?: string;
+  customer_name?: string;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────

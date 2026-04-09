@@ -74,6 +74,18 @@ export const posOrderService = {
       .then((r) => r.data);
   },
 
+  serve(orderId: string) {
+    return apiClient
+      .post<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/serve`)
+      .then((r) => r.data);
+  },
+
+  complete(orderId: string) {
+    return apiClient
+      .post<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/complete`)
+      .then((r) => r.data);
+  },
+
   getCatalog(outletId: string) {
     return apiClient
       .get<ApiResponse<POSCatalogItem[]>>(`${BASE}/catalog/outlet/${outletId}`)

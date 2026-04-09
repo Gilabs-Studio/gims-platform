@@ -21,6 +21,8 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler) {
 	orders.POST("/:id/confirm", h.Confirm)
 	orders.POST("/:id/void", h.Void)
 	orders.POST("/:id/assign-table", h.AssignTable)
+	orders.POST("/:id/serve", h.Serve)
+	orders.POST("/:id/complete", h.Complete)
 
 	// Order item management
 	orders.POST("/:id/items", h.AddItem)

@@ -19,7 +19,7 @@ interface POSPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   order: POSOrder;
   config?: POSConfig;
-  onSuccess: () => void;
+  onSuccess: (customerName?: string) => void;
   onPaymentError?: () => void;
 }
 
@@ -36,6 +36,7 @@ export function POSPaymentModal({
 }: POSPaymentModalProps) {
   const [tab, setTab] = useState<"CASH" | "MIDTRANS">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
+  const [customerName, setCustomerName] = useState("");
   const [midtransPayment, setMidtransPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
 
@@ -63,7 +64,7 @@ export function POSPaymentModal({
     const latestPayment = payments[0];
       if (latestPayment?.status === "PAID") {
       setPollingEnabled(false);
-      onSuccess();
+      onSuccess(customerName.trim() || undefined);
     }
   }, [paymentsData, onSuccess]);
 
@@ -81,9 +82,13 @@ export function POSPaymentModal({
     try {
       await processCash.mutateAsync({
         orderId: order.id,
-        data: { method: "CASH", amount: tenderAmount },
+        data: {
+          method: "CASH",
+          amount: tenderAmount,
+          customer_name: customerName.trim() || undefined,
+        },
       });
-      onSuccess();
+      onSuccess(customerName.trim() || undefined);
     } catch {
       toast.error("Payment failed. Please try again.");
       onPaymentError?.();
@@ -117,6 +122,20 @@ export function POSPaymentModal({
         <div className="bg-muted rounded-lg px-4 py-3 flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Order #{order.order_number}</span>
           <span className="text-lg font-bold">{formatCurrency(totalAmount)}</span>
+        </div>
+
+        {/* Optional customer name — used on receipt */}
+        <div className="space-y-1">
+          <Label htmlFor="customerName" className="text-xs text-muted-foreground">
+            Customer name <span className="text-muted-foreground/60">(optional)</span>
+          </Label>
+          <Input
+            id="customerName"
+            placeholder="e.g. Budi"
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            className="h-8 text-sm"
+          />
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>

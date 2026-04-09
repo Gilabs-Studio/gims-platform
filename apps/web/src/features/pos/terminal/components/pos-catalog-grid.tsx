@@ -15,9 +15,11 @@ interface POSCatalogGridProps {
   outletId: string;
   onAddItem: (item: POSCatalogItem) => void;
   disabled?: boolean;
+  /** Map of product_id → quantity already in the cart (for live stock deduction) */
+  cartQuantities?: Record<string, number>;
 }
 
-export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCatalogGridProps) {
+export function POSCatalogGrid({ outletId, onAddItem, disabled = false, cartQuantities }: POSCatalogGridProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
@@ -100,6 +102,7 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCat
                 item={item}
                 onAdd={onAddItem}
                 disabled={disabled}
+                cartQuantity={cartQuantities?.[item.product_id] ?? 0}
               />
             ))}
           </div>
@@ -113,10 +116,13 @@ interface ProductCardProps {
   item: POSCatalogItem;
   onAdd: (item: POSCatalogItem) => void;
   disabled?: boolean;
+  cartQuantity?: number;
 }
 
-function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
-  const isLowStock = item.product_kind === "STOCK" && item.stock < 5;
+function ProductCard({ item, onAdd, disabled = false, cartQuantity = 0 }: ProductCardProps) {
+  const displayStock = Math.max(0, item.stock - cartQuantity);
+  const isLowStock = item.product_kind === "STOCK" && displayStock < 5 && displayStock > 0;
+  const isOutOfStock = !item.is_available || (item.product_kind === "STOCK" && displayStock === 0);
   const [imageBroken, setImageBroken] = useState(false);
   const resolvedImageUrl = resolveImageUrl(item.image_url ?? undefined);
   const showImage = !!resolvedImageUrl && !imageBroken;
@@ -125,7 +131,7 @@ function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
   return (
     <button
       type="button"
-      disabled={disabled || !item.is_available}
+      disabled={disabled || isOutOfStock}
       onClick={() => onAdd(item)}
       className={cn(
         "group flex flex-col rounded-2xl border bg-card text-left",
@@ -133,7 +139,7 @@ function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
         "focus-visible:ring-2 focus-visible:ring-ring",
         "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.98]",
         "cursor-pointer overflow-hidden",
-        (disabled || !item.is_available) && "opacity-50 cursor-not-allowed",
+        (disabled || isOutOfStock) && "opacity-50 cursor-not-allowed",
       )}
     >
       {/* Product image / fallback */}
@@ -160,12 +166,12 @@ function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
           <span className="text-sm font-bold text-primary tabular-nums">
             {formatCurrency(item.price)}
           </span>
-          {item.product_kind === "STOCK" && (
+                      {item.product_kind === "STOCK" && (
             <Badge
-              variant={!item.is_available ? "destructive" : isLowStock ? "warning" : "secondary"}
+              variant={isOutOfStock ? "destructive" : isLowStock ? "warning" : "secondary"}
               className="text-[9px] font-semibold px-1.5 py-0"
             >
-              {item.stock}
+              {displayStock}
             </Badge>
           )}
         </div>

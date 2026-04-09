@@ -3,11 +3,10 @@ import type { POSOrder } from "@/features/pos/terminal/types";
 
 // Operational status of a single table in the live session
 export type LiveTableStatus =
-  | "AVAILABLE"    // No active order
-  | "SEATED"       // Order placed, kitchen preparing
-  | "FOOD_READY"   // All items ready to serve
-  | "WARN_LONG"    // Occupied > 30 min, may need attention
-  | "SERVED";      // Order SERVED status
+  | "AVAILABLE"  // No paid/active order — table is free to seat
+  | "SEATED"     // Order paid; customer waiting for food (labelled "Occupied" in UI)
+  | "WARN_LONG"  // Occupied > 30 min, may need attention
+  | "SERVED";    // Food delivered; customer still at table
 
 export interface LiveTableInfo {
   tableObj: LayoutObject;

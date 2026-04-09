@@ -8,6 +8,8 @@ type ProcessPaymentRequest struct {
 	Amount          float64 `json:"amount" binding:"required,gt=0"`
 	ReferenceNumber *string `json:"reference_number"`
 	Notes           *string `json:"notes"`
+	// CustomerName optionally captures the customer name on receipt (F&B use-case)
+	CustomerName *string `json:"customer_name"`
 }
 
 // POSPaymentResponse returned to client for payment operations
