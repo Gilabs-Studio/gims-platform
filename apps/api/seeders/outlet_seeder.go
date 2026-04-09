@@ -73,7 +73,8 @@ func SeedOutlets() error {
 			Email:       "sudirman@kimiafarma.co.id",
 			Address:     "Jl. Jend. Sudirman Kav. 44-46, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &outletManager1ID,
+			// Scenario seed: Outlet Manager 2 handles multiple outlets.
+			ManagerID:   &outletManager2ID,
 			Latitude:    &lat3,
 			Longitude:   &lng3,
 			IsActive:    true,
@@ -122,6 +123,18 @@ func SeedOutlets() error {
 			DoUpdates: clause.AssignmentColumns([]string{"name", "description", "address", "latitude", "longitude", "is_pos_outlet", "outlet_id", "is_active", "updated_at"}),
 		}).Create(&wh).Error; err != nil {
 			log.Printf("Warning: Failed to create warehouse for outlet %s: %v", outlets[i].Code, err)
+		}
+
+		// Keep outlets.warehouse_id synchronized so POS terminal can resolve eligible outlets.
+		var linkedWH warehouseModels.Warehouse
+		if err := db.Select("id").Where("code = ?", whCode).First(&linkedWH).Error; err != nil {
+			log.Printf("Warning: Failed to lookup warehouse by code %s: %v", whCode, err)
+		} else {
+			if err := db.Model(&models.Outlet{}).
+				Where("id = ?", outlets[i].ID).
+				Update("warehouse_id", linkedWH.ID).Error; err != nil {
+				log.Printf("Warning: Failed to update outlet warehouse_id for %s: %v", outlets[i].Code, err)
+			}
 		}
 	}
 

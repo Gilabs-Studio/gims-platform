@@ -78,6 +78,8 @@ const EXTRA_VALID_ROUTES = [
   "/pos",
   "/pos/fb",
   "/pos/fb/floor-layout",
+  "/pos/fb/terminal",
+  "/pos/fb/live-table",
   "/pos/goods",
   "/pos/goods/quick-sale",
   "/pos/goods/basket",

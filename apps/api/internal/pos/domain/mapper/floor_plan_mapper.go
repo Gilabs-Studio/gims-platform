@@ -14,6 +14,7 @@ const timeFormat = time.RFC3339
 func ToFloorPlanResponse(m *models.FloorPlan) *dto.FloorPlanResponse {
 	resp := &dto.FloorPlanResponse{
 		ID:          m.ID,
+		OutletID:    m.OutletID,
 		CompanyID:   m.CompanyID,
 		Name:        m.Name,
 		FloorNumber: m.FloorNumber,

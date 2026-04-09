@@ -8,23 +8,24 @@ import (
 
 // CreateFloorPlanRequest for creating a new floor plan
 type CreateFloorPlanRequest struct {
-	CompanyID  string `json:"company_id" binding:"required,uuid"`
-	Name       string `json:"name" binding:"required,max=200"`
-	FloorNumber int   `json:"floor_number" binding:"required,min=1"`
-	GridSize   *int   `json:"grid_size,omitempty"`
-	SnapToGrid *bool  `json:"snap_to_grid,omitempty"`
-	Width      *int   `json:"width,omitempty"`
-	Height     *int   `json:"height,omitempty"`
+	OutletID    string `json:"outlet_id" binding:"omitempty,uuid"`
+	CompanyID   string `json:"company_id,omitempty" binding:"omitempty,uuid"` // deprecated: use outlet_id
+	Name        string `json:"name" binding:"required,max=200"`
+	FloorNumber int    `json:"floor_number" binding:"required,min=1"`
+	GridSize    *int   `json:"grid_size,omitempty"`
+	SnapToGrid  *bool  `json:"snap_to_grid,omitempty"`
+	Width       *int   `json:"width,omitempty"`
+	Height      *int   `json:"height,omitempty"`
 }
 
 // UpdateFloorPlanRequest for updating a floor plan
 type UpdateFloorPlanRequest struct {
-	Name       *string `json:"name,omitempty" binding:"omitempty,max=200"`
-	FloorNumber *int   `json:"floor_number,omitempty" binding:"omitempty,min=1"`
-	GridSize   *int    `json:"grid_size,omitempty"`
-	SnapToGrid *bool   `json:"snap_to_grid,omitempty"`
-	Width      *int    `json:"width,omitempty"`
-	Height     *int    `json:"height,omitempty"`
+	Name        *string `json:"name,omitempty" binding:"omitempty,max=200"`
+	FloorNumber *int    `json:"floor_number,omitempty" binding:"omitempty,min=1"`
+	GridSize    *int    `json:"grid_size,omitempty"`
+	SnapToGrid  *bool   `json:"snap_to_grid,omitempty"`
+	Width       *int    `json:"width,omitempty"`
+	Height      *int    `json:"height,omitempty"`
 }
 
 // SaveLayoutDataRequest for saving canvas layout data
@@ -35,7 +36,8 @@ type SaveLayoutDataRequest struct {
 // FloorPlanResponse returned to client
 type FloorPlanResponse struct {
 	ID          string          `json:"id"`
-	CompanyID   string          `json:"company_id"`
+	OutletID    string          `json:"outlet_id"`
+	CompanyID   *string         `json:"company_id,omitempty"` // deprecated: kept for backward compatibility
 	Name        string          `json:"name"`
 	FloorNumber int             `json:"floor_number"`
 	Status      string          `json:"status"`
@@ -62,13 +64,13 @@ type LayoutVersionResponse struct {
 	PublishedBy string          `json:"published_by"`
 }
 
-// CompanyOption for form data select
-type CompanyOption struct {
+// OutletOption for form data select
+type OutletOption struct {
 	ID   uuid.UUID `json:"id"`
 	Name string    `json:"name"`
 }
 
 // FloorPlanFormDataResponse for form dropdown options
 type FloorPlanFormDataResponse struct {
-	Companies []CompanyOption `json:"companies"`
+	Outlets []OutletOption `json:"outlets"`
 }

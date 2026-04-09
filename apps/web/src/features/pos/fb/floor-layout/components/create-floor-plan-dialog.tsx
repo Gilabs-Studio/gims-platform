@@ -44,14 +44,14 @@ export function CreateFloorPlanDialog({
   const { data: formData, isPending: isLoadingFormData } = useFloorLayoutFormData();
   const createMutation = useCreateFloorLayout();
 
-  const companies = formData?.data?.companies ?? [];
+  const outlets = formData?.data?.outlets ?? [];
 
   const form = useForm<CreateFloorPlanData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
       floor_number: 1,
-      company_id: "",
+      outlet_id: "",
       grid_size: 20,
       snap_to_grid: true,
       width: 1200,
@@ -88,24 +88,24 @@ export function CreateFloorPlanDialog({
               <Skeleton className="h-9 w-full" />
             ) : (
               <Select
-                value={form.watch("company_id")}
-                onValueChange={(v) => form.setValue("company_id", v, { shouldValidate: true })}
+                value={form.watch("outlet_id")}
+                onValueChange={(v) => form.setValue("outlet_id", v, { shouldValidate: true })}
               >
                 <SelectTrigger className="cursor-pointer">
                   <SelectValue placeholder={t("selectOutlet")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
+                  {outlets.map((outlet) => (
+                    <SelectItem key={outlet.id} value={outlet.id}>
+                      {outlet.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
-            {form.formState.errors.company_id && (
+            {form.formState.errors.outlet_id && (
               <p className="text-xs text-destructive">
-                {form.formState.errors.company_id.message}
+                {form.formState.errors.outlet_id.message}
               </p>
             )}
           </div>
