@@ -259,7 +259,7 @@ export function POSTerminalPageClient() {
   if (!selectedOutlet) return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden">
       {outletsWithMode.length > 1 && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/30 shrink-0">
           <div className="flex items-center gap-2 text-sm">

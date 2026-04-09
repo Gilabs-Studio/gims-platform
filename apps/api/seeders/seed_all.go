@@ -107,6 +107,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// POS Pharmacy products for Kimia Farma outlets (must run after SeedPosGoodsProducts)
+	if err := SeedPosPharmaProducts(); err != nil {
+		return err
+	}
+
 	// POS F&B recipe menu items, service products, and BOM recipe items
 	if err := SeedPosRecipeProducts(); err != nil {
 		return err

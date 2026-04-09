@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Package, UtensilsCrossed } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,12 +17,9 @@ interface POSCatalogGridProps {
   disabled?: boolean;
 }
 
-type SellTypeFilter = "ALL" | "FNB" | "GOODS";
-
 export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCatalogGridProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [sellTypeFilter, setSellTypeFilter] = useState<SellTypeFilter>("ALL");
 
   const { data: catalogData, isLoading } = usePOSCatalog(outletId, {
     enabled: !!outletId,
@@ -40,18 +37,14 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCat
       p.product_name.toLowerCase().includes(search.toLowerCase()) ||
       p.product_code.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !categoryFilter || p.category === categoryFilter;
-    const matchSellType =
-      sellTypeFilter === "ALL" ||
-      (sellTypeFilter === "GOODS" && p.product_kind === "STOCK") ||
-      (sellTypeFilter === "FNB" && (p.product_kind === "RECIPE" || p.product_kind === "SERVICE"));
-    return matchSearch && matchCategory && matchSellType;
+    return matchSearch && matchCategory;
   });
 
   if (isLoading) {
     return (
-      <div className="grid gap-3 p-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
+      <div className="grid gap-2.5 p-3 sm:p-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
         {Array.from({ length: 9 }).map((_, i) => (
-          <Skeleton key={i} className="aspect-square rounded-xl" />
+          <Skeleton key={i} className="aspect-3/4 rounded-2xl" />
         ))}
       </div>
     );
@@ -59,7 +52,7 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCat
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Search + filters */}
+      {/* Search + category filters */}
       <div className="p-3 space-y-2 border-b">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -69,29 +62,6 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCat
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          <Badge
-            variant={sellTypeFilter === "ALL" ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => setSellTypeFilter("ALL")}
-          >
-            Semua Tipe
-          </Badge>
-          <Badge
-            variant={sellTypeFilter === "FNB" ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => setSellTypeFilter("FNB")}
-          >
-            F&B
-          </Badge>
-          <Badge
-            variant={sellTypeFilter === "GOODS" ? "default" : "outline"}
-            className="cursor-pointer"
-            onClick={() => setSellTypeFilter("GOODS")}
-          >
-            Goods
-          </Badge>
         </div>
         {categories.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
@@ -117,13 +87,13 @@ export function POSCatalogGrid({ outletId, onAddItem, disabled = false }: POSCat
       </div>
 
       {/* Product grid */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8 text-sm">
+          <p className="text-center text-muted-foreground py-12 text-sm">
             No products found.
           </p>
         ) : (
-          <div className="grid gap-2.5 p-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
+          <div className="grid gap-2.5 p-3 sm:p-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
             {filtered.map((item) => (
               <ProductCard
                 key={item.product_id}
@@ -147,10 +117,10 @@ interface ProductCardProps {
 
 function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
   const isLowStock = item.product_kind === "STOCK" && item.stock < 5;
-  const productTypeLabel = item.product_kind === "STOCK" ? "Goods" : "F&B";
   const [imageBroken, setImageBroken] = useState(false);
   const resolvedImageUrl = resolveImageUrl(item.image_url ?? undefined);
   const showImage = !!resolvedImageUrl && !imageBroken;
+  const FallbackIcon = item.product_kind === "STOCK" ? Package : UtensilsCrossed;
 
   return (
     <button
@@ -158,48 +128,47 @@ function ProductCard({ item, onAdd, disabled = false }: ProductCardProps) {
       disabled={disabled || !item.is_available}
       onClick={() => onAdd(item)}
       className={cn(
-        "group flex flex-col rounded-xl border p-2 text-left transition-all duration-200",
-        "hover:shadow-lg hover:border-primary/40 hover:-translate-y-0.5 active:scale-[0.99]",
-        "bg-card cursor-pointer",
-        (disabled || !item.is_available) && "opacity-50 cursor-not-allowed"
+        "group flex flex-col rounded-2xl border bg-card text-left",
+        "transition-all duration-200 focus-visible:outline-none",
+        "focus-visible:ring-2 focus-visible:ring-ring",
+        "hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 active:scale-[0.98]",
+        "cursor-pointer overflow-hidden",
+        (disabled || !item.is_available) && "opacity-50 cursor-not-allowed",
       )}
     >
+      {/* Product image / fallback */}
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={resolvedImageUrl}
           alt={item.product_name}
-          className="aspect-square w-full rounded-lg object-cover mb-2 border"
+          className="aspect-square w-full object-cover border-b"
           onError={() => setImageBroken(true)}
         />
       ) : (
-        <div className="aspect-square w-full rounded-lg border bg-muted/40 flex items-center justify-center mb-2 text-3xl group-hover:bg-muted/60">
-          {item.product_kind === "STOCK" ? "📦" : "🍽️"}
+        <div className="aspect-square w-full flex items-center justify-center bg-muted/30 border-b group-hover:bg-muted/50 transition-colors">
+          <FallbackIcon className="h-8 w-8 text-muted-foreground/30" />
         </div>
       )}
-      <div className="mb-1 flex items-center gap-1.5">
-        <Badge variant="outline" className="text-[10px]">
-          {productTypeLabel}
-        </Badge>
-        <Badge variant="secondary" className="text-[10px] font-mono">
-          {item.product_code}
-        </Badge>
-      </div>
-      <p className="text-xs font-medium leading-tight line-clamp-2 flex-1">
-        {item.product_name}
-      </p>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-sm font-bold text-primary">
-          {formatCurrency(item.price)}
-        </span>
-        {item.product_kind === "STOCK" && (
-          <Badge
-            variant={!item.is_available ? "destructive" : isLowStock ? "warning" : "default"}
-            className="text-[10px] font-semibold"
-          >
-            Stock: {item.stock}
-          </Badge>
-        )}
+
+      {/* Details */}
+      <div className="p-2.5 flex flex-col gap-1.5 flex-1">
+        <p className="text-xs font-medium leading-snug line-clamp-2 text-foreground">
+          {item.product_name}
+        </p>
+        <div className="flex items-center justify-between gap-1 mt-auto">
+          <span className="text-sm font-bold text-primary tabular-nums">
+            {formatCurrency(item.price)}
+          </span>
+          {item.product_kind === "STOCK" && (
+            <Badge
+              variant={!item.is_available ? "destructive" : isLowStock ? "warning" : "secondary"}
+              className="text-[9px] font-semibold px-1.5 py-0"
+            >
+              {item.stock}
+            </Badge>
+          )}
+        </div>
       </div>
     </button>
   );

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { useProcessCashPayment, useInitiateMidtrans, usePOSPayments } from "../hooks/use-pos";
 import type { POSOrder, POSConfig, POSPayment } from "../types";
@@ -19,6 +20,7 @@ interface POSPaymentModalProps {
   order: POSOrder;
   config?: POSConfig;
   onSuccess: () => void;
+  onPaymentError?: () => void;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -30,13 +32,17 @@ export function POSPaymentModal({
   order,
   config,
   onSuccess,
+  onPaymentError,
 }: POSPaymentModalProps) {
   const [tab, setTab] = useState<"CASH" | "MIDTRANS">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
   const [midtransPayment, setMidtransPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
 
-  const { data: paymentsData } = usePOSPayments(order.id, { enabled: !!order.id } as { enabled?: boolean });
+  const { data: paymentsData } = usePOSPayments(order.id, {
+    // Only fetch payments list when polling for Midtrans status confirmation.
+    enabled: pollingEnabled,
+  });
   const processCash = useProcessCashPayment();
   const initiateMidtrans = useInitiateMidtrans();
 
@@ -72,21 +78,31 @@ export function POSPaymentModal({
   }
 
   async function handleCashSubmit() {
-    await processCash.mutateAsync({
-      orderId: order.id,
-      data: { method: "CASH", amount: tenderAmount },
-    });
-    onSuccess();
+    try {
+      await processCash.mutateAsync({
+        orderId: order.id,
+        data: { method: "CASH", amount: tenderAmount },
+      });
+      onSuccess();
+    } catch {
+      toast.error("Payment failed. Please try again.");
+      onPaymentError?.();
+    }
   }
 
   async function handleMidtransSubmit() {
-    const result = await initiateMidtrans.mutateAsync({
-      orderId: order.id,
-      data: { method: "MIDTRANS", amount: totalAmount },
-    });
-    const payload = result as { data?: POSPayment };
-    if (payload?.data) {
-      setMidtransPayment(payload.data);
+    try {
+      const result = await initiateMidtrans.mutateAsync({
+        orderId: order.id,
+        data: { method: "MIDTRANS", amount: totalAmount },
+      });
+      const payload = result as { data?: POSPayment };
+      if (payload?.data) {
+        setMidtransPayment(payload.data);
+      }
+    } catch {
+      toast.error("Failed to initiate payment. Please try again.");
+      onPaymentError?.();
     }
   }
 

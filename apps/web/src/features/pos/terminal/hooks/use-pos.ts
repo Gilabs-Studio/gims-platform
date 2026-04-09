@@ -41,12 +41,31 @@ export function usePOSCatalog(outletId: string, options?: { enabled?: boolean })
 
 // ─── Order hooks ─────────────────────────────────────────────────────────────
 
-export function usePOSOrder(id: string, options?: { enabled?: boolean }) {
+export function usePOSOrder(
+  id: string,
+  options?: { enabled?: boolean; refetchInterval?: number | false },
+) {
   return useQuery({
     queryKey: posKeys.order(id),
     queryFn: () => posOrderService.getById(id),
     enabled: !!id && options?.enabled !== false,
-    refetchInterval: 5_000, // poll for kitchen status updates
+    // Stop polling automatically once the order reaches a terminal state so we
+    // don't spam the server after checkout. Callers may override via options.
+    refetchInterval:
+      options?.refetchInterval !== undefined
+        ? options.refetchInterval
+        : (query) => {
+            const status = (
+              query.state.data as { data?: { status: string } } | undefined
+            )?.data?.status;
+            if (
+              status === "PAID" ||
+              status === "COMPLETED" ||
+              status === "VOIDED"
+            )
+              return false;
+            return 5_000;
+          },
   });
 }
 

@@ -107,12 +107,8 @@ func (r *posProductRepository) FindPOSAvailable(ctx context.Context, warehouseID
 		isAvailable := false
 		switch p.ProductKind {
 		case productModels.ProductKindStock:
-			// When a warehouse is specified, only include STOCK products that
-			// are actually stocked in that warehouse (avail > 0 proves presence).
-			// Without a warehouse context we show all products as a fallback catalog.
-			if warehouseID != "" && avail <= 0 {
-				continue
-			}
+			// Show all STOCK products in the catalog; mark as unavailable when stock is 0
+			// so the UI can dim the card without hiding the product entirely.
 			isAvailable = avail > 0
 		case productModels.ProductKindRecipe, productModels.ProductKindService:
 			// Recipe/Service availability is validated at order-item time, not here.

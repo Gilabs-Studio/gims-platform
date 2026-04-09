@@ -78,6 +78,7 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		TenderAmount: req.Amount,
 		ChangeAmount: change,
 		PaidAt:       &now,
+		CreatedBy:    cashierID,
 	}
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
@@ -114,6 +115,7 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 		ChangeAmount:    0,
 		MidtransOrderID: &midtransOrderID,
 		ExpiresAt:       &expiresAt,
+		CreatedBy:       cashierID,
 	}
 
 	// TODO: integrate midtrans-go SDK — use midtransRepo.FindByCompanyID to retrieve server_key,
