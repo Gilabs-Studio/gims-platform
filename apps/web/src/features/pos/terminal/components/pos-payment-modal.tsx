@@ -127,7 +127,7 @@ export function POSPaymentModal({
 
           {/* CASH TAB */}
           <TabsContent value="CASH" className="mt-3 space-y-3">
-            {/* Quick amounts */}
+            {/* Quick amounts — each tap ADDS to current tender */}
             <div className="grid grid-cols-4 gap-1.5">
               {QUICK_AMOUNTS.map((amount) => (
                 <Button
@@ -135,11 +135,37 @@ export function POSPaymentModal({
                   size="sm"
                   variant="outline"
                   className="cursor-pointer text-xs"
-                  onClick={() => setTenderInput(String(amount))}
+                  onClick={() =>
+                    setTenderInput((prev) => {
+                      const current = parseInt(prev || "0", 10);
+                      return String(current + amount);
+                    })
+                  }
                 >
-                  {formatCurrency(amount)}
+                  +{formatCurrency(amount)}
                 </Button>
               ))}
+            </div>
+
+            {/* Exact / Reset row */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="cursor-pointer text-xs"
+                onClick={() => setTenderInput(String(totalAmount))}
+              >
+                Exact {formatCurrency(totalAmount)}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="cursor-pointer text-xs text-muted-foreground"
+                disabled={tenderInput === ""}
+                onClick={() => setTenderInput("")}
+              >
+                Reset
+              </Button>
             </div>
 
             {/* Tender input display */}

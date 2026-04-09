@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	"github.com/gilabs/gims/api/internal/pos/presentation/handler"
 	"github.com/gilabs/gims/api/internal/pos/presentation/router"
+	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 )
 
 // RegisterRoutes registers all POS domain routes under /api/v1/pos.
@@ -30,6 +31,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	midtransRepo := repositories.NewMidtransConfigRepository(db)
 
 	outletRepo := orgRepo.NewOutletRepository(db)
+	salesOrderRepo := salesRepos.NewSalesOrderRepository(db)
 
 	invRepo := invDataRepos.NewInventoryRepository(db)
 	recipeService := invUsecase.NewRecipeConsumptionService(db, invRepo)
@@ -38,7 +40,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, midtransRepo, orderUC)
+	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, midtransRepo, orderUC, salesOrderRepo)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	midtransUC := usecase.NewMidtransConfigUsecase(midtransRepo)
 

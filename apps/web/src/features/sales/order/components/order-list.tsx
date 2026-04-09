@@ -18,6 +18,7 @@ import { InvoiceLinkedDialog } from "./invoice-linked-dialog";
 import { MoreHorizontal, Plus, Search, Pencil, Trash2, Eye, CheckCircle2, XCircle, Package, Truck, Send, Receipt, Printer, Banknote, Download } from "lucide-react";
 import { useOrders, useDeleteOrder, useUpdateOrderStatus, useApproveOrder } from "../hooks/use-orders";
 import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { OrderForm } from "./order-form";
 import { OrderDetailModal } from "./order-detail-modal";
@@ -57,6 +58,7 @@ export function OrderList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<SalesOrderStatus | "all">("all");
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<"all" | "POS">("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<SalesOrder | null>(null);
   const [viewingOrder, setViewingOrder] = useState<SalesOrder | null>(getInitialOpenOrderFromURL);
@@ -80,6 +82,7 @@ export function OrderList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
+    source_type: sourceTypeFilter !== "all" ? sourceTypeFilter : undefined,
   });
 
   const canCreate = useUserPermission("sales_order.create");
@@ -216,6 +219,20 @@ export function OrderList() {
             <SelectItem value="cancelled">{t("status.cancelled")}</SelectItem>
           </SelectContent>
         </Select>
+        <button
+          onClick={() => {
+            setSourceTypeFilter((prev) => (prev === "POS" ? "all" : "POS"));
+            setPage(1);
+          }}
+          className={cn(
+            "inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+            sourceTypeFilter === "POS"
+              ? "border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-400"
+              : "border-muted-foreground/30 text-muted-foreground hover:bg-muted",
+          )}
+        >
+          POS / F&B
+        </button>
         <div className="flex-1" />
         <Button variant="outline" onClick={handleExport} disabled={exportProgress.isExporting} className="cursor-pointer">
           <Download className="h-4 w-4 mr-2" />
@@ -270,7 +287,14 @@ export function OrderList() {
               orders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium text-primary hover:underline cursor-pointer" onClick={() => canView && handleView(order)}>
-                    {order.code}
+                    <div className="flex items-center gap-1.5">
+                      {order.code}
+                      {order.source_type === "POS" && (
+                        <span className="inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
+                          POS
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {order.order_date

@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { useRouter } from "@/i18n/routing";
 import {
   useCreateOrder,
   usePOSOrder,
@@ -30,13 +31,17 @@ interface POSTerminalContainerProps {
   outletId: string;
   initialTableId?: string;
   initialTableLabel?: string;
+  /** URL to navigate to after successful payment (e.g. live-table). If absent, stays on POS. */
+  returnUrl?: string;
 }
 
 export function POSTerminalContainer({
   outletId,
   initialTableId,
   initialTableLabel,
+  returnUrl,
 }: POSTerminalContainerProps) {
+  const router = useRouter();
   const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
 
   // Register as full-screen so DashboardLayout hides the outer header/breadcrumb.
@@ -92,7 +97,11 @@ export function POSTerminalContainer({
     setActiveOrderId(null);
     setPaymentOpen(false);
     setVoidOpen(false);
-  }, []);
+    // Navigate back to the live table if this session came from one.
+    if (returnUrl) {
+      router.push(returnUrl);
+    }
+  }, [returnUrl, router]);
 
   // If payment fails, auto-void the created order so no orphan draft remains.
   const handlePaymentError = useCallback(async () => {

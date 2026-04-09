@@ -32,6 +32,8 @@ export function POSTerminalPageClient() {
   const outletIdFromQuery = searchParams.get("outlet_id");
   const tableIdFromQuery = searchParams.get("table_id") ?? undefined;
   const tableLabelFromQuery = searchParams.get("table_label") ?? undefined;
+  const floorPlanIdFromQuery = searchParams.get("floor_plan_id") ?? undefined;
+  const outletNameFromQuery = searchParams.get("outlet_name") ?? undefined;
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
   const hasAutoNavigated = useRef(false);
 
@@ -258,6 +260,18 @@ export function POSTerminalPageClient() {
 
   if (!selectedOutlet) return null;
 
+  // When this terminal session was opened from a live-table, build the return URL.
+  const liveTableReturnUrl = (() => {
+    if (!outletIdFromQuery || !tableIdFromQuery) return undefined;
+    const targetOutlet = outletsWithMode.find((o) => o.id === outletIdFromQuery);
+    if (!targetOutlet || targetOutlet.pos_mode !== "LIVE_TABLE") return undefined;
+    const q = new URLSearchParams();
+    q.set("outlet_id", outletIdFromQuery);
+    if (outletNameFromQuery) q.set("outlet_name", outletNameFromQuery);
+    if (floorPlanIdFromQuery) q.set("floor_plan_id", floorPlanIdFromQuery);
+    return `/pos/fb/live-table?${q.toString()}`;
+  })();
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {outletsWithMode.length > 1 && (
@@ -287,6 +301,7 @@ export function POSTerminalPageClient() {
           outletId={selectedOutlet.id}
           initialTableId={tableIdFromQuery}
           initialTableLabel={tableLabelFromQuery}
+          returnUrl={liveTableReturnUrl}
         />
       </div>
     </div>

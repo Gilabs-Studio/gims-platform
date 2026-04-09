@@ -10,6 +10,8 @@ import (
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/mapper"
+	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
+	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"gorm.io/gorm"
 )
 
@@ -34,6 +36,7 @@ type posPaymentUsecase struct {
 	configRepo   repositories.POSConfigRepository
 	midtransRepo repositories.MidtransConfigRepository
 	orderUsecase POSOrderUsecase
+	salesOrderRepo salesRepos.SalesOrderRepository
 }
 
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
@@ -43,13 +46,15 @@ func NewPOSPaymentUsecase(
 	configRepo repositories.POSConfigRepository,
 	midtransRepo repositories.MidtransConfigRepository,
 	orderUsecase POSOrderUsecase,
+	salesOrderRepo salesRepos.SalesOrderRepository,
 ) POSPaymentUsecase {
 	return &posPaymentUsecase{
-		paymentRepo:  paymentRepo,
-		orderRepo:    orderRepo,
-		configRepo:   configRepo,
-		midtransRepo: midtransRepo,
-		orderUsecase: orderUsecase,
+		paymentRepo:    paymentRepo,
+		orderRepo:      orderRepo,
+		configRepo:     configRepo,
+		midtransRepo:   midtransRepo,
+		orderUsecase:   orderUsecase,
+		salesOrderRepo: salesOrderRepo,
 	}
 }
 
@@ -182,11 +187,18 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 	return result, nil
 }
 
-// finalizeOrder marks the order Paid and deducts stock.
+// finalizeOrder marks the order Paid, deducts stock, and creates a linked Sales Order.
 func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.PosOrder, userID string, payment *models.POSPayment) error {
 	order.Status = models.PosOrderStatusPaid
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return err
+	}
+
+	// Create a closed Sales Order in the ERP system for this POS transaction.
+	// Failures here are non-blocking — the payment is already recorded.
+	if soID := u.createSalesOrderFromPOS(ctx, order, userID); soID != "" {
+		order.SalesOrderID = &soID
+		_ = u.orderRepo.Update(ctx, order)
 	}
 
 	// Deduct inventory. On failure we log but do not reverse the payment;
@@ -196,6 +208,61 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	}
 
 	return nil
+}
+
+// createSalesOrderFromPOS creates a closed SalesOrder record from a paid POS order.
+// Returns the new sales_order ID on success, empty string otherwise.
+func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *models.PosOrder, userID string) string {
+	now := apptime.Now()
+
+	code, err := u.salesOrderRepo.GetNextOrderNumber(ctx, "SO")
+	if err != nil {
+		return ""
+	}
+
+	notesVal := fmt.Sprintf("POS sale: %s", order.OrderNumber)
+	if order.TableLabel != nil {
+		notesVal = fmt.Sprintf("POS sale: %s (table %s)", order.OrderNumber, *order.TableLabel)
+	}
+	if order.Notes != nil && *order.Notes != "" {
+		notesVal += " | " + *order.Notes
+	}
+
+	customerName := ""
+	if order.CustomerName != nil {
+		customerName = *order.CustomerName
+	}
+
+	actor := &userID
+	so := &salesModels.SalesOrder{
+		Code:             code,
+		OrderDate:        now,
+		CustomerName:     customerName,
+		Subtotal:         order.TotalAmount,
+		TaxRate:          0,
+		TotalAmount:      order.TotalAmount,
+		Status:           salesModels.SalesOrderStatusClosed,
+		Notes:            notesVal,
+		SourceType:       "POS",
+		SourcePOSOrderID: &order.ID,
+		CreatedBy:        actor,
+	}
+
+	for _, item := range order.Items {
+		so.Items = append(so.Items, salesModels.SalesOrderItem{
+			ProductID:   item.ProductID,
+			ProductCode: item.ProductCode,
+			ProductName: item.ProductName,
+			Quantity:    item.Quantity,
+			Price:       item.UnitPrice,
+			Subtotal:    item.Subtotal,
+		})
+	}
+
+	if err := u.salesOrderRepo.Create(ctx, so); err != nil {
+		return ""
+	}
+	return so.ID
 }
 
 // mapMidtransStatus converts Midtrans transaction_status + fraud_status to internal payment status.

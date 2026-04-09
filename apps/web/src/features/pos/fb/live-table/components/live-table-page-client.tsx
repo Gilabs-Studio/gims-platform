@@ -152,17 +152,24 @@ interface TableGridProps {
 
 function TableGrid({ infos, onTableClick }: TableGridProps) {
   return (
-    <div
-      className="grid gap-3 p-4 sm:p-5"
-      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}
-    >
-      {infos.map((info) => (
-        <TableCard
-          key={info.tableObj.id}
-          info={info}
-          onClick={() => onTableClick(info)}
-        />
-      ))}
+    <div className="flex min-h-full flex-1 items-center justify-center p-5 sm:p-8">
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(160px, 200px))`,
+          justifyContent: "center",
+          width: "100%",
+          maxWidth: 960,
+        }}
+      >
+        {infos.map((info) => (
+          <TableCard
+            key={info.tableObj.id}
+            info={info}
+            onClick={() => onTableClick(info)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -346,14 +353,59 @@ function LiveFloorView({
     return map;
   }, [infos]);
 
+  const [scale, setScale] = useState(1);
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.001)));
+    },
+    [],
+  );
+
   return (
-    <div className="w-full overflow-auto p-4">
-      <svg
-        viewBox={`0 0 ${planWidth} ${planHeight}`}
-        className="w-full rounded-2xl border bg-muted/10"
-        style={{ minWidth: Math.min(planWidth, 500) }}
-        preserveAspectRatio="xMidYMid meet"
+    <div className="relative flex min-h-full flex-1 items-center justify-center overflow-auto p-4">
+      {/* Zoom controls */}
+      <div className="absolute right-5 top-5 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => setScale((s) => Math.min(3, +(s + 0.15).toFixed(2)))}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={() => setScale(1)}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-[11px] font-medium shadow hover:bg-accent"
+          title="Reset zoom"
+        >
+          {Math.round(scale * 100)}%
+        </button>
+        <button
+          onClick={() => setScale((s) => Math.max(0.3, +(s - 0.15).toFixed(2)))}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
+          title="Zoom out"
+        >
+          &minus;
+        </button>
+      </div>
+
+      <div
+        className="overflow-auto"
+        onWheel={handleWheel}
+        style={{ maxWidth: "100%", maxHeight: "100%" }}
       >
+        <svg
+          viewBox={`0 0 ${planWidth} ${planHeight}`}
+          className="rounded-2xl border bg-muted/10"
+          style={{
+            width: planWidth * scale,
+            height: planHeight * scale,
+            minWidth: 280,
+            transition: "width 0.15s, height 0.15s",
+          }}
+          preserveAspectRatio="xMidYMid meet"
+        >
         {layoutObjects.map((obj) => {
           const transform = `translate(${obj.x}, ${obj.y}) rotate(${obj.rotation ?? 0}, ${obj.width / 2}, ${obj.height / 2})`;
 
@@ -510,6 +562,7 @@ function LiveFloorView({
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }
