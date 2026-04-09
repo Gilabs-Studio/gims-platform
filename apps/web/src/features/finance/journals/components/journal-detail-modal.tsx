@@ -31,6 +31,14 @@ function formatNumber(value?: number | null): string {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
+function formatJournalType(value?: string | null): string {
+  if (!value) return "-";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 export function JournalDetailModal({ open, onOpenChange, id }: Props) {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
@@ -95,6 +103,33 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.description")}</div>
                 <div className="text-sm font-medium">{journal.description ?? "-"}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.journalType")}</div>
+                <div className="text-sm font-medium">{formatJournalType(journal.journal_type)}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.systemGenerated")}</div>
+                <div className="text-sm font-medium">{journal.is_system_generated ? tCommon("yes") : tCommon("no")}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">{t("fields.sourceDocument")}</div>
+                {journal.source_document_url ? (
+                  <a
+                    href={journal.source_document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  >
+                    {t("actions.openSourceDocument")}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <div className="text-sm font-medium">-</div>
+                )}
               </div>
             </div>
 

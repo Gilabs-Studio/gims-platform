@@ -16,10 +16,11 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -64,6 +65,7 @@ type salesPaymentUsecase struct {
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
 	engine       accounting.AccountingEngine
+	settingsUC   financesettings.SettingsService
 }
 
 func NewSalesPaymentUsecase(
@@ -73,8 +75,9 @@ func NewSalesPaymentUsecase(
 	journalUC finUsecase.JournalEntryUsecase,
 	coaUC finUsecase.ChartOfAccountUsecase,
 	engine accounting.AccountingEngine,
+	settingsUC ...financesettings.SettingsService,
 ) SalesPaymentUsecase {
-	return &salesPaymentUsecase{
+	uc := &salesPaymentUsecase{
 		db:           db,
 		repo:         repo,
 		auditService: auditService,
@@ -83,6 +86,10 @@ func NewSalesPaymentUsecase(
 		coaUC:        coaUC,
 		engine:       engine,
 	}
+	if len(settingsUC) > 0 {
+		uc.settingsUC = settingsUC[0]
+	}
+	return uc
 }
 
 func (uc *salesPaymentUsecase) AddData(ctx context.Context) (*dto.SalesPaymentAddResponse, error) {
@@ -782,10 +789,23 @@ func (uc *salesPaymentUsecase) triggerJournalEntry(ctx context.Context, pay *mod
 	if ba.ChartOfAccountID != nil {
 		transactionCOAID = *ba.ChartOfAccountID
 	} else {
-		// Fallback to default cash (11100)
-		def, err := uc.coaUC.GetByCode(ctx, "11100")
+		if uc.settingsUC == nil {
+			return errors.New("system account mapping untuk 'finance.bank_default' belum dikonfigurasi")
+		}
+
+		defaultKey := "finance.bank_default"
+		if strings.EqualFold(string(pay.Method), string(models.SalesPaymentMethodCash)) {
+			defaultKey = "finance.cash_default"
+		}
+
+		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, defaultKey)
 		if err != nil {
-			return errors.New("bank account has no linked COA and default cash account 11100 not found")
+			return err
+		}
+
+		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
+		if err != nil {
+			return fmt.Errorf("account with code '%s' for mapping '%s' not found", defaultCode, defaultKey)
 		}
 		transactionCOAID = def.ID
 	}

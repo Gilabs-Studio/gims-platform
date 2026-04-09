@@ -73,11 +73,11 @@ func SeedPurchaseFinanceE2E() error {
 			}
 
 			// COA mapping
-			invCOA := getCOAID(tx, "11400")
-			grirCOA := getCOAID(tx, "21100")
-			apCOA := getCOAID(tx, "21000")
-			vatCOA := getCOAID(tx, "11800")
-			bankCOA := getCOAID(tx, "11100")
+			invCOA := getCOAID(tx, "1-1310")
+			grirCOA := getCOAID(tx, "1-1440")
+			apCOA := getCOAID(tx, "2-1100")
+			vatCOA := getCOAID(tx, "1-1420")
+			bankCOA := getCOAID(tx, "1-1101")
 
 			now := time.Now()
 			return seedMinimalPurchaseFlow(tx, purchaseFlowInput{
@@ -153,16 +153,8 @@ func SeedPurchaseFinanceE2E() error {
 
 		// ─────────────────── Ensure extra COA ───────────────────
 		extraCOA := []financeModels.ChartOfAccount{
-			{Code: "31000", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
-			{Code: "32000", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
-			{Code: "4200", Name: "Service Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
-			{Code: "5100", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6300", Name: "Salary Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6400", Name: "Rent Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6500", Name: "Utility Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "6600", Name: "Marketing Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-			{Code: "11200", Name: "Bank BCA", Type: financeModels.AccountTypeCashBank, IsActive: true},
-			{Code: "11300", Name: "Bank Mandiri", Type: financeModels.AccountTypeCashBank, IsActive: true},
+			{Code: "4-2300", Name: "Pendapatan Lain-lain", Type: financeModels.AccountTypeRevenue, IsActive: true},
+			{Code: "6-3200", Name: "Beban Administrasi Bank", Type: financeModels.AccountTypeExpense, IsActive: true},
 		}
 		for i := range extraCOA {
 			tx.Clauses(clause.OnConflict{
@@ -179,22 +171,22 @@ func SeedPurchaseFinanceE2E() error {
 			return c.ID
 		}
 
-		invCOA := getCOA("11400")  // Inventory
-		grirCOA := getCOA("21100") // GR/IR Clearing
-		apCOA := getCOA("21000")   // AP
-		vatCOA := getCOA("11800")  // VAT Input
-		cashCOA := getCOA("11100") // Cash
-		salesCOA := getCOA("4100") // Sales Revenue
-		serviceCOA := getCOA("4200")
-		cogsCOA := getCOA("5100")
-		salaryCOA := getCOA("6300")
-		rentCOA := getCOA("6400")
-		utilityCOA := getCOA("6500")
-		marketingCOA := getCOA("6600")
-		capitalCOA := getCOA("31000")
-		retainedCOA := getCOA("32000")
-		arCOA := getCOA("1100")
-		bankBcaCOA := getCOA("11200")
+		invCOA := getCOA("1-1310")   // Inventory
+		grirCOA := getCOA("1-1440")  // GR/IR Clearing
+		apCOA := getCOA("2-1100")    // AP
+		vatCOA := getCOA("1-1420")   // VAT Input
+		cashCOA := getCOA("1-1101")  // Cash
+		salesCOA := getCOA("4-1100") // Sales Revenue
+		serviceCOA := getCOA("4-2300")
+		cogsCOA := getCOA("5-1000")
+		salaryCOA := getCOA("6-2100")
+		rentCOA := getCOA("6-2200")
+		utilityCOA := getCOA("6-2310")
+		marketingCOA := getCOA("6-1200")
+		capitalCOA := getCOA("3-1000")
+		retainedCOA := getCOA("3-3000")
+		arCOA := getCOA("1-1210")
+		bankBcaCOA := getCOA("1-1111")
 
 		// Get bank's linked COA if available
 		bankCOA := cashCOA

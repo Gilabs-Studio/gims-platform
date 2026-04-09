@@ -36,6 +36,7 @@ const EXTRA_VALID_ROUTES = [
   "/finance/asset-categories",
   "/finance/asset-locations",
   "/finance/salary",
+  "/finance/settings/accounting-mapping",
   "/finance/reports/general-ledger",
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",

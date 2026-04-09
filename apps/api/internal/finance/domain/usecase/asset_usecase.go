@@ -14,6 +14,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"github.com/google/uuid"
@@ -65,6 +66,7 @@ type assetUsecase struct {
 	auditLogRepo   repositories.AssetAuditLogRepository
 	assignmentRepo repositories.AssetAssignmentRepository
 	mapper         *mapper.AssetMapper
+	journalUC      JournalEntryUsecase
 }
 
 func NewAssetUsecase(
@@ -77,12 +79,17 @@ func NewAssetUsecase(
 	attachmentRepo repositories.AssetAttachmentRepository,
 	auditLogRepo repositories.AssetAuditLogRepository,
 	assignmentRepo repositories.AssetAssignmentRepository,
+	journalUC ...JournalEntryUsecase,
 ) AssetUsecase {
-	return &assetUsecase{
+	uc := &assetUsecase{
 		db: db, coaRepo: coaRepo, catRepo: catRepo, locRepo: locRepo,
 		repo: repo, mapper: mapper,
 		attachmentRepo: attachmentRepo, auditLogRepo: auditLogRepo, assignmentRepo: assignmentRepo,
 	}
+	if len(journalUC) > 0 {
+		uc.journalUC = journalUC[0]
+	}
+	return uc
 }
 
 func parseAssetDateStrict(value string) (time.Time, error) {
@@ -996,7 +1003,9 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 			})
 			// Journal: Debit Cash(100), Credit Asset(Ref: AcquisitionAccountID)
 			// For simplicity, we just use the Asset Account
-			uc.createAssetJournal(tx, asset, &tr, cat.AssetAccountID, "Asset Disposal", tr.Amount, false)
+			if err := uc.createAssetJournal(tx, asset, &tr, cat.AssetAccountID, "Asset Disposal", tr.Amount, false); err != nil {
+				return err
+			}
 
 		case financeModels.AssetTransactionTypeRevalue:
 			oldVal := asset.AcquisitionCost - asset.AccumulatedDepreciation
@@ -1005,16 +1014,22 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 			// Journal: Debit Asset, Credit Revaluation Reserve
 			var revalCoA financeModels.ChartOfAccount
 			if err := tx.Where("name ILIKE ?", "%Cadangan Revaluasi%").First(&revalCoA).Error; err == nil {
-				uc.createAssetJournal(tx, asset, &tr, revalCoA.ID, "Asset Revaluation", diff, true)
+				if err := uc.createAssetJournal(tx, asset, &tr, revalCoA.ID, "Asset Revaluation", diff, true); err != nil {
+					return err
+				}
 			} else {
 				// Fallback to expense if no revaluation reserve found
-				uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Revaluation", diff, true)
+				if err := uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Revaluation", diff, true); err != nil {
+					return err
+				}
 			}
 
 		case financeModels.AssetTransactionTypeAdjust:
 			tx.Model(&financeModels.Asset{}).Where("id = ?", asset.ID).Update("acquisition_cost", asset.AcquisitionCost+tr.Amount)
 			// Journal: Debit Asset, Credit Expense
-			uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Adjustment", tr.Amount, true)
+			if err := uc.createAssetJournal(tx, asset, &tr, cat.DepreciationExpenseAccountID, "Asset Adjustment", tr.Amount, true); err != nil {
+				return err
+			}
 		}
 
 		return tx.Model(&financeModels.AssetTransaction{}).Where("id = ?", tr.ID).Updates(map[string]interface{}{
@@ -1032,39 +1047,53 @@ func (uc *assetUsecase) ApproveTransaction(ctx context.Context, txID string) (*d
 	return &resp, nil
 }
 
-func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, contraAccountID string, desc string, amount float64, isDebitAsset bool) {
+func (uc *assetUsecase) createAssetJournal(tx *gorm.DB, asset *financeModels.Asset, tr *financeModels.AssetTransaction, contraAccountID string, desc string, amount float64, isDebitAsset bool) error {
 	if amount == 0 {
-		return
+		return nil
 	}
-	refType := "asset_transaction"
-	now := apptime.Now()
-	actorID, _ := tx.Statement.Context.Value("user_id").(string)
-
-	je := &financeModels.JournalEntry{
-		EntryDate:     tr.TransactionDate,
-		Description:   desc + ": " + asset.Code,
-		ReferenceType: &refType,
-		ReferenceID:   &tr.ID,
-		Status:        financeModels.JournalStatusPosted,
-		PostedAt:      &now,
-		PostedBy:      &actorID,
-		CreatedBy:     &actorID,
+	if uc.journalUC == nil {
+		return errors.New("journal usecase is not configured")
 	}
-	tx.Create(je)
 
 	cat, _ := uc.catRepo.FindByID(tx.Statement.Context, asset.CategoryID)
 
 	assetAccount := cat.AssetAccountID
+	if strings.TrimSpace(assetAccount) == "" {
+		return errors.New("asset account is not configured on category")
+	}
+	if strings.TrimSpace(contraAccountID) == "" {
+		return errors.New("contra account is required")
+	}
+
+	lines := make([]finDTO.JournalLineRequest, 0, 2)
 
 	if isDebitAsset {
 		// Debit Asset, Credit Contra
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Debit: math.Abs(amount), Memo: desc})
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Credit: math.Abs(amount), Memo: desc})
+		lines = append(lines,
+			finDTO.JournalLineRequest{ChartOfAccountID: assetAccount, Debit: math.Abs(amount), Credit: 0, Memo: desc},
+			finDTO.JournalLineRequest{ChartOfAccountID: contraAccountID, Debit: 0, Credit: math.Abs(amount), Memo: desc},
+		)
 	} else {
 		// Debit Contra, Credit Asset
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: contraAccountID, Debit: math.Abs(amount), Memo: desc})
-		tx.Create(&financeModels.JournalLine{JournalEntryID: je.ID, ChartOfAccountID: assetAccount, Credit: math.Abs(amount), Memo: desc})
+		lines = append(lines,
+			finDTO.JournalLineRequest{ChartOfAccountID: contraAccountID, Debit: math.Abs(amount), Credit: 0, Memo: desc},
+			finDTO.JournalLineRequest{ChartOfAccountID: assetAccount, Debit: 0, Credit: math.Abs(amount), Memo: desc},
+		)
 	}
+
+	refType := reference.RefTypeAssetTransaction
+	refID := tr.ID
+	journalReq := &finDTO.CreateJournalEntryRequest{
+		EntryDate:         tr.TransactionDate.Format("2006-01-02"),
+		Description:       desc + ": " + asset.Code,
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
+	}
+
+	_, err := uc.journalUC.PostOrUpdateJournal(database.WithTx(tx.Statement.Context, tx), journalReq)
+	return err
 }
 
 // ========== Phase 2: Attachments ==========

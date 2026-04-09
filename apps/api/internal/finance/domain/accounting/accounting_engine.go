@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/service"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"time"
 )
 
@@ -29,10 +29,10 @@ type TransactionData struct {
 	Description string
 
 	// TotalAmount is the primary amount for the transaction
-	TotalAmount float64
-	SubTotal    float64
-	TaxTotal    float64
-	COGSTotal   float64
+	TotalAmount  float64
+	SubTotal     float64
+	TaxTotal     float64
+	COGSTotal    float64
 	DepositTotal float64
 	OtherTotal   float64
 
@@ -189,13 +189,19 @@ func (e *accountingEngine) GenerateJournal(ctx context.Context, profile PostingP
 }
 
 func (e *accountingEngine) ResolveCOAID(ctx context.Context, settingKey string) (string, error) {
-	coaCode, err := e.settingsService.GetCOACode(ctx, settingKey)
+	coaCode, err := e.resolveCOACode(ctx, settingKey)
 	if err != nil {
 		return "", err
 	}
 	coa, err := e.coaRepo.FindByCode(ctx, coaCode)
 	if err != nil {
 		return "", fmt.Errorf("COA with code '%s' for setting '%s' not found: %w", coaCode, settingKey, err)
+	}
+	if !coa.IsPostable {
+		return "", fmt.Errorf("COA with code '%s' for setting '%s' is non-postable", coaCode, settingKey)
+	}
+	if !coa.IsActive {
+		return "", fmt.Errorf("COA with code '%s' for setting '%s' is inactive", coaCode, settingKey)
 	}
 	return coa.ID, nil
 }
@@ -207,10 +213,10 @@ func (e *accountingEngine) GetAccountBalance(ctx context.Context, coaID string, 
 	err := e.coaRepo.GetDB(ctx).Table("journal_lines jl").
 		Select("COALESCE(SUM(jl.debit - jl.credit), 0)").
 		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
-		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date <= ?", 
+		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date <= ?",
 			financeModels.JournalStatusPosted, coaID, asOf.Format("2006-01-02")).
 		Scan(&balance).Error
-	
+
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate account balance: %w", err)
 	}
@@ -227,7 +233,7 @@ func (e *accountingEngine) resolveRuleCOA(ctx context.Context, rule PostingRule,
 
 	if rule.COASettingKey != "" {
 		// Resolve from settings
-		coaCode, err := e.settingsService.GetCOACode(ctx, rule.COASettingKey)
+		coaCode, err := e.resolveCOACode(ctx, rule.COASettingKey)
 		if err != nil {
 			return "", err
 		}
@@ -235,6 +241,12 @@ func (e *accountingEngine) resolveRuleCOA(ctx context.Context, rule PostingRule,
 		coa, err := e.coaRepo.FindByCode(ctx, coaCode)
 		if err != nil {
 			return "", fmt.Errorf("COA with code '%s' (from setting '%s') not found: %w", coaCode, rule.COASettingKey, err)
+		}
+		if !coa.IsPostable {
+			return "", fmt.Errorf("COA with code '%s' (from setting '%s') is non-postable", coaCode, rule.COASettingKey)
+		}
+		if !coa.IsActive {
+			return "", fmt.Errorf("COA with code '%s' (from setting '%s') is inactive", coaCode, rule.COASettingKey)
 		}
 		return coa.ID, nil
 	}
@@ -244,19 +256,118 @@ func (e *accountingEngine) resolveRuleCOA(ctx context.Context, rule PostingRule,
 		if data.TransactionCOAID == "" {
 			return "", fmt.Errorf("transaction COA ID is required but not provided")
 		}
+		coa, err := e.coaRepo.FindByID(ctx, data.TransactionCOAID)
+		if err != nil {
+			return "", fmt.Errorf("transaction COA ID '%s' not found: %w", data.TransactionCOAID, err)
+		}
+		if !coa.IsPostable {
+			return "", fmt.Errorf("transaction COA ID '%s' is non-postable", data.TransactionCOAID)
+		}
+		if !coa.IsActive {
+			return "", fmt.Errorf("transaction COA ID '%s' is inactive", data.TransactionCOAID)
+		}
 		return data.TransactionCOAID, nil
 	case "bank_account":
 		if data.BankAccountCOAID == "" {
 			return "", fmt.Errorf("bank account COA ID is required but not provided")
+		}
+		coa, err := e.coaRepo.FindByID(ctx, data.BankAccountCOAID)
+		if err != nil {
+			return "", fmt.Errorf("bank account COA ID '%s' not found: %w", data.BankAccountCOAID, err)
+		}
+		if !coa.IsPostable {
+			return "", fmt.Errorf("bank account COA ID '%s' is non-postable", data.BankAccountCOAID)
+		}
+		if !coa.IsActive {
+			return "", fmt.Errorf("bank account COA ID '%s' is inactive", data.BankAccountCOAID)
 		}
 		return data.BankAccountCOAID, nil
 	case "payment_account":
 		if data.PaymentAccountCOAID == "" {
 			return "", fmt.Errorf("payment account COA ID is required but not provided")
 		}
+		coa, err := e.coaRepo.FindByID(ctx, data.PaymentAccountCOAID)
+		if err != nil {
+			return "", fmt.Errorf("payment account COA ID '%s' not found: %w", data.PaymentAccountCOAID, err)
+		}
+		if !coa.IsPostable {
+			return "", fmt.Errorf("payment account COA ID '%s' is non-postable", data.PaymentAccountCOAID)
+		}
+		if !coa.IsActive {
+			return "", fmt.Errorf("payment account COA ID '%s' is inactive", data.PaymentAccountCOAID)
+		}
 		return data.PaymentAccountCOAID, nil
 	default:
 		return "", fmt.Errorf("unknown COA source: '%s'", rule.COASource)
+	}
+}
+
+func (e *accountingEngine) resolveCOACode(ctx context.Context, settingKey string) (string, error) {
+	if e.settingsService == nil {
+		return "", fmt.Errorf("settings service is not configured")
+	}
+
+	mappingKeys := make([]string, 0, 2)
+	if mapped := mapLegacySettingKeyToSystemMapping(settingKey); mapped != "" {
+		mappingKeys = append(mappingKeys, mapped)
+	}
+	mappingKeys = append(mappingKeys, settingKey)
+
+	seen := make(map[string]struct{}, len(mappingKeys))
+	for _, key := range mappingKeys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		coaCode, err := e.settingsService.GetCOAByKey(ctx, key)
+		if err == nil && strings.TrimSpace(coaCode) != "" {
+			return strings.TrimSpace(coaCode), nil
+		}
+	}
+
+	// Backward-compatible fallback to finance_settings.
+	return e.settingsService.GetCOACode(ctx, settingKey)
+}
+
+func mapLegacySettingKeyToSystemMapping(settingKey string) string {
+	switch strings.TrimSpace(settingKey) {
+	case "coa.inventory", "coa.inventory_asset":
+		return "purchase.inventory_asset"
+	case "coa.gr_ir", "coa.purchase_gr_ir":
+		return "purchase.gr_ir_clearing"
+	case "coa.purchase_vat_in", "coa.vat_in":
+		return "purchase.tax_input"
+	case "coa.purchase_payable", "coa.accounts_payable":
+		return "purchase.accounts_payable"
+	case "coa.sales_receivable":
+		return "sales.accounts_receivable"
+	case "coa.sales_revenue":
+		return "sales.revenue"
+	case "coa.sales_vat_out":
+		return "sales.tax_output"
+	case "coa.sales_cogs", "coa.cogs":
+		return "sales.cogs"
+	case "coa.sales_return":
+		return "sales.sales_return"
+	case "coa.inventory_gain":
+		return "inventory.adjustment_gain"
+	case "coa.inventory_loss":
+		return "inventory.adjustment_loss"
+	case "coa.depreciation_accumulated":
+		return "asset.accumulated_depreciation"
+	case "coa.depreciation_expense":
+		return "asset.depreciation_expense"
+	case "coa.bank":
+		return "finance.bank_default"
+	case "coa.cash":
+		return "finance.cash_default"
+	default:
+		return ""
 	}
 }
 

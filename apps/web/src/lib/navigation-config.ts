@@ -501,7 +501,7 @@ export const navigationConfig: NavItem[] = [
             i18nKey: "accountingMapping",
             url: "/finance/settings/accounting-mapping",
             icon: "file-text",
-            permission: "finance_settings.read",
+            permission: "account_mappings.read",
           },
         ],
       },

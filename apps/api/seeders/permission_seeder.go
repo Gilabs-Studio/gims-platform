@@ -410,6 +410,9 @@ func SeedPermissions() error {
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
+		{"/finance/settings/accounting-mapping", "account_mappings.read", "View Account Mappings", "VIEW", "account_mappings"},
+		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
+		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},
 
 		{"/finance/tax-invoices", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
@@ -781,6 +784,7 @@ func SeedPermissions() error {
 		"purchase":          "DIVISION",
 		"hrd":               "DIVISION",
 		"finance":           "DIVISION",
+		"account_mappings":  "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"travel_visit":      "DIVISION",
 		"stock":             "ALL",
@@ -792,6 +796,7 @@ func SeedPermissions() error {
 		"purchase":          "OWN",
 		"hrd":               "OWN",
 		"finance":           "OWN",
+		"account_mappings":  "OWN",
 		"non_trade_payable": "OWN",
 		"travel_visit":      "OWN",
 		"stock":             "OWN",
@@ -803,6 +808,7 @@ func SeedPermissions() error {
 		"purchase":     "DIVISION",
 		"hrd":          "OWN",
 		"finance":      "OWN",
+		"account_mappings": "OWN",
 		"travel_visit": "DIVISION",
 		"stock":        "AREA",
 	}, "ALL")
@@ -813,6 +819,7 @@ func SeedPermissions() error {
 		"purchase":     "DIVISION",
 		"hrd":          "OWN",
 		"finance":      "OWN",
+		"account_mappings": "OWN",
 		"travel_visit": "ALL",
 		"stock":        "ALL",
 	}, "ALL")
@@ -820,6 +827,7 @@ func SeedPermissions() error {
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
 	assignScopedPermissionsToRole("finance_manager", map[string]string{
 		"finance":           "DIVISION",
+		"account_mappings":  "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"sales":             "OWN",
 		"purchase":          "OWN",
@@ -836,6 +844,7 @@ func SeedPermissions() error {
 
 	assignScopedPermissionsToRole("accountant", map[string]string{
 		"finance":           "DIVISION",
+		"account_mappings":  "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"sales":             "OWN",
 		"purchase":          "OWN",

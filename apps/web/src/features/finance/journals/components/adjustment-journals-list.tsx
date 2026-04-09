@@ -40,6 +40,7 @@ import { JournalDetailModal } from "./journal-detail-modal";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
 import type { UnifiedJournalRow } from "./journal-table";
+import { getErrorMessage, parseApiError } from "../utils/error-parser";
 
 
 export function AdjustmentJournalsList() {
@@ -168,7 +169,7 @@ export function AdjustmentJournalsList() {
                   <Eye className="h-4 w-4 mr-2" />
                   {t("actions.view")}
                 </DropdownMenuItem>
-                {canUpdate && item.status === "draft" && (
+                {canUpdate && item.status === "draft" && !item.is_system_generated && (
                   <DropdownMenuItem
                     className="cursor-pointer"
                     onClick={() => {
@@ -188,8 +189,9 @@ export function AdjustmentJournalsList() {
                       try {
                         await postMutation.mutateAsync(item.id);
                         toast.success(t("toast.posted"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
                       }
                     }}
                   >
@@ -197,7 +199,7 @@ export function AdjustmentJournalsList() {
                     {t("actions.post")}
                   </DropdownMenuItem>
                 )}
-                {canDelete && item.status === "draft" && (
+                {canDelete && item.status === "draft" && !item.is_system_generated && (
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"
                     onClick={() => setDeletingItem(item)}
@@ -213,8 +215,9 @@ export function AdjustmentJournalsList() {
                       try {
                         await reverseMutation.mutateAsync(item.id);
                         toast.success(t("toast.reversed"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error: unknown) {
+                        const parsedError = parseApiError(error);
+                        toast.error(getErrorMessage(parsedError, (key) => t(key)));
                       }
                     }}
                   >

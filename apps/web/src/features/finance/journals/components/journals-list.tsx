@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Eye, FileText, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 
@@ -22,8 +22,6 @@ import type { JournalEntry } from "../types";
 import {
   useDeleteFinanceJournal,
   useFinanceJournals,
-  usePostFinanceJournal,
-  useReverseFinanceJournal,
 } from "../hooks/use-finance-journals";
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
@@ -51,10 +49,6 @@ export function JournalsList() {
   const tCommon = useTranslations("common");
 
   const canCreate = useUserPermission("journal.create");
-  const canUpdate = useUserPermission("journal.update");
-  const canDelete = useUserPermission("journal.delete");
-  const canPost = useUserPermission("journal.post");
-  const canReverse = useUserPermission("journal.reverse");
   const canViewTrialBalance = useUserPermission("trial_balance_report.read");
 
   const [search, setSearch] = useState("");
@@ -96,8 +90,6 @@ export function JournalsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteFinanceJournal();
-  const postMutation = usePostFinanceJournal();
-  const reverseMutation = useReverseFinanceJournal();
 
   useEffect(() => {
     if (selectedId) {

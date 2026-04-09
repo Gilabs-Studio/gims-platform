@@ -4,9 +4,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
@@ -36,6 +37,7 @@ type SalesRouteDeps struct {
 	JournalUC   finUsecase.JournalEntryUsecase
 	CoaUC       finUsecase.ChartOfAccountUsecase
 	Engine      accounting.AccountingEngine
+	SettingsUC  financesettings.SettingsService
 }
 
 // RegisterRoutes registers all sales routes and returns shared dependencies
@@ -71,7 +73,7 @@ func RegisterRoutes(
 
 	// Sales Payment
 	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
-	salesPaymentUC := usecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine)
+	salesPaymentUC := usecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditService, deps.JournalUC, deps.CoaUC, deps.Engine, deps.SettingsUC)
 
 	// Receivables Recap
 	recapRepo := salesRepos.NewReceivablesRecapRepository(db)

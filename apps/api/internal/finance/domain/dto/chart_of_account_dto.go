@@ -7,19 +7,23 @@ import (
 )
 
 type CreateChartOfAccountRequest struct {
-	Code     string                    `json:"code" binding:"required"`
-	Name     string                    `json:"name" binding:"required"`
-	Type     financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
-	ParentID *string                   `json:"parent_id" binding:"omitempty,uuid"`
-	IsActive *bool                     `json:"is_active"`
+	Code           string                    `json:"code" binding:"required"`
+	Name           string                    `json:"name" binding:"required"`
+	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
+	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
+	IsActive       *bool                     `json:"is_active"`
+	OpeningBalance float64                   `json:"opening_balance"`
+	OpeningDate    *string                   `json:"opening_date"`
 }
 
 type UpdateChartOfAccountRequest struct {
-	Code     string                    `json:"code" binding:"required"`
-	Name     string                    `json:"name" binding:"required"`
-	Type     financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
-	ParentID *string                   `json:"parent_id" binding:"omitempty,uuid"`
-	IsActive *bool                     `json:"is_active"`
+	Code           string                    `json:"code" binding:"required"`
+	Name           string                    `json:"name" binding:"required"`
+	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
+	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
+	IsActive       *bool                     `json:"is_active"`
+	OpeningBalance float64                   `json:"opening_balance"`
+	OpeningDate    *string                   `json:"opening_date"`
 }
 
 type ListChartOfAccountsRequest struct {
@@ -34,24 +38,34 @@ type ListChartOfAccountsRequest struct {
 }
 
 type ChartOfAccountResponse struct {
-	ID        string                    `json:"id"`
-	Code      string                    `json:"code"`
-	Name      string                    `json:"name"`
-	Type      financeModels.AccountType `json:"type"`
-	ParentID  *string                   `json:"parent_id"`
-	IsActive  bool                      `json:"is_active"`
-	CreatedAt time.Time                 `json:"created_at"`
-	UpdatedAt time.Time                 `json:"updated_at"`
+	ID             string                    `json:"id"`
+	Code           string                    `json:"code"`
+	Name           string                    `json:"name"`
+	Type           financeModels.AccountType `json:"type"`
+	ParentID       *string                   `json:"parent_id"`
+	IsActive       bool                      `json:"is_active"`
+	IsPostable     bool                      `json:"is_postable"`
+	IsProtected    bool                      `json:"is_protected"`
+	Level          int                       `json:"level"`
+	OpeningBalance float64                   `json:"opening_balance"`
+	OpeningDate    *string                   `json:"opening_date"`
+	CreatedAt      time.Time                 `json:"created_at"`
+	UpdatedAt      time.Time                 `json:"updated_at"`
 }
 
 type ChartOfAccountTreeNode struct {
-	ID       string                    `json:"id"`
-	Code     string                    `json:"code"`
-	Name     string                    `json:"name"`
-	Type     financeModels.AccountType `json:"type"`
-	ParentID *string                   `json:"parent_id"`
-	IsActive bool                      `json:"is_active"`
-	Children []ChartOfAccountTreeNode  `json:"children"`
+	ID             string                    `json:"id"`
+	Code           string                    `json:"code"`
+	Name           string                    `json:"name"`
+	Type           financeModels.AccountType `json:"type"`
+	ParentID       *string                   `json:"parent_id"`
+	IsActive       bool                      `json:"is_active"`
+	IsPostable     bool                      `json:"is_postable"`
+	IsProtected    bool                      `json:"is_protected"`
+	Level          int                       `json:"level"`
+	OpeningBalance float64                   `json:"opening_balance"`
+	OpeningDate    *string                   `json:"opening_date"`
+	Children       []ChartOfAccountTreeNode  `json:"children"`
 }
 
 type AccountBalanceResponse struct {

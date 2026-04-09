@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -25,6 +25,14 @@ func SeedOpeningBalances() error {
 	// ============================================================================
 	// Step 1: Calculate total inventory value from subledger
 	// ============================================================================
+	var batchCount int64
+	if err := db.
+		Table("inventory_batches").
+		Where("is_active = true AND deleted_at IS NULL").
+		Count(&batchCount).Error; err != nil {
+		return fmt.Errorf("failed to count inventory batches: %w", err)
+	}
+
 	var totalInventoryValue float64
 	if err := db.
 		Table("inventory_batches").
@@ -34,8 +42,35 @@ func SeedOpeningBalances() error {
 		return fmt.Errorf("failed to calculate inventory total: %w", err)
 	}
 
+	if totalInventoryValue == 0 && batchCount > 0 {
+		log.Println("  Inventory value is zero while batches exist; backfilling batch cost_price from product pricing...")
+		if err := db.Exec(`
+			UPDATE inventory_batches ib
+			SET cost_price = COALESCE(NULLIF(p.cost_price, 0), NULLIF(p.current_hpp, 0), ib.cost_price)
+			FROM products p
+			WHERE ib.product_id = p.id
+			  AND ib.is_active = true
+			  AND ib.deleted_at IS NULL
+			  AND ib.cost_price = 0
+		`).Error; err != nil {
+			return fmt.Errorf("failed to backfill batch cost_price from products: %w", err)
+		}
+
+		if err := db.
+			Table("inventory_batches").
+			Where("is_active = true AND deleted_at IS NULL").
+			Select("COALESCE(SUM(current_quantity * cost_price), 0) as total").
+			Scan(&totalInventoryValue).Error; err != nil {
+			return fmt.Errorf("failed to recalculate inventory total after cost backfill: %w", err)
+		}
+	}
+
 	if totalInventoryValue == 0 {
-		log.Println("  ⚠ No inventory batches found, skipping opening balance")
+		if batchCount == 0 {
+			log.Println("  ⚠ No inventory batches found, skipping opening balance")
+		} else {
+			log.Println("  ⚠ Inventory batches found but total value is still zero, skipping opening balance")
+		}
 		return nil
 	}
 
@@ -46,16 +81,54 @@ func SeedOpeningBalances() error {
 	// ============================================================================
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 
-	// Inventory Asset COA
-	inventoryAssetCOA, err := coaRepo.FindByCode(ctx, "1400")
-	if err != nil || inventoryAssetCOA == nil {
-		return fmt.Errorf("failed to find inventory asset COA (1400): %w", err)
+	findCOAByCandidates := func(label string, codes ...string) (*models.ChartOfAccount, error) {
+		var lastErr error
+		for _, code := range codes {
+			coa, findErr := coaRepo.FindByCode(ctx, code)
+			if findErr == nil && coa != nil {
+				return coa, nil
+			}
+			lastErr = findErr
+		}
+
+		if lastErr != nil {
+			return nil, fmt.Errorf("failed to find %s COA using candidates %v: %w", label, codes, lastErr)
+		}
+		return nil, fmt.Errorf("failed to find %s COA using candidates %v", label, codes)
 	}
 
-	// Retained Earnings COA
-	retainedEarningsCOA, err := coaRepo.FindByCode(ctx, "3200")
-	if err != nil || retainedEarningsCOA == nil {
-		return fmt.Errorf("failed to find retained earnings COA (3200): %w", err)
+	// Canonical inventory account is 1-1310 in current COA hierarchy.
+	inventoryAssetCOA, err := findCOAByCandidates("inventory asset", "1-1310", "1-1300", "1400")
+	if err != nil {
+		return err
+	}
+
+	// Canonical retained earnings/opening equity accounts in current hierarchy.
+	retainedEarningsCOA, err := findCOAByCandidates("retained earnings", "3-9999", "3-3000", "3200")
+	if err != nil {
+		return err
+	}
+
+	now := apptime.Now()
+
+	// Keep COA opening balance fields in sync with seeded opening journals
+	// so finance COA list and related UI do not show all zeros.
+	if err := db.Model(&models.ChartOfAccount{}).
+		Where("id = ?", inventoryAssetCOA.ID).
+		Updates(map[string]interface{}{
+			"opening_balance": totalInventoryValue,
+			"opening_date":    now,
+		}).Error; err != nil {
+		return fmt.Errorf("failed to sync opening balance for inventory account %s: %w", inventoryAssetCOA.Code, err)
+	}
+
+	if err := db.Model(&models.ChartOfAccount{}).
+		Where("id = ?", retainedEarningsCOA.ID).
+		Updates(map[string]interface{}{
+			"opening_balance": totalInventoryValue,
+			"opening_date":    now,
+		}).Error; err != nil {
+		return fmt.Errorf("failed to sync opening balance for equity account %s: %w", retainedEarningsCOA.Code, err)
 	}
 
 	// ============================================================================
@@ -75,7 +148,6 @@ func SeedOpeningBalances() error {
 	// Step 4: Create opening balance journal entry
 	// ============================================================================
 	journalID := uuid.New().String()
-	now := time.Now()
 
 	// Prepare pointers to reference type and ID (can't take address of constants)
 	refType := "OPENING_BALANCE"

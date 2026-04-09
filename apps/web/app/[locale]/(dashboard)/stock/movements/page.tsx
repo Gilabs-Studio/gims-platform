@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
 export default function StockMovementsPage() {
   return (
-    <PermissionGuard requiredPermission="inventory.read">
+    <PermissionGuard requiredPermission="stock_movement.read">
       <Suspense fallback={null}>
         <MovementList />
       </Suspense>

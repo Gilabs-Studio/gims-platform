@@ -29,6 +29,8 @@ import { CreateStockOpnameDialog } from "./stock-opname-form";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { toast } from "sonner";
+import { useRouter } from "@/i18n/routing";
+import { getStockOpnameErrorMessage, isStockOpnameMappingError } from "../utils/error-utils";
 
 function getInitialOpenStockOpnameFromURL(): string | null {
     if (typeof window === "undefined") {
@@ -42,6 +44,7 @@ function getInitialOpenStockOpnameFromURL(): string | null {
 export function StockOpnameList() {
   const t = useTranslations("stock_opname");
   const tCommon = useTranslations("common");
+    const router = useRouter();
 
   // Permissions
   const canCreate = useUserPermission("stock_opname.create");
@@ -49,6 +52,7 @@ export function StockOpnameList() {
   const canRead = useUserPermission("stock_opname.read");
   const canUpdate = useUserPermission("stock_opname.update");
   const canApprove = useUserPermission("stock_opname.approve");
+    const canPost = useUserPermission("stock_opname.post");
   
   // Dialog State
     const [selectedOpnameId, setSelectedOpnameId] = useState<string | null>(getInitialOpenStockOpnameFromURL);
@@ -130,8 +134,18 @@ export function StockOpnameList() {
               data: { status: newStatus }
           });
           toast.success(tCommon("saved"));
-      } catch {
-          toast.error(tCommon("error"));
+      } catch (error) {
+          if (isStockOpnameMappingError(error)) {
+              toast.error(t("errors.mappingRequired"), {
+                  action: {
+                      label: t("actions.openMapping"),
+                      onClick: () => router.push("/finance/settings/accounting-mapping"),
+                  },
+              });
+              return;
+          }
+
+          toast.error(getStockOpnameErrorMessage(error, tCommon("error")));
       }
   };
 
@@ -343,7 +357,7 @@ export function StockOpnameList() {
                                             </>
                                        )}
 
-                                       {row.status === 'approved' && canUpdate && (
+                                       {row.status === 'approved' && canPost && (
                                             <DropdownMenuItem 
                                                 onClick={() => handleStatusChange(row.id, 'posted')}
                                                 className="cursor-pointer"

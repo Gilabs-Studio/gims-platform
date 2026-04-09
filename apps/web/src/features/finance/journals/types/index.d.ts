@@ -22,6 +22,17 @@ export interface ApiResponse<T> {
 
 export type JournalStatus = "draft" | "posted" | "reversed";
 
+export type JournalType =
+  | "GENERAL"
+  | "SALES"
+  | "PURCHASE"
+  | "INVENTORY"
+  | "ADJUSTMENT"
+  | "VALUATION"
+  | "CASH_BANK"
+  | "OPENING_BALANCE"
+  | string;
+
 export interface JournalLine {
   id: string;
   chart_of_account_id: string;
@@ -38,6 +49,7 @@ export interface JournalEntry {
   reference_type?: string | null;
   reference_id?: string | null;
   reference_code?: string | null;
+  journal_type?: JournalType | null;
   status: JournalStatus;
   posted_at?: string | null;
   posted_by?: string | null;
@@ -58,6 +70,7 @@ export interface JournalEntry {
   reversed_by_name?: string | null;
   reversed_by_email?: string | null;
   reversal_reason?: string | null;
+  source_document_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -85,6 +98,7 @@ export interface CreateJournalEntryInput {
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
+  journal_type?: JournalType;
   lines: JournalLineInput[];
 }
 

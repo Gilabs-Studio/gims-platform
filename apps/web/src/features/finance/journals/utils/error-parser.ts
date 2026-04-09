@@ -5,6 +5,9 @@
 
 export type ApiErrorType = 
   | "coa_validation"
+  | "mapping_missing"
+  | "already_posted"
+  | "locked_entry"
   | "missing_setting"
   | "insufficient_balance"
   | "duplicate_journal"
@@ -28,11 +31,48 @@ export interface ParsedApiError {
 export function parseApiError(error: unknown): ParsedApiError {
   // Handle axios-style errors
   if (error && typeof error === "object" && "response" in error) {
-    const axiosError = error as any;
+    const axiosError = error as {
+      response?: {
+        data?: {
+          message?: string;
+          error?: { code?: string; message?: string };
+          details?: Record<string, unknown>;
+        };
+      };
+    };
     const data = axiosError.response?.data;
+
+    const code = data?.error?.code;
+    if (typeof code === "string") {
+      const normalizedCode = code.toUpperCase();
+      if (normalizedCode.includes("MAPPING") || normalizedCode.includes("ACCOUNT")) {
+        return {
+          type: "mapping_missing",
+          message: data?.error?.message ?? data?.message ?? "Account mapping is not configured",
+          details: data?.details,
+        };
+      }
+
+      if (normalizedCode.includes("ALREADY_POSTED")) {
+        return {
+          type: "already_posted",
+          message: data?.error?.message ?? data?.message ?? "Journal has already been posted",
+          details: data?.details,
+        };
+      }
+
+      if (normalizedCode.includes("LOCK") || normalizedCode.includes("IMMUTABLE")) {
+        return {
+          type: "locked_entry",
+          message: data?.error?.message ?? data?.message ?? "Journal entry is locked",
+          details: data?.details,
+        };
+      }
+    }
     
-    if (data?.message) {
-      return categorizeError(data.message, data);
+    const message = data?.message ?? data?.error?.message;
+    if (message) {
+      return categorizeError(message, data?.details ?? data);
     }
   }
 
@@ -56,6 +96,30 @@ export function parseApiError(error: unknown): ParsedApiError {
  */
 function categorizeError(message: string, details?: unknown): ParsedApiError {
   const msg = String(message).toLowerCase();
+
+  if (msg.includes("mapping") || msg.includes("account mapping")) {
+    return {
+      type: "mapping_missing",
+      message: String(message),
+      details: details && typeof details === "object" ? (details as Record<string, unknown>) : undefined,
+    };
+  }
+
+  if (msg.includes("already posted")) {
+    return {
+      type: "already_posted",
+      message: String(message),
+      details: details && typeof details === "object" ? (details as Record<string, unknown>) : undefined,
+    };
+  }
+
+  if (msg.includes("locked") || msg.includes("immutable") || msg.includes("system-generated")) {
+    return {
+      type: "locked_entry",
+      message: String(message),
+      details: details && typeof details === "object" ? (details as Record<string, unknown>) : undefined,
+    };
+  }
 
   // Check for COA validation errors
   if (msg.includes("coa") || msg.includes("chart of account") || msg.includes("accounting")) {
@@ -155,8 +219,14 @@ export function getErrorMessage(error: ParsedApiError, t?: (key: string) => stri
   const translate = t || ((k) => k);
 
   switch (error.type) {
+    case "mapping_missing":
+      return translate("errors.missing_account_mapping");
     case "coa_validation":
       return translate("errors.missing_coa_settings");
+    case "already_posted":
+      return translate("errors.already_posted");
+    case "locked_entry":
+      return translate("errors.locked_entry");
     case "insufficient_balance":
       return translate("errors.insufficient_balance");
     case "duplicate_journal":

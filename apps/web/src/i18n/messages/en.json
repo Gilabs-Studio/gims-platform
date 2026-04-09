@@ -251,7 +251,22 @@
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",
-    "description": "Enterprise Chart of Account Mapping Configuration"
+    "description": "Configure global Chart of Account mappings used by journal automation across Finance, Purchase, Sales, and Inventory.",
+    "loading": "Syncing ledger definitions...",
+    "loadFailed": "Failed to load finance settings or chart of accounts.",
+    "dynamicDescription": "Custom COA mapping key loaded from server settings.",
+    "missingRequired": "{count} required mappings are still empty.",
+    "required": "Required",
+    "customKey": "Custom",
+    "selectAccount": "Select account",
+    "notMapped": "Not mapped",
+    "noMatchingAccount": "No matching postable account found for this mapping.",
+    "allowedTypes": "Allowed types",
+    "selectedTypeMismatch": "Current selection type is {type}, outside allowed mapping type.",
+    "requiredValue": "This mapping is required. Please select a chart of account.",
+    "viewOnly": "View Only",
+    "saving": "Saving...",
+    "save": "Save Configuration"
   },
   "travelPlanner": {
     "badge": "Collaborative Advance",

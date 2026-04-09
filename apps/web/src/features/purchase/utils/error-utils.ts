@@ -81,3 +81,41 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
 
   return fallback;
 }
+
+export function isAccountingMappingError(error: unknown): boolean {
+  if (!(error && typeof error === "object" && "response" in error)) {
+    return false;
+  }
+
+  const responseData = (
+    error as {
+      response?: { data?: ApiErrorPayload };
+    }
+  ).response?.data;
+
+  const errorCode = (responseData?.error as { code?: string } | undefined)?.code?.toUpperCase();
+  if (errorCode) {
+    const mappingCodes = ["MAPPING", "COA", "ACCOUNT", "SETTING"];
+    if (mappingCodes.some((code) => errorCode.includes(code))) {
+      return true;
+    }
+  }
+
+  const messages = [
+    responseData?.error?.message,
+    responseData?.error?.details?.message,
+    responseData?.message,
+  ]
+    .filter((message): message is string => typeof message === "string")
+    .map((message) => message.toLowerCase());
+
+  return messages.some((message) =>
+    [
+      "missing required coa settings",
+      "account mapping",
+      "coa setting",
+      "finance settings validation failed",
+      "chart of account",
+    ].some((needle) => message.includes(needle)),
+  );
+}

@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/stock_opname/domain/dto"
@@ -71,6 +74,30 @@ func (h *StockOpnameHandler) Update(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, res, nil)
+}
+
+func handleStockOpnameStandardError(c *gin.Context, err error) bool {
+	errMsg := strings.ToLower(strings.TrimSpace(err.Error()))
+
+	switch {
+	case strings.Contains(errMsg, "not postable"):
+		response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodeAccountNotPostable, err.Error(), nil)
+		return true
+	case strings.Contains(errMsg, "inactive") && strings.Contains(errMsg, "account"):
+		response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodeAccountInactive, err.Error(), nil)
+		return true
+	case strings.Contains(errMsg, "period") && strings.Contains(errMsg, "closed"):
+		response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodePeriodClosed, err.Error(), nil)
+		return true
+	case strings.Contains(errMsg, "mapping") && (strings.Contains(errMsg, "not configured") || strings.Contains(errMsg, "belum dikonfigurasi")):
+		response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodeMappingNotConfigured, err.Error(), nil)
+		return true
+	case strings.Contains(errMsg, "lock") || strings.Contains(errMsg, "deadlock") || strings.Contains(errMsg, "concurrent") || strings.Contains(errMsg, "serialization"):
+		response.StandardErrorResponse(c, http.StatusConflict, response.ErrCodeConcurrentLockConflict, err.Error(), nil)
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *StockOpnameHandler) Delete(c *gin.Context) {
@@ -184,6 +211,38 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	perms, exists := c.Get("user_permissions")
+	if !exists {
+		errors.ForbiddenResponse(c, "permission check failed", nil)
+		return
+	}
+
+	permMap, ok := perms.(map[string]bool)
+	if !ok {
+		errors.ForbiddenResponse(c, "permission format error", nil)
+		return
+	}
+
+	requiredPermission := ""
+	switch req.Status {
+	case "pending":
+		requiredPermission = "stock_opname.update"
+	case "approved":
+		requiredPermission = "stock_opname.approve"
+	case "rejected":
+		requiredPermission = "stock_opname.reject"
+	case "posted":
+		requiredPermission = "stock_opname.post"
+	default:
+		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": "Status action not found"}, nil)
+		return
+	}
+
+	if !permMap[requiredPermission] {
+		errors.ForbiddenResponse(c, requiredPermission, nil)
+		return
+	}
+
 	var userID *string
 	if uid, exists := c.Get("user_id"); exists {
 		if u, ok := uid.(string); ok {
@@ -203,9 +262,6 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 		res, err = h.usecase.Reject(c.Request.Context(), id, userID)
 	case "posted":
 		res, err = h.usecase.Post(c.Request.Context(), id, userID)
-	default:
-		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": "Status action not found"}, nil)
-		return
 	}
 
 	if err != nil {

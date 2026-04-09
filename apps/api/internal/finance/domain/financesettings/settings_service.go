@@ -16,6 +16,10 @@ type SettingsService interface {
 	// Example: GetCOACode(ctx, models.SettingCOANonTradePayable) → "21200"
 	GetCOACode(ctx context.Context, settingKey string) (string, error)
 
+	// GetCOAByKey resolves a COA code from system_account_mappings by key.
+	// Example key: "purchase.inventory_asset"
+	GetCOAByKey(ctx context.Context, key string) (string, error)
+
 	// GetValue returns the raw value for a given setting key.
 	GetValue(ctx context.Context, settingKey string) (string, error)
 
@@ -27,12 +31,17 @@ type SettingsService interface {
 }
 
 type settingsService struct {
-	repo repositories.FinanceSettingRepository
+	repo        repositories.FinanceSettingRepository
+	mappingRepo repositories.SystemAccountMappingRepository
 }
 
 // NewSettingsService creates a new finance settings service.
-func NewSettingsService(repo repositories.FinanceSettingRepository) SettingsService {
-	return &settingsService{repo: repo}
+func NewSettingsService(repo repositories.FinanceSettingRepository, mappingRepo ...repositories.SystemAccountMappingRepository) SettingsService {
+	s := &settingsService{repo: repo}
+	if len(mappingRepo) > 0 {
+		s.mappingRepo = mappingRepo[0]
+	}
+	return s
 }
 
 // GetCOACode resolves a COA code from settings.
@@ -45,6 +54,23 @@ func (s *settingsService) GetCOACode(ctx context.Context, settingKey string) (st
 	if value == "" {
 		return "", fmt.Errorf("finance setting '%s' is empty — please configure a valid COA code", settingKey)
 	}
+	return value, nil
+}
+
+// GetCOAByKey resolves a COA code from system_account_mappings.
+func (s *settingsService) GetCOAByKey(ctx context.Context, key string) (string, error) {
+	if s.mappingRepo == nil {
+		return "", fmt.Errorf("system account mapping untuk '%s' belum dikonfigurasi", key)
+	}
+
+	value, err := s.mappingRepo.GetByKey(ctx, key, nil)
+	if err != nil {
+		return "", fmt.Errorf("system account mapping untuk '%s' belum dikonfigurasi", key)
+	}
+	if value == "" {
+		return "", fmt.Errorf("system account mapping untuk '%s' belum dikonfigurasi", key)
+	}
+
 	return value, nil
 }
 

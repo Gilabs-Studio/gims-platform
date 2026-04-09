@@ -12,6 +12,19 @@ export const coaFormSchema = z.object({
   type: coaTypeSchema,
   parent_id: z.string().uuid().nullable().optional(),
   is_active: z.boolean().optional(),
+  opening_balance: z.coerce.number().finite().default(0),
+  opening_date: z.string().trim().nullable().optional(),
+}).superRefine((values, ctx) => {
+  const hasOpeningBalance = Math.abs(values.opening_balance ?? 0) > 0;
+  const hasOpeningDate = (values.opening_date ?? "").trim().length > 0;
+
+  if (hasOpeningBalance && !hasOpeningDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["opening_date"],
+      message: "Opening date is required when opening balance is non-zero",
+    });
+  }
 });
 
 export type CoaFormValues = z.infer<typeof coaFormSchema>;

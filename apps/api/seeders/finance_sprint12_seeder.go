@@ -17,68 +17,16 @@ import (
 func SeedFinanceSprint12() error {
 	db := database.DB
 
-	log.Println("Seeding finance (Sprint 12): COA, assets, closing, tax invoice, non-trade payable...")
-
-	// 1) Seed minimal Chart of Accounts required by AssetCategory + NonTradePayable + UpCountryCost + YearEndClosing.
-	coaSeeds := []financeModels.ChartOfAccount{
-		// 1) ASSETS (1000-1999)
-		{Code: "1000", Name: "Cash on Hand", Type: financeModels.AccountTypeCashBank, IsActive: true},
-		{Code: "1100", Name: "Accounts Receivable", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "1200", Name: "Purchase Advances (Prepaid)", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "1300", Name: "Merchandise Inventory", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "1400", Name: "VAT Input (PPN Masukan)", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "1500", Name: "Fixed Assets", Type: financeModels.AccountTypeAsset, IsActive: true},
-		{Code: "1590", Name: "Accumulated Depreciation", Type: financeModels.AccountTypeAsset, IsActive: true},
-
-		// 2) LIABILITIES (2000-2999)
-		{Code: "2100", Name: "Accounts Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "2200", Name: "GR/IR Clearing", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "2300", Name: "Non-Trade Payable", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "2400", Name: "Accrued Expenses", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "2500", Name: "Customer Advances (DP)", Type: financeModels.AccountTypeLiability, IsActive: true},
-		{Code: "2600", Name: "VAT Output (PPN Keluaran)", Type: financeModels.AccountTypeLiability, IsActive: true},
-
-		// 3) EQUITY (3000-3999)
-		{Code: "3100", Name: "Paid-in Capital", Type: financeModels.AccountTypeEquity, IsActive: true},
-		{Code: "3200", Name: "Retained Earnings", Type: financeModels.AccountTypeEquity, IsActive: true},
-
-		// 4) REVENUE (4000-4999)
-		{Code: "4100", Name: "Sales Revenue", Type: financeModels.AccountTypeRevenue, IsActive: true},
-		{Code: "4200", Name: "Sales Returns", Type: financeModels.AccountTypeRevenue, IsActive: true},
-		{Code: "4400", Name: "Inventory Gain", Type: financeModels.AccountTypeRevenue, IsActive: true},
-
-		// 5) COGS (5000-5999)
-		{Code: "5000", Name: "Cost of Goods Sold", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "5100", Name: "Purchase Returns", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "5200", Name: "Inventory Adjustment (Increase)", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "5300", Name: "Inventory Loss (COGS)", Type: financeModels.AccountTypeExpense, IsActive: true},
-
-		// 6) EXPENSES (6000-7999)
-		{Code: "6100", Name: "Depreciation Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "6200", Name: "Delivery Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "6300", Name: "Office Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-		{Code: "6400", Name: "Travel Expense", Type: financeModels.AccountTypeExpense, IsActive: true},
-	}
-
-	for i := range coaSeeds {
-		if err := db.
-			Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "code"}},
-				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
-			}).
-			Create(&coaSeeds[i]).Error; err != nil {
-			log.Printf("Warning: Failed to create COA %s: %v", coaSeeds[i].Code, err)
-		}
-	}
+	log.Println("Seeding finance (Sprint 12): assets, closing, tax invoice, non-trade payable...")
 
 	var fixedAssetCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "1500").First(&fixedAssetCOA).Error
+	_ = db.Where("code = ?", "1-2240").First(&fixedAssetCOA).Error
 	var accumDepCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "1590").First(&accumDepCOA).Error
+	_ = db.Where("code = ?", "1-2241").First(&accumDepCOA).Error
 	var depExpenseCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "6100").First(&depExpenseCOA).Error
+	_ = db.Where("code = ?", "6-2430").First(&depExpenseCOA).Error
 	var officeExpenseCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "6300").First(&officeExpenseCOA).Error
+	_ = db.Where("code = ?", "6-2600").First(&officeExpenseCOA).Error
 
 	// 2) Seed Asset Locations
 	locations := []financeModels.AssetLocation{
@@ -168,25 +116,25 @@ func SeedFinanceSprint12() error {
 
 	assets := []financeModels.Asset{
 		{
-			Code:             "AST-0001",
-			Name:             "Laptop - Finance",
-			CategoryID:       officeEquipmentCat.ID,
-			LocationID:       headOffice.ID,
-			AcquisitionDate:  time.Now().AddDate(0, -10, 0),
-			AcquisitionCost:  15000000,
-			SalvageValue:     1000000,
-			Status:           financeModels.AssetStatusActive,
-			SerialNumber:     &serial1,
-			Barcode:          &barcode1,
-			AssetTag:         &tag1,
-			ShippingCost:     150000,
-			InstallationCost: 250000,
-			TaxAmount:        1500000,
-			IsDepreciable:    true,
-			IsCapitalized:    true,
-			WarrantyStart:    &warrantyStart,
-			WarrantyEnd:      &warrantyEnd,
-			WarrantyProvider: &warrantyProvider1,
+			Code:                  "AST-0001",
+			Name:                  "Laptop - Finance",
+			CategoryID:            officeEquipmentCat.ID,
+			LocationID:            headOffice.ID,
+			AcquisitionDate:       time.Now().AddDate(0, -10, 0),
+			AcquisitionCost:       15000000,
+			SalvageValue:          1000000,
+			Status:                financeModels.AssetStatusActive,
+			SerialNumber:          &serial1,
+			Barcode:               &barcode1,
+			AssetTag:              &tag1,
+			ShippingCost:          150000,
+			InstallationCost:      250000,
+			TaxAmount:             1500000,
+			IsDepreciable:         true,
+			IsCapitalized:         true,
+			WarrantyStart:         &warrantyStart,
+			WarrantyEnd:           &warrantyEnd,
+			WarrantyProvider:      &warrantyProvider1,
 			InsurancePolicyNumber: &insPolicy1,
 			InsuranceProvider:     &insProvider1,
 			InsuranceStart:        &insStart,
@@ -194,45 +142,45 @@ func SeedFinanceSprint12() error {
 			InsuranceValue:        &insValue1,
 		},
 		{
-			Code:            "AST-0002",
-			Name:            "Office Printer",
-			CategoryID:      officeEquipmentCat.ID,
-			LocationID:      headOffice.ID,
-			AcquisitionDate: time.Now().AddDate(0, -14, 0),
-			AcquisitionCost: 8500000,
-			SalvageValue:    500000,
-			Status:          financeModels.AssetStatusActive,
-			SerialNumber:    &serial2,
-			Barcode:         &barcode2,
-			AssetTag:        &tag2,
-			ShippingCost:    100000,
-			TaxAmount:       850000,
-			IsDepreciable:   true,
-			IsCapitalized:   true,
-			WarrantyStart:   &warrantyStart,
-			WarrantyEnd:     &warrantyEnd,
-			WarrantyProvider: &warrantyProvider2,
-		},
-		{
-			Code:             "AST-0003",
-			Name:             "Delivery Van",
-			CategoryID:       vehiclesCat.ID,
-			LocationID:       warehouse.ID,
-			AcquisitionDate:  time.Now().AddDate(-1, 0, 0),
-			AcquisitionCost:  265000000,
-			SalvageValue:     25000000,
+			Code:             "AST-0002",
+			Name:             "Office Printer",
+			CategoryID:       officeEquipmentCat.ID,
+			LocationID:       headOffice.ID,
+			AcquisitionDate:  time.Now().AddDate(0, -14, 0),
+			AcquisitionCost:  8500000,
+			SalvageValue:     500000,
 			Status:           financeModels.AssetStatusActive,
-			SerialNumber:     &serial3,
-			Barcode:          &barcode3,
-			AssetTag:         &tag3,
-			ShippingCost:     5000000,
-			InstallationCost: 2500000,
-			TaxAmount:        26500000,
+			SerialNumber:     &serial2,
+			Barcode:          &barcode2,
+			AssetTag:         &tag2,
+			ShippingCost:     100000,
+			TaxAmount:        850000,
 			IsDepreciable:    true,
 			IsCapitalized:    true,
 			WarrantyStart:    &warrantyStart,
 			WarrantyEnd:      &warrantyEnd,
-			WarrantyProvider: &warrantyProvider3,
+			WarrantyProvider: &warrantyProvider2,
+		},
+		{
+			Code:                  "AST-0003",
+			Name:                  "Delivery Van",
+			CategoryID:            vehiclesCat.ID,
+			LocationID:            warehouse.ID,
+			AcquisitionDate:       time.Now().AddDate(-1, 0, 0),
+			AcquisitionCost:       265000000,
+			SalvageValue:          25000000,
+			Status:                financeModels.AssetStatusActive,
+			SerialNumber:          &serial3,
+			Barcode:               &barcode3,
+			AssetTag:              &tag3,
+			ShippingCost:          5000000,
+			InstallationCost:      2500000,
+			TaxAmount:             26500000,
+			IsDepreciable:         true,
+			IsCapitalized:         true,
+			WarrantyStart:         &warrantyStart,
+			WarrantyEnd:           &warrantyEnd,
+			WarrantyProvider:      &warrantyProvider3,
 			InsurancePolicyNumber: &insPolicy2,
 			InsuranceProvider:     &insProvider2,
 			InsuranceStart:        &insStart,

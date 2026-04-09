@@ -27,7 +27,7 @@ func SeedBankAccounts() error {
 	if isMinimalSeedMode() {
 		db := database.DB
 		// Minimal bank account + corresponding COA.
-		coa := financeModels.ChartOfAccount{Code: "11100", Name: "Cash - Minimal Account", Type: financeModels.AccountTypeCashBank, IsActive: true}
+		coa := financeModels.ChartOfAccount{Code: "1-1101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
 			return err
 		}
@@ -67,22 +67,17 @@ func SeedBankAccounts() error {
 		{
 			name: "Bank Mandiri - Main Account", accountNumber: "1234567890",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "11101", coaName: "Bank Mandiri - Main Account",
+			coaCode: "1-1112", coaName: "Bank Mandiri",
 		},
 		{
 			name: "Bank BCA - Operating Account", accountNumber: "0987654321",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "11102", coaName: "Bank BCA - Operating Account",
+			coaCode: "1-1111", coaName: "Bank BCA",
 		},
 		{
 			name: "Bank BRI - USD Account", accountNumber: "1122334455",
 			accountHolder: "PT. ERP Company", currency: "USD", isActive: true,
-			coaCode: "11103", coaName: "Bank BRI - USD Account",
-		},
-		{
-			name: "Bank BNI - Inactive Account", accountNumber: "5566778899",
-			accountHolder: "PT. ERP Company", currency: "IDR", isActive: false,
-			coaCode: "11104", coaName: "Bank BNI - Inactive Account",
+			coaCode: "1-1113", coaName: "Bank BRI",
 		},
 	}
 

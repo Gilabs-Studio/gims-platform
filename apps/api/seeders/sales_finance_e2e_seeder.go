@@ -97,10 +97,10 @@ func SeedSalesFinanceE2E() error {
 		return coa
 	}
 
-	cashCOA := ensureCOA("11100", "Cash on Hand", "ASSET")
-	receivableCOA := ensureCOA("11300", "Trade Receivables", "ASSET")
-	dpAdvanceCOA := ensureCOA("21200", "Sales Advances (DP)", "LIABILITY")
-	revenueCOA := ensureCOA("4100", "Sales Revenue", "REVENUE")
+	cashCOA := ensureCOA("1-1101", "Kas", "CASH_BANK")
+	receivableCOA := ensureCOA("1-1210", "Piutang Usaha (AR)", "ASSET")
+	dpAdvanceCOA := ensureCOA("2-1400", "Uang Muka Penjualan", "LIABILITY")
+	revenueCOA := ensureCOA("4-1100", "Penjualan", "REVENUE")
 
 	// ──────────────────────────────────────────────────────────────────
 	// SCENARIO 1: Full flow with Down Payment (SQ → SO → DO → DP → INV → PAY → JE)

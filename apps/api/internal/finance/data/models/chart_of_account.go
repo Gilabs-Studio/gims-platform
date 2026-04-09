@@ -33,7 +33,11 @@ type ChartOfAccount struct {
 	Parent   *ChartOfAccount
 	Children []ChartOfAccount `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 
-	IsActive bool `gorm:"default:true;index" json:"is_active"`
+	IsActive       bool       `gorm:"default:true;index" json:"is_active"`
+	IsPostable     bool       `gorm:"default:true;index" json:"is_postable"`
+	IsProtected    bool       `gorm:"default:false;index" json:"is_protected"`
+	OpeningBalance float64    `gorm:"type:decimal(20,4);default:0" json:"opening_balance"`
+	OpeningDate    *time.Time `gorm:"type:date" json:"opening_date"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `gorm:"index" json:"updated_at"`

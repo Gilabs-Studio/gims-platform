@@ -18,7 +18,7 @@ func SeedFinanceSettings() error {
 	log.Println("Seeding Finance Settings...")
 	db := database.DB
 
-	// All settings mapped to standardized COA codes (4-digit format)
+	// All settings mapped to standardized COA codes (X-XXXX format)
 	// Organized by business domain for clarity
 	defaultSettings := []models.FinanceSetting{
 		// ========================================================================
@@ -26,43 +26,43 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOASalesReceivable,
-			Value:       "1200",
+			Value:       "1-1210",
 			Description: "Accounts Receivable - Trade (A/R for sales invoices)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesRevenue,
-			Value:       "4100",
+			Value:       "4-1100",
 			Description: "Sales Revenue Account (main income account)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesReturn,
-			Value:       "4200",
+			Value:       "4-1200",
 			Description: "Sales Returns & Allowances (reduction to revenue)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesVATOut,
-			Value:       "2300",
+			Value:       "2-1210",
 			Description: "VAT Output Tax Payable (PPN Keluaran)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesAdvance,
-			Value:       "2400",
+			Value:       "2-1400",
 			Description: "Customer Advances (Down Payment Received - liability)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesInventory,
-			Value:       "1400",
+			Value:       "1-1310",
 			Description: "Merchandise Inventory (asset for COGS)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOASalesCOGS,
-			Value:       "5000",
+			Value:       "5-1000",
 			Description: "Cost of Goods Sold (COGS - expense)",
 			Category:    "coa",
 		},
@@ -72,49 +72,49 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOAAccountsPayable,
-			Value:       "2100",
+			Value:       "2-1100",
 			Description: "Accounts Payable - Trade (A/P for supplier invoices)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchasePayable,
-			Value:       "2110",
+			Value:       "2-1100",
 			Description: "Accounts Payable - Trade (same as AccountsPayable, for consistency)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseGRIR,
-			Value:       "2120",
+			Value:       "1-1440",
 			Description: "GR/IR Accrual (Goods Received Not Invoiced - temporary payable)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseVATIn,
-			Value:       "1500",
+			Value:       "1-1420",
 			Description: "VAT Input Tax (PPN Masukan - asset/receivable)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseAdvance,
-			Value:       "1300",
+			Value:       "1-1410",
 			Description: "Purchase Advances (Down Payment Paid - prepaid/asset)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseAdvances,
-			Value:       "1300",
+			Value:       "1-1410",
 			Description: "Purchase Advances (same as PurchaseAdvance, for backwards compatibility)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseReturn,
-			Value:       "5100",
+			Value:       "5-1000",
 			Description: "Purchase Returns & Allowances (reduction to COGS)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAPurchaseExpense,
-			Value:       "6100",
+			Value:       "6-1300",
 			Description: "Delivery Expense (freight, logistics, third-party costs)",
 			Category:    "coa",
 		},
@@ -124,37 +124,37 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOAInventory,
-			Value:       "1400",
+			Value:       "1-1310",
 			Description: "Inventory - General (merchandise/raw materials)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryAsset,
-			Value:       "1400",
+			Value:       "1-1310",
 			Description: "Inventory Asset (for adjustments and opname)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryGain,
-			Value:       "4310",
+			Value:       "4-2400",
 			Description: "Inventory Gain (opname surplus - other income)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryLoss,
-			Value:       "5020",
+			Value:       "5-2100",
 			Description: "Inventory Loss (opname shortage, waste - expense)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryRevaluationReserve,
-			Value:       "3230",
+			Value:       "3-2000",
 			Description: "Inventory Revaluation Reserve (PSAK/IFRS - equity for gains)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAInventoryAdjustment,
-			Value:       "5010",
+			Value:       "5-2100",
 			Description: "Inventory Adjustment (temporary clearing account)",
 			Category:    "coa",
 		},
@@ -164,13 +164,13 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOACash,
-			Value:       "1000",
+			Value:       "1-1101",
 			Description: "Cash on Hand (physical cash)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOABank,
-			Value:       "1100",
+			Value:       "1-1111",
 			Description: "Bank Accounts (checking/savings/merchant accounts)",
 			Category:    "coa",
 		},
@@ -180,25 +180,25 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOAFixedAsset,
-			Value:       "1600",
+			Value:       "1-2240",
 			Description: "Fixed Assets (equipment, vehicles, buildings - gross)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOADepreciationExpense,
-			Value:       "5500",
+			Value:       "6-2430",
 			Description: "Depreciation Expense (P&L impact)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOADepreciationAccumulated,
-			Value:       "1700",
+			Value:       "1-2241",
 			Description: "Accumulated Depreciation (contra-asset account)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOADepreciationGain,
-			Value:       "4340",
+			Value:       "4-2200",
 			Description: "Depreciation Reversal Gain (other income)",
 			Category:    "coa",
 		},
@@ -208,19 +208,19 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOAFXGain,
-			Value:       "4330",
+			Value:       "4-2300",
 			Description: "FX Gain (currency revaluation - other income)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAFXLoss,
-			Value:       "7100",
+			Value:       "6-2900",
 			Description: "FX Loss (currency revaluation - expense)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAFXRemeasurement,
-			Value:       "7110",
+			Value:       "6-2900",
 			Description: "FX Remeasurement Adjustment (temporary balancing account)",
 			Category:    "coa",
 		},
@@ -230,31 +230,31 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOANonTradePayable,
-			Value:       "2200",
+			Value:       "2-1600",
 			Description: "Non-Trade Payables (Hutang Non-Dagang)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAAccruedExpense,
-			Value:       "2210",
+			Value:       "2-1600",
 			Description: "Accrued Expenses (Hutang Biaya - temporary liability)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAVATIn,
-			Value:       "1500",
+			Value:       "1-1420",
 			Description: "VAT Input Tax (same as PurchaseVATIn)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOATravelExpense,
-			Value:       "6300",
+			Value:       "6-2700",
 			Description: "Travel Expense (trip costs, per diem)",
 			Category:    "coa",
 		},
 		{
 			SettingKey:  models.SettingCOAOtherExpense,
-			Value:       "6900",
+			Value:       "6-2900",
 			Description: "Miscellaneous Expense (other/general expenses)",
 			Category:    "coa",
 		},
@@ -264,7 +264,7 @@ func SeedFinanceSettings() error {
 		// ========================================================================
 		{
 			SettingKey:  models.SettingCOARetainedEarnings,
-			Value:       "3200",
+			Value:       "3-3000",
 			Description: "Retained Earnings (for period closing and equity)",
 			Category:    "coa",
 		},

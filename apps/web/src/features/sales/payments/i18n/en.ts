@@ -10,6 +10,7 @@ export const salesPaymentEn = {
   },
   actions: {
     create: "Create",
+    openMapping: "Open Mapping",
     change: "Change",
     export: "Export",
     confirm: "Confirm",
@@ -100,5 +101,8 @@ export const salesPaymentEn = {
   common: {
     cancel: "Cancel",
     error: "Something went wrong",
+  },
+  errors: {
+    mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before continuing.",
   },
 };

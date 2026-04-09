@@ -1,13 +1,39 @@
 import { apiClient } from "@/lib/api-client";
-import { FinanceSetting, BatchUpsertFinanceSettingsRequest, ApiResponse } from "../types";
+import { ApiResponse, SystemAccountMapping, UpsertSystemAccountMappingRequest } from "../types";
 
 export const financeSettingsService = {
-  getAll: async (): Promise<ApiResponse<FinanceSetting[]>> => {
-    const response = await apiClient.get<ApiResponse<FinanceSetting[]>>("/finance/settings");
+  getAll: async (companyId?: string): Promise<ApiResponse<SystemAccountMapping[]>> => {
+    const response = await apiClient.get<ApiResponse<SystemAccountMapping[]>>(
+      "/finance/settings/account-mappings",
+      {
+        params: companyId ? { company_id: companyId } : undefined,
+      },
+    );
     return response.data;
   },
-  batchUpsert: async (data: BatchUpsertFinanceSettingsRequest): Promise<ApiResponse<FinanceSetting[]>> => {
-    const response = await apiClient.put<ApiResponse<FinanceSetting[]>>("/finance/settings", data);
+
+  upsertByKey: async (
+    key: string,
+    data: UpsertSystemAccountMappingRequest,
+    companyId?: string,
+  ): Promise<ApiResponse<SystemAccountMapping>> => {
+    const response = await apiClient.put<ApiResponse<SystemAccountMapping>>(
+      `/finance/settings/account-mappings/${key}`,
+      data,
+      {
+        params: companyId ? { company_id: companyId } : undefined,
+      },
+    );
+    return response.data;
+  },
+
+  deleteByKey: async (key: string, companyId?: string): Promise<ApiResponse<{ deleted: boolean }>> => {
+    const response = await apiClient.delete<ApiResponse<{ deleted: boolean }>>(
+      `/finance/settings/account-mappings/${key}`,
+      {
+        params: companyId ? { company_id: companyId } : undefined,
+      },
+    );
     return response.data;
   },
 };

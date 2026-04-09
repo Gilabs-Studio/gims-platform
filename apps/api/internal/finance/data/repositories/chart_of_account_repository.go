@@ -37,6 +37,13 @@ type ChartOfAccountRepository interface {
 	Delete(ctx context.Context, id string) error
 	ExistsByCode(ctx context.Context, code string, excludeID *string) (bool, error)
 	FindByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
+	GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error)
+	FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error)
+	HasChildren(ctx context.Context, id string) (bool, error)
+	IsUsedInJournal(ctx context.Context, id string) (bool, error)
+	HasJournalLines(ctx context.Context, id string) (bool, error)
+	UpdateIsPostable(ctx context.Context, id string, isPostable bool) error
+	RecalculateAllIsPostable(ctx context.Context) error
 	GetDB(ctx context.Context) *gorm.DB
 }
 
@@ -154,6 +161,67 @@ func (r *chartOfAccountRepository) FindByCode(ctx context.Context, code string) 
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *chartOfAccountRepository) GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	return r.FindByCode(ctx, code)
+}
+
+func (r *chartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
+	return r.FindByCode(ctx, "3-9999")
+}
+
+func (r *chartOfAccountRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.getDB(ctx).
+		Model(&financeModels.ChartOfAccount{}).
+		Where("parent_id = ?", id).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *chartOfAccountRepository) HasJournalLines(ctx context.Context, id string) (bool, error) {
+	return r.IsUsedInJournal(ctx, id)
+}
+
+func (r *chartOfAccountRepository) IsUsedInJournal(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.getDB(ctx).
+		Table("journal_lines").
+		Where("chart_of_account_id = ?", id).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *chartOfAccountRepository) UpdateIsPostable(ctx context.Context, id string, isPostable bool) error {
+	return r.getDB(ctx).
+		Model(&financeModels.ChartOfAccount{}).
+		Where("id = ?", id).
+		Update("is_postable", isPostable).Error
+}
+
+func (r *chartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context) error {
+	return r.getDB(ctx).Exec(`
+		UPDATE chart_of_accounts AS coa
+		SET is_postable = CASE
+			WHEN coa.parent_id IS NULL THEN FALSE
+			WHEN EXISTS (
+				SELECT 1
+				FROM chart_of_accounts AS child
+				WHERE child.parent_id = coa.id
+				  AND child.deleted_at IS NULL
+			) THEN FALSE
+			ELSE TRUE
+		END
+		WHERE coa.deleted_at IS NULL
+	`).Error
 }
 
 func (r *chartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {

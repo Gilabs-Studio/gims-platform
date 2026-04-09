@@ -213,8 +213,8 @@ func SeedIntegrationFlow() error {
 			}
 
 			// 3. Journal: Dr Inventory / Cr GR-IR
-			invCoa := getCOA(tx, "11400")
-			grirCoa := getCOA(tx, "21100")
+			invCoa := getCOA(tx, "1-1310")
+			grirCoa := getCOA(tx, "1-1440")
 			if invCoa != "" && grirCoa != "" {
 				je := financeModels.JournalEntry{
 					EntryDate:     receiptDate,
@@ -263,8 +263,8 @@ func SeedIntegrationFlow() error {
 			}
 
 			// RECORDING: AP JOURNAL (Dr GR/IR, Dr VAT / Cr AP)
-			apCoa := getCOA(tx, "21000")
-			vatCoa := getCOA(tx, "11800")
+			apCoa := getCOA(tx, "2-1100")
+			vatCoa := getCOA(tx, "1-1420")
 			if apCoa != "" && grirCoa != "" && vatCoa != "" {
 				je := financeModels.JournalEntry{
 					EntryDate:     receiptDate,
@@ -314,7 +314,7 @@ func SeedIntegrationFlow() error {
 				if baItem.ChartOfAccountID != nil {
 					cashCoa = *baItem.ChartOfAccountID
 				} else {
-					cashCoa = getCOA(tx, "11100")
+					cashCoa = getCOA(tx, "1-1101")
 				}
 
 				if apCoa != "" && cashCoa != "" {

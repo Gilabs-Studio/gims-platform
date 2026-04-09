@@ -25,6 +25,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { useRouter } from "@/i18n/routing";
 import { SalesPaymentPrintDialog } from "./sales-payment-print-dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ import {
 import type { SalesPaymentListItem } from "../types";
 import { SalesPaymentForm } from "./sales-payment-form";
 import { SalesPaymentDetail } from "./sales-payment-detail";
+import { isAccountingMappingError } from "@/features/sales/utils/error-utils";
 
 function safeDate(value?: string | null): string {
   if (!value) return "-";
@@ -46,6 +48,7 @@ function safeDate(value?: string | null): string {
 export function SalesPaymentsList() {
   const t = useTranslations("salesPayment");
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -242,7 +245,17 @@ export function SalesPaymentsList() {
                                   try {
                                     await confirmMutation.mutateAsync(item.id);
                                     toast.success(t("toast.confirmed"));
-                                  } catch {
+                                  } catch (error) {
+                                    if (isAccountingMappingError(error)) {
+                                      toast.error(t("errors.mappingRequired"), {
+                                        action: {
+                                          label: t("actions.openMapping"),
+                                          onClick: () => router.push("/finance/settings/accounting-mapping"),
+                                        },
+                                      });
+                                      return;
+                                    }
+
                                     toast.error(t("toast.failed"));
                                   }
                                 }}

@@ -1,13 +1,16 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type InventoryHandler struct {
@@ -122,5 +125,54 @@ func (h *InventoryHandler) GetInventoryMetrics(c *gin.Context) {
 		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil, nil)
 		return
 	}
+	response.SuccessResponse(c, result, nil)
+}
+
+func (h *InventoryHandler) GetProductLedgers(c *gin.Context) {
+	productID := strings.TrimSpace(c.Param("product_id"))
+	if _, err := uuid.Parse(productID); err != nil {
+		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "product_id must be a valid UUID", map[string]interface{}{"product_id": "invalid UUID"})
+		return
+	}
+
+	page := 1
+	if rawPage := strings.TrimSpace(c.Query("page")); rawPage != "" {
+		parsedPage, err := strconv.Atoi(rawPage)
+		if err != nil || parsedPage <= 0 {
+			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "page must be a positive integer", map[string]interface{}{"page": rawPage})
+			return
+		}
+		page = parsedPage
+	}
+
+	limit := 20
+	if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
+		parsedLimit, err := strconv.Atoi(rawLimit)
+		if err != nil || parsedLimit <= 0 {
+			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "limit must be a positive integer", map[string]interface{}{"limit": rawLimit})
+			return
+		}
+		limit = parsedLimit
+	}
+
+	req := &dto.GetProductStockLedgersRequest{
+		Page:            page,
+		Limit:           limit,
+		TransactionType: strings.TrimSpace(c.Query("transaction_type")),
+		DateFrom:        strings.TrimSpace(c.Query("date_from")),
+		DateTo:          strings.TrimSpace(c.Query("date_to")),
+	}
+
+	result, err := h.usecase.GetProductLedgers(c.Request.Context(), productID, req)
+	if err != nil {
+		if errors.Is(err, usecase.ErrInvalidInventoryInput) {
+			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, err.Error(), nil)
+			return
+		}
+
+		response.StandardErrorResponse(c, http.StatusInternalServerError, response.ErrCodeInternalServerError, "failed to fetch stock ledgers", map[string]interface{}{"cause": err.Error()})
+		return
+	}
+
 	response.SuccessResponse(c, result, nil)
 }

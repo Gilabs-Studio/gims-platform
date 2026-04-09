@@ -80,12 +80,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Settings & Accounting Engine
 	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
-	settingsService := financesettings.NewSettingsService(financeSettingRepo)
+	systemAccountMappingRepo := repositories.NewSystemAccountMappingRepository(db)
+	settingsService := financesettings.NewSettingsService(financeSettingRepo, systemAccountMappingRepo)
 	coaValidationSvc := service.NewCOAValidationService(financeSettingRepo)
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
-	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)
+	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper, journalUC)
+	systemAccountMappingUC := usecase.NewSystemAccountMappingUsecase(systemAccountMappingRepo, coaUC, auditService)
 	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
@@ -93,7 +95,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	agingUC := usecase.NewAgingReportUsecase(agingRepo)
 	assetCategoryUC := usecase.NewAssetCategoryUsecase(db, coaRepo, assetCategoryRepo, assetCategoryMapper)
 	assetLocationUC := usecase.NewAssetLocationUsecase(db, assetLocationRepo, assetLocationMapper)
-	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo)
+	assetUC := usecase.NewAssetUsecase(db, coaRepo, assetCategoryRepo, assetLocationRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 	financialClosingUC := usecase.NewFinancialClosingUsecase(
 		db,
 		coaRepo,
@@ -111,7 +113,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
 
 	arapReconciliationUC := usecase.NewARAPReconciliationUsecase(db, agingRepo, coaRepo, settingsService, accountingEngine)
-	
+
 	// Reconciliation service for GL vs subledger validation
 	reconciliationSvc := usecase.NewValuationReconciliationService(
 		db,
@@ -125,6 +127,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	exportSvc := service.NewValuationExportService(valuationRunRepo)
 
 	settingsH := handler.NewFinanceSettingsHandler(settingsService)
+	systemAccountMappingH := handler.NewSystemAccountMappingHandler(systemAccountMappingUC)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
 	journalLineH := handler.NewJournalLineHandler(journalLineUC)
@@ -163,6 +166,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
 	router.RegisterFinanceSettingsRoutes(group, settingsH)
+	router.RegisterSystemAccountMappingRoutes(group, systemAccountMappingH)
 
 	return &FinanceDeps{
 		JournalUC:    journalUC,

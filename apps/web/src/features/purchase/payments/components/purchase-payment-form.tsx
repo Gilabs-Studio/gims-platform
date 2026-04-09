@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { useRouter } from "@/i18n/routing";
 
 import { purchasePaymentSchema, type PurchasePaymentFormData } from "../schemas/purchase-payment.schema";
 import { useCreatePurchasePayment } from "../hooks/use-purchase-payments";
@@ -30,13 +31,7 @@ import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return "Unable to create payment. Please check your input and try again.";
-}
+import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -52,6 +47,7 @@ interface PurchasePaymentFormProps {
 
 export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
+  const router = useRouter();
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
@@ -65,7 +61,12 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const dpDetail = dpDetailResponse?.data;
 
-  const resolver = useMemo(() => zodResolver(purchasePaymentSchema) as Resolver<PurchasePaymentFormData>, []);
+  type ZodResolverSchemaArg = Parameters<typeof zodResolver>[0];
+  const resolver = useMemo(
+    () =>
+      zodResolver(purchasePaymentSchema as unknown as ZodResolverSchemaArg) as unknown as Resolver<PurchasePaymentFormData>,
+    [],
+  );
 
   const {
     register,
@@ -209,9 +210,21 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               setSubmitError(null);
               onClose();
             } catch (error) {
-              const errorMessage = getErrorMessage(error);
+              if (isAccountingMappingError(error)) {
+                const mappingMessage = t("errors.mappingRequired");
+                setSubmitError(mappingMessage);
+                toast.error(mappingMessage, {
+                  action: {
+                    label: t("actions.openMapping"),
+                    onClick: () => router.push("/finance/settings/accounting-mapping"),
+                  },
+                });
+                return;
+              }
+
+              const errorMessage = getPurchaseErrorMessage(error, t("toast.failed"));
               setSubmitError(errorMessage);
-              toast.error(t("toast.failed"));
+              toast.error(errorMessage);
             }
           })}
         >

@@ -24,6 +24,7 @@ import { DeleteDialog } from "@/components/ui/delete-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { useExportProgress } from "@/lib/use-export-progress";
+import { useRouter } from "@/i18n/routing";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 import {
@@ -36,10 +37,12 @@ import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail } from "./purchase-payment-detail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 import { PurchasePaymentPrintDialog } from "./purchase-payment-print-dialog";
+import { isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 export function PurchasePaymentsList() {
   const t = useTranslations("purchasePayment");
   const tCommon = useTranslations("common");
+  const router = useRouter();
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
@@ -240,7 +243,17 @@ export function PurchasePaymentsList() {
                                   try {
                                     await confirmMutation.mutateAsync(item.id);
                                     toast.success(t("toast.confirmed"));
-                                  } catch {
+                                  } catch (error) {
+                                    if (isAccountingMappingError(error)) {
+                                      toast.error(t("errors.mappingRequired"), {
+                                        action: {
+                                          label: t("actions.openMapping"),
+                                          onClick: () => router.push("/finance/settings/accounting-mapping"),
+                                        },
+                                      });
+                                      return;
+                                    }
+
                                     toast.error(t("toast.failed"));
                                   }
                                 }}

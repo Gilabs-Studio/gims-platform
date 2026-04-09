@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const upsertFinanceSettingSchema = z.object({
   setting_key: z.string().min(1, { message: "Key is required" }),
-  value: z.string().min(1, { message: "Value is required. Please map this to a valid Chart of Account." }),
+  value: z.string().trim().optional().default(""),
   description: z.string().optional(),
   category: z.string().optional(),
 });

@@ -24,7 +24,7 @@ import (
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	// "gorm.io/gorm/clause"
 )
 
 // SeedSalesIntegrationFlow creates a coherent dataset that demonstrates cross-module
@@ -50,17 +50,6 @@ func SeedSalesIntegrationFlow() error {
 		// Minimal seed mode: just one fully traced sales flow
 		if isMinimalSeedMode() {
 			return seedSalesMinimalFlow(tx, adminID)
-		}
-
-		// Ensure 21500 (VAT Output) exists
-		extraCOA := []financeModels.ChartOfAccount{
-			{Code: "21500", Name: "VAT Output", Type: financeModels.AccountTypeLiability, IsActive: true},
-		}
-		for i := range extraCOA {
-			tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "code"}},
-				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
-			}).Create(&extraCOA[i])
 		}
 
 		var customer customerModels.Customer
@@ -93,11 +82,11 @@ func SeedSalesIntegrationFlow() error {
 		}
 
 		// COAs
-		cashCOA := getCOAID(tx, "11100")
-		receivableCOA := getCOAID(tx, "1100") // Mapped to 1100 in sprint 12
-		revenueCOA := getCOAID(tx, "4100")
-		taxCOA := getCOAID(tx, "21500") // VAT Output
-		dpAdvanceCOA := getCOAID(tx, "21200")
+		cashCOA := getCOAID(tx, "1-1101")
+		receivableCOA := getCOAID(tx, "1-1210")
+		revenueCOA := getCOAID(tx, "4-1100")
+		taxCOA := getCOAID(tx, "2-1210")
+		dpAdvanceCOA := getCOAID(tx, "2-1400")
 
 		now := time.Now()
 
@@ -447,11 +436,11 @@ func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
 		return err
 	}
 
-	cashCOA := getCOAID(tx, "11100")
-	receivableCOA := getCOAID(tx, "1100")
-	revenueCOA := getCOAID(tx, "4100")
-	taxCOA := getCOAID(tx, "21500")
-	dpAdvanceCOA := getCOAID(tx, "21200")
+	cashCOA := getCOAID(tx, "1-1101")
+	receivableCOA := getCOAID(tx, "1-1210")
+	revenueCOA := getCOAID(tx, "4-1100")
+	taxCOA := getCOAID(tx, "2-1210")
+	dpAdvanceCOA := getCOAID(tx, "2-1400")
 
 	now := time.Now()
 	return seedSalesFullFlowDP(tx, salesFlowInput{

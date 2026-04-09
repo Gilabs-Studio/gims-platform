@@ -12,6 +12,8 @@ export const financeCoaId = {
     create: "Buat",
     edit: "Ubah",
     delete: "Hapus",
+    showChildren: "Lihat child",
+    hideChildren: "Sembunyikan child",
   },
   form: {
     createTitle: "Buat Akun",
@@ -25,6 +27,19 @@ export const financeCoaId = {
     type: "Tipe",
     parent: "Induk",
     isActive: "Aktif",
+    openingBalance: "Saldo Awal",
+    openingDate: "Tanggal Saldo Awal",
+    status: "Status",
+  },
+  status: {
+    postable: "Bisa diposting",
+    nonPostable: "Tidak bisa diposting",
+    protected: "Terlindungi",
+  },
+  messages: {
+    protectedAccount: "Akun ini terlindungi dan tidak dapat diubah.",
+    protectedAction: "Akun terlindungi tidak dapat diperbarui.",
+    protectedDelete: "Akun terlindungi tidak dapat dihapus",
   },
   placeholders: {
     select: "Pilih...",

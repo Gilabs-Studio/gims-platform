@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/utils"
 	finDTO "github.com/gilabs/gims/api/internal/finance/domain/dto"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	inventoryDTO "github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	inventoryUC "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -49,10 +50,15 @@ type stockOpnameUsecase struct {
 	inventoryUC inventoryUC.InventoryUsecase
 	journalUC   finUC.JournalEntryUsecase
 	coaUC       finUC.ChartOfAccountUsecase
+	settingsUC  financesettings.SettingsService
 }
 
-func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase, journalUC finUC.JournalEntryUsecase, coaUC finUC.ChartOfAccountUsecase) StockOpnameUsecase {
-	return &stockOpnameUsecase{repo: repo, inventoryUC: invUC, journalUC: journalUC, coaUC: coaUC}
+func NewStockOpnameUsecase(repo repository.StockOpnameRepository, invUC inventoryUC.InventoryUsecase, journalUC finUC.JournalEntryUsecase, coaUC finUC.ChartOfAccountUsecase, settingsUC ...financesettings.SettingsService) StockOpnameUsecase {
+	uc := &stockOpnameUsecase{repo: repo, inventoryUC: invUC, journalUC: journalUC, coaUC: coaUC}
+	if len(settingsUC) > 0 {
+		uc.settingsUC = settingsUC[0]
+	}
+	return uc
 }
 
 func (u *stockOpnameUsecase) Create(ctx context.Context, req *dto.CreateStockOpnameRequest, createdBy *string) (*dto.StockOpnameResponse, error) {
@@ -343,12 +349,31 @@ func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opna
 	if u.journalUC == nil || u.coaUC == nil {
 		return nil
 	}
+	if u.settingsUC == nil {
+		return errors.New("system account mapping untuk 'purchase.inventory_asset' belum dikonfigurasi")
+	}
 
-	inventoryAccount, err := u.coaUC.GetByCode(ctx, "11400")
+	inventoryCode, err := u.settingsUC.GetCOAByKey(ctx, "purchase.inventory_asset")
 	if err != nil {
 		return err
 	}
-	varianceAccount, err := u.coaUC.GetByCode(ctx, "61000")
+	inventoryAccount, err := u.coaUC.GetByCode(ctx, inventoryCode)
+	if err != nil {
+		return err
+	}
+	gainCode, err := u.settingsUC.GetCOAByKey(ctx, "inventory.adjustment_gain")
+	if err != nil {
+		return err
+	}
+	gainAccount, err := u.coaUC.GetByCode(ctx, gainCode)
+	if err != nil {
+		return err
+	}
+	lossCode, err := u.settingsUC.GetCOAByKey(ctx, "inventory.adjustment_loss")
+	if err != nil {
+		return err
+	}
+	lossAccount, err := u.coaUC.GetByCode(ctx, lossCode)
 	if err != nil {
 		return err
 	}
@@ -380,13 +405,13 @@ func (u *stockOpnameUsecase) triggerStockOpnameJournal(ctx context.Context, opna
 		if item.VarianceQty > 0 {
 			lines = append(lines,
 				finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
-				finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
+				finDTO.JournalLineRequest{ChartOfAccountID: gainAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
 			)
 			continue
 		}
 
 		lines = append(lines,
-			finDTO.JournalLineRequest{ChartOfAccountID: varianceAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
+			finDTO.JournalLineRequest{ChartOfAccountID: lossAccount.ID, Debit: lineValue, Credit: 0, Memo: memo},
 			finDTO.JournalLineRequest{ChartOfAccountID: inventoryAccount.ID, Debit: 0, Credit: lineValue, Memo: memo},
 		)
 	}

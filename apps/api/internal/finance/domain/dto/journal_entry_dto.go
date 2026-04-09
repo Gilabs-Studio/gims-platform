@@ -18,6 +18,7 @@ type CreateJournalEntryRequest struct {
 	Description       string               `json:"description"`
 	ReferenceType     *string              `json:"reference_type"`
 	ReferenceID       *string              `json:"reference_id"`
+	JournalType       *string              `json:"journal_type"`
 	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
 	IsSystemGenerated bool                 `json:"is_system_generated"`
 	SourceDocumentURL *string              `json:"source_document_url"`
@@ -28,6 +29,7 @@ type UpdateJournalEntryRequest struct {
 	Description   string               `json:"description"`
 	ReferenceType *string              `json:"reference_type"`
 	ReferenceID   *string              `json:"reference_id"`
+	JournalType   *string              `json:"journal_type"`
 	Lines         []JournalLineRequest `json:"lines" binding:"required,min=2"`
 }
 
@@ -71,6 +73,7 @@ type JournalEntryResponse struct {
 	ReferenceID   *string                     `json:"reference_id"`
 	ReferenceCode *string                     `json:"reference_code"`
 	Status        financeModels.JournalStatus `json:"status"`
+	JournalType   string                      `json:"journal_type"`
 	PostedAt      *time.Time                  `json:"posted_at"`
 	PostedBy      *string                     `json:"posted_by"`
 	PostedByName  *string                     `json:"posted_by_name,omitempty"`
@@ -261,25 +264,25 @@ type BulkApproveValuationResponse struct {
 
 // ValuationRunResponse is the API response for a valuation run record.
 type ValuationRunResponse struct {
-	ID             string                  `json:"id"`
-	ReferenceID    string                  `json:"reference_id"`
-	ValuationType  string                  `json:"valuation_type"`
-	PeriodStart    string                  `json:"period_start"`
-	PeriodEnd      string                  `json:"period_end"`
-	Status         string                  `json:"status"`
-	TotalDebit     float64                 `json:"total_debit"`
-	TotalCredit    float64                 `json:"total_credit"`
-	TotalDelta     float64                 `json:"total_delta"`
-	JournalEntryID *string                 `json:"journal_entry_id,omitempty"`
-	ErrorMessage   *string                 `json:"error_message,omitempty"`
-	
+	ID             string  `json:"id"`
+	ReferenceID    string  `json:"reference_id"`
+	ValuationType  string  `json:"valuation_type"`
+	PeriodStart    string  `json:"period_start"`
+	PeriodEnd      string  `json:"period_end"`
+	Status         string  `json:"status"`
+	TotalDebit     float64 `json:"total_debit"`
+	TotalCredit    float64 `json:"total_credit"`
+	TotalDelta     float64 `json:"total_delta"`
+	JournalEntryID *string `json:"journal_entry_id,omitempty"`
+	ErrorMessage   *string `json:"error_message,omitempty"`
+
 	// Approval Tracking (audit trail)
 	IsLocked      bool    `json:"is_locked"`
 	LockedAt      *string `json:"locked_at,omitempty"`
 	ApprovedBy    *string `json:"approved_by,omitempty"`
 	ApprovedAt    *string `json:"approved_at,omitempty"`
 	ApprovalNotes string  `json:"approval_notes,omitempty"`
-	
+
 	CreatedBy   *string                 `json:"created_by,omitempty"`
 	CompletedAt *string                 `json:"completed_at,omitempty"`
 	Items       []ValuationItemResponse `json:"items,omitempty"`

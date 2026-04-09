@@ -11,9 +11,9 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"github.com/gilabs/gims/api/internal/finance/domain/service"
 	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
-	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	inventoryRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	inventoryUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	productRepos "github.com/gilabs/gims/api/internal/product/data/repositories"
@@ -63,7 +63,7 @@ func SeedJournalReconciliation() error {
 
 	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
 
-	salesPaymentUC := salesUsecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditSvc, journalUC, coaUC, engine)
+	salesPaymentUC := salesUsecase.NewSalesPaymentUsecase(db, salesPaymentRepo, auditSvc, journalUC, coaUC, engine, settingsService)
 
 	// Purchase usecases
 	siRepo := purchaseRepos.NewSupplierInvoiceRepository(db)
@@ -74,13 +74,13 @@ func SeedJournalReconciliation() error {
 	purchaseReturnRepo := purchaseRepos.NewPurchaseReturnRepository(db)
 	purchaseReturnUC := purchaseUsecase.NewPurchaseReturnUsecase(db, purchaseReturnRepo, inventoryUC, journalUC, coaUC, auditSvc, engine)
 	purchasePaymentRepo := purchaseRepos.NewPurchasePaymentRepository(db)
-	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine)
-	
+	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine, settingsService)
+
 	financePaymentRepo := financeRepos.NewPaymentRepository(db)
 	financePaymentUC := financeUsecase.NewPaymentUsecase(db, coaRepo, financePaymentRepo, journalUC, financeMapper.NewPaymentMapper(financeMapper.NewChartOfAccountMapper()))
 
 	stockOpnameRepo := stockOpnameRepos.NewStockOpnameRepository(db)
-	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, coaUC)
+	stockOpnameUC := stockOpnameUsecase.NewStockOpnameUsecase(stockOpnameRepo, inventoryUC, journalUC, coaUC, settingsService)
 
 	assetRepo := financeRepos.NewAssetRepository(db)
 	assetCatRepo := financeRepos.NewAssetCategoryRepository(db)
@@ -91,7 +91,7 @@ func SeedJournalReconciliation() error {
 	assetAuditLogRepo := financeRepos.NewAssetAuditLogRepository(db)
 	assetAssignmentRepo := financeRepos.NewAssetAssignmentRepository(db)
 
-	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo)
+	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 
 	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine)
 

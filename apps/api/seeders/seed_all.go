@@ -98,9 +98,6 @@ func SeedAll() error {
 	if err := SeedLeaveType(); err != nil {
 		return err
 	}
-	if err := SeedBankAccounts(); err != nil {
-		return err
-	}
 
 	// ================================================================
 	// FINANCE SEEDER - CRITICAL ORDER (DO NOT REORDER)
@@ -115,13 +112,19 @@ func SeedAll() error {
 		return err
 	}
 
-	// 3. Validate integrity (fail-fast if broken)
+	// 3. System Account Mappings (required by validation and accounting engine)
+	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
+	// 4. Validate integrity (fail-fast if broken)
 	if err := ValidateFinanceSeeder(); err != nil {
 		return err
 	}
 	// ================================================================
 
-	if err := SeedSystemAccountMappings(); err != nil {
+	// Bank account seed depends on canonical chart_of_accounts records.
+	if err := SeedBankAccounts(); err != nil {
 		return err
 	}
 
@@ -397,7 +400,7 @@ func seedMasterData() error {
 		return err
 	}
 
-	if err := SeedBankAccounts(); err != nil {
+	if err := SeedChartOfAccounts(); err != nil {
 		return err
 	}
 
@@ -409,11 +412,19 @@ func seedMasterData() error {
 		return err
 	}
 
+	if err := SeedBankAccounts(); err != nil {
+		return err
+	}
+
 	if err := SeedFinanceSettings(); err != nil {
 		return err
 	}
 
 	if err := SeedSystemAccountMappings(); err != nil {
+		return err
+	}
+
+	if err := ValidateFinanceSeeder(); err != nil {
 		return err
 	}
 

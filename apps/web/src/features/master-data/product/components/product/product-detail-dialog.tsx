@@ -16,6 +16,7 @@ import {
   Clock,
   FileEdit,
   Warehouse,
+  ScrollText,
   TrendingUp,
   TrendingDown,
   AlertTriangle,
@@ -272,6 +273,21 @@ export function ProductDetailDialog({
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="mt-4 rounded-md border bg-muted/20 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
+              <ScrollText className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Stock Ledger (Moving Average)
+              </span>
+              <Badge variant="outline" className="ml-auto h-5 text-[10px]">
+                Pending API
+              </Badge>
+            </div>
+            <div className="px-4 py-3 text-xs text-muted-foreground">
+              Stock ledger timeline will be available here after backend endpoint <span className="font-mono">/stock/ledgers</span> is published.
+            </div>
           </div>
 
           {/* Description */}

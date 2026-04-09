@@ -150,13 +150,13 @@ func (h *JournalEntryHandler) CreateAdjustment(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "journal entry must be balanced (debit = credit)":
-			response.ErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil)
 		case "invalid journal lines":
-			response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_INVALID_LINES", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, errMsg, nil)
 		case "period is closed":
-			response.ErrorResponse(c, http.StatusConflict, "PERIOD_CLOSED", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodePeriodClosed, errMsg, nil)
 		default:
-			response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_CREATE_FAILED", errMsg, nil, nil)
+			writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_CREATE_FAILED")
 		}
 		return
 	}
@@ -176,13 +176,13 @@ func (h *JournalEntryHandler) UpdateAdjustment(c *gin.Context) {
 		errMsg := err.Error()
 		switch errMsg {
 		case "journal entry must be balanced (debit = credit)":
-			response.ErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusUnprocessableEntity, "JOURNAL_UNBALANCED", errMsg, nil)
 		case "invalid journal lines":
-			response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_INVALID_LINES", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, errMsg, nil)
 		case "period is closed":
-			response.ErrorResponse(c, http.StatusConflict, "PERIOD_CLOSED", errMsg, nil, nil)
+			response.StandardErrorResponse(c, http.StatusUnprocessableEntity, response.ErrCodePeriodClosed, errMsg, nil)
 		default:
-			response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_UPDATE_FAILED", errMsg, nil, nil)
+			writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_UPDATE_FAILED")
 		}
 		return
 	}
@@ -194,7 +194,7 @@ func (h *JournalEntryHandler) PostAdjustment(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.PostAdjustmentJournal(c.Request.Context(), id)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "ADJUSTMENT_POST_FAILED", err.Error(), nil, nil)
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_POST_FAILED")
 		return
 	}
 	response.SuccessResponse(c, res, nil)
@@ -527,7 +527,7 @@ func (h *JournalEntryHandler) Post(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.Post(c.Request.Context(), id)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "JOURNAL_POST_FAILED", err.Error(), nil, nil)
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "JOURNAL_POST_FAILED")
 		return
 	}
 	response.SuccessResponse(c, res, nil)

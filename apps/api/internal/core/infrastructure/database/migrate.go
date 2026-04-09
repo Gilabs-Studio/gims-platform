@@ -227,6 +227,7 @@ func AutoMigrate() error {
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
+		&inventory.StockLedger{},
 		// Stock Opname entities (Sprint 9)
 		&stockOpname.StockOpname{},
 		&stockOpname.StockOpnameItem{},
@@ -307,6 +308,17 @@ func AutoMigrate() error {
 		ADD COLUMN IF NOT EXISTS scope VARCHAR(20) NOT NULL DEFAULT 'ALL'
 	`).Error; err != nil {
 		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
+	}
+
+	// Ensure multi-company uniqueness for system account mappings.
+	if err := DB.Exec(`DROP INDEX IF EXISTS idx_system_account_mappings_key`).Error; err != nil {
+		log.Printf("Warning: could not drop legacy system_account_mappings key index: %v", err)
+	}
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_account_mappings_key_company
+		ON system_account_mappings ("key", company_id)
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure composite index idx_system_account_mappings_key_company: %v", err)
 	}
 
 	// Sprint 17: Migrate area_supervisors data to employee_areas

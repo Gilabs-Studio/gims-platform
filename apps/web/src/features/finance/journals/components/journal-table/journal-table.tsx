@@ -51,6 +51,14 @@ const DEFAULT_COLUMNS: JournalTableColumn[] = [
   { key: "action", label: "Action" },
 ];
 
+function formatJournalType(value?: string | null): string {
+  if (!value) return "-";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 // Task 5: Manual generation logic removed as reference_code is now provided by API.
 
 function getReferenceSourceMeta(type: string | null): JournalReferenceTypeBadgeMeta {
@@ -184,10 +192,12 @@ export function mapJournalToUnifiedRow<
     reference_type?: string | null;
     reference_id?: string | null;
     reference_code?: string | null;
+    journal_type?: string | null;
     status?: string;
     debit_total?: number;
     credit_total?: number;
     is_system_generated?: boolean;
+    source_document_url?: string | null;
     created_at?: string | Date;
     updated_at?: string | Date;
   },
@@ -206,7 +216,8 @@ export function mapJournalToUnifiedRow<
     id: item.id,
     entryDate,
     description: item.description ?? null,
-    journalType: item.source ?? item.reference_type ?? null,
+    journalType: item.journal_type ?? item.source ?? item.reference_type ?? null,
+    sourceDocumentUrl: item.source_document_url ?? null,
     referenceType: item.reference_type ?? null,
     referenceTypeBadge: getReferenceBadge(item.reference_type ?? null),
     referenceId: item.reference_id ?? null,
@@ -319,10 +330,10 @@ function renderCell<T>(
   }
 
   if (key === "journalType") {
-    const value = row.journalType ?? "-";
+    const value = formatJournalType(row.journalType);
     return (
       <TableCell>
-        <Badge variant="outline" className="text-xs uppercase">
+        <Badge variant="outline" className="text-xs">
           {value}
         </Badge>
       </TableCell>
@@ -378,20 +389,28 @@ function renderCell<T>(
   }
 
   if (key === "status") {
+    const isSystemGenerated = row.isSystemGenerated ?? false;
     return (
       <TableCell>
-        {row.status.toLowerCase() === "posted" ? (
-          <Badge variant="success" className="text-xs uppercase flex items-center w-fit gap-1">
-            <Lock className="h-3 w-3" />
-            Posted
-          </Badge>
-        ) : row.status.toLowerCase() === "draft" ? (
-          <Badge variant="secondary" className="text-xs uppercase">Draft</Badge>
-        ) : row.status.toLowerCase() === "reversed" ? (
-          <Badge variant="destructive" className="text-xs uppercase">Reversed</Badge>
-        ) : (
-          <Badge variant="outline" className="text-xs uppercase">{row.status}</Badge>
-        )}
+        <div className="flex flex-wrap items-center gap-1">
+          {row.status.toLowerCase() === "posted" ? (
+            <Badge variant="success" className="text-xs uppercase flex items-center w-fit gap-1">
+              <Lock className="h-3 w-3" />
+              Posted
+            </Badge>
+          ) : row.status.toLowerCase() === "draft" ? (
+            <Badge variant="secondary" className="text-xs uppercase">Draft</Badge>
+          ) : row.status.toLowerCase() === "reversed" ? (
+            <Badge variant="destructive" className="text-xs uppercase">Reversed</Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs uppercase">{row.status}</Badge>
+          )}
+          {isSystemGenerated && (
+            <Badge variant="info" className="text-[10px] uppercase">
+              System
+            </Badge>
+          )}
+        </div>
       </TableCell>
     );
   }

@@ -15,14 +15,23 @@ func (m *ChartOfAccountMapper) ToResponse(item *financeModels.ChartOfAccount) dt
 	if item == nil {
 		return dto.ChartOfAccountResponse{}
 	}
+	var openingDate *string
+	if item.OpeningDate != nil {
+		formatted := item.OpeningDate.Format("2006-01-02")
+		openingDate = &formatted
+	}
 	return dto.ChartOfAccountResponse{
-		ID:        item.ID,
-		Code:      item.Code,
-		Name:      item.Name,
-		Type:      item.Type,
-		ParentID:  item.ParentID,
-		IsActive:  item.IsActive,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:             item.ID,
+		Code:           item.Code,
+		Name:           item.Name,
+		Type:           item.Type,
+		ParentID:       item.ParentID,
+		IsActive:       item.IsActive,
+		IsPostable:     item.IsPostable,
+		IsProtected:    item.IsProtected,
+		OpeningBalance: item.OpeningBalance,
+		OpeningDate:    openingDate,
+		CreatedAt:      item.CreatedAt,
+		UpdatedAt:      item.UpdatedAt,
 	}
 }

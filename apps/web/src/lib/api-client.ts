@@ -408,15 +408,57 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (!errorData || !errorData.error) {
+    const normalizedError = (() => {
+      if (!errorData || typeof errorData !== "object") {
+        return null;
+      }
+
+      const legacy = (errorData as {
+        error?: {
+          code?: string;
+          details?: Record<string, unknown>;
+          field_errors?: Array<{ field?: string; message?: string }>;
+          message?: string;
+        };
+      }).error;
+
+      if (legacy && typeof legacy === "object") {
+        return {
+          code: legacy.code,
+          details: legacy.details,
+          fieldErrors: legacy.field_errors,
+          message: legacy.message,
+        };
+      }
+
+      const modern = errorData as unknown as {
+        code?: string;
+        details?: ErrorDetails;
+        error?: string;
+        message?: string;
+      };
+
+      if (typeof modern.code === "string") {
+        return {
+          code: modern.code,
+          details: modern.details,
+          fieldErrors: undefined,
+          message: typeof modern.error === "string" ? modern.error : modern.message,
+        };
+      }
+
+      return null;
+    })();
+
+    if (!normalizedError) {
       const msg = formatError("backend", "invalidFormat");
       notifyGlobalError(msg.title, msg.description, "backend-invalid-format");
       return Promise.reject(error);
     }
 
-    const errorCode = errorData.error.code;
-    const errorDetails = errorData.error.details;
-    const fieldErrors = errorData.error.field_errors;
+    const errorCode = normalizedError.code;
+    const errorDetails = normalizedError.details;
+    const fieldErrors = normalizedError.fieldErrors;
 
     // Handle CSRF errors
     if (errorCode === "CSRF_INVALID") {
@@ -441,8 +483,9 @@ apiClient.interceptors.response.use(
         });
         notifyGlobalError(msg.title, msg.description, "backend-email-exists");
       } else if (errorDetails?.field && errorDetails?.resource) {
+        const fieldName = typeof errorDetails.field === "string" ? errorDetails.field : "field";
         const msg = formatError("backend", "resourceExists", {
-          field: errorDetails.field,
+          field: fieldName,
           value: String(errorDetails.value || ""),
         });
         notifyGlobalError(msg.title, msg.description, "backend-resource-exists");
@@ -463,8 +506,9 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
       if (errorDetails.field && errorDetails.resource) {
+        const fieldName = typeof errorDetails.field === "string" ? errorDetails.field : "field";
         const msg = formatError("backend", "resourceExists", {
-          field: errorDetails.field,
+          field: fieldName,
           value: String(errorDetails.value || ""),
         });
         notifyGlobalError(msg.title, msg.description, "backend-resource-exists");
@@ -473,15 +517,13 @@ apiClient.interceptors.response.use(
     }
 
     // Handle validation errors
-    if (
-      errorCode === "VALIDATION_ERROR" &&
-      fieldErrors &&
-      fieldErrors.length > 0
-    ) {
+    if (errorCode === "VALIDATION_ERROR" && fieldErrors && fieldErrors.length > 0) {
       const firstError = fieldErrors[0];
+      const fieldName = typeof firstError.field === "string" ? firstError.field : "field";
+      const fieldMessage = typeof firstError.message === "string" ? firstError.message : "Invalid value";
       const msg = formatError("backend", "fieldError", {
-        field: firstError.field,
-        message: firstError.message,
+        field: fieldName,
+        message: fieldMessage,
       });
       notifyGlobalError(msg.title, msg.description, "backend-field-error");
       return Promise.reject(error);

@@ -1,11 +1,12 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -20,47 +21,139 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { batchUpsertFinanceSettingsSchema, BatchUpsertFinanceSettingsFormData } from "../schemas";
 import { useFinanceSettings, useBatchUpsertFinanceSettings } from "../hooks/use-finance-settings";
 import { useFinanceChartOfAccounts } from "@/features/finance/coa/hooks/use-finance-coa";
-import type { FinanceSetting } from "../types";
+import type { ChartOfAccount } from "@/features/finance/coa/types";
+import {
+  getMappingDefinitionByKey,
+  SYSTEM_ACCOUNT_MAPPING_DEFINITIONS,
+  type SystemAccountMappingDefinition,
+} from "../types";
 
 export const AccountingMappingForm = () => {
   const t = useTranslations("financeSettings");
-  const { data: settings, isLoading: isSettingsLoading } = useFinanceSettings();
-  const { data: _coaData, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 100 });
+  const { data: settingsResponse, isLoading: isSettingsLoading } = useFinanceSettings();
+  const { data: coaResponse, isLoading: isCoaLoading } = useFinanceChartOfAccounts({ per_page: 100 });
   const { mutate: batchUpsert, isPending } = useBatchUpsertFinanceSettings();
-  const canUpdate = useUserPermission("finance_settings.update");
+  const canUpdate = useUserPermission("account_mappings.update");
 
-  const coaList = useMemo(() => {
-    return _coaData?.data || [];
-  }, [_coaData]);
+  const settings = settingsResponse?.data ?? [];
+  const UNMAPPED_VALUE = "__UNMAPPED__";
+
+  const coaList = useMemo<ChartOfAccount[]>(() => coaResponse?.data ?? [], [coaResponse?.data]);
+
+  const mappingDefinitions = useMemo<SystemAccountMappingDefinition[]>(() => {
+    const existingKeys = new Set(SYSTEM_ACCOUNT_MAPPING_DEFINITIONS.map((item) => item.key));
+    const dynamicMappings: SystemAccountMappingDefinition[] = settings
+      .filter((setting) => !existingKeys.has(setting.key))
+      .map((setting) => ({
+        key: setting.key,
+        label: setting.label || setting.key,
+        description: setting.label || t("dynamicDescription"),
+        category: setting.key.split(".")[0] ?? "general",
+        allowedAccountTypes: [
+          "ASSET",
+          "CURRENT_ASSET",
+          "FIXED_ASSET",
+          "LIABILITY",
+          "TRADE_PAYABLE",
+          "EQUITY",
+          "REVENUE",
+          "EXPENSE",
+          "CASH_BANK",
+          "COST_OF_GOODS_SOLD",
+          "SALARY_WAGES",
+          "OPERATIONAL",
+        ],
+      }));
+
+    return [...SYSTEM_ACCOUNT_MAPPING_DEFINITIONS, ...dynamicMappings];
+  }, [settings, t]);
+
+  type ZodResolverSchemaArg = Parameters<typeof zodResolver>[0];
 
   const form = useForm<BatchUpsertFinanceSettingsFormData>({
-    resolver: zodResolver(batchUpsertFinanceSettingsSchema as any),
+    resolver:
+      zodResolver(batchUpsertFinanceSettingsSchema as unknown as ZodResolverSchemaArg) as unknown as Resolver<BatchUpsertFinanceSettingsFormData>,
     defaultValues: {
       settings: [],
     },
   });
 
   useEffect(() => {
-    if (settings?.data) {
+    if (!settingsResponse?.data) {
+      return;
+    }
+
+    const settingsByKey = new Map(settingsResponse.data.map((setting) => [setting.key, setting]));
+    const hydratedSettings = mappingDefinitions.map((definition) => {
+      const existing = settingsByKey.get(definition.key);
+      return {
+        setting_key: definition.key,
+        value: existing?.coa_code ?? "",
+        description: existing?.label ?? definition.description,
+        category: definition.category,
+      };
+    });
+
+    if (hydratedSettings.length > 0) {
       form.reset({
-        settings: settings.data.map((s: FinanceSetting) => ({
-          setting_key: s.setting_key,
-          value: s.value || "",
-          description: s.description || "",
-          category: s.category || "coa",
-        })),
+        settings: hydratedSettings,
       });
     }
-  }, [settings, form]);
+  }, [form, mappingDefinitions, settingsResponse?.data]);
+
+  const settingRows = form.watch("settings") ?? [];
+  const fieldIndexByKey = useMemo(() => {
+    return new Map(settingRows.map((row, index) => [row.setting_key, index]));
+  }, [settingRows]);
+
+  const missingRequiredCount = useMemo(() => {
+    return mappingDefinitions.filter((definition) => {
+      if (!definition.required) return false;
+      const index = fieldIndexByKey.get(definition.key);
+      if (index === undefined) return true;
+      const value = settingRows[index]?.value?.trim() ?? "";
+      return value.length === 0;
+    }).length;
+  }, [fieldIndexByKey, mappingDefinitions, settingRows]);
+
+  const getFilteredAccounts = (definition: SystemAccountMappingDefinition) => {
+    const allowedTypes = definition.allowedAccountTypes;
+    return coaList.filter((coa) => {
+      if (!coa.is_active) return false;
+      if (coa.is_postable === false) return false;
+      if (allowedTypes.length === 0) return true;
+      return allowedTypes.includes(coa.type);
+    });
+  };
 
   const onSubmit = (data: BatchUpsertFinanceSettingsFormData) => {
+    let hasValidationError = false;
+
+    mappingDefinitions.forEach((definition) => {
+      if (!definition.required) return;
+
+      const index = data.settings.findIndex((row) => row.setting_key === definition.key);
+      if (index === -1 || (data.settings[index]?.value?.trim() ?? "") === "") {
+        hasValidationError = true;
+        form.setError(`settings.${index === -1 ? 0 : index}.value`, {
+          type: "manual",
+          message: t("requiredValue"),
+        });
+      }
+    });
+
+    if (hasValidationError) {
+      return;
+    }
+
     // Ensure description is never undefined for the API
     const payload = {
-      settings: data.settings.map(s => ({
+      settings: data.settings.map((s) => ({
         ...s,
         description: s.description || "",
-      }))
+      })),
     };
+
     batchUpsert(payload);
   };
 
@@ -68,110 +161,107 @@ export const AccountingMappingForm = () => {
     return (
       <div className="p-12 text-center bg-muted/10 rounded-xl border border-dashed animate-pulse">
         <div className="h-6 w-32 bg-muted/30 mx-auto rounded-md mb-2"></div>
-        <div className="text-muted-foreground text-sm">Syncing Ledger Definitions...</div>
+        <div className="text-muted-foreground text-sm">{t("loading")}</div>
       </div>
     );
   }
 
-  if (settings?.success === false || _coaData?.success === false) {
+  if (settingsResponse?.success === false || coaResponse?.success === false) {
     return (
       <div className="p-12 text-center bg-destructive/10 text-destructive rounded-xl border border-destructive/20 font-medium">
-        Sync Failed: Access Denied or Module Unreachable.
+        {t("loadFailed")}
       </div>
     );
   }
-
-  const requiredMappings = [
-    { key: "coa.inventory_asset", label: "Inventory Asset Account", targetType: "ASSET" },
-    { key: "coa.cogs", label: "Cost of Goods Sold (COGS)", targetType: "EXPENSE" },
-    { key: "coa.revenue", label: "Sales Revenue", targetType: "INCOME" },
-    { key: "coa.ap", label: "Accounts Payable (AP)", targetType: "LIABILITY" },
-    { key: "coa.ar", label: "Accounts Receivable (AR)", targetType: "ASSET" },
-    { key: "coa.cash", label: "Default Cash/Bank Account", targetType: "CASH_BANK" },
-    { key: "coa.gr_ir", label: "Goods Receipt / Invoice Receipt (GR/IR)", targetType: "LIABILITY" },
-    { key: "coa.inventory_gain", label: "Inventory Gain (Adjustment)", targetType: "INCOME" },
-    { key: "coa.inventory_loss", label: "Inventory Loss (Adjustment)", targetType: "EXPENSE" },
-    { key: "coa.tax_input", label: "VAT Input (PPN Masukan)", targetType: "ASSET" },
-    { key: "coa.tax_output", label: "VAT Output (PPN Keluaran)", targetType: "LIABILITY" },
-    { key: "coa.sales_advance", label: "Customer Advance (DP)", targetType: "LIABILITY" },
-    { key: "coa.purchase_advance", label: "Supplier Advance (DP)", targetType: "ASSET" },
-    { key: "coa.retained_earnings", label: "Retained Earnings", targetType: "EQUITY" },
-    { key: "coa.non_trade_payable", label: "Non-Trade Payable", targetType: "LIABILITY" },
-    { key: "coa.travel_expense", label: "Travel/Up-Country Expense", targetType: "EXPENSE" },
-  ];
 
   return (
     <Card className="w-full border-none shadow-none bg-transparent">
       <CardHeader className="px-0">
-        <CardTitle className="text-xl font-semibold">Accounting Mapping Settings</CardTitle>
+        <CardTitle className="text-xl font-semibold">{t("title")}</CardTitle>
         <CardDescription className="text-base">
-          Map your system transactions to the appropriate Chart of Account. Accounts are filtered strictly based on the required account type to ensure financial integrity.
+          {t("description")}
         </CardDescription>
+        {missingRequiredCount > 0 && (
+          <div className="mt-3 inline-flex w-fit rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900">
+            {t("missingRequired", { count: missingRequiredCount })}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-0">
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
-            {requiredMappings.map((mapping) => {
-              const fields = form.watch("settings") || [];
-              const fieldIndex = fields.findIndex((f) => f.setting_key === mapping.key);
+            {mappingDefinitions.map((mapping) => {
+              const fieldIndex = fieldIndexByKey.get(mapping.key);
+              if (fieldIndex === undefined) return null;
 
-              if (fieldIndex === -1) return null;
-
-              const validCOAs = coaList.filter((c: any) => {
-                const type = c.type?.toUpperCase();
-                const target = mapping.targetType?.toUpperCase();
-                
-                // Group-based matching
-                switch (target) {
-                  case "ASSET":
-                    return type === "ASSET" || type === "CURRENT_ASSET" || type === "FIXED_ASSET";
-                  case "LIABILITY":
-                    return type === "LIABILITY" || type === "TRADE_PAYABLE";
-                  case "EQUITY":
-                    return type === "EQUITY" || type === "RETAINED_EARNINGS"; // Handle retained earnings subtype if exists
-                  case "INCOME":
-                  case "REVENUE":
-                    return type === "REVENUE" || type === "INCOME";
-                  case "EXPENSE":
-                    return type === "EXPENSE" || type === "COST_OF_GOODS_SOLD" || type === "SALARY_WAGES" || type === "OPERATIONAL";
-                  case "CASH_BANK":
-                    return type === "CASH_BANK";
-                  default:
-                    return type === target;
-                }
-              });
+              const validCOAs = getFilteredAccounts(mapping);
+              const selectedCode = settingRows[fieldIndex]?.value ?? "";
+              const selectedAccount = coaList.find((coa) => coa.code === selectedCode);
+              const selectedAccountInvalidType =
+                !!selectedAccount &&
+                mapping.allowedAccountTypes.length > 0 &&
+                !mapping.allowedAccountTypes.includes(selectedAccount.type);
 
               const error = form.formState.errors.settings?.[fieldIndex]?.value;
+              const mappingDefinition = getMappingDefinitionByKey(mapping.key);
 
               return (
                 <Field key={mapping.key} className="space-y-3">
-                  <FieldLabel className="text-sm font-semibold text-foreground/80">
-                    {mapping.label}
-                  </FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <FieldLabel className="text-sm font-semibold text-foreground/80">
+                      {mapping.label}
+                    </FieldLabel>
+                    {mapping.required && <Badge variant="warning">{t("required")}</Badge>}
+                    {!mappingDefinition && <Badge variant="outline">{t("customKey")}</Badge>}
+                  </div>
                   <Select
-                    value={form.watch(`settings.${fieldIndex}.value`)}
-                    onValueChange={(val) => form.setValue(`settings.${fieldIndex}.value`, val, { shouldDirty: true, shouldValidate: true })}
+                    value={form.watch(`settings.${fieldIndex}.value`) || UNMAPPED_VALUE}
+                    onValueChange={(val) =>
+                      form.setValue(
+                        `settings.${fieldIndex}.value`,
+                        val === UNMAPPED_VALUE ? "" : val,
+                        {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        },
+                      )
+                    }
+                    disabled={!canUpdate}
                   >
-                    <SelectTrigger className="h-11 bg-background shadow-sm hover:border-primary/50 transition-all">
-                      <SelectValue placeholder={`Choose an ${mapping.targetType} account...`} />
+                    <SelectTrigger className="h-11 bg-background shadow-sm hover:border-primary/50 transition-all cursor-pointer">
+                      <SelectValue placeholder={t("selectAccount")} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={UNMAPPED_VALUE} className="cursor-pointer">
+                        {t("notMapped")}
+                      </SelectItem>
                       {validCOAs.length > 0 ? (
-                        validCOAs.map((coa: any) => (
-                          <SelectItem key={coa.id} value={coa.code} className="py-2.5">
+                        validCOAs.map((coa) => (
+                          <SelectItem key={coa.id} value={coa.code} className="py-2.5 cursor-pointer">
                             <span className="font-medium mr-2">{coa.code}</span>
                             <span className="text-muted-foreground">- {coa.name}</span>
                           </SelectItem>
                         ))
                       ) : (
                         <div className="p-4 text-center text-sm text-muted-foreground">
-                          No {mapping.targetType} accounts found.
+                          {t("noMatchingAccount")}
                         </div>
                       )}
                     </SelectContent>
                   </Select>
-                  <FieldDescription className="text-xs italic text-muted-foreground/70">
-                    Standard Mapping Class: <strong>{mapping.targetType}</strong>
+                  <FieldDescription className="text-xs italic text-muted-foreground/70 space-y-1">
+                    <span className="block">{mapping.description}</span>
+                    <span className="block font-mono text-[11px] not-italic">{mapping.key}</span>
+                    {mapping.allowedAccountTypes.length > 0 && (
+                      <span className="block not-italic">
+                        {t("allowedTypes")}: <strong>{mapping.allowedAccountTypes.join(", ")}</strong>
+                      </span>
+                    )}
+                    {selectedAccountInvalidType && (
+                      <span className="block not-italic text-destructive font-medium">
+                        {t("selectedTypeMismatch", { type: selectedAccount?.type ?? "-" })}
+                      </span>
+                    )}
                   </FieldDescription>
                   {error && <FieldError className="mt-1">{error.message}</FieldError>}
                 </Field>
@@ -185,7 +275,7 @@ export const AccountingMappingForm = () => {
               className="px-8 h-12 text-base font-semibold shadow-md active:scale-95 transition-all" 
               disabled={isPending || !form.formState.isDirty || !canUpdate}
             >
-              {!canUpdate ? "View Only" : isPending ? "Syncing Logic..." : "Save Configuration"}
+              {!canUpdate ? t("viewOnly") : isPending ? t("saving") : t("save")}
             </Button>
           </div>
         </form>

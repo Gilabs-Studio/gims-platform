@@ -10,6 +10,7 @@ export const salesPaymentId = {
   },
   actions: {
     create: "Buat",
+    openMapping: "Buka Mapping",
     change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
@@ -100,5 +101,8 @@ export const salesPaymentId = {
   common: {
     cancel: "Batal",
     error: "Terjadi kesalahan",
+  },
+  errors: {
+    mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum melanjutkan.",
   },
 };

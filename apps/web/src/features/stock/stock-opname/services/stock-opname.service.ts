@@ -8,6 +8,8 @@ import type {
   UpdateStockOpnameRequest,
   UpdateStockOpnameStatusRequest,
   SaveStockOpnameItemsRequest,
+  ProductStockLedgerFilter,
+  ProductStockLedgerListResponse,
 } from "../types";
 
 const BASE_PATH = "/stock-opnames";
@@ -84,5 +86,16 @@ export const stockOpnameService = {
           data
       );
       return response.data;
-  }
+  },
+
+  async getProductLedgers(
+    productId: string,
+    params?: ProductStockLedgerFilter,
+  ): Promise<ProductStockLedgerListResponse> {
+    const response = await apiClient.get<ProductStockLedgerListResponse>(
+      `/inventory/products/${productId}/ledgers`,
+      { params },
+    );
+    return response.data;
+  },
 };

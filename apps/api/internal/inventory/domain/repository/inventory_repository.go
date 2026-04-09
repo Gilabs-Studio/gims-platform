@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 )
 
@@ -14,6 +15,7 @@ type InventoryRepository interface {
 	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
 	GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) ([]dto.InventoryStockItem, int64, dto.TreeProductsSummary, error)
 	GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) ([]dto.InventoryBatchItem, int64, error)
+	GetProductLedgers(ctx context.Context, productID string, req *dto.GetProductStockLedgersRequest) ([]models.StockLedger, int64, error)
 
 	// Stock Management
 	UpdateProductReservedStock(ctx context.Context, productID string, quantity float64) error

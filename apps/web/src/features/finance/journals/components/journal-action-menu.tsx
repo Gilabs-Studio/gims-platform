@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import {
-  useDeleteFinanceJournal,
   usePostFinanceJournal,
   useReverseFinanceJournal,
 } from "../hooks/use-finance-journals";
+import { getErrorMessage, parseApiError } from "../utils/error-parser";
 import type { UnifiedJournalRow } from "./journal-table";
 
 interface JournalActionMenuProps {
@@ -36,7 +36,7 @@ export function JournalActionMenu({
   onSourceDetail,
 }: JournalActionMenuProps) {
   const t = useTranslations("financeJournals");
-  const item = row.original as any;
+  const item = row.original as { is_system_generated?: boolean };
   const status = (row.status || "").toLowerCase();
 
   const canUpdate = useUserPermission("journal.update");
@@ -96,8 +96,9 @@ export function JournalActionMenu({
               try {
                 await postMutation.mutateAsync(row.id);
                 toast.success(t("toast.posted"));
-              } catch (error: any) {
-                toast.error(error.message || t("toast.failed"));
+              } catch (error: unknown) {
+                const parsedError = parseApiError(error);
+                toast.error(getErrorMessage(parsedError, (key) => t(key)));
               }
             }}
           >
@@ -123,8 +124,9 @@ export function JournalActionMenu({
               try {
                 await reverseMutation.mutateAsync(row.id);
                 toast.success(t("toast.reversed"));
-              } catch (error: any) {
-                toast.error(error.message || t("toast.failed"));
+              } catch (error: unknown) {
+                const parsedError = parseApiError(error);
+                toast.error(getErrorMessage(parsedError, (key) => t(key)));
               }
             }}
           >

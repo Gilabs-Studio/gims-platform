@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/mapper"
-	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
-	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -73,6 +73,162 @@ func TestJournalEntry_ShouldCreatePostAndReverse_WithReversalMetadata(t *testing
 
 	var reversalMeta models.JournalReversal
 	err = db.Where("original_journal_entry_id = ?", created.ID).First(&reversalMeta).Error
+	require.NoError(t, err)
+	require.Equal(t, reversal.ID, reversalMeta.ReversalJournalEntryID)
+}
+
+func TestJournalEntry_ShouldRejectWhenPostingToNonPostableParentAccount(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&coreModels.AuditLog{},
+		&models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+		&models.JournalReversal{},
+	)
+	require.NoError(t, err)
+
+	root := models.ChartOfAccount{Code: "1-0000", Name: "Assets", Type: models.AccountTypeAsset, IsActive: true, IsPostable: false}
+	leaf := models.ChartOfAccount{Code: "4-1100", Name: "Sales", Type: models.AccountTypeRevenue, IsActive: true, IsPostable: true}
+	require.NoError(t, db.Create(&root).Error)
+	require.NoError(t, db.Create(&leaf).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	refType := "GENERAL"
+	refID := "20000000-0000-0000-0000-000000000001"
+	_, err = uc.Create(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-01-15",
+		Description:   "Should fail because parent account is non-postable",
+		ReferenceType: &refType,
+		ReferenceID:   &refID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: root.ID, Debit: 1000, Credit: 0, Memo: "debit root"},
+			{ChartOfAccountID: leaf.ID, Debit: 0, Credit: 1000, Memo: "credit sales"},
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "non-postable")
+}
+
+func TestJournalEntry_ShouldCreateWhenPostingToPostableLeafAccounts(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&coreModels.AuditLog{},
+		&models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+		&models.JournalReversal{},
+	)
+	require.NoError(t, err)
+
+	debitLeaf := models.ChartOfAccount{Code: "1-1101", Name: "Cash", Type: models.AccountTypeCashBank, IsActive: true, IsPostable: true}
+	creditLeaf := models.ChartOfAccount{Code: "4-1100", Name: "Sales", Type: models.AccountTypeRevenue, IsActive: true, IsPostable: true}
+	require.NoError(t, db.Create(&debitLeaf).Error)
+	require.NoError(t, db.Create(&creditLeaf).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+	refType := "GENERAL"
+	refID := "20000000-0000-0000-0000-000000000002"
+	created, err := uc.Create(ctx, &dto.CreateJournalEntryRequest{
+		EntryDate:     "2026-01-16",
+		Description:   "Should pass with postable leaf accounts",
+		ReferenceType: &refType,
+		ReferenceID:   &refID,
+		Lines: []dto.JournalLineRequest{
+			{ChartOfAccountID: debitLeaf.ID, Debit: 500, Credit: 0, Memo: "debit cash"},
+			{ChartOfAccountID: creditLeaf.ID, Debit: 0, Credit: 500, Memo: "credit sales"},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created)
+}
+
+func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing.T) {
+	t.Parallel()
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil && strings.Contains(err.Error(), "go-sqlite3 requires cgo") {
+		t.Skip("sqlite integration test skipped because CGO is disabled in this environment")
+	}
+	require.NoError(t, err)
+
+	err = db.AutoMigrate(
+		&coreModels.AuditLog{},
+		&models.ChartOfAccount{},
+		&models.JournalEntry{},
+		&models.JournalLine{},
+		&models.FinancialClosing{},
+		&models.JournalReversal{},
+	)
+	require.NoError(t, err)
+
+	openingEquity := models.ChartOfAccount{Code: "3-9999", Name: "Opening Balance Equity", Type: models.AccountTypeEquity, IsActive: true, IsPostable: true}
+	account := models.ChartOfAccount{Code: "1-1101", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true, IsPostable: true, OpeningBalance: 1000}
+	require.NoError(t, db.Create(&openingEquity).Error)
+	require.NoError(t, db.Create(&account).Error)
+
+	coaRepo := repositories.NewChartOfAccountRepository(db)
+	journalRepo := repositories.NewJournalEntryRepository(db)
+	journalMapper := mapper.NewJournalEntryMapper(mapper.NewChartOfAccountMapper())
+	uc := NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, audit.NewAuditService(db))
+
+	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
+
+	first, err := uc.CreateOpeningBalanceJournal(ctx, &account)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+
+	reversal, err := uc.ReverseOpeningBalance(ctx, account.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reversal)
+
+	account.OpeningBalance = 1500
+	second, err := uc.CreateOpeningBalanceJournal(ctx, &account)
+	require.NoError(t, err)
+	require.NotNil(t, second)
+
+	var active models.JournalEntry
+	err = db.Where("reference_type = ? AND reference_id = ?", string(models.RefOpeningBalance), account.ID).First(&active).Error
+	require.NoError(t, err)
+	require.Equal(t, second.ID, active.ID)
+
+	var firstEntry models.JournalEntry
+	err = db.Where("id = ?", first.ID).First(&firstEntry).Error
+	require.NoError(t, err)
+	require.NotNil(t, firstEntry.ReferenceType)
+	require.Equal(t, string(models.RefOpeningBalanceRev), *firstEntry.ReferenceType)
+	require.NotNil(t, firstEntry.ReferenceID)
+	require.Equal(t, first.ID, *firstEntry.ReferenceID)
+	require.Equal(t, models.JournalStatusReversed, firstEntry.Status)
+
+	var reversalMeta models.JournalReversal
+	err = db.Where("original_journal_entry_id = ?", first.ID).First(&reversalMeta).Error
 	require.NoError(t, err)
 	require.Equal(t, reversal.ID, reversalMeta.ReversalJournalEntryID)
 }
@@ -567,7 +723,7 @@ func TestInventoryFreeze_IntegrityEnforcement(t *testing.T) {
 
 	// January 10 is inside Jan 31 closing -> Closed
 	require.True(t, isPeriodClosed("2026-01-10"), "Jan 10 should be closed")
-	
+
 	// February 1 is after Jan 31 closing -> Open
 	require.False(t, isPeriodClosed("2026-02-01"), "Feb 1 should be open")
 }

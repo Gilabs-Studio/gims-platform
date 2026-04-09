@@ -26,6 +26,7 @@ export const journalFormSchema = z
   .object({
     entry_date: z.string().trim().min(1),
     description: z.string().trim().optional().nullable(),
+    journal_type: z.string().trim().optional().nullable(),
     lines: z.array(lineSchema).min(2),
   })
   .superRefine((v, ctx) => {

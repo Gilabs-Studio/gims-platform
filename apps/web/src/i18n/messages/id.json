@@ -250,7 +250,22 @@
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",
-    "description": "Konfigurasi Pemetaan Bagan Akun Perusahaan"
+    "description": "Konfigurasikan mapping Chart of Account global yang dipakai otomatisasi jurnal lintas modul Finance, Purchase, Sales, dan Inventory.",
+    "loading": "Menyinkronkan definisi buku besar...",
+    "loadFailed": "Gagal memuat finance settings atau chart of accounts.",
+    "dynamicDescription": "Key mapping COA kustom dari pengaturan server.",
+    "missingRequired": "Masih ada {count} mapping wajib yang belum diisi.",
+    "required": "Wajib",
+    "customKey": "Kustom",
+    "selectAccount": "Pilih akun",
+    "notMapped": "Belum dipetakan",
+    "noMatchingAccount": "Tidak ada akun postable yang sesuai untuk mapping ini.",
+    "allowedTypes": "Tipe yang diizinkan",
+    "selectedTypeMismatch": "Tipe pilihan saat ini {type}, di luar tipe mapping yang diizinkan.",
+    "requiredValue": "Mapping ini wajib. Silakan pilih chart of account.",
+    "viewOnly": "Hanya Lihat",
+    "saving": "Menyimpan...",
+    "save": "Simpan Konfigurasi"
   },
   "travelPlanner": {
     "badge": "Kolaboratif Lanjutan",

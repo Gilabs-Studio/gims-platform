@@ -3,8 +3,8 @@ package models
 import (
 	"time"
 
-	"github.com/google/uuid"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +35,8 @@ const (
 	RefCurrencyReval     ReferenceType = "CURRENCY_REVALUATION"   // Currency Revaluation
 	RefCostAdjustment    ReferenceType = "COST_ADJUSTMENT"        // Cost Adjustment
 	RefDepreciation      ReferenceType = "DEPRECIATION_VALUATION" // Depreciation Valuation
+	RefOpeningBalance    ReferenceType = "OPENING_BALANCE"        // Opening Balance
+	RefOpeningBalanceRev ReferenceType = "OPENING_BALANCE_REV"    // Opening Balance Reversed Marker
 )
 
 // JournalSource distinguishes operational journals from valuation-generated journals.
@@ -45,6 +47,13 @@ const (
 	JournalSourceValuation   JournalSource = "VALUATION"
 )
 
+type JournalType string
+
+const (
+	JournalTypeGeneral        JournalType = "GENERAL"
+	JournalTypeOpeningBalance JournalType = "OPENING_BALANCE"
+)
+
 type JournalEntry struct {
 	ID          string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	EntryDate   time.Time `gorm:"type:date;not null;index" json:"entry_date"`
@@ -53,9 +62,10 @@ type JournalEntry struct {
 	ReferenceType *string `gorm:"type:varchar(50);index;uniqueIndex:idx_journal_entry_reference" json:"reference_type"`
 	ReferenceID   *string `gorm:"type:varchar(255);index;uniqueIndex:idx_journal_entry_reference" json:"reference_id"`
 
-	Status   JournalStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
-	PostedBy *string       `gorm:"type:uuid" json:"posted_by"`
-	PostedAt *time.Time    `json:"posted_at"`
+	Status      JournalStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
+	JournalType JournalType   `gorm:"type:varchar(30);default:'GENERAL';index" json:"journal_type"`
+	PostedBy    *string       `gorm:"type:uuid" json:"posted_by"`
+	PostedAt    *time.Time    `json:"posted_at"`
 
 	ReversedBy *string    `gorm:"type:uuid" json:"reversed_by,omitempty"`
 	ReversedAt *time.Time `json:"reversed_at,omitempty"`

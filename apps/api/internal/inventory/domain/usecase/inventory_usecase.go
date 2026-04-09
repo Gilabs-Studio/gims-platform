@@ -11,18 +11,19 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/inventory/data/models"
 	"github.com/gilabs/gims/api/internal/inventory/domain/dto"
 	"github.com/gilabs/gims/api/internal/inventory/domain/repository"
-	finUC "github.com/gilabs/gims/api/internal/finance/domain/usecase"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
-	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	"gorm.io/gorm"
 )
 
 var (
 	ErrBatchNotFound          = errors.New("inventory batch not found")
 	ErrInsufficientBatchStock = errors.New("insufficient stock in selected batch")
+	ErrInvalidInventoryInput  = errors.New("invalid inventory request")
 )
 
 type InventoryUsecase interface {
@@ -33,6 +34,7 @@ type InventoryUsecase interface {
 	GetTreeWarehouses(ctx context.Context) ([]dto.GetInventoryTreeWarehousesResponse, error)
 	GetTreeProducts(ctx context.Context, req *dto.GetInventoryTreeProductsRequest) (*dto.GetInventoryTreeProductsResponse, error)
 	GetTreeBatches(ctx context.Context, req *dto.GetInventoryTreeBatchesRequest) (*dto.GetInventoryTreeBatchesResponse, error)
+	GetProductLedgers(ctx context.Context, productID string, req *dto.GetProductStockLedgersRequest) (*dto.GetProductStockLedgersResponse, error)
 
 	// Stock Management
 	ReserveStock(ctx context.Context, productID string, quantity float64) error
@@ -50,7 +52,7 @@ type InventoryUsecase interface {
 	ValidateBatchStock(ctx context.Context, batchID string, requiredQty float64) error
 	ReserveBatchStock(ctx context.Context, batchID string, quantity float64) error
 	ReleaseBatchStock(ctx context.Context, batchID string, quantity float64) error
-	
+
 	// Audit/Reconciliation/Consolidation
 	TriggerMovementJournal(ctx context.Context, movementID string) error
 	TriggerDocumentJournal(ctx context.Context, tx *gorm.DB, refType, refID string) error
@@ -70,6 +72,30 @@ func NewInventoryUsecase(db *gorm.DB, repo repository.InventoryRepository, journ
 		journalUC: journalUC,
 		engine:    engine,
 	}
+}
+
+func calculateNewAverageCost(currentQty, currentAvgCost, incomingQty, incomingUnitCost float64) float64 {
+	totalValue := (currentQty * currentAvgCost) + (incomingQty * incomingUnitCost)
+	totalQty := currentQty + incomingQty
+	if totalQty == 0 {
+		return 0
+	}
+	return totalValue / totalQty
+}
+
+func (u *inventoryUsecase) appendStockLedger(ctx context.Context, tx *gorm.DB, productID, transactionID, transactionType string, qty, unitCost, avgCost, stockValue, runningQty float64) error {
+	ledger := &models.StockLedger{
+		ProductID:       productID,
+		TransactionID:   strings.TrimSpace(transactionID),
+		TransactionType: strings.TrimSpace(transactionType),
+		Qty:             qty,
+		UnitCost:        unitCost,
+		AverageCost:     avgCost,
+		StockValue:      stockValue,
+		RunningQty:      runningQty,
+	}
+
+	return tx.WithContext(ctx).Create(ledger).Error
 }
 
 func (u *inventoryUsecase) GetStockList(ctx context.Context, req *dto.GetInventoryListRequest) (*dto.GetInventoryListResponse, error) {
@@ -167,6 +193,102 @@ func (u *inventoryUsecase) GetInventoryMetrics(ctx context.Context) (*dto.Invent
 	return u.repo.GetInventoryMetrics(ctx)
 }
 
+func (u *inventoryUsecase) GetProductLedgers(ctx context.Context, productID string, req *dto.GetProductStockLedgersRequest) (*dto.GetProductStockLedgersResponse, error) {
+	if strings.TrimSpace(productID) == "" {
+		return nil, fmt.Errorf("%w: product_id is required", ErrInvalidInventoryInput)
+	}
+
+	if req == nil {
+		req = &dto.GetProductStockLedgersRequest{}
+	}
+
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 20
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	if req.DateFrom != "" {
+		parsedDateFrom, err := time.Parse("2006-01-02", req.DateFrom)
+		if err != nil {
+			return nil, fmt.Errorf("%w: date_from must be YYYY-MM-DD", ErrInvalidInventoryInput)
+		}
+		req.ParsedDateFrom = &parsedDateFrom
+	}
+
+	if req.DateTo != "" {
+		parsedDateTo, err := time.Parse("2006-01-02", req.DateTo)
+		if err != nil {
+			return nil, fmt.Errorf("%w: date_to must be YYYY-MM-DD", ErrInvalidInventoryInput)
+		}
+		dateToInclusive := parsedDateTo.Add(24*time.Hour - time.Nanosecond)
+		req.ParsedDateTo = &dateToInclusive
+	}
+
+	if req.ParsedDateFrom != nil && req.ParsedDateTo != nil && req.ParsedDateFrom.After(*req.ParsedDateTo) {
+		return nil, fmt.Errorf("%w: date_from cannot be greater than date_to", ErrInvalidInventoryInput)
+	}
+
+	ledgers, total, err := u.repo.GetProductLedgers(ctx, productID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.ProductStockLedgerItem, 0, len(ledgers))
+	for _, ledger := range ledgers {
+		items = append(items, dto.ProductStockLedgerItem{
+			ID:                   ledger.ID,
+			ProductID:            ledger.ProductID,
+			TransactionID:        ledger.TransactionID,
+			TransactionType:      ledger.TransactionType,
+			TransactionTypeLabel: stockLedgerTypeLabel(ledger.TransactionType),
+			Qty:                  ledger.Qty,
+			UnitCost:             ledger.UnitCost,
+			AverageCost:          ledger.AverageCost,
+			StockValue:           ledger.StockValue,
+			RunningQty:           ledger.RunningQty,
+			CreatedAt:            ledger.CreatedAt,
+		})
+	}
+
+	totalPages := 0
+	if req.Limit > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(req.Limit)))
+	}
+
+	return &dto.GetProductStockLedgersResponse{
+		Data: items,
+		Meta: dto.PaginationMeta{
+			Total:      total,
+			Page:       req.Page,
+			PerPage:    req.Limit,
+			TotalPages: totalPages,
+			HasNext:    req.Page < totalPages,
+			HasPrev:    req.Page > 1,
+		},
+	}, nil
+}
+
+func stockLedgerTypeLabel(transactionType string) string {
+	switch strings.ToUpper(strings.TrimSpace(transactionType)) {
+	case "GR":
+		return "Goods Receipt"
+	case "GI":
+		return "Goods Issue"
+	case "OPNAME":
+		return "Stock Opname"
+	default:
+		if strings.TrimSpace(transactionType) == "" {
+			return "Unknown"
+		}
+		return transactionType
+	}
+}
+
 func (u *inventoryUsecase) ReserveStock(ctx context.Context, productID string, quantity float64) error {
 	return u.repo.UpdateProductReservedStock(ctx, productID, quantity)
 }
@@ -178,22 +300,45 @@ func (u *inventoryUsecase) ReleaseStock(ctx context.Context, productID string, q
 }
 
 func (u *inventoryUsecase) DeductStock(ctx context.Context, batchID string, quantity float64) error {
-	// First fetch batch to get product ID for aggregate update
-	batch, err := u.repo.GetBatchByID(ctx, batchID)
-	if err != nil {
-		return err
-	}
-	if batch == nil {
-		return ErrBatchNotFound
-	}
+	return database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	// 1. Update Batch Quantity
-	if err := u.repo.UpdateBatchQuantity(ctx, batchID, -quantity); err != nil {
-		return err
-	}
+		// First fetch batch to get product ID for aggregate update
+		batch, err := u.repo.GetBatchByID(txCtx, batchID)
+		if err != nil {
+			return err
+		}
+		if batch == nil {
+			return ErrBatchNotFound
+		}
 
-	// 2. Update Aggregate Product Stock
-	return u.repo.UpdateProductStock(ctx, batch.ProductID, -quantity)
+		currentHpp, currentStock, err := u.repo.GetProductCostInfo(txCtx, batch.ProductID)
+		if err != nil {
+			return err
+		}
+
+		runningQty := currentStock - quantity
+		if runningQty < 0 {
+			return ErrInsufficientBatchStock
+		}
+
+		stockValue := runningQty * currentHpp
+		if err := u.appendStockLedger(txCtx, tx, batch.ProductID, batchID, "GI", -quantity, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+			return err
+		}
+
+		// 1. Update Batch Quantity
+		if err := u.repo.UpdateBatchQuantity(txCtx, batchID, -quantity); err != nil {
+			return err
+		}
+
+		// 2. Update Aggregate Product Stock and keep current average cost
+		if err := u.repo.UpdateProductStock(txCtx, batch.ProductID, -quantity); err != nil {
+			return err
+		}
+
+		return u.repo.UpdateProductAverageCost(txCtx, batch.ProductID, currentHpp)
+	})
 }
 
 func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, quantity float64, strategy string) ([]dto.BatchSelectionItem, error) {
@@ -243,7 +388,7 @@ func (u *inventoryUsecase) SelectBatches(ctx context.Context, productID string, 
 
 func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.StockMovementRequest) (string, error) {
 	var movementID string
-	
+
 	// Use RetryTx for atomic operation. Failure in journal = Rollback stock movement.
 	err := database.RetryTx(u.db.WithContext(ctx), func(tx *gorm.DB) error {
 		txCtx := database.WithTx(ctx, tx)
@@ -258,18 +403,18 @@ func (u *inventoryUsecase) CreateStockMovement(ctx context.Context, req *dto.Sto
 			log.Printf("[Inventory] Skipping individual journal for movement %s (Document level trigger expected)", id)
 			return nil
 		}
-		
+
 		if err := u.triggerInventoryJournal(txCtx, tx, movementID); err != nil {
 			return fmt.Errorf("triggered journal failed: %w", err)
 		}
 		return nil
 	})
-	
+
 	if err != nil {
 		log.Printf("[Inventory] FAILED CreateStockMovement for %s %s: %v", req.ReferenceType, req.ReferenceNumber, err)
 		return "", err
 	}
-	
+
 	return movementID, nil
 }
 
@@ -284,21 +429,32 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 				return err
 			}
 
-			totalQty := currentStock + item.Quantity
-			totalValue := (currentStock * currentHpp) + (item.Quantity * item.CostPrice)
-			newHpp := 0.0
-			if totalQty > 0 {
-				newHpp = math.Round((totalValue/totalQty)*100) / 100
-			} else {
+			runningQty := currentStock + item.Quantity
+			if runningQty < 0 {
+				return fmt.Errorf("invalid stock movement for product %s: running quantity would be negative", item.ProductID)
+			}
+
+			newHpp := calculateNewAverageCost(currentStock, currentHpp, item.Quantity, item.CostPrice)
+			if runningQty == 0 && item.Quantity > 0 {
 				newHpp = item.CostPrice
 			}
 
-			// 2. Update Product Cost
-			if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, newHpp); err != nil {
+			stockValue := runningQty * newHpp
+
+			// 2. Persist immutable stock ledger row before mutating product aggregates.
+			if err := u.appendStockLedger(ctx, tx, item.ProductID, req.SourceID, "GR", item.Quantity, item.CostPrice, newHpp, stockValue, runningQty); err != nil {
 				return err
 			}
 
-			// 3. Create Batch
+			// 3. Update Product Cost and Aggregate Stock
+			if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, newHpp); err != nil {
+				return err
+			}
+			if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.Quantity); err != nil {
+				return err
+			}
+
+			// 4. Create Batch
 			batchToken := sanitizeBatchToken(req.SourceNumber)
 			if batchToken == "" {
 				batchToken = sanitizeBatchToken(req.SourceID)
@@ -330,7 +486,7 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 				return err
 			}
 
-			// 4. Create Stock Movement (IN)
+			// 5. Create Stock Movement (IN)
 			createdBy := req.ReceivedBy
 			movementReq := &dto.StockMovementRequest{
 				InventoryBatchID: batchID,
@@ -345,15 +501,10 @@ func (u *inventoryUsecase) ReceiveStockFromGR(ctx context.Context, req *dto.Rece
 				Description:      req.Notes,
 				CreatedBy:        &createdBy,
 			}
-			
+
 			// Note: For GR, we usually trigger journal at GoodsReceipt closing
 			// but individual item movement traceability still needs updating
 			if _, err := u.repo.CreateStockMovement(ctx, movementReq); err != nil {
-				return err
-			}
-
-			// 5. Update Product Stock (Aggregate)
-			if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.Quantity); err != nil {
 				return err
 			}
 
@@ -423,6 +574,22 @@ func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.A
 				continue // No adjustment needed for matching items
 			}
 
+			currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, item.ProductID)
+			if err != nil {
+				return err
+			}
+
+			runningQty := currentStock + item.VarianceQty
+			if runningQty < 0 {
+				return fmt.Errorf("invalid stock opname adjustment for product %s: running quantity would be negative", item.ProductID)
+			}
+
+			avgCost := currentHpp
+			stockValue := runningQty * avgCost
+			if err := u.appendStockLedger(ctx, tx, item.ProductID, req.OpnameID, "OPNAME", item.VarianceQty, avgCost, avgCost, stockValue, runningQty); err != nil {
+				return err
+			}
+
 			// Find the oldest batch for this product+warehouse to attach the movement
 			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, item.ProductID, req.WarehouseID)
 			if err != nil {
@@ -466,6 +633,9 @@ func (u *inventoryUsecase) AdjustStockFromOpname(ctx context.Context, req *dto.A
 			if err := u.repo.UpdateProductStock(ctx, item.ProductID, item.VarianceQty); err != nil {
 				return err
 			}
+			if err := u.repo.UpdateProductAverageCost(ctx, item.ProductID, avgCost); err != nil {
+				return err
+			}
 
 			// TRIGGER JOURNAL for the adjustment
 			if err := u.triggerInventoryJournal(ctx, tx, movementID); err != nil {
@@ -490,6 +660,11 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 		}
 
 		deductStock := func(warehouseID string, qty float64, movementType string) (string, error) {
+			currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
+			if err != nil {
+				return "", err
+			}
+
 			batches, err := u.repo.GetBatchesByProductAndWarehouse(ctx, req.ProductID, warehouseID)
 			if err != nil {
 				return "", err
@@ -539,7 +714,19 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 				return "", ErrInsufficientStock
 			}
 
+			runningQty := currentStock - qty
+			if runningQty < 0 {
+				return "", ErrInsufficientStock
+			}
+			stockValue := runningQty * currentHpp
+			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, "GI", -qty, currentHpp, currentHpp, stockValue, runningQty); err != nil {
+				return "", err
+			}
+
 			if err := u.repo.UpdateProductStock(ctx, req.ProductID, -qty); err != nil {
+				return "", err
+			}
+			if err := u.repo.UpdateProductAverageCost(ctx, req.ProductID, currentHpp); err != nil {
 				return "", err
 			}
 
@@ -547,8 +734,15 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 		}
 
 		addStock := func(warehouseID string, qty float64, movementType string) (string, error) {
-			currentHpp, _, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
+			currentHpp, currentStock, err := u.repo.GetProductCostInfo(ctx, req.ProductID)
 			if err != nil {
+				return "", err
+			}
+
+			newAvg := calculateNewAverageCost(currentStock, currentHpp, qty, currentHpp)
+			runningQty := currentStock + qty
+			stockValue := runningQty * newAvg
+			if err := u.appendStockLedger(ctx, tx, req.ProductID, req.ReferenceNumber, "GR", qty, currentHpp, newAvg, stockValue, runningQty); err != nil {
 				return "", err
 			}
 
@@ -588,6 +782,9 @@ func (u *inventoryUsecase) CreateManualStockMovement(ctx context.Context, req *d
 			}
 
 			if err := u.repo.UpdateProductStock(ctx, req.ProductID, qty); err != nil {
+				return "", err
+			}
+			if err := u.repo.UpdateProductAverageCost(ctx, req.ProductID, newAvg); err != nil {
 				return "", err
 			}
 
@@ -686,11 +883,11 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 
 	// 4. Prepare Data for Accounting Engine
 	data := accounting.TransactionData{
-		ReferenceType: "INVENTORY_MOVEMENT", // Link journal directly to the movement ID for 1:1 traceability
-		ReferenceID:   movement.ID,
-		EntryDate:     movement.Date.Format("2006-01-02"),
-		Description:   fmt.Sprintf("%s [%s]: %s", profile.DescriptionTemplate, movement.RefNumber, movement.Source),
-		TotalAmount:   math.Abs(volume * cost),
+		ReferenceType:   "INVENTORY_MOVEMENT", // Link journal directly to the movement ID for 1:1 traceability
+		ReferenceID:     movement.ID,
+		EntryDate:       movement.Date.Format("2006-01-02"),
+		Description:     fmt.Sprintf("%s [%s]: %s", profile.DescriptionTemplate, movement.RefNumber, movement.Source),
+		TotalAmount:     math.Abs(volume * cost),
 		DescriptionArgs: []interface{}{movement.RefNumber},
 	}
 
@@ -743,8 +940,8 @@ func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.
 	// 2. Group by product and sum up volume*cost
 	// Actually, for a single journal header, we just need the total value if they use the same accounts.
 	// But standard ERP journals might have separate lines per product/batch.
-	// Let's create one consolidated journal per document with 1 Credit (Inventory) and 1 Debit (COGS/Accrual) summary 
-	// or per-item if detail is needed. 
+	// Let's create one consolidated journal per document with 1 Credit (Inventory) and 1 Debit (COGS/Accrual) summary
+	// or per-item if detail is needed.
 	// For now, let's keep it simple: 1 consolidated journal with 2 lines (Total Debit, Total Credit).
 
 	var totalValue float64
@@ -757,10 +954,10 @@ func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.
 		if cost == 0 && m.Product != nil {
 			cost = m.Product.CurrentHpp
 		}
-		
+
 		volume := m.QtyIn - m.QtyOut
 		totalValue += math.Abs(volume * cost)
-		
+
 		if refNumber == "" {
 			refNumber = m.RefNumber
 		}
@@ -779,7 +976,7 @@ func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.
 	// 3. Resolve Posting Profile
 	var profile accounting.PostingProfile
 	refTypeCanonical := reference.Normalize(refType)
-	
+
 	switch refTypeCanonical {
 	case reference.RefTypeGoodsReceipt:
 		profile = accounting.ProfileGoodsReceipt
