@@ -160,24 +160,38 @@ type POSConfigResponse struct {
 	Currency           string  `json:"currency"`
 }
 
-// ─── Midtrans Config DTOs ─────────────────────────────────────────────────────
+// ─── Xendit Config DTOs ───────────────────────────────────────────────────────
 
-// UpsertMidtransConfigRequest creates or updates Midtrans credentials per company
-type UpsertMidtransConfigRequest struct {
-	ServerKey   string `json:"server_key" binding:"required"`
-	ClientKey   string `json:"client_key" binding:"required"`
-	MerchantID  string `json:"merchant_id"`
-	Environment string `json:"environment" binding:"required,oneof=sandbox production"`
-	IsActive    *bool  `json:"is_active"`
+// ConnectXenditRequest saves Xendit credentials and marks the account as connected
+type ConnectXenditRequest struct {
+	SecretKey       string `json:"secret_key" binding:"required"`
+	XenditAccountID string `json:"xendit_account_id"` // XenPlatform sub-account ID
+	BusinessName    string `json:"business_name"`
+	Environment     string `json:"environment" binding:"required,oneof=sandbox production"`
+	WebhookToken    string `json:"webhook_token"`
 }
 
-// MidtransConfigResponse returned to client (server key is never exposed)
-type MidtransConfigResponse struct {
-	ID          string `json:"id"`
-	CompanyID   string `json:"company_id"`
-	ClientKey   string `json:"client_key"`
-	MerchantID  string `json:"merchant_id"`
-	Environment string `json:"environment"`
-	IsActive    bool   `json:"is_active"`
-	UpdatedAt   string `json:"updated_at"`
+// UpdateXenditConfigRequest updates non-credential settings (environment, active state)
+type UpdateXenditConfigRequest struct {
+	Environment  string `json:"environment" binding:"omitempty,oneof=sandbox production"`
+	BusinessName string `json:"business_name"`
+	IsActive     *bool  `json:"is_active"`
+}
+
+// XenditConfigResponse returned to client — secret key and webhook token are never exposed
+type XenditConfigResponse struct {
+	ID               string `json:"id"`
+	CompanyID        string `json:"company_id"`
+	XenditAccountID  string `json:"xendit_account_id"`
+	BusinessName     string `json:"business_name"`
+	Environment      string `json:"environment"`
+	ConnectionStatus string `json:"connection_status"`
+	IsActive         bool   `json:"is_active"`
+	UpdatedAt        string `json:"updated_at"`
+}
+
+// XenditConnectionStatusResponse is a lightweight check payload for cashiers
+type XenditConnectionStatusResponse struct {
+	IsConnected bool   `json:"is_connected"`
+	Status      string `json:"status"`
 }

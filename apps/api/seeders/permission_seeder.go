@@ -602,6 +602,9 @@ func SeedPermissions() error {
 		{"/pos", "pos.config.manage", "Manage POS Outlet Config", "MANAGE", "pos_config"},
 		// POS session management — required by GET /pos/sessions (list all sessions)
 		{"/pos", "pos.session.manage", "Manage POS Sessions", "MANAGE", "pos_session"},
+		// POS payment — view/manage Xendit connection (Owner/Admin only)
+		{"/pos/settings/payment", "pos.payment.view", "View POS Payment Settings", "VIEW", "pos_payment_config"},
+		{"/pos/settings/payment", "pos.payment.manage", "Manage POS Payment Gateway (Xendit)", "MANAGE", "pos_payment_config"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},

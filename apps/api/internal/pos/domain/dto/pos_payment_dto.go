@@ -4,7 +4,7 @@ import "time"
 
 // ProcessPaymentRequest initiates payment for a POS order
 type ProcessPaymentRequest struct {
-	Method          string  `json:"method" binding:"required,oneof=CASH CARD QRIS TRANSFER MIDTRANS"`
+	Method          string  `json:"method" binding:"required,oneof=CASH CARD QRIS TRANSFER DIGITAL"`
 	Amount          float64 `json:"amount" binding:"required,gt=0"`
 	ReferenceNumber *string `json:"reference_number"`
 	Notes           *string `json:"notes"`
@@ -26,20 +26,23 @@ type POSPaymentResponse struct {
 	PaymentType     *string    `json:"payment_type"`
 	VaNumber        *string    `json:"va_number"`
 	QrCode          *string    `json:"qr_code"`
-	RedirectURL     *string    `json:"redirect_url"`
+	PaymentURL      *string    `json:"payment_url"`
 	ExpiresAt       *time.Time `json:"expires_at"`
 	PaidAt          *time.Time `json:"paid_at"`
 	Notes           *string    `json:"notes"`
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
-// MidtransCallbackPayload is the Midtrans server-to-server notification body
-type MidtransCallbackPayload struct {
-	MidtransOrderID   string `json:"order_id"`
-	TransactionStatus string `json:"transaction_status"`
-	TransactionID     string `json:"transaction_id"`
-	FraudStatus       string `json:"fraud_status"`
-	PaymentType       string `json:"payment_type"`
-	GrossAmount       string `json:"gross_amount"`
-	SignatureKey      string `json:"signature_key"`
+// XenditWebhookPayload is the Xendit server-to-server notification body for invoice events
+type XenditWebhookPayload struct {
+	// ExternalID matches the ExternalOrderID stored in POSPayment
+	ExternalID string `json:"external_id"`
+	// Status: PAID, EXPIRED, or other Xendit invoice statuses
+	Status          string `json:"status"`
+	ID              string `json:"id"` // Xendit invoice ID
+	PaymentMethod   string `json:"payment_method"`
+	PaymentChannel  string `json:"payment_channel"`
+	PaidAmount      float64 `json:"paid_amount"`
+	PaidAt          string  `json:"paid_at"`
 }
+

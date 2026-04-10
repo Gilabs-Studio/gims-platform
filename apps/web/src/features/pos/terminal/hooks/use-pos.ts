@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { posOrderService, posPaymentService, posConfigService } from "../services/pos-service";
+import { posOrderService, posPaymentService, posConfigService, xenditConfigService } from "../services/pos-service";
 import type {
   CreateOrderRequest,
   ConfirmOrderRequest,
@@ -14,6 +14,8 @@ import type {
   AssignTableRequest,
   POSOrderListParams,
   ProcessPaymentRequest,
+  ConnectXenditRequest,
+  UpdateXenditConfigRequest,
 } from "../types";
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -26,6 +28,8 @@ export const posKeys = {
   catalog: (outletId: string) => [...posKeys.all, "catalog", outletId] as const,
   payments: (orderId: string) => [...posKeys.all, "payments", orderId] as const,
   config: (outletId: string) => [...posKeys.all, "config", outletId] as const,
+  xenditStatus: () => [...posKeys.all, "xendit", "status"] as const,
+  xenditConfig: () => [...posKeys.all, "xendit", "config"] as const,
 };
 
 // ─── Catalog hook ─────────────────────────────────────────────────────────────
@@ -187,16 +191,78 @@ export function useProcessCashPayment() {
   });
 }
 
-export function useInitiateMidtrans() {
+export function useInitiateDigitalPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, data }: { orderId: string; data: ProcessPaymentRequest }) =>
-      posPaymentService.initiateMidtrans(orderId, data),
+      posPaymentService.initiateDigital(orderId, data),
     onSuccess: (_, { orderId }) => {
       qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
     },
     onError: () => {
-      toast.error("Failed to initiate payment gateway.");
+      toast.error("Failed to initiate digital payment.");
+    },
+  });
+}
+
+// ─── Xendit config hooks ──────────────────────────────────────────────────────
+
+export function useXenditConnectionStatus() {
+  return useQuery({
+    queryKey: posKeys.xenditStatus(),
+    queryFn: () => xenditConfigService.getConnectionStatus(),
+    staleTime: 60_000,
+  });
+}
+
+export function useXenditConfig() {
+  return useQuery({
+    queryKey: posKeys.xenditConfig(),
+    queryFn: () => xenditConfigService.getConfig(),
+    staleTime: 60_000,
+  });
+}
+
+export function useConnectXendit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ConnectXenditRequest) => xenditConfigService.connect(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.xenditStatus() });
+      qc.invalidateQueries({ queryKey: posKeys.xenditConfig() });
+      toast.success("Xendit account connected successfully.");
+    },
+    onError: () => {
+      toast.error("Failed to connect Xendit account.");
+    },
+  });
+}
+
+export function useUpdateXenditConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateXenditConfigRequest) => xenditConfigService.update(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.xenditConfig() });
+      toast.success("Payment settings updated.");
+    },
+    onError: () => {
+      toast.error("Failed to update payment settings.");
+    },
+  });
+}
+
+export function useDisconnectXendit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => xenditConfigService.disconnect(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.xenditStatus() });
+      qc.invalidateQueries({ queryKey: posKeys.xenditConfig() });
+      toast.success("Xendit account disconnected.");
+    },
+    onError: () => {
+      toast.error("Failed to disconnect Xendit account.");
     },
   });
 }

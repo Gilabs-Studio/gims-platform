@@ -26,6 +26,21 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			return
 		}
 
+		// Admin/superadmin bypass strict permission map checks.
+		if roleRaw, exists := c.Get("user_role"); exists {
+			if role, ok := roleRaw.(string); ok {
+				normalized := strings.ToLower(strings.TrimSpace(role))
+				if normalized == "admin" || normalized == "superadmin" {
+					c.Set("permission_scope", "ALL")
+					reqCtx := c.Request.Context()
+					reqCtx = context.WithValue(reqCtx, "permission_scope", "ALL")
+					c.Request = c.Request.WithContext(reqCtx)
+					c.Next()
+					return
+				}
+			}
+		}
+
 		// Get permissions map
 		perms, exists := c.Get("user_permissions")
 		if !exists {

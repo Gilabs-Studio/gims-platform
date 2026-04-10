@@ -289,7 +289,7 @@ func AutoMigrate() error {
 		&pos.PosOrderItem{},
 		&pos.POSPayment{},
 		&pos.POSConfig{},
-		&pos.MidtransConfig{},
+		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
 	)
 	if err != nil {

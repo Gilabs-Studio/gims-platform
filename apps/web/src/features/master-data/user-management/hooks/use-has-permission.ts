@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { hasPermissionCode } from "@/lib/permission-utils";
 
+function isPrivilegedRole(roleCode?: string): boolean {
+  const normalized = roleCode?.trim().toLowerCase();
+  return normalized === "admin" || normalized === "superadmin";
+}
+
 /**
  * Hook to check if the current user has a specific permission.
  * Uses the permissions map (code -> scope) from the user object in auth store.
@@ -23,6 +28,10 @@ export function useHasPermission(permissionCode: string): boolean {
       return false;
     }
 
+    if (isPrivilegedRole(user.role?.code)) {
+      return true;
+    }
+
 
     const permissions = user.permissions ?? {};
     return hasPermissionCode(permissions, permissionCode);
@@ -40,6 +49,10 @@ export function usePermissionScope(permissionCode: string): string | null {
 
   return useMemo(() => {
     if (!user) return null;
+
+    if (isPrivilegedRole(user.role?.code)) {
+      return "ALL";
+    }
 
 
     const permissions = user.permissions ?? {};

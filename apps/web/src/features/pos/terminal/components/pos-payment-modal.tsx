@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { useProcessCashPayment, useInitiateMidtrans, usePOSPayments } from "../hooks/use-pos";
+import { useProcessCashPayment, useInitiateDigitalPayment, usePOSPayments, useXenditConnectionStatus } from "../hooks/use-pos";
 import type { POSOrder, POSConfig, POSPayment } from "../types";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, WifiOff } from "lucide-react";
 
 interface POSPaymentModalProps {
   open: boolean;
@@ -34,39 +34,42 @@ export function POSPaymentModal({
   onSuccess,
   onPaymentError,
 }: POSPaymentModalProps) {
-  const [tab, setTab] = useState<"CASH" | "MIDTRANS">("CASH");
+  const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
-  const [midtransPayment, setMidtransPayment] = useState<POSPayment | null>(null);
+  const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
 
   const { data: paymentsData } = usePOSPayments(order.id, {
-    // Only fetch payments list when polling for Midtrans status confirmation.
+    // Only fetch payments list when polling for digital payment status confirmation.
     enabled: pollingEnabled,
   });
+  const { data: xenditStatusData, isLoading: xenditStatusLoading } = useXenditConnectionStatus();
   const processCash = useProcessCashPayment();
-  const initiateMidtrans = useInitiateMidtrans();
+  const initiateDigital = useInitiateDigitalPayment();
+
+  const isXenditConnected = xenditStatusData?.data?.is_connected === true;
 
   const totalAmount = order.total_amount;
   const tenderAmount = parseInt(tenderInput || "0", 10);
   const change = tenderAmount - totalAmount;
   const insufficientCash = tenderAmount < totalAmount;
 
-  // Start polling when Midtrans payment is pending
+  // Start polling when digital payment is pending
   useEffect(() => {
-    setPollingEnabled(!!midtransPayment && midtransPayment.status === "PENDING");
-  }, [midtransPayment]);
+    setPollingEnabled(!!digitalPayment && digitalPayment.status === "PENDING");
+  }, [digitalPayment]);
 
   // Check if payment has been completed via polling
   useEffect(() => {
     if (!paymentsData?.data) return;
     const payments = Array.isArray(paymentsData.data) ? paymentsData.data : [];
     const latestPayment = payments[0];
-      if (latestPayment?.status === "PAID") {
+    if (latestPayment?.status === "PAID") {
       setPollingEnabled(false);
       onSuccess(customerName.trim() || undefined);
     }
-  }, [paymentsData, onSuccess]);
+  }, [paymentsData, onSuccess, customerName]);
 
   function handleNumpad(key: string) {
     if (key === "⌫") {
@@ -95,22 +98,22 @@ export function POSPaymentModal({
     }
   }
 
-  async function handleMidtransSubmit() {
+  async function handleDigitalSubmit() {
     try {
-      const result = await initiateMidtrans.mutateAsync({
+      const result = await initiateDigital.mutateAsync({
         orderId: order.id,
         data: {
-          method: "MIDTRANS",
+          method: "DIGITAL",
           amount: totalAmount,
           customer_name: customerName.trim() || undefined,
         },
       });
       const payload = result as { data?: POSPayment };
       if (payload?.data) {
-        setMidtransPayment(payload.data);
+        setDigitalPayment(payload.data);
       }
     } catch {
-      toast.error("Failed to initiate payment. Please try again.");
+      toast.error("Failed to initiate digital payment. Please try again.");
       onPaymentError?.();
     }
   }
@@ -145,7 +148,7 @@ export function POSPaymentModal({
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="w-full">
             <TabsTrigger className="flex-1" value="CASH">Cash</TabsTrigger>
-            <TabsTrigger className="flex-1" value="MIDTRANS">Midtrans</TabsTrigger>
+            <TabsTrigger className="flex-1" value="DIGITAL">Digital Payment</TabsTrigger>
           </TabsList>
 
           {/* CASH TAB */}
@@ -239,22 +242,36 @@ export function POSPaymentModal({
             </Button>
           </TabsContent>
 
-          {/* MIDTRANS TAB */}
-          <TabsContent value="MIDTRANS" className="mt-3 space-y-3">
-            {midtransPayment ? (
-              <MidtransPaymentDetails payment={midtransPayment} />
+          {/* DIGITAL PAYMENT TAB */}
+          <TabsContent value="DIGITAL" className="mt-3 space-y-3">
+            {xenditStatusLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : !isXenditConnected ? (
+              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <WifiOff className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Digital Payment Not Available</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Payment gateway is not connected. Please contact your administrator to set up digital payments.
+                  </p>
+                </div>
+              </div>
+            ) : digitalPayment ? (
+              <DigitalPaymentDetails payment={digitalPayment} />
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Customer will be charged via Midtrans payment gateway. Select channel and proceed.
+                  Customer will be charged via Xendit payment gateway. Proceed to generate payment link.
                 </p>
                 <Button
                   className="w-full cursor-pointer"
                   size="lg"
-                  onClick={handleMidtransSubmit}
-                  disabled={initiateMidtrans.isPending}
+                  onClick={handleDigitalSubmit}
+                  disabled={initiateDigital.isPending}
                 >
-                  {initiateMidtrans.isPending ? (
+                  {initiateDigital.isPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : null}
                   Generate Payment Link
@@ -268,7 +285,7 @@ export function POSPaymentModal({
   );
 }
 
-function MidtransPaymentDetails({ payment }: { payment: POSPayment }) {
+function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
   const isPaid = payment.status === "PAID";
   const isFailed = payment.status === "FAILED" || payment.status === "EXPIRED";
 
@@ -312,11 +329,11 @@ function MidtransPaymentDetails({ payment }: { payment: POSPayment }) {
         </div>
       )}
 
-      {payment.redirect_url && (
+      {payment.payment_url && (
         <Button
           variant="outline"
           className="w-full cursor-pointer"
-          onClick={() => window.open(payment.redirect_url!, "_blank")}
+          onClick={() => window.open(payment.payment_url!, "_blank")}
         >
           Open Payment Page
         </Button>

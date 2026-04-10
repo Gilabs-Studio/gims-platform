@@ -48,7 +48,7 @@ export const posTerminalEn = {
     payment: {
       title: "Payment",
       cash: "Cash",
-      midtrans: "Midtrans",
+      midtrans: "Digital Payment",
       tenderedAmount: "Tendered Amount",
       change: "Change",
       short: "Short",

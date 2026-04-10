@@ -2,11 +2,14 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/response"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
@@ -34,15 +37,36 @@ func extractUserContext(c *gin.Context) (*userContext, bool) {
 		coreErrors.UnauthorizedResponse(c, "missing user context")
 		return nil, false
 	}
+	userID, ok := uid.(string)
+	if !ok || strings.TrimSpace(userID) == "" {
+		coreErrors.UnauthorizedResponse(c, "invalid user context")
+		return nil, false
+	}
 
 	scope, _ := c.Get("permission_scope")
 	scopeStr, _ := scope.(string)
 
 	companyID, _ := c.Get("user_company_id")
 	companyIDStr, _ := companyID.(string)
+	if strings.TrimSpace(companyIDStr) == "" {
+		var employee orgModels.Employee
+		err := database.DB.
+			Select("company_id").
+			Where("user_id = ?", userID).
+			Where("deleted_at IS NULL").
+			First(&employee).Error
+		if err == nil && employee.CompanyID != nil && strings.TrimSpace(*employee.CompanyID) != "" {
+			companyIDStr = *employee.CompanyID
+			c.Set("user_company_id", companyIDStr)
+		}
+	}
+	if strings.TrimSpace(companyIDStr) == "" {
+		coreErrors.ForbiddenResponse(c, "missing company context", nil)
+		return nil, false
+	}
 
 	return &userContext{
-		userID:    uid.(string),
+		userID:    userID,
 		companyID: companyIDStr,
 		isOwner:   scopeStr == "ALL",
 	}, true

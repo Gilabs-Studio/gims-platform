@@ -48,7 +48,7 @@ export const posTerminalId = {
     payment: {
       title: "Pembayaran",
       cash: "Tunai",
-      midtrans: "Midtrans",
+      midtrans: "Pembayaran Digital",
       tenderedAmount: "Jumlah Bayar",
       change: "Kembalian",
       short: "Kurang",

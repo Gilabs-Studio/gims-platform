@@ -12,7 +12,7 @@ type POSPaymentRepository interface {
 	Create(ctx context.Context, payment *models.POSPayment) error
 	Update(ctx context.Context, payment *models.POSPayment) error
 	FindByOrderID(ctx context.Context, orderID string) ([]models.POSPayment, error)
-	FindByMidtransOrderID(ctx context.Context, midtransOrderID string) (*models.POSPayment, error)
+	FindByExternalOrderID(ctx context.Context, externalOrderID string) (*models.POSPayment, error)
 }
 
 type posPaymentRepository struct {
@@ -41,10 +41,10 @@ func (r *posPaymentRepository) FindByOrderID(ctx context.Context, orderID string
 	return payments, err
 }
 
-func (r *posPaymentRepository) FindByMidtransOrderID(ctx context.Context, midtransOrderID string) (*models.POSPayment, error) {
+func (r *posPaymentRepository) FindByExternalOrderID(ctx context.Context, externalOrderID string) (*models.POSPayment, error) {
 	var payment models.POSPayment
 	err := r.db.WithContext(ctx).
-		Where("midtrans_order_id = ?", midtransOrderID).
+		Where("external_order_id = ?", externalOrderID).
 		First(&payment).Error
 	if err != nil {
 		return nil, err

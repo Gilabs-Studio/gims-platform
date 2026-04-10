@@ -12,6 +12,7 @@ import (
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/mapper"
+	"github.com/gilabs/gims/api/internal/pos/domain/provider"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/google/uuid"
@@ -25,10 +26,10 @@ var ErrPOSPaymentNotFound = errors.New("pos payment not found")
 type POSPaymentUsecase interface {
 	// ProcessCash handles immediate cash or card payments
 	ProcessCash(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID string) (*dto.POSPaymentResponse, error)
-	// InitiateMidtrans creates a Midtrans charge and returns the payment details (VA number or QR)
-	InitiateMidtrans(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID, companyID string) (*dto.POSPaymentResponse, error)
-	// ConfirmMidtransWebhook processes a Midtrans server-to-server notification
-	ConfirmMidtransWebhook(ctx context.Context, payload *dto.MidtransCallbackPayload) error
+	// InitiateDigitalPayment creates a Xendit invoice and returns payment details (QR / URL)
+	InitiateDigitalPayment(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID, companyID string) (*dto.POSPaymentResponse, error)
+	// ConfirmXenditWebhook processes a Xendit server-to-server invoice notification
+	ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error
 	// GetByOrderID returns all payments for an order
 	GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error)
 }
@@ -37,7 +38,7 @@ type posPaymentUsecase struct {
 	paymentRepo      repositories.POSPaymentRepository
 	orderRepo        repositories.PosOrderRepository
 	configRepo       repositories.POSConfigRepository
-	midtransRepo     repositories.MidtransConfigRepository
+	xenditRepo       repositories.XenditConfigRepository
 	orderUsecase     POSOrderUsecase
 	salesOrderRepo   salesRepos.SalesOrderRepository
 	invoiceRepo      salesRepos.CustomerInvoiceRepository
@@ -50,7 +51,7 @@ func NewPOSPaymentUsecase(
 	paymentRepo repositories.POSPaymentRepository,
 	orderRepo repositories.PosOrderRepository,
 	configRepo repositories.POSConfigRepository,
-	midtransRepo repositories.MidtransConfigRepository,
+	xenditRepo repositories.XenditConfigRepository,
 	orderUsecase POSOrderUsecase,
 	salesOrderRepo salesRepos.SalesOrderRepository,
 	invoiceRepo salesRepos.CustomerInvoiceRepository,
@@ -61,7 +62,7 @@ func NewPOSPaymentUsecase(
 		paymentRepo:      paymentRepo,
 		orderRepo:        orderRepo,
 		configRepo:       configRepo,
-		midtransRepo:     midtransRepo,
+		xenditRepo:       xenditRepo,
 		orderUsecase:     orderUsecase,
 		salesOrderRepo:   salesOrderRepo,
 		invoiceRepo:      invoiceRepo,
@@ -117,7 +118,7 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 	return mapper.ToPOSPaymentResponse(payment), nil
 }
 
-func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID, companyID string) (*dto.POSPaymentResponse, error) {
+func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID string, req *dto.ProcessPaymentRequest, cashierID, companyID string) (*dto.POSPaymentResponse, error) {
 	order, err := u.orderRepo.GetByID(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -129,7 +130,19 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 		return nil, ErrPOSOrderAlreadyPaid
 	}
 
-	// Persist customer name from payment form if provided.
+	// Fetch the merchant's Xendit account config; payment requires an active connection
+	xenditCfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured for this company")
+		}
+		return nil, err
+	}
+	if !xenditCfg.IsConnected() {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
+	}
+
+	// Persist customer name from payment form if provided
 	if req.CustomerName != nil {
 		trimmedName := strings.TrimSpace(*req.CustomerName)
 		if trimmedName != "" {
@@ -138,28 +151,49 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 		}
 	}
 
-	// Build a unique Midtrans order ID from the internal order number
-	midtransOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
+	// Build a unique external order ID for Xendit invoice tracking
+	externalOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
+
+	description := fmt.Sprintf("POS Order %s", order.OrderNumber)
+	if order.CustomerName != nil && *order.CustomerName != "" {
+		description = fmt.Sprintf("POS Order %s - %s", order.OrderNumber, *order.CustomerName)
+	}
+
+	// Create Xendit invoice routed to the merchant's sub-account
+	xenditProvider := provider.NewXenditProvider(xenditCfg.SecretKey, xenditCfg.XenditAccountID)
+	invoice, err := xenditProvider.CreateInvoice(ctx, provider.InvoiceRequest{
+		ExternalID:  externalOrderID,
+		Amount:      order.TotalAmount,
+		Description: description,
+		Currency:    "IDR",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
+	}
 
 	now := apptime.Now()
-	expiresAt := now.Add(24 * 60 * 60 * 1_000_000_000) // 24 hours
+	expiresAt := now.Add(24 * 60 * 60 * 1_000_000_000) // 24-hour default expiry
+
 	payment := &models.POSPayment{
 		OrderID:         orderID,
-		Method:          models.POSPaymentMethod(req.Method),
+		Method:          models.POSPaymentMethodDigital,
 		Status:          models.POSPaymentStatusPending,
 		Amount:          order.TotalAmount,
 		TenderAmount:    order.TotalAmount,
 		ChangeAmount:    0,
 		ReferenceNumber: req.ReferenceNumber,
 		Notes:           req.Notes,
-		MidtransOrderID: &midtransOrderID,
+		ExternalOrderID: &externalOrderID,
+		XenditInvoiceID: &invoice.ID,
+		PaymentURL:      &invoice.InvoiceURL,
 		ExpiresAt:       &expiresAt,
 		CreatedBy:       cashierID,
 	}
 
-	// TODO: integrate midtrans-go SDK — use midtransRepo.FindByCompanyID to retrieve server_key,
-	// then call the Midtrans Charge API to get VA number / QR code and store in the payment record.
-	_ = u.midtransRepo
+	// Store QR code string if Xendit returned one (QRIS-enabled invoices)
+	if invoice.QRCode != "" {
+		payment.QrCode = &invoice.QRCode
+	}
 
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
@@ -167,12 +201,12 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 	return mapper.ToPOSPaymentResponse(payment), nil
 }
 
-func (u *posPaymentUsecase) ConfirmMidtransWebhook(ctx context.Context, payload *dto.MidtransCallbackPayload) error {
-	if payload.MidtransOrderID == "" {
-		return errors.New("missing order_id in Midtrans webhook payload")
+func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error {
+	if payload.ExternalID == "" {
+		return errors.New("missing external_id in Xendit webhook payload")
 	}
 
-	payment, err := u.paymentRepo.FindByMidtransOrderID(ctx, payload.MidtransOrderID)
+	payment, err := u.paymentRepo.FindByExternalOrderID(ctx, payload.ExternalID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrPOSPaymentNotFound
@@ -183,16 +217,26 @@ func (u *posPaymentUsecase) ConfirmMidtransWebhook(ctx context.Context, payload 
 		return nil // idempotent — already processed
 	}
 
-	status := mapMidtransStatus(payload.TransactionStatus, payload.FraudStatus)
-	payment.Status = status
-	if tid := payload.TransactionID; tid != "" {
-		payment.TransactionID = &tid
-	}
-	if pt := payload.PaymentType; pt != "" {
-		payment.PaymentType = &pt
+	var newStatus models.POSPaymentStatus
+	switch strings.ToUpper(payload.Status) {
+	case "PAID", "SETTLED":
+		newStatus = models.POSPaymentStatusPaid
+	case "EXPIRED":
+		newStatus = models.POSPaymentStatusExpired
+	default:
+		newStatus = models.POSPaymentStatusFailed
 	}
 
-	switch status {
+	payment.Status = newStatus
+	if payload.PaymentMethod != "" {
+		payment.PaymentType = &payload.PaymentMethod
+	}
+	if payload.PaymentChannel != "" {
+		ch := payload.PaymentChannel
+		payment.TransactionID = &ch
+	}
+
+	switch newStatus {
 	case models.POSPaymentStatusPaid:
 		now := apptime.Now()
 		payment.PaidAt = &now
@@ -495,26 +539,4 @@ func optionalActorIDPointer(raw string) *string {
 	}
 	normalized := normalizedActorID(trimmed)
 	return &normalized
-}
-
-// mapMidtransStatus converts Midtrans transaction_status + fraud_status to internal payment status.
-func mapMidtransStatus(txStatus, fraudStatus string) models.POSPaymentStatus {
-	switch txStatus {
-	case "capture":
-		if fraudStatus == "accept" || fraudStatus == "" {
-			return models.POSPaymentStatusPaid
-		}
-		return models.POSPaymentStatusFailed
-	case "settlement":
-		return models.POSPaymentStatusPaid
-	case "pending":
-		return models.POSPaymentStatusPending
-	case "deny", "cancel", "failure":
-		return models.POSPaymentStatusFailed
-	case "expire":
-		return models.POSPaymentStatusExpired
-	case "refund":
-		return models.POSPaymentStatusRefunded
-	}
-	return models.POSPaymentStatusPending
 }
