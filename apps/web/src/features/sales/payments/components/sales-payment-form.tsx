@@ -56,6 +56,13 @@ type SalesPaymentFormValues = {
   notes?: string | null;
 };
 
+const PAYABLE_INVOICE_STATUSES = new Set(["APPROVED", "UNPAID", "PARTIAL"]);
+
+function isPayableInvoiceStatus(status?: string | null): boolean {
+  if (!status) return false;
+  return PAYABLE_INVOICE_STATUSES.has(status.toUpperCase());
+}
+
 export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: SalesPaymentFormProps) {
   const t = useTranslations("salesPayment");
 
@@ -145,6 +152,11 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     if (detailed) return detailed;
     return invoicesCombobox.items.find((inv) => inv.id === invoiceId) ?? null;
   }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoicesCombobox.items]);
+
+  const payableInvoices = useMemo(
+    () => invoicesCombobox.items.filter((inv) => isPayableInvoiceStatus(inv.status)),
+    [invoicesCombobox.items],
+  );
 
   const selectedBankAccount = useMemo(() => {
     if (!bankAccountId) return null;
@@ -381,7 +393,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                             hasMore={invoicesCombobox.hasMore}
                             isLoadingMore={invoicesCombobox.isLoadingMore}
                           >
-                            {invoicesCombobox.items.map((inv) => (
+                            {payableInvoices.map((inv) => (
                               <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
                                 <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
                                   <span>
@@ -390,7 +402,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                                   </span>
                                   <span className="text-muted-foreground ml-4">
                                     {formatCurrency(inv.remaining_amount)}
-                                    {inv.status === "partial" ? " (Partial)" : ""}
+                                    {inv.status?.toLowerCase() === "partial" ? " (Partial)" : ""}
                                   </span>
                                 </div>
                               </SelectItem>
