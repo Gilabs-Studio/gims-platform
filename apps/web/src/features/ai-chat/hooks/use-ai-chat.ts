@@ -1,11 +1,13 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
 import { aiChatService } from "../services/ai-chat-service";
+import { useAIChatStore } from "../stores/use-ai-chat-store";
 import type {
   SendMessagePayload,
   ConfirmActionPayload,
@@ -117,4 +119,66 @@ export function useIntentRegistry() {
     queryKey: aiChatKeys.intents(),
     queryFn: () => aiChatService.getIntentRegistry(),
   });
+}
+
+/**
+ * Hook: Send a streaming message via SSE.
+ * Manages store streaming state and invalidates caches on completion.
+ */
+export function useSendMessageStream() {
+  const queryClient = useQueryClient();
+  const {
+    activeSessionId,
+    selectedModel,
+    startStreaming,
+    handleStreamEvent,
+    endStreaming,
+    isStreaming,
+  } = useAIChatStore();
+
+  const send = useCallback(
+    (message: string) => {
+      if (isStreaming) return;
+
+      const payload: SendMessagePayload = {
+        message,
+        session_id: activeSessionId ?? undefined,
+        model: selectedModel ?? undefined,
+      };
+
+      const controller = aiChatService.sendMessageStream(
+        payload,
+        (event) => {
+          handleStreamEvent(event);
+        },
+        () => {
+          endStreaming();
+        },
+        () => {
+          // On complete: invalidate caches, clear streaming state
+          const sessionId = useAIChatStore.getState().activeSessionId;
+          endStreaming();
+          queryClient.invalidateQueries({ queryKey: aiChatKeys.sessions() });
+          if (sessionId) {
+            queryClient.invalidateQueries({
+              queryKey: aiChatKeys.sessionDetail(sessionId),
+            });
+          }
+        },
+      );
+
+      startStreaming(controller);
+    },
+    [
+      activeSessionId,
+      selectedModel,
+      isStreaming,
+      startStreaming,
+      handleStreamEvent,
+      endStreaming,
+      queryClient,
+    ],
+  );
+
+  return { send, isStreaming };
 }

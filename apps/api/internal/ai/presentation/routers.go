@@ -1,14 +1,20 @@
 package presentation
 
 import (
+	"context"
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/gilabs/gims/api/internal/ai/data/repositories"
 	"github.com/gilabs/gims/api/internal/ai/domain/mapper"
 	"github.com/gilabs/gims/api/internal/ai/domain/usecase"
+	aiContext "github.com/gilabs/gims/api/internal/ai/domain/usecase/context"
+	"github.com/gilabs/gims/api/internal/ai/domain/usecase/tools"
 	"github.com/gilabs/gims/api/internal/ai/presentation/handler"
 	"github.com/gilabs/gims/api/internal/ai/presentation/router"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreUsecase "github.com/gilabs/gims/api/internal/core/domain/usecase"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/cerebras"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
@@ -117,18 +123,111 @@ func RegisterRoutes(
 		actionExecutor,
 	)
 
-	// Initialize handlers
+	// Initialize handlers (legacy pipeline — kept for backward compatibility)
 	chatHandler := handler.NewChatHandler(aiChatUC, cerebrasClient)
 	sessionHandler := handler.NewSessionHandler(aiChatUC)
 	adminHandler := handler.NewAdminHandler(aiChatUC)
+
+	// ── V2: Engine-based pipeline with tool registry & streaming ──
+	// Build the tool registry by bridging AI intent registry entries
+	toolRegistry := tools.NewRegistry()
+	if intentRepo != nil {
+		// Bridge: wrap ActionExecutor.Execute into the ActionExecutorFunc signature
+		executorFunc := tools.ActionExecutorFunc(func(ctx context.Context, intentCode string, params map[string]interface{}, userID string, resolvedEntities map[string]*tools.ResolvedEntity) *tools.ToolResult {
+			start := apptime.Now()
+
+			// Convert to legacy IntentResult
+			legacyIntent := &usecase.IntentResult{
+				IntentCode: intentCode,
+				Parameters: params,
+			}
+
+			// Convert resolved entities to legacy format
+			var legacyResolved map[string]*usecase.ResolvedEntity
+			if len(resolvedEntities) > 0 {
+				legacyResolved = make(map[string]*usecase.ResolvedEntity, len(resolvedEntities))
+				for k, v := range resolvedEntities {
+					legacyResolved[k] = &usecase.ResolvedEntity{
+						ID:          v.ID,
+						DisplayName: v.Name,
+						EntityType:  v.Type,
+					}
+				}
+			}
+
+			result := actionExecutor.Execute(ctx, legacyIntent, legacyResolved, userID)
+			if result == nil {
+				return &tools.ToolResult{
+					Success:      false,
+					ErrorMessage: "action executor returned nil",
+					Action:       "execute",
+					DurationMs:   apptime.Now().Sub(start).Milliseconds(),
+				}
+			}
+
+			return &tools.ToolResult{
+				Success:      result.Success,
+				Data:         result.Data,
+				Message:      result.Message,
+				EntityType:   result.EntityType,
+				EntityID:     result.EntityID,
+				Action:       result.Action,
+				DurationMs:   result.DurationMs,
+				ErrorCode:    result.ErrorCode,
+				ErrorMessage: result.ErrorMessage,
+			}
+		})
+
+		// Bridge: wrap EntityResolver for parameter entity resolution
+		resolverFunc := tools.EntityResolverFunc(func(ctx context.Context, params map[string]interface{}) (map[string]*tools.ResolvedEntity, error) {
+			legacyResolved, err := entityResolver.ResolveEntitiesFromParameters(ctx, params)
+			if err != nil {
+				return nil, err
+			}
+			resolved := make(map[string]*tools.ResolvedEntity, len(legacyResolved))
+			for k, v := range legacyResolved {
+				resolved[k] = &tools.ResolvedEntity{
+					ID:   v.ID,
+					Name: v.DisplayName,
+					Type: v.EntityType,
+				}
+			}
+			return resolved, nil
+		})
+
+		bgCtx := context.Background()
+		if regErr := tools.RegisterFromIntentRegistry(bgCtx, toolRegistry, intentRepo, executorFunc, resolverFunc); regErr != nil {
+			log.Printf("[AI] Warning: failed to register tools from intent registry: %v", regErr)
+		} else {
+			log.Printf("[AI] Registered %d tools from intent registry", toolRegistry.Count())
+		}
+	}
+
+	// Build context builder for system prompt assembly
+	contextBuilder := aiContext.NewBuilder(toolRegistry)
+
+	// Initialize engine-based usecase
+	chatEngineUC := usecase.NewChatEngineUsecase(
+		sessionRepo,
+		messageRepo,
+		actionRepo,
+		cerebrasClient,
+		toolRegistry,
+		contextBuilder,
+		entityResolver,
+	)
+
+	// Initialize streaming handler
+	streamHandler := handler.NewStreamHandler(chatEngineUC, cerebrasClient)
 
 	// Create AI group under API with auth middleware
 	aiGroup := api.Group("/ai")
 	aiGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
 	aiGroup.Use(middleware.ScopeMiddleware(db))
 
-	// Register routes
+	// Register routes — legacy and v2 coexist
 	router.RegisterChatRoutes(aiGroup, chatHandler)
+	router.RegisterV2ChatRoutes(aiGroup, streamHandler)
 	router.RegisterSessionRoutes(aiGroup, sessionHandler)
 	router.RegisterAdminRoutes(aiGroup, adminHandler)
 }

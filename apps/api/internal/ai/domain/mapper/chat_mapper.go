@@ -18,19 +18,17 @@ func NewChatMapper() *ChatMapper {
 }
 
 // ToMessageResponse converts a chat message model to a DTO response
-func (m *ChatMapper) ToMessageResponse(msg *models.AIChatMessage) dto.ChatMessageResponse {
-	resp := dto.ChatMessageResponse{
-		ID:        msg.ID,
-		Role:      string(msg.Role),
-		Content:   msg.Content,
-		CreatedAt: msg.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
+func (m *ChatMapper) ToMessageResponse(msg *models.AIChatMessage) dto.MessageResponse {
+	resp := dto.MessageResponse{
+		ID:         msg.ID,
+		Role:       string(msg.Role),
+		Content:    msg.Content,
+		DurationMs: msg.DurationMs,
+		CreatedAt:  msg.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
 
 	if msg.Intent != nil {
-		var intent interface{}
-		if err := json.Unmarshal([]byte(*msg.Intent), &intent); err == nil {
-			resp.Intent = intent
-		}
+		resp.Intent = msg.Intent
 	}
 
 	return resp
@@ -62,7 +60,7 @@ func (m *ChatMapper) ToSessionListResponses(sessions []models.AIChatSession) []d
 
 // ToSessionDetailResponse converts a session with messages into a detail response
 func (m *ChatMapper) ToSessionDetailResponse(session *models.AIChatSession) dto.SessionDetailResponse {
-	messages := make([]dto.ChatMessageResponse, 0, len(session.Messages))
+	messages := make([]dto.MessageResponse, 0, len(session.Messages))
 	for i := range session.Messages {
 		messages = append(messages, m.ToMessageResponse(&session.Messages[i]))
 	}
