@@ -7,8 +7,11 @@ import (
 )
 
 func RegisterSystemAccountMappingRoutes(group *gin.RouterGroup, h *handler.SystemAccountMappingHandler) {
-	mappings := group.Group("/settings/account-mappings")
+	registerSystemAccountMappingRoutesInGroup(group.Group("/settings/account-mappings"), h)
+	registerSystemAccountMappingRoutesInGroup(group.Group("/settings/accounting-mapping"), h)
+}
 
+func registerSystemAccountMappingRoutesInGroup(mappings *gin.RouterGroup, h *handler.SystemAccountMappingHandler) {
 	mappings.GET("",
 		middleware.RequirePermission("account_mappings.read"),
 		h.List,

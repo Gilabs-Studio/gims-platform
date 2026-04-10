@@ -40,7 +40,11 @@ func deprecatedJournalRoute(message string, replacement string) gin.HandlerFunc 
 }
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
-	g := rg.Group("/journal-entries")
+	registerJournalEntryRoutesInGroup(rg.Group("/journal-entries"), h)
+	registerJournalEntryRoutesInGroup(rg.Group("/accounting/journal-entries"), h)
+}
+
+func registerJournalEntryRoutesInGroup(g *gin.RouterGroup, h *handler.JournalEntryHandler) {
 	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
 	g.GET("/form-data", middleware.RequirePermission(journalRead), h.GetFormData)
 	g.GET("", middleware.RequirePermission(journalRead), h.List)
