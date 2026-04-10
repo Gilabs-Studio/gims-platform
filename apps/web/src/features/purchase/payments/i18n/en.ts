@@ -38,6 +38,10 @@ export const purchasePaymentEn = {
   },
   form: {
     title: "Create Payment",
+    bankAmountHint: "Enter the transfer amount paid to supplier.",
+    cashAmountHint: "Enter the cash amount paid to supplier.",
+    cashAmountMinimum: "Cash payment cannot be lower than remaining amount",
+    amountRequired: "Amount is required.",
     amountHandledBySystem: "Amount is calculated by the system",
     submit: "Save",
     cancel: "Cancel",
@@ -49,13 +53,17 @@ export const purchasePaymentEn = {
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
+    tenderAmount: "Paid",
+    changeAmount: "Change",
     method: "Method",
     status: "Status",
+    downPayment: "Down Payment",
     referenceNumber: "Reference Number",
     notes: "Notes",
   },
   placeholders: {
     select: "Select...",
+    pickDate: "Pick a date",
   },
   overview: {
     title: "Invoice Overview",

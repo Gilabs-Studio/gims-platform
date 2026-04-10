@@ -26,6 +26,8 @@ import { productEn } from "@/features/master-data/product/i18n/en";
 import { productId } from "@/features/master-data/product/i18n/id";
 import { warehouseEn } from "@/features/master-data/warehouse/i18n/en";
 import { warehouseId } from "@/features/master-data/warehouse/i18n/id";
+import { outletEn } from "@/features/master-data/outlet/i18n/en";
+import { outletId } from "@/features/master-data/outlet/i18n/id";
 import { currencyEn } from "@/features/master-data/currencies/i18n/en";
 import { currencyId } from "@/features/master-data/currencies/i18n/id";
 import { paymentTermEn } from "@/features/master-data/payment-and-couriers/payment-terms/i18n/en";
@@ -173,6 +175,10 @@ import { supplierResearchReportEn } from "@/features/reports/supplier-research/i
 import { supplierResearchReportId } from "@/features/reports/supplier-research/i18n/id";
 import { visitPlannerEn } from "@/features/travel/visit-planner/i18n/en";
 import { visitPlannerId } from "@/features/travel/visit-planner/i18n/id";
+import { floorLayoutEn } from "@/features/pos/fb/floor-layout/i18n/en";
+import { floorLayoutId } from "@/features/pos/fb/floor-layout/i18n/id";
+import { posTerminalEn } from "@/features/pos/terminal/i18n/en";
+import { posTerminalId } from "@/features/pos/terminal/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -188,6 +194,7 @@ const messages = {
     customer: customerEn,
     product: productEn,
     warehouse: warehouseEn,
+    outlet: outletEn,
     currency: currencyEn,
     paymentTerm: paymentTermEn,
     courierAgency: courierAgencyEn,
@@ -262,6 +269,8 @@ const messages = {
     ...customerResearchReportEn,
     ...supplierResearchReportEn,
     ...visitPlannerEn,
+    ...floorLayoutEn,
+    ...posTerminalEn,
   },
   id: {
     ...globalIdMessages,
@@ -275,6 +284,7 @@ const messages = {
     customer: customerId,
     product: productId,
     warehouse: warehouseId,
+    outlet: outletId,
     currency: currencyId,
     paymentTerm: paymentTermId,
     courierAgency: courierAgencyId,
@@ -348,6 +358,8 @@ const messages = {
     ...customerResearchReportId,
     ...supplierResearchReportId,
     ...visitPlannerId,
+    ...floorLayoutId,
+    ...posTerminalId,
   },
 } as const;
 

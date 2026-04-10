@@ -75,6 +75,10 @@ type SalesOrder struct {
 	Status SalesOrderStatus `gorm:"type:varchar(20);default:'draft';index" json:"status"`
 	Notes  string           `gorm:"type:text" json:"notes"`
 
+	// Source tracking — identifies orders created from other modules (e.g. POS)
+	SourceType       string  `gorm:"type:varchar(20);default:'';index" json:"source_type"`
+	SourcePOSOrderID *string `gorm:"type:uuid;index" json:"source_pos_order_id"`
+
 	// Audit fields
 	CreatedBy          *string    `gorm:"type:uuid" json:"created_by"`
 	ConfirmedBy        *string    `gorm:"type:uuid" json:"confirmed_by"`

@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/presentation/handler"
 	"github.com/gilabs/gims/api/internal/organization/presentation/router"
+	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -64,6 +65,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	companyH := handler.NewCompanyHandler(companyUC)
 	employeeH := handler.NewEmployeeHandler(employeeUC)
 
+	// Outlet dependencies (cross-domain: warehouse repo)
+	outletRepo := orgRepositories.NewOutletRepository(db)
+	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
+	outletUC := usecase.NewOutletUsecase(db, outletRepo, warehouseRepo, employeeRepo, companyRepo)
+	outletH := handler.NewOutletHandler(outletUC)
+
 	// Create organization group under API with auth middleware
 	group := api.Group("/organization")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -76,4 +83,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAreaRoutes(group, areaH)
 	router.RegisterCompanyRoutes(group, companyH)
 	router.RegisterEmployeeRoutes(group, employeeH)
+	router.RegisterOutletRoutes(group, outletH)
 }

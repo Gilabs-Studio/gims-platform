@@ -19,6 +19,13 @@ const (
 	ProductStatusRejected ProductStatus = "rejected"
 )
 
+// ProductKind represents the system behavior discriminator for a product
+const (
+	ProductKindStock   = "STOCK"   // Physical goods with direct inventory tracking
+	ProductKindRecipe  = "RECIPE"  // BOM-based menu item, deducts ingredient stock
+	ProductKindService = "SERVICE" // Non-physical service, no inventory impact
+)
+
 // Product represents a product in the ERP system
 type Product struct {
 	ID                string         `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -89,6 +96,18 @@ type Product struct {
 	ApprovedBy        *string         `gorm:"type:uuid" json:"approved_by"`
 	ApprovedAt        *time.Time      `json:"approved_at"`
 	
+	// Product kind: system behavior discriminator (STOCK=physical goods, RECIPE=BOM-based menu item, SERVICE=non-physical)
+	ProductKind        string          `gorm:"column:product_kind;type:varchar(20);default:'STOCK';index" json:"product_kind"`
+	// Ingredient flag: true means this product is a raw material/ingredient used in F&B recipes
+	IsIngredient       bool            `gorm:"column:is_ingredient;default:false;index" json:"is_ingredient"`
+	// Whether this product tracks inventory batches (true for STOCK, can be false for RECIPE/SERVICE)
+	IsInventoryTracked bool            `gorm:"column:is_inventory_tracked;default:true" json:"is_inventory_tracked"`
+	// Whether this product appears in POS product catalog
+	IsPosAvailable     bool            `gorm:"column:is_pos_available;default:false;index" json:"is_pos_available"`
+
+	// Recipe items: only populated for RECIPE kind products
+	RecipeItems        []ProductRecipeItem `gorm:"foreignKey:ProductID" json:"recipe_items,omitempty"`
+
 	// Active status
 	IsActive          bool            `gorm:"default:true;index" json:"is_active"`
 	

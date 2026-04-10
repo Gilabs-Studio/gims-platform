@@ -303,6 +303,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 12. POS
+	posMenu := &permission.Menu{
+		Name:   "POS",
+		Icon:   "store",
+		URL:    "/pos",
+		Order:  12,
+		Status: "active",
+	}
+	if err := createMenu(posMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -325,11 +337,12 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Company", "briefcase", "/master-data/company", 1},
-		{"Divisions", "layers", "/master-data/divisions", 2},
-		{"Job Positions", "user-cog", "/master-data/job-positions", 3},
-		{"Business Units", "grid", "/master-data/business-units", 4},
-		{"Business Types", "tag", "/master-data/business-types", 5},
-		{"Areas", "map", "/master-data/areas", 6},
+		{"Outlets", "store", "/master-data/outlet", 2},
+		{"Divisions", "layers", "/master-data/divisions", 3},
+		{"Job Positions", "user-cog", "/master-data/job-positions", 4},
+		{"Business Units", "grid", "/master-data/business-units", 5},
+		{"Business Types", "tag", "/master-data/business-types", 6},
+		{"Areas", "map", "/master-data/areas", 7},
 	}
 	for _, child := range organizationChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &organizationMenu.ID, child.order); err != nil {
@@ -429,8 +442,11 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Courier Agencies", "truck", "/master-data/courier-agencies", 1},
-		{"SO Sources", "file-text", "/master-data/so-sources", 2},
+		{"Currencies", "coins", "/master-data/currencies", 1},
+		{"Banks", "landmark", "/master-data/banks", 2},
+		{"Payment Terms", "clock", "/master-data/payment-terms", 3},
+		{"Courier Agencies", "truck", "/master-data/courier-agencies", 4},
+		{"SO Sources", "file-text", "/master-data/so-sources", 5},
 	}
 	for _, child := range paymentChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &paymentMenu.ID, child.order); err != nil {
@@ -692,8 +708,6 @@ func SeedMenus() error {
 		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
 		{"Fiscal Years", "calendar", "/finance/settings/fiscal-years", 2},
 		{"Tax Configuration", "receipt", "/finance/settings/tax-config", 3},
-		{"Payment Terms", "clock", "/finance/settings/payment-terms", 4},
-		{"Currency", "coins", "/finance/settings/currency", 5},
 	}
 	for _, child := range financeSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
@@ -720,6 +734,18 @@ func SeedMenus() error {
 		}
 	}
 
+	// ============================================================
+	// POS SUB-MENUS
+	// ============================================================
+
+	if _, err := createChildMenu("Floor & Layout Designer", "layout-list", "/pos/fb/floor-layout", &posMenu.ID, 1); err != nil {
+		return err
+	}
+
+	if _, err := createChildMenu("POS Terminal", "monitor-check", "/pos/fb/terminal", &posMenu.ID, 2); err != nil {
+		return err
+	}
+
 	// Legacy finance menu cleanup after hierarchy refactor.
 	legacyFinanceChildURLs := []string{
 		"/finance/coa",
@@ -744,6 +770,8 @@ func SeedMenus() error {
 		"/finance/reports/balance-sheet",
 		"/finance/reports/profit-loss",
 		"/finance/aging-reports",
+		"/finance/settings/payment-terms",
+		"/finance/settings/currency",
 	}
 	for _, url := range legacyFinanceChildURLs {
 		if err := deactivateMenuURLByParent(url, &financeMenu.ID); err != nil {
@@ -1073,6 +1101,7 @@ func UpdateMenuStructure() error {
 	migrations := []urlMigration{
 		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
 		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
+		{oldURL: "/pos/floor-layout", newURL: "/pos/fb/floor-layout"},
 	}
 
 	for _, m := range migrations {
@@ -1085,6 +1114,8 @@ func UpdateMenuStructure() error {
 	deprecatedMenuURLs := []string{
 		"/sales/estimations",
 		"/master-data/area-supervisors",
+		"/pos/fb",
+		"/pos/goods",
 		"/hrd/documents",
 		"/hrd/contracts",
 		"/hrd/education",

@@ -32,6 +32,7 @@ type EmployeeRepository interface {
 	FindByCode(ctx context.Context, code string) (*models.Employee, error)
 	FindByUserID(ctx context.Context, userID string) (*models.Employee, error)
 	FindAll(ctx context.Context) ([]models.Employee, error)
+	FindByRoleDataScope(ctx context.Context, dataScope string) ([]models.Employee, error)
 	List(ctx context.Context, params EmployeeListParams) ([]models.Employee, int64, error)
 	GetLastEmployeeCode(ctx context.Context) (string, error)
 	Update(ctx context.Context, employee *models.Employee) error
@@ -234,4 +235,22 @@ func (r *employeeRepository) Update(ctx context.Context, employee *models.Employ
 
 func (r *employeeRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.Employee{}, "id = ?", id).Error
+}
+
+// FindByRoleDataScope returns active employees whose linked user has a role with the given data_scope.
+// Used to populate outlet manager dropdowns with only eligible users.
+func (r *employeeRepository) FindByRoleDataScope(ctx context.Context, dataScope string) ([]models.Employee, error) {
+	var employees []models.Employee
+	err := r.db.WithContext(ctx).
+		Joins("INNER JOIN users ON users.id = employees.user_id AND users.deleted_at IS NULL").
+		Joins("INNER JOIN roles ON roles.id = users.role_id AND roles.deleted_at IS NULL").
+		Where("employees.is_active = ?", true).
+		Where("users.status = ?", "active").
+		Where("roles.data_scope = ?", dataScope).
+		Order("employees.name ASC").
+		Find(&employees).Error
+	if err != nil {
+		return nil, err
+	}
+	return employees, nil
 }

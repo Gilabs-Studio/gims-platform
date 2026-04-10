@@ -20,6 +20,7 @@ func SeedRoles() error {
 			Code:        "admin",
 			Description: "Administrator with full access",
 			Status:      "active",
+			DataScope:   models.DataScopeAll,
 		},
 		{
 			ID:          ManagerRoleID,
@@ -27,6 +28,7 @@ func SeedRoles() error {
 			Code:        "manager",
 			Description: "Manager with department access",
 			Status:      "active",
+			DataScope:   models.DataScopeDivision,
 		},
 		{
 			ID:          StaffRoleID,
@@ -34,6 +36,7 @@ func SeedRoles() error {
 			Code:        "staff",
 			Description: "Staff with operational access",
 			Status:      "active",
+			DataScope:   models.DataScopeOwn,
 		},
 		{
 			ID:          ViewerRoleID,
@@ -41,6 +44,7 @@ func SeedRoles() error {
 			Code:        "viewer",
 			Description: "Viewer role with read-only access",
 			Status:      "active",
+			DataScope:   models.DataScopeOwn,
 		},
 		{
 			ID:          AreaSupervisorRoleID,
@@ -48,27 +52,31 @@ func SeedRoles() error {
 			Code:        "area_supervisor",
 			Description: "Supervisor with territory-based access to assigned areas",
 			Status:      "active",
+			DataScope:   models.DataScopeArea,
 		},
 		{
 			ID:          SalesDirectorRoleID,
 			Name:        "Sales Director",
 			Code:        "sales_director",
-			Description: "Director with full access to all sales data",
+			Description: "Director role with broad commercial visibility and approval authority",
 			Status:      "active",
+			DataScope:   models.DataScopeAll,
 		},
 		{
 			ID:          FinanceManagerRoleID,
 			Name:        "Finance Manager",
 			Code:        "finance_manager",
-			Description: "Manager with division-level access to finance data",
+			Description: "Manager role for finance governance, approvals, and reporting",
 			Status:      "active",
+			DataScope:   models.DataScopeDivision,
 		},
 		{
 			ID:          AccountantRoleID,
 			Name:        "Accountant",
 			Code:        "accountant",
-			Description: "Finance accountant focused on journaling and operational accounting",
+			Description: "Operational accounting role for journals, reconciliation, and reporting",
 			Status:      "active",
+			DataScope:   models.DataScopeDivision,
 		},
 		{
 			ID:          AuditorRoleID,
@@ -76,6 +84,15 @@ func SeedRoles() error {
 			Code:        "auditor",
 			Description: "Read-only audit role for financial controls and review",
 			Status:      "active",
+			DataScope:   models.DataScopeAll,
+		},
+		{
+			ID:          OutletManagerRoleID,
+			Name:        "Outlet Manager",
+			Code:        "outlet_manager",
+			Description: "Manager with outlet-scoped access to sales, purchase, POS, CRM, HRD, and reports",
+			Status:      "active",
+			DataScope:   models.DataScopeOutlet,
 		},
 		{
 			ID:          AROfficerRoleID,

@@ -18,15 +18,16 @@ type LoginResponse struct {
 
 // UserResponse represents user response DTO for auth
 type UserResponse struct {
-	ID          string            `json:"id"`
-	Email       string            `json:"email"`
-	Name        string            `json:"name"`
-	AvatarURL   string            `json:"avatar_url"`
-	EmployeeID  string            `json:"employee_id,omitempty"`
-	Role        string            `json:"role"`
-	RoleName    string            `json:"role_name"`
-	Permissions map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
-	Status      string            `json:"status"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID            string            `json:"id"`
+	Email         string            `json:"email"`
+	Name          string            `json:"name"`
+	AvatarURL     string            `json:"avatar_url"`
+	EmployeeID    string            `json:"employee_id,omitempty"`
+	Role          string            `json:"role"`
+	RoleName      string            `json:"role_name"`
+	RoleDataScope string            `json:"role_data_scope"`
+	Permissions   map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
+	Status        string            `json:"status"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
 }

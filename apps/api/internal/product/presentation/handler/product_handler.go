@@ -76,6 +76,17 @@ func (h *ProductHandler) List(c *gin.Context) {
 		val := isApproved == "true"
 		params.IsApproved = &val
 	}
+	if productKind := c.Query("product_kind"); productKind != "" {
+		params.ProductKind = productKind
+	}
+	if isPosAvailable := c.Query("is_pos_available"); isPosAvailable != "" {
+		val := isPosAvailable == "true"
+		params.IsPosAvailable = &val
+	}
+	if isIngredient := c.Query("is_ingredient"); isIngredient != "" {
+		val := isIngredient == "true"
+		params.IsIngredient = &val
+	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
@@ -179,6 +190,36 @@ func (h *ProductHandler) Approve(c *gin.Context) {
 	result, err := h.uc.Approve(c.Request.Context(), id, userID, req)
 	if err != nil {
 		errors.ErrorResponse(c, "PRODUCT_APPROVE_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
+		return
+	}
+	response.SuccessResponse(c, result, nil)
+}
+
+func (h *ProductHandler) GetRecipe(c *gin.Context) {
+	id := c.Param("id")
+	items, err := h.uc.GetRecipe(c.Request.Context(), id)
+	if err != nil {
+		errors.ErrorResponse(c, "PRODUCT_RECIPE_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
+		return
+	}
+	response.SuccessResponse(c, items, nil)
+}
+
+func (h *ProductHandler) UpdateRecipe(c *gin.Context) {
+	id := c.Param("id")
+	var items []dto.RecipeItemRequest
+	if err := c.ShouldBindJSON(&items); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors.HandleValidationError(c, validationErrors)
+			return
+		}
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	result, err := h.uc.UpdateRecipe(c.Request.Context(), id, items)
+	if err != nil {
+		errors.ErrorResponse(c, "PRODUCT_RECIPE_UPDATE_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
 		return
 	}
 	response.SuccessResponse(c, result, nil)

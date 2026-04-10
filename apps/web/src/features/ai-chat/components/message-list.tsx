@@ -7,6 +7,8 @@ import { Bot, Loader2, Cpu } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MessageBubble } from "./message-bubble";
+import { StreamingMessage } from "./streaming-message";
+import { useAIChatStore } from "../stores/use-ai-chat-store";
 import type { AIChatMessage, AIActionPreview } from "../types";
 
 interface MessageListProps {
@@ -24,11 +26,12 @@ export function MessageList({
 }: MessageListProps) {
   const t = useTranslations("aiChat");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { isStreaming, streamingContent } = useAIChatStore();
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change or streaming content updates
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, isLoading]);
+  }, [messages.length, isLoading, isStreaming, streamingContent]);
 
   if (messages.length === 0 && !isLoading) {
     return (
@@ -65,8 +68,11 @@ export function MessageList({
           />
         ))}
 
-        {/* Processing indicator with action card styling */}
-        {isLoading && (
+        {/* Real-time streaming message (v2 engine) */}
+        {isStreaming && <StreamingMessage />}
+
+        {/* Legacy loading indicator (non-streaming v1 fallback) */}
+        {isLoading && !isStreaming && (
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Bot className="h-4 w-4 text-primary" />
@@ -78,7 +84,6 @@ export function MessageList({
                   {t("typing")}
                 </span>
               </div>
-              {/* Running action card */}
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
                 <div className="flex items-center gap-2">
                   <Cpu className="h-4 w-4 animate-pulse text-primary" />

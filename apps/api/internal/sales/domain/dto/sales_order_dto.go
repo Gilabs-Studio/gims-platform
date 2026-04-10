@@ -59,6 +59,7 @@ type ListSalesOrdersRequest struct {
 	PerPage          int    `form:"per_page" binding:"omitempty,min=1,max=100"`
 	Search           string `form:"search"`
 	Status           string `form:"status"`
+	SourceType       string `form:"source_type"`
 	DateFrom         string `form:"date_from"`
 	DateTo           string `form:"date_to"`
 	SalesRepID       string `form:"sales_rep_id"`
@@ -138,6 +139,8 @@ type SalesOrderResponse struct {
 	ReservedStock      bool                     `json:"reserved_stock"`
 	Status             string                   `json:"status"`
 	Notes              string                   `json:"notes"`
+	SourceType         string                   `json:"source_type"`
+	SourcePOSOrderID   *string                  `json:"source_pos_order_id"`
 	Fulfillment        *FulfillmentSummary      `json:"fulfillment,omitempty"`
 	CreatedBy          *string                  `json:"created_by"`
 	ConfirmedBy        *string                  `json:"confirmed_by"`

@@ -16,6 +16,7 @@ export const inventoryService = {
     if (params.status) searchParams.append("status", params.status);
     if (params.has_expiring) searchParams.append("has_expiring", "true");
     if (params.has_expired) searchParams.append("has_expired", "true");
+    if (params.is_ingredient !== undefined) searchParams.append("is_ingredient", params.is_ingredient ? "true" : "false");
 
     const response = await apiClient.get<ApiResponse<PaginatedResponse<InventoryStockItem>>>(
       `${BASE_URL}?${searchParams.toString()}`
@@ -34,12 +35,13 @@ export const inventoryService = {
     return response.data;
   },
 
-  getTreeProducts: async (warehouseId: string, params: { page: number; per_page: number; search?: string }) => {
+  getTreeProducts: async (warehouseId: string, params: { page: number; per_page: number; search?: string; is_ingredient?: boolean }) => {
     const searchParams = new URLSearchParams();
     searchParams.append("warehouse_id", warehouseId);
     searchParams.append("page", params.page.toString());
     searchParams.append("per_page", params.per_page.toString());
     if (params.search) searchParams.append("search", params.search);
+    if (params.is_ingredient !== undefined) searchParams.append("is_ingredient", params.is_ingredient ? "true" : "false");
 
       const response = await apiClient.get<ApiResponse<InventoryTreeProductsResponse>>(
       `/stock/tree/products?${searchParams.toString()}`

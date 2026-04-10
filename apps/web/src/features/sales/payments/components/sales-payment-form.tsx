@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -25,7 +26,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 import { useRouter } from "@/i18n/routing";
 
-import { salesPaymentSchema, type SalesPaymentFormData } from "../schemas/sales-payment.schema";
+import { salesPaymentSchema } from "../schemas/sales-payment.schema";
 import { useCreateSalesPayment } from "../hooks/use-sales-payments";
 import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-payments/hooks/use-customer-invoice-dp";
 import { useInvoice } from "@/features/sales/invoice/hooks/use-invoices";
@@ -49,6 +50,24 @@ interface SalesPaymentFormProps {
   readonly defaultDPId?: string;
 }
 
+type SalesPaymentFormValues = {
+  invoice_id?: string | null;
+  dp_id?: string | null;
+  bank_account_id?: string | null;
+  payment_date: string;
+  amount?: number;
+  method: "BANK" | "CASH";
+  reference_number?: string | null;
+  notes?: string | null;
+};
+
+const PAYABLE_INVOICE_STATUSES = new Set(["APPROVED", "UNPAID", "PARTIAL"]);
+
+function isPayableInvoiceStatus(status?: string | null): boolean {
+  if (!status) return false;
+  return PAYABLE_INVOICE_STATUSES.has(status.toUpperCase());
+}
+
 export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: SalesPaymentFormProps) {
   const t = useTranslations("salesPayment");
   const router = useRouter();
@@ -65,12 +84,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const dpDetail = dpDetailResponse?.data;
 
-  type ZodResolverSchemaArg = Parameters<typeof zodResolver>[0];
-
-  const resolver = useMemo(
-    () => zodResolver(salesPaymentSchema as unknown as ZodResolverSchemaArg) as unknown as Resolver<SalesPaymentFormData>,
-    [],
-  );
+  const resolver = useMemo(() => zodResolver(salesPaymentSchema) as Resolver<SalesPaymentFormValues>, []);
 
   const {
     register,
@@ -79,13 +93,14 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     reset,
     setValue,
     formState: { errors },
-  } = useForm<SalesPaymentFormData>({
+  } = useForm<SalesPaymentFormValues>({
     resolver,
     defaultValues: {
       invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
+      amount: undefined,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -99,6 +114,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
+      amount: undefined,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -107,6 +123,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
+  const amount = useWatch({ control, name: "amount" });
   const bankAccountId = useWatch({ control, name: "bank_account_id" });
 
   const invoicesCombobox = usePaginatedComboboxOptions({
@@ -142,6 +159,11 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     return invoicesCombobox.items.find((inv) => inv.id === invoiceId) ?? null;
   }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoicesCombobox.items]);
 
+  const payableInvoices = useMemo(
+    () => invoicesCombobox.items.filter((inv) => isPayableInvoiceStatus(inv.status)),
+    [invoicesCombobox.items],
+  );
+
   const selectedBankAccount = useMemo(() => {
     if (!bankAccountId) return null;
     return bankAccountsCombobox.items.find((acc) => acc.id === bankAccountId) ?? null;
@@ -157,17 +179,54 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     return undefined;
   }, [isLockedToDP, dpDetail, selectedInvoice]);
 
+  const minimumTenderAmount = useMemo(() => {
+    if (method !== "CASH") return 0;
+    return Math.max(0, computedAmount ?? 0);
+  }, [method, computedAmount]);
+
+  const isCashAmountBelowMinimum =
+    method === "CASH" &&
+    minimumTenderAmount > 0 &&
+    (amount ?? 0) < minimumTenderAmount;
+
   // Note: amount is handled by backend; no client-side amount field.
 
   // Clear bank account when switching to CASH
   const handleMethodChange = useCallback(
-    (value: string) => {
+    (value: string, calculatedAmount?: number) => {
+      if (
+        value === "BANK" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount <= 0)
+      ) {
+        setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      if (
+        value === "CASH" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount < calculatedAmount)
+      ) {
+        setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
       if (value === "CASH") {
-        setValue("bank_account_id", null, { shouldValidate: false });
+        setValue("bank_account_id", null, { shouldValidate: true, shouldDirty: true });
       }
     },
-    [setValue],
+    [amount, setValue],
   );
+
+  useEffect(() => {
+    if (computedAmount === undefined) return;
+    if (method === "CASH") {
+      if (amount === undefined || amount <= 0) {
+        setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      return;
+    }
+    if (amount === undefined || amount <= 0) {
+      setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [computedAmount, amount, method, setValue]);
 
   const submitting = createMutation.isPending;
   const isFetchingReference = invoicesCombobox.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
@@ -188,7 +247,20 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
-            if (computedAmount === undefined) {
+            const submittedAmount = values.method === "CASH"
+              ? (values.amount ?? 0)
+              : (computedAmount ?? values.amount ?? 0);
+
+            if (
+              values.method === "CASH" &&
+              computedAmount !== undefined &&
+              submittedAmount < computedAmount
+            ) {
+              toast.error(t("form.cashAmountMinimum"));
+              return;
+            }
+
+            if (submittedAmount <= 0) {
               toast.error(t("form.amountRequired") ?? "Amount is required");
               return;
             }
@@ -199,7 +271,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                 dp_id: values.dp_id ?? null,
                 bank_account_id: values.bank_account_id ?? null,
                 payment_date: values.payment_date,
-                amount: computedAmount,
+                amount: submittedAmount,
                 method: values.method,
                 reference_number: values.reference_number ?? null,
                 notes: values.notes ?? null,
@@ -337,7 +409,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                             hasMore={invoicesCombobox.hasMore}
                             isLoadingMore={invoicesCombobox.isLoadingMore}
                           >
-                            {invoicesCombobox.items.map((inv) => (
+                            {payableInvoices.map((inv) => (
                               <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
                                 <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
                                   <span>
@@ -346,7 +418,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                                   </span>
                                   <span className="text-muted-foreground ml-4">
                                     {formatCurrency(inv.remaining_amount)}
-                                    {inv.status === "partial" ? " (Partial)" : ""}
+                                    {inv.status?.toLowerCase() === "partial" ? " (Partial)" : ""}
                                   </span>
                                 </div>
                               </SelectItem>
@@ -414,7 +486,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                       value={field.value}
                       onValueChange={(v) => {
                         field.onChange(v);
-                        handleMethodChange(v);
+                        handleMethodChange(v, computedAmount);
                       }}
                       disabled={submitting}
                     >
@@ -471,8 +543,8 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                 ) : null}
               </Field>
 
-              {method === "BANK" ? (
-                <>
+              <>
+                {method === "BANK" ? (
                   <Field className="sm:col-span-2">
                     <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
                     {!selectedBankAccount ? (
@@ -542,13 +614,13 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                       <FieldError>{String(errors.bank_account_id.message)}</FieldError>
                     ) : null}
                   </Field>
+                ) : null}
 
-                  <Field className="sm:col-span-2">
-                    <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
-                    <Input {...register("reference_number")} disabled={submitting} />
-                  </Field>
-                </>
-              ) : null}
+                <Field className="sm:col-span-2">
+                  <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
+                  <Input {...register("reference_number")} disabled={submitting} />
+                </Field>
+              </>
             </div>
           </div>
 
@@ -560,10 +632,67 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
             </div>
 
             <div className="mt-4">
-              <Field>
-                <FieldLabel>{t("fields.amount")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">{t("form.amountHandledBySystem")}</p>
-              </Field>
+              {method === "CASH" ? (
+                <>
+                  <Field>
+                    <FieldLabel>{t("fields.tenderAmount")}</FieldLabel>
+                    <p className="mb-2 text-sm text-muted-foreground">{t("form.cashAmountHint")}</p>
+                    {minimumTenderAmount > 0 ? (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        {t("form.cashAmountMinimum")} ({formatCurrency(minimumTenderAmount)})
+                      </p>
+                    ) : null}
+                    <Controller
+                      control={control}
+                      name="amount"
+                      render={({ field }) => (
+                        <NumericInput
+                          value={field.value ?? undefined}
+                          onChange={(value) => field.onChange(value ?? 0)}
+                          min={0}
+                          className={isCashAmountBelowMinimum ? "border-destructive focus-visible:ring-destructive" : undefined}
+                          disabled={submitting || isFetchingReference}
+                        />
+                      )}
+                    />
+                    {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                    {!errors.amount?.message && isCashAmountBelowMinimum ? (
+                      <FieldError>{t("form.cashAmountMinimum")}</FieldError>
+                    ) : null}
+                  </Field>
+
+                  <div className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">{t("overview.remainingAmount")}</span>
+                      <span className="font-medium">{formatCurrency(computedAmount ?? 0)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-muted-foreground">{t("fields.changeAmount")}</span>
+                      <span className="font-semibold text-success">
+                        {formatCurrency(Math.max(0, (amount ?? 0) - (computedAmount ?? 0)))}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Field>
+                  <FieldLabel>{t("fields.amount")}</FieldLabel>
+                  <p className="mb-2 text-sm text-muted-foreground">{t("form.bankAmountHint")}</p>
+                  <Controller
+                    control={control}
+                    name="amount"
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value ?? undefined}
+                        onChange={(value) => field.onChange(value ?? 0)}
+                        min={0}
+                        disabled={submitting || isFetchingReference}
+                      />
+                    )}
+                  />
+                  {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                </Field>
+              )}
             </div>
           </div>
 
@@ -580,7 +709,13 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
             <Button
               type="submit"
               className="cursor-pointer"
-              disabled={submitting || isFetchingReference || bankAccountsCombobox.isLoading || bankAccountsCombobox.isFetching}
+              disabled={
+                submitting ||
+                isFetchingReference ||
+                bankAccountsCombobox.isLoading ||
+                bankAccountsCombobox.isFetching ||
+                isCashAmountBelowMinimum
+              }
             >
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t("form.submit")}

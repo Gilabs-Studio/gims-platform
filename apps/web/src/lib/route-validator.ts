@@ -49,8 +49,6 @@ const EXTRA_VALID_ROUTES = [
   "/finance/settings/accounting-mapping",
   "/finance/settings/fiscal-years",
   "/finance/settings/tax-config",
-  "/finance/settings/payment-terms",
-  "/finance/settings/currency",
   "/finance/reports/general-ledger",
   "/finance/reports/trial-balance",
   "/finance/reports/balance-sheet",
@@ -91,6 +89,17 @@ const EXTRA_VALID_ROUTES = [
   // AI Assistant
   "/ai-chatbot",
   "/ai-settings",
+  // POS
+  "/pos",
+  "/pos/fb",
+  "/pos/fb/floor-layout",
+  "/pos/fb/terminal",
+  "/pos/fb/live-table",
+  "/pos/goods",
+  "/pos/goods/quick-sale",
+  "/pos/goods/basket",
+  "/pos/goods/delivery-pickup",
+  "/pos/goods/returns-exchange",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

@@ -59,6 +59,7 @@ interface ProductDialogProps {
   onOpenChange: (open: boolean) => void;
   editingItem: Product | null;
   onCreated?: (item: { id: string; name: string }) => void;
+  defaultProductKind?: "STOCK" | "RECIPE" | "SERVICE";
 }
 
 export function ProductDialog({
@@ -66,6 +67,7 @@ export function ProductDialog({
   onOpenChange,
   editingItem,
   onCreated,
+  defaultProductKind,
 }: ProductDialogProps) {
   const {
     form,
@@ -92,7 +94,7 @@ export function ProductDialog({
     handlePackagingCreated,
     handleProcurementTypeCreated,
     onSubmit,
-  } = useProductForm({ open, onOpenChange, editingItem, onCreated });
+  } = useProductForm({ open, onOpenChange, editingItem, onCreated, defaultProductKind });
 
   const {
     register,

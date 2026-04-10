@@ -7,11 +7,13 @@ import (
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/product/data/models"
 	"github.com/gilabs/gims/api/internal/product/data/repositories"
 	"github.com/gilabs/gims/api/internal/product/domain/dto"
 	"github.com/gilabs/gims/api/internal/product/domain/mapper"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // ProductUsecase defines the interface for product business logic
@@ -23,16 +25,20 @@ type ProductUsecase interface {
 	Delete(ctx context.Context, id string) error
 	Submit(ctx context.Context, id string) (dto.ProductResponse, error)
 	Approve(ctx context.Context, id string, userID string, req dto.ApproveProductRequest) (dto.ProductResponse, error)
+	GetRecipe(ctx context.Context, id string) ([]dto.RecipeItemResponse, error)
+	UpdateRecipe(ctx context.Context, id string, items []dto.RecipeItemRequest) ([]dto.RecipeItemResponse, error)
 }
 
 type productUsecase struct {
+	db           *gorm.DB
 	repo         repositories.ProductRepository
 	categoryRepo repositories.ProductCategoryRepository
 }
 
 // NewProductUsecase creates a new ProductUsecase
-func NewProductUsecase(repo repositories.ProductRepository, categoryRepo repositories.ProductCategoryRepository) ProductUsecase {
+func NewProductUsecase(db *gorm.DB, repo repositories.ProductRepository, categoryRepo repositories.ProductCategoryRepository) ProductUsecase {
 	return &productUsecase{
+		db:           db,
 		repo:         repo,
 		categoryRepo: categoryRepo,
 	}
@@ -70,6 +76,18 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 	randomSuffix := strings.ToUpper(uuid.New().String()[:4])
 	generatedCode := fmt.Sprintf("%s-%s-%s", prefix, timestamp, randomSuffix)
 
+	// Determine ProductKind defaults
+	productKind := models.ProductKindStock
+	if req.ProductKind != "" {
+		productKind = req.ProductKind
+	}
+
+	// IsInventoryTracked defaults: true for STOCK, false for RECIPE/SERVICE
+	isInventoryTracked := productKind == models.ProductKindStock
+	if req.IsInventoryTracked != nil {
+		isInventoryTracked = *req.IsInventoryTracked
+	}
+
 	product := &models.Product{
 		ID:                     uuid.New().String(),
 		Code:                   generatedCode,
@@ -104,10 +122,26 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 		IsApproved:             true,
 		CreatedBy:              &userID,
 		IsActive:               isActive,
+		ProductKind:            productKind,
+		IsIngredient:           req.IsIngredient,
+		IsInventoryTracked:     isInventoryTracked,
+		IsPosAvailable:         req.IsPosAvailable,
+	}
+
+	// Validate recipe items for RECIPE kind
+	if productKind == models.ProductKindRecipe && len(req.RecipeItems) == 0 {
+		return dto.ProductResponse{}, errors.New("RECIPE products must have at least one recipe item")
 	}
 
 	if err := u.repo.Create(ctx, product); err != nil {
 		return dto.ProductResponse{}, err
+	}
+
+	// Create recipe items if present
+	if len(req.RecipeItems) > 0 {
+		if err := u.saveRecipeItems(product.ID, req.RecipeItems); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to save recipe items: %w", err)
+		}
 	}
 
 	// Reload to get relations
@@ -232,6 +266,26 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 	if req.IsActive != nil {
 		product.IsActive = *req.IsActive
 	}
+	if req.ProductKind != "" {
+		product.ProductKind = req.ProductKind
+	}
+	if req.IsIngredient != nil {
+		product.IsIngredient = *req.IsIngredient
+	}
+	if req.IsInventoryTracked != nil {
+		product.IsInventoryTracked = *req.IsInventoryTracked
+	}
+	if req.IsPosAvailable != nil {
+		product.IsPosAvailable = *req.IsPosAvailable
+	}
+
+	// Validate recipe items for RECIPE kind
+	if product.ProductKind == models.ProductKindRecipe && len(req.RecipeItems) > 0 {
+		// Replace pattern: delete existing + create new
+		if err := u.replaceRecipeItems(product.ID, req.RecipeItems); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to update recipe items: %w", err)
+		}
+	}
 
 	// Reset status if was rejected
 	if product.Status == models.ProductStatusRejected {
@@ -319,4 +373,93 @@ func (u *productUsecase) Approve(ctx context.Context, id string, userID string, 
 	}
 
 	return mapper.ToProductResponse(product), nil
+}
+
+func (u *productUsecase) GetRecipe(ctx context.Context, id string) ([]dto.RecipeItemResponse, error) {
+	product, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	if product.ProductKind != models.ProductKindRecipe {
+		return nil, errors.New("only RECIPE kind products have recipe items")
+	}
+
+	resp := mapper.ToProductResponse(product)
+	return resp.RecipeItems, nil
+}
+
+func (u *productUsecase) UpdateRecipe(ctx context.Context, id string, items []dto.RecipeItemRequest) ([]dto.RecipeItemResponse, error) {
+	product, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	if product.ProductKind != models.ProductKindRecipe {
+		return nil, errors.New("only RECIPE kind products can have recipe items")
+	}
+
+	if len(items) == 0 {
+		return nil, errors.New("RECIPE products must have at least one recipe item")
+	}
+
+	if err := u.replaceRecipeItems(id, items); err != nil {
+		return nil, fmt.Errorf("failed to update recipe items: %w", err)
+	}
+
+	// Reload to get full recipe with ingredient details
+	product, err = u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := mapper.ToProductResponse(product)
+	return resp.RecipeItems, nil
+}
+
+// saveRecipeItems creates recipe items for a product
+func (u *productUsecase) saveRecipeItems(productID string, items []dto.RecipeItemRequest) error {
+	return database.RetryTx(u.db, func(tx *gorm.DB) error {
+		for _, item := range items {
+			ri := models.ProductRecipeItem{
+				ID:                  uuid.New().String(),
+				ProductID:           productID,
+				IngredientProductID: item.IngredientProductID,
+				Quantity:            item.Quantity,
+				UomID:               item.UomID,
+				Notes:               item.Notes,
+				SortOrder:           item.SortOrder,
+			}
+			if err := tx.Create(&ri).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// replaceRecipeItems deletes existing recipe items and creates new ones
+func (u *productUsecase) replaceRecipeItems(productID string, items []dto.RecipeItemRequest) error {
+	return database.RetryTx(u.db, func(tx *gorm.DB) error {
+		// Hard-delete existing recipe items (subordinate records, not soft-deleted)
+		if err := tx.Unscoped().Where("product_id = ?", productID).Delete(&models.ProductRecipeItem{}).Error; err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			ri := models.ProductRecipeItem{
+				ID:                  uuid.New().String(),
+				ProductID:           productID,
+				IngredientProductID: item.IngredientProductID,
+				Quantity:            item.Quantity,
+				UomID:               item.UomID,
+				Notes:               item.Notes,
+				SortOrder:           item.SortOrder,
+			}
+			if err := tx.Create(&ri).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

@@ -21,6 +21,7 @@ import (
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
+	pos "github.com/gilabs/gims/api/internal/pos/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
@@ -69,6 +70,7 @@ func AutoMigrate() error {
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		&user.User{},
+		&user.UserWarehouse{},
 		&role.RolePermission{},
 		&role.Role{},
 		&permission.Permission{},
@@ -117,8 +119,11 @@ func AutoMigrate() error {
 		&product.Packaging{},
 		&product.ProcurementType{},
 		&product.Product{},
+		&product.ProductRecipeItem{},
 		// Warehouse entities (Sprint 4)
 		&warehouse.Warehouse{},
+		// Outlet entity (Organization)
+		&organization.Outlet{},
 		// Core Master Data entities (Sprint 4)
 		&core.PaymentTerms{},
 		&core.CourierAgency{},
@@ -277,6 +282,16 @@ func AutoMigrate() error {
 		&crm.AreaCapture{},
 		// General: user dashboard layout preferences
 		&general.DashboardLayout{},
+		// POS entities (Floor Layout Designer + Full POS System)
+		&pos.FloorPlan{},
+		&pos.LayoutVersion{},
+		&pos.PosSession{},
+		&pos.PosOrder{},
+		&pos.PosOrderItem{},
+		&pos.POSPayment{},
+		&pos.POSConfig{},
+		&pos.MidtransConfig{},
+		&pos.PosTableStatusRecord{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -298,6 +313,21 @@ func AutoMigrate() error {
 	// Migrate contract data from employees table to employee_contracts table
 	if err := migrateEmployeeContractData(); err != nil {
 		log.Printf("Warning: Could not migrate employee contract data: %v", err)
+	}
+
+	// Migrate legacy POS floor plans from company scope to outlet scope.
+	if err := migratePOSFloorPlansToOutletScope(); err != nil {
+		log.Printf("Warning: Could not migrate POS floor plans to outlet scope: %v", err)
+	}
+
+	// Sessionless POS path: existing databases may still have NOT NULL on session_id.
+	if err := ensurePOSOrderSessionColumnNullable(); err != nil {
+		log.Printf("Warning: Could not relax pos_orders.session_id nullability: %v", err)
+	}
+
+	// Live table object IDs are string identifiers (e.g. tbl-a1), not UUID.
+	if err := ensurePOSOrderTableIDColumnType(); err != nil {
+		log.Printf("Warning: Could not migrate pos_orders.table_id column type: %v", err)
 	}
 
 	// Safety net: ensure role_permissions.scope column exists even when GORM's
@@ -591,6 +621,177 @@ func ensureSalesCustomerContactColumns() error {
 		END $$;
 	`).Error; err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func ensurePOSOrderSessionColumnNullable() error {
+	if err := DB.Exec(`
+		ALTER TABLE pos_orders
+		ALTER COLUMN session_id DROP NOT NULL
+	`).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensurePOSOrderTableIDColumnType() error {
+	if err := DB.Exec(`
+		ALTER TABLE pos_orders
+		ALTER COLUMN table_id TYPE VARCHAR(100)
+		USING table_id::text
+	`).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func migratePOSFloorPlansToOutletScope() error {
+	if err := DB.Exec(`
+		ALTER TABLE pos_floor_plans
+		ADD COLUMN IF NOT EXISTS outlet_id uuid
+	`).Error; err != nil {
+		return err
+	}
+
+	type floorPlanRow struct {
+		ID        string
+		CompanyID *string
+		OutletID  *string
+		Name      string
+	}
+
+	var plans []floorPlanRow
+	if err := DB.Raw(`
+		SELECT id, company_id, outlet_id, name
+		FROM pos_floor_plans
+		WHERE deleted_at IS NULL
+	`).Scan(&plans).Error; err != nil {
+		return err
+	}
+
+	type outletRow struct {
+		ID        string
+		CompanyID *string
+		Code      string
+		Name      string
+		IsActive  bool
+	}
+
+	var outlets []outletRow
+	if err := DB.Raw(`
+		SELECT id, company_id, code, name, is_active
+		FROM outlets
+		WHERE deleted_at IS NULL
+		ORDER BY is_active DESC, name ASC, id ASC
+	`).Scan(&outlets).Error; err != nil {
+		return err
+	}
+
+	companyOutlets := make(map[string][]outletRow)
+	for _, outlet := range outlets {
+		if outlet.CompanyID == nil || *outlet.CompanyID == "" {
+			continue
+		}
+		companyOutlets[*outlet.CompanyID] = append(companyOutlets[*outlet.CompanyID], outlet)
+	}
+
+	updated := 0
+	unresolved := 0
+	for _, plan := range plans {
+		if plan.OutletID != nil && *plan.OutletID != "" {
+			continue
+		}
+		if plan.CompanyID == nil || *plan.CompanyID == "" {
+			unresolved++
+			continue
+		}
+
+		candidates := companyOutlets[*plan.CompanyID]
+		if len(candidates) == 0 {
+			unresolved++
+			continue
+		}
+
+		planName := strings.ToLower(strings.TrimSpace(plan.Name))
+		selected := candidates[0]
+		for _, candidate := range candidates {
+			if !candidate.IsActive {
+				continue
+			}
+			candidateName := strings.ToLower(strings.TrimSpace(candidate.Name))
+			candidateCode := strings.ToLower(strings.TrimSpace(candidate.Code))
+			if candidateName != "" && strings.Contains(planName, candidateName) {
+				selected = candidate
+				break
+			}
+			if candidateCode != "" && strings.Contains(planName, candidateCode) {
+				selected = candidate
+				break
+			}
+		}
+
+		if err := DB.Exec(`
+			UPDATE pos_floor_plans
+			SET outlet_id = ?, company_id = COALESCE(company_id, ?)
+			WHERE id = ?
+		`, selected.ID, *plan.CompanyID, plan.ID).Error; err != nil {
+			return err
+		}
+		updated++
+	}
+
+	if unresolved > 0 {
+		log.Printf("Warning: %d floor plans could not be auto-mapped to outlet_id", unresolved)
+	}
+
+	if err := DB.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_floor_plans_outlet
+		ON pos_floor_plans (outlet_id)
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uidx_floor_plans_outlet_floor_active
+		ON pos_floor_plans (outlet_id, floor_number)
+		WHERE deleted_at IS NULL
+	`).Error; err != nil {
+		return err
+	}
+
+	if err := DB.Exec(`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1
+				FROM pg_constraint
+				WHERE conname = 'fk_pos_floor_plans_outlet'
+			) THEN
+				ALTER TABLE pos_floor_plans
+				ADD CONSTRAINT fk_pos_floor_plans_outlet
+				FOREIGN KEY (outlet_id)
+				REFERENCES outlets(id)
+				ON UPDATE CASCADE
+				ON DELETE RESTRICT;
+			END IF;
+		END $$;
+	`).Error; err != nil {
+		return err
+	}
+
+	if unresolved == 0 {
+		if err := DB.Exec(`
+			ALTER TABLE pos_floor_plans
+			ALTER COLUMN outlet_id SET NOT NULL
+		`).Error; err != nil {
+			return err
+		}
+	}
+
+	if updated > 0 {
+		log.Printf("POS floor plan outlet migration completed: %d records updated", updated)
 	}
 
 	return nil

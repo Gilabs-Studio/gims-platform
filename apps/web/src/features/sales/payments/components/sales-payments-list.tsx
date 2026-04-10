@@ -158,6 +158,8 @@ export function SalesPaymentsList() {
               <TableHead>{t("fields.method")}</TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead className="text-right">{t("fields.amount")}</TableHead>
+              <TableHead className="text-right">{t("fields.tenderAmount")}</TableHead>
+              <TableHead className="text-right">{t("fields.changeAmount")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -171,12 +173,14 @@ export function SalesPaymentsList() {
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
+                  <TableCell className="text-right"><Skeleton className="h-4 w-24 ml-auto" /></TableCell>
                   <TableCell />
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -218,7 +222,17 @@ export function SalesPaymentsList() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.amount ?? 0)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(item.amount ?? 0)}</TableCell>
+                    <TableCell className="text-right">
+                      {item.method === "CASH"
+                        ? formatCurrency((item.tender_amount && item.tender_amount > 0) ? item.tender_amount : (item.amount ?? 0))
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {item.method === "CASH"
+                        ? (item.change_amount != null ? formatCurrency(item.change_amount) : "-")
+                        : "-"}
+                    </TableCell>
                     <TableCell className="text-right">
                       {canView && (
                         <DropdownMenu>

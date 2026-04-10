@@ -34,7 +34,7 @@ export interface Permission {
   description?: string;
 }
 
-export type PermissionScope = "OWN" | "DIVISION" | "AREA" | "ALL";
+export type PermissionScope = "OWN" | "WAREHOUSE" | "DIVISION" | "AREA" | "OUTLET" | "ALL";
 
 export interface PermissionAssignment {
   permission_id: string;

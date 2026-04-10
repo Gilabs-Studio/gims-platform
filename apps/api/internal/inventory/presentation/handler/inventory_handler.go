@@ -34,16 +34,27 @@ func (h *InventoryHandler) GetStockList(c *gin.Context) {
 	hasExpiring := c.Query("has_expiring") == "true"
 	hasExpired := c.Query("has_expired") == "true"
 
+	// Parse optional is_ingredient filter: accept "true"/"false"; absent = no filter
+	var isIngredient *bool
+	if v := c.Query("is_ingredient"); v == "true" {
+		t := true
+		isIngredient = &t
+	} else if v == "false" {
+		f := false
+		isIngredient = &f
+	}
+
 	req := &dto.GetInventoryListRequest{
-		Page:        page,
-		PerPage:     perPage,
-		Search:      search,
-		WarehouseID: warehouseID,
-		ProductID:   productID,
-		LowStock:    lowStock,
-		Status:      status,
-		HasExpiring: hasExpiring,
-		HasExpired:  hasExpired,
+		Page:         page,
+		PerPage:      perPage,
+		Search:       search,
+		WarehouseID:  warehouseID,
+		ProductID:    productID,
+		LowStock:     lowStock,
+		Status:       status,
+		HasExpiring:  hasExpiring,
+		HasExpired:   hasExpired,
+		IsIngredient: isIngredient,
 	}
 
 	result, err := h.usecase.GetStockList(c.Request.Context(), req)
@@ -75,11 +86,22 @@ func (h *InventoryHandler) GetTreeProducts(c *gin.Context) {
 		return
 	}
 
+	// Parse optional is_ingredient filter
+	var isIngredient *bool
+	if v := c.Query("is_ingredient"); v == "true" {
+		t := true
+		isIngredient = &t
+	} else if v == "false" {
+		f := false
+		isIngredient = &f
+	}
+
 	req := &dto.GetInventoryTreeProductsRequest{
-		Page:        page,
-		PerPage:     perPage,
-		Search:      search,
-		WarehouseID: warehouseID,
+		Page:         page,
+		PerPage:      perPage,
+		Search:       search,
+		WarehouseID:  warehouseID,
+		IsIngredient: isIngredient,
 	}
 
 	result, err := h.usecase.GetTreeProducts(c.Request.Context(), req)

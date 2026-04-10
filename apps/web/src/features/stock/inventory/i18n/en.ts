@@ -26,6 +26,13 @@ export const inventoryEn = {
       range: "Min - Max",
       status: "Status"
     },
+    tabs: {
+      all: "All",
+      ingredient: "Ingredient"
+    },
+    badge: {
+      ingredient: "Ingredient"
+    },
     common: {
       loading: "Loading inventory...",
       noData: "No inventory items found matching your criteria",

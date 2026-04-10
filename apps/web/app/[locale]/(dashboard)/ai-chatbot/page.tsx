@@ -7,8 +7,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  StopCircle,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
 
 import { useAIChatStore } from "@/features/ai-chat/stores/use-ai-chat-store";
 import {
-  useSendMessage,
+  useSendMessageStream,
   useAIChatSessionDetail,
 } from "@/features/ai-chat/hooks/use-ai-chat";
 import { SessionList } from "@/features/ai-chat/components/session-list";
@@ -35,23 +35,20 @@ export default function AIChatbotPage() {
   const t = useTranslations("aiChat");
   const {
     activeSessionId,
-    selectedModel,
-    setActiveSession,
     startNewChat,
     closeChat,
-  } =
-    useAIChatStore();
+    cancelStreaming,
+  } = useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(true);
 
   useEffect(() => {
-    // Ensure floating widget is closed while using the dedicated chatbot page.
     closeChat();
   }, [closeChat]);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
     useAIChatSessionDetail(activeSessionId);
 
-  const sendMessage = useSendMessage();
+  const { send, isStreaming } = useSendMessageStream();
 
   const messages: AIChatMessage[] = sessionDetail?.data?.messages ?? [];
   const pendingAction: AIActionPreview | null =
@@ -59,25 +56,9 @@ export default function AIChatbotPage() {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage.mutate(
-        {
-          message: content,
-          session_id: activeSessionId ?? undefined,
-          model: selectedModel ?? undefined,
-        },
-        {
-          onSuccess: (response) => {
-            if (!activeSessionId && response?.data?.session_id) {
-              setActiveSession(response.data.session_id);
-            }
-          },
-          onError: () => {
-            toast.error(t("error.sendFailed"));
-          },
-        }
-      );
+      send(content);
     },
-    [activeSessionId, selectedModel, sendMessage, setActiveSession, t]
+    [send],
   );
 
   return (
@@ -146,14 +127,29 @@ export default function AIChatbotPage() {
           messages={messages}
           action={pendingAction}
           sessionId={activeSessionId ?? ""}
-          isLoading={sendMessage.isPending || isLoadingSession}
+          isLoading={isStreaming || isLoadingSession}
         />
 
         {/* Input */}
-        <MessageInput
-          onSend={handleSend}
-          isLoading={sendMessage.isPending}
-        />
+        <div className="relative">
+          {isStreaming && (
+            <div className="absolute -top-8 left-0 right-0 flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 cursor-pointer gap-1.5 rounded-full text-xs shadow-sm"
+                onClick={cancelStreaming}
+              >
+                <StopCircle className="h-3 w-3" />
+                {t("cancel")}
+              </Button>
+            </div>
+          )}
+          <MessageInput
+            onSend={handleSend}
+            isLoading={isStreaming}
+          />
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
   RawAxiosResponseHeaders,
 } from "axios";
+import type { User } from "@/features/auth/types";
 import { toast } from "sonner";
 import { formatError } from "./i18n/error-messages";
 import { useRateLimitStore } from "./stores/useRateLimitStore";
@@ -84,6 +85,44 @@ function normalizeQueryParams(value: unknown): unknown {
   }
 
   return value;
+}
+
+type ServerRole = {
+  code: string;
+  name: string;
+  data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+};
+
+type ServerUser = {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string;
+  employee_id?: string;
+  role?: ServerRole;
+  permissions?: Record<string, string>;
+} | null | undefined;
+
+function normalizeUserResponse(rawUser: ServerUser): User | null {
+  if (!rawUser) return null;
+
+  const role = rawUser.role ?? { code: "", name: "", data_scope: "OWN" };
+  const dataScope: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN" =
+    role.data_scope ?? "OWN";
+
+  return {
+    id: rawUser.id,
+    name: rawUser.name,
+    email: rawUser.email,
+    avatar_url: rawUser.avatar_url,
+    employee_id: rawUser.employee_id ?? undefined,
+    role: {
+      code: role.code,
+      name: role.name,
+      data_scope: dataScope,
+    },
+    permissions: rawUser.permissions ?? {},
+  };
 }
 
 function showGlobalErrorToast(
@@ -613,7 +652,11 @@ apiClient.interceptors.response.use(
                 email: string;
                 name: string;
                 avatar_url: string;
-                role: { code: string; name: string };
+                role: {
+                  code: string;
+                  name: string;
+                  data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+                };
                 permissions: Record<string, string>;
               };
             };
@@ -630,8 +673,11 @@ apiClient.interceptors.response.use(
               // Update auth store with new user data
               import("@/features/auth/stores/use-auth-store").then(
                 ({ useAuthStore }) => {
-                  useAuthStore.getState().setUser(response.data?.user ?? null);
-                  useAuthStore.setState({ isAuthenticated: true });
+                  const normalized = normalizeUserResponse(response.data?.user ?? null);
+                  useAuthStore.getState().setUser(normalized);
+                  if (normalized) {
+                    useAuthStore.setState({ isAuthenticated: true });
+                  }
                 },
               );
 
@@ -670,7 +716,11 @@ apiClient.interceptors.response.use(
                       email: string;
                       name: string;
                       avatar_url: string;
-                      role: { code: string; name: string };
+                      role: {
+                        code: string;
+                        name: string;
+                        data_scope?: "ALL" | "DIVISION" | "AREA" | "OUTLET" | "OWN";
+                      };
                       permissions: Record<string, string>;
                     };
                   };
@@ -685,8 +735,11 @@ apiClient.interceptors.response.use(
                 if (response.success && response.data) {
                   import("@/features/auth/stores/use-auth-store").then(
                     ({ useAuthStore }) => {
-                      useAuthStore.getState().setUser(response.data?.user ?? null);
-                      useAuthStore.setState({ isAuthenticated: true });
+                      const normalized = normalizeUserResponse(response.data?.user ?? null);
+                      useAuthStore.getState().setUser(normalized);
+                      if (normalized) {
+                        useAuthStore.setState({ isAuthenticated: true });
+                      }
                     },
                   );
 

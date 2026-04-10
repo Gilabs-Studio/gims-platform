@@ -7,8 +7,8 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  StopCircle,
 } from "lucide-react";
-import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import {
 
 import { useAIChatStore } from "../stores/use-ai-chat-store";
 import {
-  useSendMessage,
+  useSendMessageStream,
   useAIChatSessionDetail,
 } from "../hooks/use-ai-chat";
 import { SessionList } from "./session-list";
@@ -32,14 +32,14 @@ import type { AIChatMessage, AIActionPreview } from "../types";
 
 export function AIChatWidget() {
   const t = useTranslations("aiChat");
-  const { isOpen, activeSessionId, selectedModel, toggleChat, closeChat, setActiveSession } =
+  const { isOpen, activeSessionId, toggleChat, closeChat, cancelStreaming } =
     useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(false);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
     useAIChatSessionDetail(activeSessionId);
 
-  const sendMessage = useSendMessage();
+  const { send, isStreaming } = useSendMessageStream();
 
   const messages: AIChatMessage[] = sessionDetail?.data?.messages ?? [];
   const pendingAction: AIActionPreview | null =
@@ -47,26 +47,9 @@ export function AIChatWidget() {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage.mutate(
-        {
-          message: content,
-          session_id: activeSessionId ?? undefined,
-          model: selectedModel ?? undefined,
-        },
-        {
-          onSuccess: (response) => {
-            // Set the session ID if this is a new conversation
-            if (!activeSessionId && response?.data?.session_id) {
-              setActiveSession(response.data.session_id);
-            }
-          },
-          onError: () => {
-            toast.error(t("error.sendFailed"));
-          },
-        }
-      );
+      send(content);
     },
-    [activeSessionId, selectedModel, sendMessage, setActiveSession, t]
+    [send],
   );
 
   return (
@@ -169,14 +152,29 @@ export function AIChatWidget() {
                 messages={messages}
                 action={pendingAction}
                 sessionId={activeSessionId ?? ""}
-                isLoading={sendMessage.isPending || isLoadingSession}
+                isLoading={isStreaming || isLoadingSession}
               />
 
               {/* Input */}
-              <MessageInput
-                onSend={handleSend}
-                isLoading={sendMessage.isPending}
-              />
+              <div className="relative">
+                {isStreaming && (
+                  <div className="absolute -top-8 left-0 right-0 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 cursor-pointer gap-1.5 rounded-full text-xs shadow-sm"
+                      onClick={cancelStreaming}
+                    >
+                      <StopCircle className="h-3 w-3" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
+                )}
+                <MessageInput
+                  onSend={handleSend}
+                  isLoading={isStreaming}
+                />
+              </div>
             </div>
           </motion.div>
         )}

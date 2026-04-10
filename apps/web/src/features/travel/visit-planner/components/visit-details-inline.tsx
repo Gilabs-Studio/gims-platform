@@ -1,16 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Loader2, MapPin, Navigation, X } from "lucide-react";
+import { Camera, Loader2, MapPin, Navigation, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { resolveImageUrl } from "@/lib/utils";
 import type {
@@ -38,8 +39,18 @@ export interface VisitActionPayload {
   outcome?: string;
   activity_type?: string;
   photos?: string[];
-  distance_m?: number;
   product_interests?: VisitProductInterestInput[];
+}
+
+interface ProductInterestEntry {
+  localId: string;
+  product_id: string;
+  product_name: string;
+  product_code: string;
+  interest_level: number;
+  quantity?: number;
+  price?: number;
+  notes?: string;
 }
 
 interface VisitDetailsInlineProps {
@@ -89,16 +100,45 @@ export function VisitDetailsInline({
   const tCommon = useTranslations("common");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Documentation tab
   const [notes, setNotes] = useState("");
   const [outcome, setOutcome] = useState("");
   const [activityType, setActivityType] = useState("");
-  const [distanceMeters, setDistanceMeters] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [productInterestLevel, setProductInterestLevel] = useState("3");
-  const [productQuantity, setProductQuantity] = useState("");
-  const [productPrice, setProductPrice] = useState("");
-  const [productNotes, setProductNotes] = useState("");
+
+  // Restore draft from sessionStorage on mount (keyed by checkpoint ID).
+  // The component remounts when the checkpoint changes via `key={checkpoint?.id}`,
+  // so this effect reliably loads per-checkpoint drafts.
+  useEffect(() => {
+    if (typeof window === "undefined" || !checkpoint?.id) return;
+    try {
+      const saved = sessionStorage.getItem(`visit-draft-${checkpoint.id}`);
+      if (!saved) return;
+      const draft = JSON.parse(saved) as {
+        notes?: string;
+        outcome?: string;
+        activityType?: string;
+        photoUrls?: string[];
+        productInterests?: ProductInterestEntry[];
+      };
+      if (draft.notes !== undefined) setNotes(draft.notes);
+      if (draft.outcome !== undefined) setOutcome(draft.outcome);
+      if (draft.activityType !== undefined) setActivityType(draft.activityType);
+      if (draft.photoUrls !== undefined) setPhotoUrls(draft.photoUrls);
+      if (draft.productInterests !== undefined) setProductInterests(draft.productInterests);
+    } catch {
+      // Ignore malformed draft data.
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Product interest tab
+  const [productInterests, setProductInterests] = useState<ProductInterestEntry[]>([]);
+  const [draftProductId, setDraftProductId] = useState("");
+  const [draftLevel, setDraftLevel] = useState("3");
+  const [draftQty, setDraftQty] = useState("");
+  const [draftPrice, setDraftPrice] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
 
   const status = checkpoint?.status ?? "pending";
   const isSelectable = checkpoint?.can_select ?? false;
@@ -107,365 +147,436 @@ export function VisitDetailsInline({
 
   const canCheckIn = canSubmit && isSelectable && hasCoordinates && status === "pending";
   const canCheckOut =
-    canSubmit
-    && isSelectable
-    && hasCoordinates
-    && (status === "checked_in" || status === "in_progress");
+    canSubmit && isSelectable && hasCoordinates && (status === "checked_in" || status === "in_progress");
   const canComplete =
-    canSubmit
-    && isSelectable
-    && hasCoordinates
-    && (status === "checked_out" || status === "completed");
-
-  const checkpointSummary = useMemo(() => {
-    if (!checkpoint) {
-      return [];
-    }
-
-    return [
-      checkpoint.lead_id ? { key: "lead", value: checkpoint.lead_id } : null,
-      checkpoint.deal_id ? { key: "deal", value: checkpoint.deal_id } : null,
-      checkpoint.customer_id ? { key: "customer", value: checkpoint.customer_id } : null,
-    ].filter((item): item is { key: string; value: string } => item !== null);
-  }, [checkpoint]);
+    canSubmit && isSelectable && hasCoordinates && (status === "checked_out" || status === "completed");
 
   const handleUploadFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) {
-      return;
-    }
-
+    if (!files || files.length === 0) return;
     const availableSlots = Math.max(0, MAX_PHOTOS - photoUrls.length);
     if (availableSlots === 0) {
       toast.error(t("form.photos.maxReached"));
       return;
     }
-
     const selectedFiles = Array.from(files).slice(0, availableSlots);
     const uploaded: string[] = [];
-
     for (const file of selectedFiles) {
       try {
         const uploadedUrl = await onUploadImage(file);
-        if (uploadedUrl) {
-          uploaded.push(uploadedUrl);
-        }
+        if (uploadedUrl) uploaded.push(uploadedUrl);
       } catch {
         toast.error(tCommon("error"));
       }
     }
-
     if (uploaded.length > 0) {
       setPhotoUrls((prev) => [...prev, ...uploaded]);
       toast.success(t("form.photos.uploaded"));
     }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+  const handleAddProductInterest = () => {
+    if (!draftProductId) return;
+    const product = products.find((p) => p.id === draftProductId);
+    if (!product) return;
+    const qtyNum = Number(draftQty);
+    const priceNum = Number(draftPrice);
+    setProductInterests((prev) => [
+      ...prev,
+      {
+        localId: `${Date.now()}-${Math.random()}`,
+        product_id: draftProductId,
+        product_name: product.name,
+        product_code: product.code,
+        interest_level: Math.min(5, Math.max(0, Number(draftLevel))),
+        quantity: draftQty.trim() && Number.isFinite(qtyNum) ? qtyNum : undefined,
+        price: draftPrice.trim() && Number.isFinite(priceNum) ? priceNum : undefined,
+        notes: draftNotes.trim() || undefined,
+      },
+    ]);
+    setDraftProductId("");
+    setDraftLevel("3");
+    setDraftQty("");
+    setDraftPrice("");
+    setDraftNotes("");
   };
 
   const submitAction = async (event: VisitEvent) => {
-    if (!checkpoint) {
-      return;
-    }
-
-    const parsedDistance = Number(distanceMeters);
-
+    if (!checkpoint) return;
     await onSubmitAction({
       event,
       notes: notes.trim() || undefined,
       outcome: outcome || undefined,
       activity_type: activityType || undefined,
       photos: photoUrls.length > 0 ? photoUrls : undefined,
-      distance_m: Number.isFinite(parsedDistance) && parsedDistance >= 0 ? parsedDistance : undefined,
       product_interests:
-        selectedProductId.trim().length > 0
-          ? [
-              {
-                product_id: selectedProductId,
-                interest_level: Number(productInterestLevel),
-                notes: productNotes.trim() || undefined,
-                quantity:
-                  productQuantity.trim().length > 0 && Number.isFinite(Number(productQuantity))
-                    ? Number(productQuantity)
-                    : undefined,
-                price:
-                  productPrice.trim().length > 0 && Number.isFinite(Number(productPrice))
-                    ? Number(productPrice)
-                    : undefined,
-              },
-            ]
+        productInterests.length > 0
+          ? productInterests.map((item) => ({
+              product_id: item.product_id,
+              interest_level: item.interest_level,
+              quantity: item.quantity,
+              price: item.price,
+              notes: item.notes,
+            }))
           : undefined,
     });
+    // Clear saved draft after a successful action submission.
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(`visit-draft-${checkpoint.id}`);
+    }
+  };
+
+  const handleSaveNotes = () => {
+    if (!checkpoint) return;
+    try {
+      sessionStorage.setItem(
+        `visit-draft-${checkpoint.id}`,
+        JSON.stringify({ notes, outcome, activityType, photoUrls, productInterests }),
+      );
+      toast.success(t("toast.draftSaved"));
+    } catch {
+      // sessionStorage write failure (e.g. private mode quota) — non-fatal.
+    }
   };
 
   return (
-    <Card>
-      <CardHeader className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-base">{t("panel.detailsTitle")}</CardTitle>
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border bg-card/95 backdrop-blur-sm">
+      {/* Header */}
+      <div className="border-b p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold text-sm">{t("panel.detailsTitle")}</p>
           <Badge variant="outline">{t(toStatusLabelKey(status))}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">{t("panel.detailsDescription")}</p>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {!route || !checkpoint ? (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            {t("state.selectCheckpoint")}
+        {checkpoint ? (
+          <div className="mt-1.5 space-y-0.5">
+            <p className="text-sm font-medium">{checkpoint.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {route?.employee_name ? `${route.employee_name} · ` : ""}
+              {t("sidebar.sequence", { value: checkpoint.sequence })}
+            </p>
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3 shrink-0" />
+              {hasCoordinates
+                ? `${checkpoint.latitude?.toFixed(5)}, ${checkpoint.longitude?.toFixed(5)}`
+                : t("panel.locationMissing")}
+            </p>
           </div>
         ) : (
-          <>
-            <div className="rounded-md border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium text-sm">{checkpoint.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t("sidebar.sequence", { value: checkpoint.sequence })}
-                </p>
-              </div>
-              <div className="mt-2 space-y-1">
-                {checkpointSummary.map((item) => (
-                  <p key={item.key} className="text-xs text-muted-foreground">
-                    {t(`panel.ref.${item.key}`)}: {item.value}
-                  </p>
-                ))}
-              </div>
-              <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                {hasCoordinates
-                  ? `${checkpoint.latitude?.toFixed(5) ?? "-"}, ${checkpoint.longitude?.toFixed(5) ?? "-"}`
-                  : t("panel.locationMissing")}
-              </p>
-              {!isSelectable && checkpoint.missing_location_reason ? (
-                <p className="mt-2 text-xs text-destructive">{checkpoint.missing_location_reason}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("panel.detailsDescription")}</p>
+        )}
+      </div>
+
+      {/* Body */}
+      {!checkpoint ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center">
+            <MapPin className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">{t("state.selectCheckpoint")}</p>
+          </div>
+        </div>
+      ) : (
+        <Tabs defaultValue="documentation" className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="mx-3 mt-2 grid grid-cols-2 shrink-0">
+            <TabsTrigger value="documentation" className="cursor-pointer">
+              {t("tabs.documentation")}
+            </TabsTrigger>
+            <TabsTrigger value="products" className="cursor-pointer">
+              {t("tabs.products")}
+              {productInterests.length > 0 ? (
+                <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 text-xs font-medium text-primary">
+                  {productInterests.length}
+                </span>
               ) : null}
-            </div>
+            </TabsTrigger>
+          </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="visit-notes">{t("form.notes")}</Label>
-              <Textarea
-                id="visit-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder={t("form.notesPlaceholder")}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="visit-outcome">{t("form.outcome")}</Label>
-                <Select value={outcome} onValueChange={setOutcome}>
-                  <SelectTrigger id="visit-outcome" className="cursor-pointer">
-                    <SelectValue placeholder={t("form.outcomePlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {outcomes.map((item) => (
-                      <SelectItem key={item.value} value={item.value} className="cursor-pointer">
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <ScrollArea className="min-h-0 flex-1">
+            {/* Documentation Tab */}
+            <TabsContent value="documentation" className="m-0 space-y-3 p-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="visit-notes">{t("form.notes")}</Label>
+                <Textarea
+                  id="visit-notes"
+                  rows={2}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={t("form.notesPlaceholder")}
+                />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="visit-activity-type">{t("form.activityType")}</Label>
-                <Select value={activityType} onValueChange={setActivityType}>
-                  <SelectTrigger id="visit-activity-type" className="cursor-pointer">
-                    <SelectValue placeholder={t("form.activityTypePlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activityTypes.map((item) => (
-                      <SelectItem key={item.value} value={item.value} className="cursor-pointer">
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="visit-distance">{t("form.distance")}</Label>
-              <Input
-                id="visit-distance"
-                type="number"
-                min={0}
-                step={1}
-                value={distanceMeters}
-                onChange={(event) => setDistanceMeters(event.target.value)}
-                placeholder={t("form.distancePlaceholder")}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="visit-product">Product interest</Label>
-                  <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                    <SelectTrigger id="visit-product" className="cursor-pointer">
-                      <SelectValue placeholder="Select product for this visit" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="visit-outcome">{t("form.outcome")}</Label>
+                  <Select value={outcome} onValueChange={setOutcome}>
+                    <SelectTrigger id="visit-outcome" className="cursor-pointer">
+                      <SelectValue placeholder={t("form.outcomePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id} className="cursor-pointer">
-                          {product.code} - {product.name}
+                      {outcomes.map((item) => (
+                        <SelectItem key={item.value} value={item.value} className="cursor-pointer">
+                          {item.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="visit-product-interest">Interest level (0-5)</Label>
-                  <Input
-                    id="visit-product-interest"
-                    type="number"
-                    min={0}
-                    max={5}
-                    value={productInterestLevel}
-                    onChange={(event) => setProductInterestLevel(event.target.value)}
-                    placeholder="3"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="visit-product-qty">Estimated quantity</Label>
-                  <Input
-                    id="visit-product-qty"
-                    type="number"
-                    min={0}
-                    value={productQuantity}
-                    onChange={(event) => setProductQuantity(event.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="visit-product-price">Expected price</Label>
-                  <Input
-                    id="visit-product-price"
-                    type="number"
-                    min={0}
-                    value={productPrice}
-                    onChange={(event) => setProductPrice(event.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="visit-product-notes">Product notes</Label>
-                  <Textarea
-                    id="visit-product-notes"
-                    value={productNotes}
-                    onChange={(event) => setProductNotes(event.target.value)}
-                    placeholder="Product-specific discussion notes"
-                  />
+                <div className="space-y-1.5">
+                  <Label htmlFor="visit-activity-type">{t("form.activityType")}</Label>
+                  <Select value={activityType} onValueChange={setActivityType}>
+                    <SelectTrigger id="visit-activity-type" className="cursor-pointer">
+                      <SelectValue placeholder={t("form.activityTypePlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activityTypes.map((item) => (
+                        <SelectItem key={item.value} value={item.value} className="cursor-pointer">
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2">
-                <Label>{t("form.photos.label")}</Label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>{t("form.photos.label")}</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    disabled={isUploadingImage || photoUrls.length >= MAX_PHOTOS}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {isUploadingImage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                    {t("form.photos.upload")}
+                  </Button>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    void handleUploadFiles(e.target.files);
+                  }}
+                />
+
+                {photoUrls.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {photoUrls.map((url, index) => (
+                      <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-md border">
+                        <Image
+                          src={resolveImageUrl(url) ?? url}
+                          alt={t("form.photos.previewAlt", { index: index + 1 })}
+                          width={240}
+                          height={150}
+                          unoptimized
+                          className="h-24 w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-1.5 top-1.5 cursor-pointer rounded-full bg-background/90 p-1 text-muted-foreground transition hover:text-foreground"
+                          onClick={() => setPhotoUrls((prev) => prev.filter((_, i) => i !== index))}
+                          aria-label={t("form.photos.remove")}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t("form.photos.empty")}</p>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Product Interest Tab */}
+            <TabsContent value="products" className="m-0 space-y-3 p-3">
+              {/* Add form */}
+              <div className="space-y-2.5 rounded-md border p-3">
+                <p className="text-xs font-medium text-muted-foreground">{t("form.product.addTitle")}</p>
+
+                <Select value={draftProductId} onValueChange={setDraftProductId}>
+                  <SelectTrigger className="cursor-pointer">
+                    <SelectValue placeholder={t("form.product.selectPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id} className="cursor-pointer">
+                        {product.code} — {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("form.product.interestLevel")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={5}
+                      value={draftLevel}
+                      onChange={(e) => setDraftLevel(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("form.product.qty")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={draftQty}
+                      onChange={(e) => setDraftQty(e.target.value)}
+                      placeholder={t("form.product.optionalShort")}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("form.product.price")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={draftPrice}
+                      onChange={(e) => setDraftPrice(e.target.value)}
+                      placeholder={t("form.product.optionalShort")}
+                    />
+                  </div>
+                </div>
+
+                <Textarea
+                  rows={2}
+                  value={draftNotes}
+                  onChange={(e) => setDraftNotes(e.target.value)}
+                  placeholder={t("form.product.notesPlaceholder")}
+                />
+
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
-                  className="cursor-pointer"
-                  disabled={isUploadingImage || photoUrls.length >= MAX_PHOTOS}
-                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full cursor-pointer"
+                  disabled={!draftProductId}
+                  onClick={handleAddProductInterest}
                 >
-                  {isUploadingImage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Camera className="h-4 w-4" />
-                  )}
-                  {t("form.photos.upload")}
+                  <Plus className="h-4 w-4" />
+                  {t("form.product.add")}
                 </Button>
               </div>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                multiple
-                className="hidden"
-                onChange={(event) => {
-                  void handleUploadFiles(event.target.files);
-                }}
-              />
-
-              {photoUrls.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {photoUrls.map((url, index) => (
-                    <div key={`${url}-${index}`} className="group relative overflow-hidden rounded-md border">
-                      <Image
-                        src={resolveImageUrl(url) ?? url}
-                        alt={t("form.photos.previewAlt", { index: index + 1 })}
-                        width={240}
-                        height={150}
-                        unoptimized
-                        className="h-24 w-full object-cover"
-                      />
+              {/* Added product interests list */}
+              {productInterests.length > 0 ? (
+                <div className="space-y-2">
+                  {productInterests.map((item) => (
+                    <div
+                      key={item.localId}
+                      className="flex items-start gap-2 rounded-md border p-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          {item.product_code} — {item.product_name}
+                        </p>
+                        <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                          <span>
+                            {t("form.product.interestLevel")}: {item.interest_level}/5
+                          </span>
+                          {item.quantity !== undefined ? (
+                            <span>{t("form.product.qty")}: {item.quantity}</span>
+                          ) : null}
+                          {item.price !== undefined ? (
+                            <span>{t("form.product.price")}: {item.price.toLocaleString()}</span>
+                          ) : null}
+                        </div>
+                        {item.notes ? (
+                          <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        className="absolute right-2 top-2 rounded-full bg-background/90 p-1 text-muted-foreground transition hover:text-foreground cursor-pointer"
-                        onClick={() => {
-                          setPhotoUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
-                        }}
-                        aria-label={t("form.photos.remove")}
+                        className="mt-0.5 cursor-pointer text-muted-foreground transition hover:text-destructive"
+                        onClick={() =>
+                          setProductInterests((prev) =>
+                            prev.filter((entry) => entry.localId !== item.localId),
+                          )
+                        }
+                        aria-label={tCommon("remove")}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">{t("form.photos.empty")}</p>
+                <p className="text-center text-xs text-muted-foreground">{t("form.product.empty")}</p>
               )}
-            </div>
+            </TabsContent>
+          </ScrollArea>
+        </Tabs>
+      )}
 
-            <div className="grid gap-2 sm:grid-cols-3">
-              <Button
-                type="button"
-                className="cursor-pointer"
-                disabled={!canCheckIn || isSubmitting}
-                onClick={() => {
-                  void submitAction("check_in");
-                }}
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-                {t("actions.checkIn")}
-              </Button>
+      {/* Action buttons - always anchored at bottom */}
+      {checkpoint ? (
+        <div className="shrink-0 border-t p-3 space-y-2">
+          {/* Save draft button — persists notes/outcome/photos to sessionStorage */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full cursor-pointer"
+            onClick={handleSaveNotes}
+          >
+            <Save className="h-4 w-4" />
+            {t("form.save")}
+          </Button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="cursor-pointer"
+              disabled={!canCheckIn || isSubmitting}
+              onClick={() => {
+                void submitAction("check_in");
+              }}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              {t("actions.checkIn")}
+            </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="cursor-pointer"
-                disabled={!canCheckOut || isSubmitting}
-                onClick={() => {
-                  void submitAction("check_out");
-                }}
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-                {t("actions.checkOut")}
-              </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="cursor-pointer"
+              disabled={!canCheckOut || isSubmitting}
+              onClick={() => {
+                void submitAction("check_out");
+              }}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              {t("actions.checkOut")}
+            </Button>
 
-              <Button
-                type="button"
-                variant="secondary"
-                className="cursor-pointer"
-                disabled={!canComplete || isSubmitting}
-                onClick={() => {
-                  void submitAction("submit_visit");
-                }}
-              >
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-                {t("actions.complete")}
-              </Button>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="cursor-pointer"
+              disabled={!canComplete || isSubmitting}
+              onClick={() => {
+                void submitAction("submit_visit");
+              }}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              {t("actions.complete")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -2,11 +2,15 @@
 // Product Module Types
 // ============================================
 
+// CategoryType defines whether a category is for regular goods or FnB (Food & Beverage)
+export type CategoryType = "GOODS" | "FNB";
+
 // === ProductCategory ===
 export interface ProductCategory {
   id: string;
   name: string;
   description: string;
+  category_type: CategoryType;
   parent_id?: string | null;
   parent?: ProductCategory | null;
   is_active: boolean;
@@ -17,6 +21,7 @@ export interface ProductCategory {
 export interface CreateProductCategoryData {
   name: string;
   description?: string;
+  category_type?: CategoryType;
   parent_id?: string | null;
   is_active?: boolean;
 }
@@ -24,6 +29,7 @@ export interface CreateProductCategoryData {
 export interface UpdateProductCategoryData {
   name?: string;
   description?: string;
+  category_type?: CategoryType;
   parent_id?: string | null;
   is_active?: boolean;
 }
@@ -33,6 +39,7 @@ export interface CategoryTreeNode {
   id: string;
   name: string;
   description: string;
+  category_type: CategoryType;
   parent_id?: string | null;
   product_count: number;
   children: CategoryTreeNode[];
@@ -185,6 +192,7 @@ export interface UpdateProcurementTypeData {
 
 // === Product (Main Entity) ===
 export type ProductStatus = "draft" | "pending" | "approved" | "rejected";
+export type ProductKind = "STOCK" | "RECIPE" | "SERVICE";
 
 export interface ProductCategoryBasic {
   id: string;
@@ -284,6 +292,15 @@ export interface Product {
   is_tax_inclusive: boolean;
   lead_time_days: number;
 
+  // POS F&B fields
+  product_kind: ProductKind;
+  is_ingredient: boolean;
+  is_inventory_tracked: boolean;
+  is_pos_available: boolean;
+  recipe_items?: RecipeItemResponse[];
+  recipe_cost?: number | null;
+  producible_quantity: number; // For RECIPE products: max qty that can be produced based on ingredient stock
+
   created_at: string;
   updated_at: string;
 }
@@ -318,11 +335,15 @@ export interface CreateProductData {
   is_tax_inclusive?: boolean;
   lead_time_days?: number;
   is_active?: boolean;
+  product_kind?: ProductKind;
+  is_ingredient?: boolean;
+  is_inventory_tracked?: boolean;
+  is_pos_available?: boolean;
+  recipe_items?: RecipeItemRequest[];
 }
 
 export interface UpdateProductData {
   code?: string;
-  name?: string;
   name?: string;
   description?: string;
   image_url?: string | null;
@@ -351,6 +372,11 @@ export interface UpdateProductData {
   is_tax_inclusive?: boolean;
   lead_time_days?: number;
   is_active?: boolean;
+  product_kind?: ProductKind;
+  is_ingredient?: boolean;
+  is_inventory_tracked?: boolean;
+  is_pos_available?: boolean;
+  recipe_items?: RecipeItemRequest[];
 }
 
 export interface ApproveProductData {
@@ -372,6 +398,38 @@ export interface ProductListParams {
   supplier_id?: string;
   status?: ProductStatus;
   is_approved?: boolean;
+  product_kind?: ProductKind;
+  is_pos_available?: boolean;
+  is_ingredient?: boolean;
+}
+
+// === Recipe Item Types ===
+export interface RecipeItemRequest {
+  ingredient_product_id: string;
+  quantity: number;
+  uom_id?: string | null;
+  notes?: string;
+  sort_order?: number;
+}
+
+export interface RecipeIngredientBasic {
+  id: string;
+  code: string;
+  name: string;
+  cost_price: number;
+  current_stock: number; // Stock available for this ingredient
+}
+
+export interface RecipeItemResponse {
+  id: string;
+  ingredient_product_id: string;
+  ingredient?: RecipeIngredientBasic | null;
+  quantity: number;
+  uom_id?: string | null;
+  uom?: UnitOfMeasureBasic | null;
+  cost_contribution: number;
+  notes: string;
+  sort_order: number;
 }
 
 export interface LookupListParams {

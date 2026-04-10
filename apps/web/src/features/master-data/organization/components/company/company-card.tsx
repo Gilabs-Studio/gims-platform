@@ -1,6 +1,7 @@
 "use client";
 
 import { Building, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Company } from "../../types";
 
@@ -54,8 +55,13 @@ export function CompanyCard({
           <div className="flex items-center gap-2 flex-wrap">
             {company.latitude != null && company.longitude != null && (
               <span className="text-xs text-muted-foreground">
-                📍 {Number(company.latitude).toFixed(4)}, {Number(company.longitude).toFixed(4)}
+                {Number(company.latitude).toFixed(4)}, {Number(company.longitude).toFixed(4)}
               </span>
+            )}
+            {(company.outlet_count ?? 0) > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 cursor-default">
+                {company.outlet_count}
+              </Badge>
             )}
           </div>
         </div>

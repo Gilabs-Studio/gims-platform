@@ -156,16 +156,22 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.update", "Edit Warehouses", "EDIT", "warehouse"},
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
 
-		// Master Data - Payment & Courier
-		{"/finance/settings/currency", "currency.read", "View Currencies", "VIEW", "currency"},
-		{"/finance/settings/currency", "currency.create", "Create Currencies", "CREATE", "currency"},
-		{"/finance/settings/currency", "currency.update", "Edit Currencies", "EDIT", "currency"},
-		{"/finance/settings/currency", "currency.delete", "Delete Currencies", "DELETE", "currency"},
+		// Master Data - Outlet
+		{"/master-data/outlet", "outlet.read", "View Outlets", "VIEW", "outlet"},
+		{"/master-data/outlet", "outlet.create", "Create Outlets", "CREATE", "outlet"},
+		{"/master-data/outlet", "outlet.update", "Edit Outlets", "EDIT", "outlet"},
+		{"/master-data/outlet", "outlet.delete", "Delete Outlets", "DELETE", "outlet"},
 
-		{"/finance/settings/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
-		{"/finance/settings/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
-		{"/finance/settings/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
-		{"/finance/settings/payment-terms", "payment_term.delete", "Delete Payment Terms", "DELETE", "payment_term"},
+		// Master Data - Payment & Courier
+		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
+		{"/master-data/currencies", "currency.create", "Create Currencies", "CREATE", "currency"},
+		{"/master-data/currencies", "currency.update", "Edit Currencies", "EDIT", "currency"},
+		{"/master-data/currencies", "currency.delete", "Delete Currencies", "DELETE", "currency"},
+
+		{"/master-data/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
+		{"/master-data/payment-terms", "payment_term.delete", "Delete Payment Terms", "DELETE", "payment_term"},
 
 		{"/master-data/courier-agencies", "courier_agency.read", "View Courier Agencies", "VIEW", "courier_agency"},
 		{"/master-data/courier-agencies", "courier_agency.create", "Create Courier Agencies", "CREATE", "courier_agency"},
@@ -571,6 +577,24 @@ func SeedPermissions() error {
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+
+		// POS
+		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
+		{"/pos/fb/floor-layout", "pos.layout.manage", "Manage POS Floor Layout", "MANAGE", "pos_layout"},
+		{"/pos", "pos.outlet.read", "View POS Outlets", "VIEW", "pos_outlet"},
+		{"/pos", "pos.outlet.manage", "Manage POS Outlets", "MANAGE", "pos_outlet"},
+		{"/pos/fb/terminal", "pos.order.create", "Create POS Orders", "CREATE", "pos_order"},
+		{"/pos/fb/terminal", "pos.order.read", "View POS Orders", "VIEW", "pos_order"},
+		{"/pos/fb/terminal", "pos.catalog.read", "View POS Catalog", "VIEW", "pos_catalog"},
+		{"/pos/fb/terminal", "pos.recipe.read", "View POS Recipes", "VIEW", "pos_recipe"},
+		{"/pos/fb/terminal", "pos.recipe.manage", "Manage POS Recipes", "MANAGE", "pos_recipe"},
+		{"/pos/fb/floor-layout", "pos.floor.read", "View POS Floor Layouts", "VIEW", "pos_floor"},
+		{"/pos/fb/floor-layout", "pos.floor.manage", "Manage POS Floor Layouts", "MANAGE", "pos_floor"},
+		// POS config — required by /pos/config/outlet/:id route
+		{"/pos", "pos.config.read", "Read POS Outlet Config", "VIEW", "pos_config"},
+		{"/pos", "pos.config.manage", "Manage POS Outlet Config", "MANAGE", "pos_config"},
+		// POS session management — required by GET /pos/sessions (list all sessions)
+		{"/pos", "pos.session.manage", "Manage POS Sessions", "MANAGE", "pos_session"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
@@ -795,6 +819,7 @@ func SeedPermissions() error {
 		"account_mappings":  "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"travel_visit":      "DIVISION",
+		"pos":               "OWN",
 		"stock":             "ALL",
 	}, "ALL")
 
@@ -807,6 +832,7 @@ func SeedPermissions() error {
 		"account_mappings":  "OWN",
 		"non_trade_payable": "OWN",
 		"travel_visit":      "OWN",
+		"pos":               "OWN",
 		"stock":             "OWN",
 	}, "ALL")
 
@@ -818,6 +844,7 @@ func SeedPermissions() error {
 		"finance":          "OWN",
 		"account_mappings": "OWN",
 		"travel_visit":     "DIVISION",
+		"pos":              "OWN",
 		"stock":            "AREA",
 	}, "ALL")
 
@@ -864,8 +891,18 @@ func SeedPermissions() error {
 		"journal_valuation":  "DIVISION",
 		"cash_bank_journal":  "DIVISION",
 	}, "OWN")
-
 	assignViewPermissionsToRole("auditor", "ALL")
+
+	// Tighten outlet_manager permissions:
+	// Only grant OUTLET-scoped access for outlet-related operational modules.
+	// Use a conservative defaultScope (OWN) to avoid granting ALL on master-data.
+	assignScopedPermissionsToRole("outlet_manager", map[string]string{
+		"outlet": "OUTLET",
+		"pos":    "OUTLET",
+		"sales":  "OUTLET",
+		"stock":  "OUTLET",
+		"crm":    "OUTLET",
+	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()

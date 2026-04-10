@@ -38,16 +38,23 @@ export const purchasePaymentId = {
   },
   form: {
     title: "Buat Pembayaran",
+    bankAmountHint: "Masukkan jumlah transfer yang dibayarkan ke supplier.",
+    cashAmountHint: "Masukkan jumlah tunai yang dibayarkan ke supplier.",
+    cashAmountMinimum: "Pembayaran tunai tidak boleh lebih kecil dari sisa tagihan",
+    amountRequired: "Jumlah wajib diisi.",
     amountHandledBySystem: "Jumlah dihitung oleh sistem",
     submit: "Simpan",
     cancel: "Batal",
   },
   fields: {
     invoice: "Invoice",
+    downPayment: "Down Payment",
     paymentDetails: "Detail Pembayaran",
     bankAccount: "Rekening Bank",
     paymentDate: "Tanggal Pembayaran",
     amount: "Jumlah",
+    tenderAmount: "Dibayar",
+    changeAmount: "Kembalian",
     method: "Metode",
     status: "Status",
     referenceNumber: "Nomor Referensi",
@@ -55,6 +62,7 @@ export const purchasePaymentId = {
   },
   placeholders: {
     select: "Pilih...",
+    pickDate: "Pilih tanggal",
   },
   overview: {
     title: "Ringkasan Tagihan",
