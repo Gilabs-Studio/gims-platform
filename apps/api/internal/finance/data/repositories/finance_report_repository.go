@@ -78,7 +78,7 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
 		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
-		WHERE je.status IN ('posted', 'reversed')
+		WHERE je.status = 'posted'
 			AND je.entry_date < ?
 			AND je.deleted_at IS NULL
 			AND jl.deleted_at IS NULL
@@ -116,7 +116,7 @@ func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startD
 			SUM(jl.credit) as credit
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
-		WHERE je.status IN ('posted', 'reversed')
+		WHERE je.status = 'posted'
 			AND je.entry_date >= ?
 			AND je.entry_date <= ?
 			AND je.deleted_at IS NULL
@@ -184,7 +184,7 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 		Preload("JournalEntry").
 		Joins("JOIN journal_entries ON journal_entries.id = journal_lines.journal_entry_id").
 		Where("journal_lines.chart_of_account_id = ?", coaID).
-		Where("journal_entries.status IN ('posted', 'reversed')").
+		Where("journal_entries.status = ?", financeModels.JournalStatusPosted).
 		Where("journal_entries.deleted_at IS NULL").
 		Where("journal_lines.deleted_at IS NULL").
 		Where("journal_entries.entry_date >= ?", startDate).
@@ -219,7 +219,7 @@ func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, e
 		FROM journal_lines jl
 		JOIN journal_entries je ON je.id = jl.journal_entry_id
 		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
-		WHERE je.status IN ('posted', 'reversed')
+		WHERE je.status = 'posted'
 			AND je.entry_date >= ?
 			AND je.entry_date <= ?
 			AND je.deleted_at IS NULL
