@@ -370,6 +370,11 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not add linkedin_url column: %v", err)
 	}
 
+	// Add menu metadata fields required by canonical module navigation refactor.
+	if err := migrations.AddMenuMetadataMigration(DB); err != nil {
+		return fmt.Errorf("failed to add menu metadata migration: %w", err)
+	}
+
 	// NEW: Normalize journal data (casing/consistent naming)
 	if err := normalizeJournalData(); err != nil {
 		log.Printf("Warning: Failed to normalize journal data: %v", err)

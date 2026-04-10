@@ -2,13 +2,115 @@ package seeders
 
 import (
 	"log"
+	"strings"
+	"unicode"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	permission "github.com/gilabs/gims/api/internal/permission/data/models"
 )
 
+func sanitizeSlugToken(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return "menu"
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteRune('-')
+			lastDash = true
+		}
+	}
+
+	result := strings.Trim(b.String(), "-")
+	if result == "" {
+		return "menu"
+	}
+	return result
+}
+
+func inferMenuModule(menu *permission.Menu) string {
+	if strings.HasPrefix(menu.URL, "/finance") || strings.EqualFold(menu.Name, "Finance") || strings.EqualFold(menu.Name, "Finance & Accounting") {
+		return "finance"
+	}
+	if strings.HasPrefix(menu.URL, "/sales") || strings.EqualFold(menu.Name, "Sales") {
+		return "sales"
+	}
+	if strings.HasPrefix(menu.URL, "/purchase") || strings.EqualFold(menu.Name, "Purchase") {
+		return "purchase"
+	}
+	if strings.HasPrefix(menu.URL, "/stock") || strings.EqualFold(menu.Name, "Stock") {
+		return "stock"
+	}
+	if strings.HasPrefix(menu.URL, "/hrd") || strings.EqualFold(menu.Name, "HRD") {
+		return "hrd"
+	}
+	if strings.HasPrefix(menu.URL, "/crm") || strings.EqualFold(menu.Name, "CRM") {
+		return "crm"
+	}
+	if strings.HasPrefix(menu.URL, "/master-data") || strings.EqualFold(menu.Name, "Master Data") {
+		return "master-data"
+	}
+
+	if menu.ParentID != nil {
+		var parent permission.Menu
+		if err := database.DB.Where("id = ?", *menu.ParentID).First(&parent).Error; err == nil {
+			if strings.TrimSpace(parent.Module) != "" {
+				return parent.Module
+			}
+		}
+	}
+
+	return "core"
+}
+
+func deriveMenuSlug(menu *permission.Menu) string {
+	if menu.URL != "" && menu.URL != "#" {
+		trimmed := strings.Trim(strings.TrimSpace(menu.URL), "/")
+		trimmed = strings.ReplaceAll(trimmed, "/", ".")
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+
+	base := sanitizeSlugToken(menu.Name)
+	module := strings.TrimSpace(menu.Module)
+	if module != "" {
+		if menu.ParentID != nil && len(*menu.ParentID) >= 8 {
+			return module + "." + base + "." + strings.ToLower((*menu.ParentID)[:8])
+		}
+		return module + "." + base
+	}
+	return base
+}
+
+func enrichMenuMetadata(menu *permission.Menu) {
+	if strings.TrimSpace(menu.Status) == "" {
+		menu.Status = "active"
+	}
+
+	menu.IsActive = strings.EqualFold(menu.Status, "active")
+	menu.IsClickable = !(strings.TrimSpace(menu.URL) == "" || strings.TrimSpace(menu.URL) == "#")
+
+	if strings.TrimSpace(menu.Module) == "" {
+		menu.Module = inferMenuModule(menu)
+	}
+	if strings.TrimSpace(menu.Slug) == "" {
+		menu.Slug = deriveMenuSlug(menu)
+	}
+}
+
 // createMenu is a helper function to create or update a menu
 func createMenu(menu *permission.Menu) error {
+	enrichMenuMetadata(menu)
+
 	var existing permission.Menu
 	query := database.DB.Where("name = ?", menu.Name)
 	if menu.ParentID != nil {
@@ -21,10 +123,14 @@ func createMenu(menu *permission.Menu) error {
 		// Found existing menu, update it
 		menu.ID = existing.ID // Important: keep the ID for children
 		if err := database.DB.Model(&existing).Updates(map[string]interface{}{
-			"icon":   menu.Icon,
-			"url":    menu.URL,
-			"order":  menu.Order,
-			"status": menu.Status,
+			"icon":         menu.Icon,
+			"url":          menu.URL,
+			"order":        menu.Order,
+			"status":       menu.Status,
+			"module":       menu.Module,
+			"slug":         menu.Slug,
+			"is_active":    menu.IsActive,
+			"is_clickable": menu.IsClickable,
 		}).Error; err != nil {
 			return err
 		}
@@ -417,40 +523,163 @@ func SeedMenus() error {
 	// ============================================================
 	// FINANCE SUB-MENUS
 	// ============================================================
+	// Parent groups (hierarchy containers)
+	accountingMenu, err := createChildMenu("Accounting", "book-open", "", &financeMenu.ID, 1)
+	if err != nil {
+		return err
+	}
 
-	financeChildren := []struct {
+	receivablesPayablesMenu, err := createChildMenu("Receivables and Payables", "receipt", "", &financeMenu.ID, 2)
+	if err != nil {
+		return err
+	}
+
+	budgetingCostMenu, err := createChildMenu("Budgeting and Cost", "percent", "", &financeMenu.ID, 3)
+	if err != nil {
+		return err
+	}
+
+	assetManagementMenu, err := createChildMenu("Asset Management", "briefcase", "/finance/asset-management", &financeMenu.ID, 4)
+	if err != nil {
+		return err
+	}
+
+	financialStatementsMenu, err := createChildMenu("Financial Statements", "bar-chart-3", "", &financeMenu.ID, 5)
+	if err != nil {
+		return err
+	}
+
+	taxationMenu, err := createChildMenu("Taxation", "receipt", "", &financeMenu.ID, 6)
+	if err != nil {
+		return err
+	}
+
+	financeSettingsMenu, err := createChildMenu("Finance Settings", "settings", "/finance/settings", &financeMenu.ID, 7)
+	if err != nil {
+		return err
+	}
+
+	accountingChildren := []struct {
 		name  string
 		icon  string
 		url   string
 		order int
 	}{
-		{"Chart of Accounts", "list", "/finance/coa", 1},
-		// "Journal Entries" created separately below (has sub-menu)
-		{"Bank Accounts", "landmark", "/finance/bank-accounts", 3},
-		{"Payments", "credit-card", "/finance/payments", 4},
-		{"Tax Invoices", "file-text", "/finance/tax-invoices", 5},
-		{"Non-Trade Payables", "file-minus", "/finance/non-trade-payables", 6},
-		{"Budget", "pie-chart", "/finance/budget", 7},
-		{"Financial Closing", "lock", "/finance/closing", 9},
-		{"Asset Management", "briefcase", "/finance/assets", 10},
-		{"Asset Categories", "folder-tree", "/finance/asset-categories", 11},
-		{"Asset Locations", "map-pin", "/finance/asset-locations", 12},
-		{"Asset Budgets", "wallet", "/finance/asset-budgets", 13},
-		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 14},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 15},
-		{"Salary", "dollar-sign", "/finance/salary", 16},
-		{"AR/AP Reconciliation", "scale", "/finance/reconciliation/arap", 17},
+		{"Bank Accounts", "landmark", "/finance/bank-accounts", 1},
+		{"Chart of Accounts", "list", "/finance/coa", 2},
+		{"Financial Closing", "lock", "/finance/closing", 3},
 	}
-	for _, child := range financeChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &financeMenu.ID, child.order); err != nil {
+	for _, child := range accountingChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &accountingMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
 
-	// Finance Settings Group
-	financeSettingsMenu, err := createChildMenu("Finance Settings", "settings", "/finance/settings", &financeMenu.ID, 30)
+	// Journal Group under Accounting
+	journalMenu, err := createChildMenu("Journal", "book-open", "", &accountingMenu.ID, 4)
 	if err != nil {
 		return err
+	}
+	journalSubMenus := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Journal Entries", "file-text", "/finance/journals", 1},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
+		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
+		{"Inventory Journal", "calculator", "/finance/journals/valuation", 5},
+		{"Cash and Bank Journal", "banknote", "/finance/journals/cash-bank", 6},
+	}
+	for _, sub := range journalSubMenus {
+		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
+			return err
+		}
+	}
+
+	receivablesPayablesChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Non-Trade Payables", "file-minus", "/finance/non-trade-payables", 1},
+		{"Payments", "credit-card", "/finance/payments", 2},
+		{"AR/AP Reconciliation", "scale", "/finance/reconciliation/arap", 3},
+		{"Aging Reports", "clock", "/finance/aging-reports", 4},
+	}
+	for _, child := range receivablesPayablesChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &receivablesPayablesMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	budgetingCostChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Budget", "pie-chart", "/finance/budget", 1},
+		{"Salary", "dollar-sign", "/finance/salary", 2},
+		{"Up Country Cost", "map", "/finance/up-country-cost", 3},
+	}
+	for _, child := range budgetingCostChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &budgetingCostMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	assetManagementChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Assets", "building-2", "/finance/assets", 1},
+		{"Asset Categories", "folder-tree", "/finance/asset-categories", 2},
+		{"Asset Locations", "map-pin", "/finance/asset-locations", 3},
+		{"Asset Budgets", "wallet", "/finance/asset-budgets", 4},
+		{"Asset Maintenance", "wrench", "/finance/asset-maintenance", 5},
+		{"Asset Disposal", "hammer", "/finance/asset-disposal", 6},
+	}
+	for _, child := range assetManagementChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &assetManagementMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	financialStatementsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"General Ledger", "book-open", "/finance/reports/general-ledger", 1},
+		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 2},
+		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 3},
+		{"Cash Flow Statement", "bar-chart-2", "/finance/reports/cash-flow-statement", 4},
+	}
+	for _, child := range financialStatementsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financialStatementsMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	taxationChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Tax Invoices", "file-text", "/finance/tax-invoices", 1},
+	}
+	for _, child := range taxationChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &taxationMenu.ID, child.order); err != nil {
+			return err
+		}
 	}
 
 	financeSettingsChildren := []struct {
@@ -486,52 +715,45 @@ func SeedMenus() error {
 		}
 	}
 
-	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
-	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
-	if err != nil {
-		return err
+	// Legacy finance menu cleanup after hierarchy refactor.
+	legacyFinanceChildURLs := []string{
+		"/finance/coa",
+		"/finance/bank-accounts",
+		"/finance/payments",
+		"/finance/tax-invoices",
+		"/finance/non-trade-payables",
+		"/finance/budget",
+		"/finance/closing",
+		"/finance/asset-categories",
+		"/finance/asset-locations",
+		"/finance/asset-budgets",
+		"/finance/asset-maintenance",
+		"/finance/up-country-cost",
+		"/finance/salary",
+		"/finance/reconciliation/arap",
+		"/finance/reports",
+		"/finance/reports/general-ledger",
+		"/finance/reports/balance-sheet",
+		"/finance/reports/profit-loss",
+		"/finance/aging-reports",
 	}
-	journalSubMenus := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"Journal Entries", "file-text", "/finance/journals", 1},
-		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
-		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
-		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
-		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
-		{"Cash Transactions (Journal View)", "banknote", "/finance/journals/cash-bank", 6},
-	}
-	for _, sub := range journalSubMenus {
-		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &journalMenu.ID, sub.order); err != nil {
+	for _, url := range legacyFinanceChildURLs {
+		if err := deactivateMenuURLByParent(url, &financeMenu.ID); err != nil {
 			return err
 		}
 	}
 
-	// Finance Reports Group
-	financeReportsMenu, err := createChildMenu("Reports", "bar-chart-3", "/finance/reports", &financeMenu.ID, 20)
-	if err != nil {
+	if err := deactivateMenuByNameAndParent("Journal", &financeMenu.ID); err != nil {
 		return err
 	}
-
-	financeReportChildren := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"General Ledger", "book-open", "/finance/reports/general-ledger", 1},
-		{"Trial Balance", "file-spreadsheet", "/finance/reports/trial-balance", 2},
-		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 3},
-		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 4},
-		{"Aging Reports", "clock", "/finance/aging-reports", 5},
+	if err := deactivateMenuChildrenByNameAndParent("Journal", &financeMenu.ID); err != nil {
+		return err
 	}
-	for _, child := range financeReportChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &financeReportsMenu.ID, child.order); err != nil {
-			return err
-		}
+	if err := deactivateMenuByNameAndParent("Reports", &financeMenu.ID); err != nil {
+		return err
+	}
+	if err := deactivateMenuChildrenByNameAndParent("Reports", &financeMenu.ID); err != nil {
+		return err
 	}
 
 	// ============================================================
@@ -712,6 +934,108 @@ func deactivateMenuURL(url string) error {
 	return nil
 }
 
+func deactivateMenuURLByParent(url string, parentID *string) error {
+	query := database.DB.Where("url = ?", url)
+	if parentID != nil {
+		query = query.Where("parent_id = ?", *parentID)
+	} else {
+		query = query.Where("parent_id IS NULL")
+	}
+
+	var legacyMenus []permission.Menu
+	if err := query.Find(&legacyMenus).Error; err != nil {
+		return err
+	}
+
+	for _, legacyMenu := range legacyMenus {
+		if legacyMenu.Status == "inactive" {
+			continue
+		}
+		if err := database.DB.Model(&legacyMenu).Updates(map[string]interface{}{
+			"status": "inactive",
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Deprecated menu URL by parent: %s", url)
+	}
+
+	return nil
+}
+
+func deactivateMenuByNameAndParent(name string, parentID *string) error {
+	query := database.DB.Where("name = ?", name)
+	if parentID != nil {
+		query = query.Where("parent_id = ?", *parentID)
+	} else {
+		query = query.Where("parent_id IS NULL")
+	}
+
+	var legacyMenus []permission.Menu
+	if err := query.Find(&legacyMenus).Error; err != nil {
+		return err
+	}
+
+	for _, legacyMenu := range legacyMenus {
+		if legacyMenu.Status == "inactive" {
+			continue
+		}
+		if err := database.DB.Model(&legacyMenu).Updates(map[string]interface{}{
+			"status": "inactive",
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Deprecated menu by name and parent: %s", name)
+	}
+
+	return nil
+}
+
+func deactivateMenuChildrenByNameAndParent(name string, parentID *string) error {
+	query := database.DB.Where("name = ?", name)
+	if parentID != nil {
+		query = query.Where("parent_id = ?", *parentID)
+	} else {
+		query = query.Where("parent_id IS NULL")
+	}
+
+	var parentMenus []permission.Menu
+	if err := query.Find(&parentMenus).Error; err != nil {
+		return err
+	}
+
+	for _, parentMenu := range parentMenus {
+		if err := deactivateMenuTreeByParentID(parentMenu.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deactivateMenuTreeByParentID(parentID string) error {
+	var children []permission.Menu
+	if err := database.DB.Where("parent_id = ?", parentID).Find(&children).Error; err != nil {
+		return err
+	}
+
+	for _, child := range children {
+		if err := deactivateMenuTreeByParentID(child.ID); err != nil {
+			return err
+		}
+		if child.Status == "inactive" {
+			continue
+		}
+		if err := database.DB.Model(&child).Updates(map[string]interface{}{
+			"status": "inactive",
+		}).Error; err != nil {
+			return err
+		}
+		log.Printf("Deprecated child menu: %s (%s)", child.Name, child.URL)
+	}
+
+	return nil
+}
+
 // UpdateMenuStructure updates existing menu structure (migration helper)
 func UpdateMenuStructure() error {
 	log.Println("Updating menu structure (migration helper)...")
@@ -743,6 +1067,7 @@ func UpdateMenuStructure() error {
 		"/hrd/certifications",
 		"/ai-settings",
 		"/finance/journal-lines",
+		"/finance/reports",
 		"/finance/reports/trial-balance",
 		"/finance/cash-bank",
 	}
