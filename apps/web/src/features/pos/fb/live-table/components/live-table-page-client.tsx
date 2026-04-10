@@ -761,7 +761,7 @@ export function LiveTablePageClient() {
       setServingId(orderId);
       try {
         await serveOrder.mutateAsync(orderId);
-        toast.success("Pesanan sudah disajikan");
+        toast.success("Status meja diubah ke Served");
       } catch {
         toast.error("Gagal memperbarui status");
       } finally {

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	invDataRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
@@ -29,9 +30,12 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentRepo := repositories.NewPOSPaymentRepository(db)
 	configRepo := repositories.NewPOSConfigRepository(db)
 	midtransRepo := repositories.NewMidtransConfigRepository(db)
+	bankAccountRepo := coreRepos.NewBankAccountRepository(db)
 
 	outletRepo := orgRepo.NewOutletRepository(db)
 	salesOrderRepo := salesRepos.NewSalesOrderRepository(db)
+	invoiceRepo := salesRepos.NewCustomerInvoiceRepository(db)
+	salesPaymentRepo := salesRepos.NewSalesPaymentRepository(db)
 
 	invRepo := invDataRepos.NewInventoryRepository(db)
 	recipeService := invUsecase.NewRecipeConsumptionService(db, invRepo)
@@ -40,7 +44,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, midtransRepo, orderUC, salesOrderRepo)
+	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, midtransRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	midtransUC := usecase.NewMidtransConfigUsecase(midtransRepo)
 

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -97,12 +99,12 @@ func (h *POSPaymentHandler) MidtransWebhook(c *gin.Context) {
 }
 
 func handlePOSPaymentError(c *gin.Context, err error) {
-	switch err {
-	case usecase.ErrPOSOrderNotFound:
+	switch {
+	case errors.Is(err, usecase.ErrPOSOrderNotFound):
 		coreErrors.NotFoundResponse(c, "pos_order", "")
-	case usecase.ErrPOSOrderAlreadyPaid:
+	case errors.Is(err, usecase.ErrPOSOrderAlreadyPaid):
 		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
-	case usecase.ErrPOSInvalidPayment:
+	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")

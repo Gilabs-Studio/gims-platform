@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/mapper"
 	salesModels "github.com/gilabs/gims/api/internal/sales/data/models"
 	salesRepos "github.com/gilabs/gims/api/internal/sales/data/repositories"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -31,12 +34,15 @@ type POSPaymentUsecase interface {
 }
 
 type posPaymentUsecase struct {
-	paymentRepo  repositories.POSPaymentRepository
-	orderRepo    repositories.PosOrderRepository
-	configRepo   repositories.POSConfigRepository
-	midtransRepo repositories.MidtransConfigRepository
-	orderUsecase POSOrderUsecase
-	salesOrderRepo salesRepos.SalesOrderRepository
+	paymentRepo      repositories.POSPaymentRepository
+	orderRepo        repositories.PosOrderRepository
+	configRepo       repositories.POSConfigRepository
+	midtransRepo     repositories.MidtransConfigRepository
+	orderUsecase     POSOrderUsecase
+	salesOrderRepo   salesRepos.SalesOrderRepository
+	invoiceRepo      salesRepos.CustomerInvoiceRepository
+	salesPaymentRepo salesRepos.SalesPaymentRepository
+	bankAccountRepo  coreRepos.BankAccountRepository
 }
 
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
@@ -47,14 +53,20 @@ func NewPOSPaymentUsecase(
 	midtransRepo repositories.MidtransConfigRepository,
 	orderUsecase POSOrderUsecase,
 	salesOrderRepo salesRepos.SalesOrderRepository,
+	invoiceRepo salesRepos.CustomerInvoiceRepository,
+	salesPaymentRepo salesRepos.SalesPaymentRepository,
+	bankAccountRepo coreRepos.BankAccountRepository,
 ) POSPaymentUsecase {
 	return &posPaymentUsecase{
-		paymentRepo:    paymentRepo,
-		orderRepo:      orderRepo,
-		configRepo:     configRepo,
-		midtransRepo:   midtransRepo,
-		orderUsecase:   orderUsecase,
-		salesOrderRepo: salesOrderRepo,
+		paymentRepo:      paymentRepo,
+		orderRepo:        orderRepo,
+		configRepo:       configRepo,
+		midtransRepo:     midtransRepo,
+		orderUsecase:     orderUsecase,
+		salesOrderRepo:   salesOrderRepo,
+		invoiceRepo:      invoiceRepo,
+		salesPaymentRepo: salesPaymentRepo,
+		bankAccountRepo:  bankAccountRepo,
 	}
 }
 
@@ -74,8 +86,11 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 	}
 
 	// Update customer name on the order if provided (used on receipt/invoice)
-	if req.CustomerName != nil && *req.CustomerName != "" {
-		order.CustomerName = req.CustomerName
+	if req.CustomerName != nil {
+		trimmedName := strings.TrimSpace(*req.CustomerName)
+		if trimmedName != "" {
+			order.CustomerName = &trimmedName
+		}
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
@@ -88,6 +103,8 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		Amount:       order.TotalAmount,
 		TenderAmount: req.Amount,
 		ChangeAmount: change,
+		ReferenceNumber: req.ReferenceNumber,
+		Notes: req.Notes,
 		PaidAt:       &now,
 		CreatedBy:    cashierID,
 	}
@@ -112,6 +129,15 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 		return nil, ErrPOSOrderAlreadyPaid
 	}
 
+	// Persist customer name from payment form if provided.
+	if req.CustomerName != nil {
+		trimmedName := strings.TrimSpace(*req.CustomerName)
+		if trimmedName != "" {
+			order.CustomerName = &trimmedName
+			_ = u.orderRepo.Update(ctx, order)
+		}
+	}
+
 	// Build a unique Midtrans order ID from the internal order number
 	midtransOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
 
@@ -124,6 +150,8 @@ func (u *posPaymentUsecase) InitiateMidtrans(ctx context.Context, orderID string
 		Amount:          order.TotalAmount,
 		TenderAmount:    order.TotalAmount,
 		ChangeAmount:    0,
+		ReferenceNumber: req.ReferenceNumber,
+		Notes:           req.Notes,
 		MidtransOrderID: &midtransOrderID,
 		ExpiresAt:       &expiresAt,
 		CreatedBy:       cashierID,
@@ -193,7 +221,8 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 	return result, nil
 }
 
-// finalizeOrder marks the order Paid, deducts stock, and creates a linked Sales Order.
+// finalizeOrder marks the order Paid, deducts stock, and creates linked ERP documents.
+// Flow: POS paid -> closed Sales Order -> Customer Invoice -> Sales Payment (for CASH method).
 func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.PosOrder, userID string, payment *models.POSPayment) error {
 	order.Status = models.PosOrderStatusPaid
 	if err := u.orderRepo.Update(ctx, order); err != nil {
@@ -201,10 +230,20 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	}
 
 	// Create a closed Sales Order in the ERP system for this POS transaction.
-	// Failures here are non-blocking — the payment is already recorded.
+	// Failures here are non-blocking — the POS payment remains source-of-truth.
 	if soID := u.createSalesOrderFromPOS(ctx, order, userID); soID != "" {
 		order.SalesOrderID = &soID
 		_ = u.orderRepo.Update(ctx, order)
+
+		if invoiceID := u.createCustomerInvoiceFromPOS(ctx, soID, order, userID); invoiceID != "" {
+			order.CustomerInvoiceID = &invoiceID
+			_ = u.orderRepo.Update(ctx, order)
+
+			// For POS cash payments, also generate a confirmed Sales Payment detail record.
+			if payment != nil && payment.Method == models.POSPaymentMethodCash {
+				_ = u.createSalesPaymentFromPOS(ctx, invoiceID, payment, order, userID)
+			}
+		}
 	}
 
 	// Deduct inventory. On failure we log but do not reverse the payment;
@@ -239,13 +278,15 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		customerName = *order.CustomerName
 	}
 
-	actor := &userID
+	actor := optionalActorIDPointer(userID)
 	so := &salesModels.SalesOrder{
 		Code:             code,
 		OrderDate:        now,
 		CustomerName:     customerName,
-		Subtotal:         order.TotalAmount,
+		Subtotal:         order.Subtotal,
+		DiscountAmount:   order.DiscountAmount,
 		TaxRate:          0,
+		TaxAmount:        order.TaxAmount,
 		TotalAmount:      order.TotalAmount,
 		Status:           salesModels.SalesOrderStatusClosed,
 		Notes:            notesVal,
@@ -269,6 +310,169 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		return ""
 	}
 	return so.ID
+}
+
+// createCustomerInvoiceFromPOS creates an invoice from the generated sales order.
+// It starts with UNPAID status so that payment detail can be captured in sales_payments.
+func (u *posPaymentUsecase) createCustomerInvoiceFromPOS(ctx context.Context, salesOrderID string, order *models.PosOrder, userID string) string {
+	so, err := u.salesOrderRepo.FindByID(ctx, salesOrderID)
+	if err != nil || so == nil {
+		return ""
+	}
+
+	code, err := u.invoiceRepo.GetNextInvoiceNumber(ctx, "INV")
+	if err != nil {
+		return ""
+	}
+
+	now := apptime.Now()
+	notes := fmt.Sprintf("Auto-generated from POS order %s", order.OrderNumber)
+
+	invoice := &salesModels.CustomerInvoice{
+		Code:            code,
+		Type:            salesModels.CustomerInvoiceTypeRegular,
+		InvoiceDate:     now,
+		SalesOrderID:    &so.ID,
+		PaymentTermsID:  so.PaymentTermsID,
+		Subtotal:        so.Subtotal,
+		TaxRate:         so.TaxRate,
+		TaxAmount:       so.TaxAmount,
+		DeliveryCost:    so.DeliveryCost,
+		OtherCost:       so.OtherCost,
+		Amount:          so.TotalAmount,
+		PaidAmount:      0,
+		RemainingAmount: so.TotalAmount,
+		Status:          salesModels.CustomerInvoiceStatusUnpaid,
+		Notes:           notes,
+		CreatedBy:       optionalActorIDPointer(userID),
+	}
+
+	for _, soItem := range so.Items {
+		soItemID := soItem.ID
+		invoice.Items = append(invoice.Items, salesModels.CustomerInvoiceItem{
+			ProductID:        soItem.ProductID,
+			SalesOrderItemID: &soItemID,
+			Quantity:         soItem.Quantity,
+			Price:            soItem.Price,
+			Discount:         soItem.Discount,
+			Subtotal:         soItem.Subtotal,
+		})
+	}
+
+	if len(invoice.Items) == 0 {
+		return ""
+	}
+
+	if err := u.invoiceRepo.Create(ctx, invoice); err != nil {
+		return ""
+	}
+
+	// Keep SO item invoiced qty consistent for reporting.
+	for _, soItem := range so.Items {
+		_ = u.salesOrderRepo.UpdateItemInvoicedQty(ctx, soItem.ID, soItem.Quantity)
+	}
+
+	return invoice.ID
+}
+
+// createSalesPaymentFromPOS creates a confirmed sales payment and marks invoice paid.
+func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoiceID string, payment *models.POSPayment, order *models.PosOrder, userID string) string {
+	active := true
+	accounts, _, err := u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
+		IsActive: &active,
+		Limit:    1,
+		SortBy:   "created_at",
+		SortDir:  "asc",
+	})
+	if err == nil && len(accounts) == 0 {
+		// Fallback: use any available bank account if none are marked active.
+		accounts, _, err = u.bankAccountRepo.List(ctx, coreRepos.BankAccountListParams{
+			Limit:   1,
+			SortBy:  "created_at",
+			SortDir: "asc",
+		})
+	}
+	if err != nil || len(accounts) == 0 {
+		return ""
+	}
+
+	bank := accounts[0]
+	now := apptime.Now()
+	method := salesModels.SalesPaymentMethodCash
+	if payment != nil && payment.Method != models.POSPaymentMethodCash {
+		method = salesModels.SalesPaymentMethodBank
+	}
+
+	noteText := fmt.Sprintf("Auto-generated from POS order %s", order.OrderNumber)
+	if payment != nil && payment.Notes != nil && strings.TrimSpace(*payment.Notes) != "" {
+		noteText = strings.TrimSpace(*payment.Notes)
+	}
+	refNumber := order.OrderNumber
+	if payment != nil {
+		if payment.ReferenceNumber != nil && strings.TrimSpace(*payment.ReferenceNumber) != "" {
+			refNumber = strings.TrimSpace(*payment.ReferenceNumber)
+		} else if payment.TransactionID != nil && strings.TrimSpace(*payment.TransactionID) != "" {
+			refNumber = strings.TrimSpace(*payment.TransactionID)
+		}
+	}
+
+	actorID := normalizedActorID(userID)
+	notes := noteText
+	ref := refNumber
+	pay := &salesModels.SalesPayment{
+		CustomerInvoiceID:           invoiceID,
+		BankAccountID:               bank.ID,
+		PaymentDate:                 now.Format("2006-01-02"),
+		Amount:                      order.TotalAmount,
+		Method:                      method,
+		Status:                      salesModels.SalesPaymentStatusConfirmed,
+		ReferenceNumber:             &ref,
+		Notes:                       &notes,
+		CreatedBy:                   actorID,
+		BankAccountNameSnapshot:     strings.TrimSpace(bank.Name),
+		BankAccountNumberSnapshot:   strings.TrimSpace(bank.AccountNumber),
+		BankAccountHolderSnapshot:   strings.TrimSpace(bank.AccountHolder),
+		BankAccountCurrencySnapshot: strings.TrimSpace(bank.Currency),
+	}
+
+	if err := u.salesPaymentRepo.Create(ctx, pay); err != nil {
+		return ""
+	}
+
+	paidAmount := order.TotalAmount
+	paidAt := apptime.Now()
+	if err := u.invoiceRepo.UpdateStatus(
+		ctx,
+		invoiceID,
+		salesModels.CustomerInvoiceStatusPaid,
+		&paidAmount,
+		&paidAt,
+		optionalActorIDPointer(userID),
+	); err != nil {
+		return ""
+	}
+
+	return pay.ID
+}
+
+func normalizedActorID(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return uuid.Nil.String()
+	}
+	if _, err := uuid.Parse(trimmed); err == nil {
+		return trimmed
+	}
+	return uuid.NewSHA1(uuid.NameSpaceOID, []byte(trimmed)).String()
+}
+
+func optionalActorIDPointer(raw string) *string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	normalized := normalizedActorID(trimmed)
+	return &normalized
 }
 
 // mapMidtransStatus converts Midtrans transaction_status + fraud_status to internal payment status.

@@ -99,7 +99,11 @@ export function POSPaymentModal({
     try {
       const result = await initiateMidtrans.mutateAsync({
         orderId: order.id,
-        data: { method: "MIDTRANS", amount: totalAmount },
+        data: {
+          method: "MIDTRANS",
+          amount: totalAmount,
+          customer_name: customerName.trim() || undefined,
+        },
       });
       const payload = result as { data?: POSPayment };
       if (payload?.data) {

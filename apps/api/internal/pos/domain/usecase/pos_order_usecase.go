@@ -56,7 +56,7 @@ type POSOrderUsecase interface {
 	DeductStock(ctx context.Context, order *posModels.PosOrder, refNumber, userID string) error
 	// MarkServed transitions an order to SERVED (food delivered to table)
 	MarkServed(ctx context.Context, id string) (*dto.POSOrderResponse, error)
-	// MarkCompleted transitions a PAID order to COMPLETED (customer has left)
+	// MarkCompleted transitions a SERVED order to COMPLETED (customer has left)
 	MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error)
 }
 
@@ -548,8 +548,8 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 		}
 		return nil, err
 	}
-	// Allow transitioning from any non-terminal, non-already-served state.
-	if isTerminalStatus(order.Status) || order.Status == posModels.PosOrderStatusServed {
+	// Live-table flow: only PAID orders can be transitioned to SERVED.
+	if order.Status != posModels.PosOrderStatusPaid {
 		return nil, ErrPOSOrderCannotModify
 	}
 	order.Status = posModels.PosOrderStatusServed
@@ -559,7 +559,7 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 	return mapper.ToPOSOrderResponse(order), nil
 }
 
-// MarkCompleted transitions a PAID order to COMPLETED after the customer has left the table.
+// MarkCompleted transitions a SERVED order to COMPLETED after the session is fully closed.
 func (u *posOrderUsecase) MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error) {
 	order, err := u.orderRepo.GetByID(ctx, id)
 	if err != nil {
@@ -568,8 +568,8 @@ func (u *posOrderUsecase) MarkCompleted(ctx context.Context, id string) (*dto.PO
 		}
 		return nil, err
 	}
-	// Only PAID orders can be marked completed via this action.
-	if order.Status != posModels.PosOrderStatusPaid {
+	// Only SERVED orders can be marked completed.
+	if order.Status != posModels.PosOrderStatusServed {
 		return nil, ErrPOSOrderCannotModify
 	}
 	order.Status = posModels.PosOrderStatusCompleted
