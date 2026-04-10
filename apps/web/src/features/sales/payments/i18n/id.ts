@@ -31,6 +31,7 @@ export const salesPaymentId = {
     amountHandledBySystem: "Jumlah ditentukan dan diproses oleh sistem.",
     bankAmountHint: "Masukkan jumlah transfer yang dibayar pelanggan.",
     cashAmountHint: "Masukkan jumlah tunai yang diterima dari pelanggan.",
+    cashAmountMinimum: "Tunai diterima tidak boleh lebih kecil dari sisa pembayaran",
     amountRequired: "Jumlah diperlukan.",
     title: "Buat Pembayaran",
     submit: "Simpan",

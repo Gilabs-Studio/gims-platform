@@ -34,6 +34,7 @@ export const salesPaymentEn = {
     amountHandledBySystem: "Amount is determined and processed by the system.",
     bankAmountHint: "Enter the transfer amount paid by customer.",
     cashAmountHint: "Enter the cash amount received from customer.",
+    cashAmountMinimum: "Cash received cannot be lower than remaining amount",
     amountRequired: "Amount is required.",
   },
   fields: {

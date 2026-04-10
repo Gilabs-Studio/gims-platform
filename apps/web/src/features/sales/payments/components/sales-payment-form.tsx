@@ -161,13 +161,37 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
     return undefined;
   }, [isLockedToDP, dpDetail, selectedInvoice]);
 
+  const minimumTenderAmount = useMemo(() => {
+    if (method !== "CASH") return 0;
+    return Math.max(0, computedAmount ?? 0);
+  }, [method, computedAmount]);
+
+  const isCashAmountBelowMinimum =
+    method === "CASH" &&
+    minimumTenderAmount > 0 &&
+    (amount ?? 0) < minimumTenderAmount;
+
   // Note: amount is handled by backend; no client-side amount field.
 
   // Clear bank account when switching to CASH
   const handleMethodChange = useCallback(
     (value: string, calculatedAmount?: number) => {
-      if (value === "BANK" && calculatedAmount !== undefined && (amount === undefined || amount <= 0)) {
+      if (
+        value === "BANK" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount <= 0)
+      ) {
         setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      if (
+        value === "CASH" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount < calculatedAmount)
+      ) {
+        setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      if (value === "CASH") {
+        setValue("bank_account_id", null, { shouldValidate: true, shouldDirty: true });
       }
     },
     [amount, setValue],
@@ -175,10 +199,16 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
 
   useEffect(() => {
     if (computedAmount === undefined) return;
+    if (method === "CASH") {
+      if (amount === undefined || amount <= 0) {
+        setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      return;
+    }
     if (amount === undefined || amount <= 0) {
       setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
     }
-  }, [computedAmount, amount, setValue]);
+  }, [computedAmount, amount, method, setValue]);
 
   const submitting = createMutation.isPending;
   const isFetchingReference = invoicesCombobox.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
@@ -202,6 +232,15 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
             const submittedAmount = values.method === "CASH"
               ? (values.amount ?? 0)
               : (computedAmount ?? values.amount ?? 0);
+
+            if (
+              values.method === "CASH" &&
+              computedAmount !== undefined &&
+              submittedAmount < computedAmount
+            ) {
+              toast.error(t("form.cashAmountMinimum"));
+              return;
+            }
 
             if (submittedAmount <= 0) {
               toast.error(t("form.amountRequired") ?? "Amount is required");
@@ -477,6 +516,7 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               </Field>
 
               <>
+                {method === "BANK" ? (
                   <Field className="sm:col-span-2">
                     <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
                     {!selectedBankAccount ? (
@@ -546,11 +586,12 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                       <FieldError>{String(errors.bank_account_id.message)}</FieldError>
                     ) : null}
                   </Field>
+                ) : null}
 
-                  <Field className="sm:col-span-2">
-                    <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
-                    <Input {...register("reference_number")} disabled={submitting} />
-                  </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
+                  <Input {...register("reference_number")} disabled={submitting} />
+                </Field>
               </>
             </div>
           </div>
@@ -568,19 +609,28 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
                   <Field>
                     <FieldLabel>{t("fields.tenderAmount")}</FieldLabel>
                     <p className="mb-2 text-sm text-muted-foreground">{t("form.cashAmountHint")}</p>
+                    {minimumTenderAmount > 0 ? (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        {t("form.cashAmountMinimum")} ({formatCurrency(minimumTenderAmount)})
+                      </p>
+                    ) : null}
                     <Controller
                       control={control}
                       name="amount"
                       render={({ field }) => (
                         <NumericInput
-                            value={field.value ?? undefined}
+                          value={field.value ?? undefined}
                           onChange={(value) => field.onChange(value ?? 0)}
                           min={0}
+                          className={isCashAmountBelowMinimum ? "border-destructive focus-visible:ring-destructive" : undefined}
                           disabled={submitting || isFetchingReference}
                         />
                       )}
                     />
                     {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                    {!errors.amount?.message && isCashAmountBelowMinimum ? (
+                      <FieldError>{t("form.cashAmountMinimum")}</FieldError>
+                    ) : null}
                   </Field>
 
                   <div className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
@@ -631,7 +681,13 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
             <Button
               type="submit"
               className="cursor-pointer"
-              disabled={submitting || isFetchingReference || bankAccountsCombobox.isLoading || bankAccountsCombobox.isFetching}
+              disabled={
+                submitting ||
+                isFetchingReference ||
+                bankAccountsCombobox.isLoading ||
+                bankAccountsCombobox.isFetching ||
+                isCashAmountBelowMinimum
+              }
             >
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t("form.submit")}
