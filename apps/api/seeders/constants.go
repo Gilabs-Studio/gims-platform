@@ -11,6 +11,9 @@ const (
 	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
 	AccountantRoleID     = "b8e8a9b0-d1e2-4f3a-5b6c-7d8e9f0a1b2c"
 	AuditorRoleID        = "c9f9b0c1-e2f3-4a5b-6c7d-8e9f0a1b2c3d"
+	AROfficerRoleID      = "d1a1c2d3-e4f5-4a6b-8c9d-0e1f2a3b4c5d"
+	APOfficerRoleID      = "e2b2d3e4-f5a6-4b7c-9d0e-1f2a3b4c5d6e"
+	CashierRoleID        = "f3c3e4f5-a6b7-4c8d-0e1f-2a3b4c5d6e7f"
 )
 
 // User IDs (Fixed)

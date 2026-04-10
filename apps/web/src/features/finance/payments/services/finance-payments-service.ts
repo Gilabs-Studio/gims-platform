@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import type { ApiResponse, ListPaymentsParams, Payment, PaymentInput } from "../types";
 
-const BASE_URL = "/finance/payments";
+const BASE_URL = "/finance/ap/payments";
 
 function normalizeListParams(params?: ListPaymentsParams): ListPaymentsParams | undefined {
   if (!params) return undefined;

@@ -77,6 +77,27 @@ func SeedRoles() error {
 			Description: "Read-only audit role for financial controls and review",
 			Status:      "active",
 		},
+		{
+			ID:          AROfficerRoleID,
+			Name:        "AR Officer",
+			Code:        "ar_officer",
+			Description: "Accounts Receivable officer for AR operations and finance reporting access",
+			Status:      "active",
+		},
+		{
+			ID:          APOfficerRoleID,
+			Name:        "AP Officer",
+			Code:        "ap_officer",
+			Description: "Accounts Payable officer for AP operations and finance reporting access",
+			Status:      "active",
+		},
+		{
+			ID:          CashierRoleID,
+			Name:        "Cashier",
+			Code:        "cashier",
+			Description: "Cash and bank operations role with restricted finance access",
+			Status:      "active",
+		},
 	}
 
 	for _, r := range roles {

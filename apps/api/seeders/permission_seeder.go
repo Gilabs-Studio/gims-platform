@@ -157,15 +157,15 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
 
 		// Master Data - Payment & Courier
-		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
-		{"/master-data/currencies", "currency.create", "Create Currencies", "CREATE", "currency"},
-		{"/master-data/currencies", "currency.update", "Edit Currencies", "EDIT", "currency"},
-		{"/master-data/currencies", "currency.delete", "Delete Currencies", "DELETE", "currency"},
+		{"/finance/settings/currency", "currency.read", "View Currencies", "VIEW", "currency"},
+		{"/finance/settings/currency", "currency.create", "Create Currencies", "CREATE", "currency"},
+		{"/finance/settings/currency", "currency.update", "Edit Currencies", "EDIT", "currency"},
+		{"/finance/settings/currency", "currency.delete", "Delete Currencies", "DELETE", "currency"},
 
-		{"/master-data/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
-		{"/master-data/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
-		{"/master-data/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
-		{"/master-data/payment-terms", "payment_term.delete", "Delete Payment Terms", "DELETE", "payment_term"},
+		{"/finance/settings/payment-terms", "payment_term.read", "View Payment Terms", "VIEW", "payment_term"},
+		{"/finance/settings/payment-terms", "payment_term.create", "Create Payment Terms", "CREATE", "payment_term"},
+		{"/finance/settings/payment-terms", "payment_term.update", "Edit Payment Terms", "EDIT", "payment_term"},
+		{"/finance/settings/payment-terms", "payment_term.delete", "Delete Payment Terms", "DELETE", "payment_term"},
 
 		{"/master-data/courier-agencies", "courier_agency.read", "View Courier Agencies", "VIEW", "courier_agency"},
 		{"/master-data/courier-agencies", "courier_agency.create", "Create Courier Agencies", "CREATE", "courier_agency"},
@@ -381,13 +381,13 @@ func SeedPermissions() error {
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
 
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
-		{"/finance/accounting/journal-entries/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
-		{"/finance/accounting/journal-entries/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
+		{"/finance/cash-bank/journals", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
+		{"/finance/cash-bank/journals", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
 
-		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
-		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
-		{"/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
-		{"/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
+		{"/finance/cash-bank/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
+		{"/finance/cash-bank/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
+		{"/finance/cash-bank/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
+		{"/finance/cash-bank/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
@@ -395,10 +395,10 @@ func SeedPermissions() error {
 		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},
 
-		{"/finance/tax-invoices", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
-		{"/finance/tax-invoices", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
-		{"/finance/tax-invoices", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
-		{"/finance/tax-invoices", "tax_invoice.delete", "Delete Tax Invoices", "DELETE", "tax_invoice"},
+		{"/finance/settings/tax-config", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
+		{"/finance/settings/tax-config", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
+		{"/finance/settings/tax-config", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
+		{"/finance/settings/tax-config", "tax_invoice.delete", "Delete Tax Invoices", "DELETE", "tax_invoice"},
 
 		{"/finance/ap/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
 		{"/finance/ap/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
@@ -409,6 +409,13 @@ func SeedPermissions() error {
 		{"/finance/ap/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
 		{"/finance/ap/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
 
+		{"/finance/ap/supplier-payments", "payment.read", "View Payments", "VIEW", "payment"},
+		{"/finance/ap/supplier-payments", "payment.create", "Create Payments", "CREATE", "payment"},
+		{"/finance/ap/supplier-payments", "payment.update", "Edit Payments", "EDIT", "payment"},
+		{"/finance/ap/supplier-payments", "payment.delete", "Delete Payments", "DELETE", "payment"},
+		{"/finance/ap/supplier-payments", "payment.approve", "Approve Payments", "APPROVE", "payment"},
+
+		// HYBRID POLICY: hidden in frontend navigation for now, kept in backend seeder for research.
 		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
 		{"/finance/budget", "budget.create", "Create Budget", "CREATE", "budget"},
 		{"/finance/budget", "budget.update", "Edit Budget", "EDIT", "budget"},
@@ -457,8 +464,9 @@ func SeedPermissions() error {
 
 		{"/finance/ar/customer-invoices", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
 		{"/finance/ar/customer-invoices", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
-		{"/finance/reports/aging", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
+		{"/finance/ar/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
 		{"/finance/reports/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
+		// HYBRID POLICY: hidden in frontend navigation for now, kept in backend seeder for research.
 		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
 		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
@@ -716,11 +724,7 @@ func SeedPermissions() error {
 		"journal_valuation.run",
 		"journal_valuation.approve",
 		"journal_valuation.export",
-		"payment.read",
-		"payment.create",
-		"payment.update",
-		"payment.delete",
-		"payment.approve",
+		// HYBRID POLICY: salary remains backend-only for now while hidden in frontend navigation.
 		"salary.read",
 		"salary.create",
 		"salary.update",

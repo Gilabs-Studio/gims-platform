@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function LegacyFinancePaymentsRedirectPage() {
+export default function FinanceAPSupplierPaymentsRedirectPage() {
   redirect("/finance/ap/payments");
 }

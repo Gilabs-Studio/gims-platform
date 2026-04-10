@@ -2,13 +2,17 @@ package router
 
 import (
 	"github.com/gilabs/gims/api/internal/core/middleware"
-	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	"github.com/gilabs/gims/api/internal/finance/presentation/handler"
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterPaymentRoutes(r *gin.RouterGroup, h *handler.PaymentHandler) {
-	g := r.Group("/payments")
+	registerPaymentRoutesInGroup(r.Group("/payments"), h)
+	registerPaymentRoutesInGroup(r.Group("/ap/payments"), h)
+}
+
+func registerPaymentRoutesInGroup(g *gin.RouterGroup, h *handler.PaymentHandler) {
 	g.GET("", middleware.RequirePermission(reference.PermissionKey(reference.RefTypePayment, reference.ActionView)), h.List)
 	g.GET("/", middleware.RequirePermission(reference.PermissionKey(reference.RefTypePayment, reference.ActionView)), h.List)
 	g.POST("", middleware.RequirePermission(reference.PermissionKey(reference.RefTypePayment, reference.ActionCreate)), h.Create)

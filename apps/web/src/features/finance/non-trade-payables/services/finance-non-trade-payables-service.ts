@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import type { ApiResponse, ListNonTradePayablesParams, NonTradePayable, NonTradePayableInput } from "../types";
 
-const BASE_URL = "/finance/non-trade-payables";
+const BASE_URL = "/finance/ap/non-trade-payables";
 
 export const financeNonTradePayablesService = {
   list: async (params?: ListNonTradePayablesParams): Promise<ApiResponse<NonTradePayable[]>> => {

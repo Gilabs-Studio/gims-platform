@@ -429,10 +429,8 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Currencies", "coins", "/master-data/currencies", 1},
-		{"Payment Terms", "clock", "/master-data/payment-terms", 2},
-		{"Courier Agencies", "truck", "/master-data/courier-agencies", 3},
-		{"SO Sources", "file-text", "/master-data/so-sources", 4},
+		{"Courier Agencies", "truck", "/master-data/courier-agencies", 1},
+		{"SO Sources", "file-text", "/master-data/so-sources", 2},
 	}
 	for _, child := range paymentChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &paymentMenu.ID, child.order); err != nil {
@@ -529,27 +527,27 @@ func SeedMenus() error {
 		return err
 	}
 
-	receivablesPayablesMenu, err := createChildMenu("Receivables and Payables", "receipt", "", &financeMenu.ID, 2)
+	arMenu, err := createChildMenu("Accounts Receivable (AR)", "receipt", "", &financeMenu.ID, 2)
 	if err != nil {
 		return err
 	}
 
-	budgetingCostMenu, err := createChildMenu("Budgeting and Cost", "percent", "", &financeMenu.ID, 3)
+	apMenu, err := createChildMenu("Accounts Payable (AP)", "receipt", "", &financeMenu.ID, 3)
 	if err != nil {
 		return err
 	}
 
-	assetManagementMenu, err := createChildMenu("Asset Management", "briefcase", "/finance/fixed-assets", &financeMenu.ID, 4)
+	cashBankMenu, err := createChildMenu("Cash & Bank", "landmark", "", &financeMenu.ID, 4)
 	if err != nil {
 		return err
 	}
 
-	financialStatementsMenu, err := createChildMenu("Financial Statements", "bar-chart-3", "", &financeMenu.ID, 5)
+	fixedAssetsMenu, err := createChildMenu("Fixed Assets", "building-2", "/finance/fixed-assets", &financeMenu.ID, 5)
 	if err != nil {
 		return err
 	}
 
-	taxationMenu, err := createChildMenu("Taxation", "receipt", "", &financeMenu.ID, 6)
+	financialReportsMenu, err := createChildMenu("Financial Reports", "bar-chart-3", "", &financeMenu.ID, 6)
 	if err != nil {
 		return err
 	}
@@ -565,9 +563,8 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Bank Accounts", "landmark", "/finance/bank-accounts", 1},
-		{"Chart of Accounts", "list", "/finance/accounting/coa", 2},
-		{"Financial Closing", "lock", "/finance/accounting/closing", 3},
+		{"Chart of Accounts", "list", "/finance/accounting/coa", 1},
+		{"Financial Closing", "lock", "/finance/accounting/closing", 2},
 	}
 	for _, child := range accountingChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &accountingMenu.ID, child.order); err != nil {
@@ -576,7 +573,7 @@ func SeedMenus() error {
 	}
 
 	// Journal Group under Accounting
-	journalMenu, err := createChildMenu("Journal", "book-open", "", &accountingMenu.ID, 4)
+	journalMenu, err := createChildMenu("Journal", "book-open", "", &accountingMenu.ID, 3)
 	if err != nil {
 		return err
 	}
@@ -597,59 +594,78 @@ func SeedMenus() error {
 		}
 	}
 
-	receivablesPayablesChildren := []struct {
+	arChildren := []struct {
 		name  string
 		icon  string
 		url   string
 		order int
 	}{
-		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 1},
-		{"Payments", "credit-card", "/finance/ap/payments", 2},
-		{"AR/AP Reconciliation", "scale", "/finance/reports/reconciliation/arap", 3},
-		{"Aging Reports", "clock", "/finance/reports/aging", 4},
+		{"Customer Invoices", "receipt", "/finance/ar/customer-invoices", 1},
+		{"Customer Payments", "credit-card", "/finance/ar/customer-payments", 2},
+		{"Credit Notes", "rotate-ccw", "/finance/ar/credit-notes", 3},
+		{"AR Aging Reports", "clock", "/finance/ar/aging-reports", 4},
 	}
-	for _, child := range receivablesPayablesChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &receivablesPayablesMenu.ID, child.order); err != nil {
+	for _, child := range arChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &arMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
 
-	budgetingCostChildren := []struct {
+	apChildren := []struct {
 		name  string
 		icon  string
 		url   string
 		order int
 	}{
-		{"Budget", "pie-chart", "/finance/budget", 1},
-		{"Salary", "dollar-sign", "/finance/salary", 2},
-		{"Up Country Cost", "map", "/finance/up-country-cost", 3},
+		{"Supplier Invoices", "receipt", "/finance/ap/supplier-invoices", 1},
+		{"Supplier Payments", "credit-card", "/finance/ap/supplier-payments", 2},
+		{"Debit Notes", "rotate-ccw", "/finance/ap/debit-notes", 3},
+		{"Non-Trade Payables", "file-minus", "/finance/ap/non-trade-payables", 4},
+		{"AP Aging Reports", "clock", "/finance/ap/aging-reports", 5},
 	}
-	for _, child := range budgetingCostChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &budgetingCostMenu.ID, child.order); err != nil {
+	for _, child := range apChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &apMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
 
-	assetManagementChildren := []struct {
+	cashBankChildren := []struct {
 		name  string
 		icon  string
 		url   string
 		order int
 	}{
-		{"Assets", "building-2", "/finance/fixed-assets/assets", 1},
+		{"Bank Accounts", "landmark", "/finance/cash-bank/bank-accounts", 1},
+		{"Cash & Bank Journal", "book-open", "/finance/cash-bank/journals", 2},
+		{"Bank Transfers", "arrow-right-left", "/finance/cash-bank/transfers", 3},
+		{"Bank Reconciliation", "scale", "/finance/cash-bank/reconciliation", 4},
+	}
+	for _, child := range cashBankChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &cashBankMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	fixedAssetsChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Asset Register", "building-2", "/finance/fixed-assets/assets", 1},
 		{"Asset Categories", "folder-tree", "/finance/fixed-assets/categories", 2},
 		{"Asset Locations", "map-pin", "/finance/fixed-assets/locations", 3},
-		{"Asset Budgets", "wallet", "/finance/fixed-assets/budgets", 4},
-		{"Asset Maintenance", "wrench", "/finance/fixed-assets/maintenance", 5},
-		{"Asset Disposal", "hammer", "/finance/fixed-assets/disposal", 6},
+		{"Depreciation Schedule", "calendar", "/finance/fixed-assets/depreciation-schedule", 4},
+		{"Asset Disposal", "hammer", "/finance/fixed-assets/disposal", 5},
+		{"Asset Revaluation", "scale", "/finance/fixed-assets/revaluation", 6},
 	}
-	for _, child := range assetManagementChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &assetManagementMenu.ID, child.order); err != nil {
+	for _, child := range fixedAssetsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &fixedAssetsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
 
-	financialStatementsChildren := []struct {
+	financialReportsChildren := []struct {
 		name  string
 		icon  string
 		url   string
@@ -661,22 +677,8 @@ func SeedMenus() error {
 		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 4},
 		{"Cash Flow Statement", "bar-chart-2", "/finance/reports/cash-flow-statement", 5},
 	}
-	for _, child := range financialStatementsChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &financialStatementsMenu.ID, child.order); err != nil {
-			return err
-		}
-	}
-
-	taxationChildren := []struct {
-		name  string
-		icon  string
-		url   string
-		order int
-	}{
-		{"Tax Invoices", "file-text", "/finance/tax-invoices", 1},
-	}
-	for _, child := range taxationChildren {
-		if _, err := createChildMenu(child.name, child.icon, child.url, &taxationMenu.ID, child.order); err != nil {
+	for _, child := range financialReportsChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &financialReportsMenu.ID, child.order); err != nil {
 			return err
 		}
 	}
@@ -688,6 +690,10 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
+		{"Fiscal Years", "calendar", "/finance/settings/fiscal-years", 2},
+		{"Tax Configuration", "receipt", "/finance/settings/tax-config", 3},
+		{"Payment Terms", "clock", "/finance/settings/payment-terms", 4},
+		{"Currency", "coins", "/finance/settings/currency", 5},
 	}
 	for _, child := range financeSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {
@@ -721,6 +727,9 @@ func SeedMenus() error {
 		"/finance/payments",
 		"/finance/tax-invoices",
 		"/finance/non-trade-payables",
+		"/finance/ap/payments",
+		"/finance/reports/aging",
+		"/finance/reports/reconciliation/arap",
 		"/finance/budget",
 		"/finance/closing",
 		"/finance/asset-categories",
@@ -753,6 +762,22 @@ func SeedMenus() error {
 	}
 	if err := deactivateMenuChildrenByNameAndParent("Reports", &financeMenu.ID); err != nil {
 		return err
+	}
+
+	legacyFinanceGroups := []string{
+		"Receivables and Payables",
+		"Budgeting and Cost",
+		"Asset Management",
+		"Financial Statements",
+		"Taxation",
+	}
+	for _, groupName := range legacyFinanceGroups {
+		if err := deactivateMenuByNameAndParent(groupName, &financeMenu.ID); err != nil {
+			return err
+		}
+		if err := deactivateMenuChildrenByNameAndParent(groupName, &financeMenu.ID); err != nil {
+			return err
+		}
 	}
 
 	// ============================================================

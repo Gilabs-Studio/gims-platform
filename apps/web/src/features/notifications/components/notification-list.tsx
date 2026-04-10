@@ -78,9 +78,9 @@ export function NotificationList() {
       case "customer_invoice_dp":
         return `/sales/customer-invoice-down-payments?open_customer_invoice_dp=${notification.entity_id}`;
       case "non_trade_payable":
-        return `/finance/non-trade-payables?open_non_trade_payable=${notification.entity_id}`;
+        return `/finance/ap/non-trade-payables?open_non_trade_payable=${notification.entity_id}`;
       case "payment":
-        return `/finance/payments?open_payment=${notification.entity_id}`;
+        return `/finance/ap/payments?open_payment=${notification.entity_id}`;
       case "budget":
         return `/finance/budget?open_budget=${notification.entity_id}`;
       case "financial_closing":

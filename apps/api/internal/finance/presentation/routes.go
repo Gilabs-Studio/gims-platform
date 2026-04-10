@@ -131,6 +131,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	systemAccountMappingH := handler.NewSystemAccountMappingHandler(systemAccountMappingUC)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
+	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)
 	agingH := handler.NewAgingReportHandler(agingUC)
 	assetCategoryH := handler.NewAssetCategoryHandler(assetCategoryUC)
@@ -149,6 +150,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	router.RegisterChartOfAccountRoutes(group, coaH)
 	router.RegisterJournalEntryRoutes(group, journalH)
+	router.RegisterPaymentRoutes(group, paymentH)
 	router.RegisterBudgetRoutes(group, budgetH)
 	router.RegisterFinanceAgingReportRoutes(group, agingH)
 	router.RegisterAssetCategoryRoutes(group, assetCategoryH)

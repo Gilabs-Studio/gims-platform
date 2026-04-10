@@ -31,9 +31,6 @@ func RegisterLegacyFinanceRouteBridges(rg *gin.RouterGroup) {
 	rg.Any("/journal-lines", deprecatedRoute("Journal lines endpoint is deprecated.", "/finance/accounting/journal-entries"))
 	rg.Any("/journal-lines/*path", deprecatedRoute("Journal lines endpoint is deprecated.", "/finance/accounting/journal-entries"))
 
-	rg.Any("/payments", deprecatedRoute("Flat payments endpoint is deprecated. Use AR/AP payment flows.", "/finance/ar/receipts"))
-	rg.Any("/payments/*path", deprecatedRoute("Flat payments endpoint is deprecated. Use AR/AP payment flows.", "/finance/ar/receipts"))
-
 	rg.Any("/cash-bank", deprecatedRoute("Legacy cash-bank endpoint is deprecated. Use canonical Cash & Bank routes.", "/finance/cash-bank/accounts"))
 	rg.Any("/cash-bank/*path", deprecatedRoute("Legacy cash-bank endpoint is deprecated. Use canonical Cash & Bank routes.", "/finance/cash-bank/accounts"))
 

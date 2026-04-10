@@ -16,6 +16,14 @@ type SystemAccountMappingHandler struct {
 	uc usecase.SystemAccountMappingUsecase
 }
 
+func mappingKeyParam(c *gin.Context) string {
+	key := strings.TrimSpace(c.Param("key"))
+	if key != "" {
+		return key
+	}
+	return strings.TrimSpace(c.Param("id"))
+}
+
 func NewSystemAccountMappingHandler(uc usecase.SystemAccountMappingUsecase) *SystemAccountMappingHandler {
 	return &SystemAccountMappingHandler{uc: uc}
 }
@@ -36,7 +44,7 @@ func (h *SystemAccountMappingHandler) List(c *gin.Context) {
 }
 
 func (h *SystemAccountMappingHandler) GetByKey(c *gin.Context) {
-	key := strings.TrimSpace(c.Param("key"))
+	key := mappingKeyParam(c)
 	if key == "" {
 		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "key is required", map[string]interface{}{"key": "is required"})
 		return
@@ -57,7 +65,7 @@ func (h *SystemAccountMappingHandler) GetByKey(c *gin.Context) {
 }
 
 func (h *SystemAccountMappingHandler) Upsert(c *gin.Context) {
-	key := strings.TrimSpace(c.Param("key"))
+	key := mappingKeyParam(c)
 	if key == "" {
 		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "key is required", map[string]interface{}{"key": "is required"})
 		return
@@ -84,7 +92,7 @@ func (h *SystemAccountMappingHandler) Upsert(c *gin.Context) {
 }
 
 func (h *SystemAccountMappingHandler) Delete(c *gin.Context) {
-	key := strings.TrimSpace(c.Param("key"))
+	key := mappingKeyParam(c)
 	if key == "" {
 		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "key is required", map[string]interface{}{"key": "is required"})
 		return
