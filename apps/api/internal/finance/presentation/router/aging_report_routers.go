@@ -6,9 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const agingReportRead = "aging_report.read"
+
 func RegisterFinanceAgingReportRoutes(rg *gin.RouterGroup, h *handler.AgingReportHandler) {
 	g := rg.Group("/reports")
-	// No explicit aging permissions are seeded; use journal.read to allow finance report viewing.
-	g.GET("/ar-aging", middleware.RequirePermission(journalRead), h.ARAging)
-	g.GET("/ap-aging", middleware.RequirePermission(journalRead), h.APAging)
+	g.GET("/ar-aging", middleware.RequirePermission(agingReportRead), h.ARAging)
+	g.GET("/ap-aging", middleware.RequirePermission(agingReportRead), h.APAging)
+	g.GET("/aging/ar", middleware.RequirePermission(agingReportRead), h.ARAging)
+	g.GET("/aging/ap", middleware.RequirePermission(agingReportRead), h.APAging)
 }

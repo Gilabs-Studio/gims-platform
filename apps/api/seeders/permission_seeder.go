@@ -422,18 +422,18 @@ func SeedPermissions() error {
 		{"/finance/accounting/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
 		{"/finance/accounting/closing", "financial_closing.delete", "Delete Financial Closing", "DELETE", "financial_closing"},
 
-		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
-		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
-		{"/finance/assets", "asset.update", "Edit Assets", "EDIT", "asset"},
-		{"/finance/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
-		{"/finance/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
+		{"/finance/fixed-assets/assets", "asset.read", "View Assets", "VIEW", "asset"},
+		{"/finance/fixed-assets/assets", "asset.create", "Create Assets", "CREATE", "asset"},
+		{"/finance/fixed-assets/assets", "asset.update", "Edit Assets", "EDIT", "asset"},
+		{"/finance/fixed-assets/assets", "asset.delete", "Delete Assets", "DELETE", "asset"},
+		{"/finance/fixed-assets/assets", "asset.depreciate", "Depreciate Assets", "DEPRECIATE", "asset"},
 
 		// Asset Maintenance
-		{"/finance/asset-maintenance", "asset_maintenance.read", "View Asset Maintenance", "VIEW", "asset_maintenance"},
-		{"/finance/asset-maintenance", "asset_maintenance.create", "Create Asset Maintenance", "CREATE", "asset_maintenance"},
-		{"/finance/asset-maintenance", "asset_maintenance.update", "Edit Asset Maintenance", "EDIT", "asset_maintenance"},
-		{"/finance/asset-maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
-		{"/finance/asset-maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
+		{"/finance/fixed-assets/maintenance", "asset_maintenance.read", "View Asset Maintenance", "VIEW", "asset_maintenance"},
+		{"/finance/fixed-assets/maintenance", "asset_maintenance.create", "Create Asset Maintenance", "CREATE", "asset_maintenance"},
+		{"/finance/fixed-assets/maintenance", "asset_maintenance.update", "Edit Asset Maintenance", "EDIT", "asset_maintenance"},
+		{"/finance/fixed-assets/maintenance", "asset_maintenance.delete", "Delete Asset Maintenance", "DELETE", "asset_maintenance"},
+		{"/finance/fixed-assets/maintenance", "asset_maintenance.approve", "Approve Asset Maintenance", "APPROVE", "asset_maintenance"},
 
 		// Travel Planner
 		{"/travel/travel-planner", "travel_planner.read", "View Travel Planner", "VIEW", "travel_planner"},
@@ -451,6 +451,8 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.read", "View Trial Balance Report", "VIEW", "trial_balance_report"},
+		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
 		{"/finance/reports/cash-flow-statement", "cash_flow_statement.read", "View Cash Flow Statement", "VIEW", "cash_flow_statement"},
 
 		{"/finance/ar/customer-invoices", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
@@ -467,25 +469,25 @@ func SeedPermissions() error {
 		{"/finance/up-country-cost", "up_country_cost.pay", "Mark Up Country Cost Paid", "PAY", "up_country_cost"},
 
 		// Asset Categories
-		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
-		{"/finance/asset-categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
-		{"/finance/asset-categories", "asset_category.update", "Edit Asset Categories", "EDIT", "asset_category"},
-		{"/finance/asset-categories", "asset_category.delete", "Delete Asset Categories", "DELETE", "asset_category"},
+		{"/finance/fixed-assets/categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
+		{"/finance/fixed-assets/categories", "asset_category.create", "Create Asset Categories", "CREATE", "asset_category"},
+		{"/finance/fixed-assets/categories", "asset_category.update", "Edit Asset Categories", "EDIT", "asset_category"},
+		{"/finance/fixed-assets/categories", "asset_category.delete", "Delete Asset Categories", "DELETE", "asset_category"},
 
 		// Asset Locations
-		{"/finance/asset-locations", "asset_location.read", "View Asset Locations", "VIEW", "asset_location"},
-		{"/finance/asset-locations", "asset_location.create", "Create Asset Locations", "CREATE", "asset_location"},
-		{"/finance/asset-locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
-		{"/finance/asset-locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
+		{"/finance/fixed-assets/locations", "asset_location.read", "View Asset Locations", "VIEW", "asset_location"},
+		{"/finance/fixed-assets/locations", "asset_location.create", "Create Asset Locations", "CREATE", "asset_location"},
+		{"/finance/fixed-assets/locations", "asset_location.update", "Edit Asset Locations", "EDIT", "asset_location"},
+		{"/finance/fixed-assets/locations", "asset_location.delete", "Delete Asset Locations", "DELETE", "asset_location"},
 
 		// Asset Budgets
-		{"/finance/asset-budgets", "asset_budget.read", "View Asset Budgets", "VIEW", "asset_budget"},
-		{"/finance/asset-budgets", "asset_budget.create", "Create Asset Budgets", "CREATE", "asset_budget"},
-		{"/finance/asset-budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
-		{"/finance/asset-budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
+		{"/finance/fixed-assets/budgets", "asset_budget.read", "View Asset Budgets", "VIEW", "asset_budget"},
+		{"/finance/fixed-assets/budgets", "asset_budget.create", "Create Asset Budgets", "CREATE", "asset_budget"},
+		{"/finance/fixed-assets/budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
+		{"/finance/fixed-assets/budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
 
 		// Asset Disposal (placeholder)
-		{"/finance/asset-disposal", "asset_disposal.read", "View Asset Disposal", "VIEW", "asset_disposal"},
+		{"/finance/fixed-assets/disposal", "asset_disposal.read", "View Asset Disposal", "VIEW", "asset_disposal"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -724,8 +726,6 @@ func SeedPermissions() error {
 		"salary.update",
 		"salary.delete",
 		"salary.approve",
-		"trial_balance_report.read",
-		"trial_balance_report.export",
 		"cash_bank.read",
 		"cash_bank.create",
 		"cash_bank.update",

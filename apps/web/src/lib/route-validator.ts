@@ -42,6 +42,7 @@ const EXTRA_VALID_ROUTES = [
   "/finance/fixed-assets/disposal",
   "/finance/settings/accounting-mapping",
   "/finance/reports/general-ledger",
+  "/finance/reports/trial-balance",
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",
   "/finance/reports/cash-flow-statement",

@@ -59,6 +59,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingLogRepo := repositories.NewFinancialClosingLogRepository(db)
 	taxInvoiceRepo := repositories.NewTaxInvoiceRepository(db)
 	nonTradePayableRepo := repositories.NewNonTradePayableRepository(db)
+	upCountryCostRepo := repositories.NewUpCountryCostRepository(db)
 	salaryRepo := repositories.NewSalaryStructureRepository(db)
 	reportRepo := repositories.NewFinanceReportRepository(db)
 	valuationRunRepo := repositories.NewValuationRunRepository(db)
@@ -75,6 +76,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingMapper := mapper.NewFinancialClosingMapper()
 	taxInvoiceMapper := mapper.NewTaxInvoiceMapper()
 	nonTradePayableMapper := mapper.NewNonTradePayableMapper()
+	upCountryCostMapper := mapper.NewUpCountryCostMapper()
 	salaryMapper := mapper.NewSalaryStructureMapper()
 
 	// Settings & Accounting Engine
@@ -106,6 +108,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	)
 	taxInvoiceUC := usecase.NewTaxInvoiceUsecase(db, taxInvoiceRepo, taxInvoiceMapper)
 	nonTradePayableUC := usecase.NewNonTradePayableUsecase(db, coaRepo, nonTradePayableRepo, journalUC, nonTradePayableMapper, settingsService, accountingEngine)
+	upCountryCostUC := usecase.NewUpCountryCostUsecase(db, coaRepo, upCountryCostRepo, journalUC, upCountryCostMapper, settingsService, accountingEngine)
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
@@ -136,6 +139,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingH := handler.NewFinancialClosingHandler(financialClosingUC)
 	taxInvoiceH := handler.NewTaxInvoiceHandler(taxInvoiceUC)
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
+	upCountryCostH := handler.NewUpCountryCostHandler(upCountryCostUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
 	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
 
@@ -153,6 +157,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterTaxInvoiceRoutes(group, taxInvoiceH)
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
+	router.RegisterUpCountryCostRoutes(group, upCountryCostH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
 	router.RegisterFinanceSettingsRoutes(group, settingsH)

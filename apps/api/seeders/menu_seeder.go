@@ -656,9 +656,10 @@ func SeedMenus() error {
 		order int
 	}{
 		{"General Ledger", "book-open", "/finance/reports/general-ledger", 1},
-		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 2},
-		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 3},
-		{"Cash Flow Statement", "bar-chart-2", "/finance/reports/cash-flow-statement", 4},
+		{"Trial Balance", "scale", "/finance/reports/trial-balance", 2},
+		{"Balance Sheet", "scale", "/finance/reports/balance-sheet", 3},
+		{"Profit & Loss", "trending-up", "/finance/reports/profit-loss", 4},
+		{"Cash Flow Statement", "bar-chart-2", "/finance/reports/cash-flow-statement", 5},
 	}
 	for _, child := range financialStatementsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financialStatementsMenu.ID, child.order); err != nil {
@@ -1066,7 +1067,6 @@ func UpdateMenuStructure() error {
 		"/ai-settings",
 		"/finance/journal-lines",
 		"/finance/reports",
-		"/finance/reports/trial-balance",
 		"/finance/cash-bank",
 	}
 
