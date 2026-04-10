@@ -57,6 +57,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// POS floor layout seeder (2 outlets live-table scenario)
+	if err := SeedPOSFloorLayouts(); err != nil {
+		return err
+	}
+
 	// Employee seeder (Sprint 3)
 	if err := SeedEmployees(); err != nil {
 		return err
@@ -94,6 +99,16 @@ func SeedAll() error {
 
 	// POS F&B ingredient inventory batches (must run after SeedPosIngredients + SeedWarehouse)
 	if err := SeedPosIngredientInventory(); err != nil {
+		return err
+	}
+
+	// POS Goods products and starter stock batches
+	if err := SeedPosGoodsProducts(); err != nil {
+		return err
+	}
+
+	// POS Pharmacy products for Kimia Farma outlets (must run after SeedPosGoodsProducts)
+	if err := SeedPosPharmaProducts(); err != nil {
 		return err
 	}
 
@@ -386,6 +401,10 @@ func seedMasterData() error {
 		return err
 	}
 
+	if err := SeedPOSFloorLayouts(); err != nil {
+		return err
+	}
+
 	if err := SeedEmployees(); err != nil {
 		return err
 	}
@@ -403,6 +422,10 @@ func seedMasterData() error {
 	}
 
 	if err := SeedInventory(); err != nil {
+		return err
+	}
+
+	if err := SeedPosGoodsProducts(); err != nil {
 		return err
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	inventoryModels "github.com/gilabs/gims/api/internal/inventory/data/models"
+	organizationModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
@@ -18,18 +19,47 @@ func SeedPosIngredientInventory() error {
 
 	db := database.DB
 
-	// Use the first available warehouse
-	var warehouse warehouseModels.Warehouse
-	if err := db.Where("deleted_at IS NULL").First(&warehouse).Error; err != nil {
-		log.Printf("Warning: No warehouse found for ingredient inventory seeding: %v", err)
+	// Prefer active outlet-linked warehouses so each outlet can run F&B recipes.
+	var outlets []organizationModels.Outlet
+	if err := db.Where("deleted_at IS NULL AND is_active = ? AND warehouse_id IS NOT NULL", true).Find(&outlets).Error; err != nil {
+		log.Printf("Warning: Failed to fetch active outlets for ingredient inventory seeding: %v", err)
+		return nil
+	}
+
+	warehouseMap := make(map[string]struct{})
+	warehouseIDs := make([]string, 0, len(outlets))
+	for _, outlet := range outlets {
+		if outlet.WarehouseID == nil || *outlet.WarehouseID == "" {
+			continue
+		}
+		if _, exists := warehouseMap[*outlet.WarehouseID]; exists {
+			continue
+		}
+		warehouseMap[*outlet.WarehouseID] = struct{}{}
+		warehouseIDs = append(warehouseIDs, *outlet.WarehouseID)
+	}
+
+	// Fallback for environments without outlet linkage yet.
+	if len(warehouseIDs) == 0 {
+		var fallback warehouseModels.Warehouse
+		if err := db.Where("deleted_at IS NULL").First(&fallback).Error; err != nil {
+			log.Printf("Warning: No warehouse found for ingredient inventory seeding: %v", err)
+			return nil
+		}
+		warehouseIDs = append(warehouseIDs, fallback.ID)
+	}
+
+	var warehouses []warehouseModels.Warehouse
+	if err := db.Where("id IN ?", warehouseIDs).Find(&warehouses).Error; err != nil {
+		log.Printf("Warning: Failed to load warehouses for ingredient inventory seeding: %v", err)
 		return nil
 	}
 
 	// Map ingredient product codes to their initial stock quantities (in base UOM)
 	type ingredientStock struct {
-		code     string
-		qty      float64
-		expDays  int // days until expiry date; 0 = no expiry
+		code    string
+		qty     float64
+		expDays int // days until expiry date; 0 = no expiry
 	}
 
 	ingredientStocks := []ingredientStock{
@@ -45,46 +75,48 @@ func SeedPosIngredientInventory() error {
 		{code: "ING-OIL-001", qty: 10, expDays: 365},     // 10 L
 	}
 
-	for _, ing := range ingredientStocks {
-		var product productModels.Product
-		if err := db.Where("code = ? AND deleted_at IS NULL", ing.code).First(&product).Error; err != nil {
-			log.Printf("Warning: Ingredient product '%s' not found, skipping batch creation: %v", ing.code, err)
-			continue
-		}
+	for _, warehouse := range warehouses {
+		for _, ing := range ingredientStocks {
+			var product productModels.Product
+			if err := db.Where("code = ? AND deleted_at IS NULL", ing.code).First(&product).Error; err != nil {
+				log.Printf("Warning: Ingredient product '%s' not found, skipping batch creation: %v", ing.code, err)
+				continue
+			}
 
-		batchNumber := fmt.Sprintf("BCH-ING-%s-%s", ing.code, time.Now().Format("20060102"))
+			batchNumber := fmt.Sprintf("BCH-ING-%s-%s", ing.code, time.Now().Format("20060102"))
 
-		// Check if batch already exists for this product in this warehouse
-		var existing inventoryModels.InventoryBatch
-		err := db.Where("batch_number = ? AND product_id = ? AND warehouse_id = ?",
-			batchNumber, product.ID, warehouse.ID).First(&existing).Error
+			// Check if batch already exists for this product in this warehouse
+			var existing inventoryModels.InventoryBatch
+			err := db.Where("batch_number = ? AND product_id = ? AND warehouse_id = ?",
+				batchNumber, product.ID, warehouse.ID).First(&existing).Error
 
-		if err == nil {
-			// Already exists — skip
-			continue
-		}
-		if err != gorm.ErrRecordNotFound {
-			log.Printf("Warning: Error checking batch for '%s': %v", ing.code, err)
-			continue
-		}
+			if err == nil {
+				// Already exists — skip
+				continue
+			}
+			if err != gorm.ErrRecordNotFound {
+				log.Printf("Warning: Error checking batch for '%s' in warehouse '%s': %v", ing.code, warehouse.Code, err)
+				continue
+			}
 
-		batch := inventoryModels.InventoryBatch{
-			BatchNumber:      batchNumber,
-			ProductID:        product.ID,
-			WarehouseID:      warehouse.ID,
-			InitialQuantity:  ing.qty,
-			CurrentQuantity:  ing.qty,
-			ReservedQuantity: 0,
-			IsActive:         true,
-		}
+			batch := inventoryModels.InventoryBatch{
+				BatchNumber:      batchNumber,
+				ProductID:        product.ID,
+				WarehouseID:      warehouse.ID,
+				InitialQuantity:  ing.qty,
+				CurrentQuantity:  ing.qty,
+				ReservedQuantity: 0,
+				IsActive:         true,
+			}
 
-		if ing.expDays > 0 {
-			expiry := time.Now().AddDate(0, 0, ing.expDays)
-			batch.ExpiryDate = &expiry
-		}
+			if ing.expDays > 0 {
+				expiry := time.Now().AddDate(0, 0, ing.expDays)
+				batch.ExpiryDate = &expiry
+			}
 
-		if err := db.Create(&batch).Error; err != nil {
-			log.Printf("Warning: Failed to create inventory batch for '%s': %v", ing.code, err)
+			if err := db.Create(&batch).Error; err != nil {
+				log.Printf("Warning: Failed to create inventory batch for '%s' in warehouse '%s': %v", ing.code, warehouse.Code, err)
+			}
 		}
 	}
 

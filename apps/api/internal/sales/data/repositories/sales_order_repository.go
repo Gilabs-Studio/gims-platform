@@ -117,6 +117,11 @@ func (r *salesOrderRepository) List(ctx context.Context, req *dto.ListSalesOrder
 		}
 	}
 
+	// Apply source type filter (e.g. "POS" for F&B POS orders)
+	if req.SourceType != "" {
+		query = query.Where("source_type = ?", req.SourceType)
+	}
+
 	// Apply date range filter
 	if req.DateFrom != "" {
 		query = query.Where("order_date >= ?", req.DateFrom)

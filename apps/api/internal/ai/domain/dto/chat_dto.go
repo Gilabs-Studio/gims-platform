@@ -31,13 +31,25 @@ type ListActionsRequest struct {
 	Status  string `form:"status" binding:"omitempty,oneof=SUCCESS FAILED PENDING_CONFIRMATION CANCELLED"`
 }
 
-// ChatMessageResponse represents a single message in the response
+// ChatMessageResponse represents a single message in the response (legacy format)
 type ChatMessageResponse struct {
 	ID        string      `json:"id"`
 	Role      string      `json:"role"`
 	Content   string      `json:"content"`
 	Intent    interface{} `json:"intent,omitempty"`
 	CreatedAt string      `json:"created_at"`
+}
+
+// MessageResponse is the enhanced message format used by the conversation engine.
+type MessageResponse struct {
+	ID         string      `json:"id"`
+	Role       string      `json:"role"`
+	Content    string      `json:"content"`
+	Intent     *string     `json:"intent,omitempty"`
+	Model      string      `json:"model,omitempty"`
+	DurationMs int         `json:"duration_ms,omitempty"`
+	ToolCalls  interface{} `json:"tool_calls,omitempty"`
+	CreatedAt  string      `json:"created_at"`
 }
 
 // ActionPreview represents a preview of an action to be confirmed
@@ -61,8 +73,8 @@ type TokenUsageResponse struct {
 // ChatResponse represents the full response from the chat endpoint
 type ChatResponse struct {
 	SessionID            string              `json:"session_id"`
-	Message              ChatMessageResponse `json:"message"`
-	Action               *ActionPreview      `json:"action"`
+	Message              MessageResponse     `json:"message"`
+	Action               *ActionPreview      `json:"action,omitempty"`
 	RequiresConfirmation bool                `json:"requires_confirmation"`
 	TokenUsage           *TokenUsageResponse `json:"token_usage,omitempty"`
 }
@@ -79,16 +91,22 @@ type SessionListResponse struct {
 
 // SessionDetailResponse represents a session with messages and actions
 type SessionDetailResponse struct {
-	ID       string                `json:"id"`
-	Title    string                `json:"title"`
-	Status   string                `json:"status"`
-	Messages []ChatMessageResponse `json:"messages"`
-	Actions  []ActionLogResponse   `json:"actions"`
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Status        string            `json:"status"`
+	LastActivity  string            `json:"last_activity,omitempty"`
+	MessageCount  int               `json:"message_count"`
+	Messages      []MessageResponse `json:"messages"`
+	Actions       []ActionLogResponse `json:"actions,omitempty"`
+	PendingAction *ActionPreview    `json:"pending_action,omitempty"`
+	CreatedAt     string            `json:"created_at"`
 }
 
 // ActionLogResponse represents an action log entry
 type ActionLogResponse struct {
 	ID              string      `json:"id"`
+	SessionID       string      `json:"session_id,omitempty"`
+	UserID          string      `json:"user_id,omitempty"`
 	Intent          string      `json:"intent"`
 	Action          string      `json:"action"`
 	EntityType      string      `json:"entity_type,omitempty"`

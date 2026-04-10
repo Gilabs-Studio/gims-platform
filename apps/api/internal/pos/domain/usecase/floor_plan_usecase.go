@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
-	orgDTO "github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -18,10 +18,10 @@ import (
 )
 
 var (
-	ErrFloorPlanNotFound       = errors.New("floor plan not found")
-	ErrFloorPlanForbidden      = errors.New("forbidden: you do not have access to this floor plan")
+	ErrFloorPlanNotFound         = errors.New("floor plan not found")
+	ErrFloorPlanForbidden        = errors.New("forbidden: you do not have access to this floor plan")
 	ErrFloorPlanAlreadyPublished = errors.New("floor plan is already in published state")
-	ErrVersionNotFound         = errors.New("layout version not found")
+	ErrVersionNotFound           = errors.New("layout version not found")
 )
 
 // FloorPlanUsecase defines business operations
@@ -38,24 +38,82 @@ type FloorPlanUsecase interface {
 }
 
 type floorPlanUsecase struct {
-	repo        repositories.FloorPlanRepository
-	companyRepo orgRepo.CompanyRepository
+	repo       repositories.FloorPlanRepository
+	outletRepo orgRepo.OutletRepository
 }
 
 // NewFloorPlanUsecase creates a new instance
-func NewFloorPlanUsecase(repo repositories.FloorPlanRepository, companyRepo orgRepo.CompanyRepository) FloorPlanUsecase {
-	return &floorPlanUsecase{repo: repo, companyRepo: companyRepo}
+func NewFloorPlanUsecase(repo repositories.FloorPlanRepository, outletRepo orgRepo.OutletRepository) FloorPlanUsecase {
+	return &floorPlanUsecase{repo: repo, outletRepo: outletRepo}
 }
 
-func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanRequest, userID string, userCompanyID string, isOwner bool) (*dto.FloorPlanResponse, error) {
-	// Non-owner can only create for their own company
-	if !isOwner && req.CompanyID != userCompanyID {
+func (u *floorPlanUsecase) resolveCompanyID(ctx context.Context, plan *models.FloorPlan) string {
+	if plan.CompanyID != nil && *plan.CompanyID != "" {
+		return *plan.CompanyID
+	}
+	if plan.OutletID == "" {
+		return ""
+	}
+	outlet, err := u.outletRepo.GetByID(ctx, plan.OutletID)
+	if err != nil || outlet == nil || outlet.CompanyID == nil {
+		return ""
+	}
+	return *outlet.CompanyID
+}
+
+func (u *floorPlanUsecase) getOutletForCreate(ctx context.Context, req *dto.CreateFloorPlanRequest) (*orgModels.Outlet, error) {
+	if req.OutletID != "" {
+		outlet, err := u.outletRepo.GetByID(ctx, req.OutletID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrFloorPlanNotFound
+			}
+			return nil, err
+		}
+		return outlet, nil
+	}
+
+	if req.CompanyID == "" {
 		return nil, ErrFloorPlanForbidden
 	}
 
+	// Deprecated fallback: resolve first active outlet from company_id.
+	isActive := true
+	list, _, err := u.outletRepo.List(ctx, orgRepo.OutletListParams{
+		CompanyID: req.CompanyID,
+		IsActive:  &isActive,
+		Limit:     1,
+		Offset:    0,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(list) == 0 {
+		return nil, ErrFloorPlanNotFound
+	}
+	return list[0], nil
+}
+
+func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanRequest, userID string, userCompanyID string, isOwner bool) (*dto.FloorPlanResponse, error) {
+	outlet, err := u.getOutletForCreate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if outlet.CompanyID == nil {
+		return nil, ErrFloorPlanForbidden
+	}
+
+	// Non-owner can only create for outlet under their own company.
+	if !isOwner && *outlet.CompanyID != userCompanyID {
+		return nil, ErrFloorPlanForbidden
+	}
+
+	companyID := *outlet.CompanyID
 	plan := &models.FloorPlan{
 		ID:          uuid.New().String(),
-		CompanyID:   req.CompanyID,
+		OutletID:    outlet.ID,
+		CompanyID:   &companyID,
 		Name:        req.Name,
 		FloorNumber: req.FloorNumber,
 		Status:      models.FloorPlanStatusDraft,
@@ -76,7 +134,7 @@ func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanR
 		plan.Height = *req.Height
 	}
 
-	if err := u.repo.Create(ctx, plan); err != nil {
+	if err = u.repo.Create(ctx, plan); err != nil {
 		return nil, fmt.Errorf("failed to create floor plan: %w", err)
 	}
 
@@ -92,7 +150,7 @@ func (u *floorPlanUsecase) GetByID(ctx context.Context, id string, userCompanyID
 		return nil, fmt.Errorf("failed to get floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return nil, ErrFloorPlanForbidden
 	}
 
@@ -122,7 +180,7 @@ func (u *floorPlanUsecase) Update(ctx context.Context, id string, req *dto.Updat
 		return nil, fmt.Errorf("failed to find floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return nil, ErrFloorPlanForbidden
 	}
 
@@ -161,7 +219,7 @@ func (u *floorPlanUsecase) SaveLayoutData(ctx context.Context, id string, req *d
 		return nil, fmt.Errorf("failed to find floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return nil, ErrFloorPlanForbidden
 	}
 
@@ -185,7 +243,7 @@ func (u *floorPlanUsecase) Delete(ctx context.Context, id string, userCompanyID 
 		return fmt.Errorf("failed to find floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return ErrFloorPlanForbidden
 	}
 
@@ -205,7 +263,7 @@ func (u *floorPlanUsecase) Publish(ctx context.Context, id string, userID string
 		return nil, fmt.Errorf("failed to find floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return nil, ErrFloorPlanForbidden
 	}
 
@@ -246,7 +304,7 @@ func (u *floorPlanUsecase) ListVersions(ctx context.Context, floorPlanID string,
 		return nil, fmt.Errorf("failed to find floor plan: %w", err)
 	}
 
-	if !isOwner && plan.CompanyID != userCompanyID {
+	if !isOwner && u.resolveCompanyID(ctx, plan) != userCompanyID {
 		return nil, ErrFloorPlanForbidden
 	}
 
@@ -259,46 +317,36 @@ func (u *floorPlanUsecase) ListVersions(ctx context.Context, floorPlanID string,
 }
 
 func (u *floorPlanUsecase) GetFormData(ctx context.Context, userCompanyID string, isOwner bool) (*dto.FloorPlanFormDataResponse, error) {
-	var companies []dto.CompanyOption
+	var outlets []dto.OutletOption
+	isActive := true
+	params := orgRepo.OutletListParams{
+		IsActive: &isActive,
+		Limit:    100,
+		Offset:   0,
+	}
+	if !isOwner {
+		params.CompanyID = userCompanyID
+	}
 
-	if isOwner {
-		// Owner can see all active companies
-		isActive := true
-		allCompanies, _, err := u.companyRepo.List(ctx, &orgDTO.ListCompaniesRequest{
-			IsActive: &isActive,
-			PerPage:  100,
+	allOutlets, _, err := u.outletRepo.List(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch outlets: %w", err)
+	}
+
+	for _, outlet := range allOutlets {
+		outletUUID, parseErr := uuid.Parse(outlet.ID)
+		if parseErr != nil {
+			continue
+		}
+		outlets = append(outlets, dto.OutletOption{
+			ID:   outletUUID,
+			Name: outlet.Name,
 		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch companies: %w", err)
-		}
-		for _, c := range allCompanies {
-			companyUUID, parseErr := uuid.Parse(c.ID)
-			if parseErr != nil {
-				continue
-			}
-			companies = append(companies, dto.CompanyOption{
-				ID:   companyUUID,
-				Name: c.Name,
-			})
-		}
-	} else {
-		// Manager sees only their own company
-		company, err := u.companyRepo.FindByID(ctx, userCompanyID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &dto.FloorPlanFormDataResponse{Companies: []dto.CompanyOption{}}, nil
-			}
-			return nil, fmt.Errorf("failed to fetch company: %w", err)
-		}
-		companyUUID, parseErr := uuid.Parse(company.ID)
-		if parseErr == nil {
-			companies = []dto.CompanyOption{{ID: companyUUID, Name: company.Name}}
-		}
 	}
 
-	if companies == nil {
-		companies = []dto.CompanyOption{}
+	if outlets == nil {
+		outlets = []dto.OutletOption{}
 	}
 
-	return &dto.FloorPlanFormDataResponse{Companies: companies}, nil
+	return &dto.FloorPlanFormDataResponse{Outlets: outlets}, nil
 }

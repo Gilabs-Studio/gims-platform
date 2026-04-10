@@ -10,9 +10,9 @@ import { format } from "date-fns";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -24,19 +24,13 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
 
-import { purchasePaymentSchema, type PurchasePaymentFormData } from "../schemas/purchase-payment.schema";
+import { purchasePaymentSchema } from "../schemas/purchase-payment.schema";
 import { useCreatePurchasePayment } from "../hooks/use-purchase-payments";
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return "Unable to create payment. Please check your input and try again.";
-}
+import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -48,6 +42,26 @@ interface PurchasePaymentFormProps {
   readonly onClose: () => void;
   readonly defaultInvoiceId?: string;
   readonly defaultDPId?: string;
+}
+
+type PurchasePaymentFormValues = {
+  invoice_id?: string | null;
+  dp_id?: string | null;
+  bank_account_id?: string | null;
+  payment_date: string;
+  amount?: number;
+  method: "BANK" | "CASH";
+  reference_number?: string | null;
+  notes?: string | null;
+};
+
+const PAYABLE_INVOICE_STATUSES = new Set(["APPROVED", "UNPAID", "PARTIAL", "WAITING_PAYMENT"]);
+
+function isPayableInvoiceStatus(status?: string | null): boolean {
+  if (!status) return false;
+  const normalized = status.trim().toUpperCase();
+  if (normalized === "PAID") return false;
+  return PAYABLE_INVOICE_STATUSES.has(normalized);
 }
 
 export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
@@ -65,7 +79,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const dpDetail = dpDetailResponse?.data;
 
-  const resolver = useMemo(() => zodResolver(purchasePaymentSchema) as Resolver<PurchasePaymentFormData>, []);
+  const resolver = useMemo(() => zodResolver(purchasePaymentSchema) as Resolver<PurchasePaymentFormValues>, []);
 
   const {
     register,
@@ -74,13 +88,14 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     reset,
     setValue,
     formState: { errors },
-  } = useForm<PurchasePaymentFormData>({
+  } = useForm<PurchasePaymentFormValues>({
     resolver,
     defaultValues: {
       invoice_id: defaultInvoiceId ?? defaultDPId ?? null,
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
+      amount: undefined,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -94,6 +109,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
       dp_id: defaultDPId ?? null,
       bank_account_id: null,
       payment_date: todayISO(),
+      amount: undefined,
       method: "BANK",
       reference_number: null,
       notes: null,
@@ -102,6 +118,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
 
   const invoiceId = useWatch({ control, name: "invoice_id" });
   const method = useWatch({ control, name: "method" });
+  const amount = useWatch({ control, name: "amount" });
   const bankAccountId = useWatch({ control, name: "bank_account_id" });
 
   const invoicesCombobox = usePaginatedComboboxOptions({
@@ -137,6 +154,19 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     return invoicesCombobox.items.find((inv) => inv.id === invoiceId) ?? null;
   }, [invoiceId, isLockedToDP, selectedInvoiceDetailQuery.data, invoicesCombobox.items]);
 
+  const payableInvoices = useMemo(
+    () => invoicesCombobox.items.filter((inv) => isPayableInvoiceStatus(inv.status)),
+    [invoicesCombobox.items],
+  );
+
+  useEffect(() => {
+    if (isLockedToDP || isLockedToInvoice) return;
+    if (!invoiceId || !selectedInvoice) return;
+    if (!isPayableInvoiceStatus(selectedInvoice.status)) {
+      setValue("invoice_id", null, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [invoiceId, isLockedToDP, isLockedToInvoice, selectedInvoice, setValue]);
+
   const selectedBankAccount = useMemo(() => {
     if (!bankAccountId) return null;
     return bankAccountsCombobox.items.find((acc) => acc.id === bankAccountId) ?? null;
@@ -152,30 +182,62 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
     return undefined;
   }, [isLockedToDP, dpDetail, selectedInvoice]);
 
+  const minimumTenderAmount = useMemo(() => {
+    if (method !== "CASH") return 0;
+    return Math.max(0, computedAmount ?? 0);
+  }, [method, computedAmount]);
+
+  const isCashAmountBelowMinimum =
+    method === "CASH" &&
+    minimumTenderAmount > 0 &&
+    (amount ?? 0) < minimumTenderAmount;
+
   // Clear bank account when switching to CASH
   const handleMethodChange = useCallback(
-    (value: string) => {
+    (value: string, calculatedAmount?: number) => {
+      if (
+        value === "BANK" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount <= 0)
+      ) {
+        setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      if (
+        value === "CASH" &&
+        calculatedAmount !== undefined &&
+        (amount === undefined || amount < calculatedAmount)
+      ) {
+        setValue("amount", calculatedAmount, { shouldValidate: true, shouldDirty: true });
+      }
       if (value === "CASH") {
-        setValue("bank_account_id", null, { shouldValidate: false });
+        setValue("bank_account_id", null, { shouldValidate: true, shouldDirty: true });
       }
     },
-    [setValue],
+    [amount, setValue],
   );
+
+  useEffect(() => {
+    if (computedAmount === undefined) return;
+    if (method === "CASH") {
+      if (amount === undefined || amount <= 0) {
+        setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
+      }
+      return;
+    }
+    if (amount === undefined || amount <= 0) {
+      setValue("amount", computedAmount, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [computedAmount, amount, method, setValue]);
 
   const submitting = createMutation.isPending;
   const isFetchingReference = invoicesCombobox.isFetching || selectedInvoiceDetailQuery.isLoading || isLoadingDP;
   const [paymentDateOpen, setPaymentDateOpen] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const changeActionLabel = t.has("actions.change") ? t("actions.change") : "Change";
 
   return (
     <Dialog
       open={open}
       onOpenChange={(v) => {
-        if (!v) {
-          setSubmitError(null);
-          onClose();
-        }
+        if (!v) onClose();
       }}
     >
       <DialogContent size="lg">
@@ -186,13 +248,24 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
         <form
           className="space-y-6"
           onSubmit={handleSubmit(async (values) => {
-            setSubmitError(null);
-            if (computedAmount === undefined) {
-              const errorMessage = t.has("form.amountRequired") ? t("form.amountRequired") : "Amount is required";
-              setSubmitError(errorMessage);
-              toast.error(errorMessage);
+            const submittedAmount = values.method === "CASH"
+              ? (values.amount ?? 0)
+              : (computedAmount ?? values.amount ?? 0);
+
+            if (
+              values.method === "CASH" &&
+              computedAmount !== undefined &&
+              submittedAmount < computedAmount
+            ) {
+              toast.error(t("form.cashAmountMinimum"));
               return;
             }
+
+            if (submittedAmount <= 0) {
+              toast.error(t("form.amountRequired") ?? "Amount is required");
+              return;
+            }
+
             try {
               const invoiceIdForRequest = values.invoice_id ?? (isLockedToDP ? (dpDetail?.id ?? defaultDPId ?? null) : null);
               await createMutation.mutateAsync({
@@ -200,28 +273,22 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                 dp_id: values.dp_id ?? null,
                 bank_account_id: values.bank_account_id ?? null,
                 payment_date: values.payment_date,
-                amount: computedAmount,
+                amount: submittedAmount,
                 method: values.method,
                 reference_number: values.reference_number ?? null,
                 notes: values.notes ?? null,
               });
               toast.success(t("toast.created"));
-              setSubmitError(null);
               onClose();
             } catch (error) {
-              const errorMessage = getErrorMessage(error);
-              setSubmitError(errorMessage);
-              toast.error(t("toast.failed"));
+              toast.error(getPurchaseErrorMessage(error, t("toast.failed") ?? "Failed to save payment"));
             }
+          }, (formErrors) => {
+            const firstErrorField = Object.values(formErrors)[0];
+            const fallbackMessage = t("common.validationError") || "Please complete all required fields.";
+            toast.error(String(firstErrorField?.message ?? fallbackMessage));
           })}
         >
-          {submitError ? (
-            <Alert variant="destructive">
-              <AlertTitle>{t.has("toast.failed") ? t("toast.failed") : "Failed"}</AlertTitle>
-              <AlertDescription>{submitError}</AlertDescription>
-            </Alert>
-          ) : null}
-
           {/* Reference Section — Invoice or Down Payment */}
           <div>
             <div className="flex items-center space-x-2 pb-2 border-b border-border/50">
@@ -322,7 +389,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                             hasMore={invoicesCombobox.hasMore}
                             isLoadingMore={invoicesCombobox.isLoadingMore}
                           >
-                            {invoicesCombobox.items.map((inv) => (
+                              {payableInvoices.map((inv) => (
                               <SelectItem key={inv.id} value={inv.id} className="cursor-pointer">
                                 <div className="flex items-center justify-between w-(--radix-select-trigger-width)">
                                   <span>
@@ -331,7 +398,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                                   </span>
                                   <span className="text-muted-foreground ml-4">
                                     {formatCurrency(inv.remaining_amount)}
-                                    {inv.status === "PARTIAL" ? " (Partial)" : ""}
+                                      {inv.status?.toLowerCase() === "partial" ? " (Partial)" : ""}
                                   </span>
                                 </div>
                               </SelectItem>
@@ -344,15 +411,32 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                   </Field>
 
                   {selectedInvoice ? (
-                    <div className="mt-3 rounded-md border p-3">
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
-                          <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                    <div className="mt-4">
+                      <div className="rounded-md border p-3 bg-muted/30">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <span className="text-sm font-medium">{t("fields.invoice")}</span>
+                          <Badge variant="outline" className="font-mono">
+                            {selectedInvoice.code}
+                            {selectedInvoice.invoice_number ? ` (${selectedInvoice.invoice_number})` : ""}
+                          </Badge>
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
-                          <span className="text-xs font-medium text-primary">{formatCurrency(selectedInvoice.remaining_amount)}</span>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.invoiceDate")}</span>
+                            <span className="text-xs font-medium">{formatDate(selectedInvoice.invoice_date)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.dueDate")}</span>
+                            <span className="text-xs font-medium">{formatDate(selectedInvoice.due_date)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.amount")}</span>
+                            <span className="text-xs font-medium">{formatCurrency(selectedInvoice.amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-muted-foreground">{t("overview.remainingAmount")}</span>
+                            <span className="text-xs font-medium text-primary">{formatCurrency(selectedInvoice.remaining_amount)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -380,7 +464,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                       value={field.value}
                       onValueChange={(v) => {
                         field.onChange(v);
-                        handleMethodChange(v);
+                        handleMethodChange(v, computedAmount);
                       }}
                       disabled={submitting}
                     >
@@ -431,8 +515,8 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                 {errors.payment_date?.message ? <FieldError>{String(errors.payment_date.message)}</FieldError> : null}
               </Field>
 
-              {method === "BANK" ? (
-                <>
+              <>
+                {method === "BANK" ? (
                   <Field className="sm:col-span-2">
                     <FieldLabel>{t("fields.bankAccount")}</FieldLabel>
                     {!selectedBankAccount ? (
@@ -486,7 +570,7 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                             disabled={submitting}
                             onClick={() => setValue("bank_account_id", null, { shouldValidate: true })}
                           >
-                            {changeActionLabel}
+                            {t("actions.change")}
                           </Button>
                         </div>
                         <div className="text-xs text-muted-foreground">{selectedBankAccount.account_number} · {selectedBankAccount.account_holder}</div>
@@ -494,13 +578,13 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                     )}
                     {errors.bank_account_id?.message ? <FieldError>{String(errors.bank_account_id.message)}</FieldError> : null}
                   </Field>
+                ) : null}
 
-                  <Field className="sm:col-span-2">
-                    <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
-                    <Input {...register("reference_number")} disabled={submitting} />
-                  </Field>
-                </>
-              ) : null}
+                <Field className="sm:col-span-2">
+                  <FieldLabel>{t("fields.referenceNumber")}</FieldLabel>
+                  <Input {...register("reference_number")} disabled={submitting} />
+                </Field>
+              </>
             </div>
           </div>
 
@@ -512,10 +596,67 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
             </div>
 
             <div className="mt-4">
-              <Field>
-                <FieldLabel>{t("fields.amount")}</FieldLabel>
-                <p className="text-sm text-muted-foreground">{t("form.amountHandledBySystem")}</p>
-              </Field>
+              {method === "CASH" ? (
+                <>
+                  <Field>
+                    <FieldLabel>{t("fields.tenderAmount")}</FieldLabel>
+                    <p className="mb-2 text-sm text-muted-foreground">{t("form.cashAmountHint")}</p>
+                    {minimumTenderAmount > 0 ? (
+                      <p className="mb-2 text-xs text-muted-foreground">
+                        {t("form.cashAmountMinimum")} ({formatCurrency(minimumTenderAmount)})
+                      </p>
+                    ) : null}
+                    <Controller
+                      control={control}
+                      name="amount"
+                      render={({ field }) => (
+                        <NumericInput
+                          value={field.value ?? undefined}
+                          onChange={(value) => field.onChange(value ?? 0)}
+                          min={0}
+                          className={isCashAmountBelowMinimum ? "border-destructive focus-visible:ring-destructive" : undefined}
+                          disabled={submitting || isFetchingReference}
+                        />
+                      )}
+                    />
+                    {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                    {!errors.amount?.message && isCashAmountBelowMinimum ? (
+                      <FieldError>{t("form.cashAmountMinimum")}</FieldError>
+                    ) : null}
+                  </Field>
+
+                  <div className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">{t("overview.remainingAmount")}</span>
+                      <span className="font-medium">{formatCurrency(computedAmount ?? 0)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-muted-foreground">{t("fields.changeAmount")}</span>
+                      <span className="font-semibold text-success">
+                        {formatCurrency(Math.max(0, (amount ?? 0) - (computedAmount ?? 0)))}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Field>
+                  <FieldLabel>{t("fields.amount")}</FieldLabel>
+                  <p className="mb-2 text-sm text-muted-foreground">{t("form.bankAmountHint")}</p>
+                  <Controller
+                    control={control}
+                    name="amount"
+                    render={({ field }) => (
+                      <NumericInput
+                        value={field.value ?? undefined}
+                        onChange={(value) => field.onChange(value ?? 0)}
+                        min={0}
+                        disabled={submitting || isFetchingReference}
+                      />
+                    )}
+                  />
+                  {errors.amount?.message ? <FieldError>{String(errors.amount.message)}</FieldError> : null}
+                </Field>
+              )}
             </div>
           </div>
 
@@ -526,22 +667,19 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
           </Field>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setSubmitError(null);
-                onClose();
-              }}
-              className="cursor-pointer"
-              disabled={submitting}
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer" disabled={submitting}>
               {t("form.cancel")}
             </Button>
             <Button
               type="submit"
               className="cursor-pointer"
-              disabled={submitting || isFetchingReference || bankAccountsCombobox.isLoading || bankAccountsCombobox.isFetching}
+              disabled={
+                submitting ||
+                isFetchingReference ||
+                bankAccountsCombobox.isLoading ||
+                bankAccountsCombobox.isFetching ||
+                isCashAmountBelowMinimum
+              }
             >
               {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t("form.submit")}

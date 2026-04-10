@@ -12,6 +12,7 @@ import (
 
 // FloorPlanListParams for list query filtering
 type FloorPlanListParams struct {
+	OutletID  string
 	CompanyID string
 	Search    string
 	Status    string
@@ -61,8 +62,14 @@ func (r *floorPlanRepository) List(ctx context.Context, params FloorPlanListPara
 	query := r.db.WithContext(ctx).Model(&models.FloorPlan{})
 
 	// Company-level filtering (RBAC scoping)
+	if params.OutletID != "" {
+		query = query.Where("outlet_id = ?", params.OutletID)
+	}
+
+	// Deprecated fallback: company-level filtering via outlets relation.
 	if params.CompanyID != "" {
-		query = query.Where("company_id = ?", params.CompanyID)
+		query = query.Joins("JOIN outlets ON outlets.id = pos_floor_plans.outlet_id").
+			Where("outlets.company_id = ?", params.CompanyID)
 	}
 
 	// Prefix search for index usage

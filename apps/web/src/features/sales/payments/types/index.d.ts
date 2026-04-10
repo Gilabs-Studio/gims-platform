@@ -64,6 +64,8 @@ export interface SalesPaymentListItem {
   bank_account?: SalesPaymentBankAccountSummary | null;
   payment_date: string;
   amount: number;
+  tender_amount?: number | null;
+  change_amount?: number | null;
   method: SalesPaymentMethod;
   status: SalesPaymentStatus;
   created_at: string;

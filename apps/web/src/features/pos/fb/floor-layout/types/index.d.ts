@@ -60,7 +60,8 @@ export type FloorPlanStatus = "draft" | "published";
 
 export interface FloorPlan {
   id: string;
-  company_id: string;
+  outlet_id: string;
+  company_id?: string;
   name: string;
   floor_number: number;
   status: FloorPlanStatus;
@@ -75,6 +76,7 @@ export interface FloorPlan {
   created_by?: string;
   created_at: string;
   updated_at: string;
+  outlet_name?: string;
   company_name?: string;
 }
 
@@ -88,7 +90,8 @@ export interface LayoutVersion {
 }
 
 export interface CreateFloorPlanData {
-  company_id: string;
+  outlet_id: string;
+  company_id?: string;
   name: string;
   floor_number: number;
   grid_size?: number;
@@ -112,6 +115,7 @@ export interface ListFloorPlanParams {
   page?: number;
   per_page?: number;
   search?: string;
+  outlet_id?: string;
   company_id?: string;
   status?: FloorPlanStatus;
   sort_by?: string;
@@ -141,7 +145,7 @@ export interface LayoutVersionListResponse {
   data: LayoutVersion[];
 }
 
-export interface CompanyOption {
+export interface OutletOption {
   id: string;
   name: string;
 }
@@ -149,6 +153,6 @@ export interface CompanyOption {
 export interface FloorPlanFormDataResponse {
   success: boolean;
   data: {
-    companies: CompanyOption[];
+    outlets: OutletOption[];
   };
 }

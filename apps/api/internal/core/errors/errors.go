@@ -265,6 +265,24 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Customer credit limit exceeded",
 	},
 
+	// POS Errors
+	"POS_ORDER_CANNOT_MODIFY": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "POS order cannot be modified in its current state",
+	},
+	"POS_PRODUCT_NOT_AVAILABLE": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "POS product is not available",
+	},
+	"POS_ORDER_ALREADY_PAID": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "POS order has already been paid",
+	},
+	"POS_INSUFFICIENT_PAYMENT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Payment amount is insufficient",
+	},
+
 	// HRD - Leave Request Errors
 	"INSUFFICIENT_LEAVE_BALANCE": {
 		HTTPStatus: http.StatusBadRequest,

@@ -23,9 +23,9 @@ func NewFloorPlanHandler(uc usecase.FloorPlanUsecase) *FloorPlanHandler {
 }
 
 type userContext struct {
-	userID        string
-	companyID     string
-	isOwner       bool
+	userID    string
+	companyID string
+	isOwner   bool
 }
 
 func extractUserContext(c *gin.Context) (*userContext, bool) {
@@ -116,6 +116,7 @@ func (h *FloorPlanHandler) List(c *gin.Context) {
 	}
 
 	params := repositories.FloorPlanListParams{
+		OutletID:  c.Query("outlet_id"),
 		CompanyID: c.Query("company_id"),
 		Search:    c.Query("search"),
 		Status:    c.Query("status"),

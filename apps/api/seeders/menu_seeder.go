@@ -503,7 +503,11 @@ func SeedMenus() error {
 	// POS SUB-MENUS
 	// ============================================================
 
-	if _, err := createChildMenu("Floor & Layout Designer", "layout-list", "/pos/floor-layout", &posMenu.ID, 1); err != nil {
+	if _, err := createChildMenu("Floor & Layout Designer", "layout-list", "/pos/fb/floor-layout", &posMenu.ID, 1); err != nil {
+		return err
+	}
+
+	if _, err := createChildMenu("POS Terminal", "monitor-check", "/pos/fb/terminal", &posMenu.ID, 2); err != nil {
 		return err
 	}
 
@@ -746,6 +750,7 @@ func UpdateMenuStructure() error {
 	migrations := []urlMigration{
 		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
 		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
+		{oldURL: "/pos/floor-layout", newURL: "/pos/fb/floor-layout"},
 	}
 
 	for _, m := range migrations {
@@ -758,6 +763,8 @@ func UpdateMenuStructure() error {
 	deprecatedMenuURLs := []string{
 		"/sales/estimations",
 		"/master-data/area-supervisors",
+		"/pos/fb",
+		"/pos/goods",
 		"/hrd/documents",
 		"/hrd/contracts",
 		"/hrd/education",

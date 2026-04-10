@@ -522,6 +522,9 @@ For each order line item:
 - **Kitchen routing by category**: Simple and configurable. Avoids complex station-product mapping.
 - **WebSocket for real-time**: Lower latency than polling. SSE as fallback.
 - **Session-based cash tracking**: Industry standard for POS reconciliation.
+- **Floor layout scope is outlet-based**: `pos_floor_plans` now uses `outlet_id` as source-of-truth to avoid layout collisions between outlets in the same company. Legacy `company_id` is kept only for backward compatibility and marked deprecated.
+- **Active-session 404 treated as empty state**: Frontend normalizes `GET /pos/sessions/active` 404 into a no-session state so catalog and outlet selection remain usable.
+- **POS catalog approval rules are strict**: catalog includes only active products with `status=approved`, `is_approved=true`, and `is_pos_available=true`; availability is evaluated by product kind (`STOCK` by warehouse stock, `RECIPE/SERVICE` available by design).
 
 ## Notes and Improvements
 
@@ -541,3 +544,4 @@ For each order line item:
 - Single printer only (receipt printer).
 - No reservation management.
 - No delivery integration.
+- Legacy clients that still submit floor plan payload by `company_id` rely on temporary fallback mapping to the first active outlet in that company.

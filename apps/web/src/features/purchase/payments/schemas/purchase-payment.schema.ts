@@ -6,6 +6,7 @@ export const purchasePaymentSchema = z
     dp_id: z.string().nullable().optional(),
     bank_account_id: z.string().nullable().optional(),
     payment_date: z.string().min(1),
+    amount: z.number().optional(),
     method: z.enum(["BANK", "CASH"]),
     reference_number: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
@@ -23,6 +24,14 @@ export const purchasePaymentSchema = z
         code: z.ZodIssueCode.custom,
         message: "Bank account is required for bank transfers",
         path: ["bank_account_id"],
+      });
+    }
+
+    if (data.amount === undefined || data.amount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Amount must be greater than zero",
+        path: ["amount"],
       });
     }
   });

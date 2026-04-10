@@ -30,6 +30,7 @@ import {
 import { LeaveRequestDrawer } from "@/features/hrd/leave-request/components/leave-request-drawer";
 import { OvertimeDrawer } from "@/features/hrd/overtime/components/overtime-drawer";
 import { useLocationPermission } from "@/features/hrd/attendance-records/hooks/use-location-permission";
+import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import { IconSidebar, type IconSidebarItem } from "./icon-sidebar";
 import { DetailSidebar, type DetailSidebarItem } from "./detail-sidebar";
 import { cn } from "@/lib/utils";
@@ -354,7 +355,13 @@ export const DashboardLayout = memo(function DashboardLayout({
   }, []);
 
   const isAIChatbotPage = pathname?.includes("/ai-chatbot");
+  // POS terminal is full-screen when an outlet is selected (tracked via store).
+  // Live-table is always full-screen (URL-based, as it always has outlet context).
+  const posTerminalActive = usePOSUIStore((s) => s.isFullScreen);
+  const isPOSPage =
+    posTerminalActive || pathname?.includes("/pos/fb/live-table");
   const isFullScreenMapPage =
+    isPOSPage ||
     pathname?.includes("/master-data/company") ||
     pathname?.includes("/master-data/outlet") ||
     pathname?.includes("/master-data/suppliers") ||
