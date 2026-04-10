@@ -362,51 +362,32 @@ func SeedPermissions() error {
 		{"/stock/opname", "stock_opname.post", "Post Stock Opname", "POST", "stock_opname"},
 
 		// Finance
-		{"/finance/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},
-		{"/finance/coa", "coa.create", "Create Chart of Accounts", "CREATE", "coa"},
-		{"/finance/coa", "coa.update", "Edit Chart of Accounts", "EDIT", "coa"},
-		{"/finance/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
+		{"/finance/accounting/coa", "coa.read", "View Chart of Accounts", "VIEW", "coa"},
+		{"/finance/accounting/coa", "coa.create", "Create Chart of Accounts", "CREATE", "coa"},
+		{"/finance/accounting/coa", "coa.update", "Edit Chart of Accounts", "EDIT", "coa"},
+		{"/finance/accounting/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
 
-		{"/finance/journals", "journal.read", "View Journal Entries", "VIEW", "journal"},
-		{"/finance/journals", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
-		{"/finance/journals", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
-		{"/finance/journals", "journal.create", "Create Journal Entries", "CREATE", "journal"},
-		{"/finance/journals", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
-		{"/finance/journals", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
-		{"/finance/journals", "journal.post", "Post Journal Entries", "POST", "journal"},
-		{"/finance/journals", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
+		{"/finance/accounting/journal-entries", "journal.read", "View Journal Entries", "VIEW", "journal"},
 
 		// Purchase Journal — read-only monitoring for purchase transactions
-		{"/finance/journals/purchase", "purchase_journal.read", "View Purchase Journal", "VIEW", "purchase_journal"},
-		{"/finance/journals/purchase", "purchase_journal.export", "Export Purchase Journal", "EXPORT", "purchase_journal"},
+		{"/finance/accounting/journal-entries/purchase", "purchase_journal.read", "View Purchase Journal", "VIEW", "purchase_journal"},
+		{"/finance/accounting/journal-entries/purchase", "purchase_journal.export", "Export Purchase Journal", "EXPORT", "purchase_journal"},
 
 		// Adjustment Journal — operational Finance correction journal
-		{"/finance/journals/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
-		{"/finance/journals/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
-		{"/finance/journals/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
-		{"/finance/journals/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
-		{"/finance/journals/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
-
-		// Journal Valuation — valuation process (inventory, currency revaluation, cost adjustment)
-		{"/finance/journals/valuation", "journal_valuation.read", "View Journal Valuation", "VIEW", "journal_valuation"},
-		{"/finance/journals/valuation", "journal_valuation.run", "Run Journal Valuation Process", "RUN", "journal_valuation"},
-		{"/finance/journals/valuation", "journal_valuation.approve", "Approve Journal Valuation", "APPROVE", "journal_valuation"},
-		{"/finance/journals/valuation", "journal_valuation.export", "Export Journal Valuation", "EXPORT", "journal_valuation"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
 
 		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
-		{"/finance/journals/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
-		{"/finance/journals/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
+		{"/finance/accounting/journal-entries/cash-bank", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
+		{"/finance/accounting/journal-entries/cash-bank", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
 
 		{"/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
 		{"/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
-
-		{"/finance/payments", "payment.read", "View Payments", "VIEW", "payment"},
-		{"/finance/payments", "payment.create", "Create Payments", "CREATE", "payment"},
-		{"/finance/payments", "payment.update", "Edit Payments", "EDIT", "payment"},
-		{"/finance/payments", "payment.delete", "Delete Payments", "DELETE", "payment"},
-		{"/finance/payments", "payment.approve", "Approve Payments", "APPROVE", "payment"},
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},
@@ -419,14 +400,14 @@ func SeedPermissions() error {
 		{"/finance/tax-invoices", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
 		{"/finance/tax-invoices", "tax_invoice.delete", "Delete Tax Invoices", "DELETE", "tax_invoice"},
 
-		{"/finance/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.submit", "Submit Non-Trade Payables", "SUBMIT", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.approve", "Approve Non-Trade Payables", "APPROVE", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.reject", "Reject Non-Trade Payables", "REJECT", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
-		{"/finance/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.update", "Edit Non-Trade Payables", "EDIT", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.submit", "Submit Non-Trade Payables", "SUBMIT", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.approve", "Approve Non-Trade Payables", "APPROVE", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.reject", "Reject Non-Trade Payables", "REJECT", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.pay", "Pay Non-Trade Payables", "PAY", "non_trade_payable"},
+		{"/finance/ap/non-trade-payables", "non_trade_payable.delete", "Delete Non-Trade Payables", "DELETE", "non_trade_payable"},
 
 		{"/finance/budget", "budget.read", "View Budget", "VIEW", "budget"},
 		{"/finance/budget", "budget.create", "Create Budget", "CREATE", "budget"},
@@ -434,17 +415,12 @@ func SeedPermissions() error {
 		{"/finance/budget", "budget.delete", "Delete Budget", "DELETE", "budget"},
 		{"/finance/budget", "budget.approve", "Approve Budget", "APPROVE", "budget"},
 
-		{"/finance/cash-bank", "cash_bank.read", "View Cash Bank Journal", "VIEW", "cash_bank"},
-		{"/finance/cash-bank", "cash_bank.create", "Create Cash Bank Journal", "CREATE", "cash_bank"},
-		{"/finance/cash-bank", "cash_bank.update", "Edit Cash Bank Journal", "EDIT", "cash_bank"},
-		{"/finance/cash-bank", "cash_bank.delete", "Delete Cash Bank Journal", "DELETE", "cash_bank"},
-
-		{"/finance/closing", "financial_closing.read", "View Financial Closing", "VIEW", "financial_closing"},
-		{"/finance/closing", "financial_closing.create", "Create Financial Closing", "CREATE", "financial_closing"},
-		{"/finance/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
-		{"/finance/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
-		{"/finance/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
-		{"/finance/closing", "financial_closing.delete", "Delete Financial Closing", "DELETE", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.read", "View Financial Closing", "VIEW", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.create", "Create Financial Closing", "CREATE", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.approve", "Approve Financial Closing", "APPROVE", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.reopen", "Reopen Financial Closing", "REOPEN", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.year_end", "Year-End Closing", "YEAR_END", "financial_closing"},
+		{"/finance/accounting/closing", "financial_closing.delete", "Delete Financial Closing", "DELETE", "financial_closing"},
 
 		{"/finance/assets", "asset.read", "View Assets", "VIEW", "asset"},
 		{"/finance/assets", "asset.create", "Create Assets", "CREATE", "asset"},
@@ -468,12 +444,6 @@ func SeedPermissions() error {
 		{"/travel/visit-planner", "travel.visit.create", "Create Visit Planner Logs", "CREATE", "travel_visit"},
 		{"/travel/visit-planner", "travel.visit.admin", "Admin Visit Planner", "ADMIN", "travel_visit"},
 
-		{"/finance/salary", "salary.read", "View Salary", "VIEW", "salary"},
-		{"/finance/salary", "salary.create", "Create Salary", "CREATE", "salary"},
-		{"/finance/salary", "salary.update", "Edit Salary", "EDIT", "salary"},
-		{"/finance/salary", "salary.delete", "Delete Salary", "DELETE", "salary"},
-		{"/finance/salary", "salary.approve", "Approve Salary", "APPROVE", "salary"},
-
 		// Finance Reports
 		{"/finance/reports/general-ledger", "general_ledger_report.read", "View General Ledger Report", "VIEW", "general_ledger_report"},
 		{"/finance/reports/general-ledger", "general_ledger_report.export", "Export General Ledger Report", "EXPORT", "general_ledger_report"},
@@ -481,13 +451,20 @@ func SeedPermissions() error {
 		{"/finance/reports/balance-sheet", "balance_sheet_report.export", "Export Balance Sheet Report", "EXPORT", "balance_sheet_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.read", "View Profit & Loss Report", "VIEW", "profit_loss_report"},
 		{"/finance/reports/profit-loss", "profit_loss_report.export", "Export Profit & Loss Report", "EXPORT", "profit_loss_report"},
-		{"/finance/reports/trial-balance", "trial_balance_report.read", "View Trial Balance Report", "VIEW", "trial_balance_report"},
-		{"/finance/reports/trial-balance", "trial_balance_report.export", "Export Trial Balance Report", "EXPORT", "trial_balance_report"},
+		{"/finance/reports/cash-flow-statement", "cash_flow_statement.read", "View Cash Flow Statement", "VIEW", "cash_flow_statement"},
 
-		{"/finance/journals/sales", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
-		{"/finance/aging-reports", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
-		{"/finance/reports", "finance_reports_menu.read", "View Finance Reports Menu", "VIEW", "finance_report"},
-		{"/finance/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
+		{"/finance/ar/customer-invoices", "sales_journal.read", "View Sales Journal", "VIEW", "sales_journal"},
+		{"/finance/ar/customer-invoices", "sales_journal.export", "Export Sales Journal", "EXPORT", "sales_journal"},
+		{"/finance/reports/aging", "aging_report.read", "View Aging Reports", "VIEW", "aging_report"},
+		{"/finance/reports/reconciliation/arap", "arap_reconciliation.read", "View AR/AP Reconciliation", "VIEW", "arap_reconciliation"},
+		{"/finance/up-country-cost", "up_country_cost.read", "View Up Country Cost", "VIEW", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.create", "Create Up Country Cost", "CREATE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.update", "Edit Up Country Cost", "EDIT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.delete", "Delete Up Country Cost", "DELETE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.submit", "Submit Up Country Cost", "SUBMIT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.approve", "Approve Up Country Cost", "APPROVE", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.reject", "Reject Up Country Cost", "REJECT", "up_country_cost"},
+		{"/finance/up-country-cost", "up_country_cost.pay", "Mark Up Country Cost Paid", "PAY", "up_country_cost"},
 
 		// Asset Categories
 		{"/finance/asset-categories", "asset_category.read", "View Asset Categories", "VIEW", "asset_category"},
@@ -506,6 +483,9 @@ func SeedPermissions() error {
 		{"/finance/asset-budgets", "asset_budget.create", "Create Asset Budgets", "CREATE", "asset_budget"},
 		{"/finance/asset-budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
 		{"/finance/asset-budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
+
+		// Asset Disposal (placeholder)
+		{"/finance/asset-disposal", "asset_disposal.read", "View Asset Disposal", "VIEW", "asset_disposal"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -664,7 +644,7 @@ func SeedPermissions() error {
 	// Build menu URL to ID map
 	menuMap := make(map[string]string)
 	var allMenus []permission.Menu
-	if err := database.DB.Find(&allMenus).Error; err != nil {
+	if err := database.DB.Where("is_active = ?", true).Find(&allMenus).Error; err != nil {
 		return err
 	}
 	for _, m := range allMenus {
@@ -725,8 +705,32 @@ func SeedPermissions() error {
 		"sales_estimation.update",
 		"sales_estimation.delete",
 		"journal_line.read",
+		"journal.create",
+		"journal.update",
+		"journal.delete",
+		"journal.post",
+		"journal.reverse",
+		"journal_valuation.read",
+		"journal_valuation.run",
+		"journal_valuation.approve",
+		"journal_valuation.export",
+		"payment.read",
+		"payment.create",
+		"payment.update",
+		"payment.delete",
+		"payment.approve",
+		"salary.read",
+		"salary.create",
+		"salary.update",
+		"salary.delete",
+		"salary.approve",
 		"trial_balance_report.read",
 		"trial_balance_report.export",
+		"cash_bank.read",
+		"cash_bank.create",
+		"cash_bank.update",
+		"cash_bank.delete",
+		"finance_reports_menu.read",
 		"ai_settings.view",
 		"ai_settings.edit",
 	})
@@ -804,24 +808,24 @@ func SeedPermissions() error {
 
 	// Assign scoped permissions to area_supervisor role (AREA for sales, DIVISION for others)
 	assignScopedPermissionsToRole("area_supervisor", map[string]string{
-		"sales":        "AREA",
-		"purchase":     "DIVISION",
-		"hrd":          "OWN",
-		"finance":      "OWN",
+		"sales":            "AREA",
+		"purchase":         "DIVISION",
+		"hrd":              "OWN",
+		"finance":          "OWN",
 		"account_mappings": "OWN",
-		"travel_visit": "DIVISION",
-		"stock":        "AREA",
+		"travel_visit":     "DIVISION",
+		"stock":            "AREA",
 	}, "ALL")
 
 	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
 	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":        "ALL",
-		"purchase":     "DIVISION",
-		"hrd":          "OWN",
-		"finance":      "OWN",
+		"sales":            "ALL",
+		"purchase":         "DIVISION",
+		"hrd":              "OWN",
+		"finance":          "OWN",
 		"account_mappings": "OWN",
-		"travel_visit": "ALL",
-		"stock":        "ALL",
+		"travel_visit":     "ALL",
+		"stock":            "ALL",
 	}, "ALL")
 
 	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
