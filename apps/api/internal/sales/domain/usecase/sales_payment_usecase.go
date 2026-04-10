@@ -16,10 +16,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/models"
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
@@ -235,9 +235,14 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 			return err
 		}
 
-		if req.Amount > inv.RemainingAmount+0.0001 {
+		if method != models.SalesPaymentMethodCash && req.Amount > inv.RemainingAmount+0.0001 {
 			log.Printf("sales_payment_conflict: amount %.2f exceeds remaining %.2f for invoice %s", req.Amount, inv.RemainingAmount, inv.ID)
 			return fmt.Errorf("payment amount %.2f exceeds remaining amount %.2f", req.Amount, inv.RemainingAmount)
+		}
+
+		appliedAmount, tenderAmount, changeAmount, err := deriveSalesPaymentAmounts(req.Amount, inv.RemainingAmount, method)
+		if err != nil {
+			return err
 		}
 
 		ba, err := lockActiveBankAccount(tx, strings.TrimSpace(req.BankAccountID))
@@ -245,7 +250,7 @@ func (uc *salesPaymentUsecase) createSalesPaymentTx(
 			return err
 		}
 
-		payment, err := buildPendingSalesPayment(req, inv.ID, ba, actorID, method)
+		payment, err := buildPendingSalesPayment(req, inv.ID, ba, actorID, method, appliedAmount, tenderAmount, changeAmount)
 		if err != nil {
 			return err
 		}
@@ -336,9 +341,11 @@ func buildPendingSalesPayment(
 	bankAccount *coreModels.BankAccount,
 	actorID string,
 	method models.SalesPaymentMethod,
+	appliedAmount float64,
+	tenderAmount float64,
+	changeAmount float64,
 ) (*models.SalesPayment, error) {
-	amount := math.Max(0, req.Amount)
-	if amount <= 0 {
+	if appliedAmount <= 0 {
 		log.Printf("sales_payment_conflict: invalid amount %.2f", req.Amount)
 		return nil, fmt.Errorf("payment amount must be greater than zero (received: %.2f)", req.Amount)
 	}
@@ -347,7 +354,9 @@ func buildPendingSalesPayment(
 		CustomerInvoiceID:           invoiceID,
 		BankAccountID:               bankAccount.ID,
 		PaymentDate:                 strings.TrimSpace(req.PaymentDate),
-		Amount:                      amount,
+		Amount:                      appliedAmount,
+		TenderAmount:                tenderAmount,
+		ChangeAmount:                changeAmount,
 		Method:                      method,
 		Status:                      models.SalesPaymentStatusPending,
 		ReferenceNumber:             req.ReferenceNumber,
@@ -358,6 +367,55 @@ func buildPendingSalesPayment(
 		BankAccountHolderSnapshot:   strings.TrimSpace(bankAccount.AccountHolder),
 		BankAccountCurrencySnapshot: strings.TrimSpace(bankAccount.Currency),
 	}, nil
+}
+
+func deriveSalesPaymentAmounts(
+	requestedAmount float64,
+	remainingAmount float64,
+	method models.SalesPaymentMethod,
+) (appliedAmount float64, tenderAmount float64, changeAmount float64, err error) {
+	tenderAmount = math.Max(0, requestedAmount)
+	if tenderAmount <= 0 {
+		return 0, 0, 0, fmt.Errorf("payment amount must be greater than zero (received: %.2f)", requestedAmount)
+	}
+
+	if method == models.SalesPaymentMethodCash {
+		appliedAmount = math.Min(tenderAmount, remainingAmount)
+		changeAmount = math.Max(0, tenderAmount-remainingAmount)
+	} else {
+		appliedAmount = tenderAmount
+		changeAmount = 0
+	}
+
+	if appliedAmount <= 0 {
+		return 0, 0, 0, fmt.Errorf("payment amount must be greater than zero (received: %.2f)", requestedAmount)
+	}
+
+	return appliedAmount, tenderAmount, changeAmount, nil
+}
+
+func appliedSalesPaymentAmount(payment *models.SalesPayment) float64 {
+	if payment == nil {
+		return 0
+	}
+
+	if payment.Method == models.SalesPaymentMethodCash {
+		applied := payment.Amount - payment.ChangeAmount
+		if applied < 0 {
+			return 0
+		}
+		return applied
+	}
+
+	if payment.Amount > 0 {
+		return payment.Amount
+	}
+
+	if payment.TenderAmount > 0 {
+		return payment.TenderAmount
+	}
+
+	return 0
 }
 
 func markInvoiceWaitingPayment(tx *gorm.DB, inv *models.CustomerInvoice) error {
@@ -445,7 +503,7 @@ func sumConfirmedSalesPayments(tx *gorm.DB, invoiceID string) (float64, error) {
 	type sumRow struct{ Total float64 }
 	var row sumRow
 	if err := tx.Model(&models.SalesPayment{}).
-		Select("COALESCE(SUM(amount),0) as total").
+		Select("COALESCE(SUM(CASE WHEN method = 'CASH' THEN GREATEST(amount - change_amount, 0) ELSE amount END),0) as total").
 		Where(salesPaymentByInvoiceQuery, invoiceID).
 		Where(salesPaymentStatusQuery, models.SalesPaymentStatusConfirmed).
 		Scan(&row).Error; err != nil {
@@ -583,7 +641,8 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 			return err
 		}
 
-		if err := ensurePaymentWithinInvoiceLimit(confirmedTotal, payment.Amount, invoice.Amount); err != nil {
+		appliedAmount := appliedSalesPaymentAmount(payment)
+		if err := ensurePaymentWithinInvoiceLimit(confirmedTotal, appliedAmount, invoice.Amount); err != nil {
 			return err
 		}
 
@@ -591,7 +650,7 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 			return err
 		}
 
-		newTotal := confirmedTotal + payment.Amount
+		newTotal := confirmedTotal + appliedAmount
 		newStatus := deriveInvoiceStatusFromPaidTotal(invoice.Amount, newTotal)
 		if err := tx.Model(invoice).Updates(buildInvoicePaymentAggregateUpdate(invoice.Amount, newTotal, newStatus)).Error; err != nil {
 			return err

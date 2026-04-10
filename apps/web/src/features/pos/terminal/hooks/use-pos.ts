@@ -233,3 +233,14 @@ export function useCompleteOrder() {
     },
   });
 }
+
+export function useServeOrderItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, itemId }: { orderId: string; itemId: string }) =>
+      posOrderService.serveItem(orderId, itemId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+  });
+}

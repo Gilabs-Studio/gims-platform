@@ -52,6 +52,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanH := handler.NewFloorPlanHandler(floorPlanUC)
 	orderH := handler.NewPOSOrderHandler(orderUC)
+	receiptH := handler.NewPOSReceiptHandler(orderUC, paymentRepo, configRepo, outletRepo)
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
 	midtransH := handler.NewMidtransConfigHandler(midtransUC)
@@ -62,7 +63,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
 
 	router.RegisterFloorPlanRoutes(group, floorPlanH)
-	router.RegisterPOSOrderRoutes(group, orderH)
+	router.RegisterPOSOrderRoutes(group, orderH, receiptH)
 	router.RegisterPOSPaymentRoutes(group, paymentH)
 	router.RegisterPOSConfigRoutes(group, configH)
 	router.RegisterMidtransConfigRoutes(group, midtransH)

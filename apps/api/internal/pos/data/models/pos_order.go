@@ -20,13 +20,14 @@ const (
 type PosOrderStatus string
 
 const (
-	PosOrderStatusDraft      PosOrderStatus = "DRAFT"
-	PosOrderStatusInProgress PosOrderStatus = "IN_PROGRESS"
-	PosOrderStatusReady      PosOrderStatus = "READY"
-	PosOrderStatusServed     PosOrderStatus = "SERVED"
-	PosOrderStatusPaid       PosOrderStatus = "PAID"
-	PosOrderStatusCompleted  PosOrderStatus = "COMPLETED"
-	PosOrderStatusVoided     PosOrderStatus = "VOIDED"
+	PosOrderStatusDraft         PosOrderStatus = "DRAFT"
+	PosOrderStatusInProgress    PosOrderStatus = "IN_PROGRESS"
+	PosOrderStatusReady         PosOrderStatus = "READY"
+	PosOrderStatusPartialServed PosOrderStatus = "PARTIAL_SERVED"
+	PosOrderStatusServed        PosOrderStatus = "SERVED"
+	PosOrderStatusPaid          PosOrderStatus = "PAID"
+	PosOrderStatusCompleted     PosOrderStatus = "COMPLETED"
+	PosOrderStatusVoided        PosOrderStatus = "VOIDED"
 )
 
 // PosOrderType represents the service type of the order
@@ -45,6 +46,7 @@ const (
 	PosItemStatusPending   PosItemStatus = "PENDING"
 	PosItemStatusPreparing PosItemStatus = "PREPARING"
 	PosItemStatusDone      PosItemStatus = "DONE"
+	PosItemStatusServed    PosItemStatus = "SERVED"
 )
 
 // PosOrder represents a customer order within a POS session

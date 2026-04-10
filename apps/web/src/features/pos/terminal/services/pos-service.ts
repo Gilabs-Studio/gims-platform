@@ -86,6 +86,17 @@ export const posOrderService = {
       .then((r) => r.data);
   },
 
+  serveItem(orderId: string, itemId: string) {
+    return apiClient
+      .post<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items/${itemId}/serve`)
+      .then((r) => r.data);
+  },
+
+  /** Returns the absolute URL for opening the HTML receipt in a new tab. */
+  getReceiptUrl(orderId: string): string {
+    return `/api/v1/pos/orders/${orderId}/receipt`;
+  },
+
   getCatalog(outletId: string) {
     return apiClient
       .get<ApiResponse<POSCatalogItem[]>>(`${BASE}/catalog/outlet/${outletId}`)

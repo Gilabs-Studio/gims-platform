@@ -49,13 +49,16 @@ export interface POSSession {
 export type PosOrderStatus =
   | "DRAFT"
   | "IN_PROGRESS"
+  | "READY"
   | "PAID"
+  | "PARTIAL_SERVED"
+  | "SERVED"
   | "COMPLETED"
   | "VOIDED";
 
 export type PosOrderType = "DINE_IN" | "TAKE_AWAY" | "DELIVERY";
 
-export type PosItemStatus = "PENDING" | "PREPARING" | "READY" | "SERVED" | "CANCELLED";
+export type PosItemStatus = "PENDING" | "PREPARING" | "DONE" | "SERVED" | "READY" | "CANCELLED";
 
 export interface POSOrderItem {
   id: string;

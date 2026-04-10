@@ -7,7 +7,7 @@ import (
 )
 
 // RegisterPOSOrderRoutes registers POS order and catalog routes
-func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler) {
+func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, receiptH *handler.POSReceiptHandler) {
 	// POS catalog endpoint (read-only, per outlet)
 	rg.GET("/catalog/outlet/:outletID", middleware.RequirePermission("pos.order.create"), h.GetCatalog)
 
@@ -24,8 +24,13 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler) {
 	orders.POST("/:id/serve", h.Serve)
 	orders.POST("/:id/complete", h.Complete)
 
+	// HTML receipt — requires pos.order.read; returns text/html for thermal printing
+	orders.GET("/:id/receipt", middleware.RequirePermission("pos.order.read"), receiptH.GetReceipt)
+
 	// Order item management
 	orders.POST("/:id/items", h.AddItem)
 	orders.PUT("/:id/items/:itemID", h.UpdateItem)
 	orders.DELETE("/:id/items/:itemID", h.RemoveItem)
+	// Per-item serve — place before the generic item routes to avoid routing ambiguity
+	orders.POST("/:id/items/:itemID/serve", h.ServeItem)
 }

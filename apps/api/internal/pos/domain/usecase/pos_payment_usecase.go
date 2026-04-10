@@ -100,7 +100,7 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		OrderID:      orderID,
 		Method:       models.POSPaymentMethod(req.Method),
 		Status:       models.POSPaymentStatusPaid,
-		Amount:       order.TotalAmount,
+		Amount:       req.Amount,
 		TenderAmount: req.Amount,
 		ChangeAmount: change,
 		ReferenceNumber: req.ReferenceNumber,
@@ -419,11 +419,33 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 	actorID := normalizedActorID(userID)
 	notes := noteText
 	ref := refNumber
+	tenderAmount := order.TotalAmount
+	changeAmount := 0.0
+	appliedAmount := order.TotalAmount
+	if payment != nil {
+		if payment.TenderAmount > 0 {
+			tenderAmount = payment.TenderAmount
+		} else if payment.Amount > 0 {
+			tenderAmount = payment.Amount
+		}
+		if payment.ChangeAmount > 0 {
+			changeAmount = payment.ChangeAmount
+		}
+		if method == salesModels.SalesPaymentMethodCash {
+			appliedAmount = tenderAmount - changeAmount
+			if appliedAmount < 0 {
+				appliedAmount = 0
+			}
+		}
+	}
+
 	pay := &salesModels.SalesPayment{
 		CustomerInvoiceID:           invoiceID,
 		BankAccountID:               bank.ID,
 		PaymentDate:                 now.Format("2006-01-02"),
-		Amount:                      order.TotalAmount,
+		Amount:                      appliedAmount,
+		TenderAmount:                tenderAmount,
+		ChangeAmount:                changeAmount,
 		Method:                      method,
 		Status:                      salesModels.SalesPaymentStatusConfirmed,
 		ReferenceNumber:             &ref,
@@ -439,7 +461,7 @@ func (u *posPaymentUsecase) createSalesPaymentFromPOS(ctx context.Context, invoi
 		return ""
 	}
 
-	paidAmount := order.TotalAmount
+	paidAmount := appliedAmount
 	paidAt := apptime.Now()
 	if err := u.invoiceRepo.UpdateStatus(
 		ctx,

@@ -19,7 +19,7 @@ interface POSPaymentModalProps {
   onOpenChange: (open: boolean) => void;
   order: POSOrder;
   config?: POSConfig;
-  onSuccess: (customerName?: string) => void;
+  onSuccess: (customerName?: string, tenderAmount?: number) => void;
   onPaymentError?: () => void;
 }
 
@@ -88,7 +88,7 @@ export function POSPaymentModal({
           customer_name: customerName.trim() || undefined,
         },
       });
-      onSuccess(customerName.trim() || undefined);
+      onSuccess(customerName.trim() || undefined, tenderAmount);
     } catch {
       toast.error("Payment failed. Please try again.");
       onPaymentError?.();

@@ -382,7 +382,7 @@ export function POSTerminalContainer({
             onOpenChange={setPaymentOpen}
             order={activeOrder}
             config={config}
-            onSuccess={(cName) => handleOrderCompleted(cName)}
+            onSuccess={(cName, tender) => handleOrderCompleted(cName, tender)}
             onPaymentError={handlePaymentError}
           />
 

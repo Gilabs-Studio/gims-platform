@@ -219,6 +219,8 @@ func handlePOSOrderError(c *gin.Context, err error) {
 		coreErrors.ErrorResponse(c, "POS_PRODUCT_NOT_AVAILABLE", nil, nil)
 	case usecase.ErrPOSInsufficientStock:
 		coreErrors.ErrorResponse(c, "INSUFFICIENT_STOCK", nil, nil)
+	case usecase.ErrPOSItemAlreadyServed:
+		coreErrors.ErrorResponse(c, "POS_ITEM_ALREADY_SERVED", nil, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}
@@ -242,4 +244,14 @@ handlePOSOrderError(c, err)
 return
 }
 response.SuccessResponse(c, order, nil)
+}
+
+// ServeItem marks a single order item as served.
+func (h *POSOrderHandler) ServeItem(c *gin.Context) {
+	order, err := h.uc.MarkItemServed(c.Request.Context(), c.Param("id"), c.Param("itemID"))
+	if err != nil {
+		handlePOSOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, order, nil)
 }

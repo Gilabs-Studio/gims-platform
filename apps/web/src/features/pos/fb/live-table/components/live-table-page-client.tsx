@@ -16,6 +16,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,11 +29,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { useLiveTableData } from "../hooks/use-live-table";
-import { useServeOrder, useCompleteOrder } from "@/features/pos/terminal/hooks/use-pos";
+import { useServeOrder, useCompleteOrder, useServeOrderItem, usePOSPayments } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
 import type { LayoutObject } from "@/features/pos/fb/floor-layout/types";
-import type { POSOrder } from "@/features/pos/terminal/types";
+import type { POSOrder, POSPayment } from "@/features/pos/terminal/types";
 
 // ─── Status definitions ───────────────────────────────────────────────────────
 
@@ -48,30 +49,37 @@ const STATUS_CONFIG: Record<
 > = {
   AVAILABLE: {
     label: "Available",
-    dot: "bg-emerald-500",
-    card: "border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-950/20",
-    text: "text-emerald-700 dark:text-emerald-400",
+    dot: "bg-success",
+    card: "border-success/30 bg-success/10",
+    text: "text-success",
     icon: CheckCircle2,
   },
   SEATED: {
     label: "Occupied",
-    dot: "bg-blue-500",
-    card: "border-blue-200/60 bg-blue-50/40 dark:border-blue-800/40 dark:bg-blue-950/20",
-    text: "text-blue-700 dark:text-blue-400",
+    dot: "bg-primary",
+    card: "border-primary/30 bg-primary/10",
+    text: "text-primary",
     icon: Users,
   },
   WARN_LONG: {
     label: "Long Wait",
-    dot: "bg-rose-500 animate-pulse",
-    card: "border-rose-200/60 bg-rose-50/40 dark:border-rose-800/40 dark:bg-rose-950/20",
-    text: "text-rose-700 dark:text-rose-400",
+    dot: "bg-rose animate-pulse",
+    card: "border-rose/30 bg-rose/10",
+    text: "text-rose",
     icon: AlertTriangle,
+  },
+  PARTIAL_SERVED: {
+    label: "Partial",
+    dot: "bg-warning",
+    card: "border-warning/30 bg-warning/10",
+    text: "text-warning",
+    icon: Utensils,
   },
   SERVED: {
     label: "Served",
-    dot: "bg-violet-500",
-    card: "border-violet-200/60 bg-violet-50/40 dark:border-violet-800/40 dark:bg-violet-950/20",
-    text: "text-violet-700 dark:text-violet-400",
+    dot: "bg-purple",
+    card: "border-purple/30 bg-purple/10",
+    text: "text-purple",
     icon: CircleDot,
   },
 };
@@ -148,12 +156,12 @@ interface TableGridProps {
 
 function TableGrid({ infos, onTableClick }: TableGridProps) {
   return (
-    <div className="flex min-h-full flex-1 items-center justify-center p-5 sm:p-8">
+    <div className="flex min-h-full flex-1 items-start justify-start p-5 sm:p-8">
       <div
         className="grid gap-4"
         style={{
           gridTemplateColumns: `repeat(auto-fill, minmax(160px, 200px))`,
-          justifyContent: "center",
+          justifyContent: "start",
           width: "100%",
           maxWidth: 960,
         }}
@@ -178,11 +186,19 @@ interface OrderDetailDialogProps {
 }
 
 function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
+  // Hooks must be called before any conditional return.
+  const { data: paymentsData } = usePOSPayments(info?.order?.id ?? "", {
+    enabled: !!info?.order?.id,
+  });
+
   if (!info) return null;
   const cfg = STATUS_CONFIG[info.status];
   const Icon = cfg.icon;
   const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
   const order: POSOrder | null = info.order;
+
+  const payments = (paymentsData?.data ?? []) as POSPayment[];
+  const paidPayment = payments.find((p) => p.status === "PAID") ?? null;
 
   return (
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
@@ -190,22 +206,19 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>{label}</span>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-                cfg.card,
-                cfg.text,
-              )}
+            <Badge
+              variant="outline"
+              className={cn("gap-1 rounded-full border-current", cfg.text)}
             >
               <Icon className="h-3 w-3" />
               {cfg.label}
-            </span>
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
         {!order ? (
           <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-            <CheckCircle2 className="h-10 w-10 text-emerald-500/40" />
+            <CheckCircle2 className="h-10 w-10 text-success/40" />
             <p className="text-sm">Table is available</p>
           </div>
         ) : (
@@ -228,7 +241,7 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
             </div>
 
             {info.isOverThreshold && (
-              <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-400">
+              <div className="flex items-center gap-2 rounded-xl border border-rose/30 bg-rose/10 px-3 py-2 text-sm text-rose">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>Table has been occupied for over 30 minutes.</span>
               </div>
@@ -265,6 +278,39 @@ function OrderDetailDialog({ info, onClose }: OrderDetailDialogProps) {
               <span>Total</span>
               <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
             </div>
+
+            {paidPayment && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Payment
+                  </p>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Method</span>
+                      <Badge variant="secondary" className="text-xs">{paidPayment.method}</Badge>
+                    </div>
+                    {paidPayment.method === "CASH" && paidPayment.tender_amount > 0 && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Tender</span>
+                          <span className="tabular-nums">
+                            Rp {paidPayment.tender_amount.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between font-medium">
+                          <span className="text-muted-foreground">Change</span>
+                          <span className="tabular-nums text-success">
+                            Rp {paidPayment.change_amount.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </DialogContent>
@@ -289,16 +335,16 @@ function StatsBar({ infos }: StatsBarProps) {
       <span className="text-muted-foreground tabular-nums">
         <span className="font-semibold text-foreground">{total}</span> tables
       </span>
-      <span className="text-emerald-600 tabular-nums">
+      <span className="text-success tabular-nums">
         <span className="font-semibold">{available}</span>
         <span className="text-muted-foreground ml-1">free</span>
       </span>
-      <span className="text-blue-600 tabular-nums">
+      <span className="text-primary tabular-nums">
         <span className="font-semibold">{occupied}</span>
         <span className="text-muted-foreground ml-1">occupied</span>
       </span>
       {warnings > 0 && (
-        <span className="flex items-center gap-1 text-rose-600 font-semibold animate-pulse">
+        <span className="flex items-center gap-1 text-rose font-semibold animate-pulse">
           <AlertTriangle className="h-3.5 w-3.5" />
           {warnings}
         </span>
@@ -313,10 +359,11 @@ const STATUS_SVG: Record<
   LiveTableStatus,
   { fill: string; stroke: string; text: string }
 > = {
-  AVAILABLE: { fill: "#f0fdf4", stroke: "#86efac", text: "#166534" },
-  SEATED:    { fill: "#eff6ff", stroke: "#93c5fd", text: "#1d4ed8" },
-  WARN_LONG: { fill: "#fff1f2", stroke: "#fca5a5", text: "#9f1239" },
-  SERVED:    { fill: "#f5f3ff", stroke: "#c4b5fd", text: "#5b21b6" },
+  AVAILABLE:      { fill: "#f0fdf4", stroke: "#86efac", text: "#166534" },
+  SEATED:         { fill: "#eff6ff", stroke: "#93c5fd", text: "#1d4ed8" },
+  WARN_LONG:      { fill: "#fff1f2", stroke: "#fca5a5", text: "#9f1239" },
+  PARTIAL_SERVED: { fill: "#fffbeb", stroke: "#fcd34d", text: "#92400e" },
+  SERVED:         { fill: "#f5f3ff", stroke: "#c4b5fd", text: "#5b21b6" },
 };
 
 // ─── Floor Layout View ────────────────────────────────────────────────────────
@@ -568,16 +615,20 @@ interface TableSidebarProps {
   infos: LiveTableInfo[];
   onServe: (orderId: string) => void;
   onComplete: (orderId: string) => void;
+  onServeItem: (orderId: string, itemId: string) => void;
   servingId?: string | null;
   completingId?: string | null;
+  servingItemId?: string | null;
 }
 
 function TableSidebar({
   infos,
   onServe,
   onComplete,
+  onServeItem,
   servingId,
   completingId,
+  servingItemId,
 }: TableSidebarProps) {
   const occupied = infos.filter((i) => i.status !== "AVAILABLE");
 
@@ -594,10 +645,10 @@ function TableSidebar({
       </div>
 
       {/* Table list */}
-      <ScrollArea className="flex-1">
+      <div className="flex-1 overflow-y-auto">
         {occupied.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-success" />
             <p className="text-xs">All tables available</p>
           </div>
         ) : (
@@ -613,6 +664,10 @@ function TableSidebar({
               const canServe =
                 info.status === "SEATED" ||
                 info.status === "WARN_LONG";
+              const canServeItems =
+                info.status === "SEATED" ||
+                info.status === "WARN_LONG" ||
+                info.status === "PARTIAL_SERVED";
               const canComplete = info.status === "SERVED";
 
               return (
@@ -631,15 +686,12 @@ function TableSidebar({
                         {tableLabel}
                       </span>
                     </div>
-                    <span
-                      className={cn(
-                        "text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0",
-                        cfg.text,
-                        "bg-white/60 dark:bg-black/20",
-                      )}
+                    <Badge
+                      variant="outline"
+                      className={cn("text-[10px] shrink-0 border-current", cfg.text)}
                     >
                       {cfg.label}
-                    </span>
+                    </Badge>
                   </div>
 
                   {/* Timer */}
@@ -663,6 +715,51 @@ function TableSidebar({
                     </p>
                   )}
 
+                  {/* Per-item serve list (shown when some items still pending) */}
+                  {orderId && canServeItems && info.order && info.order.items.length > 0 && (
+                    <div className="space-y-1 pt-0.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Items
+                      </p>
+                      {info.order.items.map((item) => {
+                        const isItemServed = item.status === "SERVED";
+                        const itemKey = `${orderId}-${item.id}`;
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-1.5"
+                          >
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full shrink-0",
+                                  isItemServed ? "bg-success" : "bg-warning",
+                                )}
+                              />
+                              <span className="truncate text-[10px]">
+                                {item.quantity}× {item.product_name}
+                              </span>
+                            </div>
+                            {!isItemServed && (
+                              <Badge
+                                variant="warning"
+                                className={cn(
+                                  "cursor-pointer text-[9px] shrink-0",
+                                  servingItemId === itemKey && "opacity-50 pointer-events-none",
+                                )}
+                                onClick={() => {
+                                  if (servingItemId !== itemKey) onServeItem(orderId, item.id);
+                                }}
+                              >
+                                {servingItemId === itemKey ? "…" : "Sajikan"}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Action buttons */}
                   {orderId && (
                     <div className="space-y-1.5 pt-0.5">
@@ -675,7 +772,7 @@ function TableSidebar({
                           onClick={() => onServe(orderId)}
                         >
                           <Utensils className="h-3 w-3" />
-                          {servingId === orderId ? "Menyajikan…" : "Sudah Disajikan"}
+                          {servingId === orderId ? "Menyajikan…" : "Semua Disajikan"}
                         </Button>
                       )}
                       {canComplete && (
@@ -697,11 +794,10 @@ function TableSidebar({
             })}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function LiveTablePageClient() {
@@ -753,8 +849,10 @@ export function LiveTablePageClient() {
 
   const serveOrder = useServeOrder();
   const completeOrder = useCompleteOrder();
+  const serveOrderItem = useServeOrderItem();
   const [servingId, setServingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [servingItemId, setServingItemId] = useState<string | null>(null);
 
   const handleServe = useCallback(
     async (orderId: string) => {
@@ -784,6 +882,22 @@ export function LiveTablePageClient() {
       }
     },
     [completeOrder],
+  );
+
+  const handleServeItem = useCallback(
+    async (orderId: string, itemId: string) => {
+      const key = `${orderId}-${itemId}`;
+      setServingItemId(key);
+      try {
+        await serveOrderItem.mutateAsync({ orderId, itemId });
+        toast.success("Item disajikan");
+      } catch {
+        toast.error("Gagal menyajikan item");
+      } finally {
+        setServingItemId(null);
+      }
+    },
+    [serveOrderItem],
   );
 
   const handleTableClick = useCallback(
@@ -917,8 +1031,10 @@ export function LiveTablePageClient() {
           infos={liveTableInfos}
           onServe={handleServe}
           onComplete={handleComplete}
+          onServeItem={handleServeItem}
           servingId={servingId}
           completingId={completingId}
+          servingItemId={servingItemId}
         />
       </div>
 

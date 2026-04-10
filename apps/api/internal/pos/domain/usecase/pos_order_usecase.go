@@ -34,6 +34,7 @@ var (
 	ErrPOSSessionNotFound     = errors.New("pos session not found")
 	ErrPOSSessionAlreadyOpen  = errors.New("cashier already has an open session")
 	ErrPOSInvalidPayment      = errors.New("invalid payment data")
+	ErrPOSItemAlreadyServed   = errors.New("order item has already been served")
 )
 
 // ---------------------------------------------------------------------------
@@ -54,10 +55,12 @@ type POSOrderUsecase interface {
 	AssignTable(ctx context.Context, orderID string, req *dto.AssignTableRequest) (*dto.POSOrderResponse, error)
 	// DeductStock is called by POSPaymentUsecase after a successful payment
 	DeductStock(ctx context.Context, order *posModels.PosOrder, refNumber, userID string) error
-	// MarkServed transitions an order to SERVED (food delivered to table)
+	// MarkServed transitions a PAID or PARTIAL_SERVED order to SERVED in one bulk action.
 	MarkServed(ctx context.Context, id string) (*dto.POSOrderResponse, error)
-	// MarkCompleted transitions a SERVED order to COMPLETED (customer has left)
+	// MarkCompleted transitions a SERVED order to COMPLETED (customer has left).
 	MarkCompleted(ctx context.Context, id string) (*dto.POSOrderResponse, error)
+	// MarkItemServed marks a single item as served; auto-transitions order to PARTIAL_SERVED or SERVED.
+	MarkItemServed(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -535,11 +538,13 @@ func (u *posOrderUsecase) deductProductStock(
 
 func isTerminalStatus(status posModels.PosOrderStatus) bool {
 	return status == posModels.PosOrderStatusPaid ||
+		status == posModels.PosOrderStatusPartialServed ||
+		status == posModels.PosOrderStatusServed ||
 		status == posModels.PosOrderStatusCompleted ||
 		status == posModels.PosOrderStatusVoided
 }
 
-// MarkServed marks an order as SERVED (food has been delivered to the table).
+// MarkServed marks a PAID or PARTIAL_SERVED order as fully SERVED in one bulk action.
 func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOrderResponse, error) {
 	order, err := u.orderRepo.GetByID(ctx, id)
 	if err != nil {
@@ -548,8 +553,9 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 		}
 		return nil, err
 	}
-	// Live-table flow: only PAID orders can be transitioned to SERVED.
-	if order.Status != posModels.PosOrderStatusPaid {
+	// Allow both PAID (no items served yet) and PARTIAL_SERVED (some items served).
+	if order.Status != posModels.PosOrderStatusPaid &&
+		order.Status != posModels.PosOrderStatusPartialServed {
 		return nil, ErrPOSOrderCannotModify
 	}
 	order.Status = posModels.PosOrderStatusServed
@@ -557,6 +563,66 @@ func (u *posOrderUsecase) MarkServed(ctx context.Context, id string) (*dto.POSOr
 		return nil, err
 	}
 	return mapper.ToPOSOrderResponse(order), nil
+}
+
+// MarkItemServed marks a single order item as served.
+// If all items are now SERVED the order transitions to SERVED;
+// otherwise the order moves to PARTIAL_SERVED.
+func (u *posOrderUsecase) MarkItemServed(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error) {
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPOSOrderNotFound
+		}
+		return nil, err
+	}
+	// Per-item serve is only valid while the order is in a post-payment, pre-completed state.
+	if order.Status != posModels.PosOrderStatusPaid &&
+		order.Status != posModels.PosOrderStatusPartialServed {
+		return nil, ErrPOSOrderCannotModify
+	}
+
+	// Locate the target item within the preloaded slice.
+	var target *posModels.PosOrderItem
+	for i := range order.Items {
+		if order.Items[i].ID == itemID {
+			target = &order.Items[i]
+			break
+		}
+	}
+	if target == nil {
+		return nil, ErrPOSOrderItemNotFound
+	}
+	if target.Status == posModels.PosItemStatusServed {
+		return nil, ErrPOSItemAlreadyServed
+	}
+
+	target.Status = posModels.PosItemStatusServed
+	if err := u.orderRepo.UpdateItem(ctx, target); err != nil {
+		return nil, err
+	}
+
+	// Re-fetch all items to compute new order status.
+	items, err := u.orderRepo.GetItems(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	allServed := true
+	for _, item := range items {
+		if item.Status != posModels.PosItemStatusServed {
+			allServed = false
+			break
+		}
+	}
+	if allServed {
+		order.Status = posModels.PosOrderStatusServed
+	} else {
+		order.Status = posModels.PosOrderStatusPartialServed
+	}
+	if err := u.orderRepo.Update(ctx, order); err != nil {
+		return nil, err
+	}
+	return u.fetchOrderResponse(ctx, orderID)
 }
 
 // MarkCompleted transitions a SERVED order to COMPLETED after the session is fully closed.
