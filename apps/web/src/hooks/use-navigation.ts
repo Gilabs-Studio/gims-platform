@@ -7,6 +7,28 @@ import { navigationConfig, type NavItem } from "@/lib/navigation-config";
 import { hasPermissionCode } from "@/lib/permission-utils";
 import type { MenuWithActions, Action } from "@/features/master-data/user-management/types";
 
+function normalizeSegment(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-_/]/g, "");
+}
+
+function buildMenuId(item: NavItem, parentId: string, index: number): string {
+  if (item.id && item.id.trim() !== "") {
+    return item.id;
+  }
+
+  if (item.url && item.url.trim() !== "") {
+    return item.url;
+  }
+
+  const keySource = item.i18nKey && item.i18nKey.trim() !== "" ? item.i18nKey : item.name;
+  const keySegment = normalizeSegment(keySource);
+  return `${parentId}/${keySegment || "item"}-${index}`;
+}
+
 function isItemVisible(item: NavItem, permissionMap: Record<string, string>): boolean {
   if (item.permission) {
     return hasPermissionCode(permissionMap, item.permission);
@@ -17,12 +39,20 @@ function isItemVisible(item: NavItem, permissionMap: Record<string, string>): bo
   return true; 
 }
 
-function transformItem(item: NavItem, permissionMap: Record<string, string>, t: (key: string) => string): MenuWithActions | null {
+function transformItem(
+  item: NavItem,
+  permissionMap: Record<string, string>,
+  t: (key: string) => string,
+  parentId = "root",
+  index = 0,
+): MenuWithActions | null {
   if (!isItemVisible(item, permissionMap)) return null;
+
+  const itemId = buildMenuId(item, parentId, index);
 
   const children = item.children
     ? item.children
-        .map((child) => transformItem(child, permissionMap, t))
+        .map((child, childIndex) => transformItem(child, permissionMap, t, itemId, childIndex))
         .filter((c): c is MenuWithActions => c !== null)
     : undefined;
 
@@ -41,7 +71,7 @@ function transformItem(item: NavItem, permissionMap: Record<string, string>, t: 
   };
 
   return {
-    id: item.url, // Use URL as ID for consistency
+    id: itemId,
     name: item.i18nKey ? t(item.i18nKey) || item.name : item.name,
     icon: item.icon,
     url: item.url,
