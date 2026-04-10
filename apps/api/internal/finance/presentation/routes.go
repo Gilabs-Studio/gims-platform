@@ -43,7 +43,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	coaRepo := repositories.NewChartOfAccountRepository(db)
 	journalRepo := repositories.NewJournalEntryRepository(db)
-	journalLineRepo := repositories.NewJournalLineRepository(db)
 	paymentRepo := repositories.NewPaymentRepository(db)
 	budgetRepo := repositories.NewBudgetRepository(db)
 	cashBankRepo := repositories.NewCashBankJournalRepository(db)
@@ -88,7 +87,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)
 	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper, journalUC)
 	systemAccountMappingUC := usecase.NewSystemAccountMappingUsecase(systemAccountMappingRepo, coaUC, auditService)
-	journalLineUC := usecase.NewJournalLineUsecase(journalLineRepo)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)
 	cashBankUC := usecase.NewCashBankJournalUsecase(db, coaRepo, cashBankRepo, journalUC, cashBankMapper, settingsService, accountingEngine)
@@ -130,10 +128,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	systemAccountMappingH := handler.NewSystemAccountMappingHandler(systemAccountMappingUC)
 	coaH := handler.NewChartOfAccountHandler(coaUC)
 	journalH := handler.NewJournalEntryHandler(journalUC, valuationRunUC, cashBankUC, reconciliationSvc, exportSvc)
-	journalLineH := handler.NewJournalLineHandler(journalLineUC)
-	paymentH := handler.NewPaymentHandler(paymentUC)
 	budgetH := handler.NewBudgetHandler(budgetUC)
-	cashBankH := handler.NewCashBankJournalHandler(cashBankUC)
 	agingH := handler.NewAgingReportHandler(agingUC)
 	assetCategoryH := handler.NewAssetCategoryHandler(assetCategoryUC)
 	assetLocationH := handler.NewAssetLocationHandler(assetLocationUC)
@@ -141,7 +136,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financialClosingH := handler.NewFinancialClosingHandler(financialClosingUC)
 	taxInvoiceH := handler.NewTaxInvoiceHandler(taxInvoiceUC)
 	nonTradePayableH := handler.NewNonTradePayableHandler(nonTradePayableUC)
-	salaryH := handler.NewSalaryStructureHandler(salaryUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
 	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
 
@@ -150,11 +144,8 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	group.Use(middleware.ScopeMiddleware(db))
 
 	router.RegisterChartOfAccountRoutes(group, coaH)
-	router.RegisterJournalLineRoutes(group, journalLineH)
 	router.RegisterJournalEntryRoutes(group, journalH)
-	router.RegisterPaymentRoutes(group, paymentH)
 	router.RegisterBudgetRoutes(group, budgetH)
-	router.RegisterCashBankJournalRoutes(group, cashBankH)
 	router.RegisterFinanceAgingReportRoutes(group, agingH)
 	router.RegisterAssetCategoryRoutes(group, assetCategoryH)
 	router.RegisterAssetLocationRoutes(group, assetLocationH)
@@ -162,11 +153,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterFinancialClosingRoutes(group, financialClosingH)
 	router.RegisterTaxInvoiceRoutes(group, taxInvoiceH)
 	router.RegisterNonTradePayableRoutes(group, nonTradePayableH)
-	router.RegisterSalaryStructureRoutes(group, salaryH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
 	router.RegisterFinanceSettingsRoutes(group, settingsH)
 	router.RegisterSystemAccountMappingRoutes(group, systemAccountMappingH)
+	router.RegisterLegacyFinanceRouteBridges(group)
 
 	return &FinanceDeps{
 		JournalUC:    journalUC,
