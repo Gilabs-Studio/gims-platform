@@ -138,6 +138,9 @@ export function ProductDialog({
                     value={watch("image_url")}
                     onChange={(url) => setValue("image_url", url || null, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                     disabled={isSubmitting}
+                    enableUrlInput
+                    enableImageSearch
+                    initialSearchQuery={watch("name")}
                     labels={{
                       dragActive: tCommon("dragActive"),
                       dragInactive: tCommon("dragInactive"),
@@ -145,6 +148,18 @@ export function ProductDialog({
                       uploadFailed: tCommon("uploadFailed"),
                       invalidFile: tCommon("invalidFile"),
                       removeImage: tCommon("removeImage"),
+                      pasteImageUrl: t("imageAssist.pasteImageUrl"),
+                      imageUrlPlaceholder: t("imageAssist.imageUrlPlaceholder"),
+                      applyUrl: t("imageAssist.applyUrl"),
+                      searchImage: t("imageAssist.searchImage"),
+                      searchPlaceholder: t("imageAssist.searchPlaceholder"),
+                      searchButton: t("imageAssist.searchButton"),
+                      searchNoResults: t("imageAssist.searchNoResults"),
+                      searchFailed: t("imageAssist.searchFailed"),
+                      selectFromResults: t("imageAssist.selectFromResults"),
+                      attributionPrefix: t("imageAssist.attributionPrefix"),
+                      onUnsplash: t("imageAssist.onUnsplash"),
+                      termsNotice: t("imageAssist.termsNotice"),
                     }}
                   />
                 </div>
