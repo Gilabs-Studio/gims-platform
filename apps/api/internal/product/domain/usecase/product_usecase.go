@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -27,6 +28,9 @@ type ProductUsecase interface {
 	Approve(ctx context.Context, id string, userID string, req dto.ApproveProductRequest) (dto.ProductResponse, error)
 	GetRecipe(ctx context.Context, id string) ([]dto.RecipeItemResponse, error)
 	UpdateRecipe(ctx context.Context, id string, items []dto.RecipeItemRequest) ([]dto.RecipeItemResponse, error)
+	ListRecipeVersions(ctx context.Context, id string) ([]dto.RecipeVersionResponse, error)
+	CloneRecipeFromVersion(ctx context.Context, id string, req dto.CloneRecipeRequest) ([]dto.RecipeItemResponse, error)
+	CompareRecipeVersions(ctx context.Context, id string, fromVersionID string, toVersionID string) (dto.RecipeVersionCompareResponse, error)
 }
 
 type productUsecase struct {
@@ -65,7 +69,7 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 			}
 		}
 	}
-	
+
 	var imageURL *string
 	if req.ImageURL != "" {
 		imageURL = &req.ImageURL
@@ -141,6 +145,9 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
 	if len(req.RecipeItems) > 0 {
 		if err := u.saveRecipeItems(product.ID, req.RecipeItems); err != nil {
 			return dto.ProductResponse{}, fmt.Errorf("failed to save recipe items: %w", err)
+		}
+		if err := u.createRecipeVersion(product.ID, req.RecipeItems, nil, models.RecipeVersionChangeManual, "initial recipe version"); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to create initial recipe version: %w", err)
 		}
 	}
 
@@ -285,6 +292,9 @@ func (u *productUsecase) Update(ctx context.Context, id string, req dto.UpdatePr
 		if err := u.replaceRecipeItems(product.ID, req.RecipeItems); err != nil {
 			return dto.ProductResponse{}, fmt.Errorf("failed to update recipe items: %w", err)
 		}
+		if err := u.createRecipeVersion(product.ID, req.RecipeItems, nil, models.RecipeVersionChangeManual, "updated from product update"); err != nil {
+			return dto.ProductResponse{}, fmt.Errorf("failed to create recipe version: %w", err)
+		}
 	}
 
 	// Reset status if was rejected
@@ -407,6 +417,10 @@ func (u *productUsecase) UpdateRecipe(ctx context.Context, id string, items []dt
 		return nil, fmt.Errorf("failed to update recipe items: %w", err)
 	}
 
+	if err := u.createRecipeVersion(id, items, nil, models.RecipeVersionChangeManual, "updated recipe"); err != nil {
+		return nil, fmt.Errorf("failed to save recipe version: %w", err)
+	}
+
 	// Reload to get full recipe with ingredient details
 	product, err = u.repo.FindByID(ctx, id)
 	if err != nil {
@@ -415,6 +429,304 @@ func (u *productUsecase) UpdateRecipe(ctx context.Context, id string, items []dt
 
 	resp := mapper.ToProductResponse(product)
 	return resp.RecipeItems, nil
+}
+
+func (u *productUsecase) ListRecipeVersions(ctx context.Context, id string) ([]dto.RecipeVersionResponse, error) {
+	product, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	if product.ProductKind != models.ProductKindRecipe {
+		return nil, errors.New("only RECIPE kind products have recipe versions")
+	}
+
+	var versions []models.ProductRecipeVersion
+	if err := u.db.WithContext(ctx).
+		Where("product_id = ?", id).
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC, created_at ASC")
+		}).
+		Preload("Items.IngredientProduct").
+		Preload("Items.Uom").
+		Order("version_number DESC").
+		Find(&versions).Error; err != nil {
+		return nil, err
+	}
+
+	result := make([]dto.RecipeVersionResponse, 0, len(versions))
+	for _, version := range versions {
+		result = append(result, mapRecipeVersionToDTO(version))
+	}
+
+	return result, nil
+}
+
+func (u *productUsecase) CloneRecipeFromVersion(ctx context.Context, id string, req dto.CloneRecipeRequest) ([]dto.RecipeItemResponse, error) {
+	product, err := u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, errors.New("product not found")
+	}
+
+	if product.ProductKind != models.ProductKindRecipe {
+		return nil, errors.New("only RECIPE kind products can clone recipe")
+	}
+
+	if req.SourceVersionID == nil || *req.SourceVersionID == "" {
+		return nil, errors.New("source_version_id is required")
+	}
+
+	var sourceVersion models.ProductRecipeVersion
+	if err := u.db.WithContext(ctx).
+		Where("id = ? AND product_id = ?", *req.SourceVersionID, id).
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC, created_at ASC")
+		}).
+		First(&sourceVersion).Error; err != nil {
+		return nil, errors.New("recipe version not found")
+	}
+
+	if len(sourceVersion.Items) == 0 {
+		return nil, errors.New("selected version has no recipe items")
+	}
+
+	items := make([]dto.RecipeItemRequest, 0, len(sourceVersion.Items))
+	for _, item := range sourceVersion.Items {
+		items = append(items, dto.RecipeItemRequest{
+			IngredientProductID: item.IngredientProductID,
+			Quantity:            item.Quantity,
+			UomID:               item.UomID,
+			Notes:               item.Notes,
+			SortOrder:           item.SortOrder,
+		})
+	}
+
+	if err := u.replaceRecipeItems(id, items); err != nil {
+		return nil, fmt.Errorf("failed to clone recipe items: %w", err)
+	}
+
+	note := req.Notes
+	if strings.TrimSpace(note) == "" {
+		note = fmt.Sprintf("cloned from version %d", sourceVersion.VersionNumber)
+	}
+
+	if err := u.createRecipeVersion(id, items, req.SourceVersionID, models.RecipeVersionChangeClone, note); err != nil {
+		return nil, fmt.Errorf("failed to save cloned recipe version: %w", err)
+	}
+
+	product, err = u.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := mapper.ToProductResponse(product)
+	return resp.RecipeItems, nil
+}
+
+func (u *productUsecase) CompareRecipeVersions(ctx context.Context, id string, fromVersionID string, toVersionID string) (dto.RecipeVersionCompareResponse, error) {
+	if strings.TrimSpace(fromVersionID) == "" || strings.TrimSpace(toVersionID) == "" {
+		return dto.RecipeVersionCompareResponse{}, errors.New("from_version_id and to_version_id are required")
+	}
+
+	var fromVersion models.ProductRecipeVersion
+	if err := u.db.WithContext(ctx).
+		Where("id = ? AND product_id = ?", fromVersionID, id).
+		Preload("Items.IngredientProduct").
+		Preload("Items.Uom").
+		First(&fromVersion).Error; err != nil {
+		return dto.RecipeVersionCompareResponse{}, errors.New("from recipe version not found")
+	}
+
+	var toVersion models.ProductRecipeVersion
+	if err := u.db.WithContext(ctx).
+		Where("id = ? AND product_id = ?", toVersionID, id).
+		Preload("Items.IngredientProduct").
+		Preload("Items.Uom").
+		First(&toVersion).Error; err != nil {
+		return dto.RecipeVersionCompareResponse{}, errors.New("to recipe version not found")
+	}
+
+	fromMap := make(map[string]models.ProductRecipeVersionItem, len(fromVersion.Items))
+	toMap := make(map[string]models.ProductRecipeVersionItem, len(toVersion.Items))
+
+	for _, item := range fromVersion.Items {
+		fromMap[item.IngredientProductID] = item
+	}
+	for _, item := range toVersion.Items {
+		toMap[item.IngredientProductID] = item
+	}
+
+	diffs := make([]dto.RecipeVersionCompareDiff, 0)
+	summary := map[string]int{"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
+
+	seen := make(map[string]struct{}, len(fromMap)+len(toMap))
+	for ingredientID := range fromMap {
+		seen[ingredientID] = struct{}{}
+	}
+	for ingredientID := range toMap {
+		seen[ingredientID] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(seen))
+	for k := range seen {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, ingredientID := range keys {
+		fromItem, hasFrom := fromMap[ingredientID]
+		toItem, hasTo := toMap[ingredientID]
+
+		diffType := ""
+		switch {
+		case !hasFrom && hasTo:
+			diffType = "ADDED"
+			summary["added"]++
+		case hasFrom && !hasTo:
+			diffType = "REMOVED"
+			summary["removed"]++
+		case hasFrom && hasTo && fromItem.Quantity != toItem.Quantity:
+			diffType = "CHANGED"
+			summary["changed"]++
+		default:
+			diffType = "UNCHANGED"
+			summary["unchanged"]++
+		}
+
+		ingredient := toItem.IngredientProduct
+		if ingredient == nil {
+			ingredient = fromItem.IngredientProduct
+		}
+
+		uom := toItem.Uom
+		if uom == nil {
+			uom = fromItem.Uom
+		}
+
+		entry := dto.RecipeVersionCompareDiff{
+			IngredientProductID: ingredientID,
+			FromQuantity:        fromItem.Quantity,
+			ToQuantity:          toItem.Quantity,
+			DeltaQuantity:       toItem.Quantity - fromItem.Quantity,
+			Type:                diffType,
+		}
+
+		if ingredient != nil {
+			entry.Ingredient = &dto.RecipeIngredientBasic{
+				ID:           ingredient.ID,
+				Code:         ingredient.Code,
+				Name:         ingredient.Name,
+				CostPrice:    ingredient.CostPrice,
+				CurrentStock: ingredient.CurrentStock,
+			}
+		}
+
+		if uom != nil {
+			entry.Uom = &dto.UnitOfMeasureBasic{
+				ID:     uom.ID,
+				Name:   uom.Name,
+				Symbol: uom.Symbol,
+			}
+		}
+
+		diffs = append(diffs, entry)
+	}
+
+	return dto.RecipeVersionCompareResponse{
+		FromVersionID: fromVersionID,
+		ToVersionID:   toVersionID,
+		FromVersion:   fromVersion.VersionNumber,
+		ToVersion:     toVersion.VersionNumber,
+		Summary:       summary,
+		Diffs:         diffs,
+	}, nil
+}
+
+func mapRecipeVersionToDTO(version models.ProductRecipeVersion) dto.RecipeVersionResponse {
+	items := make([]dto.RecipeVersionItemResponse, 0, len(version.Items))
+	for _, item := range version.Items {
+		mappedItem := dto.RecipeVersionItemResponse{
+			IngredientProductID: item.IngredientProductID,
+			Quantity:            item.Quantity,
+			UomID:               item.UomID,
+			Notes:               item.Notes,
+			SortOrder:           item.SortOrder,
+		}
+
+		if item.IngredientProduct != nil {
+			mappedItem.Ingredient = &dto.RecipeIngredientBasic{
+				ID:           item.IngredientProduct.ID,
+				Code:         item.IngredientProduct.Code,
+				Name:         item.IngredientProduct.Name,
+				CostPrice:    item.IngredientProduct.CostPrice,
+				CurrentStock: item.IngredientProduct.CurrentStock,
+			}
+		}
+
+		if item.Uom != nil {
+			mappedItem.Uom = &dto.UnitOfMeasureBasic{
+				ID:     item.Uom.ID,
+				Name:   item.Uom.Name,
+				Symbol: item.Uom.Symbol,
+			}
+		}
+
+		items = append(items, mappedItem)
+	}
+
+	return dto.RecipeVersionResponse{
+		ID:              version.ID,
+		VersionNumber:   version.VersionNumber,
+		ChangeType:      version.ChangeType,
+		Notes:           version.Notes,
+		SourceVersionID: version.SourceVersionID,
+		CreatedBy:       version.CreatedBy,
+		CreatedAt:       version.CreatedAt,
+		Items:           items,
+	}
+}
+
+func (u *productUsecase) createRecipeVersion(productID string, items []dto.RecipeItemRequest, sourceVersionID *string, changeType string, notes string) error {
+	return database.RetryTx(u.db, func(tx *gorm.DB) error {
+		var maxVersion int
+		if err := tx.Model(&models.ProductRecipeVersion{}).
+			Where("product_id = ?", productID).
+			Select("COALESCE(MAX(version_number), 0)").
+			Scan(&maxVersion).Error; err != nil {
+			return err
+		}
+
+		version := models.ProductRecipeVersion{
+			ID:              uuid.New().String(),
+			ProductID:       productID,
+			VersionNumber:   maxVersion + 1,
+			ChangeType:      changeType,
+			Notes:           notes,
+			SourceVersionID: sourceVersionID,
+		}
+
+		if err := tx.Create(&version).Error; err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			versionItem := models.ProductRecipeVersionItem{
+				ID:                  uuid.New().String(),
+				RecipeVersionID:     version.ID,
+				IngredientProductID: item.IngredientProductID,
+				Quantity:            item.Quantity,
+				UomID:               item.UomID,
+				Notes:               item.Notes,
+				SortOrder:           item.SortOrder,
+			}
+
+			if err := tx.Create(&versionItem).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 // saveRecipeItems creates recipe items for a product

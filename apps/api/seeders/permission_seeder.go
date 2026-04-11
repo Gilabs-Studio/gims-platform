@@ -112,6 +112,7 @@ func SeedPermissions() error {
 		{"/master-data/products", "product.read", "View Products", "VIEW", "product"},
 		{"/master-data/products", "product.create", "Create Products", "CREATE", "product"},
 		{"/master-data/products", "product.update", "Edit Products", "EDIT", "product"},
+		{"/master-data/products", "product.recipe.update", "Edit Product Recipe BOM", "EDIT", "product_recipe"},
 		{"/master-data/products", "product.delete", "Delete Products", "DELETE", "product"},
 		{"/master-data/products", "product.approve", "Approve Products", "APPROVE", "product"},
 

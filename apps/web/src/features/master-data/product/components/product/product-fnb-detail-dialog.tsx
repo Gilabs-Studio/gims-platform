@@ -20,14 +20,29 @@ import {
   Trash2,
   Save,
   X,
+  GitCompareArrows,
+  Copy,
+  History,
 } from "lucide-react";
 import { cn, formatCurrency, resolveImageUrl } from "@/lib/utils";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
-import { useProductRecipe, useUpdateProductRecipe, useProducts } from "../../hooks/use-products";
+import {
+  useCompareProductRecipeVersions,
+  useCloneProductRecipe,
+  useProductRecipe,
+  useProductRecipeVersions,
+  useUpdateProductRecipe,
+  useProducts,
+} from "../../hooks/use-products";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { toast } from "sonner";
-import type { Product, RecipeItemResponse, RecipeItemRequest } from "../../types";
+import type {
+  Product,
+  RecipeItemResponse,
+  RecipeItemRequest,
+  RecipeVersionResponse,
+} from "../../types";
 
 interface ProductFnbDetailDialogProps {
   open: boolean;
@@ -49,8 +64,9 @@ interface EditableRecipeRow {
   notes: string;
 }
 
-type ActiveTab = "overview" | "recipe";
+type ActiveTab = "overview" | "recipe" | "history";
 const INGREDIENT_PAGE_SIZE = 20;
+const RECIPE_HISTORY_PAGE_SIZE = 5;
 
 export function ProductFnbDetailDialog({
   open,
@@ -67,7 +83,7 @@ export function ProductFnbDetailDialog({
   const [ingredientSearchQuery, setIngredientSearchQuery] = useState("");
   const [ingredientLoadedPages, setIngredientLoadedPages] = useState(1);
 
-  const canEdit = useUserPermission("product.update");
+  const canEditRecipe = useUserPermission("product.recipe.update");
 
   const { data: recipeData, isLoading: recipeLoading } = useProductRecipe(
     product?.id ?? "",
@@ -75,6 +91,15 @@ export function ProductFnbDetailDialog({
   );
 
   const updateRecipeMutation = useUpdateProductRecipe();
+  const cloneRecipeMutation = useCloneProductRecipe();
+  const [compareFromVersionId, setCompareFromVersionId] = useState("");
+  const [compareToVersionId, setCompareToVersionId] = useState("");
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const { data: recipeVersionsData, isLoading: recipeVersionsLoading } = useProductRecipeVersions(
+    product?.id ?? "",
+    { enabled: open && !!product?.id && (activeTab === "history" || activeTab === "recipe") }
+  );
 
   // Fetch ingredients for the recipe builder
   const ingredientKeyword = ingredientSearchQuery.trim();
@@ -90,6 +115,47 @@ export function ProductFnbDetailDialog({
   );
 
   const recipeItems: RecipeItemResponse[] = recipeData?.data ?? [];
+  const recipeVersions = useMemo<RecipeVersionResponse[]>(
+    () => recipeVersionsData?.data ?? [],
+    [recipeVersionsData?.data]
+  );
+  const recipeVersionIds = useMemo(() => new Set(recipeVersions.map((version) => version.id)), [recipeVersions]);
+  const defaultCompareToVersionId = recipeVersions[0]?.id ?? "";
+  const defaultCompareFromVersionId = recipeVersions[1]?.id ?? defaultCompareToVersionId;
+  const resolvedCompareFromVersionId =
+    compareFromVersionId && recipeVersionIds.has(compareFromVersionId)
+      ? compareFromVersionId
+      : defaultCompareFromVersionId;
+  const resolvedCompareToVersionId =
+    compareToVersionId && recipeVersionIds.has(compareToVersionId)
+      ? compareToVersionId
+      : defaultCompareToVersionId;
+  const historyTotalPages = Math.ceil(recipeVersions.length / RECIPE_HISTORY_PAGE_SIZE);
+  const historyPageIndex = historyTotalPages > 0 ? Math.min(historyPage, historyTotalPages) : 1;
+  const visibleRecipeVersions = useMemo(() => {
+    if (historyTotalPages === 0) {
+      return [];
+    }
+
+    const startIndex = (historyPageIndex - 1) * RECIPE_HISTORY_PAGE_SIZE;
+    return recipeVersions.slice(startIndex, startIndex + RECIPE_HISTORY_PAGE_SIZE);
+  }, [historyPageIndex, historyTotalPages, recipeVersions]);
+
+  const { data: compareData, isLoading: compareLoading } = useCompareProductRecipeVersions(
+    product?.id ?? "",
+    resolvedCompareFromVersionId,
+    resolvedCompareToVersionId,
+    {
+      enabled:
+        activeTab === "history" &&
+        !!product?.id &&
+        !!resolvedCompareFromVersionId &&
+        !!resolvedCompareToVersionId &&
+        resolvedCompareFromVersionId !== resolvedCompareToVersionId,
+    }
+  );
+
+  const compareResult = compareData?.data;
 
   const totalRecipeCost = recipeItems.reduce(
     (sum, item) => sum + (item.cost_contribution ?? 0),
@@ -250,6 +316,33 @@ export function ProductFnbDetailDialog({
     }
   };
 
+  const handleCloneFromVersion = async (versionId: string) => {
+    if (!product?.id) {
+      return;
+    }
+
+    try {
+      await cloneRecipeMutation.mutateAsync({
+        id: product.id,
+        payload: {
+          source_version_id: versionId,
+        },
+      });
+      toast.success(t("recipe.cloneSuccess"));
+      setActiveTab("recipe");
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const handleHistoryPageChange = (nextPage: number) => {
+    if (historyTotalPages === 0) {
+      return;
+    }
+
+    setHistoryPage(Math.min(Math.max(nextPage, 1), historyTotalPages));
+  };
+
   if (!product) return null;
 
   return (
@@ -319,7 +412,7 @@ export function ProductFnbDetailDialog({
 
           {/* Tab Bar */}
           <div className="flex gap-0 border-t">
-            {(["overview", "recipe"] as ActiveTab[]).map((tab) => (
+            {(["overview", "recipe", "history"] as ActiveTab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -331,10 +424,19 @@ export function ProductFnbDetailDialog({
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
-                {tab === "overview" ? tCommon("overview") : t("recipe.title")}
+                {tab === "overview"
+                  ? tCommon("overview")
+                  : tab === "recipe"
+                    ? t("recipe.title")
+                    : t("recipe.historyTitle")}
                 {tab === "recipe" && recipeItems.length > 0 && (
                   <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1">
                     {recipeItems.length}
+                  </Badge>
+                )}
+                {tab === "history" && recipeVersions.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1">
+                    {recipeVersions.length}
                   </Badge>
                 )}
               </button>
@@ -416,7 +518,7 @@ export function ProductFnbDetailDialog({
                   <h3 className="text-sm font-semibold">{t("recipe.bom")}</h3>
                   <p className="text-xs text-muted-foreground">{t("recipe.bomDescription")}</p>
                 </div>
-                {canEdit && !isEditingRecipe && (
+                {canEditRecipe && !isEditingRecipe && (
                   <Button size="sm" variant="outline" className="cursor-pointer" onClick={handleStartEdit}>
                     <ChefHat className="h-3.5 w-3.5 mr-1.5" />
                     {t("recipe.editRecipe")}
@@ -607,6 +709,186 @@ export function ProductFnbDetailDialog({
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "history" && (
+            <div className="space-y-4">
+              <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <GitCompareArrows className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold">{t("recipe.compareTitle")}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{t("recipe.compareFrom")}</span>
+                    <select
+                      value={resolvedCompareFromVersionId}
+                      onChange={(event) => setCompareFromVersionId(event.target.value)}
+                      className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                      {recipeVersions.map((version) => (
+                        <option key={`from-${version.id}`} value={version.id}>
+                          {`v${version.version_number} - ${new Date(version.created_at).toLocaleString("id-ID")}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{t("recipe.compareTo")}</span>
+                    <select
+                      value={resolvedCompareToVersionId}
+                      onChange={(event) => setCompareToVersionId(event.target.value)}
+                      className="w-full h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                      {recipeVersions.map((version) => (
+                        <option key={`to-${version.id}`} value={version.id}>
+                          {`v${version.version_number} - ${new Date(version.created_at).toLocaleString("id-ID")}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                {resolvedCompareFromVersionId &&
+                  resolvedCompareToVersionId &&
+                  resolvedCompareFromVersionId === resolvedCompareToVersionId && (
+                    <p className="text-xs text-warning">{t("recipe.compareMustDifferent")}</p>
+                  )}
+
+                {compareLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : compareResult ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">{`${t("recipe.added")}: ${compareResult.summary.added ?? 0}`}</Badge>
+                      <Badge variant="outline">{`${t("recipe.removed")}: ${compareResult.summary.removed ?? 0}`}</Badge>
+                      <Badge variant="outline">{`${t("recipe.changed")}: ${compareResult.summary.changed ?? 0}`}</Badge>
+                    </div>
+
+                    <div className="rounded-md border overflow-hidden">
+                      <div className="grid grid-cols-[1fr_120px_120px_120px] gap-3 px-4 py-2 bg-muted/30 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b">
+                        <span>{t("recipe.ingredient")}</span>
+                        <span className="text-right">{t("recipe.compareFrom")}</span>
+                        <span className="text-right">{t("recipe.compareTo")}</span>
+                        <span className="text-right">{t("recipe.delta")}</span>
+                      </div>
+                      {compareResult.diffs.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-center text-muted-foreground">
+                          {t("recipe.noComparisonData")}
+                        </div>
+                      ) : (
+                        compareResult.diffs.map((diff) => (
+                          <div
+                            key={diff.ingredient_product_id}
+                            className="grid grid-cols-[1fr_120px_120px_120px] gap-3 items-center px-4 py-2.5 border-b last:border-0"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {diff.ingredient?.name ?? diff.ingredient_product_id}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {diff.type}
+                              </p>
+                            </div>
+                            <span className="text-sm text-right">{diff.from_quantity.toLocaleString("id-ID")}</span>
+                            <span className="text-sm text-right">{diff.to_quantity.toLocaleString("id-ID")}</span>
+                            <span className="text-sm text-right font-medium">
+                              {diff.delta_quantity.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-md border overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">{t("recipe.historyTitle")}</h3>
+                  </div>
+                </div>
+
+                {recipeVersionsLoading ? (
+                  <div className="space-y-2 p-3">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : recipeVersions.length === 0 ? (
+                  <div className="px-4 py-8 text-sm text-center text-muted-foreground">
+                    {t("recipe.noHistory")}
+                  </div>
+                ) : (
+                  <>
+                    {visibleRecipeVersions.map((version) => (
+                      <div key={version.id} className="px-4 py-3 border-b last:border-0 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{`v${version.version_number}`}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(version.created_at).toLocaleString("id-ID")}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{version.notes || "-"}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {`${version.items.length} ${t("recipe.ingredients")}`}
+                          </p>
+                        </div>
+
+                        {canEditRecipe && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="cursor-pointer"
+                            onClick={() => handleCloneFromVersion(version.id)}
+                            disabled={cloneRecipeMutation.isPending}
+                          >
+                            <Copy className="h-3.5 w-3.5 mr-1.5" />
+                            {t("recipe.clone")}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+
+                    {historyTotalPages > 1 && (
+                      <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => handleHistoryPageChange(historyPageIndex - 1)}
+                          disabled={historyPageIndex <= 1}
+                        >
+                          {tCommon("previous")}
+                        </Button>
+
+                        <span className="text-xs text-muted-foreground">
+                          {`Page ${historyPageIndex} of ${historyTotalPages}`}
+                        </span>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => handleHistoryPageChange(historyPageIndex + 1)}
+                          disabled={historyPageIndex >= historyTotalPages}
+                        >
+                          {tCommon("next")}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

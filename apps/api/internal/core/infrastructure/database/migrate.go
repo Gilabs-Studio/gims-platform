@@ -120,6 +120,8 @@ func AutoMigrate() error {
 		&product.ProcurementType{},
 		&product.Product{},
 		&product.ProductRecipeItem{},
+		&product.ProductRecipeVersion{},
+		&product.ProductRecipeVersionItem{},
 		// Warehouse entities (Sprint 4)
 		&warehouse.Warehouse{},
 		// Outlet entity (Organization)
