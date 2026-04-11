@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,11 +21,19 @@ import (
 const MaxToolTurns = 5
 
 // MaxContextMessages is the maximum number of historical messages included in the context window.
-const MaxContextMessages = 20
+const MaxContextMessages = 8
+
+// MaxCompletionTokens keeps headroom for small-context models (for example 8k context)
+// so prompt + completion allocation does not overflow context limits.
+const MaxCompletionTokens = 1024
+
+const incompleteToolCallRecoveryMessage = "Maaf, respons aksi terpotong sebelum konfirmasi terbentuk. Mohon kirim ulang detail dalam satu pesan agar saya bisa menyiapkan konfirmasi dengan benar."
+
+var legacyToolCallMarkerPattern = regexp.MustCompile(`<((?:create|update|delete|query|list|approve|reject|generate)_[a-z0-9_]+)>`)
 
 // ConversationMessage represents a single message in the conversation history.
 type ConversationMessage struct {
-	Role    string `json:"role"`    // "user", "assistant", "system"
+	Role    string `json:"role"` // "user", "assistant", "system"
 	Content string `json:"content"`
 }
 
@@ -97,7 +106,7 @@ func (e *Engine) ProcessMessage(
 			Model:       model,
 			Messages:    messages,
 			Temperature: 0.3,
-			MaxTokens:   4096,
+			MaxTokens:   MaxCompletionTokens,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("LLM call failed on turn %d: %w", turn+1, err)
@@ -109,8 +118,16 @@ func (e *Engine) ProcessMessage(
 		textBefore, toolCall, textAfter := ParseToolCall(llmResponse)
 
 		if toolCall == nil {
-			// No tool call — this is the final response
-			result.Response = strings.TrimSpace(llmResponse)
+			// No tool call — this is the final response.
+			// Use textBefore to avoid persisting leaked/truncated tool artifacts.
+			finalResponse := strings.TrimSpace(textBefore)
+			if hasIncompleteToolCall(llmResponse) {
+				finalResponse = incompleteToolCallRecoveryMessage
+			}
+			if finalResponse == "" {
+				finalResponse = strings.TrimSpace(llmResponse)
+			}
+			result.Response = finalResponse
 			result.TotalDurationMs = time.Since(start).Milliseconds()
 			return result, nil
 		}
@@ -198,7 +215,7 @@ func (e *Engine) ProcessMessageStream(
 			Model:       model,
 			Messages:    messages,
 			Temperature: 0.3,
-			MaxTokens:   4096,
+			MaxTokens:   MaxCompletionTokens,
 		}, func(chunk string) error {
 			select {
 			case <-ctx.Done():
@@ -214,7 +231,7 @@ func (e *Engine) ProcessMessageStream(
 				return nil
 			}
 
-			idx := strings.Index(current, "<tool_call>")
+			idx := findToolCallMarkerIndex(current)
 			if idx >= 0 {
 				toolCallStartIdx = idx
 				// Emit any text before the <tool_call> that hasn't been sent yet
@@ -246,17 +263,32 @@ func (e *Engine) ProcessMessageStream(
 		if streamErr != nil {
 			eventChan <- tools.StreamEvent{
 				Type:    tools.EventError,
-				Content: fmt.Sprintf("LLM streaming failed: %v", streamErr),
+				Content: formatStreamFailureMessage(streamErr),
 			}
-			return nil, streamErr
+			return nil, fmt.Errorf("LLM streaming failed: %w", streamErr)
 		}
 
 		responseText := fullResponse.String()
 		textBefore, toolCall, _ := ParseToolCall(responseText)
 
 		if toolCall == nil {
-			// Final response
-			result.Response = strings.TrimSpace(responseText)
+			// Final response — use textBefore so that any truncated <tool_call>
+			// fragment (stream cut off before </tool_call>) is silently dropped
+			// and never persisted to the database.
+			finalResponse := strings.TrimSpace(textBefore)
+			incomplete := hasIncompleteToolCall(responseText)
+			if incomplete {
+				finalResponse = incompleteToolCallRecoveryMessage
+				if emittedLen == 0 {
+					eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: finalResponse}
+				} else {
+					eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: "\n\n" + finalResponse}
+				}
+			}
+			if finalResponse == "" {
+				finalResponse = strings.TrimSpace(responseText)
+			}
+			result.Response = finalResponse
 			result.TotalDurationMs = time.Since(start).Milliseconds()
 			eventChan <- tools.StreamEvent{
 				Type: tools.EventMessageEnd,
@@ -285,6 +317,12 @@ func (e *Engine) ProcessMessageStream(
 			result.Response = strings.TrimSpace(textBefore)
 			if result.Response == "" {
 				result.Response = fmt.Sprintf("I'd like to execute **%s**. Please confirm.", toolCall.Name)
+				// If the model emitted only a tool_call block (no text prefix), emit
+				// a fallback confirmation text so the UI never appears blank.
+				eventChan <- tools.StreamEvent{
+					Type:    tools.EventContentDelta,
+					Content: result.Response,
+				}
 			}
 			result.TotalDurationMs = time.Since(start).Milliseconds()
 			eventChan <- tools.StreamEvent{
@@ -338,6 +376,27 @@ func (e *Engine) ProcessMessageStream(
 		},
 	}
 	return result, nil
+}
+
+func formatStreamFailureMessage(err error) string {
+	if err == nil {
+		return "Respons terhenti karena gangguan saat memproses jawaban. Silakan kirim ulang pesan Anda."
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(errMsg, "context_length_exceeded") || strings.Contains(errMsg, "please reduce the length of the messages"):
+		ctxLenPattern := regexp.MustCompile(`current length is\s*(\d+)\s*while limit is\s*(\d+)`)
+		matches := ctxLenPattern.FindStringSubmatch(errMsg)
+		if len(matches) == 3 {
+			return fmt.Sprintf("Respons terhenti karena konteks percakapan terlalu panjang (panjang saat ini %s, batas model %s). Silakan mulai chat baru atau ringkas pesan terakhir Anda.", matches[1], matches[2])
+		}
+		return "Respons terhenti karena konteks percakapan terlalu panjang untuk model saat ini. Silakan mulai chat baru atau ringkas pesan terakhir Anda."
+	case strings.Contains(errMsg, "model_not_found") || strings.Contains(errMsg, "does not exist or you do not have access to it"):
+		return "Model AI yang dipilih tidak tersedia. Silakan pilih model lain lalu kirim ulang permintaan Anda."
+	default:
+		return "Respons terhenti karena gangguan sementara pada layanan AI. Silakan coba lagi."
+	}
 }
 
 // executeTool finds and runs a tool by name.
@@ -409,4 +468,51 @@ func execErrString(err error) string {
 		return err.Error()
 	}
 	return ""
+}
+
+func findToolCallMarkerIndex(content string) int {
+	markerIdx := strings.Index(content, "<tool_call>")
+	legacyIdx := -1
+	if idx := legacyToolCallMarkerPattern.FindStringIndex(content); len(idx) == 2 {
+		legacyIdx = idx[0]
+	}
+
+	if markerIdx >= 0 && legacyIdx >= 0 {
+		if markerIdx < legacyIdx {
+			return markerIdx
+		}
+		return legacyIdx
+	}
+	if markerIdx >= 0 {
+		return markerIdx
+	}
+	return legacyIdx
+}
+
+func hasIncompleteToolCall(content string) bool {
+	if strings.Contains(content, "<tool_call>") && !strings.Contains(content, "</tool_call>") {
+		return true
+	}
+
+	matches := legacyToolCallMarkerPattern.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return false
+	}
+
+	lowerContent := strings.ToLower(content)
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		toolName := strings.ToLower(match[1])
+		if toolName == "" {
+			continue
+		}
+		closingTag := fmt.Sprintf("</%s>", toolName)
+		if !strings.Contains(lowerContent, closingTag) {
+			return true
+		}
+	}
+
+	return false
 }

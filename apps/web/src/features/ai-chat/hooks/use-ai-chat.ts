@@ -151,13 +151,23 @@ export function useSendMessageStream() {
         (event) => {
           handleStreamEvent(event);
         },
-        () => {
-          endStreaming();
+        (error) => {
+          handleStreamEvent({
+            type: "error",
+            content: error.message,
+          });
         },
         () => {
           // On complete: invalidate caches, clear streaming state
-          const sessionId = useAIChatStore.getState().activeSessionId;
-          endStreaming();
+          const state = useAIChatStore.getState();
+          const sessionId = state.activeSessionId;
+          const hasStreamingError = !!state.streamingError;
+
+          // Preserve error message from EventError so users can see what happened.
+          if (!hasStreamingError) {
+            endStreaming();
+          }
+
           queryClient.invalidateQueries({ queryKey: aiChatKeys.sessions() });
           if (sessionId) {
             queryClient.invalidateQueries({

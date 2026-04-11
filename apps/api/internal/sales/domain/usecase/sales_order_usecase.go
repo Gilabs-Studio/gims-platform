@@ -829,11 +829,13 @@ func (u *salesOrderUsecase) checkCreditLimit(ctx context.Context, order *models.
 	// Get outstanding balance (Unpaid Invoices)
 	var outstanding float64
 	err = u.db.Table("customer_invoices").
-		Where("customer_id = ? AND status IN ?", *order.CustomerID, []string{
-			"unpaid", "partial", "waiting_payment", "overdue",
+		Joins("JOIN sales_orders ON sales_orders.id = customer_invoices.sales_order_id").
+		Where("sales_orders.customer_id = ?", *order.CustomerID).
+		Where("customer_invoices.status IN ?", []string{
+			"UNPAID", "PARTIAL", "WAITING_PAYMENT",
 		}).
-		Where("deleted_at IS NULL").
-		Select("COALESCE(SUM(remaining_amount), 0)").
+		Where("customer_invoices.deleted_at IS NULL").
+		Select("COALESCE(SUM(customer_invoices.remaining_amount), 0)").
 		Scan(&outstanding).Error
 
 	if err != nil {

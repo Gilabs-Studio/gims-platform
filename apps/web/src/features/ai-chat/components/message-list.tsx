@@ -26,12 +26,12 @@ export function MessageList({
 }: MessageListProps) {
   const t = useTranslations("aiChat");
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { isStreaming, streamingContent } = useAIChatStore();
+  const { isStreaming, streamingContent, streamingError } = useAIChatStore();
 
   // Auto-scroll to bottom when messages change or streaming content updates
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, isLoading, isStreaming, streamingContent]);
+  }, [messages.length, isLoading, isStreaming, streamingContent, streamingError]);
 
   if (messages.length === 0 && !isLoading) {
     return (
@@ -69,7 +69,9 @@ export function MessageList({
         ))}
 
         {/* Real-time streaming message (v2 engine) */}
-        {isStreaming && <StreamingMessage />}
+        {(isStreaming || !!streamingContent || !!streamingError) && (
+          <StreamingMessage />
+        )}
 
         {/* Legacy loading indicator (non-streaming v1 fallback) */}
         {isLoading && !isStreaming && (

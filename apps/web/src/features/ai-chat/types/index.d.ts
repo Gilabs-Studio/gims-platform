@@ -76,7 +76,7 @@ export interface AIActionPreview {
   status: string;
   entity_type?: string;
   entity_id?: string;
-  payload_preview?: string;
+  payload_preview?: unknown;
   duration_ms?: number;
 }
 
@@ -126,6 +126,7 @@ export interface AIModelsResponse {
 }
 
 export interface ConfirmActionPayload {
+  session_id?: string;
   action_id: string;
   confirmed: boolean;
 }

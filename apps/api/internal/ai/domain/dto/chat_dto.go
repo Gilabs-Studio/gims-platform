@@ -9,9 +9,9 @@ type SendMessageRequest struct {
 
 // ConfirmActionRequest represents a confirmation or cancellation of a pending action
 type ConfirmActionRequest struct {
-	SessionID string `json:"session_id" binding:"required,uuid"`
-	ActionID  string `json:"action_id" binding:"required,uuid"`
-	Confirmed bool   `json:"confirmed"`
+	SessionID *string `json:"session_id" binding:"omitempty,uuid"`
+	ActionID  string  `json:"action_id" binding:"required,uuid"`
+	Confirmed bool    `json:"confirmed"`
 }
 
 // ListSessionsRequest represents query parameters for listing sessions
@@ -91,15 +91,15 @@ type SessionListResponse struct {
 
 // SessionDetailResponse represents a session with messages and actions
 type SessionDetailResponse struct {
-	ID            string            `json:"id"`
-	Title         string            `json:"title"`
-	Status        string            `json:"status"`
-	LastActivity  string            `json:"last_activity,omitempty"`
-	MessageCount  int               `json:"message_count"`
-	Messages      []MessageResponse `json:"messages"`
+	ID            string              `json:"id"`
+	Title         string              `json:"title"`
+	Status        string              `json:"status"`
+	LastActivity  string              `json:"last_activity,omitempty"`
+	MessageCount  int                 `json:"message_count"`
+	Messages      []MessageResponse   `json:"messages"`
 	Actions       []ActionLogResponse `json:"actions,omitempty"`
-	PendingAction *ActionPreview    `json:"pending_action,omitempty"`
-	CreatedAt     string            `json:"created_at"`
+	PendingAction *ActionPreview      `json:"pending_action,omitempty"`
+	CreatedAt     string              `json:"created_at"`
 }
 
 // ActionLogResponse represents an action log entry

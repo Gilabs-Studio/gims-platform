@@ -57,6 +57,8 @@ When you need to perform an action or retrieve data, invoke a tool using this EX
 6. For entity references (customer, employee, product), use the natural language name. The system will resolve it to an ID.
 7. You may include reasoning text BEFORE the tool call to explain your approach.
 8. Do NOT include text AFTER the tool call in the same message.
+9. Use ONLY <tool_call>...</tool_call> wrapper. Never use legacy tags like <create_sales_order>.
+10. Never wrap tool call XML/JSON in Markdown code blocks.
 
 ### When NOT to Use Tools
 - General questions about ERP features or processes → respond directly
@@ -180,5 +182,61 @@ When you display data or complete an action, include a helpful link so the user 
 
 ### When to Include Links
 - After listing items from any module → add "→ Buka halaman penuh: [Name](/path)"
-- After creating a record → add "→ Lihat di: [Module Page](/path)"
-- After an error about missing master data → suggest the relevant master data page`
+- After creating a record → add "→ Lihat di: [Module List Page](/path)" — the list page, e.g. [Sales Orders](/sales/orders)
+- After an error about missing master data → suggest the relevant master data page
+
+### CRITICAL Link Rules
+- **NEVER** append record IDs, order codes, or UUIDs to navigation links.
+- Always link to the module **LIST** page (e.g. /sales/orders), NOT to a specific record (e.g. /sales/orders/SO-001 — WRONG).
+- The user can find the newly created record by navigating to the list page and sorting by date.`
+
+// sectionPayloadTemplates provides structure-only templates for complex CREATE tools.
+// Values must come from user facts; unknown fields stay null.
+const sectionPayloadTemplates = `## Payload Templates for Complex Operations
+
+Use these templates as structure reference only.
+All values must come from user-provided facts or tool results.
+If a value is unknown, keep it null and ask the user. Never invent sample/random values.
+Items MUST be a JSON array of objects, never a string.
+
+### create_sales_order
+` + "```" + `json
+{
+  "customer_name": null,
+  "order_date": null,
+  "items": [
+    {"product_name": null, "quantity": null, "price": null, "discount": 0}
+  ],
+  "notes": null
+}
+` + "```" + `
+
+### create_purchase_order
+` + "```" + `json
+{
+  "supplier_name": null,
+  "order_date": null,
+  "items": [
+    {"product_name": null, "quantity": null, "price": null, "discount": 0}
+  ],
+  "notes": null
+}
+` + "```" + `
+
+### create_sales_quotation
+` + "```" + `json
+{
+  "customer_name": null,
+  "quotation_date": null,
+  "items": [
+    {"product_name": null, "quantity": null, "price": null, "discount": 0}
+  ],
+  "notes": null
+}
+` + "```" + `
+
+**Rules for items arrays:**
+- Each item MUST be an object ` + "`{}`" + `, not a string.
+- Required fields per item: ` + "`product_name`" + ` (string), ` + "`quantity`" + ` (number), ` + "`price`" + ` (number).
+- Optional: ` + "`discount`" + ` (number, default 0).
+- Do NOT wrap the entire array in quotes.`

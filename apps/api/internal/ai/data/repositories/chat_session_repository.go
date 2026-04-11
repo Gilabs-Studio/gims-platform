@@ -15,6 +15,7 @@ type ChatSessionRepository interface {
 	FindByIDWithMessages(ctx context.Context, id string) (*models.AIChatSession, error)
 	FindByUserID(ctx context.Context, userID string, page, perPage int, status, search string) ([]models.AIChatSession, int64, error)
 	Update(ctx context.Context, session *models.AIChatSession) error
+	UpdateTitle(ctx context.Context, id string, title string) error
 	Delete(ctx context.Context, id string) error
 	IncrementMessageCount(ctx context.Context, id string) error
 	UpdateLastActivity(ctx context.Context, id string) error
@@ -97,6 +98,12 @@ func (r *chatSessionRepository) FindByUserID(ctx context.Context, userID string,
 func (r *chatSessionRepository) Update(ctx context.Context, session *models.AIChatSession) error {
 	db := database.GetDB(ctx, r.db)
 	return db.Save(session).Error
+}
+
+func (r *chatSessionRepository) UpdateTitle(ctx context.Context, id string, title string) error {
+	db := database.GetDB(ctx, r.db)
+	return db.Model(&models.AIChatSession{}).Where("id = ?", id).
+		UpdateColumn("title", title).Error
 }
 
 func (r *chatSessionRepository) Delete(ctx context.Context, id string) error {

@@ -1249,17 +1249,14 @@ func (e *ActionExecutor) buildSalesOrderRequest(ctx context.Context, params map[
 }
 
 func applySalesOrderDefaults(ctx context.Context, resolver *EntityResolver, params map[string]interface{}, currentUserID string) {
-	if strings.TrimSpace(getStringParam(params, "order_date")) == "" {
-		params["order_date"] = apptime.Now().Format("2006-01-02")
-	}
 	resolveCustomerIdentity(ctx, resolver, params)
-	resolveSalesRepID(ctx, resolver, params)
+	resolveSalesRepID(ctx, resolver, params, currentUserID)
 	resolvePaymentTermsID(ctx, resolver, params)
 	resolveBusinessUnitID(ctx, resolver, params)
 	normalizeSalesOrderItems(ctx, resolver, params)
 }
 
-func resolveSalesRepID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
+func resolveSalesRepID(ctx context.Context, resolver *EntityResolver, params map[string]interface{}, currentUserID string) {
 	if strings.TrimSpace(getStringParam(params, "sales_rep_id")) != "" {
 		return
 	}
@@ -1278,6 +1275,14 @@ func resolveSalesRepID(ctx context.Context, resolver *EntityResolver, params map
 			}
 		}
 		return
+	}
+
+	if strings.TrimSpace(currentUserID) == "" {
+		return
+	}
+	empID, err := resolver.ResolveUserToEmployeeID(ctx, currentUserID)
+	if err == nil && strings.TrimSpace(empID) != "" {
+		params["sales_rep_id"] = empID
 	}
 }
 
@@ -1336,10 +1341,36 @@ func resolveBusinessUnitID(ctx context.Context, resolver *EntityResolver, params
 		}
 		return
 	}
+
+	buID, err := resolver.ResolveDefaultBusinessUnit(ctx)
+	if err == nil && strings.TrimSpace(buID) != "" {
+		params["business_unit_id"] = buID
+	}
 }
 
 func normalizeSalesOrderItems(ctx context.Context, resolver *EntityResolver, params map[string]interface{}) {
-	items, ok := params["items"].([]interface{})
+	rawItems := params["items"]
+	if rawItems == nil {
+		return
+	}
+
+	// Sanitize: the AI may emit items as a JSON-encoded string instead of an array.
+	// e.g. "[{\"product_name\":\"X\",\"quantity\":3,\"price\":50000}]"
+	// Parse and replace so downstream JSON→struct unmarshal succeeds.
+	if itemsStr, ok := rawItems.(string); ok {
+		trimmed := strings.TrimSpace(itemsStr)
+		var parsed []interface{}
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+			params["items"] = parsed
+			rawItems = parsed
+		} else {
+			// Malformed string — remove to prevent unmarshal panic downstream.
+			delete(params, "items")
+			return
+		}
+	}
+
+	items, ok := rawItems.([]interface{})
 	if !ok {
 		return
 	}
@@ -1362,17 +1393,11 @@ func normalizeSalesOrderItems(ctx context.Context, resolver *EntityResolver, par
 		if _, hasProductID := itemMap["product_id"]; !hasProductID {
 			productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
 			if productName != "" {
-				prodID, prodPrice, err := resolver.ResolveProductByName(ctx, productName)
+				prodID, _, err := resolver.ResolveProductByName(ctx, productName)
 				if err == nil {
 					itemMap["product_id"] = prodID
-					if price, _ := itemMap["price"].(float64); price <= 0 && prodPrice > 0 {
-						itemMap["price"] = prodPrice
-					}
 				}
 			}
-		}
-		if qty, _ := itemMap["quantity"].(float64); qty <= 0 {
-			itemMap["quantity"] = float64(1)
 		}
 		if _, hasDiscount := itemMap["discount"]; !hasDiscount {
 			itemMap["discount"] = float64(0)

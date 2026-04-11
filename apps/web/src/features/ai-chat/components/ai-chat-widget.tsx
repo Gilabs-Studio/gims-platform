@@ -3,13 +3,16 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Copy,
   MessageSquare,
+  Plus,
   X,
   PanelLeftClose,
   PanelLeftOpen,
   StopCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 
 import { useAIChatStore } from "../stores/use-ai-chat-store";
+import { aiChatService } from "../services/ai-chat-service";
 import {
   useSendMessageStream,
   useAIChatSessionDetail,
@@ -32,8 +36,14 @@ import type { AIChatMessage, AIActionPreview } from "../types";
 
 export function AIChatWidget() {
   const t = useTranslations("aiChat");
-  const { isOpen, activeSessionId, toggleChat, closeChat, cancelStreaming } =
-    useAIChatStore();
+  const {
+    isOpen,
+    activeSessionId,
+    toggleChat,
+    closeChat,
+    cancelStreaming,
+    startNewChat,
+  } = useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(false);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
@@ -51,6 +61,22 @@ export function AIChatWidget() {
     },
     [send],
   );
+
+  const handleCopyAllSessions = useCallback(async () => {
+    try {
+      const exportPayload = await aiChatService.exportAllSessionsForDebug();
+
+      if (exportPayload.session_count === 0) {
+        toast.error(t("toast.copyAllSessionsEmpty"));
+        return;
+      }
+
+      await navigator.clipboard.writeText(JSON.stringify(exportPayload, null, 2));
+      toast.success(`${t("toast.copyAllSessionsSuccess")} (${exportPayload.session_count})`);
+    } catch {
+      toast.error(t("toast.copyAllSessionsFailed"));
+    }
+  }, [t]);
 
   return (
     <>
@@ -103,7 +129,7 @@ export function AIChatWidget() {
                   transition={{ duration: 0.2 }}
                   className="h-full shrink-0 overflow-hidden"
                 >
-                  <SessionList />
+                  <SessionList showHeaderActions={false} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -131,10 +157,40 @@ export function AIChatWidget() {
                 </Tooltip>
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-semibold text-foreground">
-                    {sessionDetail?.data?.title || t("title")}
-                  </h2>
-                  <ModelSelector />
+                  <div className="flex items-center gap-1">
+                    <h2 className="truncate text-sm font-semibold text-foreground">
+                      {sessionDetail?.data?.title || t("title")}
+                    </h2>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 cursor-pointer"
+                          onClick={handleCopyAllSessions}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("copyAllSessions")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 cursor-pointer"
+                          onClick={startNewChat}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("newChat")}</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="-ml-1 mt-0.5">
+                    <ModelSelector />
+                  </div>
                 </div>
 
                 <Button

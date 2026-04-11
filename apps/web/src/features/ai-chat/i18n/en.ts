@@ -9,6 +9,7 @@ export const aiChatEn = {
     close: "Close",
     delete: "Delete",
     retry: "Retry",
+    copyAllSessions: "Copy all sessions",
     sessions: "Chat History",
     noSessions: "No conversations yet",
     noMessages: "Start a conversation with the AI assistant",
@@ -58,6 +59,9 @@ export const aiChatEn = {
       deleted: "Conversation deleted",
       actionConfirmed: "Action confirmed and executed",
       actionCancelled: "Action cancelled",
+      copyAllSessionsSuccess: "All chat sessions copied to clipboard",
+      copyAllSessionsFailed: "Failed to copy chat sessions",
+      copyAllSessionsEmpty: "No chat sessions to copy",
     },
     admin: {
       title: "AI Administration",
