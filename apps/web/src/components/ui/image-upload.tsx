@@ -9,6 +9,9 @@ import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+const LOCAL_UPLOAD_PREFIX = "/uploads/";
+const DATA_IMAGE_PREFIX = "data:image/";
+
 interface ImageUploadProps {
   value?: string | null;
   onChange: (url: string) => void;
@@ -102,6 +105,51 @@ export function ImageUpload({
   const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery ?? "");
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchResults, setSearchResults] = React.useState<ImageSearchResponse["data"]>([]);
+
+  const sanitizeImageSrc = React.useCallback((raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+
+    const value = raw.trim();
+    if (!value) return undefined;
+
+    if (value.startsWith(LOCAL_UPLOAD_PREFIX)) {
+      return value;
+    }
+
+    // Keep local blob previews generated in-browser (from dropped files).
+    if (/^blob:/i.test(value)) {
+      return value;
+    }
+
+    // Allow only image data URLs, disallow other data:* payloads.
+    if (value.toLowerCase().startsWith(DATA_IMAGE_PREFIX)) {
+      return value;
+    }
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const sanitizeExternalHref = React.useCallback((raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+
+    try {
+      const parsed = new URL(raw.trim());
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
 
   // Sync internal preview with external value
   React.useEffect(() => {
@@ -284,16 +332,7 @@ export function ImageUpload({
     [onChange, triggerUnsplashDownload]
   );
 
-  // Minimal safety check for image src values to avoid unsafe schemes.
-  // Allow: relative paths ("/uploads/..."), blob:, data:image/*, http(s):
-  const isSafeImageSrc = React.useCallback((u?: string | null) => {
-    if (!u) return false;
-    if (u.startsWith("/")) return true;
-    if (/^blob:/i.test(u)) return true;
-    if (/^data:image\/[a-zA-Z0-9.+-]+;/.test(u)) return true;
-    if (/^https?:\/\//i.test(u)) return true;
-    return false;
-  }, []);
+  const safePreviewSrc = React.useMemo(() => sanitizeImageSrc(preview), [preview, sanitizeImageSrc]);
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -318,7 +357,7 @@ export function ImageUpload({
           <div className="relative w-full h-full group">
             <div className="relative w-full h-full">
               <img
-                src={isSafeImageSrc(preview) ? preview ?? undefined : undefined}
+                src={safePreviewSrc}
                 alt="Product preview"
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -411,7 +450,7 @@ export function ImageUpload({
                     title={labels.selectFromResults ?? "Select"}
                   >
                     <img
-                      src={isSafeImageSrc(item.thumb_url) ? item.thumb_url : undefined}
+                      src={sanitizeImageSrc(item.thumb_url)}
                       alt={item.alt || "Search result"}
                       className="h-full w-full object-cover"
                     />
@@ -422,7 +461,7 @@ export function ImageUpload({
                   <p className="text-[10px] leading-tight text-muted-foreground">
                     {labels.attributionPrefix ?? "Photo by"}{" "}
                     <a
-                      href={item.photographer_url}
+                      href={sanitizeExternalHref(item.photographer_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline"
@@ -430,7 +469,7 @@ export function ImageUpload({
                       {item.photographer_name}
                     </a>{" "}
                     <a
-                      href={item.unsplash_photo_url}
+                      href={sanitizeExternalHref(item.unsplash_photo_url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline"
