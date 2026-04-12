@@ -376,6 +376,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Warehouse cannot be deleted because it still has active stock. Transfer all inventory to another warehouse first.",
 	},
+	"XENDIT_CONNECTION_TEST_FAILED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Failed to connect to Xendit. Please verify your secret key and account settings.",
+	},
 }
 
 // ErrorResponse creates an error response

@@ -195,3 +195,15 @@ type XenditConnectionStatusResponse struct {
 	IsConnected bool   `json:"is_connected"`
 	Status      string `json:"status"`
 }
+
+// TestXenditConnectionRequest validates credentials before saving config.
+type TestXenditConnectionRequest struct {
+	SecretKey       string `json:"secret_key" binding:"required"`
+	XenditAccountID string `json:"xendit_account_id"`
+}
+
+// TestXenditConnectionResponse indicates whether Xendit API is reachable with provided credentials.
+type TestXenditConnectionResponse struct {
+	Reachable bool   `json:"reachable"`
+	Message   string `json:"message"`
+}

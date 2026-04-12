@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -27,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, CheckCircle2, WifiOff, Plug, Unplug } from "lucide-react";
+import { Loader2, CheckCircle2, WifiOff, Plug, Unplug, CircleHelp } from "lucide-react";
 import {
   useXenditConnectionStatus,
   useXenditConfig,
@@ -37,33 +39,36 @@ import {
 } from "@/features/pos/terminal/hooks/use-pos";
 import type { ConnectXenditRequest, UpdateXenditConfigRequest } from "@/features/pos/terminal/types";
 
-// ─── Schemas ─────────────────────────────────────────────────────────────────
+// Schemas are created inside components to allow localized validation messages
 
-const connectSchema = z.object({
-  secret_key: z.string().min(1, "Secret key is required"),
-  xendit_account_id: z.string().optional(),
-  business_name: z.string().optional(),
-  environment: z.enum(["sandbox", "production"]),
-  webhook_token: z.string().optional(),
-});
-
-const updateSchema = z.object({
-  environment: z.enum(["sandbox", "production"]).optional(),
-  business_name: z.string().optional(),
-  is_active: z.boolean().optional(),
-});
-
-type ConnectFormValues = z.infer<typeof connectSchema>;
-type UpdateFormValues = z.infer<typeof updateSchema>;
+function FieldHelp({ content, label }: { content: string; label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+          aria-label={label}
+        >
+          <CircleHelp className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 // ─── Connection status badge ──────────────────────────────────────────────────
 
 function ConnectionStatusBadge({ status }: { status: string }) {
+  const t = useTranslations("profile");
   if (status === "connected") {
     return (
       <Badge variant="success" className="gap-1.5 px-2.5 py-1">
         <CheckCircle2 className="h-3.5 w-3.5" />
-        Connected
+        {t("payment.connected")}
       </Badge>
     );
   }
@@ -71,14 +76,14 @@ function ConnectionStatusBadge({ status }: { status: string }) {
     return (
       <Badge variant="destructive" className="gap-1.5 px-2.5 py-1">
         <WifiOff className="h-3.5 w-3.5" />
-        Suspended
+        {t("payment.suspended")}
       </Badge>
     );
   }
   return (
     <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-muted-foreground">
       <WifiOff className="h-3.5 w-3.5" />
-      Not Connected
+      {t("payment.notConnectedBadge")}
     </Badge>
   );
 }
@@ -86,7 +91,18 @@ function ConnectionStatusBadge({ status }: { status: string }) {
 // ─── Connect form ─────────────────────────────────────────────────────────────
 
 function ConnectXenditForm() {
+  const t = useTranslations("profile");
   const connectMutation = useConnectXendit();
+
+  const connectSchema = z.object({
+    secret_key: z.string().min(1, t("payment.secretKey.required")),
+    xendit_account_id: z.string().optional(),
+    business_name: z.string().optional(),
+    environment: z.enum(["sandbox", "production"]),
+    webhook_token: z.string().optional(),
+  });
+
+  type ConnectFormValues = z.infer<typeof connectSchema>;
 
   const form = useForm<ConnectFormValues>({
     resolver: zodResolver(connectSchema),
@@ -111,15 +127,22 @@ function ConnectXenditForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <TooltipProvider delayDuration={120}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="secret_key">
-          Secret Key <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="secret_key">
+            {t("payment.secretKey.label")} <span className="text-destructive">*</span>
+          </Label>
+          <FieldHelp
+            label={t("payment.secretKey.label")}
+            content={t("payment.secretKey.help")}
+          />
+        </div>
         <Input
           id="secret_key"
           type="password"
-          placeholder="xnd_production_xxxxxx or xnd_development_xxxxxx"
+          placeholder={t("payment.secretKey.placeholder")}
           {...form.register("secret_key")}
         />
         {form.formState.errors.secret_key && (
@@ -128,30 +151,40 @@ function ConnectXenditForm() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="xendit_account_id">Xendit Account ID (Sub-account)</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="xendit_account_id">{t("payment.accountId.label")}</Label>
+          <FieldHelp
+            label={t("payment.accountId.label")}
+            content={t("payment.accountId.help")}
+          />
+        </div>
         <Input
           id="xendit_account_id"
-          placeholder="user-xxxxxx (optional, for XenPlatform)"
+          placeholder={t("payment.accountId.placeholder")}
           {...form.register("xendit_account_id")}
         />
-        <p className="text-xs text-muted-foreground">
-          Required for XenPlatform sub-account routing. Leave empty if using a standalone account.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("payment.accountId.note")}</p>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="business_name">Business Name</Label>
+        <Label htmlFor="business_name">{t("payment.businessNameLabel")}</Label>
         <Input
           id="business_name"
-          placeholder="e.g. Toko Maju Jaya"
+          placeholder={t("payment.businessNamePlaceholder")}
           {...form.register("business_name")}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="environment">
-          Environment <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="environment">
+            {t("payment.environmentLabel")} <span className="text-destructive">*</span>
+          </Label>
+          <FieldHelp
+            label={t("payment.environmentLabel")}
+            content={t("payment.environmentHelp")}
+          />
+        </div>
         <Select
           defaultValue="sandbox"
           onValueChange={(v) =>
@@ -162,18 +195,24 @@ function ConnectXenditForm() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
-            <SelectItem value="production">Production</SelectItem>
+            <SelectItem value="sandbox">{t("payment.environmentSandbox")}</SelectItem>
+            <SelectItem value="production">{t("payment.environmentProduction")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="webhook_token">Webhook Verification Token</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="webhook_token">{t("payment.webhook.label")}</Label>
+          <FieldHelp
+            label={t("payment.webhook.label")}
+            content={t("payment.webhook.help")}
+          />
+        </div>
         <Input
           id="webhook_token"
           type="password"
-          placeholder="Optional — used to verify Xendit webhook signatures"
+          placeholder={t("payment.webhook.placeholder")}
           {...form.register("webhook_token")}
         />
       </div>
@@ -188,9 +227,10 @@ function ConnectXenditForm() {
         ) : (
           <Plug className="h-4 w-4" />
         )}
-        Connect Xendit Account
+        {t("payment.connectButton")}
       </Button>
-    </form>
+      </form>
+    </TooltipProvider>
   );
 }
 
@@ -203,7 +243,16 @@ function UpdateXenditConfigForm({
   currentEnvironment?: string;
   currentBusinessName?: string;
 }) {
+  const t = useTranslations("profile");
   const updateMutation = useUpdateXenditConfig();
+
+  const updateSchema = z.object({
+    environment: z.enum(["sandbox", "production"]).optional(),
+    business_name: z.string().optional(),
+    is_active: z.boolean().optional(),
+  });
+
+  type UpdateFormValues = z.infer<typeof updateSchema>;
 
   const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateSchema),
@@ -224,16 +273,16 @@ function UpdateXenditConfigForm({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="upd_business_name">Business Name</Label>
+        <Label htmlFor="upd_business_name">{t("payment.businessNameLabel")}</Label>
         <Input
           id="upd_business_name"
-          placeholder="e.g. Toko Maju Jaya"
+          placeholder={t("payment.businessNamePlaceholder")}
           {...form.register("business_name")}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="upd_environment">Environment</Label>
+        <Label htmlFor="upd_environment">{t("payment.environmentLabel")}</Label>
         <Select
           defaultValue={currentEnvironment ?? "sandbox"}
           onValueChange={(v) =>
@@ -244,8 +293,8 @@ function UpdateXenditConfigForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="sandbox">Sandbox (Testing)</SelectItem>
-            <SelectItem value="production">Production</SelectItem>
+            <SelectItem value="sandbox">{t("payment.environmentSandbox")}</SelectItem>
+            <SelectItem value="production">{t("payment.environmentProduction")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -256,7 +305,7 @@ function UpdateXenditConfigForm({
         disabled={updateMutation.isPending}
       >
         {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );
@@ -265,6 +314,7 @@ function UpdateXenditConfigForm({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PaymentSettings() {
+  const t = useTranslations("profile");
   const [showConnectForm, setShowConnectForm] = useState(false);
   const { data: statusData, isLoading: statusLoading } = useXenditConnectionStatus();
   const { data: configData, isLoading: configLoading } = useXenditConfig();
@@ -278,7 +328,7 @@ export function PaymentSettings() {
     return (
       <div className="flex items-center gap-2 py-8 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm">Loading payment settings...</span>
+        <span className="text-sm">{t("payment.loading")}</span>
       </div>
     );
   }
@@ -288,10 +338,8 @@ export function PaymentSettings() {
       {/* Status header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-base">Digital Payment Gateway</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Connect your Xendit account to accept digital payments at the POS terminal.
-          </p>
+          <h3 className="font-semibold text-base">{t("payment.title")}</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("payment.description")}</p>
         </div>
         <ConnectionStatusBadge status={connectionStatus} />
       </div>
@@ -302,46 +350,44 @@ export function PaymentSettings() {
         <div className="space-y-6">
           {/* Current config overview */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Account Details</h4>
+            <h4 className="text-sm font-medium">{t("payment.accountDetailsHeader")}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  Business Name
+                  {t("payment.businessNameLabel")}
                 </span>
                 <span>{config.business_name || "-"}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  Environment
+                  {t("payment.environmentLabel")}
                 </span>
                 <span className="capitalize">{config.environment ?? "-"}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  Xendit Account ID
+                  {t("payment.xenditAccountIdLabel")}
                 </span>
-                <span className="font-mono text-xs">
-                  {config.xendit_account_id || "—"}
-                </span>
+                <span className="font-mono text-xs">{config.xendit_account_id || "—"}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  Status
+                  {t("payment.statusLabel")}
                 </span>
                 <span>
                   {config.connection_status === "connected" ? (
                     <Badge variant="success" className="capitalize gap-1.5 px-2.5 py-1">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      Connected
+                      {t("payment.connected")}
                     </Badge>
                   ) : config.connection_status === "suspended" ? (
                     <Badge variant="destructive" className="capitalize gap-1.5 px-2.5 py-1">
                       <WifiOff className="h-3.5 w-3.5" />
-                      Suspended
+                      {t("payment.suspended")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="capitalize gap-1.5 px-2.5 py-1 text-muted-foreground">
-                      Not Connected
+                      {t("payment.notConnectedBadge")}
                     </Badge>
                   )}
                 </span>
@@ -353,7 +399,7 @@ export function PaymentSettings() {
 
           {/* Update form */}
           <div className="space-y-4">
-            <h4 className="text-sm font-medium">Update Settings</h4>
+            <h4 className="text-sm font-medium">{t("payment.updateSettingsHeader")}</h4>
             <UpdateXenditConfigForm
               currentEnvironment={config.environment}
               currentBusinessName={config.business_name}
@@ -364,27 +410,24 @@ export function PaymentSettings() {
 
           {/* Danger zone */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-destructive">Danger Zone</h4>
-            <p className="text-sm text-muted-foreground">
-              Disconnecting will prevent all digital payments at the POS terminal until reconnected.
-            </p>
+            <h4 className="text-sm font-medium text-destructive">{t("payment.dangerZoneTitle")}</h4>
+            <p className="text-sm text-muted-foreground">{t("payment.dangerZoneDescription")}</p>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" className="cursor-pointer gap-2">
                   <Unplug className="h-4 w-4" />
-                  Disconnect Xendit Account
+                  {t("payment.disconnectButton")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Disconnect Xendit?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("payment.disconnectDialogTitle")}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove the payment gateway configuration. Cashiers will no longer be
-                    able to process digital payments until you reconnect an account.
+                    {t("payment.disconnectDialogDescription")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel className="cursor-pointer">{t("payment.cancelButton")}</AlertDialogCancel>
                   <AlertDialogAction
                     className="cursor-pointer"
                     onClick={() => disconnectMutation.mutate()}
@@ -393,7 +436,7 @@ export function PaymentSettings() {
                     {disconnectMutation.isPending && (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     )}
-                    Disconnect
+                    {t("payment.disconnectAction")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -405,30 +448,24 @@ export function PaymentSettings() {
           {!showConnectForm ? (
             <div className="flex flex-col items-start gap-4">
               <div className="flex flex-col gap-2">
-                <p className="text-sm text-muted-foreground">
-                  No payment gateway is connected. Connect your Xendit account to enable digital
-                  payments (QRIS, Virtual Account, E-Wallet) at the POS terminal.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("payment.notConnectedMessage")}</p>
               </div>
-              <Button
-                className="cursor-pointer gap-2"
-                onClick={() => setShowConnectForm(true)}
-              >
+              <Button className="cursor-pointer gap-2" onClick={() => setShowConnectForm(true)}>
                 <Plug className="h-4 w-4" />
-                Connect Xendit Account
+                {t("payment.connectButton")}
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Connect Xendit Account</h4>
+                <h4 className="text-sm font-medium">{t("payment.connectHeader")}</h4>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="cursor-pointer text-muted-foreground"
                   onClick={() => setShowConnectForm(false)}
                 >
-                  Cancel
+                  {t("payment.cancelButton")}
                 </Button>
               </div>
               <ConnectXenditForm />

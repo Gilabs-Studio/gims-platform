@@ -3,20 +3,24 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
 	"github.com/gilabs/gims/api/internal/pos/domain/mapper"
+	"github.com/gilabs/gims/api/internal/pos/domain/provider"
 	"gorm.io/gorm"
 )
 
 var ErrXenditConfigNotFound = errors.New("xendit config not found")
+var ErrXenditConnectionValidation = errors.New("xendit connection validation failed")
 
 // XenditConfigUsecase manages per-company Xendit payment gateway settings
 type XenditConfigUsecase interface {
 	Get(ctx context.Context, companyID string) (*dto.XenditConfigResponse, error)
 	GetConnectionStatus(ctx context.Context, companyID string) (*dto.XenditConnectionStatusResponse, error)
+	TestConnection(ctx context.Context, req *dto.TestXenditConnectionRequest) (*dto.TestXenditConnectionResponse, error)
 	Connect(ctx context.Context, companyID string, req *dto.ConnectXenditRequest, updatedBy string) (*dto.XenditConfigResponse, error)
 	Update(ctx context.Context, companyID string, req *dto.UpdateXenditConfigRequest, updatedBy string) (*dto.XenditConfigResponse, error)
 	Disconnect(ctx context.Context, companyID string, updatedBy string) (*dto.XenditConfigResponse, error)
@@ -59,7 +63,36 @@ func (u *xenditConfigUsecase) GetConnectionStatus(ctx context.Context, companyID
 	}, nil
 }
 
+func (u *xenditConfigUsecase) TestConnection(ctx context.Context, req *dto.TestXenditConnectionRequest) (*dto.TestXenditConnectionResponse, error) {
+	tester := provider.NewXenditProvider(req.SecretKey, req.XenditAccountID)
+	if err := tester.TestConnection(ctx); err != nil {
+		return &dto.TestXenditConnectionResponse{
+			Reachable: false,
+			Message:   err.Error(),
+		}, errors.Join(ErrXenditConnectionValidation, err)
+	}
+
+	return &dto.TestXenditConnectionResponse{
+		Reachable: true,
+		Message:   "Connection successful",
+	}, nil
+}
+
 func (u *xenditConfigUsecase) Connect(ctx context.Context, companyID string, req *dto.ConnectXenditRequest, updatedBy string) (*dto.XenditConfigResponse, error) {
+	testResp, err := u.TestConnection(ctx, &dto.TestXenditConnectionRequest{
+		SecretKey:       req.SecretKey,
+		XenditAccountID: req.XenditAccountID,
+	})
+	if err != nil || !testResp.Reachable {
+		if testResp != nil && testResp.Message != "" {
+			return nil, fmt.Errorf("%w: %s", ErrXenditConnectionValidation, testResp.Message)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrXenditConnectionValidation, err)
+		}
+		return nil, ErrXenditConnectionValidation
+	}
+
 	cfg := &posModels.XenditConfig{
 		CompanyID:        companyID,
 		SecretKey:        req.SecretKey,

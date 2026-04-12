@@ -70,6 +70,10 @@ func (h *XenditConfigHandler) Connect(c *gin.Context) {
 
 	cfg, err := h.uc.Connect(c.Request.Context(), uc.companyID, &req, uc.userID)
 	if err != nil {
+		if errors.Is(err, usecase.ErrXenditConnectionValidation) {
+			coreErrors.ErrorResponse(c, "XENDIT_CONNECTION_TEST_FAILED", map[string]interface{}{"reason": err.Error()}, nil)
+			return
+		}
 		coreErrors.InternalServerErrorResponse(c, "")
 		return
 	}
