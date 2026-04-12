@@ -210,6 +210,8 @@ export const productId = {
     taxType: "Tipe Pajak",
     taxInclusive: "Termasuk Pajak",
     taxInclusiveHint: "Harga sudah termasuk pajak",
+    isIngredient: "Bahan Baku",
+    isIngredientHint: "Produk dapat digunakan sebagai bahan baku untuk resep",
     noTax: "Tidak Ada Pajak",
     selectTax: "Pilih Pajak",
     selectType: "Pilih Tipe",

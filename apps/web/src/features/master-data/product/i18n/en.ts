@@ -211,6 +211,8 @@ export const productEn = {
     taxType: "Tax Type",
     taxInclusive: "Tax Inclusive",
     taxInclusiveHint: "Price includes tax",
+    isIngredient: "Is Ingredient",
+    isIngredientHint: "Product can be used as an ingredient for recipes",
     noTax: "No Tax",
     selectTax: "Select Tax",
     selectType: "Select Type",
