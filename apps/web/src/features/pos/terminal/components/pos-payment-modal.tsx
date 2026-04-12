@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,6 +35,7 @@ const PAYMENT_CHANNELS: XenditPaymentChannel[] = [
   { code: "QRIS", name: "QRIS", category: "QR_CODE" },
   // E-Wallets
   { code: "DANA", name: "DANA", category: "EWALLET" },
+  { code: "GOPAY", name: "GoPay", category: "EWALLET" },
   { code: "OVO", name: "OVO", category: "EWALLET" },
   { code: "SHOPEEPAY", name: "ShopeePay", category: "EWALLET" },
   { code: "LINKAJA", name: "LinkAja", category: "EWALLET" },
@@ -62,11 +64,55 @@ function getChannelsByCategory(category: XenditChannelCategory) {
   return PAYMENT_CHANNELS.filter((ch) => ch.category === category);
 }
 
+const CHANNEL_LOGOS: Partial<Record<string, string>> = {
+  QRIS: "/logo/quick-response-code-indonesia-standard-qris-seeklogo.svg",
+  DANA: "/logo/Logo%20DANA%20-%20(Koleksilogo.com).svg",
+  GOPAY: "/logo/Logo%20GoPay%20-%20(Koleksilogo.com).svg",
+  OVO: "/logo/Logo_ovo_purple.svg",
+  SHOPEEPAY: "/logo/ShopeePay%20Logo%20-%20(Koleksilogo.com).svg",
+  LINKAJA: "/logo/LinkAja.svg",
+  ASTRAPAY: "/logo/astra-pay-logo_svgstack_com_73131775993940.svg",
+  JENIUSPAY: "/logo/jenius-seeklogo.png",
+  BCA: "/logo/bca-bank-central-asia-logo-svgrepo-com.svg",
+  BNI: "/logo/Bank_Negara_Indonesia_logo_(2004).svg",
+  BRI: "/logo/BANK_BRI_logo_(vertical).svg",
+  MANDIRI: "/logo/Bank_Mandiri_logo_2016.svg",
+  PERMATA: "/logo/Permata_Bank_(2024).svg",
+  CIMB: "/logo/CIMB_Niaga_logo.svg",
+  BSI: "/logo/Bank_Syariah_Indonesia.svg",
+};
+
+function PaymentChannelLogo({ channel }: { channel: XenditPaymentChannel }) {
+  const logoPath = CHANNEL_LOGOS[channel.code];
+  if (logoPath) {
+    return (
+      <span className="h-9 w-16 shrink-0 rounded-md bg-white border border-border/70 flex items-center justify-center overflow-hidden shadow-sm">
+        <Image
+          src={logoPath}
+          alt={`${channel.name} logo`}
+          width={52}
+          height={24}
+          className="max-h-6 max-w-12 object-contain"
+          unoptimized
+        />
+      </span>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 28 20" className="h-5 w-7" aria-hidden="true">
+      <rect x="1" y="1" width="26" height="18" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <text x="14" y="13" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor">
+        {channel.code.slice(0, 3)}
+      </text>
+    </svg>
+  );
+}
+
 export function POSPaymentModal({
   open,
   onOpenChange,
   order,
-  config,
   onSuccess,
   onPaymentError,
 }: POSPaymentModalProps) {
@@ -76,6 +122,7 @@ export function POSPaymentModal({
   const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
+  const hasCompletedDigitalPaymentRef = useRef(false);
 
   const t = useTranslations("posTerminal.payment");
 
@@ -94,18 +141,15 @@ export function POSPaymentModal({
   const change = tenderAmount - totalAmount;
   const insufficientCash = tenderAmount < totalAmount;
 
-  // Start polling when digital payment is pending
-  useEffect(() => {
-    setPollingEnabled(!!digitalPayment && digitalPayment.status === "PENDING");
-  }, [digitalPayment]);
-
   // Check if payment has been completed via polling
   useEffect(() => {
     if (!paymentsData?.data) return;
+    if (hasCompletedDigitalPaymentRef.current) return;
+
     const payments = Array.isArray(paymentsData.data) ? paymentsData.data : [];
     const latestPayment = payments[0];
     if (latestPayment?.status === "PAID") {
-      setPollingEnabled(false);
+      hasCompletedDigitalPaymentRef.current = true;
       onSuccess(customerName.trim() || undefined);
     }
   }, [paymentsData, onSuccess, customerName]);
@@ -139,6 +183,8 @@ export function POSPaymentModal({
 
   async function handleDigitalSubmit(channel: XenditPaymentChannel) {
     try {
+      hasCompletedDigitalPaymentRef.current = false;
+      setPollingEnabled(false);
       const result = await initiateDigital.mutateAsync({
         orderId: order.id,
         data: {
@@ -151,8 +197,12 @@ export function POSPaymentModal({
       const payload = result as { data?: POSPayment };
       if (payload?.data) {
         setDigitalPayment(payload.data);
+        if (payload.data.status === "PENDING") {
+          setPollingEnabled(true);
+        }
       }
     } catch {
+      setPollingEnabled(false);
       toast.error(t("digitalError"));
       onPaymentError?.();
     }
@@ -162,10 +212,21 @@ export function POSPaymentModal({
     setSelectedChannel(null);
     setDigitalPayment(null);
     setPollingEnabled(false);
+    hasCompletedDigitalPaymentRef.current = false;
+  }
+
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setSelectedChannel(null);
+      setDigitalPayment(null);
+      setPollingEnabled(false);
+      hasCompletedDigitalPaymentRef.current = false;
+    }
+    onOpenChange(nextOpen);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Payment</DialogTitle>
@@ -344,29 +405,40 @@ function ChannelPicker({
   onSelect: (channel: XenditPaymentChannel) => void;
 }) {
   const t = useTranslations("posTerminal.payment");
+  const [searchTerm, setSearchTerm] = useState("");
   const categories: XenditChannelCategory[] = ["QR_CODE", "EWALLET", "BANK_TRANSFER", "CARDS"];
+  const normalizedQuery = searchTerm.trim().toLowerCase();
 
   return (
-    <ScrollArea className="max-h-[350px] pr-1">
+    <ScrollArea className="h-[360px] sm:h-[420px] pr-1">
       <div className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          {t("selectChannel")}
-        </p>
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search channel (DANA, GOPAY, BRI...)"
+          className="h-12 text-sm bg-background/80 border-border/80"
+        />
+        <p className="text-xs text-muted-foreground">{t("selectChannel")}</p>
         {categories.map((category) => {
-          const channels = getChannelsByCategory(category);
+          const channels = getChannelsByCategory(category).filter((channel) => {
+            if (!normalizedQuery) return true;
+            return (
+              channel.name.toLowerCase().includes(normalizedQuery) ||
+              channel.code.toLowerCase().includes(normalizedQuery)
+            );
+          });
           if (channels.length === 0) return null;
           const config = CATEGORY_CONFIG[category];
           const Icon = config.icon;
 
           return (
             <div key={category} className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground/80 uppercase tracking-wider">
                 <Icon className="h-3.5 w-3.5" />
                 {config.label}
               </div>
               <div className={cn(
-                "grid gap-1.5",
-                channels.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                "grid grid-cols-1 gap-2"
               )}>
                 {channels.map((channel) => {
                   const isSelected = selectedChannel?.code === channel.code;
@@ -378,7 +450,10 @@ function ChannelPicker({
                       variant={isSelected ? "default" : "outline"}
                       size="sm"
                       className={cn(
-                        "justify-start gap-2 cursor-pointer h-10 text-sm font-medium",
+                        "justify-start gap-3 cursor-pointer h-16 text-base font-semibold px-4 border transition-colors",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card/80 text-foreground border-border/80 hover:bg-accent/70",
                         isProcessing && "opacity-70"
                       )}
                       disabled={isLoading}
@@ -386,7 +461,9 @@ function ChannelPicker({
                     >
                       {isProcessing ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                      ) : null}
+                      ) : (
+                        <PaymentChannelLogo channel={channel} />
+                      )}
                       {channel.name}
                     </Button>
                   );
@@ -395,6 +472,18 @@ function ChannelPicker({
             </div>
           );
         })}
+        {categories.every((category) => {
+          const channels = getChannelsByCategory(category).filter((channel) => {
+            if (!normalizedQuery) return true;
+            return (
+              channel.name.toLowerCase().includes(normalizedQuery) ||
+              channel.code.toLowerCase().includes(normalizedQuery)
+            );
+          });
+          return channels.length === 0;
+        }) ? (
+          <p className="text-sm text-muted-foreground text-center py-3">No channel found.</p>
+        ) : null}
       </div>
     </ScrollArea>
   );
@@ -445,10 +534,13 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
         <div className="flex flex-col items-center gap-2 py-2">
           <Label className="text-xs text-muted-foreground">{t("scanQr")}</Label>
           <div className="bg-white p-3 rounded-lg border">
-            <img
+            <Image
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payment.qr_code)}`}
               alt="QRIS QR Code"
+              width={192}
+              height={192}
               className="w-48 h-48"
+              unoptimized
             />
           </div>
           <p className="text-xs text-muted-foreground text-center">

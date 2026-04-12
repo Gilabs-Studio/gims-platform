@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strings"
 
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -106,6 +107,12 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
 	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
+		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"))
+		coreErrors.ErrorResponse(c, "XENDIT_NOT_CONNECTED", map[string]interface{}{"reason": reason}, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"):
+		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"))
+		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": reason}, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}
