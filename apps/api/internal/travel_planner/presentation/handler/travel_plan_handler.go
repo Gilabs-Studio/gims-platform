@@ -517,6 +517,7 @@ func handleTravelPlanError(c *gin.Context, err error) {
 		errors.Is(err, usecase.ErrInvalidSearchQuery),
 		errors.Is(err, usecase.ErrEmployeeContextMissing),
 		errors.Is(err, usecase.ErrInvalidCoordinate),
+		errors.Is(err, usecase.ErrInvalidCheckpoint),
 		errors.Is(err, usecase.ErrVisitLogAlreadyCheckedIn),
 		errors.Is(err, usecase.ErrVisitLogNotCheckedIn),
 		errors.Is(err, usecase.ErrVisitLogAlreadyCheckedOut),

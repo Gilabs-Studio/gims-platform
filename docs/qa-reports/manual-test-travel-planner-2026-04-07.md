@@ -290,12 +290,15 @@ Added `frame-src 'self' https://www.openstreetmap.org/ https://*.openstreetmap.o
 **Severity:** High
 **Component:** Travel Planner → Visit Planner → Create Visit Plan
 **Page:** `/en/travel/visit-planner`
+**Status:** Fixed
 
 **Description:**  
 When opening the "Create Visit Plan" dialog, selecting a customer checkpoint (`RS Harapan Kita Jakarta`), and clicking **Create Plan**, the frontend sends a `POST` request to `/api/v1/travel/visit-planner/plans`. The server responds with `500 Internal Server Error`, causing the plan creation to fail and displaying a toast: "Request failed with status code 500".
 
 **Root Cause:**  
-Unknown — the backend handler for visit-plan creation is crashing before returning a meaningful error response. This suggests an unhandled exception (possibly nil-pointer dereference, missing foreign-key validation, or a GORM error) in the Go usecase or repository layer.
+Two root causes:
+1. `generateVisitCode` used nanoseconds for uniqueness, making collisions likely under concurrent or rapid requests and violating the `code` unique index on `visit_reports`.
+2. `resolveNavigationCheckpoint` skipped `ref_id` validation when coordinates were provided, and returned warning strings for invalid checkpoints. `CreateVisitPlannerPlan` silently skipped these, eventually falling through to a generic `errors.New("no valid checkpoints")` that mapped to HTTP 500. Additionally, minimal-mode seeded customers lacked `latitude`/`longitude`, causing all checkpoints to be silently discarded in minimal seed environments.
 
 **Expected Behavior:**  
 The API should return `201 Created` (or `200 OK`) with the newly created visit plan, and the dialog should close successfully.
@@ -303,7 +306,20 @@ The API should return `201 Created` (or `200 OK`) with the newly created visit p
 **Actual Behavior:**  
 The API returns HTTP 500, the dialog remains open, and the user sees a generic failure toast.
 
-**Reproduction Steps:**
+**Fix Applied:**
+- Replaced nanosecond-based `generateVisitCode` with a cryptographically secure random 6-digit suffix (`crypto/rand` + `math/big`).
+- Refactored `resolveNavigationCheckpoint` to enforce strict `ref_id` validation even when `lat`/`lng` are provided, and to return `ErrInvalidCheckpoint` (400 Bad Request) instead of warning strings for all invalid checkpoint scenarios.
+- Updated `CreateVisitPlannerPlan` to propagate `ErrInvalidCheckpoint` instead of silently skipping checkpoints.
+- Added `ErrInvalidCheckpoint` to the handler's 400-mapping list in `handleTravelPlanError`.
+- Added `Latitude` and `Longitude` to all 3 minimal-mode seeded customers in `customer_seeder.go`.
+
+**Verification:**
+- Rebuilt and restarted the backend via Docker Compose.
+- Logged in as admin, navigated to `/en/travel/visit-planner`, clicked **Create Plan**, selected `Klinik Pratama Medika`, and submitted.
+- The dialog closed, the route appeared in the left panel (1 route), and a success toast "Visit plan created successfully." was displayed.
+- No 500 errors in the network tab.
+
+**Reproduction Steps (Historical):**
 1. Log in as admin
 2. Navigate to `/en/travel/visit-planner`
 3. Click **Create Plan**
