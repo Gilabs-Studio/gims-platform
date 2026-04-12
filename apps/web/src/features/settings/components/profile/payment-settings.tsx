@@ -61,7 +61,7 @@ type UpdateFormValues = z.infer<typeof updateSchema>;
 function ConnectionStatusBadge({ status }: { status: string }) {
   if (status === "connected") {
     return (
-      <Badge className="bg-green-100 text-green-700 gap-1.5 px-2.5 py-1">
+      <Badge variant="success" className="gap-1.5 px-2.5 py-1">
         <CheckCircle2 className="h-3.5 w-3.5" />
         Connected
       </Badge>
@@ -328,7 +328,23 @@ export function PaymentSettings() {
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
                   Status
                 </span>
-                <span className="capitalize">{config.connection_status}</span>
+                <span>
+                  {config.connection_status === "connected" ? (
+                    <Badge variant="success" className="capitalize gap-1.5 px-2.5 py-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Connected
+                    </Badge>
+                  ) : config.connection_status === "suspended" ? (
+                    <Badge variant="destructive" className="capitalize gap-1.5 px-2.5 py-1">
+                      <WifiOff className="h-3.5 w-3.5" />
+                      Suspended
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="capitalize gap-1.5 px-2.5 py-1 text-muted-foreground">
+                      Not Connected
+                    </Badge>
+                  )}
+                </span>
               </div>
             </div>
           </div>
