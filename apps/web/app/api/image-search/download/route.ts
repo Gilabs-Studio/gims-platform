@@ -5,6 +5,14 @@ interface DownloadPayload {
   download_location?: string;
 }
 
+const UNSPLASH_API_ORIGIN = "https://api.unsplash.com";
+const UNSPLASH_API_HOSTNAME = "api.unsplash.com";
+const UNSPLASH_PHOTO_ID_REGEX = /^[A-Za-z0-9_-]+$/;
+
+function isValidPhotoId(photoId: string): boolean {
+  return UNSPLASH_PHOTO_ID_REGEX.test(photoId);
+}
+
 export async function POST(request: NextRequest) {
   let payload: DownloadPayload;
 
@@ -37,6 +45,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!isValidPhotoId(photoId)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Invalid photo_id",
+        timestamp: new Date().toISOString(),
+        request_id: crypto.randomUUID(),
+      },
+      { status: 400 }
+    );
+  }
+
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
   if (!accessKey) {
     return NextResponse.json(
@@ -51,14 +71,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const url = new URL(downloadLocation);
-    const allowedHosts = new Set(["api.unsplash.com"]);
-    const isHttps = url.protocol === "https:";
-    const isAllowedHost = allowedHosts.has(url.hostname);
-    const isAllowedPath =
-      url.pathname.startsWith("/photos/") && url.pathname.endsWith("/download");
+    const downloadUrl = new URL(downloadLocation);
+    const isHttps = downloadUrl.protocol === "https:";
+    const isAllowedHost = downloadUrl.hostname === UNSPLASH_API_HOSTNAME;
+    const expectedPath = `/photos/${photoId}/download`;
+    const isExpectedPath = downloadUrl.pathname === expectedPath;
 
-    if (!isHttps || !isAllowedHost || !isAllowedPath) {
+    if (!isHttps || !isAllowedHost || !isExpectedPath) {
       return NextResponse.json(
         {
           success: false,
@@ -70,7 +89,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(url.toString(), {
+    // Build the outbound URL from fixed server-controlled parts to prevent SSRF.
+    const outboundUrl = new URL(expectedPath, UNSPLASH_API_ORIGIN);
+
+    const response = await fetch(outboundUrl.toString(), {
       method: "GET",
       headers: {
         "Accept-Version": "v1",
