@@ -2,6 +2,7 @@ export const posTerminalId = {
   posTerminal: {
     title: "Terminal POS",
     subtitle: "Point of Sale — layani pelanggan dan proses pesanan",
+    addOutlet: "Tambah Outlet",
     session: {
       open: "Buka Sesi",
       close: "Tutup Sesi",

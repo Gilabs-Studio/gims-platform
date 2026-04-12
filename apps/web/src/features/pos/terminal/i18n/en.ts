@@ -2,6 +2,7 @@ export const posTerminalEn = {
   posTerminal: {
     title: "POS Terminal",
     subtitle: "Point of Sale — serve customers and process orders",
+    addOutlet: "Add Outlet",
     session: {
       open: "Open Session",
       close: "Close Session",

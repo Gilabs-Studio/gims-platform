@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Store,
   LayoutPanelTop,
@@ -17,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import type { Outlet } from "@/features/master-data/outlet/types";
 import { useFloorLayouts } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { POSTerminalContainer } from "./pos-terminal-container";
 
 type OutletMode = "LIVE_TABLE" | "DIRECT_POS";
@@ -28,6 +29,7 @@ type OutletWithMode = Outlet & {
 
 export function POSTerminalPageClient() {
   const router = useRouter();
+  const t = useTranslations("posTerminal");
   const searchParams = useSearchParams();
   const outletIdFromQuery = searchParams.get("outlet_id");
   const tableIdFromQuery = searchParams.get("table_id") ?? undefined;
@@ -166,6 +168,9 @@ export function POSTerminalPageClient() {
             Your account has POS access but no outlet has been assigned to you.
             Please contact your administrator.
           </p>
+          <Button asChild variant="outline" className="mt-2 cursor-pointer">
+            <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+          </Button>
         </div>
       </div>
     );
@@ -185,6 +190,9 @@ export function POSTerminalPageClient() {
             Your outlets exist but none have a linked POS warehouse.
             Please contact your system administrator.
           </p>
+          <Button asChild variant="outline" className="mt-2 cursor-pointer">
+            <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+          </Button>
         </div>
       </div>
     );

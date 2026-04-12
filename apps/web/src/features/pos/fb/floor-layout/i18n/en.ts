@@ -9,7 +9,12 @@ export const floorLayoutEn = {
     selectOutlet: "Select Outlet",
     allOutlets: "All Outlets",
     noResults: "No floor plans found. Create your first one!",
+    noResultsHint: "If you need a new outlet first, go to the outlet page and add one there.",
     noOutlet: "Please select an outlet to view floor plans",
+    addOutlet: "Add Outlet",
+    outletAlreadyHasLayout: "Already has layout",
+    outletAlreadyHasLayoutHint: "Outlets with an existing floor plan are disabled in this form.",
+    noAvailableOutletsHint: "All available outlets already have a floor plan. Create a new outlet first.",
     // Fields
     name: "Floor Name",
     floorNumber: "Floor Number",
