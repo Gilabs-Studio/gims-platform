@@ -1,22 +1,23 @@
 "use client";
 
+import "@/features/pos/fb/pos-fb-theme.module.css";
 import { memo } from "react";
 
 import type { LayoutObject } from "../types";
 
 export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-// Visual configuration per object type
+// Visual configuration per object type (use CSS variables for theme-awareness)
 const ZONE_COLORS: Record<string, string> = {
-  dining: "#3b82f6",
-  vip: "#a855f7",
-  outdoor: "#22c55e",
-  bar: "#f97316",
-  kitchen: "#ef4444",
-  storage: "#6b7280",
-  entrance: "#14b8a6",
-  restroom: "#06b6d4",
-  waiting: "#eab308",
+  dining: "var(--pos-zone-dining)",
+  vip: "var(--pos-zone-vip)",
+  outdoor: "var(--pos-zone-outdoor)",
+  bar: "var(--pos-zone-bar)",
+  kitchen: "var(--pos-zone-kitchen)",
+  storage: "var(--pos-zone-storage)",
+  entrance: "var(--pos-zone-entrance)",
+  restroom: "var(--pos-zone-restroom)",
+  waiting: "var(--pos-zone-waiting)",
 };
 
 interface CanvasObjectProps {
@@ -30,8 +31,8 @@ interface CanvasObjectProps {
 
 function TableObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
   const isCircle = object.tableShape === "circle";
-  const strokeColor = isSelected ? "#3b82f6" : "#64748b";
-  const fillColor = "#fef3c7";
+  const strokeColor = isSelected ? "var(--pos-accent)" : "var(--pos-stroke-muted)";
+  const fillColor = "var(--pos-table-fill)";
 
   if (isCircle) {
     const r = Math.min(object.width, object.height) / 2;
@@ -52,7 +53,7 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
           dominantBaseline="central"
           fontSize={12}
           fontWeight="bold"
-          fill="#92400e"
+          fill="var(--pos-table-text)"
           className="select-none pointer-events-none"
         >
           {object.label ?? `T${object.tableNumber}`}
@@ -80,7 +81,7 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
         dominantBaseline="central"
         fontSize={12}
         fontWeight="bold"
-        fill="#92400e"
+        fill="var(--pos-table-text)"
         className="select-none pointer-events-none"
       >
         {object.label ?? `T${object.tableNumber}`}
@@ -92,7 +93,7 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
 function ChairObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
   const w = object.width;
   const h = object.height;
-  const strokeColor = isSelected ? "#3b82f6" : "#60a5fa";
+  const strokeColor = isSelected ? "var(--pos-accent)" : "var(--pos-chair-stroke)";
   const backrestH = Math.max(6, Math.round(h * 0.3));
   const seatH = Math.max(6, h - backrestH - 4);
   return (
@@ -104,7 +105,7 @@ function ChairObject({ object, isSelected }: { readonly object: LayoutObject; re
         width={w - 4}
         height={backrestH}
         rx={2}
-        fill="#bfdbfe"
+        fill="var(--pos-chair-fill)"
         stroke={strokeColor}
         strokeWidth={isSelected ? 2 : 1.5}
       />
@@ -115,7 +116,7 @@ function ChairObject({ object, isSelected }: { readonly object: LayoutObject; re
         width={w - 4}
         height={seatH}
         rx={3}
-        fill="#dbeafe"
+        fill="var(--pos-chair-fill)"
         stroke={strokeColor}
         strokeWidth={isSelected ? 2 : 1.5}
       />
@@ -130,8 +131,8 @@ function WallObject({ object, isSelected }: { readonly object: LayoutObject; rea
       y={0}
       width={object.width}
       height={object.height}
-      fill="#475569"
-      stroke={isSelected ? "#3b82f6" : "#334155"}
+      fill="var(--pos-wall-fill)"
+      stroke={isSelected ? "var(--pos-accent)" : "var(--pos-wall-stroke)"}
       strokeWidth={isSelected ? 2 : 1}
       rx={1}
     />
@@ -143,12 +144,12 @@ function DoorObject({ object, isSelected }: { readonly object: LayoutObject; rea
   const h = object.height;
   return (
     <g>
-      <rect x={0} y={0} width={w} height={h} fill="#fde68a" stroke={isSelected ? "#3b82f6" : "#d97706"} strokeWidth={isSelected ? 2 : 1} rx={2} />
+      <rect x={0} y={0} width={w} height={h} fill="var(--pos-door-fill)" stroke={isSelected ? "var(--pos-accent)" : "var(--pos-door-stroke)"} strokeWidth={isSelected ? 2 : 1} rx={2} />
       {/* Door swing arc */}
       <path
         d={`M ${w * 0.1} ${h * 0.5} A ${w * 0.35} ${w * 0.35} 0 0 1 ${w * 0.9} ${h * 0.5}`}
         fill="none"
-        stroke="#d97706"
+        stroke="var(--pos-door-stroke)"
         strokeWidth={1}
         strokeDasharray="3 2"
       />
@@ -165,8 +166,8 @@ function CashierObject({ object, isSelected }: { readonly object: LayoutObject; 
         width={object.width - 2}
         height={object.height - 2}
         rx={4}
-        fill="#dcfce7"
-        stroke={isSelected ? "#3b82f6" : "#16a34a"}
+        fill="var(--pos-cashier-fill)"
+        stroke={isSelected ? "var(--pos-accent)" : "var(--pos-cashier-stroke)"}
         strokeWidth={isSelected ? 2.5 : 1.5}
       />
       {/* Monitor icon */}
@@ -176,8 +177,8 @@ function CashierObject({ object, isSelected }: { readonly object: LayoutObject; 
         width={object.width * 0.5}
         height={object.height * 0.4}
         rx={2}
-        fill="#bbf7d0"
-        stroke="#16a34a"
+        fill="var(--pos-cashier-fill)"
+        stroke="var(--pos-cashier-stroke)"
         strokeWidth={1}
       />
       <text
@@ -187,7 +188,7 @@ function CashierObject({ object, isSelected }: { readonly object: LayoutObject; 
         dominantBaseline="central"
         fontSize={10}
         fontWeight="600"
-        fill="#166534"
+        fill="var(--pos-table-text)"
         className="select-none pointer-events-none"
       >
         {object.label ?? "Cashier"}
@@ -197,7 +198,7 @@ function CashierObject({ object, isSelected }: { readonly object: LayoutObject; 
 }
 
 function ZoneObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
-  const color = object.color ?? ZONE_COLORS[object.zoneType ?? "dining"] ?? "#3b82f6";
+  const color = object.color ?? ZONE_COLORS[object.zoneType ?? "dining"] ?? "var(--pos-zone-default)";
   const fillOpacity = object.opacity ?? 0.15;
 
   return (
@@ -210,7 +211,7 @@ function ZoneObject({ object, isSelected }: { readonly object: LayoutObject; rea
         rx={8}
         fill={color}
         fillOpacity={fillOpacity}
-        stroke={isSelected ? "#3b82f6" : color}
+        stroke={isSelected ? "var(--pos-accent)" : color}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "none" : "6 3"}
       />
@@ -240,8 +241,8 @@ function DecorationObject({ object, isSelected }: { readonly object: LayoutObjec
         width={object.width - 2}
         height={object.height - 2}
         rx={4}
-        fill="#fce7f3"
-        stroke={isSelected ? "#3b82f6" : "#ec4899"}
+        fill="var(--pos-decor-fill)"
+        stroke={isSelected ? "var(--pos-accent)" : "var(--pos-decor-stroke)"}
         strokeWidth={isSelected ? 2 : 1}
         strokeDasharray="4 2"
       />
@@ -300,38 +301,38 @@ function SelectionHandles({ object, onResizeStart, onRotateStart }: SelectionHan
         width={w + 4}
         height={h + 4}
         fill="none"
-        stroke="#3b82f6"
+        stroke="var(--pos-accent)"
         strokeWidth={1}
         strokeDasharray="4 3"
       />
       {/* Rotation stem */}
-      <line x1={w / 2} y1={-2} x2={w / 2} y2={-18} stroke="#3b82f6" strokeWidth={1} />
+      <line x1={w / 2} y1={-2} x2={w / 2} y2={-18} stroke="var(--pos-accent)" strokeWidth={1} />
       {/* Rotation handle */}
       <circle
         cx={w / 2}
         cy={-25}
         r={6}
-        fill="white"
-        stroke="#3b82f6"
+        fill="var(--pos-handle-fill)"
+        stroke="var(--pos-accent)"
         strokeWidth={1.5}
         style={{ cursor: "grab" }}
         onMouseDown={(e) => { e.stopPropagation(); onRotateStart(e); }}
       />
       {/* 8 resize handles */}
       {handles.map((handle) => (
-        <rect
-          key={handle.id}
-          x={handle.x}
-          y={handle.y}
-          width={hs}
-          height={hs}
-          fill="white"
-          stroke="#3b82f6"
-          strokeWidth={1.5}
-          rx={1}
-          style={{ cursor: handle.cursor }}
-          onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, handle.id); }}
-        />
+          <rect
+            key={handle.id}
+            x={handle.x}
+            y={handle.y}
+            width={hs}
+            height={hs}
+            fill="var(--pos-handle-fill)"
+            stroke="var(--pos-accent)"
+            strokeWidth={1.5}
+            rx={1}
+            style={{ cursor: handle.cursor }}
+            onMouseDown={(e) => { e.stopPropagation(); onResizeStart(e, handle.id); }}
+          />
       ))}
     </g>
   );

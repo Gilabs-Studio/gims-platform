@@ -1,0 +1,126 @@
+:root {
+  /* Status colors (light) */
+  --pos-available-fill: #f0fdf4;
+  --pos-available-stroke: #86efac;
+  --pos-available-text: #166534;
+
+  --pos-seated-fill: #eff6ff;
+  --pos-seated-stroke: #93c5fd;
+  --pos-seated-text: #1d4ed8;
+
+  --pos-warn-fill: #fff1f2;
+  --pos-warn-stroke: #fca5a5;
+  --pos-warn-text: #9f1239;
+
+  --pos-partial-fill: #fffbeb;
+  --pos-partial-stroke: #fcd34d;
+  --pos-partial-text: #92400e;
+
+  --pos-served-fill: #f5f3ff;
+  --pos-served-stroke: #c4b5fd;
+  --pos-served-text: #5b21b6;
+
+  /* Object colors */
+  --pos-wall-fill: #475569;
+  --pos-wall-stroke: #334155;
+
+  --pos-zone-dining: #3b82f6;
+  --pos-zone-vip: #a855f7;
+  --pos-zone-outdoor: #22c55e;
+  --pos-zone-bar: #f97316;
+  --pos-zone-kitchen: #ef4444;
+  --pos-zone-storage: #6b7280;
+  --pos-zone-entrance: #14b8a6;
+  --pos-zone-restroom: #06b6d4;
+  --pos-zone-waiting: #eab308;
+  --pos-zone-default: var(--pos-zone-dining);
+
+  --pos-door-fill: #fde68a;
+  --pos-door-stroke: #d97706;
+
+  --pos-chair-fill: #dbeafe;
+  --pos-chair-stroke: #93c5fd;
+
+  --pos-table-fill: #fef3c7;
+  --pos-table-text: #92400e;
+
+  --pos-cashier-fill: #dcfce7;
+  --pos-cashier-stroke: #16a34a;
+
+  --pos-decor-fill: #fce7f3;
+  --pos-decor-stroke: #ec4899;
+
+  /* Utilities */
+  --pos-accent: #3b82f6;
+  --pos-stroke-muted: #64748b;
+  --pos-grid-dot: #cbd5e1;
+  --pos-grid-highlight: #0ea5e9;
+  --pos-bg-fill: #ffffff;
+  --pos-handle-fill: #ffffff;
+  --pos-zone-preview-fill: rgba(59,130,246,0.08);
+  --pos-zone-preview-stroke: #3b82f6;
+  --pos-divider: #000000;
+}
+
+:global(.dark) {
+  /* Status colors (dark) — slightly transparent overlays */
+  --pos-available-fill: rgba(16,185,129,0.08);
+  --pos-available-stroke: rgba(16,185,129,0.6);
+  --pos-available-text: #bbf7d0;
+
+  --pos-seated-fill: rgba(147,197,253,0.06);
+  --pos-seated-stroke: rgba(147,197,253,0.6);
+  --pos-seated-text: #bfdbfe;
+
+  --pos-warn-fill: rgba(252,165,165,0.06);
+  --pos-warn-stroke: rgba(252,165,165,0.6);
+  --pos-warn-text: #fda4af;
+
+  --pos-partial-fill: rgba(252,211,77,0.06);
+  --pos-partial-stroke: rgba(252,211,77,0.6);
+  --pos-partial-text: #fef3c7;
+
+  --pos-served-fill: rgba(196,181,253,0.06);
+  --pos-served-stroke: rgba(196,181,253,0.6);
+  --pos-served-text: #e9d5ff;
+
+  /* Object colors (dark variants) */
+  --pos-wall-fill: #94a3b8;
+  --pos-wall-stroke: #334155;
+
+  --pos-zone-dining: #2563eb;
+  --pos-zone-vip: #7c3aed;
+  --pos-zone-outdoor: #16a34a;
+  --pos-zone-bar: #ea580c;
+  --pos-zone-kitchen: #dc2626;
+  --pos-zone-storage: #94a3b8;
+  --pos-zone-entrance: #0d9488;
+  --pos-zone-restroom: #0891b2;
+  --pos-zone-waiting: #d97706;
+  --pos-zone-default: var(--pos-zone-dining);
+
+  --pos-door-fill: rgba(249,115,22,0.06);
+  --pos-door-stroke: rgba(249,115,22,0.6);
+
+  --pos-chair-fill: rgba(219,234,254,0.04);
+  --pos-chair-stroke: rgba(147,197,253,0.6);
+
+  --pos-table-fill: rgba(250,204,21,0.04);
+  --pos-table-text: #f59e0b;
+
+  --pos-cashier-fill: rgba(16,185,129,0.04);
+  --pos-cashier-stroke: rgba(16,185,129,0.6);
+
+  --pos-decor-fill: #0f172a;
+  --pos-decor-stroke: #1f2937;
+
+  --pos-accent: #2563eb;
+  --pos-stroke-muted: #94a3b8;
+  --pos-grid-dot: #334155;
+  --pos-grid-highlight: #0284c7;
+  --pos-bg-fill: #071126;
+  --pos-handle-fill: #0b1220;
+  --pos-zone-preview-fill: rgba(37,99,235,0.06);
+  --pos-zone-preview-stroke: #2563eb;
+  --pos-divider: #94a3b8;
+}
