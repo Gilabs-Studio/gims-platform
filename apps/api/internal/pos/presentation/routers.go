@@ -29,7 +29,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	productRepo := repositories.NewPOSProductRepository(db)
 	paymentRepo := repositories.NewPOSPaymentRepository(db)
 	configRepo := repositories.NewPOSConfigRepository(db)
-	midtransRepo := repositories.NewMidtransConfigRepository(db)
+	xenditRepo := repositories.NewXenditConfigRepository(db)
 	bankAccountRepo := coreRepos.NewBankAccountRepository(db)
 
 	outletRepo := orgRepo.NewOutletRepository(db)
@@ -44,9 +44,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, midtransRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo)
+	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
-	midtransUC := usecase.NewMidtransConfigUsecase(midtransRepo)
+	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo)
 
 	// ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	receiptH := handler.NewPOSReceiptHandler(orderUC, paymentRepo, configRepo, outletRepo)
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
-	midtransH := handler.NewMidtransConfigHandler(midtransUC)
+	xenditH := handler.NewXenditConfigHandler(xenditUC)
 
 	// ─── Route group ─────────────────────────────────────────────────────────
 
@@ -66,8 +66,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPOSOrderRoutes(group, orderH, receiptH)
 	router.RegisterPOSPaymentRoutes(group, paymentH)
 	router.RegisterPOSConfigRoutes(group, configH)
-	router.RegisterMidtransConfigRoutes(group, midtransH)
+	router.RegisterXenditConfigRoutes(group, xenditH)
 
-	// Midtrans webhook is unauthenticated (signature verified inside the handler)
-	r.POST("/api/v1/pos/payments/midtrans/webhook", paymentH.MidtransWebhook)
+	// Xendit webhook is unauthenticated (token verified inside the handler by Xendit signature)
+	r.POST("/api/v1/pos/payments/xendit/webhook", paymentH.XenditWebhook)
 }
+

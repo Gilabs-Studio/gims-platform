@@ -9,7 +9,12 @@ export const floorLayoutId = {
     selectOutlet: "Pilih Outlet",
     allOutlets: "Semua Outlet",
     noResults: "Belum ada denah lantai. Buat yang pertama!",
+    noResultsHint: "Jika perlu outlet baru terlebih dahulu, buka halaman outlet dan tambahkan dari sana.",
     noOutlet: "Silakan pilih outlet untuk melihat denah lantai",
+    addOutlet: "Tambah Outlet",
+    outletAlreadyHasLayout: "Sudah punya layout",
+    outletAlreadyHasLayoutHint: "Outlet yang sudah punya denah lantai dinonaktifkan di form ini.",
+    noAvailableOutletsHint: "Semua outlet yang tersedia sudah punya denah lantai. Tambahkan outlet baru terlebih dahulu.",
     // Fields
     name: "Nama Lantai",
     floorNumber: "Nomor Lantai",

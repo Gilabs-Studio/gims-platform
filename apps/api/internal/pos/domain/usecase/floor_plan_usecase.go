@@ -20,6 +20,7 @@ import (
 var (
 	ErrFloorPlanNotFound         = errors.New("floor plan not found")
 	ErrFloorPlanForbidden        = errors.New("forbidden: you do not have access to this floor plan")
+	ErrFloorPlanAlreadyExists    = errors.New("floor plan already exists for this outlet")
 	ErrFloorPlanAlreadyPublished = errors.New("floor plan is already in published state")
 	ErrVersionNotFound           = errors.New("layout version not found")
 )
@@ -107,6 +108,18 @@ func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanR
 	// Non-owner can only create for outlet under their own company.
 	if !isOwner && *outlet.CompanyID != userCompanyID {
 		return nil, ErrFloorPlanForbidden
+	}
+
+	existingPlans, _, err := u.repo.List(ctx, repositories.FloorPlanListParams{
+		OutletID: outlet.ID,
+		Limit:    1,
+		Offset:   0,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing floor plans: %w", err)
+	}
+	if len(existingPlans) > 0 {
+		return nil, ErrFloorPlanAlreadyExists
 	}
 
 	companyID := *outlet.CompanyID
@@ -328,6 +341,24 @@ func (u *floorPlanUsecase) GetFormData(ctx context.Context, userCompanyID string
 		params.CompanyID = userCompanyID
 	}
 
+	floorPlanParams := repositories.FloorPlanListParams{}
+	if !isOwner {
+		floorPlanParams.CompanyID = userCompanyID
+	}
+
+	floorPlans, _, err := u.repo.List(ctx, floorPlanParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch floor plans: %w", err)
+	}
+
+	hasFloorPlanByOutlet := make(map[string]bool, len(floorPlans))
+	for _, plan := range floorPlans {
+		if plan.OutletID == "" {
+			continue
+		}
+		hasFloorPlanByOutlet[plan.OutletID] = true
+	}
+
 	allOutlets, _, err := u.outletRepo.List(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch outlets: %w", err)
@@ -339,8 +370,9 @@ func (u *floorPlanUsecase) GetFormData(ctx context.Context, userCompanyID string
 			continue
 		}
 		outlets = append(outlets, dto.OutletOption{
-			ID:   outletUUID,
-			Name: outlet.Name,
+			ID:           outletUUID,
+			Name:         outlet.Name,
+			HasFloorPlan: hasFloorPlanByOutlet[outlet.ID],
 		})
 	}
 

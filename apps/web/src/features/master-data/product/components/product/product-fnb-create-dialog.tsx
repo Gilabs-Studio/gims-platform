@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ButtonLoading } from "@/components/loading";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
+import { ImageUpload } from "@/components/ui/image-upload";
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ import { ChefHat, Plus, Trash2 } from "lucide-react";
 import { useCreateProduct, useProducts } from "../../hooks/use-products";
 import { useProductCategories } from "../../hooks/use-product-categories";
 import { useUnitsOfMeasure } from "../../hooks/use-units-of-measure";
-import type { Product, RecipeItemRequest } from "../../types";
+import type { RecipeItemRequest } from "../../types";
 
 interface ProductFnbCreateDialogProps {
   open: boolean;
@@ -76,6 +77,7 @@ export function ProductFnbCreateDialog({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [sellingPrice, setSellingPrice] = useState<number>(0);
   const [categoryId, setCategoryId] = useState("");
   const [uomId, setUomId] = useState("");
@@ -135,7 +137,7 @@ export function ProductFnbCreateDialog({
   const ingredientPagination = ingredientsData?.meta?.pagination;
   const hasMoreIngredients = ingredientPagination?.has_next ?? false;
 
-  const ingredientOptionProducts = ingredientsData?.data ?? [];
+  const ingredientOptionProducts = useMemo(() => ingredientsData?.data ?? [], [ingredientsData?.data]);
 
   const ingredientComboboxOptions = useMemo(
     () => ingredientOptionProducts.map((item) => ({ value: item.id, label: `${item.name} (${item.code})` })),
@@ -145,6 +147,7 @@ export function ProductFnbCreateDialog({
   const resetForm = () => {
     setName("");
     setDescription("");
+    setImageUrl(null);
     setSellingPrice(0);
     setCategoryId("");
     setUomId("");
@@ -157,11 +160,15 @@ export function ProductFnbCreateDialog({
     setRecipeError(null);
   };
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChangeInternal = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Reset form when dialog is closed. Do this in the event handler
+      // to avoid calling setState synchronously from an effect.
       resetForm();
     }
-  }, [open]);
+
+    onOpenChange(isOpen);
+  };
 
   const handleAddIngredientRow = () => {
     setRecipeRows((prev) => [
@@ -287,6 +294,7 @@ export function ProductFnbCreateDialog({
         code: "",
         name: name.trim(),
         description: description.trim() || undefined,
+        image_url: imageUrl || undefined,
         category_id: categoryId,
         uom_id: uomId || null,
         product_kind: "RECIPE",
@@ -304,7 +312,7 @@ export function ProductFnbCreateDialog({
       });
 
       toast.success(t("created"));
-      onOpenChange(false);
+      handleOpenChangeInternal(false);
     } catch (error) {
       let errorMessage = tCommon("error");
 
@@ -336,9 +344,9 @@ export function ProductFnbCreateDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChangeInternal}>
       <DialogContent
-        size="xl"
+        size="2xl"
         className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden"
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
@@ -351,102 +359,138 @@ export function ProductFnbCreateDialog({
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field>
-                <FieldLabel htmlFor="fnb-product-name" className="required">
-                  {t("form.name")}
-                </FieldLabel>
-                <Input
-                  id="fnb-product-name"
-                  value={name}
-                  onChange={(event) => {
-                    setName(event.target.value);
-                    setNameError(null);
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="w-full md:w-1/3">
+                <FieldLabel>{t("image")}</FieldLabel>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={(url) => setImageUrl(url)}
+                  disabled={createMutation.isPending}
+                  enableUrlInput
+                  enableImageSearch
+                  initialSearchQuery={name}
+                  labels={{
+                    dragActive: tCommon("dragActive"),
+                    dragInactive: tCommon("dragInactive"),
+                    uploadSuccess: tCommon("uploadSuccess"),
+                    uploadFailed: tCommon("uploadFailed"),
+                    invalidFile: tCommon("invalidFile"),
+                    removeImage: tCommon("removeImage"),
+                    pasteImageUrl: t("imageAssist.pasteImageUrl"),
+                    imageUrlPlaceholder: t("imageAssist.imageUrlPlaceholder"),
+                    applyUrl: t("imageAssist.applyUrl"),
+                    searchImage: t("imageAssist.searchImage"),
+                    searchPlaceholder: t("imageAssist.searchPlaceholder"),
+                    searchButton: t("imageAssist.searchButton"),
+                    searchNoResults: t("imageAssist.searchNoResults"),
+                    searchFailed: t("imageAssist.searchFailed"),
+                    selectFromResults: t("imageAssist.selectFromResults"),
+                    attributionPrefix: t("imageAssist.attributionPrefix"),
+                    onUnsplash: t("imageAssist.onUnsplash"),
+                    termsNotice: t("imageAssist.termsNotice"),
                   }}
-                  placeholder={t("form.name")}
                 />
-                {nameError && <FieldError>{nameError}</FieldError>}
-              </Field>
+              </div>
+              
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field className="col-span-1 md:col-span-2">
+                    <FieldLabel htmlFor="fnb-product-name" className="required">
+                      {t("form.name")}
+                    </FieldLabel>
+                    <Input
+                      id="fnb-product-name"
+                      value={name}
+                      onChange={(event) => {
+                        setName(event.target.value);
+                        setNameError(null);
+                      }}
+                      placeholder={t("form.name")}
+                    />
+                    {nameError && <FieldError>{nameError}</FieldError>}
+                  </Field>
 
-              <Field>
-                <FieldLabel htmlFor="fnb-product-category" className="required">
-                  {t("form.category")}
-                </FieldLabel>
-                <Select
-                  value={categoryId || undefined}
-                  onValueChange={(value) => {
-                    setCategoryId(value);
-                    setCategoryError(null);
-                  }}
-                >
-                  <SelectTrigger id="fnb-product-category" className="cursor-pointer">
-                    <SelectValue placeholder={tCommon("selectCategory")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoriesLoading ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        {tCommon("loading")}
-                      </div>
-                    ) : fnbCategories.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        {tCommon("noData")}
-                      </div>
-                    ) : (
-                      fnbCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {categoryError && <FieldError>{categoryError}</FieldError>}
-              </Field>
+                  <Field>
+                    <FieldLabel htmlFor="fnb-product-category" className="required">
+                      {t("form.category")}
+                    </FieldLabel>
+                    <Select
+                      value={categoryId || undefined}
+                      onValueChange={(value) => {
+                        setCategoryId(value);
+                        setCategoryError(null);
+                      }}
+                    >
+                      <SelectTrigger id="fnb-product-category" className="cursor-pointer">
+                        <SelectValue placeholder={tCommon("selectCategory")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoriesLoading ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            {tCommon("loading")}
+                          </div>
+                        ) : fnbCategories.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            {tCommon("noData")}
+                          </div>
+                        ) : (
+                          fnbCategories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {categoryError && <FieldError>{categoryError}</FieldError>}
+                  </Field>
 
-              <Field>
-                <FieldLabel htmlFor="fnb-product-selling-price">
-                  {t("form.sellingPrice")}
-                </FieldLabel>
-                <NumericInput
-                  id="fnb-product-selling-price"
-                  value={sellingPrice}
-                  onChange={(value) => setSellingPrice(Math.max(0, value ?? 0))}
-                  placeholder="0"
-                />
-              </Field>
+                  <Field>
+                    <FieldLabel htmlFor="fnb-product-selling-price">
+                      {t("form.sellingPrice")}
+                    </FieldLabel>
+                    <NumericInput
+                      id="fnb-product-selling-price"
+                      value={sellingPrice}
+                      onChange={(value) => setSellingPrice(Math.max(0, value ?? 0))}
+                      placeholder="0"
+                    />
+                  </Field>
 
-              <Field>
-                <FieldLabel htmlFor="fnb-product-uom">{t("form.uom")}</FieldLabel>
-                <Select
-                  value={uomId || "none"}
-                  onValueChange={(value) => setUomId(value === "none" ? "" : value)}
-                >
-                  <SelectTrigger id="fnb-product-uom" className="cursor-pointer">
-                    <SelectValue placeholder={t("form.uom")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-</SelectItem>
-                    {uomOptions.map((uom) => (
-                      <SelectItem key={uom.id} value={uom.id}>
-                        {uom.name} ({uom.symbol})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+                  <Field>
+                    <FieldLabel htmlFor="fnb-product-uom">{t("form.uom")}</FieldLabel>
+                    <Select
+                      value={uomId || "none"}
+                      onValueChange={(value) => setUomId(value === "none" ? "" : value)}
+                    >
+                      <SelectTrigger id="fnb-product-uom" className="cursor-pointer">
+                        <SelectValue placeholder={t("form.uom")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">-</SelectItem>
+                        {uomOptions.map((uom) => (
+                          <SelectItem key={uom.id} value={uom.id}>
+                            {uom.name} ({uom.symbol})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                <Field>
+                  <FieldLabel htmlFor="fnb-product-description">{t("form.description")}</FieldLabel>
+                  <Textarea
+                    id="fnb-product-description"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    className="resize-none"
+                    rows={3}
+                    placeholder={t("form.description")}
+                  />
+                </Field>
+              </div>
             </div>
-
-            <Field>
-              <FieldLabel htmlFor="fnb-product-description">{t("form.description")}</FieldLabel>
-              <Textarea
-                id="fnb-product-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className="resize-none"
-                rows={3}
-                placeholder={t("form.description")}
-              />
-            </Field>
 
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -567,7 +611,7 @@ export function ProductFnbCreateDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChangeInternal(false)}
               disabled={createMutation.isPending}
               className="cursor-pointer"
             >

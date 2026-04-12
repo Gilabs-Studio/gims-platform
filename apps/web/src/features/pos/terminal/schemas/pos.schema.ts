@@ -25,7 +25,7 @@ export const addOrderItemSchema = z.object({
 // ─── Payment schema ───────────────────────────────────────────────────────────
 
 export const processPaymentSchema = z.object({
-  method: z.enum(["CASH", "CARD", "QRIS", "TRANSFER", "MIDTRANS"]),
+  method: z.enum(["CASH", "CARD", "QRIS", "TRANSFER", "DIGITAL"]),
   amount: z.number().min(0.01, "Amount must be positive"),
   notes: z.string().optional(),
 });

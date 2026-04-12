@@ -66,8 +66,9 @@ type LayoutVersionResponse struct {
 
 // OutletOption for form data select
 type OutletOption struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	HasFloorPlan bool      `json:"has_floor_plan"`
 }
 
 // FloorPlanFormDataResponse for form dropdown options

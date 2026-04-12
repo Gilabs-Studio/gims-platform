@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
-import { useProcessCashPayment, useInitiateMidtrans, usePOSPayments } from "../hooks/use-pos";
-import type { POSOrder, POSConfig, POSPayment } from "../types";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
+import { useProcessCashPayment, useInitiateDigitalPayment, usePOSPayments, useXenditConnectionStatus } from "../hooks/use-pos";
+import type { POSOrder, POSConfig, POSPayment, XenditPaymentChannel, XenditChannelCategory } from "../types";
+import { Loader2, CheckCircle2, XCircle, WifiOff, ArrowLeft, QrCode, Landmark, Wallet, CreditCard, Copy, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface POSPaymentModalProps {
   open: boolean;
@@ -26,47 +29,130 @@ interface POSPaymentModalProps {
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
 const QUICK_AMOUNTS = [10_000, 20_000, 50_000, 100_000];
 
+// Indonesian payment channels available via Xendit
+const PAYMENT_CHANNELS: XenditPaymentChannel[] = [
+  // QR Code
+  { code: "QRIS", name: "QRIS", category: "QR_CODE" },
+  // E-Wallets
+  { code: "DANA", name: "DANA", category: "EWALLET" },
+  { code: "GOPAY", name: "GoPay", category: "EWALLET" },
+  { code: "OVO", name: "OVO", category: "EWALLET" },
+  { code: "SHOPEEPAY", name: "ShopeePay", category: "EWALLET" },
+  { code: "LINKAJA", name: "LinkAja", category: "EWALLET" },
+  { code: "ASTRAPAY", name: "AstraPay", category: "EWALLET" },
+  { code: "JENIUSPAY", name: "Jenius Pay", category: "EWALLET" },
+  // Bank Transfer (Virtual Account)
+  { code: "BCA", name: "BCA", category: "BANK_TRANSFER" },
+  { code: "BNI", name: "BNI", category: "BANK_TRANSFER" },
+  { code: "BRI", name: "BRI", category: "BANK_TRANSFER" },
+  { code: "MANDIRI", name: "Mandiri", category: "BANK_TRANSFER" },
+  { code: "PERMATA", name: "Permata", category: "BANK_TRANSFER" },
+  { code: "CIMB", name: "CIMB Niaga", category: "BANK_TRANSFER" },
+  { code: "BSI", name: "BSI", category: "BANK_TRANSFER" },
+  // Cards
+  { code: "CREDIT_CARD", name: "Credit/Debit Card", category: "CARDS" },
+];
+
+const CATEGORY_CONFIG: Record<XenditChannelCategory, { label: string; icon: typeof QrCode }> = {
+  QR_CODE: { label: "QRIS", icon: QrCode },
+  EWALLET: { label: "E-Wallet", icon: Wallet },
+  BANK_TRANSFER: { label: "Bank Transfer", icon: Landmark },
+  CARDS: { label: "Cards", icon: CreditCard },
+};
+
+function getChannelsByCategory(category: XenditChannelCategory) {
+  return PAYMENT_CHANNELS.filter((ch) => ch.category === category);
+}
+
+const CHANNEL_LOGOS: Partial<Record<string, string>> = {
+  QRIS: "/logo/quick-response-code-indonesia-standard-qris-seeklogo.svg",
+  DANA: "/logo/Logo%20DANA%20-%20(Koleksilogo.com).svg",
+  GOPAY: "/logo/Logo%20GoPay%20-%20(Koleksilogo.com).svg",
+  OVO: "/logo/Logo_ovo_purple.svg",
+  SHOPEEPAY: "/logo/ShopeePay%20Logo%20-%20(Koleksilogo.com).svg",
+  LINKAJA: "/logo/LinkAja.svg",
+  ASTRAPAY: "/logo/astra-pay-logo_svgstack_com_73131775993940.svg",
+  JENIUSPAY: "/logo/jenius-seeklogo.png",
+  BCA: "/logo/bca-bank-central-asia-logo-svgrepo-com.svg",
+  BNI: "/logo/Bank_Negara_Indonesia_logo_(2004).svg",
+  BRI: "/logo/BANK_BRI_logo_(vertical).svg",
+  MANDIRI: "/logo/Bank_Mandiri_logo_2016.svg",
+  PERMATA: "/logo/Permata_Bank_(2024).svg",
+  CIMB: "/logo/CIMB_Niaga_logo.svg",
+  BSI: "/logo/Bank_Syariah_Indonesia.svg",
+};
+
+function PaymentChannelLogo({ channel }: { channel: XenditPaymentChannel }) {
+  const logoPath = CHANNEL_LOGOS[channel.code];
+  if (logoPath) {
+    return (
+      <span className="h-9 w-16 shrink-0 rounded-md bg-white border border-border/70 flex items-center justify-center overflow-hidden shadow-sm">
+        <Image
+          src={logoPath}
+          alt={`${channel.name} logo`}
+          width={52}
+          height={24}
+          className="max-h-6 max-w-12 object-contain"
+          unoptimized
+        />
+      </span>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 28 20" className="h-5 w-7" aria-hidden="true">
+      <rect x="1" y="1" width="26" height="18" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <text x="14" y="13" textAnchor="middle" fontSize="8" fontWeight="700" fill="currentColor">
+        {channel.code.slice(0, 3)}
+      </text>
+    </svg>
+  );
+}
+
 export function POSPaymentModal({
   open,
   onOpenChange,
   order,
-  config,
   onSuccess,
   onPaymentError,
 }: POSPaymentModalProps) {
-  const [tab, setTab] = useState<"CASH" | "MIDTRANS">("CASH");
+  const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
-  const [midtransPayment, setMidtransPayment] = useState<POSPayment | null>(null);
+  const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
+  const hasCompletedDigitalPaymentRef = useRef(false);
+
+  const t = useTranslations("posTerminal.payment");
 
   const { data: paymentsData } = usePOSPayments(order.id, {
-    // Only fetch payments list when polling for Midtrans status confirmation.
+    // Only fetch payments list when polling for digital payment status confirmation.
     enabled: pollingEnabled,
   });
+  const { data: xenditStatusData, isLoading: xenditStatusLoading } = useXenditConnectionStatus();
   const processCash = useProcessCashPayment();
-  const initiateMidtrans = useInitiateMidtrans();
+  const initiateDigital = useInitiateDigitalPayment();
+
+  const isXenditConnected = xenditStatusData?.data?.is_connected === true;
 
   const totalAmount = order.total_amount;
   const tenderAmount = parseInt(tenderInput || "0", 10);
   const change = tenderAmount - totalAmount;
   const insufficientCash = tenderAmount < totalAmount;
 
-  // Start polling when Midtrans payment is pending
-  useEffect(() => {
-    setPollingEnabled(!!midtransPayment && midtransPayment.status === "PENDING");
-  }, [midtransPayment]);
-
   // Check if payment has been completed via polling
   useEffect(() => {
     if (!paymentsData?.data) return;
+    if (hasCompletedDigitalPaymentRef.current) return;
+
     const payments = Array.isArray(paymentsData.data) ? paymentsData.data : [];
     const latestPayment = payments[0];
-      if (latestPayment?.status === "PAID") {
-      setPollingEnabled(false);
+    if (latestPayment?.status === "PAID") {
+      hasCompletedDigitalPaymentRef.current = true;
       onSuccess(customerName.trim() || undefined);
     }
-  }, [paymentsData, onSuccess]);
+  }, [paymentsData, onSuccess, customerName]);
 
   function handleNumpad(key: string) {
     if (key === "⌫") {
@@ -95,28 +181,52 @@ export function POSPaymentModal({
     }
   }
 
-  async function handleMidtransSubmit() {
+  async function handleDigitalSubmit(channel: XenditPaymentChannel) {
     try {
-      const result = await initiateMidtrans.mutateAsync({
+      hasCompletedDigitalPaymentRef.current = false;
+      setPollingEnabled(false);
+      const result = await initiateDigital.mutateAsync({
         orderId: order.id,
         data: {
-          method: "MIDTRANS",
+          method: "DIGITAL",
           amount: totalAmount,
           customer_name: customerName.trim() || undefined,
+          channel_code: channel.code,
         },
       });
       const payload = result as { data?: POSPayment };
       if (payload?.data) {
-        setMidtransPayment(payload.data);
+        setDigitalPayment(payload.data);
+        if (payload.data.status === "PENDING") {
+          setPollingEnabled(true);
+        }
       }
     } catch {
-      toast.error("Failed to initiate payment. Please try again.");
+      setPollingEnabled(false);
+      toast.error(t("digitalError"));
       onPaymentError?.();
     }
   }
 
+  function handleBackToChannels() {
+    setSelectedChannel(null);
+    setDigitalPayment(null);
+    setPollingEnabled(false);
+    hasCompletedDigitalPaymentRef.current = false;
+  }
+
+  function handleDialogOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setSelectedChannel(null);
+      setDigitalPayment(null);
+      setPollingEnabled(false);
+      hasCompletedDigitalPaymentRef.current = false;
+    }
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Payment</DialogTitle>
@@ -145,7 +255,7 @@ export function POSPaymentModal({
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="w-full">
             <TabsTrigger className="flex-1" value="CASH">Cash</TabsTrigger>
-            <TabsTrigger className="flex-1" value="MIDTRANS">Midtrans</TabsTrigger>
+            <TabsTrigger className="flex-1" value="DIGITAL">Digital Payment</TabsTrigger>
           </TabsList>
 
           {/* CASH TAB */}
@@ -239,27 +349,44 @@ export function POSPaymentModal({
             </Button>
           </TabsContent>
 
-          {/* MIDTRANS TAB */}
-          <TabsContent value="MIDTRANS" className="mt-3 space-y-3">
-            {midtransPayment ? (
-              <MidtransPaymentDetails payment={midtransPayment} />
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Customer will be charged via Midtrans payment gateway. Select channel and proceed.
-                </p>
-                <Button
-                  className="w-full cursor-pointer"
-                  size="lg"
-                  onClick={handleMidtransSubmit}
-                  disabled={initiateMidtrans.isPending}
-                >
-                  {initiateMidtrans.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Generate Payment Link
-                </Button>
+          {/* DIGITAL PAYMENT TAB */}
+          <TabsContent value="DIGITAL" className="mt-3 space-y-3">
+            {xenditStatusLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
+            ) : !isXenditConnected ? (
+              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <WifiOff className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{t("digitalNotAvailable")}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("digitalNotAvailableDesc")}
+                  </p>
+                </div>
+              </div>
+            ) : digitalPayment ? (
+              <div className="space-y-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="cursor-pointer gap-1.5 text-muted-foreground -ml-2"
+                  onClick={handleBackToChannels}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  {t("backToChannels")}
+                </Button>
+                <DigitalPaymentDetails payment={digitalPayment} />
+              </div>
+            ) : (
+              <ChannelPicker
+                isLoading={initiateDigital.isPending}
+                selectedChannel={selectedChannel}
+                onSelect={(channel) => {
+                  setSelectedChannel(channel);
+                  handleDigitalSubmit(channel);
+                }}
+              />
             )}
           </TabsContent>
         </Tabs>
@@ -268,63 +395,201 @@ export function POSPaymentModal({
   );
 }
 
-function MidtransPaymentDetails({ payment }: { payment: POSPayment }) {
+function ChannelPicker({
+  isLoading,
+  selectedChannel,
+  onSelect,
+}: {
+  isLoading: boolean;
+  selectedChannel: XenditPaymentChannel | null;
+  onSelect: (channel: XenditPaymentChannel) => void;
+}) {
+  const t = useTranslations("posTerminal.payment");
+  const [searchTerm, setSearchTerm] = useState("");
+  const categories: XenditChannelCategory[] = ["QR_CODE", "EWALLET", "BANK_TRANSFER", "CARDS"];
+  const normalizedQuery = searchTerm.trim().toLowerCase();
+
+  return (
+    <ScrollArea className="h-[360px] sm:h-[420px] pr-1">
+      <div className="space-y-4">
+        <Input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search channel (DANA, GOPAY, BRI...)"
+          className="h-12 text-sm bg-background/80 border-border/80"
+        />
+        <p className="text-xs text-muted-foreground">{t("selectChannel")}</p>
+        {categories.map((category) => {
+          const channels = getChannelsByCategory(category).filter((channel) => {
+            if (!normalizedQuery) return true;
+            return (
+              channel.name.toLowerCase().includes(normalizedQuery) ||
+              channel.code.toLowerCase().includes(normalizedQuery)
+            );
+          });
+          if (channels.length === 0) return null;
+          const config = CATEGORY_CONFIG[category];
+          const Icon = config.icon;
+
+          return (
+            <div key={category} className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-foreground/80 uppercase tracking-wider">
+                <Icon className="h-3.5 w-3.5" />
+                {config.label}
+              </div>
+              <div className={cn(
+                "grid grid-cols-1 gap-2"
+              )}>
+                {channels.map((channel) => {
+                  const isSelected = selectedChannel?.code === channel.code;
+                  const isProcessing = isSelected && isLoading;
+
+                  return (
+                    <Button
+                      key={channel.code}
+                      variant={isSelected ? "default" : "outline"}
+                      size="sm"
+                      className={cn(
+                        "justify-start gap-3 cursor-pointer h-16 text-base font-semibold px-4 border transition-colors",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card/80 text-foreground border-border/80 hover:bg-accent/70",
+                        isProcessing && "opacity-70"
+                      )}
+                      disabled={isLoading}
+                      onClick={() => onSelect(channel)}
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                      ) : (
+                        <PaymentChannelLogo channel={channel} />
+                      )}
+                      {channel.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {categories.every((category) => {
+          const channels = getChannelsByCategory(category).filter((channel) => {
+            if (!normalizedQuery) return true;
+            return (
+              channel.name.toLowerCase().includes(normalizedQuery) ||
+              channel.code.toLowerCase().includes(normalizedQuery)
+            );
+          });
+          return channels.length === 0;
+        }) ? (
+          <p className="text-sm text-muted-foreground text-center py-3">No channel found.</p>
+        ) : null}
+      </div>
+    </ScrollArea>
+  );
+}
+
+function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
+  const t = useTranslations("posTerminal.payment");
   const isPaid = payment.status === "PAID";
   const isFailed = payment.status === "FAILED" || payment.status === "EXPIRED";
+
+  const handleCopyVa = useCallback(() => {
+    if (payment.va_number) {
+      navigator.clipboard.writeText(payment.va_number);
+      toast.success(t("vaCopied"));
+    }
+  }, [payment.va_number, t]);
 
   return (
     <div className="space-y-3">
       {/* Status badge */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Payment Status</span>
+        <span className="text-sm font-medium">{t("paymentStatus")}</span>
         {isPaid ? (
           <Badge className="bg-green-100 text-green-700 gap-1">
-            <CheckCircle2 className="h-3 w-3" /> Paid
+            <CheckCircle2 className="h-3 w-3" /> {t("status.paid")}
           </Badge>
         ) : isFailed ? (
           <Badge variant="destructive" className="gap-1">
-            <XCircle className="h-3 w-3" /> Failed
+            <XCircle className="h-3 w-3" /> {payment.status === "EXPIRED" ? t("status.expired") : t("status.failed")}
           </Badge>
         ) : (
           <Badge variant="secondary" className="gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" /> Waiting
+            <Loader2 className="h-3 w-3 animate-spin" /> {t("status.pending")}
           </Badge>
         )}
       </div>
 
+      {/* Channel info */}
+      {payment.channel_code && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{t("channel")}:</span>
+          <span className="font-medium">{payment.channel_code}</span>
+        </div>
+      )}
+
+      {/* QR Code display for QRIS */}
+      {payment.qr_code && (
+        <div className="flex flex-col items-center gap-2 py-2">
+          <Label className="text-xs text-muted-foreground">{t("scanQr")}</Label>
+          <div className="bg-white p-3 rounded-lg border">
+            <Image
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payment.qr_code)}`}
+              alt="QRIS QR Code"
+              width={192}
+              height={192}
+              className="w-48 h-48"
+              unoptimized
+            />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            {t("scanQrHint")}
+          </p>
+        </div>
+      )}
+
+      {/* Virtual Account number */}
       {payment.va_number && (
-        <div>
-          <Label className="text-xs text-muted-foreground">Virtual Account Number</Label>
-          <div className="font-mono text-lg font-bold tracking-wider mt-1 select-all">
-            {payment.va_number}
+        <div className="border rounded-lg p-3 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">{t("vatNumber")}</Label>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono text-lg font-bold tracking-wider select-all">
+              {payment.va_number}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 cursor-pointer shrink-0"
+              onClick={handleCopyVa}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       )}
 
-      {payment.qr_code && (
-        <div className="flex flex-col items-center gap-2">
-          <Label className="text-xs text-muted-foreground">Scan QR Code</Label>
-          <img
-            src={payment.qr_code}
-            alt="QR Code"
-            className="w-40 h-40 border rounded"
-          />
-        </div>
-      )}
+      {/* Amount display */}
+      <div className="border rounded-lg p-3 flex justify-between items-center">
+        <span className="text-sm text-muted-foreground">{t("amountToPay")}</span>
+        <span className="font-mono font-bold text-lg">{formatCurrency(payment.amount)}</span>
+      </div>
 
-      {payment.redirect_url && (
+      {/* Payment URL fallback */}
+      {payment.payment_url && !payment.qr_code && !payment.va_number && (
         <Button
           variant="outline"
-          className="w-full cursor-pointer"
-          onClick={() => window.open(payment.redirect_url!, "_blank")}
+          className="w-full cursor-pointer gap-2"
+          onClick={() => window.open(payment.payment_url!, "_blank")}
         >
-          Open Payment Page
+          <ExternalLink className="h-4 w-4" />
+          {t("openPage")}
         </Button>
       )}
 
       {payment.expires_at && (
         <p className="text-xs text-muted-foreground text-center">
-          Expires at {new Date(payment.expires_at).toLocaleTimeString()}
+          {t("expires")} {new Date(payment.expires_at).toLocaleTimeString()}
         </p>
       )}
     </div>

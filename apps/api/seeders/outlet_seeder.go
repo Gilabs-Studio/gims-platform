@@ -20,6 +20,8 @@ func SeedOutlets() error {
 	kimiaFarmaID := KimiaFarmaCompanyID
 	outletManager1ID := OutletManager1EmployeeID
 	outletManager2ID := OutletManager2EmployeeID
+	outletManager3ID := OutletManager3EmployeeID
+	outletManager4ID := OutletManager4EmployeeID
 
 	// Coordinates for Mie Gacoan outlets
 	lat1 := -6.2089
@@ -73,8 +75,7 @@ func SeedOutlets() error {
 			Email:       "sudirman@kimiafarma.co.id",
 			Address:     "Jl. Jend. Sudirman Kav. 44-46, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			// Scenario seed: Outlet Manager 2 handles multiple outlets.
-			ManagerID:   &outletManager2ID,
+			ManagerID:   &outletManager3ID,
 			Latitude:    &lat3,
 			Longitude:   &lng3,
 			IsActive:    true,
@@ -88,7 +89,7 @@ func SeedOutlets() error {
 			Email:       "pondokindah@kimiafarma.co.id",
 			Address:     "Jl. Metro Pondok Indah No.10, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &outletManager2ID,
+			ManagerID:   &outletManager4ID,
 			Latitude:    &lat4,
 			Longitude:   &lng4,
 			IsActive:    true,

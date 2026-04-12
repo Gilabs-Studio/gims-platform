@@ -37,6 +37,22 @@ type outletUsecase struct {
 	mapper        *mapper.OutletMapper
 }
 
+func (uc *outletUsecase) syncLinkedWarehousesStatus(tx *gorm.DB, outletID string, warehouseID *string, isActive bool) error {
+	warehouseQuery := tx.Model(&warehouseModels.Warehouse{}).Where("outlet_id = ?", outletID)
+	if warehouseID != nil {
+		warehouseQuery = warehouseQuery.Or("id = ?", *warehouseID)
+	}
+
+	if err := warehouseQuery.Update("is_active", isActive).Error; err != nil {
+		if isActive {
+			return fmt.Errorf("failed to activate linked warehouse: %w", err)
+		}
+		return fmt.Errorf("failed to deactivate linked warehouse: %w", err)
+	}
+
+	return nil
+}
+
 // NewOutletUsecase creates a new outlet usecase
 func NewOutletUsecase(
 	db *gorm.DB,
@@ -140,8 +156,8 @@ func (uc *outletUsecase) List(ctx context.Context, params repositories.OutletLis
 	return uc.mapper.ToResponseList(outlets), total, nil
 }
 
-// Update updates an existing outlet. When is_active is set to false,
-// the linked warehouse is also deactivated.
+// Update updates an existing outlet and synchronizes linked warehouse status
+// when outlet is activated or deactivated.
 func (uc *outletUsecase) Update(ctx context.Context, id string, req dto.UpdateOutletRequest) (*dto.OutletResponse, error) {
 	outlet, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
@@ -159,12 +175,10 @@ func (uc *outletUsecase) Update(ctx context.Context, id string, req dto.UpdateOu
 			return err
 		}
 
-		// Cascade deactivation: if outlet goes from active to inactive, deactivate linked warehouse
-		if wasActive && !outlet.IsActive && outlet.WarehouseID != nil {
-			if err := tx.Model(&warehouseModels.Warehouse{}).
-				Where("id = ?", *outlet.WarehouseID).
-				Update("is_active", false).Error; err != nil {
-				return fmt.Errorf("failed to deactivate linked warehouse: %w", err)
+		// Keep outlet-warehouse active flag in sync on status transitions.
+		if wasActive != outlet.IsActive {
+			if err := uc.syncLinkedWarehousesStatus(tx, outlet.ID, outlet.WarehouseID, outlet.IsActive); err != nil {
+				return err
 			}
 		}
 

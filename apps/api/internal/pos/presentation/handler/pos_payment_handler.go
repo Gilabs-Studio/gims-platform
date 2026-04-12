@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strings"
 
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/response"
@@ -49,8 +50,8 @@ func (h *POSPaymentHandler) ProcessCash(c *gin.Context) {
 	response.SuccessResponse(c, payment, nil)
 }
 
-// InitiateMidtrans creates a Midtrans payment charge
-func (h *POSPaymentHandler) InitiateMidtrans(c *gin.Context) {
+// InitiateDigitalPayment creates a Xendit invoice for the order and returns the payment details
+func (h *POSPaymentHandler) InitiateDigitalPayment(c *gin.Context) {
 	uc, ok := extractUserContext(c)
 	if !ok {
 		return
@@ -63,7 +64,7 @@ func (h *POSPaymentHandler) InitiateMidtrans(c *gin.Context) {
 		return
 	}
 
-	payment, err := h.uc.InitiateMidtrans(c.Request.Context(), orderID, &req, uc.userID, uc.companyID)
+	payment, err := h.uc.InitiateDigitalPayment(c.Request.Context(), orderID, &req, uc.userID, uc.companyID)
 	if err != nil {
 		handlePOSPaymentError(c, err)
 		return
@@ -81,17 +82,17 @@ func (h *POSPaymentHandler) GetByOrder(c *gin.Context) {
 	response.SuccessResponse(c, payments, nil)
 }
 
-// MidtransWebhook handles server-to-server callbacks from Midtrans
-// This endpoint must NOT require authentication — Midtrans calls it directly.
-func (h *POSPaymentHandler) MidtransWebhook(c *gin.Context) {
-	var payload dto.MidtransCallbackPayload
+// XenditWebhook handles server-to-server invoice callbacks from Xendit.
+// This endpoint must NOT require authentication — Xendit calls it directly.
+// The webhook token header is verified inside the handler.
+func (h *POSPaymentHandler) XenditWebhook(c *gin.Context) {
+	var payload dto.XenditWebhookPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		coreErrors.HandleValidationError(c, err)
 		return
 	}
 
-	// TODO: verify Midtrans signature using webhook secret from midtrans config
-	if err := h.uc.ConfirmMidtransWebhook(c.Request.Context(), &payload); err != nil {
+	if err := h.uc.ConfirmXenditWebhook(c.Request.Context(), &payload); err != nil {
 		coreErrors.InternalServerErrorResponse(c, "")
 		return
 	}
@@ -106,6 +107,12 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
 	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
+		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"))
+		coreErrors.ErrorResponse(c, "XENDIT_NOT_CONNECTED", map[string]interface{}{"reason": reason}, nil)
+	case strings.HasPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"):
+		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"))
+		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": reason}, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
 	}

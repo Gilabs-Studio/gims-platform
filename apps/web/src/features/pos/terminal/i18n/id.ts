@@ -2,6 +2,7 @@ export const posTerminalId = {
   posTerminal: {
     title: "Terminal POS",
     subtitle: "Point of Sale — layani pelanggan dan proses pesanan",
+    addOutlet: "Tambah Outlet",
     session: {
       open: "Buka Sesi",
       close: "Tutup Sesi",
@@ -48,7 +49,7 @@ export const posTerminalId = {
     payment: {
       title: "Pembayaran",
       cash: "Tunai",
-      midtrans: "Midtrans",
+      midtrans: "Pembayaran Digital",
       tenderedAmount: "Jumlah Bayar",
       change: "Kembalian",
       short: "Kurang",
@@ -56,8 +57,18 @@ export const posTerminalId = {
       generateLink: "Buat Link Pembayaran",
       vatNumber: "Nomor Virtual Account",
       scanQr: "Scan QR Code",
+      scanQrHint: "Scan dengan e-wallet atau aplikasi bank yang mendukung QRIS",
       openPage: "Buka Halaman Pembayaran",
       expires: "Kadaluarsa pukul",
+      selectChannel: "Pilih metode pembayaran untuk melanjutkan",
+      backToChannels: "Kembali ke metode pembayaran",
+      digitalError: "Gagal memulai pembayaran digital. Silakan coba lagi.",
+      digitalNotAvailable: "Pembayaran Digital Tidak Tersedia",
+      digitalNotAvailableDesc: "Payment gateway belum terhubung. Hubungi administrator untuk mengatur pembayaran digital.",
+      paymentStatus: "Status Pembayaran",
+      channel: "Channel",
+      amountToPay: "Jumlah yang Harus Dibayar",
+      vaCopied: "Nomor virtual account disalin",
       status: {
         pending: "Menunggu",
         paid: "Lunas",

@@ -53,7 +53,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
 	// Pass employeeRepo for GetFormData endpoint.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
-	companyUC := usecase.NewCompanyUsecase(companyRepo, timezoneService)
+	// Initialize outlets and warehouse repositories early for company cascade deactivation
+	outletRepo := orgRepositories.NewOutletRepository(db)
+	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
+	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService)
 	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers
@@ -66,8 +69,6 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	employeeH := handler.NewEmployeeHandler(employeeUC)
 
 	// Outlet dependencies (cross-domain: warehouse repo)
-	outletRepo := orgRepositories.NewOutletRepository(db)
-	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
 	outletUC := usecase.NewOutletUsecase(db, outletRepo, warehouseRepo, employeeRepo, companyRepo)
 	outletH := handler.NewOutletHandler(outletUC)
 

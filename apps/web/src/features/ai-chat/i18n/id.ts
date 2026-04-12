@@ -11,6 +11,7 @@ export const aiChatId: AIChatTranslations = {
     close: "Tutup",
     delete: "Hapus",
     retry: "Coba Lagi",
+    copyAllSessions: "Salin semua sesi",
     sessions: "Riwayat Percakapan",
     noSessions: "Belum ada percakapan",
     noMessages: "Mulai percakapan dengan asisten AI",
@@ -60,6 +61,9 @@ export const aiChatId: AIChatTranslations = {
       deleted: "Percakapan dihapus",
       actionConfirmed: "Tindakan dikonfirmasi dan dijalankan",
       actionCancelled: "Tindakan dibatalkan",
+      copyAllSessionsSuccess: "Semua sesi chat berhasil disalin ke clipboard",
+      copyAllSessionsFailed: "Gagal menyalin sesi chat",
+      copyAllSessionsEmpty: "Tidak ada sesi chat untuk disalin",
     },
     admin: {
       title: "Administrasi AI",

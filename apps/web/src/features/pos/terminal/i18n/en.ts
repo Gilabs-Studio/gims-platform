@@ -2,6 +2,7 @@ export const posTerminalEn = {
   posTerminal: {
     title: "POS Terminal",
     subtitle: "Point of Sale — serve customers and process orders",
+    addOutlet: "Add Outlet",
     session: {
       open: "Open Session",
       close: "Close Session",
@@ -48,7 +49,7 @@ export const posTerminalEn = {
     payment: {
       title: "Payment",
       cash: "Cash",
-      midtrans: "Midtrans",
+      midtrans: "Digital Payment",
       tenderedAmount: "Tendered Amount",
       change: "Change",
       short: "Short",
@@ -56,8 +57,18 @@ export const posTerminalEn = {
       generateLink: "Generate Payment Link",
       vatNumber: "Virtual Account Number",
       scanQr: "Scan QR Code",
+      scanQrHint: "Scan with any QRIS-supported e-wallet or banking app",
       openPage: "Open Payment Page",
       expires: "Expires at",
+      selectChannel: "Select a payment method to proceed",
+      backToChannels: "Back to payment methods",
+      digitalError: "Failed to initiate digital payment. Please try again.",
+      digitalNotAvailable: "Digital Payment Not Available",
+      digitalNotAvailableDesc: "Payment gateway is not connected. Please contact your administrator to set up digital payments.",
+      paymentStatus: "Payment Status",
+      channel: "Channel",
+      amountToPay: "Amount to Pay",
+      vaCopied: "Virtual account number copied",
       status: {
         pending: "Waiting",
         paid: "Paid",

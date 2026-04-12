@@ -106,6 +106,7 @@ export function ProductDialog({
 
 
   const isTaxInclusive = watch("is_tax_inclusive");
+  const isIngredient = watch("is_ingredient");
 
   // Watch IDs for Select values
   const categoryId = watch("category_id");
@@ -119,7 +120,7 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent size="2xl" className="max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle>{isEditing ? t("edit") : t("create")}</DialogTitle>
         </DialogHeader>
@@ -138,6 +139,9 @@ export function ProductDialog({
                     value={watch("image_url")}
                     onChange={(url) => setValue("image_url", url || null, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                     disabled={isSubmitting}
+                    enableUrlInput
+                    enableImageSearch
+                    initialSearchQuery={watch("name")}
                     labels={{
                       dragActive: tCommon("dragActive"),
                       dragInactive: tCommon("dragInactive"),
@@ -145,6 +149,18 @@ export function ProductDialog({
                       uploadFailed: tCommon("uploadFailed"),
                       invalidFile: tCommon("invalidFile"),
                       removeImage: tCommon("removeImage"),
+                      pasteImageUrl: t("imageAssist.pasteImageUrl"),
+                      imageUrlPlaceholder: t("imageAssist.imageUrlPlaceholder"),
+                      applyUrl: t("imageAssist.applyUrl"),
+                      searchImage: t("imageAssist.searchImage"),
+                      searchPlaceholder: t("imageAssist.searchPlaceholder"),
+                      searchButton: t("imageAssist.searchButton"),
+                      searchNoResults: t("imageAssist.searchNoResults"),
+                      searchFailed: t("imageAssist.searchFailed"),
+                      selectFromResults: t("imageAssist.selectFromResults"),
+                      attributionPrefix: t("imageAssist.attributionPrefix"),
+                      onUnsplash: t("imageAssist.onUnsplash"),
+                      termsNotice: t("imageAssist.termsNotice"),
                     }}
                   />
                 </div>
@@ -225,6 +241,29 @@ export function ProductDialog({
                     createPermission="product_type.create"
                     createLabel={`${t("create")} "{query}"`}
                     onCreateClick={(q) => openQuickCreate("type", q)}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Separator />
+
+            {/* POS Details */}
+            <Section title="POS Details">
+              <div className="grid grid-cols-2 gap-4">
+                <Field
+                  orientation="horizontal"
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div className="space-y-0.5">
+                    <FieldLabel className="text-sm">{t("isIngredient")}</FieldLabel>
+                    <p className="text-xs text-muted-foreground">
+                      {t("isIngredientHint")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isIngredient ?? false}
+                    onCheckedChange={(val) => setValue("is_ingredient", val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })}
                   />
                 </Field>
               </div>

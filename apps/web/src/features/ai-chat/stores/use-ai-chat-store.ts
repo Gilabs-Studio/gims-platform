@@ -90,17 +90,35 @@ export const useAIChatStore = create<AIChatStore>((set, get) => ({
     })),
 
   updateToolResult: (data) =>
-    set((state) => ({
-      streamingToolCalls: state.streamingToolCalls.map((tc) =>
-        tc.name === data.call.name && tc.status === "running"
-          ? {
-              ...tc,
-              result: data.result,
-              status: data.result.success ? ("done" as const) : ("error" as const),
-            }
-          : tc
-      ),
-    })),
+    set((state) => {
+      const callName = data?.call?.name;
+      const result = data?.result;
+
+      if (!callName || !result) {
+        return {
+          streamingToolCalls: state.streamingToolCalls.map((tc) =>
+            tc.status === "running"
+              ? {
+                  ...tc,
+                  status: "error" as const,
+                }
+              : tc
+          ),
+        };
+      }
+
+      return {
+        streamingToolCalls: state.streamingToolCalls.map((tc) =>
+          tc.name === callName && tc.status === "running"
+            ? {
+                ...tc,
+                result,
+                status: result.success ? ("done" as const) : ("error" as const),
+              }
+            : tc
+        ),
+      };
+    }),
 
   endStreaming: () =>
     set({

@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
+import "@/features/pos/fb/pos-fb-theme.module.css";
 import { useLiveTableData } from "../hooks/use-live-table";
 import { useServeOrder, useCompleteOrder, useServeOrderItem, usePOSPayments } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
@@ -359,11 +360,11 @@ const STATUS_SVG: Record<
   LiveTableStatus,
   { fill: string; stroke: string; text: string }
 > = {
-  AVAILABLE:      { fill: "#f0fdf4", stroke: "#86efac", text: "#166534" },
-  SEATED:         { fill: "#eff6ff", stroke: "#93c5fd", text: "#1d4ed8" },
-  WARN_LONG:      { fill: "#fff1f2", stroke: "#fca5a5", text: "#9f1239" },
-  PARTIAL_SERVED: { fill: "#fffbeb", stroke: "#fcd34d", text: "#92400e" },
-  SERVED:         { fill: "#f5f3ff", stroke: "#c4b5fd", text: "#5b21b6" },
+  AVAILABLE:      { fill: "var(--pos-available-fill)", stroke: "var(--pos-available-stroke)", text: "var(--pos-available-text)" },
+  SEATED:         { fill: "var(--pos-seated-fill)", stroke: "var(--pos-seated-stroke)", text: "var(--pos-seated-text)" },
+  WARN_LONG:      { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
+  PARTIAL_SERVED: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
+  SERVED:         { fill: "var(--pos-served-fill)", stroke: "var(--pos-served-stroke)", text: "var(--pos-served-text)" },
 };
 
 // ─── Floor Layout View ────────────────────────────────────────────────────────
@@ -522,20 +523,20 @@ function LiveFloorView({
           if (obj.type === "wall") {
             return (
               <rect
-                key={obj.id}
-                transform={transform}
-                x={0}
-                y={0}
-                width={obj.width}
-                height={obj.height}
-                fill="#475569"
-                rx={1}
-              />
+                  key={obj.id}
+                  transform={transform}
+                  x={0}
+                  y={0}
+                  width={obj.width}
+                  height={obj.height}
+                  fill="var(--pos-wall-fill)"
+                  rx={1}
+                />
             );
           }
 
           if (obj.type === "zone") {
-            const color = obj.color ?? "#3b82f6";
+            const color = obj.color ?? "var(--pos-zone-default)";
             return (
               <rect
                 key={obj.id}
@@ -556,34 +557,34 @@ function LiveFloorView({
           if (obj.type === "door") {
             return (
               <rect
-                key={obj.id}
-                transform={transform}
-                x={0}
-                y={0}
-                width={obj.width}
-                height={obj.height}
-                rx={2}
-                fill="#fde68a"
-                stroke="#d97706"
-                strokeWidth={1}
-              />
+                  key={obj.id}
+                  transform={transform}
+                  x={0}
+                  y={0}
+                  width={obj.width}
+                  height={obj.height}
+                  rx={2}
+                  fill="var(--pos-door-fill)"
+                  stroke="var(--pos-door-stroke)"
+                  strokeWidth={1}
+                />
             );
           }
 
           if (obj.type === "chair") {
             return (
               <rect
-                key={obj.id}
-                transform={transform}
-                x={1}
-                y={1}
-                width={obj.width - 2}
-                height={obj.height - 2}
-                rx={4}
-                fill="#dbeafe"
-                stroke="#93c5fd"
-                strokeWidth={1}
-              />
+                  key={obj.id}
+                  transform={transform}
+                  x={1}
+                  y={1}
+                  width={obj.width - 2}
+                  height={obj.height - 2}
+                  rx={4}
+                  fill="var(--pos-chair-fill)"
+                  stroke="var(--pos-chair-stroke)"
+                  strokeWidth={1}
+                />
             );
           }
 
@@ -597,8 +598,8 @@ function LiveFloorView({
               width={obj.width}
               height={obj.height}
               rx={4}
-              fill="#f1f5f9"
-              stroke="#cbd5e1"
+              fill="var(--pos-decor-fill)"
+              stroke="var(--pos-decor-stroke)"
               strokeWidth={1}
             />
           );

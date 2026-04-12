@@ -1,9 +1,11 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { id as idLocale, enUS } from "date-fns/locale";
 import { useLocale, useTranslations } from "next-intl";
-import { MessageSquare, Plus, Trash2, Loader2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Loader2, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,12 +18,18 @@ import {
 
 import { useAIChatSessions, useDeleteSession } from "../hooks/use-ai-chat";
 import { useAIChatStore } from "../stores/use-ai-chat-store";
+import { aiChatService } from "../services/ai-chat-service";
 import type { AIChatSession } from "../types";
 
-export function SessionList() {
+interface SessionListProps {
+  showHeaderActions?: boolean;
+}
+
+export function SessionList({ showHeaderActions = true }: SessionListProps) {
   const t = useTranslations("aiChat");
   const locale = useLocale();
   const dateLocale = locale === "id" ? idLocale : enUS;
+  const [isCopyingSessions, setIsCopyingSessions] = useState(false);
 
   const { activeSessionId, setActiveSession, startNewChat } =
     useAIChatStore();
@@ -29,6 +37,25 @@ export function SessionList() {
   const deleteSession = useDeleteSession();
 
   const sessions: AIChatSession[] = data?.data ?? [];
+
+  const handleCopyAllSessions = useCallback(async () => {
+    setIsCopyingSessions(true);
+    try {
+      const exportPayload = await aiChatService.exportAllSessionsForDebug();
+
+      if (exportPayload.session_count === 0) {
+        toast.error(t("toast.copyAllSessionsEmpty"));
+        return;
+      }
+
+      await navigator.clipboard.writeText(JSON.stringify(exportPayload, null, 2));
+      toast.success(`${t("toast.copyAllSessionsSuccess")} (${exportPayload.session_count})`);
+    } catch {
+      toast.error(t("toast.copyAllSessionsFailed"));
+    } finally {
+      setIsCopyingSessions(false);
+    }
+  }, [t]);
 
   const handleDelete = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -48,19 +75,42 @@ export function SessionList() {
         <h3 className="text-sm font-semibold text-foreground">
           {t("sessions")}
         </h3>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 cursor-pointer"
-              onClick={startNewChat}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("newChat")}</TooltipContent>
-        </Tooltip>
+        {showHeaderActions && (
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 cursor-pointer"
+                  onClick={handleCopyAllSessions}
+                  disabled={isCopyingSessions}
+                >
+                  {isCopyingSessions ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("copyAllSessions")}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 cursor-pointer"
+                  onClick={startNewChat}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("newChat")}</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
       {/* Session List */}
@@ -95,11 +145,11 @@ export function SessionList() {
                     "bg-accent text-accent-foreground"
                 )}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="truncate text-sm font-medium leading-tight">
                     {session.title || t("newChat")}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(session.last_activity), {
                       addSuffix: true,
                       locale: dateLocale,

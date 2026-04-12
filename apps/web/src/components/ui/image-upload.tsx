@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
-import { Upload, X, Loader2, ImagePlus } from "lucide-react";
+import { Search, X, Loader2, ImagePlus, Link2 } from "lucide-react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { toast } from "sonner";
 import { cn, resolveImageUrl } from "@/lib/utils";
 import apiClient from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+const LOCAL_UPLOAD_PREFIX = "/uploads/";
+const DATA_IMAGE_PREFIX = "data:image/";
 
 interface ImageUploadProps {
   value?: string | null;
@@ -15,6 +18,10 @@ interface ImageUploadProps {
   disabled?: boolean;
   className?: string;
   helperText?: string;
+  enableUrlInput?: boolean;
+  enableImageSearch?: boolean;
+  searchEndpoint?: string;
+  initialSearchQuery?: string;
   labels?: {
     dragActive?: string;
     dragInactive?: string;
@@ -22,6 +29,18 @@ interface ImageUploadProps {
     uploadFailed?: string;
     invalidFile?: string;
     removeImage?: string;
+    pasteImageUrl?: string;
+    imageUrlPlaceholder?: string;
+    applyUrl?: string;
+    searchImage?: string;
+    searchPlaceholder?: string;
+    searchButton?: string;
+    searchNoResults?: string;
+    searchFailed?: string;
+    selectFromResults?: string;
+    attributionPrefix?: string;
+    onUnsplash?: string;
+    termsNotice?: string;
   };
 }
 
@@ -34,12 +53,31 @@ interface UploadResponse {
   };
 }
 
+interface ImageSearchResponse {
+  success: boolean;
+  data: Array<{
+    id: string;
+    url: string;
+    thumb_url: string;
+    alt: string;
+    photographer_name: string;
+    photographer_url: string;
+    unsplash_photo_url: string;
+    download_location: string;
+    source: "unsplash";
+  }>;
+}
+
 export function ImageUpload({
   value,
   onChange,
   disabled,
   className,
   helperText = "SVG, PNG, JPG or GIF (max. 10MB)",
+  enableUrlInput = false,
+  enableImageSearch = false,
+  searchEndpoint = "/api/image-search",
+  initialSearchQuery,
   labels = {
     dragActive: "Drop image here",
     dragInactive: "Click or drag image",
@@ -47,10 +85,71 @@ export function ImageUpload({
     uploadFailed: "Upload failed",
     invalidFile: "Invalid file",
     removeImage: "Remove image",
+    pasteImageUrl: "Paste image URL",
+    imageUrlPlaceholder: "https://images.unsplash.com/...",
+    applyUrl: "Apply",
+    searchImage: "Search from image API",
+    searchPlaceholder: "Search image, e.g. mineral water bottle",
+    searchButton: "Search",
+    searchNoResults: "No images found",
+    searchFailed: "Image search failed",
+    selectFromResults: "Select",
+    attributionPrefix: "Photo by",
+    onUnsplash: "on Unsplash",
+    termsNotice: "By selecting Unsplash photos, you agree to keep attribution and allow download tracking.",
   },
 }: ImageUploadProps) {
   const [loading, setLoading] = React.useState(false);
   const [preview, setPreview] = React.useState<string | null>(value ?? null);
+  const [urlInput, setUrlInput] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery ?? "");
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<ImageSearchResponse["data"]>([]);
+
+  const sanitizeImageSrc = React.useCallback((raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+
+    const value = raw.trim();
+    if (!value) return undefined;
+
+    if (value.startsWith(LOCAL_UPLOAD_PREFIX)) {
+      return value;
+    }
+
+    // Keep local blob previews generated in-browser (from dropped files).
+    if (/^blob:/i.test(value)) {
+      return value;
+    }
+
+    // Allow only image data URLs, disallow other data:* payloads.
+    if (value.toLowerCase().startsWith(DATA_IMAGE_PREFIX)) {
+      return value;
+    }
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const sanitizeExternalHref = React.useCallback((raw?: string | null): string | undefined => {
+    if (!raw) return undefined;
+
+    try {
+      const parsed = new URL(raw.trim());
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.toString();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }, []);
 
   // Sync internal preview with external value
   React.useEffect(() => {
@@ -60,6 +159,12 @@ export function ImageUpload({
       setPreview(null);
     }
   }, [value]);
+
+  React.useEffect(() => {
+    if (initialSearchQuery && initialSearchQuery !== searchQuery) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery, searchQuery]);
 
   const onDrop = React.useCallback(
     async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
@@ -112,7 +217,7 @@ export function ImageUpload({
         setLoading(false);
       }
     },
-    [onChange, value]
+    [onChange, value, labels.invalidFile, labels.uploadFailed, labels.uploadSuccess]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -134,6 +239,100 @@ export function ImageUpload({
     onChange("");
     setPreview(null);
   };
+
+  const handleApplyUrl = React.useCallback(() => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    let safeValue: string | null = null;
+
+    if (trimmed.startsWith("/uploads/")) {
+      safeValue = trimmed;
+    } else {
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          safeValue = parsed.toString();
+        }
+      } catch {
+        safeValue = null;
+      }
+    }
+
+    if (!safeValue) {
+      toast.error(labels.invalidFile ?? "Invalid file", {
+        description: "Use full http/https URL or /uploads/... path.",
+      });
+      return;
+    }
+
+    onChange(safeValue);
+    setPreview(resolveImageUrl(safeValue) ?? safeValue);
+    setUrlInput("");
+  }, [labels.invalidFile, onChange, urlInput]);
+
+  const handleSearch = React.useCallback(async () => {
+    const keyword = searchQuery.trim();
+    if (keyword.length < 2) {
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const res = await fetch(
+        `${searchEndpoint}?q=${encodeURIComponent(keyword)}&page=1&per_page=12`,
+        { method: "GET" }
+      );
+
+      if (!res.ok) {
+        throw new Error("SEARCH_FAILED");
+      }
+
+      const payload = (await res.json()) as ImageSearchResponse;
+      setSearchResults(payload.data ?? []);
+    } catch {
+      setSearchResults([]);
+      toast.error(labels.searchFailed ?? "Image search failed");
+    } finally {
+      setIsSearching(false);
+    }
+  }, [labels.searchFailed, searchEndpoint, searchQuery]);
+
+  const triggerUnsplashDownload = React.useCallback(
+    async (photoId: string, downloadLocation: string) => {
+      try {
+        await fetch("/api/image-search/download", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            photo_id: photoId,
+            download_location: downloadLocation,
+          }),
+        });
+      } catch {
+        // Do not block user selection when provider event fails.
+      }
+    },
+    []
+  );
+
+  const handleSelectFromResults = React.useCallback(
+    (item: ImageSearchResponse["data"][number]) => {
+      onChange(item.url);
+      setPreview(resolveImageUrl(item.url) ?? item.url);
+
+      if (item.source === "unsplash" && item.download_location) {
+        void triggerUnsplashDownload(item.id, item.download_location);
+      }
+    },
+    [onChange, triggerUnsplashDownload]
+  );
+
+  const safePreviewSrc = React.useMemo(() => sanitizeImageSrc(preview), [preview, sanitizeImageSrc]);
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -157,27 +356,22 @@ export function ImageUpload({
         {preview ? (
           <div className="relative w-full h-full group">
             <div className="relative w-full h-full">
-               {/* Use regular img tag for external URLs if Next/Image difficult to configure domain patterns immediately,
-                   or if we are sure about domain configuration.
-                   Using standard <img /> is often safer if we don't know the exact domain or if it varies (S3 etc).
-                   The User asked for standard implementation. Next/Image is improved but standard requires domain config.
-                   I will use standard <img /> or <Image /> with `unoptimized` if path is unknown.
-                   Let's use <img /> with object-cover for simplicity and reliability with diverse backend URLs.
-               */}
               <img
-                src={preview}
+                src={safePreviewSrc}
                 alt="Product preview"
                 className="w-full h-full object-cover rounded-lg"
               />
             </div>
             {!disabled && !loading && (
-              <div
+              <button
+                type="button"
                 className="absolute top-1 right-1 p-1 bg-destructive/90 text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-destructive"
                 onClick={handleRemove}
                 title={labels.removeImage ?? "Remove image"}
+                aria-label={labels.removeImage ?? "Remove image"}
               >
                 <X className="w-3 h-3" />
-              </div>
+              </button>
             )}
           </div>
         ) : (
@@ -196,6 +390,107 @@ export function ImageUpload({
           </div>
         )}
       </div>
+
+      {enableUrlInput && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Link2 className="h-3.5 w-3.5" />
+            {labels.pasteImageUrl ?? "Paste image URL"}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={urlInput}
+              onChange={(event) => setUrlInput(event.target.value)}
+              placeholder={labels.imageUrlPlaceholder ?? "https://images.unsplash.com/..."}
+              disabled={disabled || loading}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleApplyUrl}
+              disabled={disabled || loading || urlInput.trim().length === 0}
+            >
+              {labels.applyUrl ?? "Apply"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {enableImageSearch && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Search className="h-3.5 w-3.5" />
+            {labels.searchImage ?? "Search from image API"}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={labels.searchPlaceholder ?? "Search image..."}
+              disabled={disabled || isSearching}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSearch}
+              disabled={disabled || isSearching || searchQuery.trim().length < 2}
+            >
+              {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : (labels.searchButton ?? "Search")}
+            </Button>
+          </div>
+
+          {searchResults.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {searchResults.map((item) => (
+                <div key={item.id} className="space-y-1">
+                  <button
+                    type="button"
+                    className="group relative aspect-square w-full overflow-hidden rounded-md border border-border cursor-pointer"
+                    onClick={() => handleSelectFromResults(item)}
+                    title={labels.selectFromResults ?? "Select"}
+                  >
+                    <img
+                      src={sanitizeImageSrc(item.thumb_url)}
+                      alt={item.alt || "Search result"}
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1 py-0.5 text-[10px] text-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                      {labels.selectFromResults ?? "Select"}
+                    </span>
+                  </button>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    {labels.attributionPrefix ?? "Photo by"}{" "}
+                    <a
+                      href={sanitizeExternalHref(item.photographer_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {item.photographer_name}
+                    </a>{" "}
+                    <a
+                      href={sanitizeExternalHref(item.unsplash_photo_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      {labels.onUnsplash ?? "on Unsplash"}
+                    </a>
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground/80">
+            {labels.termsNotice ?? "By selecting Unsplash photos, you agree to keep attribution and allow download tracking."}
+          </p>
+
+          {!isSearching && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
+            <p className="text-xs text-muted-foreground">{labels.searchNoResults ?? "No images found"}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

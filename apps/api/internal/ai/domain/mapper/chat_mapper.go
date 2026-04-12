@@ -70,13 +70,25 @@ func (m *ChatMapper) ToSessionDetailResponse(session *models.AIChatSession) dto.
 		actions = append(actions, m.ToActionLogResponse(&session.Actions[i]))
 	}
 
-	return dto.SessionDetailResponse{
-		ID:       session.ID,
-		Title:    session.Title,
-		Status:   string(session.Status),
-		Messages: messages,
-		Actions:  actions,
+	resp := dto.SessionDetailResponse{
+		ID:           session.ID,
+		Title:        session.Title,
+		Status:       string(session.Status),
+		MessageCount: session.MessageCount,
+		Messages:     messages,
+		Actions:      actions,
+		CreatedAt:    session.CreatedAt.In(apptime.Location()).Format(time.RFC3339),
 	}
+
+	if session.LastActivity != nil {
+		resp.LastActivity = session.LastActivity.In(apptime.Location()).Format(time.RFC3339)
+	}
+
+	if resp.MessageCount < len(messages) {
+		resp.MessageCount = len(messages)
+	}
+
+	return resp
 }
 
 // ToActionLogResponse converts an action log model to a DTO response

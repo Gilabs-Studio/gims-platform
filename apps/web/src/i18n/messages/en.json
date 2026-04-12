@@ -20,6 +20,7 @@
     "delete": "Delete",
     "deleteConfirm": "Are you sure you want to delete this item?",
     "create": "Create",
+      "deactivate": "Deactivate",
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
@@ -120,7 +121,7 @@
     "pos": "POS",
     "fbMode": "F&B",
     "goodsDistributorMode": "Goods / Distributor",
-    "floorLayoutDesigner": "Floor & Layout Designer",
+    "floorLayoutDesigner": "Floor & Layout",
     "posTerminalNav": "POS Terminal",
     "quickSale": "Quick Sale",
     "salesBasket": "Sales Basket",
@@ -257,9 +258,7 @@
     "plannerWorkspace": "Planner Workspace",
     "visitReport": "Visit Report",
     "chatbot": "Chatbot",
-    "settings": "Settings",
-    "pos": "POS",
-    "floorLayoutDesigner": "Floor & Layout Designer"
+    "settings": "Settings"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

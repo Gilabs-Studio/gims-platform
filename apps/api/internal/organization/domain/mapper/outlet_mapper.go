@@ -161,10 +161,18 @@ func (m *OutletMapper) ApplyUpdateRequest(outlet *models.Outlet, req dto.UpdateO
 	}
 
 	// Geographic FK fields
-	outlet.ProvinceID = req.ProvinceID
-	outlet.CityID = req.CityID
-	outlet.DistrictID = req.DistrictID
-	outlet.VillageID = req.VillageID
+	if req.ProvinceID != nil {
+		outlet.ProvinceID = req.ProvinceID
+	}
+	if req.CityID != nil {
+		outlet.CityID = req.CityID
+	}
+	if req.DistrictID != nil {
+		outlet.DistrictID = req.DistrictID
+	}
+	if req.VillageID != nil {
+		outlet.VillageID = req.VillageID
+	}
 
 	if req.Latitude != nil {
 		outlet.Latitude = req.Latitude
@@ -172,8 +180,12 @@ func (m *OutletMapper) ApplyUpdateRequest(outlet *models.Outlet, req dto.UpdateO
 	if req.Longitude != nil {
 		outlet.Longitude = req.Longitude
 	}
-	outlet.ManagerID = req.ManagerID
-	outlet.CompanyID = req.CompanyID
+	if req.ManagerID != nil {
+		outlet.ManagerID = req.ManagerID
+	}
+	if req.CompanyID != nil {
+		outlet.CompanyID = req.CompanyID
+	}
 
 	if req.IsActive != nil {
 		outlet.IsActive = *req.IsActive

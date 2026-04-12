@@ -20,6 +20,7 @@
     "delete": "Hapus",
     "deleteConfirm": "Apakah Anda yakin ingin menghapus item ini?",
     "create": "Buat",
+      "deactivate": "Nonaktifkan",
     "save": "Simpan",
     "saving": "Menyimpan...",
     "cancel": "Batal",
@@ -119,7 +120,7 @@
     "pos": "POS",
     "fbMode": "F&B",
     "goodsDistributorMode": "Barang / Distributor",
-    "floorLayoutDesigner": "Desainer Tata Letak Lantai",
+    "floorLayoutDesigner": "Tata Letak Lantai",
     "posTerminalNav": "Terminal POS",
     "quickSale": "Penjualan Cepat",
     "salesBasket": "Keranjang Penjualan",
@@ -256,9 +257,7 @@
     "plannerWorkspace": "Workspace Planner",
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
-    "settings": "Pengaturan",
-    "pos": "POS",
-    "floorLayoutDesigner": "Desain Tata Letak Lantai"
+    "settings": "Pengaturan"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

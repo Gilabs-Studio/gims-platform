@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/routing";
 
 import type { CreateFloorPlanData } from "../types";
 import { getCreateFloorPlanSchema } from "../schemas/floor-layout.schema";
@@ -32,12 +33,14 @@ interface CreateFloorPlanDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSuccess: (id: string) => void;
+  readonly preSelectedOutletId?: string; // For single outlet auto-select
 }
 
 export function CreateFloorPlanDialog({
   open,
   onOpenChange,
   onSuccess,
+  preSelectedOutletId,
 }: CreateFloorPlanDialogProps) {
   const t = useTranslations("floorLayout");
   const schema = getCreateFloorPlanSchema(t);
@@ -45,13 +48,14 @@ export function CreateFloorPlanDialog({
   const createMutation = useCreateFloorLayout();
 
   const outlets = formData?.data?.outlets ?? [];
+  const availableOutlets = outlets.filter((outlet) => !outlet.has_floor_plan);
 
   const form = useForm<CreateFloorPlanData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
       floor_number: 1,
-      outlet_id: "",
+      outlet_id: preSelectedOutletId ?? "",
       grid_size: 20,
       snap_to_grid: true,
       width: 1200,
@@ -59,7 +63,19 @@ export function CreateFloorPlanDialog({
     },
   });
 
+  const selectedOutletId = form.watch("outlet_id");
+  const selectedOutlet = outlets.find((outlet) => outlet.id === selectedOutletId);
+
   const handleSubmit = form.handleSubmit(async (data) => {
+    const targetOutlet = outlets.find((outlet) => outlet.id === data.outlet_id);
+    if (targetOutlet?.has_floor_plan) {
+      form.setError("outlet_id", {
+        type: "validate",
+        message: t("outletAlreadyHasLayout"),
+      });
+      return;
+    }
+
     try {
       const result = await createMutation.mutateAsync(data);
       toast.success(t("messages.createSuccess"));
@@ -96,12 +112,35 @@ export function CreateFloorPlanDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {outlets.map((outlet) => (
-                    <SelectItem key={outlet.id} value={outlet.id}>
+                    <SelectItem
+                      key={outlet.id}
+                      value={outlet.id}
+                      disabled={outlet.has_floor_plan}
+                    >
                       {outlet.name}
+                      {outlet.has_floor_plan ? ` (${t("outletAlreadyHasLayout")})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {selectedOutlet?.has_floor_plan && (
+              <p className="text-xs text-destructive">
+                {t("outletAlreadyHasLayout")}
+              </p>
+            )}
+            {!selectedOutlet?.has_floor_plan && outlets.length > 0 && availableOutlets.length !== outlets.length && (
+              <p className="text-xs text-muted-foreground">
+                {t("outletAlreadyHasLayoutHint")}
+              </p>
+            )}
+            {outlets.length > 0 && availableOutlets.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground space-y-2">
+                <p>{t("noAvailableOutletsHint")}</p>
+                <Button asChild variant="outline" size="sm" className="cursor-pointer">
+                  <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+                </Button>
+              </div>
             )}
             {form.formState.errors.outlet_id && (
               <p className="text-xs text-destructive">

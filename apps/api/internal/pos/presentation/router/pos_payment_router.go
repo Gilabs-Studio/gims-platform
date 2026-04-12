@@ -7,9 +7,8 @@ import (
 )
 
 // RegisterPOSPaymentRoutes registers POS payment routes.
-// All payment actions (read + process) require pos.order.create, which is the cashier-level
-// permission. A dedicated pos.payment.process gate can be added later for manager-only
-// reconciliation endpoints.
+// All payment actions (read + process) require pos.order.create (cashier-level).
+// Digital payment routes check at the usecase level that the merchant has a connected Xendit account.
 func RegisterPOSPaymentRoutes(rg *gin.RouterGroup, h *handler.POSPaymentHandler) {
 	// Use :id to match the existing /orders/:id routes and avoid Gin wildcard conflicts.
 	payments := rg.Group("/orders/:id/payments")
@@ -17,9 +16,9 @@ func RegisterPOSPaymentRoutes(rg *gin.RouterGroup, h *handler.POSPaymentHandler)
 
 	payments.GET("", h.GetByOrder)
 	payments.POST("/cash", h.ProcessCash)
-	payments.POST("/midtrans", h.InitiateMidtrans)
+	payments.POST("/digital", h.InitiateDigitalPayment)
 
-	// Midtrans webhook — no auth required (server-to-server callback)
+	// Xendit webhook — no auth required (server-to-server callback from Xendit)
 	// Registered directly on the parent group to avoid the permission middleware
-	rg.POST("/webhook/midtrans", h.MidtransWebhook)
+	rg.POST("/webhook/xendit", h.XenditWebhook)
 }

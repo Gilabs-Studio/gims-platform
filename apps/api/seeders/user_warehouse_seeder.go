@@ -11,20 +11,17 @@ import (
 )
 
 // SeedUserWarehouses assigns users to warehouses for POS outlet RBAC.
-// Admin user gets all warehouses, staff gets the POS outlet only.
+// - Admin user gets all warehouses
+// - Staff gets the POS outlet only
+// - Outlet managers get assigned to their specific outlet warehouses
 func SeedUserWarehouses() error {
 	db := database.DB
 	log.Println("Seeding user-warehouse assignments...")
 
-	// Look up warehouse IDs by code (since they are auto-generated UUIDs)
+	// Look up all warehouses by code
 	var warehouses []warehouseModels.Warehouse
-	if err := db.Select("id, code").Where("code IN ?", []string{"SEED-WH-001", "SEED-WH-002"}).Find(&warehouses).Error; err != nil {
-		log.Printf("Warning: could not find seed warehouses: %v", err)
-		return nil
-	}
-
-	if len(warehouses) == 0 {
-		log.Println("No seed warehouses found, skipping user-warehouse seeding")
+	if err := db.Select("id, code").Find(&warehouses).Error; err != nil {
+		log.Printf("Warning: could not find warehouses: %v", err)
 		return nil
 	}
 
@@ -35,7 +32,7 @@ func SeedUserWarehouses() error {
 
 	var assignments []userModels.UserWarehouse
 
-	// Admin user → all warehouses
+	// 1. Admin user → all warehouses
 	for _, wh := range warehouses {
 		assignments = append(assignments, userModels.UserWarehouse{
 			UserID:      AdminUserID,
@@ -43,7 +40,7 @@ func SeedUserWarehouses() error {
 		})
 	}
 
-	// Staff user → POS outlet only (SEED-WH-001)
+	// 2. Staff user → SEED-WH-001 only
 	if whID, ok := warehouseMap["SEED-WH-001"]; ok {
 		assignments = append(assignments, userModels.UserWarehouse{
 			UserID:      StaffUserID,
@@ -51,6 +48,44 @@ func SeedUserWarehouses() error {
 		})
 	}
 
+	// 3. Outlet managers → their assigned outlet warehouses (EACH MANAGER = 1 OUTLET)
+	// OutletManager1 (Mie Gacoan - Sudirman) → WH-OT-00001
+	if whID, ok := warehouseMap["WH-OT-00001"]; ok {
+		assignments = append(assignments, userModels.UserWarehouse{
+			UserID:      OutletManager1UserID,
+			WarehouseID: whID,
+		})
+		log.Printf("Assigned outlet manager 1 to warehouse: WH-OT-00001")
+	}
+
+	// OutletManager2 (Mie Gacoan - Kelapa Gading) → WH-OT-00002
+	if whID, ok := warehouseMap["WH-OT-00002"]; ok {
+		assignments = append(assignments, userModels.UserWarehouse{
+			UserID:      OutletManager2UserID,
+			WarehouseID: whID,
+		})
+		log.Printf("Assigned outlet manager 2 to warehouse: WH-OT-00002")
+	}
+
+	// OutletManager3 (Kimia Farma - Sudirman) → WH-OT-00003
+	if whID, ok := warehouseMap["WH-OT-00003"]; ok {
+		assignments = append(assignments, userModels.UserWarehouse{
+			UserID:      OutletManager3UserID,
+			WarehouseID: whID,
+		})
+		log.Printf("Assigned outlet manager 3 to warehouse: WH-OT-00003")
+	}
+
+	// OutletManager4 (Kimia Farma - Pondok Indah) → WH-OT-00004
+	if whID, ok := warehouseMap["WH-OT-00004"]; ok {
+		assignments = append(assignments, userModels.UserWarehouse{
+			UserID:      OutletManager4UserID,
+			WarehouseID: whID,
+		})
+		log.Printf("Assigned outlet manager 4 to warehouse: WH-OT-00004")
+	}
+
+	// Insert all assignments
 	for _, assignment := range assignments {
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "warehouse_id"}},

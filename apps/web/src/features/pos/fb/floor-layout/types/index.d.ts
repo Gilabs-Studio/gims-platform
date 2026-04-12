@@ -148,6 +148,7 @@ export interface LayoutVersionListResponse {
 export interface OutletOption {
   id: string;
   name: string;
+  has_floor_plan: boolean;
 }
 
 export interface FloorPlanFormDataResponse {
