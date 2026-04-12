@@ -33,6 +33,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useWarehouses,
   useDeleteWarehouse,
+  useUpdateWarehouse,
 } from "../../hooks/use-warehouses";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import L from "leaflet";
@@ -57,6 +58,14 @@ const Popup = dynamic(
 );
 
 type PanelMode = "create" | "edit" | "view" | null;
+
+type MapMarkerProps = {
+  position: [number, number];
+  eventHandlers: {
+    click: () => void;
+  };
+  icon?: L.DivIcon;
+};
 
 export function WarehouseMapView() {
   const t = useTranslations("warehouse");
@@ -95,6 +104,7 @@ export function WarehouseMapView() {
   });
 
   const deleteWarehouse = useDeleteWarehouse();
+  const updateWarehouse = useUpdateWarehouse();
 
   const warehouses = useMemo(() => data?.data ?? [], [data?.data]);
 
@@ -165,21 +175,27 @@ export function WarehouseMapView() {
   }
 
   const outletIcon = createColoredIcon("#f59e0b");
+  const defaultActiveIcon = createColoredIcon("#2563eb");
+  const inactiveIcon = createColoredIcon("#94a3b8");
 
   const renderMarkers = (markerList: MapMarker<WarehouseType>[]) => (
     <>
       <MarkerClusterGroup chunkedLoading>
         {markerList.map((marker) => {
           const warehouse = marker.data;
-          const markerProps: any = {
+          const markerProps: MapMarkerProps = {
             position: [marker.latitude, marker.longitude],
             eventHandlers: {
               click: () => setSelectedWarehouseId(String(marker.id)),
             },
           };
 
-          if (warehouse.outlet_id) {
+          if (!warehouse.is_active) {
+            markerProps.icon = inactiveIcon;
+          } else if (warehouse.outlet_id) {
             markerProps.icon = outletIcon;
+          } else {
+            markerProps.icon = defaultActiveIcon;
           }
 
           return (
@@ -306,7 +322,7 @@ export function WarehouseMapView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Outlets</SelectItem>
-                  {outletsResp?.data?.map((o: any) => (
+                    {((outletsResp?.data ?? []) as Array<{ id: string; name: string }>).map((o) => (
                     <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -380,8 +396,22 @@ export function WarehouseMapView() {
                       setDeletingId(warehouse.id);
                     }
                   }}
+                  onStatusChange={canUpdate ? (isActive) => {
+                    updateWarehouse.mutate(
+                      { id: warehouse.id, data: { is_active: isActive } },
+                      {
+                        onSuccess: () => {
+                          toast.success(t("warehouse.updateSuccess"));
+                        },
+                        onError: () => {
+                          toast.error(t("common.error_update"));
+                        },
+                      }
+                    );
+                  } : undefined}
                   canUpdate={canUpdate}
                   canDelete={canDelete}
+                  isStatusChanging={updateWarehouse.isPending}
                 />
               ))}
             </>

@@ -20,6 +20,7 @@
     "delete": "Hapus",
     "deleteConfirm": "Apakah Anda yakin ingin menghapus item ini?",
     "create": "Buat",
+      "deactivate": "Nonaktifkan",
     "save": "Simpan",
     "saving": "Menyimpan...",
     "cancel": "Batal",

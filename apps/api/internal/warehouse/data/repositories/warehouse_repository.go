@@ -20,6 +20,8 @@ type WarehouseRepository interface {
 	// HasActiveStock returns true when the warehouse has any inventory_batches
 	// with current_quantity > 0. Used to block deletes that would orphan stock.
 	HasActiveStock(ctx context.Context, warehouseID string) (bool, error)
+	FindByOutletIDs(ctx context.Context, outletIDs []string) ([]*models.Warehouse, error)
+	UpdateIsActiveByOutletIDs(ctx context.Context, outletIDs []string, isActive bool) error
 }
 
 // WarehouseListParams defines parameters for listing warehouses
@@ -159,4 +161,24 @@ func (r *warehouseRepository) HasActiveStock(ctx context.Context, warehouseID st
 		return false, err
 	}
 	return count > 0, nil
+}
+
+// FindByOutletIDs retrieves all warehouses linked to the specified outlet IDs
+func (r *warehouseRepository) FindByOutletIDs(ctx context.Context, outletIDs []string) ([]*models.Warehouse, error) {
+	var warehouses []*models.Warehouse
+	err := r.db.WithContext(ctx).
+		Where("outlet_id IN ?", outletIDs).
+		Find(&warehouses).Error
+	if err != nil {
+		return nil, err
+	}
+	return warehouses, nil
+}
+
+// UpdateIsActiveByOutletIDs updates is_active status for all warehouses linked to specified outlet IDs
+func (r *warehouseRepository) UpdateIsActiveByOutletIDs(ctx context.Context, outletIDs []string, isActive bool) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Warehouse{}).
+		Where("outlet_id IN ?", outletIDs).
+		Update("is_active", isActive).Error
 }
