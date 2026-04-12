@@ -6,6 +6,7 @@ export const customerInvoiceDPEn = {
     created: "Down payment invoice created",
     updated: "Down payment invoice updated",
     submitted: "Down payment invoice submitted",
+    approved: "Down payment invoice approved",
     deleted: "Down payment invoice deleted",
     failed: "Something went wrong",
   },

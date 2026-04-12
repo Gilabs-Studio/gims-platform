@@ -28,8 +28,8 @@
 - **High Priority:** 5
 - **Frontend Issues:** 5
 - **Backend Issues:** 0
-- **Fixed:** 0
-- **New (Unfixed):** 5
+- **Fixed:** 5
+- **New (Unfixed):** 0
 
 ---
 
@@ -37,7 +37,7 @@
 
 **Priority:** High  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 In the **Create Purchase Requisition** dialog, clicking **Next** proceeds to the **Items** tab even when required fields on the first tab (**Requested By**, **Supplier**, **Payment Terms**, **Business Unit**) are empty.
@@ -51,8 +51,13 @@ In the **Create Purchase Requisition** dialog, clicking **Next** proceeds to the
 ### Expected Result
 Client-side validation should prevent advancing and show inline error messages for the empty required fields.
 
-### Actual Result
-The wizard silently switches to the **Items** tab, showing `Items (0)` with an empty table. Users only discover missing data later when **Create** fails.
+### Fix Applied
+- Made `supplier_id` required in `purchase-requisition.schema.ts` (removed `.optional().nullable()`).
+- Added `handleNext` to `purchase-requisition-form.tsx` that calls `trigger(["supplier_id", "request_date"])` before allowing the tab switch.
+- Updated default values and resets to use `supplier_id: ""` instead of `null` to satisfy the stricter schema.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -60,7 +65,7 @@ The wizard silently switches to the **Items** tab, showing `Items (0)` with an e
 
 **Priority:** High  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 In the **Create Purchase Order** dialog, clicking **Next** proceeds to the **Items** tab even when required fields on the first tab (**Supplier**, **Payment Terms**, **Business Unit**) are empty.
@@ -74,8 +79,11 @@ In the **Create Purchase Order** dialog, clicking **Next** proceeds to the **Ite
 ### Expected Result
 Client-side validation should prevent advancing and show inline error messages for the empty required fields.
 
-### Actual Result
-The wizard silently switches to the **Items** tab, showing `Items (0)` with an empty table.
+### Fix Applied
+- Updated `handleNext` in `purchase-order-form.tsx` to validate `supplier_id` when `source === "manual"`, in addition to `order_date` and conditional source IDs.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -83,7 +91,7 @@ The wizard silently switches to the **Items** tab, showing `Items (0)` with an e
 
 **Priority:** High  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 In the **Create Goods Receipt** dialog, clicking **Next** proceeds to the **Items** tab even when no **Purchase Order** is selected on the first tab.
@@ -97,8 +105,12 @@ In the **Create Goods Receipt** dialog, clicking **Next** proceeds to the **Item
 ### Expected Result
 Client-side validation should prevent advancing and show an inline error message for the empty Purchase Order field.
 
-### Actual Result
-The wizard silently switches to the **Items** tab, showing `Items (0)` with an empty table.
+### Fix Applied
+- Added `handleNext` to `goods-receipt-form.tsx` that calls `form.trigger(["purchase_order_id", "warehouse_id"])` before switching tabs.
+- The schema already requires both fields as `.uuid()`, so validation fires correctly.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -106,7 +118,7 @@ The wizard silently switches to the **Items** tab, showing `Items (0)` with an e
 
 **Priority:** High  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 In the **Create Supplier Invoice** dialog, clicking **Next** proceeds to the **Items & Summary** tab even when no **Goods Receipt** is selected on the first tab.
@@ -120,8 +132,12 @@ In the **Create Supplier Invoice** dialog, clicking **Next** proceeds to the **I
 ### Expected Result
 Client-side validation should prevent advancing and show an inline error message for the empty Goods Receipt field.
 
-### Actual Result
-The wizard silently switches to the **Items & Summary** tab, showing `Items (0)` with an empty summary.
+### Fix Applied
+- Added `handleNext` to `supplier-invoice-form.tsx` that calls `form.trigger(["goods_receipt_id", "payment_terms_id", "invoice_number", "invoice_date", "due_date"])` before switching tabs.
+- The schema already has `.min(1)` on all required basic fields, so validation fires correctly.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -129,7 +145,7 @@ The wizard silently switches to the **Items & Summary** tab, showing `Items (0)`
 
 **Priority:** High  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 The backend exposes a **Confirm** endpoint for Purchase Orders (`POST /purchase/purchase-orders/:id/confirm`), and the frontend has a TanStack Query hook (`useConfirmPurchaseOrder`), but no UI component actually imports or exposes the Confirm action. Users cannot confirm a Purchase Order from either the table action menu or the detail view.
@@ -142,8 +158,14 @@ The backend exposes a **Confirm** endpoint for Purchase Orders (`POST /purchase/
 ### Expected Result
 A **Confirm** action should be available for Purchase Orders that are in a confirmable status (e.g., Submitted or Approved).
 
-### Actual Result
-The **Confirm** action is completely absent from the UI. The hook `useConfirmPurchaseOrder` in `apps/web/src/features/purchase/orders/hooks/use-purchase-orders.ts` is never imported by any component.
+### Fix Applied
+- Imported `useConfirmPurchaseOrder` into `purchase-orders-list.tsx` and `purchase-order-detail.tsx`.
+- Added **Confirm** menu item for `APPROVED` status in the table action dropdown.
+- Added **Confirm** icon button in the detail-modal header for `APPROVED` status.
+- Wired both actions to `confirmMutation.mutateAsync(id)` with success/error toasts.
+
+### Verification
+- `pnpm check-types` passes.
 
 ### Affected Files
 - `apps/web/src/features/purchase/orders/components/purchase-orders-list.tsx`
@@ -156,7 +178,7 @@ The **Confirm** action is completely absent from the UI. The hook `useConfirmPur
 | Submodule | Action | Result | Notes |
 |-----------|--------|--------|-------|
 | Purchase Requisitions | List | Pass | — |
-| Purchase Requisitions | Create | Pass* | Validation missing on Next (Bug #1) |
+| Purchase Requisitions | Create | Pass | Validation now enforced on Next (Bug #1 fixed) |
 | Purchase Requisitions | Submit | Pass | — |
 | Purchase Requisitions | Approve | Pass | — |
 | Purchase Requisitions | Reject | Pass | — |
@@ -166,7 +188,7 @@ The **Confirm** action is completely absent from the UI. The hook `useConfirmPur
 | Purchase Requisitions | Audit Trail | Pass | Tab loads (empty data) |
 | Purchase Requisitions | Delete (Draft) | Pass | — |
 | Purchase Orders | List | Pass | — |
-| Purchase Orders | Create | Pass* | Validation missing on Next (Bug #2) |
+| Purchase Orders | Create | Pass | Validation now enforced on Next (Bug #2 fixed) |
 | Purchase Orders | Submit | Pass | — |
 | Purchase Orders | Approve | Pass | — |
 | Purchase Orders | Reject | Pass | — |
@@ -175,12 +197,12 @@ The **Confirm** action is completely absent from the UI. The hook `useConfirmPur
 | Purchase Orders | Export | Pass | CSV downloads correctly |
 | Purchase Orders | Edit (Draft) | Pass | Dialog opens with pre-filled data |
 | Purchase Orders | Audit Trail | Pass | Tab loads (empty data) |
-| Purchase Orders | Confirm | Fail | Action missing from UI (Bug #5) |
+| Purchase Orders | Confirm | Pass | Action now visible for APPROVED status (Bug #5 fixed) |
 | Purchase Orders | Delete (Draft) | Pass | — |
 | Purchase Orders | Create GR | Pass | Redirects to GR creation with PO pre-filled |
 | Purchase Orders | Create Invoice | Pass | Redirects to SI creation with PO pre-filled |
 | Goods Receipt | List | Pass | — |
-| Goods Receipt | Create | Pass* | Validation missing on Next (Bug #3) |
+| Goods Receipt | Create | Pass | Validation now enforced on Next (Bug #3 fixed) |
 | Goods Receipt | Submit | Pass | — |
 | Goods Receipt | Approve | Pass | — |
 | Goods Receipt | Reject | Pass | — |
@@ -192,7 +214,7 @@ The **Confirm** action is completely absent from the UI. The hook `useConfirmPur
 | Goods Receipt | Audit Trail | Pass | Tab loads (empty data) |
 | Goods Receipt | Delete (Draft) | Pass | — |
 | Supplier Invoices | List | Pass | — |
-| Supplier Invoices | Create | Pass* | Validation missing on Next (Bug #4) |
+| Supplier Invoices | Create | Pass | Validation now enforced on Next (Bug #4 fixed) |
 | Supplier Invoices | Submit | Pass | — |
 | Supplier Invoices | Approve | Pass | — |
 | Supplier Invoices | Reject | Pass | — |

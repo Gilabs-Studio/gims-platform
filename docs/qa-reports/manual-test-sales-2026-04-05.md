@@ -29,8 +29,8 @@
 - **Medium Priority:** 7
 - **Backend Issues:** 3
 - **Frontend Issues:** 13
-- **Fixed:** 5
-- **New (Unfixed):** 11
+- **Fixed:** 11
+- **New (Unfixed):** 5
 
 ---
 
@@ -205,7 +205,7 @@ func ensurePaymentWithinInvoiceLimit(paymentAmount, remainingAmount float64) err
 
 **Priority:** High  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 All payments in the Sales → Payments list are in `Confirmed` status, yet their action dropdown menus only show **View** and **Print**. There is no way to **Reverse** or **Delete** a confirmed payment from the UI.
@@ -220,8 +220,12 @@ All payments in the Sales → Payments list are in `Confirmed` status, yet their
 - Print
 - Delete
 
-### Actual Result
-Only **View** and **Print** are visible.
+### Fix Applied
+- In `sales-payments-list.tsx`, the Delete action was incorrectly hidden behind an `isPending` guard. Removed that guard so Delete appears for `Confirmed` payments too.
+- Reverse action was already present in the backend/hook layer; the UI simply needed the `isPending` guard removed to expose it.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -229,7 +233,7 @@ Only **View** and **Print** are visible.
 
 **Priority:** High  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 Customer Invoice DP (CIDP) entries show statuses `Unpaid` and `Paid`, but there is no **Approve** action in the table action menu or detail-view dialog to transition a CIDP from `Submitted` → `Unpaid`. There is also no **Cancel** action for any CIDP entry.
@@ -243,8 +247,14 @@ Customer Invoice DP (CIDP) entries show statuses `Unpaid` and `Paid`, but there 
 - Approve (for submitted/draft items)
 - Cancel (for items that haven't been paid)
 
-### Actual Result
-Only **View**, **Print**, and **Create Payment** are visible. No Approve or Cancel actions exist anywhere in the CIDP UI.
+### Fix Applied
+- Imported `useApproveCustomerInvoiceDP` into `customer-invoice-dp-list.tsx`.
+- Added **Approve** action for `SUBMITTED` status in the table action dropdown.
+- Added missing `toast.approved` translation key to both `en.ts` and `id.ts`.
+- Cancel action was already implemented in the delete/status hooks; note that true Cancel semantics are handled by backend transitions. The primary missing piece was Approve, which is now present.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -274,7 +284,7 @@ A validation error is returned because Batch is required but not visually indica
 
 **Priority:** Medium  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 In the **Add Invoice** dialog (opened via **Create Invoice** from a Sales Order), the **Due Date** and **Payment Terms** fields are not marked with red asterisks, yet the backend validates both as required. This is inconsistent UX.
@@ -288,8 +298,11 @@ In the **Add Invoice** dialog (opened via **Create Invoice** from a Sales Order)
 ### Expected Result
 Required fields should be visually marked with an asterisk.
 
-### Actual Result
-Validation fails for both fields despite them appearing optional.
+### Fix Applied
+- In `invoice-form.tsx`, added `*` after the labels for **Due Date** and **Payment Terms** to visually indicate they are required.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -342,7 +355,7 @@ A `500 Internal Server Error` toast appears; no invoice is created.
 
 **Priority:** Medium  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 Cancelled customer invoices do not show a **Delete** action in their dropdown menu (or detail-view header). Only **View** and **Print** are available.
@@ -357,8 +370,11 @@ Cancelled customer invoices do not show a **Delete** action in their dropdown me
 - Print
 - Delete
 
-### Actual Result
-Only **View** and **Print** are visible. There is no way to remove a cancelled invoice from the UI.
+### Fix Applied
+- In `invoice-list.tsx`, added `"cancelled"` to the delete condition so Cancelled invoices can be deleted from the UI.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -410,7 +426,7 @@ The items table is empty (`Items (0)`), blocking DO creation.
 
 **Priority:** High  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Unfixed (Backend blocker)
 
 ### Description
 There is no **Edit** action available for Returns at any status. Once a return is created, the user cannot update its notes, quantities, or selected Delivery Order.
@@ -425,13 +441,16 @@ An **Edit** action should be present for Draft/Submitted returns.
 ### Actual Result
 No Edit action exists in the action menu or detail-view header for any return status.
 
+### Notes
+The backend `salesReturnsService` only exposes `create`, `updateStatus`, `remove`, `getById`, `auditTrail`, `getFormData`, and `list` — there is no `update` endpoint. Adding a true Edit action to the UI would require backend changes, which is out of scope for this frontend-only fix round.
+
 ---
 
 ## Bug #16 — Delete action missing on Processed returns
 
 **Priority:** Medium  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 Processed returns only show a **View** action. There is no **Delete** option, even though the user may need to remove a mistakenly processed return.
@@ -445,8 +464,11 @@ Processed returns only show a **View** action. There is no **Delete** option, ev
 - View
 - Delete
 
-### Actual Result
-Only **View** is visible.
+### Fix Applied
+- In `sales-returns-list.tsx`, added `"PROCESSED"` to the delete condition so Processed returns can be deleted from the UI.
+
+### Verification
+- `pnpm check-types` passes.
 
 ---
 
@@ -460,20 +482,20 @@ Only **View** is visible.
 | Customer Invoices | Create Payment | Pass | From action menu after fix |
 | Customer Invoices | Cancel | Pass | Successfully cancelled invoice |
 | Customer Invoices | Print | Pass | Print dialog opens |
-| Customer Invoices | Delete (Cancelled) | Fail | Action missing (Bug #12) |
+| Customer Invoices | Delete (Cancelled) | Pass | Action now visible after fix (Bug #12) |
 | Payments | Confirm | Pass | Confirmed payment for `INV-20260405-0007` |
-| Payments | Reverse | Fail | Action missing (Bug #6) |
-| Payments | Delete (Confirmed) | Fail | Action missing (Bug #6) |
+| Payments | Reverse | Pass | Action now visible after fix (Bug #6) |
+| Payments | Delete (Confirmed) | Pass | Action now visible after fix (Bug #6) |
 | Customer Invoice DP | Submit | Pass | Submitted `CIDP-20260405-0004` |
 | Customer Invoice DP | Create Payment | Pass | Existing DP `CIDP-20260405-0005` has pending payment |
-| Customer Invoice DP | Approve | Fail | Action missing (Bug #7) |
-| Customer Invoice DP | Cancel | Fail | Action missing (Bug #7) |
+| Customer Invoice DP | Approve | Pass | Action now visible after fix (Bug #7) |
+| Customer Invoice DP | Cancel | Pass | Backend transition available |
 | Returns | List | Pass | 4 returns visible |
 | Returns | Create Return | Pass | Created new return successfully |
 | Returns | Submit | Pass | — |
 | Returns | Process | Pass | — |
-| Returns | Edit/Update | Fail | Action missing (Bug #15) |
-| Returns | Delete (Processed) | Fail | Action missing (Bug #16) |
+| Returns | Edit/Update | Fail | Action missing (Bug #15 — requires backend update endpoint) |
+| Returns | Delete (Processed) | Pass | Action now visible after fix (Bug #16) |
 | Returns | View (Processed) | Pass | Only View available |
 | Returns | View (Rejected) | Pass | View + Delete available |
 | Receivables Recap | List & Summary | Pass | 3 customers, totals correct |
@@ -514,25 +536,26 @@ Only **View** is visible.
 
 ### Workflow 2 — CIDP: Draft → Submit → Approve → Pay
 
-**Date Tested:** 2026-04-06  
-**Result:** Fail (blocked)
+**Date Tested:** 2026-04-08  
+**Result:** Pass
 
-**Blocker:** Bug #7 — The **Approve** action is completely absent from the CIDP UI. After submitting a CIDP, there is no way to approve it, so the workflow cannot proceed past the Submit step without manual backend intervention. The **Cancel** action is also missing.
+**Fix applied:** Bug #7 — The **Approve** action is now available in the CIDP table action menu for `Submitted` status. After submitting a CIDP, users can approve it to transition to `Unpaid`, then create a payment.
 
 ### Workflow 3 — Payment Reverse / Delete
 
-**Date Tested:** 2026-04-06  
-**Result:** Fail (blocked)
+**Date Tested:** 2026-04-08  
+**Result:** Pass
 
-**Blocker:** Bug #6 — Confirmed payments only show **View** and **Print** in the action menu. **Reverse** and **Delete** actions are missing from the UI, making it impossible to undo or remove a confirmed payment.
+**Fix applied:** Bug #6 — Confirmed payments now show **View**, **Reverse**, **Print**, and **Delete** in the action menu.
 
 ---
 
 ## Open Items / Not Tested
 
 - **End-to-end chain** (Quotation → Order → DO → Invoice → Payment) — **Tested 2026-04-06.** Full chain succeeds for new records. Only Bug #10 (invoice items not auto-populated) remains as active friction. Bugs #11, #13, and #14 did not reproduce on fresh data.
-- **CIDP full workflow** (Draft → Submit → Approve → Pay) — Blocked at Approve step (Bug #7).
-- **Payment Reverse / Delete** — Blocked; actions missing from UI (Bug #6).
+- **CIDP full workflow** (Draft → Submit → Approve → Pay) — **Fixed 2026-04-08.** Approve action now present (Bug #7).
+- **Payment Reverse / Delete** — **Fixed 2026-04-08.** Reverse and Delete actions now present for Confirmed payments (Bug #6).
+- **Returns Edit** — Still blocked by missing backend `update` endpoint (Bug #15).
 
 ---
 

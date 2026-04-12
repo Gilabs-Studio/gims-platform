@@ -273,6 +273,13 @@ export function SupplierInvoiceFormDialog({
   const [invoiceDateOpen, setInvoiceDateOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
 
+  const handleNext = async () => {
+    const isValid = await form.trigger(["goods_receipt_id", "payment_terms_id", "invoice_number", "invoice_date", "due_date"]);
+    if (isValid) {
+      setActiveTab("items");
+    }
+  };
+
   async function onSubmit(values: SupplierInvoiceFormData) {
     const cleaned = { ...values, items: values.items.filter((it) => it.product_id.length > 0) };
     try {
@@ -581,7 +588,7 @@ export function SupplierInvoiceFormDialog({
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
                   {t("actions.cancel")}
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+                <Button type="button" onClick={handleNext} className="cursor-pointer">
                   {t("actions.next") || "Next"}
                 </Button>
               </div>

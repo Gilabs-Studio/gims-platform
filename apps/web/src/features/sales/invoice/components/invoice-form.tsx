@@ -187,7 +187,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               </Field>
 
               <Field orientation="vertical">
-                <FieldLabel>{t("dueDate")}</FieldLabel>
+                <FieldLabel>{t("dueDate")} *</FieldLabel>
                 <Controller
                   name="due_date"
                   control={control}
@@ -243,7 +243,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               </Field>
 
               <Field orientation="vertical">
-                <FieldLabel>{t("paymentTerms")}</FieldLabel>
+                <FieldLabel>{t("paymentTerms")} *</FieldLabel>
                 <Controller
                   name="payment_terms_id"
                   control={control}

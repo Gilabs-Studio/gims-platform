@@ -262,7 +262,7 @@ export function SalesPaymentsList() {
                                 {t("actions.print")}
                               </DropdownMenuItem>
                             )}
-                            {canDelete && isPending && (
+                            {canDelete && (
                               <DropdownMenuItem
                                 onClick={() => setDeletingItem(item)}
                                 className="cursor-pointer text-destructive"

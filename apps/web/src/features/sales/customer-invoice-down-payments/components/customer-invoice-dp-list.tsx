@@ -61,6 +61,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   useDeleteCustomerInvoiceDP,
   usePendingCustomerInvoiceDP,
+  useApproveCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPListItem, CustomerInvoiceDPStatus } from "../types";
@@ -205,6 +206,7 @@ export function CustomerInvoiceDPList() {
 
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
+  const approveMutation = useApproveCustomerInvoiceDP();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -543,6 +545,23 @@ export function CustomerInvoiceDPList() {
                             >
                               <Send className="h-4 w-4 mr-2" />
                               {t("actions.submit")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {normalizeStatus(row.status) === "submitted" ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-success focus:text-success"
+                              onClick={async () => {
+                                try {
+                                  await approveMutation.mutateAsync(row.id);
+                                  toast.success(t("toast.approved"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              {t("actions.approve")}
                             </DropdownMenuItem>
                           ) : null}
 

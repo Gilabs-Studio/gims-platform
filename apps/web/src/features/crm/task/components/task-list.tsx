@@ -409,6 +409,10 @@ export function TaskList() {
         open={!!state.detailItem}
         onClose={() => actions.setDetailItem(null)}
         task={state.detailItem}
+        onEdit={(item) => {
+          actions.setDetailItem(null);
+          actions.handleEdit(item);
+        }}
       />
     </div>
   );

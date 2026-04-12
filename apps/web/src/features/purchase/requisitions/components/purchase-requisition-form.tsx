@@ -136,11 +136,12 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		control,
 		reset,
 		setValue,
+		trigger,
 		formState: { errors },
 	} = useForm<PurchaseRequisitionFormData>({
 		resolver,
 		defaultValues: {
-			supplier_id: null,
+			supplier_id: "",
 			supplier_contact_id: null,
 			payment_terms_id: null,
 			business_unit_id: null,
@@ -167,7 +168,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!isEdit) {
 			reset({
-					supplier_id: null, supplier_contact_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
+					supplier_id: "", supplier_contact_id: null, payment_terms_id: null, business_unit_id: null, employee_id: null,
 				request_date: todayISO(), address: null, notes: "", tax_rate: 0, delivery_cost: 0, other_cost: 0,
 				items: [{ product_id: "", quantity: 1, purchase_price: 0, discount: 0, notes: null }],
 			});
@@ -175,7 +176,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 		}
 		if (!detail) return;
 		reset({
-				supplier_id: detail.supplier_id ?? null, supplier_contact_id: null, payment_terms_id: detail.payment_terms_id ?? null,
+				supplier_id: detail.supplier_id ?? "", supplier_contact_id: null, payment_terms_id: detail.payment_terms_id ?? null,
 			business_unit_id: detail.business_unit_id ?? null, employee_id: detail.employee_id ?? null,
 			request_date: detail.request_date, address: detail.address ?? null, notes: detail.notes ?? "",
 			tax_rate: detail.tax_rate ?? 0, delivery_cost: detail.delivery_cost ?? 0, other_cost: detail.other_cost ?? 0,
@@ -413,6 +414,13 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 
 	const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+	const handleNext = async () => {
+		const isValid = await trigger(["supplier_id", "request_date"]);
+		if (isValid) {
+			setActiveTab("items");
+		}
+	};
+
 	const onSubmit = async (formData: PurchaseRequisitionFormData) => {
 		const payload = {
 			supplier_id: formData.supplier_id ?? null, payment_terms_id: formData.payment_terms_id ?? null,
@@ -542,7 +550,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 												<CreatableCombobox
 													value={field.value ?? undefined}
 													onValueChange={(v) => {
-														const selectedId = v || null;
+														const selectedId = v || "";
 														field.onChange(selectedId);
 														const supplierFromList = mergedSuppliers.find((s) => s.id === selectedId);
 														const supplier = selectedSupplierWithDetail ?? supplierFromList;
@@ -716,7 +724,7 @@ export function PurchaseRequisitionForm({ open, onClose, requisitionId }: Purcha
 								<Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
 									{t("actions.cancel")}
 								</Button>
-								<Button type="button" onClick={() => setActiveTab("items")} className="cursor-pointer">
+								<Button type="button" onClick={handleNext} className="cursor-pointer">
 									{t("common.next") || "Next"}
 								</Button>
 							</div>

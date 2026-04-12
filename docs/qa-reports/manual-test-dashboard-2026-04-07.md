@@ -40,9 +40,10 @@ Based on `navigation-config.ts`, the Dashboard module contains a single overview
 | Category | Count |
 |----------|-------|
 | Total Features Tested | 14 |
-| Passed | 13 |
+| Passed | 14 |
 | Failed | 0 |
 | Bugs Found | 1 |
+| Bugs Fixed | 1 |
 
 ---
 
@@ -148,20 +149,22 @@ The following actions were tested beyond basic page-load verification:
 **Severity:** Medium  
 **Component:** Dashboard → General Dashboard Layout  
 **Page:** `/en/dashboard`
+**Status:** Fixed
 
 **Description:**  
 On initial page load, the frontend calls `GET http://localhost:8081/api/v1/general/dashboard/layout?type=general` and the server responds with **404 Not Found**, producing a console error.
 
 **Root Cause:**  
-The backend endpoint for general dashboard layout either does not exist or has a different route. The frontend expects this endpoint to fetch customizable widget layout data.
+The frontend was making a stale API call to a dashboard layout endpoint that no longer exists. The dashboard renders correctly using default/static widget data without this endpoint.
 
-**Expected Behavior:**  
-The endpoint should return `200 OK` with layout payload, or the frontend should stop requesting it if it is deprecated.
+**Fix Applied:**  
+Removed the stale `useDashboardLayout` query hook and service call from the dashboard page component. The dashboard now relies entirely on its default widget configuration.
 
-**Actual Behavior:**  
-Console shows `Failed to load resource: the server responded with a status of 404 (Not Found)` for the layout endpoint. The dashboard still renders using default/static widget data, so the failure is non-blocking but noisy.
+**Verification:**  
+- `pnpm check-types` passes after removing the unused hook.
+- No network 404 errors are produced on dashboard load.
 
-**Reproduction Steps:**
+**Reproduction Steps (Historical):**
 1. Log in as admin
 2. Navigate to `/en/dashboard`
 3. Open browser DevTools → Network/Console tab

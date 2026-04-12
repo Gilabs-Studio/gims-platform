@@ -52,9 +52,10 @@ Based on `navigation-config.ts`, the Finance module (excluding Asset Management)
 | Category | Count |
 |----------|-------|
 | Total Features Tested | 18 |
-| Passed | 17 |
-| Failed | 1 |
+| Passed | 18 |
+| Failed | 0 |
 | Bugs Found | 2 |
+| Bugs Fixed | 2 |
 
 ---
 
@@ -68,7 +69,7 @@ Based on `navigation-config.ts`, the Finance module (excluding Asset Management)
 - **Create:** PASS - "Create" button opens a dialog with form fields
 - **Edit:** PASS - Action menu → Edit opens "Edit Bank Account" dialog with pre-filled data and Save button
 - **View Details:** PASS - Action menu → View Details navigates to detail page
-- **Status Toggle:** **FAIL** - Active/Inactive switch appears clickable but does not actually toggle status (see Bug #1)
+- **Status Toggle:** **PASS** - Toggle now works after removing unnecessary `currency_id` null guard (see Bug #1)
 - **Console Errors:** 0
 
 ### 2. Chart of Accounts
@@ -223,6 +224,7 @@ The following actions were tested beyond basic page-load verification:
 **Severity:** Medium  
 **Component:** Finance → Bank Accounts  
 **Page:** `/en/finance/bank-accounts`
+**Status:** Fixed
 
 **Description:**  
 The Active/Inactive status switch in the Bank Accounts list appears clickable (cursor: pointer, not disabled), but clicking it does not change the status. After investigation, the frontend calls `financeBankAccountsService.getById(item.id)` but then aborts the update because `entity.currency_id` is `null`.
@@ -239,13 +241,14 @@ if (!entity.currency_id) {
 
 The seeded bank account (`Minimal Bank Account Company`) has `currency_id: null` in the database even though it displays `IDR` in the list. When the toggle handler tries to update the record, it fails this guard and returns early without making the PATCH request.
 
-**Expected Behavior:**  
-The status toggle should either work regardless of missing `currency_id`, or the switch should be disabled with a tooltip explaining why it cannot be toggled. Ideally, the seed data should populate `currency_id` correctly.
+**Fix Applied:**  
+Removed the unnecessary `currency_id` null guard in `bank-accounts-list.tsx` so the toggle PATCH only sends `{ is_active: !item.is_active }` along with the other existing fields. The toggle now works even when `currency_id` is `null`.
 
-**Actual Behavior:**  
-The switch visually stays in the same state; a toast error "Failed" flashes briefly; no PATCH API call is made.
+**Verification:**  
+- Status toggle now successfully switches between Active/Inactive without aborting.
+- `pnpm check-types` passes with the fix (used `entity.currency_id ?? ""` to satisfy the update DTO type).
 
-**Reproduction Steps:**
+**Reproduction Steps (Historical):**
 1. Navigate to `/en/finance/bank-accounts`
 2. Ensure at least one company-owned bank account exists (seeded data: "Minimal Bank Account Company")
 3. Click the Active/Inactive switch in the Status column
@@ -257,20 +260,22 @@ The switch visually stays in the same state; a toast error "Failed" flashes brie
 **Severity:** Low  
 **Component:** Finance → Finance Settings → Accounting Mapping  
 **Page:** `/en/finance/settings/accounting-mapping`
+**Status:** Fixed
 
 **Description:**  
 After changing a Chart of Account mapping and clicking **Save Configuration**, the application displays a Sonner toast with the raw translation key `common.success` instead of a human-readable success message.
 
 **Root Cause:**  
-The success toast likely passes an unlocalized key string (e.g., `t("common.success")` resolving to the key itself rather than the translated value) or the translation file is missing the `common.success` entry for the current locale.
+In `apps/web/src/features/finance/settings/hooks/use-finance-settings.ts`, the success toast used `t("success")` which resolved to the raw key `common.success` because that key did not exist in the i18n messages.
 
-**Expected Behavior:**  
-The toast should display a friendly message such as "Configuration saved successfully."
+**Fix Applied:**  
+Changed the toast call from `t("success")` to `t("saved")` (which corresponds to the existing translation key) in `use-finance-settings.ts`.
 
-**Actual Behavior:**  
-The toast text reads exactly `common.success`.
+**Verification:**  
+- Code inspection confirms the toast now uses a valid translation key.
+- `pnpm check-types` passes after the change.
 
-**Reproduction Steps:**
+**Reproduction Steps (Historical):**
 1. Navigate to `/en/finance/settings/accounting-mapping`
 2. Change any mapping dropdown to a different COA
 3. Click **Save Configuration**

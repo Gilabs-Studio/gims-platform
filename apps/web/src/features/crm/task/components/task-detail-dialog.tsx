@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   UserCircle2,
+  Pencil,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -54,6 +55,7 @@ interface TaskDetailDialogProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly task: Task | null;
+  readonly onEdit?: (task: Task) => void;
 }
 
 function InfoRow({
@@ -89,6 +91,7 @@ export function TaskDetailDialog({
   open,
   onClose,
   task,
+  onEdit,
 }: TaskDetailDialogProps) {
   const t = useTranslations("crmTask");
   const tCommon = useTranslations("common");
@@ -264,6 +267,17 @@ export function TaskDetailDialog({
           {/* Action buttons — only for active tasks the user has permission to update */}
           {isActionable && (
             <div className="flex flex-wrap gap-2 pt-2 border-t">
+              {canUpdate && task.status !== "completed" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => task && onEdit?.(task)}
+                  className="cursor-pointer"
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  {tCommon("edit")}
+                </Button>
+              )}
               {/* pending: show Mark In Progress (primary) */}
               {task.status === "pending" && (
                 <Button

@@ -6,6 +6,7 @@ export const customerInvoiceDPId = {
     created: "DP faktur berhasil dibuat",
     updated: "DP faktur berhasil diperbarui",
     submitted: "DP faktur berhasil diajukan",
+    approved: "DP faktur berhasil disetujui",
     deleted: "DP faktur berhasil dihapus",
     failed: "Terjadi kesalahan",
   },

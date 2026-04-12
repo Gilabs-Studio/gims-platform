@@ -247,7 +247,7 @@ export function SalesReturnsList() {
                           </>
                         )}
 
-                        {canDelete && (row.status === "DRAFT" || row.status === "REJECTED") && (
+                        {canDelete && (row.status === "DRAFT" || row.status === "REJECTED" || row.status === "PROCESSED") && (
                           <DropdownMenuItem onClick={() => setDeletingId(row.id)} className="cursor-pointer text-destructive focus:text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" />
                             {t("actions.delete")}

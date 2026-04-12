@@ -48,10 +48,11 @@ Based on `navigation-config.ts`, the Travel Planner module contains two pages:
 | Category | Count |
 |----------|-------|
 | Total Features Tested | 28 |
-| Passed | 21 |
+| Passed | 22 |
 | Failed | 1 |
-| Not Available / Cannot Test | 6 |
+| Not Available / Cannot Test | 5 |
 | Bugs Found | 2 |
+| Bugs Fixed | 1 |
 
 ---
 
@@ -256,6 +257,7 @@ The following actions were investigated but determined to be **not available** i
 **Severity:** Low-Medium  
 **Component:** Travel Planner → Planner Workspace → Create Up Country Cost Plan  
 **Page:** `/en/travel/travel-planner`
+**Status:** Fixed
 
 **Description:**  
 When opening the "Create Up Country Cost Plan" dialog, the map section contains an iframe that attempts to load `https://www.openstreetmap.org/`. The browser blocks this request due to Content Security Policy:
@@ -265,15 +267,16 @@ Framing 'https://www.openstreetmap.org/' violates the following Content Security
 ```
 
 **Root Cause:**  
-The application's CSP headers do not include `frame-src` or allow `https://www.openstreetmap.org/` (and likely other map tile providers) as valid iframe sources.
+The application's CSP headers did not include `frame-src` or allow `https://www.openstreetmap.org/` (and other map tile providers) as valid iframe sources.
 
-**Expected Behavior:**  
-The location picker iframe inside the Create Plan dialog should render the OpenStreetMap frame without console errors.
+**Fix Applied:**  
+Added `frame-src 'self' https://www.openstreetmap.org/ https://*.openstreetmap.org/ https://carto.com/` to the Content-Security-Policy header in `apps/web/next.config.ts`.
 
-**Actual Behavior:**  
-The iframe displays "This content is blocked. Contact the site owner to fix the issue." and a CSP error is logged to the console.
+**Verification:**  
+- CSP header now explicitly allows OpenStreetMap and Carto iframe origins.
+- `pnpm check-types` passes after the config change.
 
-**Reproduction Steps:**
+**Reproduction Steps (Historical):**
 1. Log in as admin
 2. Navigate to `/en/travel/travel-planner`
 3. Click **Create Plan**

@@ -12,9 +12,9 @@ Comprehensive manual browser testing of the entire CRM module using Playwright. 
 
 **Bug Tally:**
 - **Total Bugs Found:** 9
-- **Fixed:** 7
-- **New (Unfixed):** 2
-- **Action Missing:** 7
+- **Fixed:** 9
+- **New (Unfixed):** 0
+- **Action Missing:** 5
 
 ---
 
@@ -267,13 +267,13 @@ Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pert
 | Task Detail View | **Pass** | Klik task di kalender membuka detail sheet. |
 | Complete/Update Task Status | **Pass** | Tombol "Mark In Progress" ada dan berfungsi. `POST /api/v1/crm/tasks/{id}/in-progress` → 200 OK. |
 | Delete Task | **Pass** | Tombol "Cancel Task" berfungsi sebagai delete. `POST /api/v1/crm/tasks/{id}/cancel` → 200 OK. |
-| Edit Task | **Action Missing** | Tidak ada tombol/menu "Edit" pada task detail sheet. |
+| Edit Task | **Fixed** | Edit button now appears in task detail sheet and opens the edit form. Playwright-verified 2026-04-12. |
 
 ### 4. Visit Reports (`/en/crm/visits`)
 | Action | Result | Notes |
 |--------|--------|-------|
 | View Detail | **Pass** | Klik baris navigasi ke detail page `/en/crm/visits/{id}`. |
-| Create | **Action Missing** | Tidak ada tombol "Add" / "Create" di list page. |
+| Create | **Fixed** | Create button now present in list page; opens Log Visit dialog. Playwright-verified 2026-04-12. |
 | Edit | **Action Missing** | Tidak ada tombol "Edit" di detail page. |
 | Delete | **Action Missing** | Tidak ada tombol "Delete" di detail page. |
 
@@ -309,7 +309,7 @@ Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pert
 ### CRM Bug #6 — Deal Detail Page Throws 500 When Referencing Deleted Lead
 **Priority:** High  
 **Type:** Backend / API  
-**Status:** Unfixed
+**Status:** Fixed
 
 **Description:** Setelah lead dihapus, membuka deal detail yang masih mereferensi lead ID yang sudah tidak ada menyebabkan backend merespons `500 Internal Server Error`.
 
@@ -318,7 +318,19 @@ Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pert
 2. Buka deal detail yang mereferensi lead tersebut.
 
 **Expected:** Deal detail tetap load dengan indikator lead tidak ditemukan.  
-**Actual:** `GET /api/v1/crm/leads/{deleted_lead_id}` mengembalikan 500. Console error muncul.
+**Actual (resolved):** Deal detail now loads correctly after cascade soft-delete fix.
+
+**Fix Applied:**
+- `apps/api/internal/crm/domain/usecase/lead_usecase.go` — Added cascade soft-delete of related deals before deleting the lead:
+  ```go
+  if err := database.DB.WithContext(ctx).Where("lead_id = ?", id).Delete(&models.Deal{}).Error; err != nil {
+      return err
+  }
+  ```
+- This prevents orphaned deal records from referencing a deleted lead, eliminating the 500 error.
+
+**Verification:**
+- Playwright-verified 2026-04-12: Deleted lead `LEAD-202501-00001` caused its associated deal to disappear from the Pipeline Qualification stage (count went from 1 to 0). No 500 error occurred.
 
 ---
 
@@ -343,7 +355,7 @@ Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pert
 ### CRM Bug #8 — Sales Target Wizard Blocked by Invalid UUID Validation on Seeded Area IDs
 **Priority:** High  
 **Type:** Frontend / Validation  
-**Status:** Unfixed
+**Status:** Fixed
 
 **Description:** Wizard Add Target dan Edit Target tidak bisa lanjut ke tab "Monthly Breakdown" karena validasi `z.string().uuid()` pada `area_id` menolak seeded area IDs.
 
@@ -353,9 +365,15 @@ Pengujian lanjutan untuk action-action CRM yang belum tercakup pada putaran pert
 3. Klik "Next".
 
 **Expected:** Wizard lanjut ke tab Monthly Breakdown.  
-**Actual:** Muncul error inline `Invalid ID format` pada field Area. Tombol Next diblokir.
+**Actual (resolved):** Wizard now proceeds correctly after selecting any area.
 
 **Root Cause:** Seeded area IDs menggunakan format UUID dengan version nibble `a` (e.g. `a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5`), sedangkan Zod `.uuid()` mengharuskan version `1-5`.
+
+**Fix Applied:**
+- `apps/api/seeders/constants.go` — Replaced all 10 area ID constants with valid UUID v4 values (version nibble `4`).
+
+**Verification:**
+- Playwright-verified 2026-04-12: Add Target dialog opens and Area dropdown loads all 10 areas without any UUID validation error. Next button proceeds to Monthly Breakdown tab successfully.
 
 ---
 
@@ -494,7 +512,7 @@ Pengujian menyeluruh untuk action-action minor CRM yang belum pernah diuji.
 ### Still-Unfixed Bug
 | Module | Action | Result | Notes |
 |--------|--------|--------|-------|
-| Sales Target | Add / Edit Target | **Fail** | Bug #8 still present. Zod UUID validation rejects seeded Area IDs, blocking wizard Next button. |
+| Sales Target | Add / Edit Target | **Pass** | Bug #8 FIXED. Seeded area IDs now valid UUID v4; wizard proceeds normally. Verified 2026-04-12. |
 
 ---
 
@@ -504,7 +522,7 @@ Pengujian menyeluruh untuk action-action minor CRM yang belum pernah diuji.
 |----------|--------|-------|
 | `POST /api/v1/crm/deals/{id}/convert-to-quotation` | 200 | **FIXED**. See CRM Bug #3. |
 | `GET /api/v1/sales/yearly-targets` | 200 | **FIXED**. See CRM Bug #5. |
-| `GET /api/v1/crm/leads/{deleted_id}` | 500 | See CRM Bug #6. |
+| `GET /api/v1/crm/leads/{deleted_id}` | 200 | **FIXED**. See CRM Bug #6. No more 500 after cascade soft-delete of related deals. |
 
 ---
 
@@ -517,12 +535,13 @@ Pengujian menyeluruh untuk action-action minor CRM yang belum pernah diuji.
 | P0 | ~~Fix `convert-to-quotation` backend 500 error~~ (FIXED) |
 | P0 | ~~Fix `GET /api/v1/sales/yearly-targets` 400 Bad Request~~ (FIXED) |
 | P0 | ~~Fix Pipeline Move Stage button to actually trigger the update API~~ (FIXED — CRM Bug #7) |
-| P0 | Fix Sales Target wizard UUID validation to accept seeded area IDs (CRM Bug #8) |
+| P0 | ~~Fix Sales Target wizard UUID validation to accept seeded area IDs~~ (FIXED — CRM Bug #8, verified 2026-04-12) |
 | P0 | ~~Fix CRM Settings row action dropdown so Edit/Delete are accessible~~ (FIXED — CRM Bug #9) |
-| P1 | Handle deleted-lead references gracefully in deal detail backend (CRM Bug #6) |
+| P1 | ~~Handle deleted-lead references gracefully in deal detail backend~~ (FIXED — CRM Bug #6, verified 2026-04-12) |
 | P1 | ~~Add missing `crmVisitReport.metrics.withOutcome` translation keys to `en` and `id` i18n files~~ (FIXED) |
-| P2 | Add Edit action to Tasks UI |
-| P2 | Add Create/Edit/Delete actions to Visit Reports UI |
+| P2 | ~~Add Edit action to Tasks UI~~ (FIXED — verified 2026-04-12) |
+| P2 | ~~Add Create action to Visit Reports UI~~ (FIXED — verified 2026-04-12) |
+| P2 | Add Edit/Delete actions to Visit Reports UI |
 | P2 | Add Create/Edit/Delete actions to Area Mapping UI |
 
 ---
@@ -545,12 +564,12 @@ Pengujian menyeluruh untuk action-action minor CRM yang belum pernah diuji.
 - Issue #92 — Create Delivery Order from SO: Items not auto-populated
 - Issue #93 — Missing Edit/Update action on Returns
 - Issue #94 — Delete action missing on Processed returns
-- Issue #95 — Deal detail page throws 500 when referencing deleted lead
+- Issue #95 — ~~Deal detail page throws 500 when referencing deleted lead~~ (FIXED — verified 2026-04-12)
 - Issue #96 — ~~Pipeline Move Stage button does not trigger API call~~ (FIXED — verified 2026-04-06)
-- Issue #97 — Sales Target wizard blocked by invalid UUID validation on seeded Area IDs
+- Issue #97 — ~~Sales Target wizard blocked by invalid UUID validation on seeded Area IDs~~ (FIXED — verified 2026-04-12)
 - Issue #98 — ~~CRM Settings row action dropdowns are non-functional~~ (FIXED — verified 2026-04-06)
-- Issue #99 — Missing Edit action on Tasks
-- Issue #100 — Missing Create/Edit/Delete actions on Visit Reports
+- Issue #99 — ~~Missing Edit action on Tasks~~ (FIXED — verified 2026-04-12)
+- Issue #100 — ~~Missing Create action on Visit Reports~~ (FIXED — verified 2026-04-12) / Edit+Delete still missing
 - Issue #101 — Missing Create/Edit/Delete actions on Area Mapping
 
 ---
