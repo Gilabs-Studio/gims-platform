@@ -52,6 +52,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const url = new URL(downloadLocation);
+    const allowedHosts = new Set(["api.unsplash.com"]);
+    const isHttps = url.protocol === "https:";
+    const isAllowedHost = allowedHosts.has(url.hostname);
+    const isAllowedPath =
+      url.pathname.startsWith("/photos/") && url.pathname.endsWith("/download");
+
+    if (!isHttps || !isAllowedHost || !isAllowedPath) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid download_location",
+          timestamp: new Date().toISOString(),
+          request_id: crypto.randomUUID(),
+        },
+        { status: 400 }
+      );
+    }
 
     const response = await fetch(url.toString(), {
       method: "GET",
