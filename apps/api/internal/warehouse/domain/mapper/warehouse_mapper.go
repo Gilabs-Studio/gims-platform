@@ -154,14 +154,22 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 		warehouse.Address = *req.Address
 	}
 
-	// Geographic FK fields are always applied directly.
-	// nil means the client sent `null` (or omitted) → clear the DB column.
-	// non-nil means the client sent a UUID → write it.
-	warehouse.ProvinceID = req.ProvinceID
-	warehouse.CityID = req.CityID
-	warehouse.DistrictID = req.DistrictID
-	warehouse.VillageID = req.VillageID
-	warehouse.VillageName = req.VillageName
+	// Keep partial updates safe: only update nullable relation fields when provided.
+	if req.ProvinceID != nil {
+		warehouse.ProvinceID = req.ProvinceID
+	}
+	if req.CityID != nil {
+		warehouse.CityID = req.CityID
+	}
+	if req.DistrictID != nil {
+		warehouse.DistrictID = req.DistrictID
+	}
+	if req.VillageID != nil {
+		warehouse.VillageID = req.VillageID
+	}
+	if req.VillageName != nil {
+		warehouse.VillageName = req.VillageName
+	}
 
 	if req.Latitude != nil {
 		warehouse.Latitude = req.Latitude
@@ -175,5 +183,7 @@ func (m *WarehouseMapper) ApplyUpdateRequest(warehouse *models.Warehouse, req dt
 	if req.IsPosOutlet != nil {
 		warehouse.IsPosOutlet = *req.IsPosOutlet
 	}
-	warehouse.OutletID = req.OutletID
+	if req.OutletID != nil {
+		warehouse.OutletID = req.OutletID
+	}
 }
