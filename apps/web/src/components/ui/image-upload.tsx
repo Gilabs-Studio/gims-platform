@@ -271,6 +271,17 @@ export function ImageUpload({
     [onChange, triggerUnsplashDownload]
   );
 
+  // Minimal safety check for image src values to avoid unsafe schemes.
+  // Allow: relative paths ("/uploads/..."), blob:, data:image/*, http(s):
+  const isSafeImageSrc = React.useCallback((u?: string | null) => {
+    if (!u) return false;
+    if (u.startsWith("/")) return true;
+    if (/^blob:/i.test(u)) return true;
+    if (/^data:image\/[a-zA-Z0-9.+-]+;/.test(u)) return true;
+    if (/^https?:\/\//i.test(u)) return true;
+    return false;
+  }, []);
+
   return (
     <div className={cn("space-y-2", className)}>
       <div
@@ -294,7 +305,7 @@ export function ImageUpload({
           <div className="relative w-full h-full group">
             <div className="relative w-full h-full">
               <img
-                src={preview}
+                src={isSafeImageSrc(preview) ? preview ?? undefined : undefined}
                 alt="Product preview"
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -387,7 +398,7 @@ export function ImageUpload({
                     title={labels.selectFromResults ?? "Select"}
                   >
                     <img
-                      src={item.thumb_url}
+                      src={isSafeImageSrc(item.thumb_url) ? item.thumb_url : undefined}
                       alt={item.alt || "Search result"}
                       className="h-full w-full object-cover"
                     />
