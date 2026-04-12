@@ -10,6 +10,8 @@ type ProcessPaymentRequest struct {
 	Notes           *string `json:"notes"`
 	// CustomerName optionally captures the customer name on receipt (F&B use-case)
 	CustomerName *string `json:"customer_name"`
+	// ChannelCode specifies the Xendit payment channel (e.g. QRIS, BCA, DANA, OVO)
+	ChannelCode *string `json:"channel_code"`
 }
 
 // POSPaymentResponse returned to client for payment operations
@@ -27,6 +29,7 @@ type POSPaymentResponse struct {
 	VaNumber        *string    `json:"va_number"`
 	QrCode          *string    `json:"qr_code"`
 	PaymentURL      *string    `json:"payment_url"`
+	ChannelCode     *string    `json:"channel_code"`
 	ExpiresAt       *time.Time `json:"expires_at"`
 	PaidAt          *time.Time `json:"paid_at"`
 	Notes           *string    `json:"notes"`

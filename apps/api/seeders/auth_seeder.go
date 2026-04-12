@@ -113,6 +113,24 @@ func SeedUsers() error {
 			RoleID:    OutletManagerRoleID,
 			Status:    "active",
 		},
+		{
+			ID:        OutletManager3UserID,
+			Email:     "outlet-manager3@example.com",
+			Password:  string(hashedPassword),
+			Name:      "Outlet Manager Kimia Farma Sudirman",
+			AvatarURL: "https://api.dicebear.com/7.x/lorelei/svg?seed=outlet-manager3@example.com",
+			RoleID:    OutletManagerRoleID,
+			Status:    "active",
+		},
+		{
+			ID:        OutletManager4UserID,
+			Email:     "outlet-manager4@example.com",
+			Password:  string(hashedPassword),
+			Name:      "Outlet Manager Kimia Farma Pondok Indah",
+			AvatarURL: "https://api.dicebear.com/7.x/lorelei/svg?seed=outlet-manager4@example.com",
+			RoleID:    OutletManagerRoleID,
+			Status:    "active",
+		},
 	}
 
 	for _, u := range users {

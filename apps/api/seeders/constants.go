@@ -17,8 +17,10 @@ const (
 	ManagerUserID        = "2b83a042-45e3-46d4-a957-3f8d22384784"
 	StaffUserID          = "51d45763-8a39-4d6b-b4dc-7d2e057865c6"
 	ViewerUserID         = "98f45a2d-3c21-41b5-82e6-1234567890ab"
-	OutletManager1UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d" // Outlet Manager 1
-	OutletManager2UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5e" // Outlet Manager 2
+	OutletManager1UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d" // Outlet Manager 1 - Sudirman
+	OutletManager2UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5e" // Outlet Manager 2 - Kelapa Gading
+	OutletManager3UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5f" // Outlet Manager 3 - Kimia Farma Sudirman
+	OutletManager4UserID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c60" // Outlet Manager 4 - Kimia Farma Pondok Indah
 )
 
 // Organization IDs (Fixed)
@@ -71,8 +73,10 @@ const (
 	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
 	FinanceStaffEmployeeID    = "66666666-6666-6666-6666-666666666666"
 	HRStaffEmployeeID         = "77777777-7777-7777-7777-777777777777"
-	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1
-	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2
+	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1 - Sudirman
+	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2 - Kelapa Gading
+	OutletManager3EmployeeID  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" // Outlet Manager 3 - Kimia Farma Sudirman
+	OutletManager4EmployeeID  = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" // Outlet Manager 4 - Kimia Farma Pondok Indah
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)

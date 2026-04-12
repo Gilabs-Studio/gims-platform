@@ -33,12 +33,14 @@ interface CreateFloorPlanDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSuccess: (id: string) => void;
+  readonly preSelectedOutletId?: string; // For single outlet auto-select
 }
 
 export function CreateFloorPlanDialog({
   open,
   onOpenChange,
   onSuccess,
+  preSelectedOutletId,
 }: CreateFloorPlanDialogProps) {
   const t = useTranslations("floorLayout");
   const schema = getCreateFloorPlanSchema(t);
@@ -53,7 +55,7 @@ export function CreateFloorPlanDialog({
     defaultValues: {
       name: "",
       floor_number: 1,
-      outlet_id: "",
+      outlet_id: preSelectedOutletId ?? "",
       grid_size: 20,
       snap_to_grid: true,
       width: 1200,

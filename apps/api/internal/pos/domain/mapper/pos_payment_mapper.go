@@ -21,6 +21,7 @@ func ToPOSPaymentResponse(p *models.POSPayment) *dto.POSPaymentResponse {
 		VaNumber:        p.VaNumber,
 		QrCode:          p.QrCode,
 		PaymentURL:      p.PaymentURL,
+		ChannelCode:     p.PaymentType,
 		ExpiresAt:       p.ExpiresAt,
 		PaidAt:          p.PaidAt,
 		Notes:           p.Notes,

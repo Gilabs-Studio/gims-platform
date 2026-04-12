@@ -18,21 +18,34 @@ defaultExpirySecs = 86400 // 24 hours
 
 // InvoiceRequest represents the payload sent to Xendit's invoice API
 type InvoiceRequest struct {
-ExternalID  string  `json:"external_id"`
-Amount      float64 `json:"amount"`
-Description string  `json:"description"`
-Currency    string  `json:"currency"`
+ExternalID     string   `json:"external_id"`
+Amount         float64  `json:"amount"`
+Description    string   `json:"description"`
+Currency       string   `json:"currency"`
+// PaymentMethods restricts which channels appear on the invoice (e.g. ["QRIS","BCA"])
+PaymentMethods []string `json:"payment_methods,omitempty"`
 }
 
 // InvoiceResponse is the relevant subset of the Xendit invoice creation response
 type InvoiceResponse struct {
-ID         string `json:"id"`
-ExternalID string `json:"external_id"`
-Status     string `json:"status"`
-InvoiceURL string `json:"invoice_url"`
+ID             string          `json:"id"`
+ExternalID     string          `json:"external_id"`
+Status         string          `json:"status"`
+InvoiceURL     string          `json:"invoice_url"`
 // QR code details — populated for QRIS-enabled invoices
-QRCode     string `json:"qr_string"`
-ExpiryDate string `json:"expiry_date"`
+QRCode         string          `json:"qr_string"`
+ExpiryDate     string          `json:"expiry_date"`
+AvailableBanks []AvailableBank `json:"available_banks"`
+}
+
+// AvailableBank holds virtual account details returned by Xendit
+type AvailableBank struct {
+BankCode          string `json:"bank_code"`
+CollectionType     string `json:"collection_type"`
+BankAccountNumber  string `json:"bank_account_number"`
+TransferAmount     float64 `json:"transfer_amount"`
+BankBranch         string `json:"bank_branch"`
+AccountHolderName  string `json:"account_holder_name"`
 }
 
 // PaymentProvider abstracts the underlying payment gateway.

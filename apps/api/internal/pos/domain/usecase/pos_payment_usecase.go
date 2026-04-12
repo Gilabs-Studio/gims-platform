@@ -159,14 +159,22 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		description = fmt.Sprintf("POS Order %s - %s", order.OrderNumber, *order.CustomerName)
 	}
 
-	// Create Xendit invoice routed to the merchant's sub-account
-	xenditProvider := provider.NewXenditProvider(xenditCfg.SecretKey, xenditCfg.XenditAccountID)
-	invoice, err := xenditProvider.CreateInvoice(ctx, provider.InvoiceRequest{
+	// Build Xendit invoice request with optional channel filtering
+	invoiceReq := provider.InvoiceRequest{
 		ExternalID:  externalOrderID,
 		Amount:      order.TotalAmount,
 		Description: description,
 		Currency:    "IDR",
-	})
+	}
+
+	// Restrict to a specific payment channel when provided by the cashier
+	if req.ChannelCode != nil && *req.ChannelCode != "" {
+		invoiceReq.PaymentMethods = []string{*req.ChannelCode}
+	}
+
+	// Create Xendit invoice routed to the merchant's sub-account
+	xenditProvider := provider.NewXenditProvider(xenditCfg.SecretKey, xenditCfg.XenditAccountID)
+	invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
 	if err != nil {
 		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
 	}
@@ -190,9 +198,19 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		CreatedBy:       cashierID,
 	}
 
+	// Store the requested channel code for tracking
+	if req.ChannelCode != nil && *req.ChannelCode != "" {
+		payment.PaymentType = req.ChannelCode
+	}
+
 	// Store QR code string if Xendit returned one (QRIS-enabled invoices)
 	if invoice.QRCode != "" {
 		payment.QrCode = &invoice.QRCode
+	}
+
+	// Store VA number if Xendit returned bank transfer details
+	if len(invoice.AvailableBanks) > 0 {
+		payment.VaNumber = &invoice.AvailableBanks[0].BankAccountNumber
 	}
 
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {

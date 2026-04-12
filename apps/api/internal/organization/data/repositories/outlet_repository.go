@@ -32,6 +32,7 @@ type OutletListParams struct {
 	Offset    int
 	IsActive  *bool
 	CompanyID string
+	UserID    string // Optional: if set, filter by user-warehouse permissions (RBAC)
 }
 
 type outletRepository struct {
@@ -91,6 +92,13 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.Outlet{})
+
+	// RBAC: Filter by user-warehouse assignments if UserID is provided
+	if params.UserID != "" {
+		// Filter outlets by user-assigned warehouses
+		// SELECT outlets WHERE warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)
+		query = query.Where("warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)", params.UserID)
+	}
 
 	// Apply search filter
 	if params.Search != "" {
