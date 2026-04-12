@@ -198,17 +198,30 @@ export function ImageUpload({
       return;
     }
 
-    const isAbsoluteHttp = /^https?:\/\//i.test(trimmed);
-    const isRelativeUpload = trimmed.startsWith("/uploads/");
-    if (!isAbsoluteHttp && !isRelativeUpload) {
+    let safeValue: string | null = null;
+
+    if (trimmed.startsWith("/uploads/")) {
+      safeValue = trimmed;
+    } else {
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          safeValue = parsed.toString();
+        }
+      } catch {
+        safeValue = null;
+      }
+    }
+
+    if (!safeValue) {
       toast.error(labels.invalidFile ?? "Invalid file", {
         description: "Use full http/https URL or /uploads/... path.",
       });
       return;
     }
 
-    onChange(trimmed);
-    setPreview(resolveImageUrl(trimmed) ?? trimmed);
+    onChange(safeValue);
+    setPreview(resolveImageUrl(safeValue) ?? safeValue);
     setUrlInput("");
   }, [labels.invalidFile, onChange, urlInput]);
 
