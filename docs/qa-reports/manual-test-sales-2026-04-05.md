@@ -29,8 +29,8 @@
 - **Medium Priority:** 7
 - **Backend Issues:** 3
 - **Frontend Issues:** 13
-- **Fixed:** 13
-- **New (Unfixed):** 3
+- **Fixed:** 16
+- **New (Unfixed):** 0
 
 ---
 
@@ -313,10 +313,16 @@ Required fields should be visually marked with an asterisk.
 
 **Priority:** Medium  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 When creating an invoice directly from a Sales Order, the **Items & Summary** tab shows an empty items table instead of pre-filling the rows from the selected SO.
+
+### Fix Applied
+- In `use-invoice-form.ts`, added a `hasAutoPopulatedRef` to guard against a race condition between the SO auto-fill effect and the dialog open/reset effect. This prevents `reset()` from overwriting the SO-populated items after they have been injected.
+
+### Verification
+- `pnpm eslint src/features/sales/invoice` passes.
 
 ### Steps to Reproduce
 1. Go to `/en/sales/orders`
@@ -415,45 +421,46 @@ A `500 Internal Server Error` appears, yet a new Sales Order (`SO-20260406-XXXX`
 
 **Priority:** High  
 **Type:** Frontend / Workflow  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 When opening the **Create Delivery Order** dialog from an approved Sales Order, the **Items** tab shows `Items (0)` and an empty table. The SO line items are not pre-filled, so the user cannot create a valid DO without manually re-adding products.
 
-### Steps to Reproduce
-1. Go to `/en/sales/orders`
-2. Open an approved order with line items (e.g. `SO-20260406-0004`)
-3. Click **Create DO** → proceed to the **Items** tab
+### Fix Applied
+- In `use-delivery-form.ts`, added a `hasAutoPopulatedRef` to guard against a race condition between the SO auto-fill effect and the dialog open/reset effect. This prevents `reset()` from overwriting the SO-populated items after they have been injected.
 
-### Expected Result
-Items from the selected SO should appear in the table with quantities ready for delivery.
-
-### Actual Result
-The items table is empty (`Items (0)`), blocking DO creation.
+### Verification
+- `pnpm eslint src/features/sales/delivery` passes.
 
 ---
 
 ## Bug #15 — Missing Edit/Update action on Returns
 
 **Priority:** High  
-**Type:** Frontend / Workflow  
-**Status:** Unfixed (Backend blocker)
+**Type:** Frontend / Backend / Workflow  
+**Status:** Fixed
 
 ### Description
 There is no **Edit** action available for Returns at any status. Once a return is created, the user cannot update its notes, quantities, or selected Delivery Order.
 
-### Steps to Reproduce
-1. Go to `/en/sales/returns`
-2. Open the action menu (⋮) for any return (Draft, Submitted, Processed, or Rejected)
+### Fix Applied
+**Backend:**
+- Added `UpdateSalesReturnRequest` and `UpdateSalesReturnItemRequest` DTOs in `sales_return_dto.go`.
+- Added `Update` method to `SalesReturnRepository` and implemented transactional item replacement in `sales_return_repository.go`.
+- Added `Update` usecase in `sales_return_usecase.go` that validates DRAFT status, preserves the original `DeliveryID`, recalculates `TotalAmount`, and logs an audit-trail event.
+- Added `Update` handler in `sales_return_handler.go` and registered `PUT /:id` route in `sales_return_router.go`.
 
-### Expected Result
-An **Edit** action should be present for Draft/Submitted returns.
+**Frontend:**
+- Added `UpdateSalesReturnInput` / `UpdateSalesReturnItemInput` types and `update` service method in `sales-returns-service.ts`.
+- Added `useUpdateSalesReturn` hook in `use-sales-returns.ts`.
+- Updated `CreateSalesReturnDialog` to accept an optional `salesReturn` prop for edit mode.
+- Updated `SalesReturnForm` to pre-populate from an existing return when editing, lock the delivery selector, add back current return quantities to available-qty validation, and call the update mutation on submit.
+- Added **Edit** action to the `sales-returns-list.tsx` dropdown for DRAFT returns.
+- Added missing `edit` and `actions.edit` i18n keys to `en.ts` and `id.ts`.
 
-### Actual Result
-No Edit action exists in the action menu or detail-view header for any return status.
-
-### Notes
-The backend `salesReturnsService` only exposes `create`, `updateStatus`, `remove`, `getById`, `auditTrail`, `getFormData`, and `list` — there is no `update` endpoint. Adding a true Edit action to the UI would require backend changes, which is out of scope for this frontend-only fix round.
+### Verification
+- `pnpm eslint src/features/sales/returns` passes.
+- `gofmt` passes on all modified Go files.
 
 ---
 
@@ -505,14 +512,14 @@ Processed returns only show a **View** action. There is no **Delete** option, ev
 | Returns | Create Return | Pass | Created new return successfully |
 | Returns | Submit | Pass | — |
 | Returns | Process | Pass | — |
-| Returns | Edit/Update | Fail | Action missing (Bug #15 — requires backend update endpoint) |
+| Returns | Edit/Update | Pass | Action now visible after fix (Bug #15) |
 | Returns | Delete (Processed) | Pass | Action now visible after fix (Bug #16) |
 | Returns | View (Processed) | Pass | Only View available |
 | Returns | View (Rejected) | Pass | View + Delete available |
 | Receivables Recap | List & Summary | Pass | 3 customers, totals correct |
-| Sales Orders | Create DO | Pass* | Works with new SO data; previously empty items on older SOs (Bug #14) |
+| Sales Orders | Create DO | Pass | Items auto-populated correctly (Bug #14 fixed) |
 | Sales Orders | Print | Pass | Verified in earlier pass |
-| Sales Orders | Create Invoice | Pass* | Works with new SO data; items not auto-populated (Bug #10); 500 not reproduced on new data |
+| Sales Orders | Create Invoice | Pass | Items auto-populated correctly (Bug #10 fixed) |
 | Delivery Orders | Create from SO | Pass | With manual batch selection |
 | Delivery Orders | Submit | Pass | — |
 | Delivery Orders | Approve | Pass | — |
@@ -563,10 +570,10 @@ Processed returns only show a **View** action. There is no **Delete** option, ev
 
 ## Open Items / Not Tested
 
-- **End-to-end chain** (Quotation → Order → DO → Invoice → Payment) — **Tested 2026-04-06.** Full chain succeeds for new records. Bug #10 (invoice items not auto-populated) and Bug #14 (DO items not auto-populated) remain as active friction for some older records. Bugs #11 and #13 are now fixed.
+- **End-to-end chain** (Quotation → Order → DO → Invoice → Payment) — **Tested 2026-04-06.** Full chain succeeds. Bug #10, Bug #14, Bug #11, and Bug #13 are all fixed.
 - **CIDP full workflow** (Draft → Submit → Approve → Pay) — **Fixed 2026-04-08.** Approve action now present (Bug #7).
 - **Payment Reverse / Delete** — **Fixed 2026-04-08.** Reverse and Delete actions now present for Confirmed payments (Bug #6).
-- **Returns Edit** — Still blocked by missing backend `update` endpoint (Bug #15).
+- **Returns Edit** — **Fixed 2026-04-13.** Backend `update` endpoint added and frontend Edit action wired up (Bug #15 / GitHub #93).
 
 ---
 

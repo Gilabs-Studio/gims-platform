@@ -3,6 +3,7 @@ export const salesReturnsEn = {
     title: "Sales Returns",
     subtitle: "Manage customer goods returns",
     add: "Create Return",
+    edit: "Edit Return",
     search: "Search return number or reason",
     empty: "No sales returns found",
     columns: {
@@ -16,6 +17,7 @@ export const salesReturnsEn = {
     common: {
       add: "Create Return",
       updated: "Sales return updated successfully",
+      update: "Update",
       deleted: "Sales return deleted successfully",
       deleteConfirmation: "Are you sure you want to delete this sales return?",
       error: "Something went wrong",
@@ -37,6 +39,7 @@ export const salesReturnsEn = {
     },
     actions: {
       view: "View",
+      edit: "Edit",
       submit: "Submit",
       process: "Process",
       reject: "Reject",

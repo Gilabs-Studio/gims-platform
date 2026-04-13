@@ -3,6 +3,7 @@ export const salesReturnsId = {
     title: "Retur Penjualan",
     subtitle: "Kelola pengembalian barang dari pelanggan",
     add: "Buat Retur",
+    edit: "Ubah Retur",
     search: "Cari nomor retur atau alasan",
     empty: "Belum ada data retur penjualan",
     columns: {
@@ -16,6 +17,7 @@ export const salesReturnsId = {
     common: {
       add: "Buat Retur",
       updated: "Retur penjualan berhasil diperbarui",
+      update: "Perbarui",
       deleted: "Retur penjualan berhasil dihapus",
       deleteConfirmation: "Apakah Anda yakin ingin menghapus retur penjualan ini?",
       error: "Terjadi kesalahan",
@@ -37,6 +39,7 @@ export const salesReturnsId = {
     },
     actions: {
       view: "Lihat",
+      edit: "Ubah",
       submit: "Ajukan",
       process: "Proses",
       reject: "Tolak",

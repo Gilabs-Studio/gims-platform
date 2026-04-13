@@ -19,6 +19,7 @@ func RegisterSalesReturnRoutes(rg *gin.RouterGroup, h *handler.SalesReturnHandle
 	g.GET("", middleware.RequirePermission(salesReturnReadPermission), h.List)
 	g.GET("/:id/audit-trail", middleware.RequirePermission(salesReturnReadPermission), h.AuditTrail)
 	g.POST("", middleware.RequirePermission(salesReturnCreatePermission), h.Create)
+	g.PUT("/:id", middleware.RequirePermission(salesReturnUpdatePermission), h.Update)
 	g.PATCH("/:id/status", middleware.RequirePermission(salesReturnUpdatePermission), h.UpdateStatus)
 	g.DELETE("/:id", middleware.RequirePermission(salesReturnDeletePermission), h.Delete)
 	g.GET("/:id", middleware.RequirePermission(salesReturnReadPermission), h.GetByID)

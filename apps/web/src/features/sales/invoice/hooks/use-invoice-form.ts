@@ -219,6 +219,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
   // Watch sales_order_id to auto-fill related fields (create mode only)
   const watchedSalesOrderId = useWatch({ control, name: "sales_order_id" });
   const lastAutoFilledSORef = useRef<string | undefined>(undefined);
+  const hasAutoPopulatedRef = useRef(false);
 
   const { data: selectedOrderData } = useOrder(watchedSalesOrderId ?? "", {
     enabled: !isEdit && open && !!watchedSalesOrderId,
@@ -276,6 +277,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
           hpp_amount: 0,
         }))
       );
+      hasAutoPopulatedRef.current = true;
     }
   }, [isEdit, open, watchedSalesOrderId, selectedOrderData, setValue, replace]);
 
@@ -319,6 +321,12 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       // Clear cache when dialog closes
       localStorage.removeItem(STORAGE_KEY);
       lastAutoFilledSORef.current = undefined;
+      hasAutoPopulatedRef.current = false;
+      return;
+    }
+
+    // Avoid overwriting auto-populated data with defaults in create mode
+    if (!isEdit && hasAutoPopulatedRef.current) {
       return;
     }
 

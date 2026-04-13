@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { salesReturnsService } from "../services/sales-returns-service";
 import { getSalesErrorMessage } from "../../utils/error-utils";
-import type { CreateSalesReturnInput, SalesReturnListParams, SalesReturnStatus } from "../types";
+import type { CreateSalesReturnInput, UpdateSalesReturnInput, SalesReturnListParams, SalesReturnStatus } from "../types";
 
 export const salesReturnsKeys = {
   all: ["sales-returns"] as const,
@@ -65,6 +65,23 @@ export function useCreateSalesReturn() {
     },
     onError: (error) => {
       toast.error(getSalesErrorMessage(error, "Failed to create sales return"));
+    },
+  });
+}
+
+export function useUpdateSalesReturn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateSalesReturnInput }) =>
+      salesReturnsService.update(id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: salesReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesReturnsKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to update sales return"));
     },
   });
 }
