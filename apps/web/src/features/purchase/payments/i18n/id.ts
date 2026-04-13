@@ -4,6 +4,7 @@ export const purchasePaymentId = {
   search: "Cari berdasarkan referensi, catatan, metode...",
   toast: {
     created: "Pembayaran dibuat",
+    updated: "Pembayaran diperbarui",
     confirmed: "Pembayaran dikonfirmasi",
     deleted: "Pembayaran dihapus",
     failed: "Terjadi kesalahan",
@@ -14,6 +15,7 @@ export const purchasePaymentId = {
     export: "Export",
     confirm: "Konfirmasi",
     view: "Lihat",
+    edit: "Ubah",
     auditTrail: "Audit Trail",
     delete: "Hapus",
     createNew: "Buat Baru",
@@ -37,6 +39,7 @@ export const purchasePaymentId = {
   },
   form: {
     title: "Buat Pembayaran",
+    editTitle: "Ubah Pembayaran",
     bankAmountHint: "Masukkan jumlah transfer yang dibayarkan ke supplier.",
     cashAmountHint: "Masukkan jumlah tunai yang dibayarkan ke supplier.",
     cashAmountMinimum: "Pembayaran tunai tidak boleh lebih kecil dari sisa tagihan",

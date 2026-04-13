@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
   CreatePurchasePaymentInput,
+  UpdatePurchasePaymentInput,
   PurchasePaymentAddResponse,
   PurchasePaymentAuditTrailEntry,
   PurchasePaymentDetail,
@@ -24,6 +25,11 @@ export const purchasePaymentsService = {
 
   create: async (data: CreatePurchasePaymentInput): Promise<ApiResponse<PurchasePaymentDetail>> => {
     const response = await apiClient.post<ApiResponse<PurchasePaymentDetail>>(BASE_URL, data);
+    return response.data;
+  },
+
+  update: async (id: string, data: UpdatePurchasePaymentInput): Promise<ApiResponse<PurchasePaymentDetail>> => {
+    const response = await apiClient.put<ApiResponse<PurchasePaymentDetail>>(`${BASE_URL}/${id}`, data);
     return response.data;
   },
 

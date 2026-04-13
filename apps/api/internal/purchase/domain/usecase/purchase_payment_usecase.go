@@ -38,6 +38,7 @@ type PurchasePaymentUsecase interface {
 	List(ctx context.Context, params repositories.PurchasePaymentListParams) ([]*dto.PurchasePaymentListResponse, int64, error)
 	GetByID(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	Create(ctx context.Context, req *dto.CreatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error)
+	Update(ctx context.Context, id string, req *dto.UpdatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error)
 	Delete(ctx context.Context, id string) error
 	Confirm(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
 	Reverse(ctx context.Context, id string) (*dto.PurchasePaymentDetailResponse, error)
@@ -244,6 +245,101 @@ func (uc *purchasePaymentUsecase) Create(ctx context.Context, req *dto.CreatePur
 	}
 
 	uc.auditService.Log(ctx, "purchase_payment.create", out.ID, map[string]interface{}{"after": out})
+	return uc.mapper.ToDetailResponse(out), nil
+}
+
+func (uc *purchasePaymentUsecase) Update(ctx context.Context, id string, req *dto.UpdatePurchasePaymentRequest) (*dto.PurchasePaymentDetailResponse, error) {
+	if req == nil {
+		return nil, errors.New("request is nil")
+	}
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+	if uc.db == nil {
+		return nil, errors.New("db is nil")
+	}
+
+	method := strings.ToUpper(strings.TrimSpace(req.Method))
+	if method != string(models.PurchasePaymentMethodBank) && method != string(models.PurchasePaymentMethodCash) {
+		return nil, ErrPurchasePaymentConflict
+	}
+
+	var updatedID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var pay models.PurchasePayment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&pay, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrPurchasePaymentNotFound
+			}
+			return err
+		}
+		if pay.Status != models.PurchasePaymentStatusPending {
+			return ErrPurchasePaymentConflict
+		}
+
+		var inv models.SupplierInvoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&inv, "id = ?", pay.SupplierInvoiceID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrSupplierInvoiceNotFound
+			}
+			return err
+		}
+		if inv.Status != models.SupplierInvoiceStatusUnpaid && inv.Status != models.SupplierInvoiceStatusPartial && inv.Status != models.SupplierInvoiceStatusWaitingPayment {
+			return ErrPurchasePaymentConflict
+		}
+		available := inv.RemainingAmount + pay.Amount
+		if req.Amount > available+0.0001 {
+			return ErrPurchasePaymentConflict
+		}
+
+		var ba coreModels.BankAccount
+		if err := tx.First(&ba, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return errors.New("bank account not found")
+			}
+			return err
+		}
+		if !ba.IsActive {
+			return ErrPurchasePaymentConflict
+		}
+
+		amount := math.Max(0, req.Amount)
+		if amount <= 0 {
+			return ErrPurchasePaymentConflict
+		}
+
+		updates := map[string]interface{}{
+			"bank_account_id":   ba.ID,
+			"payment_date":      strings.TrimSpace(req.PaymentDate),
+			"amount":            amount,
+			"method":            models.PurchasePaymentMethod(method),
+			"reference_number":  req.ReferenceNumber,
+			"notes":             req.Notes,
+			"updated_at":        apptime.Now(),
+			"bank_account_name_snapshot":     ba.Name,
+			"bank_account_number_snapshot":   ba.AccountNumber,
+			"bank_account_holder_snapshot":   ba.AccountHolder,
+			"bank_account_currency_snapshot": ba.Currency,
+		}
+		if err := tx.Model(&pay).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		updatedID = pay.ID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := uc.repo.GetByID(ctx, updatedID)
+	if err != nil {
+		return nil, err
+	}
+
+	uc.auditService.Log(ctx, "purchase_payment.update", out.ID, map[string]interface{}{"after": out})
 	return uc.mapper.ToDetailResponse(out), nil
 }
 

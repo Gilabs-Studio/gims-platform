@@ -4,6 +4,7 @@ export const purchasePaymentEn = {
   search: "Search by reference, notes, method...",
   toast: {
     created: "Payment created",
+    updated: "Payment updated",
     confirmed: "Payment confirmed",
     deleted: "Payment deleted",
     failed: "Something went wrong",
@@ -14,6 +15,7 @@ export const purchasePaymentEn = {
     export: "Export",
     confirm: "Confirm",
     view: "View",
+    edit: "Edit",
     auditTrail: "Audit Trail",
     delete: "Delete",
     createNew: "Create New",
@@ -37,6 +39,7 @@ export const purchasePaymentEn = {
   },
   form: {
     title: "Create Payment",
+    editTitle: "Edit Payment",
     bankAmountHint: "Enter the transfer amount paid to supplier.",
     cashAmountHint: "Enter the cash amount paid to supplier.",
     cashAmountMinimum: "Cash payment cannot be lower than remaining amount",

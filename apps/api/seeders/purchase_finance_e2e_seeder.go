@@ -47,9 +47,10 @@ func SeedPurchaseFinanceE2E() error {
 		return db.Transaction(func(tx *gorm.DB) error {
 			adminID := getAdminID(tx)
 
-			var supplier supplierModels.Supplier
-			if err := tx.Where("is_active = ?", true).First(&supplier).Error; err != nil {
-				return err
+			var suppliers []supplierModels.Supplier
+			if err := tx.Where("is_active = ?", true).Limit(2).Find(&suppliers).Error; err != nil || len(suppliers) == 0 {
+				log.Println("Warning: No suppliers found. Skipping minimal Purchase-Finance seeder.")
+				return nil
 			}
 
 			var product productModels.Product
@@ -80,24 +81,70 @@ func SeedPurchaseFinanceE2E() error {
 			bankCOA := getCOAID(tx, "11100")
 
 			now := time.Now()
-			return seedMinimalPurchaseFlow(tx, purchaseFlowInput{
+			if err := seedMinimalPurchaseFlow(tx, purchaseFlowInput{
 				year:        now.Year(),
 				month:       int(now.Month()),
 				tag:         "001",
 				qty:         10,
 				price:       50000,
 				product:     product,
-				supplier:    supplier,
+				supplier:    suppliers[0],
 				warehouse:   warehouse,
 				bankAccount: bankAccount,
 				pt:          pt,
 				adminID:     adminID,
+				withDP:      true,
+				dpAmount:    50000,
 				invCOA:      invCOA,
 				grirCOA:     grirCOA,
 				apCOA:       apCOA,
 				vatCOA:      vatCOA,
 				bankCOA:     bankCOA,
-			})
+			}); err != nil {
+				return err
+			}
+
+			// Second supplier with old unpaid invoice for Payable Recap bad-debt testing
+			secondSupplier := suppliers[0]
+			if len(suppliers) > 1 {
+				secondSupplier = suppliers[1]
+			} else {
+				secondSupplier = supplierModels.Supplier{
+					Code:          "SUP-BAD-DEBT",
+					Name:          "PT. Multi Supplier",
+					Address:       "Jl. Bad Debt No. 99, Jakarta",
+					Email:         "baddebt@example.com",
+					ContactPerson: "Jane Doe",
+					IsActive:      true,
+				}
+				if err := tx.Create(&secondSupplier).Error; err != nil {
+					log.Printf("Warning: Failed to create second supplier: %v", err)
+				}
+			}
+			oldDate := now.AddDate(0, 0, -180)
+			if err := seedMinimalPurchaseFlow(tx, purchaseFlowInput{
+				year:        oldDate.Year(),
+				month:       int(oldDate.Month()),
+				tag:         "BAD-DEBT",
+				qty:         5,
+				price:       100000,
+				product:     product,
+				supplier:    secondSupplier,
+				warehouse:   warehouse,
+				bankAccount: bankAccount,
+				pt:          pt,
+				adminID:     adminID,
+				payStatus:   "UNPAID",
+				invCOA:      invCOA,
+				grirCOA:     grirCOA,
+				apCOA:       apCOA,
+				vatCOA:      vatCOA,
+				bankCOA:     bankCOA,
+			}); err != nil {
+				return err
+			}
+
+			return nil
 		})
 	}
 
@@ -223,6 +270,8 @@ func SeedPurchaseFinanceE2E() error {
 			{3, "001", 30, 45000, 11, "PAID", 1.0, 0, 0, true, 500000},
 			{7, "002", 50, 62000, 11, "PAID", 1.0, 1, 1, false, 0},
 			{11, "003", 40, 48000, 11, "PARTIAL", 0.6, 2, 2, false, 0},
+			// Old unpaid invoice for Payable Recap bad-debt / multi-supplier coverage
+			{1, "004", 25, 55000, 11, "UNPAID", 0, 3, 1, false, 0},
 		}
 
 		for _, sc := range scenarios2025 {
@@ -814,8 +863,8 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 }
 
 func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
-	orderDate := time.Now().AddDate(0, 0, -10)
-	receiptDate := orderDate.AddDate(0, 0, 5)
+	orderDate := time.Date(in.year, time.Month(in.month), 5, 0, 0, 0, 0, time.UTC)
+	receiptDate := orderDate.AddDate(0, 0, 7)
 	invoiceDate := receiptDate.AddDate(0, 0, 3)
 	payDate := invoiceDate.AddDate(0, 0, 5)
 
@@ -880,26 +929,95 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		CreatedAt:   receiptDate,
 	})
 
-	// 3. Supplier Invoice
+	// 3. Supplier Invoice Down Payment (if applicable)
 	total := in.qty * in.price
+	var dpID *string
+	var dpAmt float64
+	if in.withDP && in.dpAmount > 0 {
+		dp := purchaseModels.SupplierInvoice{
+			Type:            purchaseModels.SupplierInvoiceTypeDownPayment,
+			PurchaseOrderID: po.ID,
+			SupplierID:      in.supplier.ID,
+			PaymentTermsID:  &in.pt.ID,
+			Code:            fmt.Sprintf("SIDP-%s", prefix),
+			InvoiceNumber:   fmt.Sprintf("DP-INV-%s", prefix),
+			InvoiceDate:     orderDate.AddDate(0, 0, 2).Format("2006-01-02"),
+			DueDate:         orderDate.AddDate(0, 0, 7).Format("2006-01-02"),
+			Amount:          in.dpAmount,
+			SubTotal:        in.dpAmount,
+			PaidAmount:      in.dpAmount,
+			RemainingAmount: 0,
+			Status:          purchaseModels.SupplierInvoiceStatusPaid,
+			CreatedBy:       in.adminID,
+		}
+		now := time.Now()
+		dp.PaymentAt = &now
+		if err := tx.Create(&dp).Error; err != nil {
+			log.Printf("Warning: Failed to create DP %s: %v", dp.Code, err)
+		} else {
+			dpID = &dp.ID
+			dpAmt = dp.Amount
+
+			dpRefNum := fmt.Sprintf("PAY-DP-%s", prefix)
+			dpPayment := purchaseModels.PurchasePayment{
+				SupplierInvoiceID: dp.ID,
+				BankAccountID:     in.bankAccount.ID,
+				PaymentDate:       orderDate.AddDate(0, 0, 5).Format("2006-01-02"),
+				Amount:            in.dpAmount,
+				Method:            purchaseModels.PurchasePaymentMethodBank,
+				Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+				ReferenceNumber:   &dpRefNum,
+				CreatedBy:         in.adminID,
+			}
+			if err := tx.Create(&dpPayment).Error; err != nil {
+				log.Printf("Warning: Failed to create DP payment: %v", err)
+			}
+		}
+	}
+
+	// 4. Supplier Invoice (Normal)
+	var cashPayAmount float64
+	switch in.payStatus {
+	case "PAID":
+		cashPayAmount = total - dpAmt
+	case "PARTIAL":
+		cashPayAmount = (total - dpAmt) * 0.5
+	default:
+		cashPayAmount = 0
+	}
+
+	totalSettled := dpAmt + cashPayAmount
+	remainingAmount := total - totalSettled
+
+	var siStatus purchaseModels.SupplierInvoiceStatus
+	if remainingAmount <= 0.01 && total > 0 {
+		siStatus = purchaseModels.SupplierInvoiceStatusPaid
+	} else if totalSettled > 0 {
+		siStatus = purchaseModels.SupplierInvoiceStatusPartial
+	} else {
+		siStatus = purchaseModels.SupplierInvoiceStatusUnpaid
+	}
+
 	si := purchaseModels.SupplierInvoice{
-		Type:            purchaseModels.SupplierInvoiceTypeNormal,
-		PurchaseOrderID: po.ID,
-		GoodsReceiptID:  &gr.ID,
-		SupplierID:      in.supplier.ID,
-		PaymentTermsID:  &in.pt.ID,
-		Code:            fmt.Sprintf("SI-%s", prefix),
-		InvoiceNumber:   fmt.Sprintf("INV-%s", prefix),
-		InvoiceDate:     invoiceDate.Format("2006-01-02"),
-		DueDate:         invoiceDate.AddDate(0, 0, 30).Format("2006-01-02"),
-		TaxRate:         11.0,
-		TaxAmount:       total * 0.11,
-		SubTotal:        total,
-		Amount:          total,
-		PaidAmount:      total,
-		RemainingAmount: 0,
-		Status:          purchaseModels.SupplierInvoiceStatusPaid,
-		CreatedBy:       in.adminID,
+		Type:                 purchaseModels.SupplierInvoiceTypeNormal,
+		PurchaseOrderID:      po.ID,
+		GoodsReceiptID:       &gr.ID,
+		SupplierID:           in.supplier.ID,
+		PaymentTermsID:       &in.pt.ID,
+		Code:                 fmt.Sprintf("SI-%s", prefix),
+		InvoiceNumber:        fmt.Sprintf("INV-%s", prefix),
+		InvoiceDate:          invoiceDate.Format("2006-01-02"),
+		DueDate:              invoiceDate.AddDate(0, 0, 30).Format("2006-01-02"),
+		TaxRate:              11.0,
+		TaxAmount:            total * 0.11,
+		SubTotal:             total,
+		Amount:               total,
+		DownPaymentAmount:    dpAmt,
+		PaidAmount:           cashPayAmount,
+		RemainingAmount:      remainingAmount,
+		DownPaymentInvoiceID: dpID,
+		Status:               siStatus,
+		CreatedBy:            in.adminID,
 		Items: []purchaseModels.SupplierInvoiceItem{{
 			PurchaseOrderItemID: &po.Items[0].ID,
 			ProductID:           in.product.ID,
@@ -912,19 +1030,32 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		return fmt.Errorf("create SI %s: %w", si.Code, err)
 	}
 
-	// 4. Purchase Payment
-	pp := purchaseModels.PurchasePayment{
-		SupplierInvoiceID: si.ID,
-		BankAccountID:     in.bankAccount.ID,
-		PaymentDate:       payDate.Format("2006-01-02"),
-		Amount:            total,
-		Method:            purchaseModels.PurchasePaymentMethodBank,
-		Status:            purchaseModels.PurchasePaymentStatusConfirmed,
-		ReferenceNumber:   stringPtr(fmt.Sprintf("PAY-%s", prefix)),
-		CreatedBy:         in.adminID,
-	}
-	if err := tx.Create(&pp).Error; err != nil {
-		return fmt.Errorf("create payment %s: %w", *pp.ReferenceNumber, err)
+	// 5. Purchase Payment
+	if cashPayAmount > 0.01 {
+		pp := purchaseModels.PurchasePayment{
+			SupplierInvoiceID: si.ID,
+			BankAccountID:     in.bankAccount.ID,
+			PaymentDate:       payDate.Format("2006-01-02"),
+			Amount:            cashPayAmount,
+			Method:            purchaseModels.PurchasePaymentMethodBank,
+			Status:            purchaseModels.PurchasePaymentStatusConfirmed,
+			ReferenceNumber:   stringPtr(fmt.Sprintf("PAY-%s", prefix)),
+			CreatedBy:         in.adminID,
+		}
+		if err := tx.Create(&pp).Error; err != nil {
+			return fmt.Errorf("create payment %s: %w", *pp.ReferenceNumber, err)
+		}
+
+		if in.apCOA != "" && in.bankCOA != "" {
+			refCode := ""
+			if pp.ReferenceNumber != nil {
+				refCode = *pp.ReferenceNumber
+			}
+			createJournal(tx, payDate, fmt.Sprintf("Payment %s", refCode), stringPtr("PURCHASE_PAYMENT"), stringPtr(pp.ID), in.adminID, []journalLineInput{
+				{in.apCOA, cashPayAmount + total*0.11, 0, "Debit AP"},
+				{in.bankCOA, 0, cashPayAmount + total*0.11, "Credit Bank"},
+			})
+		}
 	}
 
 	// Journals
@@ -944,16 +1075,6 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		})
 	} else {
 		log.Printf("Warning: Failed to create AP Journal for %s due to missing COAs", si.Code)
-	}
-	if in.apCOA != "" && in.bankCOA != "" {
-		refCode := ""
-		if pp.ReferenceNumber != nil {
-			refCode = *pp.ReferenceNumber
-		}
-		createJournal(tx, payDate, fmt.Sprintf("Payment %s", refCode), stringPtr("PURCHASE_PAYMENT"), stringPtr(pp.ID), in.adminID, []journalLineInput{
-			{in.apCOA, total + total*0.11, 0, "Debit AP"},
-			{in.bankCOA, 0, total + total*0.11, "Credit Bank"},
-		})
 	}
 
 	return nil

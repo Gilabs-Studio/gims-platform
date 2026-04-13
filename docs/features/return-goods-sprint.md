@@ -130,6 +130,7 @@ apps/web/src/features/purchase/returns/
 | POST | `/api/v1/purchase/returns` | `purchase.return.create` | Create purchase return + stock adjustment + accounting hook |
 | GET | `/api/v1/purchase/returns` | `purchase.return.read` | List purchase returns dengan filter |
 | GET | `/api/v1/purchase/returns/:id` | `purchase.return.read` | Detail purchase return |
+| PUT | `/api/v1/purchase/returns/:id` | `purchase.return.update` | Update purchase return (DRAFT only) + replace items |
 
 ## Request/Response Schemas
 
@@ -291,7 +292,9 @@ apps/web/src/features/purchase/returns/
   - `usePurchaseReturnsList`
   - `usePurchaseReturnDetail`
   - `useCreatePurchaseReturn`
+  - `useUpdatePurchaseReturn`
   - `usePurchaseReturnFormData`
+- Edit mode: reuse `PurchaseReturnForm` dengan prop `purchaseReturn`. Goods Receipt ID di-lock, item eligible qty dihitung ulang dengan menambahkan kuantitas return yang sedang diedit agar validasi tidak menolak perubahan qty sendiri.
 
 ### Catatan Implementasi Frontend
 

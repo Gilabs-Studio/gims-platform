@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { purchaseReturnsService } from "../services/purchase-returns-service";
 import { inventoryService } from "@/features/stock/inventory/services/inventory-service";
-import type { CreatePurchaseReturnInput, PurchaseReturnListParams, PurchaseReturnStatus } from "../types";
+import type { CreatePurchaseReturnInput, UpdatePurchaseReturnInput, PurchaseReturnListParams, PurchaseReturnStatus } from "../types";
 
 export const purchaseReturnsKeys = {
   all: ["purchase-returns"] as const,
@@ -70,6 +70,20 @@ export function useCreatePurchaseReturn() {
     mutationFn: (payload: CreatePurchaseReturnInput) => purchaseReturnsService.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
+export function useUpdatePurchaseReturn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdatePurchaseReturnInput }) =>
+      purchaseReturnsService.update(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: purchaseReturnsKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });

@@ -344,6 +344,7 @@ func SeedPermissions() error {
 		// Purchase Payments
 		{"/purchase/payments", "purchase_payment.read", "View Purchase Payments", "VIEW", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.create", "Create Purchase Payments", "CREATE", "purchase_payment"},
+		{"/purchase/payments", "purchase_payment.update", "Edit Purchase Payments", "EDIT", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.delete", "Delete Purchase Payments", "DELETE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.confirm", "Confirm Purchase Payments", "APPROVE", "purchase_payment"},
 		{"/purchase/payments", "purchase_payment.export", "Export Purchase Payments", "EXPORT", "purchase_payment"},
