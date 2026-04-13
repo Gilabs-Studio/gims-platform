@@ -2,6 +2,7 @@ package handler
 
 import (
 	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"math"
@@ -9,19 +10,25 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
+	feedbackDTO "github.com/gilabs/gims/api/internal/feedback/domain/dto"
+	feedbackUsecase "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
 	"github.com/gin-gonic/gin"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // POSReceiptHandler renders an 80mm thermal-printer receipt as HTML.
 type POSReceiptHandler struct {
-	orderUC    usecase.POSOrderUsecase
+	orderUC     usecase.POSOrderUsecase
 	paymentRepo repositories.POSPaymentRepository
 	configRepo  repositories.POSConfigRepository
 	outletRepo  orgRepos.OutletRepository
+	// feedbackUC is optional; when nil the QR code section is omitted from the receipt.
+	feedbackUC  feedbackUsecase.FeedbackUsecase
 }
 
 // NewPOSReceiptHandler constructs the receipt handler.
@@ -37,6 +44,12 @@ func NewPOSReceiptHandler(
 		configRepo:  configRepo,
 		outletRepo:  outletRepo,
 	}
+}
+
+// WithFeedbackUsecase attaches the feedback usecase to enable QR code generation.
+func (h *POSReceiptHandler) WithFeedbackUsecase(uc feedbackUsecase.FeedbackUsecase) *POSReceiptHandler {
+	h.feedbackUC = uc
+	return h
 }
 
 // ─── Template data ────────────────────────────────────────────────────────────
@@ -74,6 +87,13 @@ type receiptTemplateData struct {
 
 	Footer        string
 	PrintReceiptAuto bool
+
+	// FeedbackURL is non-empty when a valid feedback form exists for the outlet.
+	// It points to the public Next.js feedback page with a one-time token.
+	FeedbackURL string
+	// FeedbackQRBase64 is a data URI (image/png) of the QR code for FeedbackURL.
+	// When empty the QR section is hidden in the template.
+	FeedbackQRBase64 template.URL
 }
 
 // ─── HTML template ────────────────────────────────────────────────────────────
@@ -184,6 +204,29 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 			data.Footer = *cfg.ReceiptFooter
 		}
 		data.PrintReceiptAuto = cfg.PrintReceiptAuto
+	}
+
+	// ── Feedback QR code ─────────────────────────────────────────────────────
+	// Generate a one-time token so the customer can scan the QR code on the
+	// receipt and submit feedback without logging in. We do this lazily per
+	// receipt render; if no active form is configured we silently skip.
+	if h.feedbackUC != nil {
+		tokenReq := &feedbackDTO.GenerateTokenRequest{
+			OutletID:   orderResp.OutletID,
+			PosOrderID: &orderResp.ID,
+		}
+		if orderResp.CustomerName != nil {
+			tokenReq.CustomerName = orderResp.CustomerName
+		}
+		appBaseURL := strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/") + "/en"
+		if tokenResp, err := h.feedbackUC.GenerateToken(c.Request.Context(), tokenReq, appBaseURL); err == nil {
+			data.FeedbackURL = tokenResp.FeedbackURL
+			// Generate QR code as base64 PNG for inline embedding — no external dependency.
+			if pngBytes, qrErr := qrcode.Encode(tokenResp.FeedbackURL, qrcode.Medium, 128); qrErr == nil {
+				data.FeedbackQRBase64 = template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(pngBytes))
+			}
+		}
+		// Non-fatal: silently skip QR code when no active form exists or generation fails.
 	}
 
 	// ── Render ───────────────────────────────────────────────────────────────

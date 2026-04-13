@@ -11,6 +11,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
+	feedbackDataRepos "github.com/gilabs/gims/api/internal/feedback/data/repositories"
+	feedbackUC "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
 	invDataRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
@@ -61,7 +63,17 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanH := handler.NewFloorPlanHandler(floorPlanUC)
 	orderH := handler.NewPOSOrderHandler(orderUC)
+
+	// Build receipt handler and attach feedback usecase for QR code generation
+	// (best-effort: silently disabled when no active form exists for an outlet).
 	receiptH := handler.NewPOSReceiptHandler(orderUC, paymentRepo, configRepo, outletRepo)
+	fbUC := feedbackUC.NewFeedbackUsecase(
+		feedbackDataRepos.NewFeedbackFormRepository(db),
+		feedbackDataRepos.NewFeedbackTokenRepository(db),
+		feedbackDataRepos.NewFeedbackResponseRepository(db),
+		outletRepo,
+	)
+	receiptH = receiptH.WithFeedbackUsecase(fbUC)
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)

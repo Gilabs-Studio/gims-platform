@@ -36,6 +36,28 @@ export const navigationConfig: NavItem[] = [
         icon: "monitor-check",
         permission: "pos.order.create",
       },
+      {
+        name: "Feedback",
+        i18nKey: "feedback",
+        url: "/pos/feedback",
+        icon: "message-square-heart",
+        children: [
+          {
+            name: "Responses",
+            i18nKey: "feedbackResponses",
+            url: "/pos/feedback/response",
+            icon: "message-circle",
+            permission: "feedback.read",
+          },
+          {
+            name: "Form Builder",
+            i18nKey: "formBuilder",
+            url: "/pos/feedback/forms",
+            icon: "clipboard-pen",
+            permission: "feedback.read",
+          },
+        ],
+      },
     ],
   },
   // CRM before Sales (lead -> opportunity -> order flow)

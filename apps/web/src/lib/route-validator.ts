@@ -85,6 +85,8 @@ const EXTRA_VALID_ROUTES = [
   "/pos/goods/basket",
   "/pos/goods/delivery-pickup",
   "/pos/goods/returns-exchange",
+  "/pos/feedback/response",
+  "/pos/feedback/forms",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

@@ -684,6 +684,12 @@ func SeedPermissions() error {
 		// CRM Area Mapping (Sprint 24)
 		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
 		{"/crm/area-mapping", "crm_area_mapping.create", "Capture Area Location", "CREATE", "crm_area_mapping"},
+
+		// Feedback (Customer Feedback via POS QR Code)
+		{"/pos/feedback", "feedback.read", "View Feedback Responses", "VIEW", "feedback"},
+		{"/pos/feedback", "feedback.create", "Create Feedback Forms", "CREATE", "feedback"},
+		{"/pos/feedback", "feedback.update", "Edit Feedback Forms", "EDIT", "feedback"},
+		{"/pos/feedback", "feedback.delete", "Delete Feedback Forms", "DELETE", "feedback"},
 	}
 
 	// Build menu URL to ID map

@@ -51,6 +51,8 @@ type ServerConfig struct {
 	Port                    string
 	Env                     string
 	Timezone                string // IANA timezone name (e.g. "Asia/Jakarta")
+	// FrontendBaseURL is the public web app origin used to build QR code / feedback URLs.
+	FrontendBaseURL         string
 	ReadHeaderTimeoutSec    int
 	ReadTimeoutSec          int
 	WriteTimeoutSec         int
@@ -155,6 +157,7 @@ func Load() error {
 			Port:                    getEnv("PORT", "8080"),
 			Env:                     envValue, // Use the env value we determined above
 			Timezone:                getEnv("APP_TIMEZONE", "Asia/Jakarta"),
+			FrontendBaseURL:         getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
 			ReadHeaderTimeoutSec:    getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
 			ReadTimeoutSec:          getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
 			WriteTimeoutSec:         getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),

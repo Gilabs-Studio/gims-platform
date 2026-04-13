@@ -79,6 +79,7 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	feedbackPresentation "github.com/gilabs/gims/api/internal/feedback/presentation"
 	generalPresentation "github.com/gilabs/gims/api/internal/general/presentation"
 	posPresentation "github.com/gilabs/gims/api/internal/pos/presentation"
 	reportPresentation "github.com/gilabs/gims/api/internal/report/presentation"
@@ -391,7 +392,11 @@ func main() {
 		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
+		// CRM module
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Feedback module (POS QR code feedback)
+		feedbackPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)

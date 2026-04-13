@@ -511,6 +511,27 @@ func SeedMenus() error {
 		return err
 	}
 
+	// Feedback (Customer Feedback via POS QR Code)
+	feedbackMenu, err := createChildMenu("Feedback", "message-square-heart", "/pos/feedback", &posMenu.ID, 3)
+	if err != nil {
+		return err
+	}
+
+	feedbackChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Feedback Responses", "message-circle", "/pos/feedback/response", 1},
+		{"Form Builder", "clipboard-pen", "/pos/feedback/forms", 2},
+	}
+	for _, child := range feedbackChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &feedbackMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
 	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {

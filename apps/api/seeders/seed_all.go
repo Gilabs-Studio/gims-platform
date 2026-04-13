@@ -351,6 +351,11 @@ func SeedAll() error {
 		return err
 	}
 
+	// Feedback seeder (default forms per outlet for POS QR code feedback)
+	if err := SeedFeedback(); err != nil {
+		return err
+	}
+
 	// Opening Balances seeder: Creates GL entries for inventory to match subledger
 	// (Must come BEFORE SeedJournalReconciliation)
 	if err := SeedOpeningBalances(); err != nil {

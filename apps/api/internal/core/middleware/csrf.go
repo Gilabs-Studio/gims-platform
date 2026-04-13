@@ -84,6 +84,14 @@ func CSRF() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// Public feedback submission uses one-time token in URL and is intentionally
+		// accessible without authenticated browser session/cookies.
+		if c.Request.Method == http.MethodPost &&
+			strings.HasPrefix(path, "/api/v1/public/feedback/") &&
+			strings.HasSuffix(path, "/submit") {
+			c.Next()
+			return
+		}
 
 		// 3. For safe methods, just proceed
 		if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" {
