@@ -46,6 +46,8 @@ type posPaymentUsecase struct {
 	bankAccountRepo  coreRepos.BankAccountRepository
 }
 
+const maxXenditDescriptionLen = 200
+
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
 func NewPOSPaymentUsecase(
 	paymentRepo repositories.POSPaymentRepository,
@@ -154,10 +156,7 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 	// Build a unique external order ID for Xendit invoice tracking
 	externalOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
 
-	description := fmt.Sprintf("POS Order %s", order.OrderNumber)
-	if order.CustomerName != nil && *order.CustomerName != "" {
-		description = fmt.Sprintf("POS Order %s - %s", order.OrderNumber, *order.CustomerName)
-	}
+	description := buildXenditOrderDescription(order)
 
 	// Build Xendit invoice request with optional channel filtering
 	invoiceReq := provider.InvoiceRequest{
@@ -217,6 +216,80 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, err
 	}
 	return mapper.ToPOSPaymentResponse(payment), nil
+}
+
+func buildXenditOrderDescription(order *models.PosOrder) string {
+	itemSummaries := make([]string, 0, len(order.Items))
+	for _, item := range order.Items {
+		name := strings.TrimSpace(item.ProductName)
+		if name == "" {
+			continue
+		}
+
+		qty := formatOrderItemQuantity(item.Quantity)
+		if qty == "" {
+			itemSummaries = append(itemSummaries, name)
+			continue
+		}
+
+		itemSummaries = append(itemSummaries, fmt.Sprintf("%sx %s", qty, name))
+	}
+
+	if len(itemSummaries) == 0 {
+		return "POS purchase"
+	}
+
+	const prefix = "POS Items: "
+	parts := make([]string, 0, len(itemSummaries))
+
+	for i, summary := range itemSummaries {
+		candidate := append(parts, summary)
+		remaining := len(itemSummaries) - (i + 1)
+		desc := prefix + strings.Join(candidate, ", ")
+		if remaining > 0 {
+			desc += fmt.Sprintf(", +%d item lainnya", remaining)
+		}
+
+		if len(desc) > maxXenditDescriptionLen {
+			break
+		}
+		parts = candidate
+	}
+
+	if len(parts) == 0 {
+		first := itemSummaries[0]
+		available := maxXenditDescriptionLen - len(prefix)
+		if available <= 0 {
+			return "POS purchase"
+		}
+		if len(first) > available {
+			first = first[:available]
+		}
+		return prefix + first
+	}
+
+	description := prefix + strings.Join(parts, ", ")
+	remaining := len(itemSummaries) - len(parts)
+	if remaining > 0 {
+		suffix := fmt.Sprintf(", +%d item lainnya", remaining)
+		if len(description)+len(suffix) <= maxXenditDescriptionLen {
+			description += suffix
+		}
+	}
+
+	return description
+}
+
+func formatOrderItemQuantity(quantity float64) string {
+	if quantity <= 0 {
+		return ""
+	}
+
+	if quantity == float64(int64(quantity)) {
+		return fmt.Sprintf("%d", int64(quantity))
+	}
+
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", quantity), "0"), ".")
 }
 
 func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error {
