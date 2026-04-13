@@ -661,7 +661,7 @@ func (u *aiChatUsecase) saveAssistantResponse(ctx context.Context, session *mode
 			titleContent = titleContent[:50] + "..."
 		}
 		session.Title = titleContent
-		_ = u.sessionRepo.Update(ctx, session)
+		_ = u.sessionRepo.UpdateTitle(ctx, session.ID, session.Title)
 	}
 
 	return &dto.ChatResponse{

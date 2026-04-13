@@ -9,6 +9,8 @@ import type { useCanvasEditor } from "../hooks/use-canvas-editor";
 
 type CanvasEditorReturn = ReturnType<typeof useCanvasEditor>;
 
+import "@/features/pos/fb/pos-fb-theme.module.css";
+
 interface FloorCanvasProps {
   readonly editor: CanvasEditorReturn;
 }
@@ -81,6 +83,11 @@ interface CornerDragState {
   connections: Array<{ wallId: string; endpoint: "start" | "end" }>;
 }
 
+interface HitObject {
+  id: string;
+  zIndex: number;
+}
+
 function snapToOrthogonal(start: Point, end: Point): Point {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
@@ -145,6 +152,34 @@ function distancePointToSegment(point: Point, start: Point, end: Point): number 
   const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2));
   const proj = { x: start.x + t * vx, y: start.y + t * vy };
   return distance(point, proj);
+}
+
+function isPointInsideObject(point: Point, obj: LayoutObject): boolean {
+  const centerX = obj.x + obj.width / 2;
+  const centerY = obj.y + obj.height / 2;
+  const radians = (-obj.rotation * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const translatedX = point.x - centerX;
+  const translatedY = point.y - centerY;
+  const localX = translatedX * cos - translatedY * sin + obj.width / 2;
+  const localY = translatedX * sin + translatedY * cos + obj.height / 2;
+
+  return localX >= 0 && localX <= obj.width && localY >= 0 && localY <= obj.height;
+}
+
+function getTopDownHitObjects(objects: LayoutObject[], point: Point): HitObject[] {
+  const renderOrder = [...objects].sort((a, b) => {
+    if (a.type === "zone" && b.type !== "zone") return -1;
+    if (a.type !== "zone" && b.type === "zone") return 1;
+    return 0;
+  });
+
+  return renderOrder
+    .map((obj, idx) => ({ obj, zIndex: idx }))
+    .filter(({ obj }) => isPointInsideObject(point, obj))
+    .sort((a, b) => b.zIndex - a.zIndex)
+    .map(({ obj, zIndex }) => ({ id: obj.id, zIndex }));
 }
 
 function findNearestWallForPoint(objects: LayoutObject[], point: Point, maxDistance: number): LayoutObject | null {
@@ -430,8 +465,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
 
   const handleObjectMouseDown = useCallback(
     (e: React.MouseEvent, id: string) => {
-      e.stopPropagation();
       if (editor.activeTool !== "select") return;
+      e.stopPropagation();
       // Door attach gesture: click selected door then click wall (no drag start on wall click)
       if (editor.selectedObject?.type === "door") {
         const maybeWall = editor.objects.find((o) => o.id === id);
@@ -466,13 +501,20 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
 
   const handleObjectClick = useCallback(
     (e: React.MouseEvent, id: string) => {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+
+      if (editor.activeTool !== "select" && editor.activeTool !== "door" && editor.activeTool !== "zone") {
+        e.stopPropagation();
+        editor.addObject(editor.activeTool as LayoutObjectType, pos.x, pos.y);
+        return;
+      }
+
       e.stopPropagation();
 
       // Door tool: direct click wall -> create door and instantly stick to that wall.
       if (editor.activeTool === "door") {
         const target = editor.objects.find((o) => o.id === id);
         if (target?.type === "wall") {
-          const pos = screenToCanvas(e.clientX, e.clientY);
           const doorId = editor.addObject("door", pos.x, pos.y);
           editor.attachDoorToWall(doorId, target.id, { anchorPoint: pos, skipUndo: true });
         }
@@ -484,7 +526,6 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         if (editor.selectedObject?.type === "door" && editor.selectedObject.id !== id) {
           const target = editor.objects.find((o) => o.id === id);
           if (target?.type === "wall") {
-            const pos = screenToCanvas(e.clientX, e.clientY);
             editor.attachDoorToWall(editor.selectedObject.id, target.id, { anchorPoint: pos });
             return;
           }
@@ -497,8 +538,23 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
           editor.setSelectedObjectIds(ids);
           editor.setSelectedObjectId(ids[ids.length - 1] ?? null);
         } else {
-          editor.setSelectedObjectId(id);
-          editor.setSelectedObjectIds([id]);
+          const hitObjects = getTopDownHitObjects(editor.objects, pos);
+          if (hitObjects.length <= 1) {
+            editor.setSelectedObjectId(id);
+            editor.setSelectedObjectIds([id]);
+            return;
+          }
+
+          const currentSelectedId = editor.selectedObjectId;
+          const currentIndex = currentSelectedId
+            ? hitObjects.findIndex((item) => item.id === currentSelectedId)
+            : -1;
+          const nextHit = currentIndex >= 0
+            ? hitObjects[(currentIndex + 1) % hitObjects.length]
+            : hitObjects[0];
+
+          editor.setSelectedObjectId(nextHit.id);
+          editor.setSelectedObjectIds([nextHit.id]);
         }
       }
     },
@@ -542,7 +598,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       }
 
       // Zone tool: drag to define area size.
-      if (editor.activeTool === "zone" && isEmptyCanvas) {
+      if (editor.activeTool === "zone") {
         const pos = snapPoint(screenToCanvas(e.clientX, e.clientY));
         setZoneDraftRect({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
       }
@@ -816,7 +872,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
           {/* Infinite dot-grid background */}
           <defs>
             <pattern id="grid-dots" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
-              <circle cx={gridSize / 2} cy={gridSize / 2} r={0.8} fill="#cbd5e1" />
+              <circle cx={gridSize / 2} cy={gridSize / 2} r={0.8} fill="var(--pos-grid-dot)" />
             </pattern>
           </defs>
           <rect
@@ -824,7 +880,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
             y={-INFINITE_SIZE / 2}
             width={INFINITE_SIZE}
             height={INFINITE_SIZE}
-            fill={editor.snapToGrid ? "url(#grid-dots)" : "white"}
+            fill={editor.snapToGrid ? "url(#grid-dots)" : "var(--pos-bg-fill)"}
             className="canvas-bg"
           />
 
@@ -848,7 +904,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               cx={ep.x}
               cy={ep.y}
               r={4}
-              fill="#0ea5e9"
+              fill="var(--pos-grid-highlight)"
               opacity={0.8}
               className="pointer-events-none"
             />
@@ -861,8 +917,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={junction.x}
                 cy={junction.y}
                 r={6}
-                fill="#ffffff"
-                stroke="#0284c7"
+                fill="var(--pos-handle-fill)"
+                stroke="var(--pos-grid-highlight)"
                 strokeWidth={1.5}
                 opacity={0.9}
                 style={{ cursor: "move" }}
@@ -872,7 +928,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={junction.x}
                 cy={junction.y}
                 r={2.2}
-                fill="#0284c7"
+                fill="var(--pos-grid-highlight)"
                 className="pointer-events-none"
               />
             </g>
@@ -886,7 +942,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={activeWallState.startX}
                 cy={activeWallState.startY}
                 r={5}
-                fill="#3b82f6"
+                fill="var(--pos-accent)"
                 opacity={0.9}
                 className="pointer-events-none"
               />
@@ -897,7 +953,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                     y1={activeWallState.startY}
                     x2={activeWallState.currentX}
                     y2={activeWallState.currentY}
-                    stroke="#475569"
+                    stroke="var(--pos-wall-fill)"
                     strokeWidth={WALL_THICKNESS}
                     strokeLinecap="square"
                     opacity={0.45}
@@ -908,7 +964,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                     cx={activeWallState.currentX}
                     cy={activeWallState.currentY}
                     r={4}
-                    fill="#475569"
+                    fill="var(--pos-wall-fill)"
                     opacity={0.7}
                     className="pointer-events-none"
                   />
@@ -924,8 +980,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               y={bsRect.y}
               width={bsRect.width}
               height={bsRect.height}
-              fill="rgba(59,130,246,0.08)"
-              stroke="#3b82f6"
+              fill="var(--pos-zone-preview-fill)"
+              stroke="var(--pos-zone-preview-stroke)"
               strokeWidth={1}
               strokeDasharray="4 2"
               className="pointer-events-none"
@@ -939,8 +995,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               y={zoneRect.y}
               width={Math.max(1, zoneRect.width)}
               height={Math.max(1, zoneRect.height)}
-              fill="rgba(59,130,246,0.12)"
-              stroke="#3b82f6"
+              fill="var(--pos-zone-preview-fill)"
+              stroke="var(--pos-zone-preview-stroke)"
               strokeWidth={1.5}
               strokeDasharray="5 3"
               className="pointer-events-none"

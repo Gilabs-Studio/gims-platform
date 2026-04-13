@@ -17,6 +17,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/routing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,16 +40,16 @@ interface FloorLayoutListProps {
 export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
   const t = useTranslations("floorLayout");
   const [search, setSearch] = useState("");
-  const [companyFilter, setCompanyFilter] = useState<string>("all");
+  const [outletFilter, setOutletFilter] = useState<string>("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FloorPlan | null>(null);
 
   const { data: formData } = useFloorLayoutFormData();
-  const companies = formData?.data?.companies ?? [];
+  const outlets = formData?.data?.outlets ?? [];
 
   const params = {
     search: search || undefined,
-    company_id: companyFilter !== "all" ? companyFilter : undefined,
+    outlet_id: outletFilter !== "all" ? outletFilter : undefined,
     per_page: 50,
   };
   const { data, isPending, isError } = useFloorLayouts(params);
@@ -99,16 +100,16 @@ export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
             className="pl-8"
           />
         </div>
-        {companies.length > 1 && (
-          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+        {outlets.length > 1 && (
+          <Select value={outletFilter} onValueChange={setOutletFilter}>
             <SelectTrigger className="w-52 cursor-pointer">
               <SelectValue placeholder={t("selectOutlet")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("allOutlets")}</SelectItem>
-              {companies.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
+              {outlets.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  {o.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -137,6 +138,12 @@ export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
         <div className="text-center py-16">
           <LayoutIcon className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-sm text-muted-foreground">{t("noResults")}</p>
+          <p className="mt-2 text-xs text-muted-foreground/80">
+            {t("noResultsHint")}
+          </p>
+          <Button asChild variant="outline" className="mt-4 cursor-pointer">
+            <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+          </Button>
         </div>
       )}
 
@@ -282,7 +289,7 @@ function FloorPlanCard({
             <div className="min-w-0">
               <h3 className="text-sm font-semibold truncate">{floorPlan.name}</h3>
               <p className="text-xs text-muted-foreground">
-                {floorPlan.company_name ?? "-"}
+                {floorPlan.outlet_name ?? floorPlan.company_name ?? "-"}
               </p>
             </div>
             <Badge

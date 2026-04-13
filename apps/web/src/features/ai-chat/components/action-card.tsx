@@ -24,6 +24,22 @@ export function ActionCard({ action, sessionId }: ActionCardProps) {
   const t = useTranslations("aiChat");
   const confirmAction = useConfirmAction();
 
+  const payloadPreviewText = (() => {
+    if (action.payload_preview == null) {
+      return "";
+    }
+
+    if (typeof action.payload_preview === "string") {
+      return action.payload_preview;
+    }
+
+    try {
+      return JSON.stringify(action.payload_preview, null, 2);
+    } catch {
+      return String(action.payload_preview);
+    }
+  })();
+
   const isPending = action.status === "PENDING_CONFIRMATION";
   const isSuccess = action.status === "SUCCESS";
   const isFailed = action.status === "FAILED";
@@ -31,6 +47,7 @@ export function ActionCard({ action, sessionId }: ActionCardProps) {
 
   const handleConfirm = () => {
     confirmAction.mutate({
+      session_id: sessionId,
       action_id: action.id,
       confirmed: true,
     });
@@ -38,6 +55,7 @@ export function ActionCard({ action, sessionId }: ActionCardProps) {
 
   const handleCancel = () => {
     confirmAction.mutate({
+      session_id: sessionId,
       action_id: action.id,
       confirmed: false,
     });
@@ -81,16 +99,20 @@ export function ActionCard({ action, sessionId }: ActionCardProps) {
       {/* Details */}
       <div className="space-y-1 text-xs text-muted-foreground">
         {action.entity_type && (
-          <p>
+          <p className="wrap-anywhere">
             <span className="font-medium">Entity:</span> {action.entity_type}
             {action.entity_id ? ` (${action.entity_id})` : ""}
           </p>
         )}
-        {action.payload_preview && (
-          <p className="truncate">
-            <span className="font-medium">Payload:</span>{" "}
-            {action.payload_preview}
-          </p>
+        {payloadPreviewText && (
+          <div className="rounded-md border border-border/60 bg-background/60 p-2">
+            <p className="mb-1 text-[11px] font-medium text-foreground/80">
+              Payload
+            </p>
+            <pre className="max-h-32 overflow-auto whitespace-pre-wrap wrap-break-word text-[11px] leading-relaxed text-muted-foreground">
+              {payloadPreviewText}
+            </pre>
+          </div>
         )}
       </div>
 

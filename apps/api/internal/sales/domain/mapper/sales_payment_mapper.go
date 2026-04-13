@@ -67,6 +67,8 @@ func (m *SalesPaymentMapper) ToListResponse(p *models.SalesPayment) *dto.SalesPa
 		BankAccount: bankSummary,
 		PaymentDate: p.PaymentDate,
 		Amount:      p.Amount,
+		TenderAmount: p.TenderAmount,
+		ChangeAmount: p.ChangeAmount,
 		Method:      string(p.Method),
 		Status:      string(p.Status),
 		CreatedAt:   p.CreatedAt,

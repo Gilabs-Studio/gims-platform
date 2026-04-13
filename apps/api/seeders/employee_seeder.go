@@ -247,6 +247,48 @@ func SeedEmployees() error {
 
 			IsActive: true,
 		},
+		{
+			ID:           OutletManager3EmployeeID,
+			EmployeeCode: "EMP-010",
+			Name:         "Outlet Manager Kimia Farma Sudirman",
+			Email:        "outlet-manager3@example.com",
+			Phone:        "081234567899",
+			UserID:       strPtr(OutletManager3UserID),
+
+			CompanyID:     strPtr(KimiaFarmaCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Surabaya",
+			DateOfBirth:  timePtr(date(1989, 8, 10)),
+			Gender:       models.GenderMale,
+			Religion:     "Islam",
+			Address:      "Jl. Sudirman Kav. 44",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
+		{
+			ID:           OutletManager4EmployeeID,
+			EmployeeCode: "EMP-011",
+			Name:         "Outlet Manager Kimia Farma Pondok Indah",
+			Email:        "outlet-manager4@example.com",
+			Phone:        "081234567900",
+			UserID:       strPtr(OutletManager4UserID),
+
+			CompanyID:     strPtr(KimiaFarmaCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Bandung",
+			DateOfBirth:  timePtr(date(1991, 12, 22)),
+			Gender:       models.GenderFemale,
+			Religion:     "Kristen",
+			Address:      "Jl. Metro Pondok Indah No.10",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
 	}
 
 	for _, e := range employees {

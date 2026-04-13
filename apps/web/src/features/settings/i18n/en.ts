@@ -82,7 +82,56 @@ export const settingsEn = {
     dateOfBirth: "Date of birth:",
     titleLabel: "Title:",
     hireDateLabel: "Hire date:",
-  }
+    // Payment settings (Xendit)
+    payment: {
+      title: "Digital Payment Gateway",
+      description: "Connect your Xendit account to accept digital payments at the POS terminal.",
+      loading: "Loading payment settings...",
+      connectHeader: "Connect Xendit Account",
+      connectButton: "Connect Xendit Account",
+      cancelButton: "Cancel",
+      notConnectedMessage:
+        "No payment gateway is connected. Connect your Xendit account to enable digital payments (QRIS, Virtual Account, E-Wallet) at the POS terminal.",
+      accountDetailsHeader: "Account Details",
+      updateSettingsHeader: "Update Settings",
+      businessNameLabel: "Business Name",
+      environmentLabel: "Environment",
+      xenditAccountIdLabel: "Xendit Account ID (Sub-account)",
+      statusLabel: "Status",
+      secretKey: {
+        label: "Secret Key",
+        placeholder: "xnd_production_xxxxxx or xnd_development_xxxxxx",
+        help: "Paste Xendit API key from Dashboard. Use development key for sandbox and production key for live environment.",
+        required: "Secret key is required",
+      },
+      accountId: {
+        label: "Xendit Account ID (Sub-account)",
+        placeholder: "user-xxxxxx (optional, for XenPlatform)",
+        help: "Only fill this when using XenPlatform sub-account routing. Leave empty for standalone Xendit accounts.",
+        note: "Required for XenPlatform sub-account routing. Leave empty if using a standalone account.",
+      },
+      businessNamePlaceholder: "e.g. Toko Maju Jaya",
+      environmentHelp: "Sandbox is for testing transactions. Production is for real payments. Environment must match your secret key type.",
+      environmentSandbox: "Sandbox (Testing)",
+      environmentProduction: "Production",
+      webhook: {
+        label: "Webhook Verification Token",
+        placeholder: "Optional — used to verify Xendit webhook signatures",
+        help: "Optional secret used to verify webhook signature from Xendit before updating payment status in your system.",
+      },
+      dangerZoneTitle: "Danger Zone",
+      dangerZoneDescription: "Disconnecting will prevent all digital payments at the POS terminal until reconnected.",
+      disconnectButton: "Disconnect Xendit Account",
+      disconnectDialogTitle: "Disconnect Xendit?",
+      disconnectDialogDescription:
+        "This will remove the payment gateway configuration. Cashiers will no longer be able to process digital payments until you reconnect an account.",
+      disconnectAction: "Disconnect",
+      connected: "Connected",
+      suspended: "Suspended",
+      notConnectedBadge: "Not Connected",
+      saveChanges: "Save Changes",
+    },
+  },
 };
 
 export type SettingsTranslations = typeof settingsEn;

@@ -135,6 +135,8 @@ export interface SalesOrder {
   reserved_stock: boolean;
   status: SalesOrderStatus;
   notes?: string;
+  source_type?: string;
+  source_pos_order_id?: string;
   fulfillment?: FulfillmentSummary;
   created_by?: string;
   confirmed_by?: string;
@@ -155,6 +157,7 @@ export interface ListSalesOrdersParams {
   per_page?: number;
   search?: string;
   status?: SalesOrderStatus | string;
+  source_type?: string;
   date_from?: string;
   date_to?: string;
   sales_rep_id?: string;

@@ -292,6 +292,11 @@ export function ProductCatalog() {
 
   const handleView = (item: Product) => {
     setViewingItem(item);
+    // Ingredients always use regular detail dialog, regardless of category
+    if (item.is_ingredient) {
+      setDetailDialogOpen(true);
+      return;
+    }
     // Open FnB-specific detail for products in FnB categories
     const productCategory = item.category?.id
       ? findCategoryInTree(treeData?.data ?? [], item.category.id)

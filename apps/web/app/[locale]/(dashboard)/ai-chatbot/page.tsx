@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Bot,
+  Copy,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  StopCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,13 +21,15 @@ import {
 } from "@/components/ui/tooltip";
 
 import { useAIChatStore } from "@/features/ai-chat/stores/use-ai-chat-store";
+import { aiChatService } from "@/features/ai-chat/services/ai-chat-service";
 import {
-  useSendMessage,
+  useSendMessageStream,
   useAIChatSessionDetail,
 } from "@/features/ai-chat/hooks/use-ai-chat";
 import { SessionList } from "@/features/ai-chat/components/session-list";
 import { MessageList } from "@/features/ai-chat/components/message-list";
 import { MessageInput } from "@/features/ai-chat/components/message-input";
+import { ModelSelector } from "@/features/ai-chat/components/model-selector";
 import type {
   AIChatMessage,
   AIActionPreview,
@@ -35,23 +39,20 @@ export default function AIChatbotPage() {
   const t = useTranslations("aiChat");
   const {
     activeSessionId,
-    selectedModel,
-    setActiveSession,
     startNewChat,
     closeChat,
-  } =
-    useAIChatStore();
+    cancelStreaming,
+  } = useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(true);
 
   useEffect(() => {
-    // Ensure floating widget is closed while using the dedicated chatbot page.
     closeChat();
   }, [closeChat]);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
     useAIChatSessionDetail(activeSessionId);
 
-  const sendMessage = useSendMessage();
+  const { send, isStreaming } = useSendMessageStream();
 
   const messages: AIChatMessage[] = sessionDetail?.data?.messages ?? [];
   const pendingAction: AIActionPreview | null =
@@ -59,26 +60,26 @@ export default function AIChatbotPage() {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage.mutate(
-        {
-          message: content,
-          session_id: activeSessionId ?? undefined,
-          model: selectedModel ?? undefined,
-        },
-        {
-          onSuccess: (response) => {
-            if (!activeSessionId && response?.data?.session_id) {
-              setActiveSession(response.data.session_id);
-            }
-          },
-          onError: () => {
-            toast.error(t("error.sendFailed"));
-          },
-        }
-      );
+      send(content);
     },
-    [activeSessionId, selectedModel, sendMessage, setActiveSession, t]
+    [send],
   );
+
+  const handleCopyAllSessions = useCallback(async () => {
+    try {
+      const exportPayload = await aiChatService.exportAllSessionsForDebug();
+
+      if (exportPayload.session_count === 0) {
+        toast.error(t("toast.copyAllSessionsEmpty"));
+        return;
+      }
+
+      await navigator.clipboard.writeText(JSON.stringify(exportPayload, null, 2));
+      toast.success(`${t("toast.copyAllSessionsSuccess")} (${exportPayload.session_count})`);
+    } catch {
+      toast.error(t("toast.copyAllSessionsFailed"));
+    }
+  }, [t]);
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -117,27 +118,15 @@ export default function AIChatbotPage() {
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
             <div>
-              <h1 className="text-base font-semibold text-foreground">
-                {sessionDetail?.data?.title || t("title")}
-              </h1>
-              <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
+              <div className="flex items-center gap-1">
+                <h1 className="text-base font-semibold text-foreground">
+                  {sessionDetail?.data?.title || t("title")}
+                </h1>
+              </div>
+              <div className="-ml-1 mt-0.5">
+                <ModelSelector />
+              </div>
             </div>
-          </div>
-
-          <div className="ml-auto">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 cursor-pointer"
-                  onClick={startNewChat}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t("newChat")}</TooltipContent>
-            </Tooltip>
           </div>
         </div>
 
@@ -146,14 +135,29 @@ export default function AIChatbotPage() {
           messages={messages}
           action={pendingAction}
           sessionId={activeSessionId ?? ""}
-          isLoading={sendMessage.isPending || isLoadingSession}
+          isLoading={isStreaming || isLoadingSession}
         />
 
         {/* Input */}
-        <MessageInput
-          onSend={handleSend}
-          isLoading={sendMessage.isPending}
-        />
+        <div className="relative">
+          {isStreaming && (
+            <div className="absolute -top-8 left-0 right-0 flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 cursor-pointer gap-1.5 rounded-full text-xs shadow-sm"
+                onClick={cancelStreaming}
+              >
+                <StopCircle className="h-3 w-3" />
+                {t("cancel")}
+              </Button>
+            </div>
+          )}
+          <MessageInput
+            onSend={handleSend}
+            isLoading={isStreaming}
+          />
+        </div>
       </div>
     </div>
   );

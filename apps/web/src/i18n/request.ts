@@ -177,6 +177,8 @@ import { visitPlannerEn } from "@/features/travel/visit-planner/i18n/en";
 import { visitPlannerId } from "@/features/travel/visit-planner/i18n/id";
 import { floorLayoutEn } from "@/features/pos/fb/floor-layout/i18n/en";
 import { floorLayoutId } from "@/features/pos/fb/floor-layout/i18n/id";
+import { posTerminalEn } from "@/features/pos/terminal/i18n/en";
+import { posTerminalId } from "@/features/pos/terminal/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -268,6 +270,7 @@ const messages = {
     ...supplierResearchReportEn,
     ...visitPlannerEn,
     ...floorLayoutEn,
+    ...posTerminalEn,
   },
   id: {
     ...globalIdMessages,
@@ -356,6 +359,7 @@ const messages = {
     ...supplierResearchReportId,
     ...visitPlannerId,
     ...floorLayoutId,
+    ...posTerminalId,
   },
 } as const;
 

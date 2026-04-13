@@ -20,6 +20,8 @@ func SeedOutlets() error {
 	kimiaFarmaID := KimiaFarmaCompanyID
 	outletManager1ID := OutletManager1EmployeeID
 	outletManager2ID := OutletManager2EmployeeID
+	outletManager3ID := OutletManager3EmployeeID
+	outletManager4ID := OutletManager4EmployeeID
 
 	// Coordinates for Mie Gacoan outlets
 	lat1 := -6.2089
@@ -73,7 +75,7 @@ func SeedOutlets() error {
 			Email:       "sudirman@kimiafarma.co.id",
 			Address:     "Jl. Jend. Sudirman Kav. 44-46, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &outletManager1ID,
+			ManagerID:   &outletManager3ID,
 			Latitude:    &lat3,
 			Longitude:   &lng3,
 			IsActive:    true,
@@ -87,7 +89,7 @@ func SeedOutlets() error {
 			Email:       "pondokindah@kimiafarma.co.id",
 			Address:     "Jl. Metro Pondok Indah No.10, Jakarta Selatan",
 			CompanyID:   &kimiaFarmaID,
-			ManagerID:   &outletManager2ID,
+			ManagerID:   &outletManager4ID,
 			Latitude:    &lat4,
 			Longitude:   &lng4,
 			IsActive:    true,
@@ -122,6 +124,18 @@ func SeedOutlets() error {
 			DoUpdates: clause.AssignmentColumns([]string{"name", "description", "address", "latitude", "longitude", "is_pos_outlet", "outlet_id", "is_active", "updated_at"}),
 		}).Create(&wh).Error; err != nil {
 			log.Printf("Warning: Failed to create warehouse for outlet %s: %v", outlets[i].Code, err)
+		}
+
+		// Keep outlets.warehouse_id synchronized so POS terminal can resolve eligible outlets.
+		var linkedWH warehouseModels.Warehouse
+		if err := db.Select("id").Where("code = ?", whCode).First(&linkedWH).Error; err != nil {
+			log.Printf("Warning: Failed to lookup warehouse by code %s: %v", whCode, err)
+		} else {
+			if err := db.Model(&models.Outlet{}).
+				Where("id = ?", outlets[i].ID).
+				Update("warehouse_id", linkedWH.ID).Error; err != nil {
+				log.Printf("Warning: Failed to update outlet warehouse_id for %s: %v", outlets[i].Code, err)
+			}
 		}
 	}
 

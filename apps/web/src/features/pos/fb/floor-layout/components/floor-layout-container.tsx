@@ -1,18 +1,42 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeftIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import { useFloorLayouts, useFloorLayoutFormData } from "../hooks/use-floor-layouts";
 
 import { FloorLayoutList } from "./floor-layout-list";
 import { FloorLayoutEditor } from "./floor-layout-editor";
+import { CreateFloorPlanDialog } from "./create-floor-plan-dialog";
 
 export function FloorLayoutContainer() {
   const t = useTranslations("floorLayout");
   const [editorFloorPlanId, setEditorFloorPlanId] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [autoCreateOutletId, setAutoCreateOutletId] = useState<string | null>(null);
+  const hasAutoNavigated = useRef(false);
+
+  // Fetch user's assigned outlets
+  const { data: outletsData, isLoading: outletsLoading } = useOutlets({ 
+    is_active: true, 
+    per_page: 50 
+  });
+  const assignedOutlets = outletsData?.data ?? [];
+
+  // Fetch form data to get outlets with floor_plan status
+  const { data: formData, isLoading: formDataLoading } = useFloorLayoutFormData();
+  const outletsWithStatus = formData?.data?.outlets ?? [];
+
+  // Fetch existing floor layouts
+  const { data: layoutsData, isLoading: layoutsLoading } = useFloorLayouts(
+    { status: "published", per_page: 100 },
+    { enabled: assignedOutlets.length > 0 }
+  );
+  const existingLayouts = layoutsData?.data ?? [];
 
   const handleOpenEditor = useCallback((id: string) => {
     setEditorFloorPlanId(id);
@@ -22,21 +46,54 @@ export function FloorLayoutContainer() {
     setEditorFloorPlanId(null);
   }, []);
 
+  const handleCreateSuccess = useCallback((id: string) => {
+    setShowCreateDialog(false);
+    setAutoCreateOutletId(null);
+    setEditorFloorPlanId(id);
+  }, []);
+
+  // Auto-navigate for single outlet:
+  // If user has only 1 outlet, and it has a floor plan, open it directly in edit mode
+  // If user has only 1 outlet but no floor plan, open create dialog
+  useEffect(() => {
+    if (hasAutoNavigated.current) return;
+    if (outletsLoading || formDataLoading || layoutsLoading) return;
+    if (assignedOutlets.length !== 1) return;
+
+    hasAutoNavigated.current = true;
+    const singleOutlet = assignedOutlets[0];
+    
+    // Find existing floor layout for this outlet
+    const existingLayout = existingLayouts.find((layout) => layout.outlet_id === singleOutlet.id);
+    
+    if (existingLayout) {
+      // Open existing layout directly in editor
+      setEditorFloorPlanId(existingLayout.id);
+    } else {
+      // No layout exists - show create dialog with outlet pre-selected
+      setAutoCreateOutletId(singleOutlet.id);
+      setShowCreateDialog(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outletsLoading, formDataLoading, layoutsLoading, assignedOutlets, existingLayouts]);
+
   // Editor mode
   if (editorFloorPlanId) {
     return (
       <PageMotion>
         <div className="space-y-2">
-          {/* Back button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToList}
-            className="cursor-pointer mb-1"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-1" />
-            {t("title")}
-          </Button>
+          {/* Back button - only show if multiple outlets or single outlet with existing layout */}
+          {assignedOutlets.length > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToList}
+              className="cursor-pointer mb-1"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-1" />
+              {t("title")}
+            </Button>
+          )}
 
           <FloorLayoutEditor
             floorPlanId={editorFloorPlanId}
@@ -47,10 +104,37 @@ export function FloorLayoutContainer() {
     );
   }
 
+  // Loading state - when auto-navigating for single outlet
+  if (
+    assignedOutlets.length === 1 && 
+    (outletsLoading || formDataLoading || layoutsLoading)
+  ) {
+    return (
+      <PageMotion>
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center space-y-3">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">Loading floor layout…</p>
+          </div>
+        </div>
+      </PageMotion>
+    );
+  }
+
   // List mode
   return (
-    <PageMotion>
-      <FloorLayoutList onOpenEditor={handleOpenEditor} />
-    </PageMotion>
+    <>
+      <PageMotion>
+        <FloorLayoutList onOpenEditor={handleOpenEditor} />
+      </PageMotion>
+
+      {/* Create floor plan dialog for single outlet flow */}
+      <CreateFloorPlanDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={handleCreateSuccess}
+        preSelectedOutletId={autoCreateOutletId ?? undefined}
+      />
+    </>
   );
 }

@@ -224,3 +224,45 @@ func (h *ProductHandler) UpdateRecipe(c *gin.Context) {
 	}
 	response.SuccessResponse(c, result, nil)
 }
+
+func (h *ProductHandler) ListRecipeVersions(c *gin.Context) {
+	id := c.Param("id")
+	versions, err := h.uc.ListRecipeVersions(c.Request.Context(), id)
+	if err != nil {
+		errors.ErrorResponse(c, "PRODUCT_RECIPE_VERSIONS_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
+		return
+	}
+
+	response.SuccessResponse(c, versions, nil)
+}
+
+func (h *ProductHandler) CloneRecipeFromVersion(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.CloneRecipeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.InvalidRequestBodyResponse(c)
+		return
+	}
+
+	result, err := h.uc.CloneRecipeFromVersion(c.Request.Context(), id, req)
+	if err != nil {
+		errors.ErrorResponse(c, "PRODUCT_RECIPE_CLONE_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
+
+func (h *ProductHandler) CompareRecipeVersions(c *gin.Context) {
+	id := c.Param("id")
+	fromVersionID := c.Query("from_version_id")
+	toVersionID := c.Query("to_version_id")
+
+	result, err := h.uc.CompareRecipeVersions(c.Request.Context(), id, fromVersionID, toVersionID)
+	if err != nil {
+		errors.ErrorResponse(c, "PRODUCT_RECIPE_COMPARE_ERROR", map[string]interface{}{"id": id, "error": err.Error()}, nil)
+		return
+	}
+
+	response.SuccessResponse(c, result, nil)
+}
