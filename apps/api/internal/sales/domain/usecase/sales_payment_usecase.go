@@ -642,7 +642,7 @@ func (uc *salesPaymentUsecase) confirmSalesPaymentTx(ctx context.Context, paymen
 		}
 
 		appliedAmount := appliedSalesPaymentAmount(payment)
-		if err := ensurePaymentWithinInvoiceLimit(confirmedTotal, appliedAmount, invoice.Amount); err != nil {
+		if err := ensurePaymentWithinInvoiceLimit(appliedAmount, invoice.RemainingAmount); err != nil {
 
 			return err
 		}
