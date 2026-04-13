@@ -20,6 +20,7 @@ import {
   Building2,
   Ruler,
   Store,
+  Utensils,
   Grid,
   Briefcase,
   Heart,
@@ -84,6 +85,10 @@ import {
   Route,
   RotateCcw,
   Moon,
+  MonitorCheck,
+  Boxes,
+  ScanLine,
+  ShoppingBasket,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -205,6 +210,14 @@ const iconMap: Record<string, React.ReactNode> = {
   "map-pin": <MapPin className="h-4 w-4" />,
   ruler: <Ruler className="h-4 w-4" />,
   store: <Store className="h-4 w-4" />,
+  utensils: <Utensils className="h-4 w-4" />,
+  boxes: <Boxes className="h-4 w-4" />,
+  "monitor-check": <MonitorCheck className="h-4 w-4" />,
+  monitorcheck: <MonitorCheck className="h-4 w-4" />,
+  "scan-line": <ScanLine className="h-4 w-4" />,
+  scanline: <ScanLine className="h-4 w-4" />,
+  "shopping-basket": <ShoppingBasket className="h-4 w-4" />,
+  shoppingbasket: <ShoppingBasket className="h-4 w-4" />,
   flag: <Flag className="h-4 w-4" />,
 
   // AI & Bot icons

@@ -93,7 +93,7 @@ export function CommandPalette({
               <CommandGroup key={group} heading={group}>
                 {items.map((item) => (
                   <CommandItem
-                    key={`${group}-${item.id}-${item.href}`}
+                    key={item.uid}
                     value={item.name}
                     onSelect={() => commandPalette.onSelectItem(item.href)}
                   >

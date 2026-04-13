@@ -15,6 +15,7 @@ export interface InventoryStockItem {
   uom_name: string | null;
   status: "ok" | "low_stock" | "overstock" | "out_of_stock";
   has_expiring_batches: boolean;
+  is_ingredient: boolean;
 }
 
 export interface InventoryBatchItem {
@@ -69,6 +70,8 @@ export interface InventoryFilters {
   has_expiring?: boolean;
   /** Show only items with expired batches still holding quantity */
   has_expired?: boolean;
+  /** Filter to products flagged as raw material ingredients */
+  is_ingredient?: boolean;
 }
 
 export interface PaginationMeta {

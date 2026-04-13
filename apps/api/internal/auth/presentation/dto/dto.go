@@ -32,6 +32,7 @@ type UserDTO struct {
 }
 
 type RoleDTO struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	DataScope string `json:"data_scope"`
 }

@@ -6,11 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ButtonLoading } from "@/components/loading";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useProductCategoryForm } from "../../hooks/use-product-category-form";
 import type { ProductCategory } from "../../types";
 import {
@@ -50,6 +52,7 @@ export function ProductCategoryDialog({
     formState: { errors },
   } = form;
   const parentId = watch("parent_id");
+  const categoryType = watch("category_type");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -63,7 +66,40 @@ export function ProductCategoryDialog({
           <Field>
             <FieldLabel>{t("form.name")}</FieldLabel>
             <Input placeholder={t("form.name")} {...register("name")} />
-            {errors.name && <FieldError>{errors.name.message}</FieldError>}
+            {errors.name && <span className="text-xs text-destructive">{errors.name.message}</span>}
+          </Field>
+
+          {/* Category Type Toggle */}
+          <Field>
+            <FieldLabel>{t("form.categoryType")}</FieldLabel>
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setValue("category_type", "GOODS", { shouldValidate: true })}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 rounded-md border py-2 px-3 text-sm font-medium cursor-pointer transition-all",
+                  categoryType === "GOODS"
+                    ? "border-warning bg-warning/10 text-warning"
+                    : "border-border bg-transparent text-muted-foreground hover:border-warning/50"
+                )}
+              >
+                <Badge variant="warning" className="text-[10px] py-0 px-1.5">GOODS</Badge>
+                <span>{t("categoryTypes.goods")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setValue("category_type", "FNB", { shouldValidate: true })}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 rounded-md border py-2 px-3 text-sm font-medium cursor-pointer transition-all",
+                  categoryType === "FNB"
+                    ? "border-success bg-success/10 text-success"
+                    : "border-border bg-transparent text-muted-foreground hover:border-success/50"
+                )}
+              >
+                <Badge variant="success" className="text-[10px] py-0 px-1.5">F&B</Badge>
+                <span>{t("categoryTypes.fnb")}</span>
+              </button>
+            </div>
           </Field>
 
           <Field>
@@ -93,7 +129,7 @@ export function ProductCategoryDialog({
               className="resize-none"
               {...register("description")}
             />
-            {errors.description && <FieldError>{errors.description.message}</FieldError>}
+            {errors.description && <span className="text-xs text-destructive">{errors.description.message}</span>}
           </Field>
 
           <div className="flex justify-end gap-2 pt-4">

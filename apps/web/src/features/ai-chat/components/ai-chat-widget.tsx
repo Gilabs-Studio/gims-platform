@@ -3,13 +3,16 @@
 import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
+  Copy,
   MessageSquare,
+  Plus,
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  StopCircle,
 } from "lucide-react";
-import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,8 +23,9 @@ import {
 } from "@/components/ui/tooltip";
 
 import { useAIChatStore } from "../stores/use-ai-chat-store";
+import { aiChatService } from "../services/ai-chat-service";
 import {
-  useSendMessage,
+  useSendMessageStream,
   useAIChatSessionDetail,
 } from "../hooks/use-ai-chat";
 import { SessionList } from "./session-list";
@@ -32,14 +36,20 @@ import type { AIChatMessage, AIActionPreview } from "../types";
 
 export function AIChatWidget() {
   const t = useTranslations("aiChat");
-  const { isOpen, activeSessionId, selectedModel, toggleChat, closeChat, setActiveSession } =
-    useAIChatStore();
+  const {
+    isOpen,
+    activeSessionId,
+    toggleChat,
+    closeChat,
+    cancelStreaming,
+    startNewChat,
+  } = useAIChatStore();
   const [showSidebar, setShowSidebar] = useState(false);
 
   const { data: sessionDetail, isLoading: isLoadingSession } =
     useAIChatSessionDetail(activeSessionId);
 
-  const sendMessage = useSendMessage();
+  const { send, isStreaming } = useSendMessageStream();
 
   const messages: AIChatMessage[] = sessionDetail?.data?.messages ?? [];
   const pendingAction: AIActionPreview | null =
@@ -47,27 +57,26 @@ export function AIChatWidget() {
 
   const handleSend = useCallback(
     (content: string) => {
-      sendMessage.mutate(
-        {
-          message: content,
-          session_id: activeSessionId ?? undefined,
-          model: selectedModel ?? undefined,
-        },
-        {
-          onSuccess: (response) => {
-            // Set the session ID if this is a new conversation
-            if (!activeSessionId && response?.data?.session_id) {
-              setActiveSession(response.data.session_id);
-            }
-          },
-          onError: () => {
-            toast.error(t("error.sendFailed"));
-          },
-        }
-      );
+      send(content);
     },
-    [activeSessionId, selectedModel, sendMessage, setActiveSession, t]
+    [send],
   );
+
+  const handleCopyAllSessions = useCallback(async () => {
+    try {
+      const exportPayload = await aiChatService.exportAllSessionsForDebug();
+
+      if (exportPayload.session_count === 0) {
+        toast.error(t("toast.copyAllSessionsEmpty"));
+        return;
+      }
+
+      await navigator.clipboard.writeText(JSON.stringify(exportPayload, null, 2));
+      toast.success(`${t("toast.copyAllSessionsSuccess")} (${exportPayload.session_count})`);
+    } catch {
+      toast.error(t("toast.copyAllSessionsFailed"));
+    }
+  }, [t]);
 
   return (
     <>
@@ -120,7 +129,7 @@ export function AIChatWidget() {
                   transition={{ duration: 0.2 }}
                   className="h-full shrink-0 overflow-hidden"
                 >
-                  <SessionList />
+                  <SessionList showHeaderActions={false} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -148,10 +157,40 @@ export function AIChatWidget() {
                 </Tooltip>
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-sm font-semibold text-foreground">
-                    {sessionDetail?.data?.title || t("title")}
-                  </h2>
-                  <ModelSelector />
+                  <div className="flex items-center gap-1">
+                    <h2 className="truncate text-sm font-semibold text-foreground">
+                      {sessionDetail?.data?.title || t("title")}
+                    </h2>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 cursor-pointer"
+                          onClick={handleCopyAllSessions}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("copyAllSessions")}</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 cursor-pointer"
+                          onClick={startNewChat}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t("newChat")}</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <div className="-ml-1 mt-0.5">
+                    <ModelSelector />
+                  </div>
                 </div>
 
                 <Button
@@ -169,14 +208,29 @@ export function AIChatWidget() {
                 messages={messages}
                 action={pendingAction}
                 sessionId={activeSessionId ?? ""}
-                isLoading={sendMessage.isPending || isLoadingSession}
+                isLoading={isStreaming || isLoadingSession}
               />
 
               {/* Input */}
-              <MessageInput
-                onSend={handleSend}
-                isLoading={sendMessage.isPending}
-              />
+              <div className="relative">
+                {isStreaming && (
+                  <div className="absolute -top-8 left-0 right-0 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 cursor-pointer gap-1.5 rounded-full text-xs shadow-sm"
+                      onClick={cancelStreaming}
+                    >
+                      <StopCircle className="h-3 w-3" />
+                      {t("cancel")}
+                    </Button>
+                  </div>
+                )}
+                <MessageInput
+                  onSend={handleSend}
+                  isLoading={isStreaming}
+                />
+              </div>
             </div>
           </motion.div>
         )}

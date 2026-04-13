@@ -1,6 +1,7 @@
 "use client";
 
-import { Warehouse, MapPin, Eye, Edit, Trash2 } from "lucide-react";
+import { Warehouse, MapPin, Eye, Edit, Trash2, Store } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type { Warehouse as WarehouseType } from "../../types";
 
@@ -12,19 +13,24 @@ interface WarehouseCardProps {
   readonly onDetail?: () => void;
   readonly onEdit?: () => void;
   readonly onDelete?: () => void;
+  readonly onStatusChange?: (isActive: boolean) => void;
   readonly canUpdate?: boolean;
   readonly canDelete?: boolean;
+  readonly isStatusChanging?: boolean;
 }
 
 export function WarehouseCard({
   warehouse,
   isSelected,
   onClick,
+  t,
   onDetail,
   onEdit,
   onDelete,
+  onStatusChange,
   canUpdate,
   canDelete,
+  isStatusChanging,
 }: WarehouseCardProps) {
   return (
     <div
@@ -32,16 +38,36 @@ export function WarehouseCard({
       className={cn(
         "group relative p-4 border-b hover:bg-accent/50 cursor-pointer transition-colors pr-24",
         isSelected && "bg-accent border-l-4 border-l-primary",
-        !warehouse.is_active && "opacity-50"
+        !warehouse.is_active && "bg-muted/30 opacity-50"
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="rounded-full bg-primary/10 p-2 shrink-0">
-          <Warehouse className="h-4 w-4 text-primary" />
+        <div
+          className={cn(
+            "rounded-full p-2 shrink-0",
+            !warehouse.is_active
+              ? "bg-muted/50"
+              : warehouse.outlet_id
+                ? "bg-warning/10"
+                : "bg-primary/10"
+          )}
+        >
+          {warehouse.outlet_id ? (
+            <Store className={cn("h-4 w-4", warehouse.is_active ? "text-warning" : "text-muted-foreground")} />
+          ) : (
+            <Warehouse className={cn("h-4 w-4", warehouse.is_active ? "text-primary" : "text-muted-foreground")} />
+          )}
         </div>
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <h4 className="font-medium text-sm truncate">{warehouse.name}</h4>
+            <h4 className={cn("font-medium text-sm truncate", !warehouse.is_active && "line-through text-muted-foreground")}>
+              {warehouse.name}
+            </h4>
+            {!warehouse.is_active && (
+              <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[10px]">
+                {t("common.inactive")}
+              </span>
+            )}
           </div>
           {warehouse.address && (
             <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -55,13 +81,25 @@ export function WarehouseCard({
                 Capacity: {warehouse.capacity}
               </span>
             )}
-            {warehouse.latitude != null && warehouse.longitude != null && (
-              <span className="text-xs text-muted-foreground">
-                📍 {Number(warehouse.latitude).toFixed(4)},{" "}
-                {Number(warehouse.longitude).toFixed(4)}
-              </span>
-            )}
+              {warehouse.outlet_id && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                  Outlet
+                </span>
+              )}
           </div>
+          {canUpdate && onStatusChange && (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+              <Switch
+                checked={warehouse.is_active}
+                onCheckedChange={onStatusChange}
+                disabled={isStatusChanging}
+                className="cursor-pointer"
+              />
+              <span className="text-xs text-muted-foreground">
+                {warehouse.is_active ? t("common.active") : t("common.inactive")}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

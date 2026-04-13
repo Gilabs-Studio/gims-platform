@@ -172,6 +172,7 @@ export interface Company {
   created_by?: string;
   approved_by?: string;
   approved_at?: string;
+  outlet_count?: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;

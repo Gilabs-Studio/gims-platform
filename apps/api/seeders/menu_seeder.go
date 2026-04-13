@@ -197,6 +197,18 @@ func SeedMenus() error {
 		return err
 	}
 
+	// 12. POS
+	posMenu := &permission.Menu{
+		Name:   "POS",
+		Icon:   "store",
+		URL:    "/pos",
+		Order:  12,
+		Status: "active",
+	}
+	if err := createMenu(posMenu); err != nil {
+		return err
+	}
+
 	// ============================================================
 	// MASTER DATA SUB-MENUS
 	// ============================================================
@@ -219,11 +231,12 @@ func SeedMenus() error {
 		order int
 	}{
 		{"Company", "briefcase", "/master-data/company", 1},
-		{"Divisions", "layers", "/master-data/divisions", 2},
-		{"Job Positions", "user-cog", "/master-data/job-positions", 3},
-		{"Business Units", "grid", "/master-data/business-units", 4},
-		{"Business Types", "tag", "/master-data/business-types", 5},
-		{"Areas", "map", "/master-data/areas", 6},
+		{"Outlets", "store", "/master-data/outlet", 2},
+		{"Divisions", "layers", "/master-data/divisions", 3},
+		{"Job Positions", "user-cog", "/master-data/job-positions", 4},
+		{"Business Units", "grid", "/master-data/business-units", 5},
+		{"Business Types", "tag", "/master-data/business-types", 6},
+		{"Areas", "map", "/master-data/areas", 7},
 	}
 	for _, child := range organizationChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &organizationMenu.ID, child.order); err != nil {
@@ -486,6 +499,18 @@ func SeedMenus() error {
 		}
 	}
 
+	// ============================================================
+	// POS SUB-MENUS
+	// ============================================================
+
+	if _, err := createChildMenu("Floor & Layout Designer", "layout-list", "/pos/fb/floor-layout", &posMenu.ID, 1); err != nil {
+		return err
+	}
+
+	if _, err := createChildMenu("POS Terminal", "monitor-check", "/pos/fb/terminal", &posMenu.ID, 2); err != nil {
+		return err
+	}
+
 	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {
@@ -725,6 +750,7 @@ func UpdateMenuStructure() error {
 	migrations := []urlMigration{
 		{oldURL: "/purchase/orders", newURL: "/purchase/purchase-orders"},
 		{oldURL: "/purchase/requisitions", newURL: "/purchase/purchase-requisitions"},
+		{oldURL: "/pos/floor-layout", newURL: "/pos/fb/floor-layout"},
 	}
 
 	for _, m := range migrations {
@@ -737,6 +763,8 @@ func UpdateMenuStructure() error {
 	deprecatedMenuURLs := []string{
 		"/sales/estimations",
 		"/master-data/area-supervisors",
+		"/pos/fb",
+		"/pos/goods",
 		"/hrd/documents",
 		"/hrd/contracts",
 		"/hrd/education",

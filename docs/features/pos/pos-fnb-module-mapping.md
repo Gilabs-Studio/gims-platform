@@ -1,385 +1,305 @@
-# POS F&B Parent Module Mapping (Modular, No ERP/CRM Changes)
+# POS F&B Module Mapping
 
-> **Module:** POS + F&B Operations  
-> **Sprint:** Draft Planning  
-> **Version:** 0.3.0  
-> **Status:** Draft (Packaging + Navigation Strategy)  
+> **Module:** POS -> Architecture -> Module Mapping
+> **Sprint:** Draft Planning
+> **Version:** 0.2.0
+> **Status:** Draft
 > **Last Updated:** April 2026
-
-Related PRD: [floor-layout-designer-prd.md](floor-layout-designer-prd.md)
 
 ---
 
 ## Table of Contents
 
-1. [Context](#context)
-2. [Strategic Recommendation](#strategic-recommendation)
-3. [Menu Mapping (Current -> Adjustment -> Target)](#menu-mapping-current---adjustment---target)
-4. [Proposed POS Navigation Tree](#proposed-pos-navigation-tree)
-5. [Relationship to Existing Modules](#relationship-to-existing-modules)
-6. [Subscription Packaging](#subscription-packaging)
-7. [Data and Module Integration](#data-and-module-integration)
-8. [Product vs Ingredient Model](#product-vs-ingredient-model)
-9. [End-to-End Transaction Flow](#end-to-end-transaction-flow)
-10. [Implementation Phases](#implementation-phases)
-11. [Risks and Mitigation](#risks-and-mitigation)
+1. [Overview](#overview)
+2. [Module Registry](#module-registry)
+3. [Product Module Extensions](#product-module-extensions)
+4. [Warehouse / Outlet Module](#warehouse--outlet-module)
+5. [Stock / Inventory Module](#stock--inventory-module)
+6. [POS Domain Module](#pos-domain-module)
+7. [Sales Transaction Module](#sales-transaction-module)
+8. [Customer and Loyalty Module](#customer-and-loyalty-module)
+9. [HRD Integration](#hrd-integration)
+10. [Finance Integration](#finance-integration)
+11. [Module Interaction Diagram](#module-interaction-diagram)
+12. [Feature to Module Mapping](#feature-to-module-mapping)
+13. [Data Flow per Transaction Type](#data-flow-per-transaction-type)
+14. [Notes and Improvements](#notes-and-improvements)
 
 ---
 
-## Context
+## Overview
 
-Current platform is strong in ERP + CRM for distributor workflows. F&B POS requires additional operational layers, but it must remain modular so existing ERP and CRM behavior is not changed.
+This document maps every POS feature to its owning GIMS module, clarifying which domain is responsible for what. This prevents duplication and ensures each feature is built in the correct vertical slice.
 
-- Multi outlet operations with rule: `company = outlet`
-- Table and floor plan operations with a 2D gamified layout
-- Real-time kitchen, payment, and reservation orchestration
-- Ingredient-level stock depletion using recipe/BOM
-- Customer master data for feedback and loyalty lives under `Master Data -> Customer`, not inside the POS tree
+### Guiding Principle
 
-### Non-Negotiable Scope Rule
+> The POS domain owns **order orchestration** and **floor management**. It **reads** from Product, Warehouse, and Customer. It **writes** to Stock and Sales. It never owns master data.
 
-- Existing ERP and CRM modules must remain unchanged.
-- POS is built as a separate parent module/package that consumes data from existing modules via API or read model.
-- No forced refactor on distributor workflows.
+## Module Registry
 
----
-
-## Strategic Recommendation
-
-Short answer: **Yes, POS F&B should connect to Stock/Inventory and Finance**, but only through a dedicated POS boundary so ERP/CRM code is not touched.
-
-Recommended approach:
-
-- Keep existing ERP/CRM as source systems only.
-- Build POS as an independent module tree with its own routes, usecases, and UI pages.
-- Use mapping adapters between POS and ERP/CRM so cross-module contracts stay stable.
-- Apply tenant model: one company record is treated as one outlet in POS context.
-- Introduce recipe/BOM so each sold menu item consumes ingredient inventory automatically.
-- Keep customer identity, feedback, and loyalty under Master Data Customer, with optional sync back to CRM through integration endpoints.
-
----
-
-## Menu Mapping (Current -> Adjustment -> Target)
-
-Interpretation note for this revision:
-
-- `Perlu diubah` means added mapping/adapter behavior in the POS parent module.
-- It does not mean changing existing ERP/CRM internals.
-
-| Current Menu/Module (Read-Only Source) | Perlu Diubah di POS Parent | Target POS F&B Menu |
+| Module | Backend Path | Responsibilities |
 |---|---|---|
-| Master Data Company | Mapping tenant POS: `company = outlet`, tambah shift dan cashier station di POS | POS Setup -> Outlet Profile & Stations |
-| Master Data Product (Distributor SKU) | POS catalog layer untuk klasifikasi `FNB_MENU`, `INGREDIENT`, `PACKAGING` | POS Catalog -> Menu & Ingredients |
-| Stock Inventory (Warehouse-centric) | POS stock adapter (reservation, deduction by recipe, per company/outlet) | POS Inventory -> Ingredient Ledger |
-| Sales Invoice (B2B flow) | POS invoice lifecycle sendiri (open, settle, void, refund) | POS -> Invoice |
-| Sales Order | POS order lifecycle sendiri (table, takeaway, waiting list) | POS -> Order Board |
-| Payment/Finance | POS payment orchestration (split tender, e-wallet, cash rounding) + posting bridge | POS -> Payments -> Finance Bridge |
-| Master Data Customer | Add feedback and loyalty children under customer master data | Master Data -> Customer |
-| Organization/Floor (belum ada POS layout) | Floor designer drag-drop (meja, kursi, area, lantai, kasir) | POS Table Management |
-| Queue management (belum ada) | Waiting list + SLA warning + seating estimation | POS Waiting List |
-| Master Data Payment & Courier | Do not expose in POS-only package | Hidden for POS-only package |
+| Product | `internal/product/` | Product catalog, product_kind, recipes, categories, pricing |
+| Warehouse | `internal/warehouse/` | Warehouses, outlets (is_pos_outlet), geographic scope |
+| Stock | `internal/stock/` | InventoryBatch, StockMovement, recipe explosion, FIFO deduction |
+| POS | `internal/pos/` | Floor layout, live orders, table management, KDS |
+| Sales | `internal/sales/` | Sales transactions, receipts, returns |
+| Customer | `internal/customer/` | Customer master, loyalty, membership |
+| HRD | `internal/hrd/` | Attendance, shifts, employee scheduling |
+| Finance | `internal/finance/` | Revenue posting, payment reconciliation |
+| Auth/RBAC | `internal/role/`, `internal/user/` | Permissions, WAREHOUSE scope, user-outlet assignment |
 
-### Requested Example Mapping Format
+## Product Module Extensions
 
-- menu1 (perlu diubah) -> menu2
-- Master Data Company (perlu diubah via adapter company=outlet) -> POS Outlet
-- Master Data Product (perlu diubah via POS catalog classification) -> POS Menu & Ingredient Catalog
-- Sales Invoice B2B (perlu diubah via POS invoice lifecycle) -> POS Invoice
-- Stock Inventory umum (perlu diubah via POS stock adapter + recipe deduction) -> POS Ingredient Inventory
-- CRM Feedback umum (perlu diubah via public QR app per outlet) -> POS Outlet Feedback
+### New Fields (owned by Product module)
 
----
+| Field | Table | Purpose |
+|---|---|---|
+| `product_kind` | `products` | System behavior enum: STOCK, RECIPE, SERVICE |
+| `is_inventory_tracked` | `products` | Controls inventory batch tracking |
+| `is_pos_available` | `products` | Controls POS catalog visibility |
 
-## Proposed POS Navigation Tree
+### Recipe Management (owned by Product module)
 
-The POS module should appear as a new parent menu in the navigation tree. Existing ERP and CRM menus stay intact and unchanged.
+| Entity | Table | Purpose |
+|---|---|---|
+| Recipe Items | `product_recipe_items` | BOM lines linking RECIPE product to STOCK ingredients |
 
-```text
-POS
-├── Overview
-├── Table Operations
-│   ├── Floor & Layout Designer
-│   ├── Live Table Map
-│   ├── Order Panel
-│   ├── Reservation
-│   └── Waiting List
-├── Inventory
-│   ├── Ingredient Inventory
-│   ├── Recipe / BOM
-│   └── Stock Reservation
-├── Reports
-│   ├── Sales Summary
-│   ├── Table Utilization
-│   └── Ingredient COGS
-└── Settings
-    ├── Outlet Profile
-    ├── Stations / Cashier
-    ├── Tax / Service / Rounding
-    └── Integration Bridge
+### Endpoints
+
+| Endpoint | Module Owner | POS Reads? |
+|---|---|---|
+| `GET /product/products` | Product | Yes (catalog) |
+| `GET /product/products/:id` | Product | Yes (detail + recipe) |
+| `GET /product/products/:id/recipe` | Product | Yes (recipe cost calc) |
+| `PUT /product/products/:id/recipe` | Product | No (admin only) |
+| `GET /product/products/form-data` | Product | Yes (categories, UOMs) |
+
+## Warehouse / Outlet Module
+
+### Outlet Configuration
+
+POS outlets are warehouses with `is_pos_outlet = true`.
+
+| Field | Table | Purpose |
+|---|---|---|
+| `is_pos_outlet` | `warehouses` | Marks warehouse as POS outlet |
+
+### User-Outlet Assignment
+
+| Entity | Table | Purpose |
+|---|---|---|
+| UserWarehouse | `user_warehouses` | Junction: which users can operate which outlets |
+
+### Endpoints
+
+| Endpoint | Module Owner | Description |
+|---|---|---|
+| `GET /warehouse/warehouses` | Warehouse | List all warehouses |
+| `GET /warehouse/warehouses?is_pos_outlet=true` | Warehouse | List POS outlets |
+| `GET /pos/outlets` | POS (reads Warehouse) | POS-specific outlet list for logged-in user |
+
+See [warehouse-outlet-rbac.md](shared/warehouse-outlet-rbac.md) for details.
+
+## Stock / Inventory Module
+
+### Inventory Tracking
+
+| Entity | Table | Purpose |
+|---|---|---|
+| InventoryBatch | `inventory_batches` | Per-product per-warehouse stock balance with batch tracking |
+| StockMovement | `stock_movements` | Append-only ledger: IN, OUT, ADJUST, TRANSFER |
+
+### POS Stock Operations
+
+| Operation | Triggered By | Stock Module Action |
+|---|---|---|
+| Direct sale (STOCK product) | POS order confirmed | StockMovement(OUT), reduce InventoryBatch |
+| Recipe sale (RECIPE product) | POS order confirmed | Recipe explosion → per-ingredient StockMovement(OUT) |
+| Service sale | POS order confirmed | No stock impact |
+| Sale void/return | POS void | StockMovement(IN), increase InventoryBatch |
+
+### Stock Sufficiency Check
+
+Before confirming a sale:
+1. For STOCK: Check `inventory_batches` balance >= ordered qty.
+2. For RECIPE: Check ALL ingredient balances >= consumed qty (recipe_qty * sale_qty).
+3. For SERVICE: Skip stock check.
+
+Insufficient stock on any line item rejects the sale (atomic).
+
+## POS Domain Module
+
+### Owns
+
+| Feature | Description |
+|---|---|
+| Floor Layout | Zones, tables, seats, visual editor |
+| Live Orders | Active order tracking per table/counter |
+| Table Management | Status (available, occupied, reserved, cleaning) |
+| Kitchen Display | Order routing to kitchen stations |
+| POS Session | Shift open/close, cash drawer |
+
+### Does NOT Own
+
+| Feature | Owned By |
+|---|---|
+| Product catalog | Product |
+| Stock deduction | Stock |
+| Sales receipt | Sales |
+| Customer data | Customer |
+| User permissions | Auth/Role |
+| Outlet master data | Warehouse |
+
+## Sales Transaction Module
+
+### POS Transaction Flow
+
+```
+POS Order Confirmed
+    → Stock deduction (Stock module)
+    → Sales Transaction created (Sales module)
+    → Receipt generated (Sales module)
+    → Payment recorded (Finance module)
+    → Loyalty points (Customer module, if applicable)
 ```
 
-### UI Recommendation
+### Sales-POS Integration
 
-- `Table Operations` should be one 2D gamified page, not two separate top-level screens.
-- Left canvas: floor plan, meja, kursi, ruangan, lantai, kasir.
-- Clicking a table or seat in the live map should open the POS action to register food to that table.
-- `Order Panel` owns the working logic for the flow; `Sales Order` is only an audit trail and settlement view.
-- Right side panel: active orders, invoice drawer, reservation queue, warning timer, and payment actions.
-- `Reservation` and `Waiting List` should live in the same operational surface so kasir tidak bolak-balik halaman.
+| Aspect | Handling |
+|---|---|
+| Transaction type | `POS_SALE` (new enum) |
+| Outlet reference | `warehouse_id` on transaction |
+| Line items | Product references with qty, price, discount |
+| Payment methods | Cash, Card, QRIS, Multi-payment |
 
-### Menu Purpose by Section
+## Customer and Loyalty Module
 
-| Menu | Purpose | Depends On |
+### POS Integration Points
+
+| Feature | Module | POS Usage |
 |---|---|---|
-| Overview | Ringkasan outlet, sales hari ini, status meja, order berjalan | POS order, POS invoice, reservation |
-| Table Operations | Satu UI 2D untuk layout, live table map, order panel, reservation, waiting list | Outlet profile, live table state, order state |
-| Inventory | Mengelola ingredient stock dan recipe/BOM | Product master projection, stock adapter |
-| Reports | Laporan operasional POS per outlet | Invoice, order, ingredient, payment |
-| Settings | Setup outlet, station, pajak, service, rounding, dan bridge | Master data company, finance settings |
+| Customer lookup | Customer | Search by phone/name at checkout |
+| Loyalty points | Customer | Earn points per transaction |
+| Membership tier | Customer | Tier-based discounts |
+| Customer history | Customer | View past orders |
 
----
+See [customer-loyalty-feedback.md](fnb/customer-loyalty-feedback.md) for details.
 
-## Relationship to Existing Modules
+## HRD Integration
 
-POS does not replace existing modules. It consumes them as source data and writes back only through bridge layers where needed.
+### Shift Management
 
-```text
-ERP / CRM Existing Core
-├── Master Data
-│   ├── Company (used as outlet tenant in POS)
-│   ├── Product (used as source catalog)
-│   └── Customer (used for member / guest identity)
-├── Stock
-│   └── Warehouse stock (used for ingredient adapter)
-├── Sales
-│   └── Sales order / invoice (not changed; POS has its own order and invoice lifecycle)
-├── Finance
-│   └── Journal / receivable / cash bank (used by finance bridge)
-└── CRM
-    └── Feedback / loyalty campaign (used through integration sync, not direct refactor)
+| Feature | Module | POS Usage |
+|---|---|---|
+| Employee shifts | HRD | Validate cashier is on-shift |
+| Attendance | HRD | Clock-in/out at outlet |
+| Scheduling | HRD | Staff assignment per outlet |
+
+## Finance Integration
+
+### Revenue and Payment
+
+| Feature | Module | POS Usage |
+|---|---|---|
+| Payment processing | Finance | Record payment methods and amounts |
+| Revenue posting | Finance | Automatic journal entries per sale |
+| Cash reconciliation | Finance | End-of-shift cash count vs system |
+| Tax calculation | Finance | VAT/service charge per sale |
+
+## Module Interaction Diagram
+
+```mermaid
+graph LR
+    POS[POS Domain] -->|reads| PROD[Product]
+    POS -->|reads| WH[Warehouse/Outlet]
+    POS -->|reads| CUST[Customer]
+    POS -->|writes| STOCK[Stock]
+    POS -->|writes| SALES[Sales]
+    SALES -->|writes| FIN[Finance]
+    POS -->|reads| HRD[HRD/Shifts]
+    
+    PROD -->|owns| RECIPE[Recipe Items]
+    WH -->|owns| OUTLET[Outlet Config]
+    STOCK -->|consumes| RECIPE
+    
+    AUTH[Auth/RBAC] -->|scopes| POS
+    AUTH -->|scopes| PROD
+    AUTH -->|scopes| STOCK
 ```
 
-### Module Relationship Summary
+## Feature to Module Mapping
 
-| Existing Module | Relation to POS | Notes |
+| POS Feature | Primary Module | Supporting Modules |
 |---|---|---|
-| Master Data Company | POS uses it as outlet tenant source | In POS context, `company = outlet` |
-| Master Data Product | POS uses a channel-specific catalog projection | Distributor product behavior stays intact |
-| Master Data Customer | POS uses it for guest/member reference and customer engagement | Feedback and loyalty live under master data customer |
-| Master Data Payment & Courier | Not part of POS-only package | Hidden unless another package requires it |
-| Stock | POS reads and deducts ingredient stock through adapter | No direct rewrite of stock module needed |
-| Sales | POS creates its own order/invoice flow | Separate lifecycle for dine-in and quick service |
-| Finance | POS posts payment and settlement data through bridge | Finance remains the accounting source of truth |
-| CRM | POS can optionally sync customer events only | CRM module stays untouched |
+| Product catalog display | Product | — |
+| Recipe management | Product | — |
+| Menu/catalog picker | POS (reads Product) | Product |
+| Floor layout editor | POS | — |
+| Table management | POS | — |
+| Order creation | POS | Product, Stock |
+| Stock deduction | Stock | Product (recipe) |
+| Payment processing | Finance | Sales |
+| Receipt generation | Sales | POS |
+| Customer loyalty | Customer | POS |
+| Cashier shift | HRD | POS |
+| Outlet management | Warehouse | POS |
+| User-outlet assignment | Auth/User | Warehouse |
+| POS reports | Report | POS, Sales, Stock |
+| Kitchen display | POS | — |
 
-### Placement Recommendation for Customer Features
+## Data Flow per Transaction Type
 
-- Move `Customer`, `Feedback`, and `Loyalty Program` into `Master Data -> Customer`.
-- Keep POS tree focused on service flow only.
-- Put only POS configuration primitives under `POS -> Settings` (template, rules, QR layout).
+### Goods Sale (Mode A)
 
-#### Master Data Navigation Tree (Customer)
-
-The `Customer` master data should expose loyalty and feedback as a clear navigation subtree so admin users can manage members and view outlet-specific feedback without opening POS menus:
-
-```text
-Master Data
-└── Customer
-    ├── Customer List
-    ├── Loyalty Program
-    └── Feedback
+```
+1. User scans product (STOCK kind)
+2. POS → Product: Get product detail + price
+3. POS → Stock: Check availability in outlet warehouse
+4. User confirms payment
+5. POS → Stock: StockMovement(OUT) per item
+6. POS → Sales: Create SalesTransaction
+7. POS → Finance: Record payment
+8. POS → Customer: Award loyalty points (optional)
 ```
 
-Notes:
-- Loyalty earns/redeems are recorded per outlet (company=outlet) but managed here.
-- Feedback entries should reference `outlet_id`, `table_id` and `invoice_id` where applicable.
+### F&B Sale (Mode B)
 
-### Master Data Scope for POS Package
+```
+1. Staff selects table, takes order (RECIPE + SERVICE items)
+2. POS → Product: Get product detail + recipe items
+3. POS → Kitchen: Send order ticket
+4. Kitchen prepares, marks items ready
+5. Staff serves items
+6. Customer requests bill
+7. POS → Stock: Recipe explosion per RECIPE item
+8.   For each recipe_item: StockMovement(OUT) per ingredient
+9. POS → Sales: Create SalesTransaction with table reference
+10. POS → Finance: Record payment (cash/card/QRIS/split)
+11. POS → Customer: Award loyalty points (optional)
+12. POS: Release table
+```
 
-| Master Data Path | Essential | Growth | Enterprise | Notes |
-|---|---|---|---|---|
-| Organization -> Company | Yes | Yes | Yes | Outlet tenant source |
-| Product | Yes | Yes | Yes | Menu catalog source |
-| Customer | Yes | Yes | Yes | Includes customer submenus for loyalty/feedback |
-| Warehouses | No | Yes | Yes | Only when ingredient inventory is enabled |
-| Payment & Courier | No | No | No | Not included in POS-only package |
-| Geographic | No | Optional | Optional | Only if outlet setup needs it |
+## Notes and Improvements
 
----
+### Current State
 
-## Subscription Packaging
+- Product module extended with product_kind, recipe support.
+- Warehouse module extended with is_pos_outlet.
+- POS domain has floor layout feature.
+- Stock module has InventoryBatch and StockMovement.
 
-The POS package should be sold as three tiers. Global platform menus like Dashboard, Master Data, Stock, Finance, CRM, Purchase, Sales, HRD, and Reports remain unchanged; the package only controls what appears under the `POS` parent menu.
+### Planned
 
-### Global Modules That Stay Visible
+- Kitchen Display System (KDS) as POS sub-module.
+- Real-time WebSocket for live order and kitchen sync.
+- Offline-first POS mode with sync queue.
+- Multi-printer routing (kitchen, bar, receipt).
+- POS analytics dashboard.
 
-| Module | Status | Why |
-|---|---|---|
-| Dashboard | Always visible | Platform entry point |
-| Master Data | Always visible | Shared source data for ERP/CRM/POS |
-| Sales, Purchase, Stock, Finance, HRD, Reports, CRM | Existing core modules | Not part of POS subscription gating |
+### Module Boundaries to Watch
 
-### Package Menu Matrix
-
-| POS Tier | Visible POS Menus | Included Capabilities |
-|---|---|---|
-| Essential | Overview, Table Operations, Settings | Basic floor map, live table map, order entry, invoice drawer, outlet profile, cashier setup, tax/service/rounding |
-| Growth | Essential + Inventory, Reports | Ingredient stock, recipe/BOM, reservation, waiting list, table utilization, ingredient COGS |
-| Enterprise | Growth + Advanced Settings + Integration Bridge | Multi-outlet admin, custom QR theme, advanced permissions, API/webhook bridge, finance sync, central reporting |
-
-### Package Visibility by Menu
-
-| Menu | Essential | Growth | Enterprise |
-|---|---|---|---|
-| Overview | Yes | Yes | Yes |
-| Table Operations | Yes | Yes | Yes |
-| Inventory | No | Yes | Yes |
-| Reports | No | Yes | Yes |
-| Reservation | Yes | Yes | Yes |
-| Waiting List | Yes | Yes | Yes |
-| Integration Bridge | No | No | Yes |
-| Advanced Permissions | No | No | Yes |
-
-### Packaging Guidance
-
-- `Dashboard` and `Master Data` stay global; they are not sold as POS package features.
-- `Customer`, `Feedback`, and `Loyalty Program` are shared master data, not POS tree items.
-- For POS-only package, `Payment & Courier` is hidden from Master Data and `Inventory` is only visible from Growth upward.
-- If you want simpler admin, only the configuration layer can be mirrored into `POS -> Settings`.
-
----
-
-## Data and Module Integration
-
-### Core Integrations
-
-| Source Module | POS Module | Integration Rule |
-|---|---|---|
-| Master Data (Company/Org) | Outlet, Floor, Table, Station | In POS context: 1 company = 1 outlet; floor/table/station managed by POS |
-| Product Master | Menu Catalog | Produk bertipe `FNB_MENU` dipakai untuk penjualan POS |
-| Inventory/Stock | Ingredient Ledger | Penjualan menu memicu pemotongan ingredient berdasarkan recipe BOM |
-| Sales | POS Invoice | POS order selesai menghasilkan invoice POS |
-| Payment | POS Payment | Multi-method payment; bisa split tender |
-| Finance | Journal/AR/Cash Bank | Payment posted ke finance; status invoice ter-update |
-| CRM | Loyalty & Feedback | Customer points dari transaksi, feedback dari QR outlet/table/invoice |
-
-### Integration Boundary Rules
-
-- ERP/CRM endpoints are consumed by POS, not modified by POS.
-- POS writes only to POS-owned tables for operational flow.
-- Cross-module updates to Finance/CRM happen via bridge API/event contract.
-- If packaging is enabled per company, activation is done by feature flags at company level.
-
-### POS Domain Additions (New)
-
-- FloorPlan
-- Table
-- TableSession
-- Reservation
-- WaitingList
-- WaitingSLAWarning
-- PosOrder
-- PosOrderItem
-- KitchenTicket
-- PosInvoice
-- PosPayment
-- PosPaymentSplit
-- Recipe (BOM)
-- RecipeItem
-
----
-
-## Product vs Ingredient Model
-
-Recommended product model extension:
-
-| Item Type | Purpose | Stock Behavior |
-|---|---|---|
-| `RESALE` | Existing distributor sale item | Deduct normal stock on sale |
-| `FNB_MENU` | Sellable menu in POS | No direct stock deduction; triggers recipe explosion |
-| `INGREDIENT` | Raw material for menu | Deduct based on recipe quantity |
-| `PACKAGING` | Cup/box/etc | Optional deduct from recipe or fixed rule |
-
-### Product Ownership Rule
-
-- Existing master product remains intact as global product source.
-- POS keeps a catalog projection for channel-specific behavior (menu display, recipe linkage, kitchen tags, serving rules).
-- This projection avoids changing distributor product behavior.
-
-### Key Rule
-
-For F&B POS, **do not deduct stock from menu item directly**. Deduct from ingredient lines in recipe/BOM.
-
-Formula:
-
-- Ingredient deduction per sale = Menu qty sold x Recipe qty per menu
-
----
-
-## End-to-End Transaction Flow
-
-1. Company (as outlet tenant) opens active shift at cashier station.
-2. Guest arrives via reservation, walk-in, or waitlist.
-3. Reservation is confirmed or assigned to a table.
-4. Waiter/cashier uses the Table Operations 2D screen.
-5. Order is created on the same screen and sent to kitchen ticket.
-6. On bill finalization, POS invoice is generated.
-7. Payment captured (cash/card/e-wallet/split).
-8. Invoice status updated to paid/partial.
-9. Ingredient stock deducted from outlet inventory by recipe BOM.
-10. Journal posted to finance (sales, tax, service, payment account).
-11. Loyalty points credited (if member).
-12. QR/barcode feedback shared (invoice/table/outlet specific).
-
----
-
-## Implementation Phases
-
-### Phase 1 (MVP POS)
-
-- POS parent module skeleton (isolated routes, entities, usecases)
-- Company-to-outlet tenant mapping
-- Outlet + station setup
-- Unified Table Operations 2D screen
-- Basic order -> invoice -> payment flow
-- Simple ingredient inventory deduction (recipe/BOM)
-- Finance bridge posting basic
-
-### Phase 2 (Operational Depth)
-
-- Drag-drop floor designer (table/chair/room/level)
-- Reservation + waiting list + ETA
-- Waiting time warning dashboard
-- Kitchen ticket workflow and bump screen
-- Split payment, partial payment, void/refund controls
-
-### Phase 3 (Customer Loop)
-
-- Loyalty points earn/redeem
-- Voucher and promo engine
-- QR/barcode feedback with public page template customization per outlet
-- Analytics for repeat customer, top menu, feedback score
-
----
-
-## Risks and Mitigation
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| POS accidentally couples with ERP/CRM internals | High upgrade risk | Enforce integration boundary, adapter layer, and no direct cross-domain writes |
-| Product model conflict between distributor and F&B | Data ambiguity | Enforce product type enum + separate validation per channel |
-| Stock inconsistency during rush hour | Financial and COGS mismatch | Use atomic transaction + row-level locking on stock deduction |
-| Multi-outlet configuration complexity | Slow onboarding | Provide outlet setup wizard and default templates |
-| Loyalty abuse/fraud | Margin loss | Use rules engine, audit trail, and max redeem constraints |
-| Feedback spam from public QR | Dirty data | Rate limiting + captcha + one-submit per invoice rule |
-
----
-
-## Final Recommendation
-
-- Build POS as a parent module/package that is fully modular and isolated from ERP/CRM internals.
-- Treat company as outlet in POS tenant context (`company = outlet`).
-- Keep ERP/CRM untouched and integrate through API/event adapters only.
-- Use one Table Operations 2D UI to combine floor, orders, invoice, reservation, and waiting list.
-- Put customer, feedback, and loyalty into `Master Data -> Customer` so POS navigation stays focused on service flow.
-- Prioritize BOM-driven ingredient deduction and finance bridge posting from day one.
+- Stock deduction logic must stay in Stock module, not POS.
+- Recipe detail must stay in Product module, not POS.
+- Payment processing must stay in Finance module, not POS.
+- POS orchestrates but does not own cross-cutting data.

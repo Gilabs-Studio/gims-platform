@@ -39,6 +39,8 @@ type SalesPayment struct {
 
 	PaymentDate string  `gorm:"type:varchar(20);not null;index" json:"payment_date"`
 	Amount      float64 `gorm:"type:decimal(15,2);not null;default:0" json:"amount"`
+	TenderAmount float64 `gorm:"type:decimal(15,2);not null;default:0" json:"tender_amount"`
+	ChangeAmount float64 `gorm:"type:decimal(15,2);not null;default:0" json:"change_amount"`
 
 	Method SalesPaymentMethod `gorm:"type:varchar(20);not null;index" json:"method"`
 	Status SalesPaymentStatus `gorm:"type:varchar(20);not null;default:'PENDING';index" json:"status"`

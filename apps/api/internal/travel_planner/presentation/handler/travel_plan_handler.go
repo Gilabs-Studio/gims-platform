@@ -246,6 +246,43 @@ func (h *TravelPlanHandler) UpsertLocation(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// StartNavigation handles POST /travel/locations/navigation/start.
+// Broadcasts a navigation_started WebSocket event so scope-visible supervisors
+// see the sales employee begin their route on the live map.
+func (h *TravelPlanHandler) StartNavigation(c *gin.Context) {
+	var req dto.StartNavigationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.StartNavigation(c.Request.Context(), &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+// StopNavigation handles POST /travel/locations/navigation/stop.
+// Broadcasts a navigation_stopped WebSocket event to clear the live indicator.
+func (h *TravelPlanHandler) StopNavigation(c *gin.Context) {
+	var req dto.StopNavigationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.StopNavigation(c.Request.Context(), &req)
+	if err != nil {
+		handleTravelPlanError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *TravelPlanHandler) ListVisitPlannerRoutes(c *gin.Context) {
 	var req dto.ListVisitPlannerRoutesRequest
 	if err := c.ShouldBindQuery(&req); err != nil {

@@ -32,6 +32,9 @@ export const salesPaymentEn = {
     cancel: "Cancel",
     amountLockedHint: "Amount is pre-filled and cannot be changed.",
     amountHandledBySystem: "Amount is determined and processed by the system.",
+    bankAmountHint: "Enter the transfer amount paid by customer.",
+    cashAmountHint: "Enter the cash amount received from customer.",
+    cashAmountMinimum: "Cash received cannot be lower than remaining amount",
     amountRequired: "Amount is required.",
   },
   fields: {
@@ -42,6 +45,8 @@ export const salesPaymentEn = {
     bankAccount: "Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
+    tenderAmount: "Paid",
+    changeAmount: "Change",
     method: "Method",
     status: "Status",
     referenceNumber: "Reference Number",

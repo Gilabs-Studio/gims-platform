@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ChevronDown,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   Layers,
+  FlaskConical,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,6 +144,7 @@ function ProductNode({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const t = useTranslations("inventory");
   const getStatusColor = (status: string) => {
     switch (status) {
       case "low_stock":
@@ -192,6 +195,12 @@ function ProductNode({
         </div>
 
         <div className="flex items-center gap-6 text-xs tabular-nums mr-4">
+          {product.is_ingredient && (
+            <Badge variant="default" className="gap-1 text-[10px] px-1.5 py-0 h-5 shrink-0">
+              <FlaskConical className="h-2.5 w-2.5" />
+              {t("badge.ingredient")}
+            </Badge>
+          )}
           <div className="flex flex-col items-end">
             <span className="text-muted-foreground">On Hand</span>
             <span className="font-medium">{product.on_hand}</span>

@@ -205,6 +205,90 @@ func SeedEmployees() error {
 
 			IsActive: true,
 		},
+		{
+			ID:           OutletManager1EmployeeID,
+			EmployeeCode: "EMP-008",
+			Name:         "Outlet Manager Sudirman",
+			Email:        "outlet-manager1@example.com",
+			Phone:        "081234567897",
+			UserID:       strPtr(OutletManager1UserID),
+
+			CompanyID:     strPtr(MieGacoanCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Jakarta",
+			DateOfBirth:  timePtr(date(1988, 6, 20)),
+			Gender:       models.GenderMale,
+			Religion:     "Islam",
+			Address:      "Jl. Sudirman Kav. 52",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
+		{
+			ID:           OutletManager2EmployeeID,
+			EmployeeCode: "EMP-009",
+			Name:         "Outlet Manager Kelapa Gading",
+			Email:        "outlet-manager2@example.com",
+			Phone:        "081234567898",
+			UserID:       strPtr(OutletManager2UserID),
+
+			CompanyID:     strPtr(MieGacoanCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Jakarta",
+			DateOfBirth:  timePtr(date(1990, 2, 14)),
+			Gender:       models.GenderFemale,
+			Religion:     "Kristen",
+			Address:      "Jl. Kelapa Gading Bulevar",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
+		{
+			ID:           OutletManager3EmployeeID,
+			EmployeeCode: "EMP-010",
+			Name:         "Outlet Manager Kimia Farma Sudirman",
+			Email:        "outlet-manager3@example.com",
+			Phone:        "081234567899",
+			UserID:       strPtr(OutletManager3UserID),
+
+			CompanyID:     strPtr(KimiaFarmaCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Surabaya",
+			DateOfBirth:  timePtr(date(1989, 8, 10)),
+			Gender:       models.GenderMale,
+			Religion:     "Islam",
+			Address:      "Jl. Sudirman Kav. 44",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
+		{
+			ID:           OutletManager4EmployeeID,
+			EmployeeCode: "EMP-011",
+			Name:         "Outlet Manager Kimia Farma Pondok Indah",
+			Email:        "outlet-manager4@example.com",
+			Phone:        "081234567900",
+			UserID:       strPtr(OutletManager4UserID),
+
+			CompanyID:     strPtr(KimiaFarmaCompanyID),
+			DivisionID:    strPtr(OpsDivisionID),
+			JobPositionID: strPtr(ManagerPositionID),
+
+			PlaceOfBirth: "Bandung",
+			DateOfBirth:  timePtr(date(1991, 12, 22)),
+			Gender:       models.GenderFemale,
+			Religion:     "Kristen",
+			Address:      "Jl. Metro Pondok Indah No.10",
+			VillageID:    villageID,
+
+			IsActive: true,
+		},
 	}
 
 	for _, e := range employees {

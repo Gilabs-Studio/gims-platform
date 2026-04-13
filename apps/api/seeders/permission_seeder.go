@@ -112,6 +112,7 @@ func SeedPermissions() error {
 		{"/master-data/products", "product.read", "View Products", "VIEW", "product"},
 		{"/master-data/products", "product.create", "Create Products", "CREATE", "product"},
 		{"/master-data/products", "product.update", "Edit Products", "EDIT", "product"},
+		{"/master-data/products", "product.recipe.update", "Edit Product Recipe BOM", "EDIT", "product_recipe"},
 		{"/master-data/products", "product.delete", "Delete Products", "DELETE", "product"},
 		{"/master-data/products", "product.approve", "Approve Products", "APPROVE", "product"},
 
@@ -155,6 +156,12 @@ func SeedPermissions() error {
 		{"/master-data/warehouses", "warehouse.create", "Create Warehouses", "CREATE", "warehouse"},
 		{"/master-data/warehouses", "warehouse.update", "Edit Warehouses", "EDIT", "warehouse"},
 		{"/master-data/warehouses", "warehouse.delete", "Delete Warehouses", "DELETE", "warehouse"},
+
+		// Master Data - Outlet
+		{"/master-data/outlet", "outlet.read", "View Outlets", "VIEW", "outlet"},
+		{"/master-data/outlet", "outlet.create", "Create Outlets", "CREATE", "outlet"},
+		{"/master-data/outlet", "outlet.update", "Edit Outlets", "EDIT", "outlet"},
+		{"/master-data/outlet", "outlet.delete", "Delete Outlets", "DELETE", "outlet"},
 
 		// Master Data - Payment & Courier
 		{"/master-data/currencies", "currency.read", "View Currencies", "VIEW", "currency"},
@@ -578,6 +585,27 @@ func SeedPermissions() error {
 		{"/ai-chatbot", "ai_chatbot.view", "View AI Chatbot", "VIEW", "ai_chatbot"},
 		{"/ai-settings", "ai_settings.view", "View AI Settings", "VIEW", "ai_settings"},
 		{"/ai-settings", "ai_settings.edit", "Edit AI Settings", "EDIT", "ai_settings"},
+
+		// POS
+		{"/pos", "pos_menu.read", "View POS Menu", "VIEW", "pos"},
+		{"/pos/fb/floor-layout", "pos.layout.manage", "Manage POS Floor Layout", "MANAGE", "pos_layout"},
+		{"/pos", "pos.outlet.read", "View POS Outlets", "VIEW", "pos_outlet"},
+		{"/pos", "pos.outlet.manage", "Manage POS Outlets", "MANAGE", "pos_outlet"},
+		{"/pos/fb/terminal", "pos.order.create", "Create POS Orders", "CREATE", "pos_order"},
+		{"/pos/fb/terminal", "pos.order.read", "View POS Orders", "VIEW", "pos_order"},
+		{"/pos/fb/terminal", "pos.catalog.read", "View POS Catalog", "VIEW", "pos_catalog"},
+		{"/pos/fb/terminal", "pos.recipe.read", "View POS Recipes", "VIEW", "pos_recipe"},
+		{"/pos/fb/terminal", "pos.recipe.manage", "Manage POS Recipes", "MANAGE", "pos_recipe"},
+		{"/pos/fb/floor-layout", "pos.floor.read", "View POS Floor Layouts", "VIEW", "pos_floor"},
+		{"/pos/fb/floor-layout", "pos.floor.manage", "Manage POS Floor Layouts", "MANAGE", "pos_floor"},
+		// POS config — required by /pos/config/outlet/:id route
+		{"/pos", "pos.config.read", "Read POS Outlet Config", "VIEW", "pos_config"},
+		{"/pos", "pos.config.manage", "Manage POS Outlet Config", "MANAGE", "pos_config"},
+		// POS session management — required by GET /pos/sessions (list all sessions)
+		{"/pos", "pos.session.manage", "Manage POS Sessions", "MANAGE", "pos_session"},
+		// POS payment — view/manage Xendit connection (Owner/Admin only)
+		{"/pos/settings/payment", "pos.payment.view", "View POS Payment Settings", "VIEW", "pos_payment_config"},
+		{"/pos/settings/payment", "pos.payment.manage", "Manage POS Payment Gateway (Xendit)", "MANAGE", "pos_payment_config"},
 		{"/crm/settings", "crm_settings.read", "View CRM Settings", "VIEW", "crm_settings"},
 		{"/master-data/product", "product_menu.read", "View Product Menu", "VIEW", "product"},
 		{"/master-data/organization", "organization_menu.read", "View Organization Menu", "VIEW", "organization"},
@@ -783,6 +811,7 @@ func SeedPermissions() error {
 		"finance":           "DIVISION",
 		"non_trade_payable": "DIVISION",
 		"travel_visit":      "DIVISION",
+		"pos":               "OWN",
 		"stock":             "ALL",
 	}, "ALL")
 
@@ -794,6 +823,7 @@ func SeedPermissions() error {
 		"finance":           "OWN",
 		"non_trade_payable": "OWN",
 		"travel_visit":      "OWN",
+		"pos":               "OWN",
 		"stock":             "OWN",
 	}, "ALL")
 
@@ -804,51 +834,22 @@ func SeedPermissions() error {
 		"hrd":          "OWN",
 		"finance":      "OWN",
 		"travel_visit": "DIVISION",
+		"pos":          "OWN",
 		"stock":        "AREA",
 	}, "ALL")
 
-	// Assign scoped permissions to sales_director role (ALL for sales, DIVISION for others)
-	assignScopedPermissionsToRole("sales_director", map[string]string{
-		"sales":        "ALL",
-		"purchase":     "DIVISION",
-		"hrd":          "OWN",
-		"finance":      "OWN",
-		"travel_visit": "ALL",
-		"stock":        "ALL",
-	}, "ALL")
-
-	// Assign scoped permissions to finance_manager role (DIVISION for finance, OWN for others)
-	assignScopedPermissionsToRole("finance_manager", map[string]string{
-		"finance":           "DIVISION",
-		"non_trade_payable": "DIVISION",
-		"sales":             "OWN",
-		"purchase":          "OWN",
-		"hrd":               "OWN",
-		"travel_visit":      "OWN",
-		"stock":             "OWN",
-		// Finance journal domain pages — explicit DIVISION scope
-		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
-		//  standard module prefix, so they must be mapped explicitly)
-		"adjustment_journal": "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
-	}, "ALL")
-
-	assignScopedPermissionsToRole("accountant", map[string]string{
-		"finance":           "DIVISION",
-		"non_trade_payable": "DIVISION",
-		"sales":             "OWN",
-		"purchase":          "OWN",
-		"hrd":               "OWN",
-		"travel_visit":      "OWN",
-		"stock":             "OWN",
-		// Finance journal domain pages — Accountant operates at DIVISION level
-		"adjustment_journal": "DIVISION",
-		"journal_valuation":  "DIVISION",
-		"cash_bank_journal":  "DIVISION",
-	}, "OWN")
-
 	assignViewPermissionsToRole("auditor", "ALL")
+
+	// Tighten outlet_manager permissions:
+	// Only grant OUTLET-scoped access for outlet-related operational modules.
+	// Use a conservative defaultScope (OWN) to avoid granting ALL on master-data.
+	assignScopedPermissionsToRole("outlet_manager", map[string]string{
+		"outlet": "OUTLET",
+		"pos":    "OUTLET",
+		"sales":  "OUTLET",
+		"stock":  "OUTLET",
+		"crm":    "OUTLET",
+	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded
 	invalidatePermissionCache()

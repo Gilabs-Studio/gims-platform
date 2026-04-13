@@ -76,7 +76,7 @@ export interface AIActionPreview {
   status: string;
   entity_type?: string;
   entity_id?: string;
-  payload_preview?: string;
+  payload_preview?: unknown;
   duration_ms?: number;
 }
 
@@ -126,6 +126,7 @@ export interface AIModelsResponse {
 }
 
 export interface ConfirmActionPayload {
+  session_id?: string;
   action_id: string;
   confirmed: boolean;
 }
@@ -193,6 +194,56 @@ export interface IntentRegistryResponse {
   data: AIIntentRegistry[];
   timestamp: string;
   request_id: string;
+}
+
+// --- Streaming Event Types (mirrors backend tools.StreamEvent) ---
+
+export type StreamEventType =
+  | "message_start"
+  | "content_delta"
+  | "tool_call"
+  | "tool_result"
+  | "thinking"
+  | "message_end"
+  | "error";
+
+export interface StreamEvent {
+  type: StreamEventType;
+  content?: string;
+  data?: unknown;
+}
+
+export interface StreamMessageStartData {
+  session_id: string;
+}
+
+export interface StreamToolCallData {
+  name: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface StreamToolResultData {
+  call: {
+    id: string;
+    name: string;
+    parameters: Record<string, unknown>;
+  };
+  result: {
+    success: boolean;
+    message: string;
+    data?: unknown;
+    entity_type?: string;
+    entity_id?: string;
+    action: string;
+    duration_ms: number;
+    error_code?: string;
+    error_message?: string;
+  };
+}
+
+export interface StreamMessageEndData {
+  duration_ms: number;
+  turn_count: number;
 }
 
 // --- Filter/Query Params ---

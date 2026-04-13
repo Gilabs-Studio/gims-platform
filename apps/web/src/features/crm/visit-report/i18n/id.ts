@@ -153,6 +153,7 @@ export const crmVisitReportId = {
       approved: "Disetujui",
       withOutcome: "Dengan Outcome",
       checkInRate: "Rasio Check-in",
+      withOutcome: "Dengan Hasil",
     },
     calendar: {
       today: "Hari Ini",

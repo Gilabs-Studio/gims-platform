@@ -39,6 +39,8 @@ export interface Warehouse {
   village?: Village;
   latitude?: number | null;
   longitude?: number | null;
+  is_pos_outlet?: boolean;
+  outlet_id?: string;
   is_active: boolean;
   has_stock: boolean;
   created_at: string;
@@ -57,6 +59,7 @@ export interface CreateWarehouseData {
   village_name?: string;
   latitude?: number | null;
   longitude?: number | null;
+  outlet_id?: string;
   is_active?: boolean;
 }
 
@@ -74,6 +77,7 @@ export interface UpdateWarehouseData {
   village_name?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  outlet_id?: string | null;
   is_active?: boolean;
 }
 
@@ -85,6 +89,7 @@ export interface WarehouseListParams {
   sort_by?: string;
   sort_dir?: "asc" | "desc";
   is_active?: boolean;
+  outlet_id?: string;
 }
 
 export interface PaginationMeta {

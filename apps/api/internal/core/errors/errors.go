@@ -265,6 +265,24 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		Message:    "Customer credit limit exceeded",
 	},
 
+	// POS Errors
+	"POS_ORDER_CANNOT_MODIFY": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "POS order cannot be modified in its current state",
+	},
+	"POS_PRODUCT_NOT_AVAILABLE": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "POS product is not available",
+	},
+	"POS_ORDER_ALREADY_PAID": {
+		HTTPStatus: http.StatusConflict,
+		Message:    "POS order has already been paid",
+	},
+	"POS_INSUFFICIENT_PAYMENT": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Payment amount is insufficient",
+	},
+
 	// HRD - Leave Request Errors
 	"INSUFFICIENT_LEAVE_BALANCE": {
 		HTTPStatus: http.StatusBadRequest,
@@ -357,6 +375,18 @@ var ErrorCodeMap = map[string]ErrorInfo{
 	"WAREHOUSE_HAS_STOCK": {
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Warehouse cannot be deleted because it still has active stock. Transfer all inventory to another warehouse first.",
+	},
+	"XENDIT_CONNECTION_TEST_FAILED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Failed to connect to Xendit. Please verify your secret key and account settings.",
+	},
+	"XENDIT_NOT_CONNECTED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Digital payment is not available because Xendit is not connected",
+	},
+	"XENDIT_INVOICE_FAILED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Failed to create digital payment invoice",
 	},
 }
 

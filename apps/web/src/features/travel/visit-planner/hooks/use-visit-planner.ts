@@ -8,8 +8,11 @@ import type {
   CreateVisitPlannerPlanRequest,
   LocationUpdateEvent,
   LocationUpdateRequest,
+  NavigationStatusEvent,
   OptimizeNavigationRequest,
   RouteStatusEvent,
+  StartNavigationRequest,
+  StopNavigationRequest,
   VisitLogRequest,
   VisitPlannerFormDataParams,
 } from "../types";
@@ -84,6 +87,18 @@ export function usePublishVisitLocation() {
   });
 }
 
+export function useStartNavigation() {
+  return useMutation({
+    mutationFn: (payload: StartNavigationRequest) => visitPlannerService.startNavigation(payload),
+  });
+}
+
+export function useStopNavigation() {
+  return useMutation({
+    mutationFn: (payload: StopNavigationRequest) => visitPlannerService.stopNavigation(payload),
+  });
+}
+
 export function useUploadVisitPlannerImage() {
   return useMutation({
     mutationFn: (file: File) => visitPlannerService.uploadImage(file),
@@ -96,12 +111,14 @@ export interface UseVisitPlannerRealtimeParams {
   enabled?: boolean;
   onLocationUpdate?: (event: LocationUpdateEvent) => void;
   onRouteStatus?: (event: RouteStatusEvent) => void;
+  onNavigationStatus?: (event: NavigationStatusEvent) => void;
 }
 
 export function useVisitPlannerRealtime(params: UseVisitPlannerRealtimeParams) {
   const socketRef = useRef<WebSocket | null>(null);
   const onLocationUpdateRef = useRef(params.onLocationUpdate);
   const onRouteStatusRef = useRef(params.onRouteStatus);
+  const onNavigationStatusRef = useRef(params.onNavigationStatus);
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -121,6 +138,10 @@ export function useVisitPlannerRealtime(params: UseVisitPlannerRealtimeParams) {
   useEffect(() => {
     onRouteStatusRef.current = params.onRouteStatus;
   }, [params.onRouteStatus]);
+
+  useEffect(() => {
+    onNavigationStatusRef.current = params.onNavigationStatus;
+  }, [params.onNavigationStatus]);
 
   useEffect(() => {
     if (!enabled) {
@@ -143,6 +164,10 @@ export function useVisitPlannerRealtime(params: UseVisitPlannerRealtimeParams) {
         }
         if (message.type === "route_status") {
           onRouteStatusRef.current?.(message.data as RouteStatusEvent);
+          return;
+        }
+        if (message.type === "navigation_started" || message.type === "navigation_stopped") {
+          onNavigationStatusRef.current?.(message.data as NavigationStatusEvent);
         }
       },
       onError: () => {

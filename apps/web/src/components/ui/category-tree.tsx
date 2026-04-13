@@ -149,29 +149,38 @@ function TreeNode({
         aria-selected={isSelected}
         aria-expanded={hasChildren ? isExpanded : undefined}
       >
-        {/* Expand/Collapse icon */}
-        <button
-          type="button"
-          className={cn(
-            "p-0.5 rounded hover:bg-accent transition-colors cursor-pointer",
-            !hasChildren && "invisible"
-          )}
-          onClick={handleToggle}
-          tabIndex={-1}
-          aria-label={isExpanded ? "Collapse" : "Expand"}
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-        </button>
+        {/* Expand/Collapse icon — only rendered when the node has children */}
+        {hasChildren ? (
+          <button
+            type="button"
+            className="p-0.5 rounded hover:bg-accent transition-colors cursor-pointer"
+            onClick={handleToggle}
+            tabIndex={-1}
+            aria-label={isExpanded ? "Collapse" : "Expand"}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+        ) : null}
 
-        {/* Folder icon */}
+        {/* Folder icon — color reflects category_type: FNB=success, GOODS=warning */}
         {isExpanded ? (
-          <FolderOpen className="h-4 w-4 text-warning shrink-0" />
+          <FolderOpen
+            className={cn(
+              "h-4 w-4 shrink-0",
+              node.category_type === "FNB" ? "text-success" : "text-warning"
+            )}
+          />
         ) : (
-          <Folder className="h-4 w-4 text-warning/70 shrink-0" />
+          <Folder
+            className={cn(
+              "h-4 w-4 shrink-0",
+              node.category_type === "FNB" ? "text-success/70" : "text-warning/70"
+            )}
+          />
         )}
 
         {/* Category name */}

@@ -34,12 +34,12 @@ export function useInventoryTree() {
 }
 
 // Hook for fetching products of a warehouse
-export function useInventoryTreeProducts(warehouseId: string, enabled: boolean) {
+export function useInventoryTreeProducts(warehouseId: string, enabled: boolean, isIngredient?: boolean) {
   const [page, setPage] = useState(1);
   
   const query = useQuery({
-    queryKey: ["inventory", "tree", "products", warehouseId, page],
-    queryFn: () => inventoryService.getTreeProducts(warehouseId, { page, per_page: 50 }), // Load 50 products per chunk
+    queryKey: ["inventory", "tree", "products", warehouseId, page, isIngredient],
+    queryFn: () => inventoryService.getTreeProducts(warehouseId, { page, per_page: 50, is_ingredient: isIngredient }), // Load 50 products per chunk
     enabled: enabled,
     staleTime: 60000, // Keep data for 1 min
   });

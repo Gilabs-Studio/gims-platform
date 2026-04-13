@@ -24,6 +24,8 @@ type InventoryStockItem struct {
 
 	Status             string `json:"status"` // "ok", "low", "overstock", "out_of_stock"
 	HasExpiringBatches bool   `json:"has_expiring_batches"`
+	// IsIngredient indicates this product is a raw material used in F&B recipes
+	IsIngredient       bool   `json:"is_ingredient" gorm:"column:is_ingredient"`
 }
 
 type GetInventoryListRequest struct {
@@ -40,6 +42,8 @@ type GetInventoryListRequest struct {
 	HasExpiring bool   `form:"has_expiring"`
 	// HasExpired filters items that have at least one expired batch still holding quantity
 	HasExpired  bool   `form:"has_expired"`
+	// IsIngredient filters items where the product is flagged as an ingredient (raw material)
+	IsIngredient *bool  `form:"is_ingredient"`
 }
 
 type GetInventoryListResponse struct {
@@ -107,10 +111,12 @@ type StockSummary struct {
 }
 
 type GetInventoryTreeProductsRequest struct {
-	WarehouseID string `form:"warehouse_id" binding:"required"`
-	Page        int    `form:"page"`
-	PerPage     int    `form:"per_page"`
-	Search      string `form:"search"`
+	WarehouseID  string `form:"warehouse_id" binding:"required"`
+	Page         int    `form:"page"`
+	PerPage      int    `form:"per_page"`
+	Search       string `form:"search"`
+	// IsIngredient filters products flagged as raw material ingredients
+	IsIngredient *bool  `form:"is_ingredient"`
 }
 
 

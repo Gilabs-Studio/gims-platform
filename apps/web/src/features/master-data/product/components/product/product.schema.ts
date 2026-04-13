@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const recipeItemSchema = z.object({
+  ingredient_product_id: z.string().min(1, "Ingredient is required"),
+  quantity: z.number().positive("Quantity must be > 0"),
+  uom_id: z.string().optional().nullable(),
+  notes: z.string().optional(),
+  sort_order: z.number().int().min(0).optional(),
+});
+
 export const productSchema = z.object({
   // Basic Info
   name: z.string().min(2, "Name is required").max(200),
@@ -33,7 +41,26 @@ export const productSchema = z.object({
   min_stock: z.number().min(0),
   max_stock: z.number().min(0),
 
+  // POS F&B fields
+  product_kind: z.enum(["STOCK", "RECIPE", "SERVICE"]).optional(),
+  is_ingredient: z.boolean().optional(),
+  is_inventory_tracked: z.boolean().optional(),
+  is_pos_available: z.boolean().optional(),
+  recipe_items: z.array(recipeItemSchema).optional(),
+
   // Status
-});
+}).refine(
+  (data) => {
+    if (data.product_kind === "RECIPE") {
+      return data.recipe_items && data.recipe_items.length > 0;
+    }
+    return true;
+  },
+  {
+    message: "RECIPE products must have at least one recipe item",
+    path: ["recipe_items"],
+  }
+);
 
 export type ProductFormData = z.infer<typeof productSchema>;
+export type RecipeItemFormData = z.infer<typeof recipeItemSchema>;

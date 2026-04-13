@@ -11,9 +11,11 @@ import (
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/repositories"
+	outletRepository "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
 	"github.com/gilabs/gims/api/internal/organization/domain/mapper"
 	"github.com/gilabs/gims/api/internal/organization/domain/service"
+	warehouseRepository "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"gorm.io/gorm"
 )
 
@@ -37,13 +39,22 @@ type CompanyUsecase interface {
 
 type companyUsecase struct {
 	companyRepo     repositories.CompanyRepository
+	outletRepo      outletRepository.OutletRepository
+	warehouseRepo   warehouseRepository.WarehouseRepository
 	timezoneService service.TimezoneService
 }
 
 // NewCompanyUsecase creates a new CompanyUsecase
-func NewCompanyUsecase(companyRepo repositories.CompanyRepository, timezoneService service.TimezoneService) CompanyUsecase {
+func NewCompanyUsecase(
+	companyRepo repositories.CompanyRepository,
+	outletRepo outletRepository.OutletRepository,
+	warehouseRepo warehouseRepository.WarehouseRepository,
+	timezoneService service.TimezoneService,
+) CompanyUsecase {
 	return &companyUsecase{
 		companyRepo:     companyRepo,
+		outletRepo:      outletRepo,
+		warehouseRepo:   warehouseRepo,
 		timezoneService: timezoneService,
 	}
 }
@@ -128,6 +139,8 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 		return nil, err
 	}
 
+	wasActive := company.IsActive
+
 	if req.Name != "" {
 		company.Name = req.Name
 	}
@@ -182,6 +195,35 @@ func (u *companyUsecase) Update(ctx context.Context, id string, req *dto.UpdateC
 		} else if timezone != company.Timezone {
 			company.Timezone = timezone
 			log.Printf("auto-updated timezone for company %s: %s", company.Name, timezone)
+		}
+	}
+
+	// Cascade deactivation: if company is being deactivated, also deactivate all related outlets and warehouses
+	if req.IsActive != nil && !*req.IsActive && wasActive {
+		// Company is being deactivated, cascade to outlets and warehouses
+		if err := u.outletRepo.UpdateIsActiveByCompanyID(ctx, company.ID, false); err != nil {
+			log.Printf("error cascading deactivation to outlets for company %s: %v", company.ID, err)
+			return nil, err
+		}
+
+		// Find all outlets for this company to get their warehouse connections
+		outlets, err := u.outletRepo.FindByCompanyID(ctx, company.ID)
+		if err != nil {
+			log.Printf("error finding outlets for cascade deactivation: %v", err)
+			return nil, err
+		}
+
+		if len(outlets) > 0 {
+			outletIDs := make([]string, 0, len(outlets))
+			for _, outlet := range outlets {
+				outletIDs = append(outletIDs, outlet.ID)
+			}
+
+			// Deactivate all warehouses linked to these outlets
+			if err := u.warehouseRepo.UpdateIsActiveByOutletIDs(ctx, outletIDs, false); err != nil {
+				log.Printf("error cascading deactivation to warehouses: %v", err)
+				return nil, err
+			}
 		}
 	}
 

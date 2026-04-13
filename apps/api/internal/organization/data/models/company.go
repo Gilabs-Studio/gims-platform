@@ -51,6 +51,8 @@ type Company struct {
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	// OutletCount is populated via subquery in list queries — not stored in DB
+	OutletCount int64 `gorm:"column:outlet_count;->" json:"-"`
 }
 
 // TableName specifies the table name for Company

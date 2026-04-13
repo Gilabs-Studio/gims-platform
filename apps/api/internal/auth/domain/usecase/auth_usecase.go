@@ -84,11 +84,16 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 		// Get role code and permissions with scope
 		roleCode := "user"
 		roleName := "User"
+		roleDataScope := "OWN"
 		permissions := make(map[string]string)
 
 		if user.Role != nil {
 			roleCode = user.Role.Code
 			roleName = user.Role.Name
+			roleDataScope = user.Role.DataScope
+			if roleDataScope == "" {
+				roleDataScope = "ALL"
+			}
 
 			// Prefer RolePermissions (scope-aware) over legacy Permissions
 			if len(user.Role.RolePermissions) > 0 {
@@ -147,17 +152,18 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:          user.ID,
-			Email:       user.Email,
-			Name:        user.Name,
-			AvatarURL:   user.AvatarURL,
-			EmployeeID:  employeeID,
-			Role:        roleCode,
-			RoleName:    roleName,
-			Permissions: permissions,
-			Status:      user.Status,
-			CreatedAt:   user.CreatedAt,
-			UpdatedAt:   user.UpdatedAt,
+			ID:            user.ID,
+			Email:         user.Email,
+			Name:          user.Name,
+			AvatarURL:     user.AvatarURL,
+			EmployeeID:    employeeID,
+			Role:          roleCode,
+			RoleName:      roleName,
+			RoleDataScope: roleDataScope,
+			Permissions:   permissions,
+			Status:        user.Status,
+			CreatedAt:     user.CreatedAt,
+			UpdatedAt:     user.UpdatedAt,
 		}
 
 		resp = &dto.LoginResponse{
@@ -252,11 +258,16 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 		// Get role code and permissions with scope
 		roleCode := "user"
 		roleName := "User"
+		roleDataScope := "OWN"
 		permissions := make(map[string]string)
 
 		if user.Role != nil {
 			roleCode = user.Role.Code
 			roleName = user.Role.Name
+			roleDataScope = user.Role.DataScope
+			if roleDataScope == "" {
+				roleDataScope = "ALL"
+			}
 
 			// Prefer RolePermissions (scope-aware) over legacy Permissions
 			if len(user.Role.RolePermissions) > 0 {
@@ -318,17 +329,18 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:          user.ID,
-			Email:       user.Email,
-			Name:        user.Name,
-			AvatarURL:   user.AvatarURL,
-			EmployeeID:  employeeID,
-			Role:        roleCode,
-			RoleName:    roleName,
-			Permissions: permissions,
-			Status:      user.Status,
-			CreatedAt:   user.CreatedAt,
-			UpdatedAt:   user.UpdatedAt,
+			ID:            user.ID,
+			Email:         user.Email,
+			Name:          user.Name,
+			AvatarURL:     user.AvatarURL,
+			EmployeeID:    employeeID,
+			Role:          roleCode,
+			RoleName:      roleName,
+			RoleDataScope: roleDataScope,
+			Permissions:   permissions,
+			Status:        user.Status,
+			CreatedAt:     user.CreatedAt,
+			UpdatedAt:     user.UpdatedAt,
 		}
 		
 		resp = &dto.LoginResponse{

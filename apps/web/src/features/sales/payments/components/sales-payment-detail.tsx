@@ -183,6 +183,22 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
                     {formatCurrency(detail.invoice?.amount ?? 0)}
                   </span>
                 </div>
+                {detail.method === "CASH" && (
+                  <>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-muted-foreground">{t("fields.tenderAmount")}</span>
+                      <span className="font-mono font-medium">
+                        {formatCurrency((detail.tender_amount && detail.tender_amount > 0) ? detail.tender_amount : detail.amount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-medium text-muted-foreground">{t("fields.changeAmount")}</span>
+                      <span className="font-mono font-medium text-success">
+                        {formatCurrency(detail.change_amount ?? 0)}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between items-center pt-4 border-t">
                   <span className="font-semibold">{t("fields.amount")}</span>
                   <span className="text-2xl font-bold font-mono text-primary">

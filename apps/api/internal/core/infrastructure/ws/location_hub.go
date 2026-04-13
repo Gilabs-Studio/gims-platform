@@ -23,13 +23,29 @@ type SubscriptionFilter struct {
 }
 
 type LocationUpdate struct {
-	EmployeeID   string
-	RouteID      *string
-	CheckpointID *string
-	Lat          float64
-	Lng          float64
-	Heading      *float64
-	Timestamp    time.Time
+	EmployeeID         string
+	RouteID            *string
+	CheckpointID       *string
+	Lat                float64
+	Lng                float64
+	Heading            *float64
+	Timestamp          time.Time
+	NavigationStatus   string // "navigating" | "idle" | ""
+	EmployeeName       string // enriched for frontend rendering without extra DB query
+	EmployeeAvatarURL  string // enriched for frontend rendering without extra DB query
+}
+
+// NavigationUpdate is published when a sales employee explicitly starts or stops navigation.
+type NavigationUpdate struct {
+	EmployeeID        string
+	RouteID           *string
+	Lat               float64
+	Lng               float64
+	Heading           *float64
+	Status            string // "navigating" | "idle"
+	Timestamp         time.Time
+	EmployeeName      string
+	EmployeeAvatarURL string
 }
 
 type RouteStatusUpdate struct {
@@ -100,17 +116,70 @@ func (h *LocationHub) PublishLocationUpdate(update LocationUpdate) {
 	h.latest[update.EmployeeID] = update
 	h.mu.Unlock()
 
-	h.broadcast("location_update", map[string]interface{}{
-		"employee_id":   update.EmployeeID,
-		"route_id":      update.RouteID,
-		"checkpoint_id": update.CheckpointID,
-		"lat":           update.Lat,
-		"lng":           update.Lng,
-		"heading":       update.Heading,
-		"timestamp":     update.Timestamp.Format(time.RFC3339),
-	}, func(filter SubscriptionFilter) bool {
+	data := map[string]interface{}{
+		"employee_id":       update.EmployeeID,
+		"employee_name":     update.EmployeeName,
+		"employee_avatar":   update.EmployeeAvatarURL,
+		"route_id":          update.RouteID,
+		"checkpoint_id":     update.CheckpointID,
+		"lat":               update.Lat,
+		"lng":               update.Lng,
+		"heading":           update.Heading,
+		"navigation_status": update.NavigationStatus,
+		"timestamp":         update.Timestamp.Format(time.RFC3339),
+	}
+
+	// Deliver to local WS clients immediately.
+	h.broadcast("location_update", data, func(filter SubscriptionFilter) bool {
 		return matchesFilter(filter, update.EmployeeID, update.Lat, update.Lng)
 	})
+
+	// Cross-instance delivery via Redis Pub/Sub (no-op when Redis is unavailable).
+	publishToRedis("location_update", data)
+}
+
+// PublishNavigationUpdate broadcasts a navigation_started or navigation_stopped event.
+// It also updates the latest location snapshot so newly-connecting WS clients receive
+// the current navigation state immediately.
+func (h *LocationHub) PublishNavigationUpdate(update NavigationUpdate) {
+	h.mu.Lock()
+	// Merge into the latest location snapshot so snapshot queries reflect navigation status.
+	existing := h.latest[update.EmployeeID]
+	existing.EmployeeID = update.EmployeeID
+	existing.RouteID = update.RouteID
+	existing.Lat = update.Lat
+	existing.Lng = update.Lng
+	existing.Heading = update.Heading
+	existing.Timestamp = update.Timestamp
+	existing.NavigationStatus = update.Status
+	existing.EmployeeName = update.EmployeeName
+	existing.EmployeeAvatarURL = update.EmployeeAvatarURL
+	h.latest[update.EmployeeID] = existing
+	h.mu.Unlock()
+
+	eventType := "navigation_started"
+	if update.Status == "idle" {
+		eventType = "navigation_stopped"
+	}
+
+	data := map[string]interface{}{
+		"employee_id":     update.EmployeeID,
+		"employee_name":   update.EmployeeName,
+		"employee_avatar": update.EmployeeAvatarURL,
+		"route_id":        update.RouteID,
+		"lat":             update.Lat,
+		"lng":             update.Lng,
+		"heading":         update.Heading,
+		"status":          update.Status,
+		"timestamp":       update.Timestamp.Format(time.RFC3339),
+	}
+
+	h.broadcast(eventType, data, func(filter SubscriptionFilter) bool {
+		return matchesFilter(filter, update.EmployeeID, update.Lat, update.Lng)
+	})
+
+	// Cross-instance delivery via Redis Pub/Sub (no-op when Redis is unavailable).
+	publishToRedis(eventType, data)
 }
 
 func (h *LocationHub) PublishRouteStatus(update RouteStatusUpdate) {

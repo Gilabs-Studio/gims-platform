@@ -26,6 +26,13 @@ export const inventoryId = {
       range: "Min - Max",
       status: "Status"
     },
+    tabs: {
+      all: "Semua",
+      ingredient: "Bahan Baku"
+    },
+    badge: {
+      ingredient: "Bahan Baku"
+    },
     common: {
       loading: "Memuat inventaris...",
       noData: "Tidak ada item inventaris yang sesuai kriteria",

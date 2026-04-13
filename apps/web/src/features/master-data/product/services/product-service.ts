@@ -30,6 +30,11 @@ import type {
   ApproveProductData,
   ProductListParams,
   LookupListParams,
+  RecipeItemRequest,
+  RecipeItemResponse,
+  RecipeVersionResponse,
+  CloneRecipeRequest,
+  RecipeVersionCompareResponse,
 } from "../types";
 
 
@@ -406,6 +411,53 @@ export const productService = {
     const response = await apiClient.post<ApiResponse<Product>>(
       `${BASE_URL}/products/${id}/approve`,
       data
+    );
+    return response.data;
+  },
+
+  getRecipe: async (id: string): Promise<ApiResponse<RecipeItemResponse[]>> => {
+    const response = await apiClient.get<ApiResponse<RecipeItemResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe`
+    );
+    return response.data;
+  },
+
+  updateRecipe: async (id: string, items: RecipeItemRequest[]): Promise<ApiResponse<RecipeItemResponse[]>> => {
+    const response = await apiClient.put<ApiResponse<RecipeItemResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe`,
+      items
+    );
+    return response.data;
+  },
+
+  getRecipeVersions: async (id: string): Promise<ApiResponse<RecipeVersionResponse[]>> => {
+    const response = await apiClient.get<ApiResponse<RecipeVersionResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe/versions`
+    );
+    return response.data;
+  },
+
+  cloneRecipeFromVersion: async (id: string, payload: CloneRecipeRequest): Promise<ApiResponse<RecipeItemResponse[]>> => {
+    const response = await apiClient.post<ApiResponse<RecipeItemResponse[]>>(
+      `${BASE_URL}/products/${id}/recipe/clone`,
+      payload
+    );
+    return response.data;
+  },
+
+  compareRecipeVersions: async (
+    id: string,
+    fromVersionId: string,
+    toVersionId: string
+  ): Promise<ApiResponse<RecipeVersionCompareResponse>> => {
+    const response = await apiClient.get<ApiResponse<RecipeVersionCompareResponse>>(
+      `${BASE_URL}/products/${id}/recipe/compare`,
+      {
+        params: {
+          from_version_id: fromVersionId,
+          to_version_id: toVersionId,
+        },
+      }
     );
     return response.data;
   },

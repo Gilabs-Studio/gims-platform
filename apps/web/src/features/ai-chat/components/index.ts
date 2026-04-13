@@ -5,3 +5,4 @@ export { MessageBubble } from "./message-bubble";
 export { MessageInput } from "./message-input";
 export { ActionCard } from "./action-card";
 export { ModelSelector } from "./model-selector";
+export { StreamingMessage } from "./streaming-message";

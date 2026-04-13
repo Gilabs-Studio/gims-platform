@@ -31,6 +31,8 @@ func ToSalesOrderResponse(m *salesModels.SalesOrder, pendingQtyMap map[string]fl
 		CustomerEmail:     m.CustomerEmail,
 		Status:            string(m.Status),
 		Notes:             m.Notes,
+		SourceType:        m.SourceType,
+		SourcePOSOrderID:  m.SourcePOSOrderID,
 		CreatedAt:         m.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:         m.UpdatedAt.Format(time.RFC3339),
 	}

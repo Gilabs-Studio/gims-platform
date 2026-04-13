@@ -113,25 +113,55 @@ type LocationUpdateRequest struct {
 }
 
 type LocationUpdateResponse struct {
-	EmployeeID   string   `json:"employee_id"`
-	RouteID      *string  `json:"route_id,omitempty"`
-	CheckpointID *string  `json:"checkpoint_id,omitempty"`
-	Lat          float64  `json:"lat"`
-	Lng          float64  `json:"lng"`
-	Heading      *float64 `json:"heading,omitempty"`
-	Timestamp    string   `json:"timestamp"`
+	EmployeeID        string   `json:"employee_id"`
+	RouteID           *string  `json:"route_id,omitempty"`
+	CheckpointID      *string  `json:"checkpoint_id,omitempty"`
+	Lat               float64  `json:"lat"`
+	Lng               float64  `json:"lng"`
+	Heading           *float64 `json:"heading,omitempty"`
+	NavigationStatus  string   `json:"navigation_status,omitempty"`
+	Timestamp         string   `json:"timestamp"`
+}
+
+// StartNavigationRequest is sent by the sales employee's device when they begin
+// navigating to their first checkpoint.  The server broadcasts a navigation_started
+// WebSocket event so supervisors with the appropriate scope can see it in real time.
+type StartNavigationRequest struct {
+	EmployeeID *string  `json:"employee_id" binding:"omitempty,uuid"`
+	RouteID    *string  `json:"route_id" binding:"omitempty,uuid"`
+	Lat        float64  `json:"lat" binding:"required"`
+	Lng        float64  `json:"lng" binding:"required"`
+	Heading    *float64 `json:"heading"`
+}
+
+// StopNavigationRequest is sent when the sales employee ends their navigation session.
+type StopNavigationRequest struct {
+	EmployeeID *string `json:"employee_id" binding:"omitempty,uuid"`
+	RouteID    *string `json:"route_id" binding:"omitempty,uuid"`
+}
+
+// NavigationStatusResponse is returned for both start and stop navigation calls.
+type NavigationStatusResponse struct {
+	EmployeeID string   `json:"employee_id"`
+	RouteID    *string  `json:"route_id,omitempty"`
+	Lat        *float64 `json:"lat,omitempty"`
+	Lng        *float64 `json:"lng,omitempty"`
+	Status     string   `json:"status"` // "navigating" | "idle"
+	Timestamp  string   `json:"timestamp"`
 }
 
 type ActiveVisitRouteCheckpoint struct {
-	VisitID      string   `json:"visit_id"`
-	CheckpointID string   `json:"checkpoint_id"`
-	Type         string   `json:"type"`
-	RefID        *string  `json:"ref_id,omitempty"`
-	Label        string   `json:"label"`
-	Lat          *float64 `json:"lat,omitempty"`
-	Lng          *float64 `json:"lng,omitempty"`
-	Status       string   `json:"status"`
-	Warning      string   `json:"warning,omitempty"`
+	VisitID              string   `json:"visit_id"`
+	CheckpointID         string   `json:"checkpoint_id"`
+	Type                 string   `json:"type"`
+	RefID                *string  `json:"ref_id,omitempty"`
+	Label                string   `json:"label"`
+	Lat                  *float64 `json:"lat,omitempty"`
+	Lng                  *float64 `json:"lng,omitempty"`
+	Status               string   `json:"status"`
+	Warning              string   `json:"warning,omitempty"`
+	ProductInterestCount int      `json:"product_interest_count"`
+	DocumentationCount   int      `json:"documentation_count"`
 }
 
 type ActiveVisitRouteResponse struct {

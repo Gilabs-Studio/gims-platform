@@ -70,6 +70,7 @@ func SeedWarehouse() error {
 			VillageName: strPtr("Senayan"),
 			Latitude:    &lat1,
 			Longitude:   &lng1,
+			IsPosOutlet: true,
 			IsActive:    true,
 		},
 		{

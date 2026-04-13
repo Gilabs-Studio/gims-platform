@@ -11,10 +11,11 @@ import (
 
 // ScopeContext holds resolved user context for data-level authorization
 type ScopeContext struct {
-	UserID     string
-	EmployeeID string
-	DivisionID string
-	AreaIDs    []string
+	UserID       string
+	EmployeeID   string
+	DivisionID   string
+	AreaIDs      []string
+	WarehouseIDs []string
 }
 
 // GetScopeContext extracts the ScopeContext from Gin context
@@ -80,6 +81,15 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 				Pluck("area_id", &areaIDs).Error; err == nil {
 				sc.AreaIDs = areaIDs
 			}
+
+			// Resolve warehouse IDs from user_warehouses for WAREHOUSE scope
+			var warehouseIDs []string
+			if err := db.WithContext(ctx).
+				Table("user_warehouses").
+				Where("user_id = ? AND deleted_at IS NULL", userIDStr).
+				Pluck("warehouse_id", &warehouseIDs).Error; err == nil {
+				sc.WarehouseIDs = warehouseIDs
+			}
 		} else if err != gorm.ErrRecordNotFound {
 			// Non-404 errors should fail gracefully — log but don't die
 			errors.InternalServerErrorResponse(c, "failed to resolve user scope")
@@ -94,6 +104,7 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 		reqCtx = context.WithValue(reqCtx, "scope_employee_id", sc.EmployeeID)
 		reqCtx = context.WithValue(reqCtx, "scope_division_id", sc.DivisionID)
 		reqCtx = context.WithValue(reqCtx, "scope_area_ids", sc.AreaIDs)
+		reqCtx = context.WithValue(reqCtx, "scope_warehouse_ids", sc.WarehouseIDs)
 		c.Request = c.Request.WithContext(reqCtx)
 		c.Next()
 	}

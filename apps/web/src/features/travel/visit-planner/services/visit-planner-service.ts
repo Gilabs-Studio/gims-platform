@@ -10,12 +10,16 @@ import type {
   LocationUpdateEvent,
   LocationUpdateRequest,
   LocationUpdateResponse,
+  NavigationStatusEvent,
+  NavigationStatusResponse,
   OptimizeNavigationRequest,
   OptimizeNavigationResponse,
   RawActiveVisitRouteCheckpoint,
   RawActiveVisitRouteResponse,
   RawVisitPlannerFormDataResponse,
   RouteStatusEvent,
+  StartNavigationRequest,
+  StopNavigationRequest,
   VisitOutcomeOption,
   VisitLogRequest,
   VisitLogResponse,
@@ -120,7 +124,7 @@ function mapActiveRoute(rawRoute: RawActiveVisitRouteResponse): ActiveVisitRoute
 export interface LocationSocketParams {
   employeeIds?: string[];
   areaBBox?: string;
-  onMessage: (message: LocationSocketMessage<LocationUpdateEvent | RouteStatusEvent>) => void;
+  onMessage: (message: LocationSocketMessage<LocationUpdateEvent | RouteStatusEvent | NavigationStatusEvent>) => void;
   onError?: (event: Event) => void;
   onClose?: (event: CloseEvent) => void;
 }
@@ -211,7 +215,9 @@ export const visitPlannerService = {
 
     socket.onmessage = (event: MessageEvent<string>) => {
       try {
-        const parsed = JSON.parse(event.data) as LocationSocketMessage<LocationUpdateEvent | RouteStatusEvent>;
+        const parsed = JSON.parse(event.data) as LocationSocketMessage<
+          LocationUpdateEvent | RouteStatusEvent | NavigationStatusEvent
+        >;
         params.onMessage(parsed);
       } catch {
         // Ignore malformed websocket payloads from transient network/proxy issues.
@@ -234,6 +240,29 @@ export const visitPlannerService = {
   ): Promise<ApiEnvelope<CreateVisitPlannerPlanResponse>> => {
     const response = await apiClient.post<ApiEnvelope<CreateVisitPlannerPlanResponse>>(
       `${BASE_URL}/visit-planner/plans`,
+      payload,
+    );
+    return response.data;
+  },
+
+  // Broadcasts a navigation_started WebSocket event so scope-visible supervisors
+  // see the sales employee begin their route on the live map.
+  startNavigation: async (
+    payload: StartNavigationRequest,
+  ): Promise<ApiEnvelope<NavigationStatusResponse>> => {
+    const response = await apiClient.post<ApiEnvelope<NavigationStatusResponse>>(
+      `${BASE_URL}/locations/navigation/start`,
+      payload,
+    );
+    return response.data;
+  },
+
+  // Broadcasts a navigation_stopped event to clear the live indicator.
+  stopNavigation: async (
+    payload: StopNavigationRequest,
+  ): Promise<ApiEnvelope<NavigationStatusResponse>> => {
+    const response = await apiClient.post<ApiEnvelope<NavigationStatusResponse>>(
+      `${BASE_URL}/locations/navigation/stop`,
       payload,
     );
     return response.data;

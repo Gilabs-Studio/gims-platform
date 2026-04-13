@@ -7,6 +7,8 @@ import type {
   UpdateProductData,
   ApproveProductData,
   ProductListParams,
+  RecipeItemRequest,
+  CloneRecipeRequest,
 } from "../types";
 
 export const productKeys = {
@@ -15,6 +17,10 @@ export const productKeys = {
   list: (params?: ProductListParams) => [...productKeys.lists(), params] as const,
   details: () => [...productKeys.all, "detail"] as const,
   detail: (id: string) => [...productKeys.details(), id] as const,
+  recipe: (id: string) => [...productKeys.detail(id), "recipe"] as const,
+  recipeVersions: (id: string) => [...productKeys.detail(id), "recipe-versions"] as const,
+  recipeCompare: (id: string, fromVersionId: string, toVersionId: string) =>
+    [...productKeys.detail(id), "recipe-compare", fromVersionId, toVersionId] as const,
 };
 
 export function useProducts(params?: ProductListParams, options?: { enabled?: boolean }) {
@@ -86,5 +92,61 @@ export function useApproveProduct() {
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
     },
+  });
+}
+
+export function useProductRecipe(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: productKeys.recipe(id),
+    queryFn: () => productService.getRecipe(id),
+    enabled: (options?.enabled ?? true) && !!id,
+  });
+}
+
+export function useUpdateProductRecipe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, items }: { id: string; items: RecipeItemRequest[] }) =>
+      productService.updateRecipe(id, items),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.recipe(variables.id) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: productKeys.recipeVersions(variables.id) });
+    },
+  });
+}
+
+export function useProductRecipeVersions(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: productKeys.recipeVersions(id),
+    queryFn: () => productService.getRecipeVersions(id),
+    enabled: (options?.enabled ?? true) && !!id,
+  });
+}
+
+export function useCloneProductRecipe() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CloneRecipeRequest }) =>
+      productService.cloneRecipeFromVersion(id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.recipe(variables.id) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: productKeys.recipeVersions(variables.id) });
+    },
+  });
+}
+
+export function useCompareProductRecipeVersions(
+  id: string,
+  fromVersionId: string,
+  toVersionId: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: productKeys.recipeCompare(id, fromVersionId, toVersionId),
+    queryFn: () => productService.compareRecipeVersions(id, fromVersionId, toVersionId),
+    enabled: (options?.enabled ?? true) && !!id && !!fromVersionId && !!toVersionId,
   });
 }

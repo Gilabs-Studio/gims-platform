@@ -7,9 +7,12 @@ import {
   Pencil,
   Trash2,
   Eye,
+  Store,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -33,10 +36,12 @@ import { WarehouseDialog } from "./warehouse-dialog";
 import { WarehouseDetailModal } from "./warehouse-detail-modal";
 import { WarehouseDeleteBlockedDialog } from "./warehouse-delete-blocked-dialog";
 import { useWarehouseList } from "../../hooks/use-warehouse-list";
+import { useUpdateWarehouse } from "../../hooks/use-warehouses";
 
 export function WarehouseList() {
   const { state, actions, data, permissions, translations } = useWarehouseList();
   const { t } = translations;
+  const updateWarehouse = useUpdateWarehouse();
 
   if (data.isError) {
     return (
@@ -124,7 +129,15 @@ export function WarehouseList() {
                 <TableRow key={item.id}>
                   <TableCell className="font-mono text-sm">{item.code}</TableCell>
                   <TableCell className="font-medium">
-                    {item.name}
+                    <div className="flex items-center gap-2">
+                      {item.name}
+                      {item.outlet_id && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          <Store className="h-3 w-3" />
+                          Outlet
+                        </span>
+                      )}
+                    </div>
                     {item.description && (
                       <p className="text-xs text-muted-foreground truncate w-64">
                         {item.description}
@@ -134,9 +147,33 @@ export function WarehouseList() {
                   <TableCell>{item.address ?? "-"}</TableCell>
                   <TableCell>{item.capacity ?? "-"}</TableCell>
                   <TableCell>
-                    <Badge variant={item.is_active ? "success" : "secondary"}>
-                      {item.is_active ? t("common.active") : t("common.inactive")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={item.is_active}
+                        onCheckedChange={(checked) => {
+                          updateWarehouse.mutate(
+                            { id: item.id, data: { is_active: checked } },
+                            {
+                              onSuccess: () => {
+                                toast.success(
+                                  checked
+                                    ? t("warehouse.activeSuccess")
+                                    : t("warehouse.inactiveSuccess")
+                                );
+                              },
+                              onError: () => {
+                                toast.error(t("warehouse.updateError"));
+                              },
+                            }
+                          );
+                        }}
+                        disabled={!permissions.canUpdate || updateWarehouse.isPending}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {item.is_active ? t("common.active") : t("common.inactive")}
+                      </span>
+                    </div>
                   </TableCell>
                   {(permissions.canUpdate || permissions.canDelete) && (
                     <TableCell>

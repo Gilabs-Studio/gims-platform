@@ -23,6 +23,14 @@ func RegisterTravelPlanRoutes(r *gin.RouterGroup, h *handler.TravelPlanHandler) 
 	r.POST("/visits", middleware.RequirePermission(travelVisitCreatePermission), h.UpsertVisitLog)
 	r.POST("/locations", middleware.RequirePermission(travelVisitCreatePermission), h.UpsertLocation)
 
+	// Navigation lifecycle: placed before the /travel-planner group to keep the
+	// path structure flat and avoid nesting under travel-planner resources.
+	navigation := r.Group("/locations/navigation")
+	{
+		navigation.POST("/start", middleware.RequirePermission(travelVisitCreatePermission), h.StartNavigation)
+		navigation.POST("/stop", middleware.RequirePermission(travelVisitCreatePermission), h.StopNavigation)
+	}
+
 	planner := r.Group("/travel-planner")
 	{
 		// Fixed routes before /plans/:id to avoid route shadowing.

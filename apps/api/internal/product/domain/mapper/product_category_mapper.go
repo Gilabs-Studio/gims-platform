@@ -7,14 +7,19 @@ import (
 
 // ToProductCategoryResponse converts ProductCategory model to response DTO
 func ToProductCategoryResponse(m *models.ProductCategory) dto.ProductCategoryResponse {
+	categoryType := m.CategoryType
+	if categoryType == "" {
+		categoryType = models.CategoryTypeGoods
+	}
 	resp := dto.ProductCategoryResponse{
-		ID:          m.ID,
-		Name:        m.Name,
-		Description: m.Description,
-		ParentID:    m.ParentID,
-		IsActive:    m.IsActive,
-		CreatedAt:   m.CreatedAt,
-		UpdatedAt:   m.UpdatedAt,
+		ID:           m.ID,
+		Name:         m.Name,
+		Description:  m.Description,
+		CategoryType: categoryType,
+		ParentID:     m.ParentID,
+		IsActive:     m.IsActive,
+		CreatedAt:    m.CreatedAt,
+		UpdatedAt:    m.UpdatedAt,
 	}
 
 	if m.Parent != nil {

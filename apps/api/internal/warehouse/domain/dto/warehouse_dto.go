@@ -16,6 +16,8 @@ type CreateWarehouseRequest struct {
 	VillageName *string  `json:"village_name,omitempty"`
 	Latitude    *float64 `json:"latitude,omitempty"`
 	Longitude   *float64 `json:"longitude,omitempty"`
+	IsPosOutlet *bool    `json:"is_pos_outlet,omitempty"`
+	OutletID    *string  `json:"outlet_id,omitempty"`
 	IsActive    *bool    `json:"is_active,omitempty"`
 }
 
@@ -33,6 +35,8 @@ type UpdateWarehouseRequest struct {
 	VillageName *string  `json:"village_name,omitempty"`
 	Latitude    *float64 `json:"latitude,omitempty"`
 	Longitude   *float64 `json:"longitude,omitempty"`
+	IsPosOutlet *bool    `json:"is_pos_outlet,omitempty"`
+	OutletID    *string  `json:"outlet_id,omitempty"`
 	IsActive    *bool    `json:"is_active,omitempty"`
 }
 
@@ -55,6 +59,8 @@ type WarehouseResponse struct {
 	Village     *geographic.VillageResponse  `json:"village,omitempty"`
 	Latitude    *float64                `json:"latitude,omitempty"`
 	Longitude   *float64                `json:"longitude,omitempty"`
+	IsPosOutlet bool                    `json:"is_pos_outlet"`
+	OutletID    *string                 `json:"outlet_id,omitempty"`
 	IsActive    bool                    `json:"is_active"`
 	HasStock    bool                    `json:"has_stock"`
 	CreatedAt   string                  `json:"created_at"`

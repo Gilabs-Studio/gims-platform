@@ -33,7 +33,10 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useWarehouses,
   useDeleteWarehouse,
+  useUpdateWarehouse,
 } from "../../hooks/use-warehouses";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
+import L from "leaflet";
 import type { Warehouse as WarehouseType } from "../../types";
 import { WarehouseCard } from "./warehouse-card";
 import { WarehouseSidePanel } from "./warehouse-side-panel";
@@ -55,6 +58,14 @@ const Popup = dynamic(
 );
 
 type PanelMode = "create" | "edit" | "view" | null;
+
+type MapMarkerProps = {
+  position: [number, number];
+  eventHandlers: {
+    click: () => void;
+  };
+  icon?: L.DivIcon;
+};
 
 export function WarehouseMapView() {
   const t = useTranslations("warehouse");
@@ -81,13 +92,19 @@ export function WarehouseMapView() {
   const canDelete = useUserPermission("warehouse.delete");
 
   // Data fetching
+  const [outletFilter, setOutletFilter] = useState<string>("all");
+
+  const { data: outletsResp } = useOutlets({ per_page: 100, is_active: true });
+
   const { data, isLoading, refetch } = useWarehouses({
     per_page: 20,
     search: debouncedSearch || undefined,
     is_active: activeFilter === "all" ? undefined : activeFilter === "active",
+    outlet_id: outletFilter !== "all" ? outletFilter : undefined,
   });
 
   const deleteWarehouse = useDeleteWarehouse();
+  const updateWarehouse = useUpdateWarehouse();
 
   const warehouses = useMemo(() => data?.data ?? [], [data?.data]);
 
@@ -146,19 +163,44 @@ export function WarehouseMapView() {
   };
 
   // Render markers on map
+  // Create a small colored div icon for outlet-linked warehouses
+  function createColoredIcon(color: string): L.DivIcon {
+    return L.divIcon({
+      className: "custom-map-marker",
+      html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+      popupAnchor: [0, -10],
+    });
+  }
+
+  const outletIcon = createColoredIcon("#f59e0b");
+  const defaultActiveIcon = createColoredIcon("#2563eb");
+  const inactiveIcon = createColoredIcon("#94a3b8");
+
   const renderMarkers = (markerList: MapMarker<WarehouseType>[]) => (
     <>
       <MarkerClusterGroup chunkedLoading>
         {markerList.map((marker) => {
           const warehouse = marker.data;
+          const markerProps: MapMarkerProps = {
+            position: [marker.latitude, marker.longitude],
+            eventHandlers: {
+              click: () => setSelectedWarehouseId(String(marker.id)),
+            },
+          };
+
+          if (!warehouse.is_active) {
+            markerProps.icon = inactiveIcon;
+          } else if (warehouse.outlet_id) {
+            markerProps.icon = outletIcon;
+          } else {
+            markerProps.icon = defaultActiveIcon;
+          }
+
           return (
-            <Marker
-              key={marker.id}
-              position={[marker.latitude, marker.longitude]}
-              eventHandlers={{
-                click: () => setSelectedWarehouseId(String(marker.id)),
-              }}
-            >
+            // pass `key` directly to JSX (do not spread it inside props)
+            <Marker key={marker.id} {...markerProps}>
               <Popup>
                 <div className="p-2 min-w-[220px]">
                   <div className="flex items-center gap-2 mb-1">
@@ -256,31 +298,50 @@ export function WarehouseMapView() {
                 className="pl-9"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Select
-                value={activeFilter}
-                onValueChange={(val) => setActiveFilter(val as "all" | "active" | "inactive")}
-              >
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">{t("common.active")}</SelectItem>
-                  <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="space-y-2">
               {canCreate && (
                 <Button
                   onClick={handleCreate}
-                  className={
-                    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 h-9 px-4 py-2 has-[>svg]:px-3 w-full sm:w-40 cursor-pointer"
-                  }
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-300 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:shadow-[0_0_20px] focus-visible:shadow-primary/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive relative overflow-hidden bg-primary text-primary-foreground hover:bg-primary/90 gradient-primary hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 px-4 py-2 has-[>svg]:px-3 cursor-pointer"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   {t("common.create")}
                 </Button>
               )}
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Select
+                  value={activeFilter}
+                  onValueChange={(val) => setActiveFilter(val as "all" | "active" | "inactive")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">{t("common.active")}</SelectItem>
+                    <SelectItem value="inactive">{t("common.inactive")}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={outletFilter}
+                  onValueChange={(val) => setOutletFilter(val)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Outlets</SelectItem>
+                    {((outletsResp?.data ?? []) as Array<{ id: string; name: string }>).map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
@@ -338,8 +399,22 @@ export function WarehouseMapView() {
                       setDeletingId(warehouse.id);
                     }
                   }}
+                  onStatusChange={canUpdate ? (isActive) => {
+                    updateWarehouse.mutate(
+                      { id: warehouse.id, data: { is_active: isActive } },
+                      {
+                        onSuccess: () => {
+                          toast.success(t("warehouse.updateSuccess"));
+                        },
+                        onError: () => {
+                          toast.error(t("common.error_update"));
+                        },
+                      }
+                    );
+                  } : undefined}
                   canUpdate={canUpdate}
                   canDelete={canDelete}
+                  isStatusChanging={updateWarehouse.isPending}
                 />
               ))}
             </>

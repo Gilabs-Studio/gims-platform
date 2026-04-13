@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/presentation/handler"
 	"github.com/gilabs/gims/api/internal/organization/presentation/router"
+	warehouseRepositories "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -52,7 +53,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Pass employeeAreaRepo so the usecase can manage supervisor/member assignments.
 	// Pass employeeRepo for GetFormData endpoint.
 	areaUC := usecase.NewAreaUsecase(areaRepo, employeeAreaRepo, employeeRepo)
-	companyUC := usecase.NewCompanyUsecase(companyRepo, timezoneService)
+	// Initialize outlets and warehouse repositories early for company cascade deactivation
+	outletRepo := orgRepositories.NewOutletRepository(db)
+	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
+	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService)
 	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers
@@ -63,6 +67,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	areaH := handler.NewAreaHandler(areaUC)
 	companyH := handler.NewCompanyHandler(companyUC)
 	employeeH := handler.NewEmployeeHandler(employeeUC)
+
+	// Outlet dependencies (cross-domain: warehouse repo)
+	outletUC := usecase.NewOutletUsecase(db, outletRepo, warehouseRepo, employeeRepo, companyRepo)
+	outletH := handler.NewOutletHandler(outletUC)
 
 	// Create organization group under API with auth middleware
 	group := api.Group("/organization")
@@ -76,4 +84,5 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterAreaRoutes(group, areaH)
 	router.RegisterCompanyRoutes(group, companyH)
 	router.RegisterEmployeeRoutes(group, employeeH)
+	router.RegisterOutletRoutes(group, outletH)
 }

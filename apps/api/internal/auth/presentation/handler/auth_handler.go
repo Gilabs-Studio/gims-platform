@@ -99,8 +99,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			AvatarURL:  loginResponse.User.AvatarURL,
 			EmployeeID: loginResponse.User.EmployeeID,
 			Role: authDTO.RoleDTO{
-				Code: loginResponse.User.Role,
-				Name: loginResponse.User.RoleName,
+				Code:      loginResponse.User.Role,
+				Name:      loginResponse.User.RoleName,
+				DataScope: loginResponse.User.RoleDataScope,
 			},
 			Permissions: loginResponse.User.Permissions,
 		},
@@ -174,8 +175,9 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			AvatarURL:  loginResponse.User.AvatarURL,
 			EmployeeID: loginResponse.User.EmployeeID,
 			Role: authDTO.RoleDTO{
-				Code: loginResponse.User.Role,
-				Name: loginResponse.User.RoleName,
+				Code:      loginResponse.User.Role,
+				Name:      loginResponse.User.RoleName,
+				DataScope: loginResponse.User.RoleDataScope,
 			},
 			Permissions: loginResponse.User.Permissions,
 		},

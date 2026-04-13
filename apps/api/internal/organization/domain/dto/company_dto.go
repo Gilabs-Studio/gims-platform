@@ -95,4 +95,5 @@ type CompanyResponse struct {
 	IsActive   bool                        `json:"is_active"`
 	CreatedAt  string                      `json:"created_at"`
 	UpdatedAt  string                      `json:"updated_at"`
+	OutletCount int64                      `json:"outlet_count"`
 }

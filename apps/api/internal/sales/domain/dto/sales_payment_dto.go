@@ -27,6 +27,8 @@ type SalesPaymentListResponse struct {
 	BankAccount *SalesPaymentBankAccountSummary `json:"bank_account,omitempty"`
 	PaymentDate string                          `json:"payment_date"`
 	Amount      float64                         `json:"amount"`
+	TenderAmount float64                        `json:"tender_amount"`
+	ChangeAmount float64                        `json:"change_amount"`
 	Method      string                          `json:"method"`
 	Status      string                          `json:"status"`
 	CreatedAt   time.Time                       `json:"created_at"`
