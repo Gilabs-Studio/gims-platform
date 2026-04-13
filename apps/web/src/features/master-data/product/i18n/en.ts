@@ -295,8 +295,6 @@ export const productEn = {
       RECIPE: "Recipe (BOM Menu Item)",
       SERVICE: "Service (Non-Physical)",
     },
-    isIngredient: "Is Ingredient",
-    isIngredientHint: "This product is a raw material used in F&B recipes",
     isInventoryTracked: "Inventory Tracked",
     isInventoryTrackedHint: "Tracks inventory batches and stock movements",
     isPosAvailable: "POS Available",
