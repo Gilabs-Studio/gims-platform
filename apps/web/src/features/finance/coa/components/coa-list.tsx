@@ -44,8 +44,6 @@ type FlatNode = {
   is_active: boolean;
   is_postable: boolean;
   is_protected: boolean;
-  opening_balance: number;
-  opening_date?: string | null;
   depth: number;
 };
 
@@ -61,8 +59,6 @@ function flatten(nodes: ChartOfAccountTreeNode[], depth = 0): FlatNode[] {
       is_active: n.is_active,
       is_postable: n.is_postable ?? true,
       is_protected: n.is_protected ?? false,
-      opening_balance: n.opening_balance ?? 0,
-      opening_date: n.opening_date ?? null,
       depth,
     });
     if (Array.isArray(n.children) && n.children.length > 0) {
@@ -82,8 +78,6 @@ function toFlatNode(n: ChartOfAccountTreeNode, depth = 0): FlatNode {
     is_active: n.is_active,
     is_postable: n.is_postable ?? true,
     is_protected: n.is_protected ?? false,
-    opening_balance: n.opening_balance ?? 0,
-    opening_date: n.opening_date ?? null,
     depth,
   };
 }
@@ -178,8 +172,6 @@ export function CoaList() {
       parent_id: item.parent_id ?? null,
       is_active: item.is_active,
       is_protected: item.is_protected,
-      opening_balance: item.opening_balance,
-      opening_date: item.opening_date,
     };
   }, [editingId, flat]);
 
@@ -202,8 +194,6 @@ export function CoaList() {
           type: row.type,
           parent_id: row.parent_id ?? null,
           is_active,
-          opening_balance: row.opening_balance,
-          opening_date: row.opening_date ?? null,
         },
       });
       toast.success(t("toast.updated"));
@@ -255,7 +245,6 @@ export function CoaList() {
               <TableHead>{t("fields.code")}</TableHead>
               <TableHead>{t("fields.name")}</TableHead>
               <TableHead>{t("fields.type")}</TableHead>
-              <TableHead>{t("fields.openingBalance")}</TableHead>
               <TableHead>{t("fields.status")}</TableHead>
               <TableHead>{t("fields.isActive")}</TableHead>
               <TableHead className="w-[120px]" />
@@ -265,14 +254,14 @@ export function CoaList() {
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={6}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
@@ -318,12 +307,6 @@ export function CoaList() {
                             </Badge>
                           );
                         })()}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {new Intl.NumberFormat("id-ID", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }).format(row.opening_balance)}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-2">
@@ -411,12 +394,6 @@ export function CoaList() {
                                 </Badge>
                               );
                             })()}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {new Intl.NumberFormat("id-ID", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }).format(child.opening_balance)}
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-2">

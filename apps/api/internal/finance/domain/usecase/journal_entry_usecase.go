@@ -1,4 +1,4 @@
-package usecase
+﻿package usecase
 
 import (
 	"context"
@@ -73,7 +73,7 @@ type JournalEntryUsecase interface {
 	PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error)
-	CreateOpeningBalanceJournal(ctx context.Context, account *financeModels.ChartOfAccount) (*dto.JournalEntryResponse, error)
+	CreateOpeningBalanceJournal(ctx context.Context, req *dto.CreateOpeningBalanceJournalRequest) (*dto.JournalEntryResponse, error)
 	ReverseOpeningBalance(ctx context.Context, accountID string) (*dto.JournalEntryResponse, error)
 }
 
@@ -1075,38 +1075,58 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 	return posted, nil
 }
 
-func (uc *journalEntryUsecase) CreateOpeningBalanceJournal(ctx context.Context, account *financeModels.ChartOfAccount) (*dto.JournalEntryResponse, error) {
+func (uc *journalEntryUsecase) CreateOpeningBalanceJournal(ctx context.Context, req *dto.CreateOpeningBalanceJournalRequest) (*dto.JournalEntryResponse, error) {
+	if req == nil {
+		return nil, errors.New("opening balance request is required")
+	}
+	accountID := strings.TrimSpace(req.AccountID)
+	if accountID == "" {
+		return nil, errors.New("account id is required")
+	}
+
+	account, err := uc.coaRepo.FindByID(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
 	if account == nil {
-		return nil, errors.New("account is required")
+		return nil, errors.New("account not found")
 	}
 	if !account.IsPostable {
 		return nil, errors.New("opening balance can only be set for postable accounts")
 	}
-	if account.OpeningBalance == 0 {
+	if req.Amount == 0 {
 		return nil, nil
 	}
 
-	openingEquity, err := uc.coaRepo.FindByCode(ctx, "3-9999")
+	openingEquity, err := uc.coaRepo.FindByCode(ctx, "39999")
 	if err != nil || openingEquity == nil {
-		return nil, errors.New("akun Saldo Awal Ekuitas (3-9999) belum dikonfigurasi")
+		return nil, errors.New("akun Saldo Awal Ekuitas (39999) belum dikonfigurasi")
 	}
 	if !openingEquity.IsPostable {
-		return nil, errors.New("akun Saldo Awal Ekuitas (3-9999) harus postable")
+		return nil, errors.New("akun Saldo Awal Ekuitas (39999) harus postable")
 	}
 
 	entryDate := apptime.Now().Format("2006-01-02")
-	if account.OpeningDate != nil {
-		entryDate = account.OpeningDate.Format("2006-01-02")
+	if req.EntryDate != nil && strings.TrimSpace(*req.EntryDate) != "" {
+		parsedDate, err := parseDateRequired(*req.EntryDate)
+		if err != nil {
+			return nil, err
+		}
+		entryDate = parsedDate.Format("2006-01-02")
 	}
 
-	lines := buildOpeningBalanceLines(account, openingEquity.ID)
+	lines := buildOpeningBalanceLines(account.ID, account.Type, req.Amount, openingEquity.ID)
+	description := strings.TrimSpace(account.Code) + " " + strings.TrimSpace(account.Name)
+	if req.Description != nil && strings.TrimSpace(*req.Description) != "" {
+		description = strings.TrimSpace(*req.Description)
+	}
 	refType := string(financeModels.RefOpeningBalance)
 	refID := account.ID
 	journalType := string(financeModels.JournalTypeOpeningBalance)
 
 	return uc.PostOrUpdateJournal(ctx, &dto.CreateJournalEntryRequest{
 		EntryDate:         entryDate,
-		Description:       "Opening balance - " + strings.TrimSpace(account.Code) + " " + strings.TrimSpace(account.Name),
+		Description:       "Opening balance - " + description,
 		ReferenceType:     &refType,
 		ReferenceID:       &refID,
 		JournalType:       &journalType,
@@ -1151,32 +1171,32 @@ func (uc *journalEntryUsecase) ReverseOpeningBalance(ctx context.Context, accoun
 	return postedReversal, nil
 }
 
-func buildOpeningBalanceLines(account *financeModels.ChartOfAccount, openingEquityID string) []dto.JournalLineRequest {
-	amount := math.Abs(account.OpeningBalance)
-	debitNormal := isDebitNormalAccountType(account.Type)
+func buildOpeningBalanceLines(accountID string, accountType financeModels.AccountType, amountValue float64, openingEquityID string) []dto.JournalLineRequest {
+	amount := math.Abs(amountValue)
+	debitNormal := isDebitNormalAccountType(accountType)
 
 	if debitNormal {
-		if account.OpeningBalance >= 0 {
+		if amountValue >= 0 {
 			return []dto.JournalLineRequest{
-				{ChartOfAccountID: account.ID, Debit: amount, Credit: 0, Memo: "Opening balance"},
+				{ChartOfAccountID: accountID, Debit: amount, Credit: 0, Memo: "Opening balance"},
 				{ChartOfAccountID: openingEquityID, Debit: 0, Credit: amount, Memo: "Opening balance offset"},
 			}
 		}
 		return []dto.JournalLineRequest{
 			{ChartOfAccountID: openingEquityID, Debit: amount, Credit: 0, Memo: "Opening balance offset"},
-			{ChartOfAccountID: account.ID, Debit: 0, Credit: amount, Memo: "Opening balance"},
+			{ChartOfAccountID: accountID, Debit: 0, Credit: amount, Memo: "Opening balance"},
 		}
 	}
 
-	if account.OpeningBalance >= 0 {
+	if amountValue >= 0 {
 		return []dto.JournalLineRequest{
 			{ChartOfAccountID: openingEquityID, Debit: amount, Credit: 0, Memo: "Opening balance offset"},
-			{ChartOfAccountID: account.ID, Debit: 0, Credit: amount, Memo: "Opening balance"},
+			{ChartOfAccountID: accountID, Debit: 0, Credit: amount, Memo: "Opening balance"},
 		}
 	}
 
 	return []dto.JournalLineRequest{
-		{ChartOfAccountID: account.ID, Debit: amount, Credit: 0, Memo: "Opening balance"},
+		{ChartOfAccountID: accountID, Debit: amount, Credit: 0, Memo: "Opening balance"},
 		{ChartOfAccountID: openingEquityID, Debit: 0, Credit: amount, Memo: "Opening balance offset"},
 	}
 }
@@ -1412,3 +1432,4 @@ func (uc *journalEntryUsecase) validateControlAccountsForLines(ctx context.Conte
 
 	return nil
 }
+

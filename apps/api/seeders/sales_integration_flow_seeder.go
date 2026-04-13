@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 )
 
 // SeedSalesIntegrationFlow creates a coherent dataset that demonstrates cross-module
-// relations SQ → SO → DO → INV → PAY → Finance.
+// relations SQ  SO  DO  INV  PAY  Finance.
 func SeedSalesIntegrationFlow() error {
 	db := database.DB
 
@@ -41,7 +41,7 @@ func SeedSalesIntegrationFlow() error {
 		return nil
 	}
 
-	log.Println("Seeding sales integration flow (SQ → SO → DO → INV → PAY → Finance)...")
+	log.Println("Seeding sales integration flow (SQ  SO  DO  INV  PAY  Finance)...")
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Resolve common dependencies
@@ -82,11 +82,11 @@ func SeedSalesIntegrationFlow() error {
 		}
 
 		// COAs
-		cashCOA := getCOAID(tx, "1-1101")
-		receivableCOA := getCOAID(tx, "1-1210")
-		revenueCOA := getCOAID(tx, "4-1100")
-		taxCOA := getCOAID(tx, "2-1210")
-		dpAdvanceCOA := getCOAID(tx, "2-1400")
+		cashCOA := getCOAID(tx, "11101")
+		receivableCOA := getCOAID(tx, "11210")
+		revenueCOA := getCOAID(tx, "41100")
+		taxCOA := getCOAID(tx, "21210")
+		dpAdvanceCOA := getCOAID(tx, "21400")
 
 		now := time.Now()
 
@@ -409,7 +409,7 @@ func seedSalesPartialFlow(tx *gorm.DB, in salesFlowInput) error {
 }
 
 func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
-	// Minimal sales flow: 1x SQ → 1x SO → 1x DO → 1x INV → 1x PAY
+	// Minimal sales flow: 1x SQ  1x SO  1x DO  1x INV  1x PAY
 	// Uses deterministic codes for easy tracing.
 	var customer customerModels.Customer
 	if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
@@ -436,11 +436,11 @@ func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
 		return err
 	}
 
-	cashCOA := getCOAID(tx, "1-1101")
-	receivableCOA := getCOAID(tx, "1-1210")
-	revenueCOA := getCOAID(tx, "4-1100")
-	taxCOA := getCOAID(tx, "2-1210")
-	dpAdvanceCOA := getCOAID(tx, "2-1400")
+	cashCOA := getCOAID(tx, "11101")
+	receivableCOA := getCOAID(tx, "11210")
+	revenueCOA := getCOAID(tx, "41100")
+	taxCOA := getCOAID(tx, "21210")
+	dpAdvanceCOA := getCOAID(tx, "21400")
 
 	now := time.Now()
 	return seedSalesFullFlowDP(tx, salesFlowInput{
@@ -516,3 +516,6 @@ func createJournalEntry(tx *gorm.DB, date time.Time, desc, refType, refID, admin
 		log.Printf("SUCCESS: Created journal entry via usecase for %s (%s)", refType, refID)
 	}
 }
+
+
+

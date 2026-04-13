@@ -87,7 +87,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)
-	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper, journalUC)
+	coaUC := usecase.NewChartOfAccountUsecase(db, coaRepo, coaMapper)
 	systemAccountMappingUC := usecase.NewSystemAccountMappingUsecase(systemAccountMappingRepo, coaUC, auditService)
 	paymentUC := usecase.NewPaymentUsecase(db, coaRepo, paymentRepo, journalUC, paymentMapper)
 	budgetUC := usecase.NewBudgetUsecase(db, coaRepo, budgetRepo, budgetMapper)

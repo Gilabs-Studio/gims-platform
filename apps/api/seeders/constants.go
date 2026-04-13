@@ -30,8 +30,8 @@ const (
 // Organization IDs (Fixed)
 const (
 	// Company
-	GiLabsCompanyID    = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
-	MieGacoanCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
+	GiLabsCompanyID     = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+	MieGacoanCompanyID  = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
 	KimiaFarmaCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000002"
 
 	// Divisions
@@ -70,15 +70,15 @@ const (
 
 // Employee IDs (Fixed)
 const (
-	AdminEmployeeID        = "11111111-1111-1111-1111-111111111111"
-	ManagerEmployeeID      = "22222222-2222-2222-2222-222222222222"
-	StaffEmployeeID        = "33333333-3333-3333-3333-333333333333"
-	SalesRep1EmployeeID    = "44444444-4444-4444-4444-444444444444"
-	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
-	FinanceStaffEmployeeID    = "66666666-6666-6666-6666-666666666666"
-	HRStaffEmployeeID         = "77777777-7777-7777-7777-777777777777"
-	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1
-	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2
+	AdminEmployeeID          = "11111111-1111-1111-1111-111111111111"
+	ManagerEmployeeID        = "22222222-2222-2222-2222-222222222222"
+	StaffEmployeeID          = "33333333-3333-3333-3333-333333333333"
+	SalesRep1EmployeeID      = "44444444-4444-4444-4444-444444444444"
+	SalesRep2EmployeeID      = "55555555-5555-5555-5555-555555555555"
+	FinanceStaffEmployeeID   = "66666666-6666-6666-6666-666666666666"
+	HRStaffEmployeeID        = "77777777-7777-7777-7777-777777777777"
+	OutletManager1EmployeeID = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1
+	OutletManager2EmployeeID = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)

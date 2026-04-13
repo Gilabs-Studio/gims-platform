@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func ValidateFinanceSeeder() error {
 	if len(invalidSettings) > 0 {
 		return fmt.Errorf("found %d finance_settings with empty values", len(invalidSettings))
 	}
-	log.Println("    ✓ All COA settings have valid values")
+	log.Println("     All COA settings have valid values")
 
 	log.Println("  [2/7] Checking COA references from finance_settings...")
 	var settings []models.FinanceSetting
@@ -46,7 +46,7 @@ func ValidateFinanceSeeder() error {
 	if len(missingCOAs) > 0 {
 		return fmt.Errorf("found %d settings referencing invalid COA codes: %s", len(missingCOAs), strings.Join(missingCOAs, "; "))
 	}
-	log.Println("    ✓ All finance settings COA references are valid")
+	log.Println("     All finance settings COA references are valid")
 
 	log.Println("  [3/8] Checking required finance_settings keys...")
 	requiredKeys := []string{
@@ -102,7 +102,7 @@ func ValidateFinanceSeeder() error {
 	if len(missingKeys) > 0 {
 		return fmt.Errorf("missing required finance_settings keys: %s", strings.Join(missingKeys, ", "))
 	}
-	log.Println("    ✓ All required finance settings are present")
+	log.Println("     All required finance settings are present")
 	log.Println("  [4/8] Checking orphan and circular hierarchy...")
 	orphans, err := countOrphanAccounts()
 	if err != nil {
@@ -116,7 +116,7 @@ func ValidateFinanceSeeder() error {
 	} else if hasCycle {
 		return fmt.Errorf("circular parent-child reference detected in chart_of_accounts")
 	}
-	log.Println("    ✓ No orphan and no circular hierarchy detected")
+	log.Println("     No orphan and no circular hierarchy detected")
 
 	log.Println("  [5/8] Checking parent postable consistency...")
 	invalidParents, err := countPostableParentsWithChildren()
@@ -126,7 +126,7 @@ func ValidateFinanceSeeder() error {
 	if invalidParents > 0 {
 		return fmt.Errorf("found %d parent accounts with children but is_postable=true", invalidParents)
 	}
-	log.Println("    ✓ Parent/child postable consistency is valid")
+	log.Println("     Parent/child postable consistency is valid")
 
 	log.Println("  [6/8] Checking system account mappings integrity...")
 	requiredSystemMappings := []string{
@@ -164,20 +164,20 @@ func ValidateFinanceSeeder() error {
 			return fmt.Errorf("system mapping %s points to non-postable COA %s", key, mapping.COACode)
 		}
 	}
-	log.Println("    ✓ System account mappings are valid and postable")
+	log.Println("     System account mappings are valid and postable")
 
 	log.Println("  [7/8] Checking opening balance equity protection...")
-	openingBalanceEquity, err := coaRepo.FindByCode(ctx, "3-9999")
+	openingBalanceEquity, err := coaRepo.FindByCode(ctx, "39999")
 	if err != nil || openingBalanceEquity == nil {
-		return fmt.Errorf("opening balance equity account 3-9999 is missing")
+		return fmt.Errorf("opening balance equity account 39999 is missing")
 	}
 	if !openingBalanceEquity.IsProtected {
-		return fmt.Errorf("opening balance equity account 3-9999 must be is_protected=true")
+		return fmt.Errorf("opening balance equity account 39999 must be is_protected=true")
 	}
 	if !openingBalanceEquity.IsPostable {
-		return fmt.Errorf("opening balance equity account 3-9999 must be is_postable=true")
+		return fmt.Errorf("opening balance equity account 39999 must be is_postable=true")
 	}
-	log.Println("    ✓ Opening balance equity account is present and protected")
+	log.Println("     Opening balance equity account is present and protected")
 
 	log.Println("  [8/8] Checking account type coverage...")
 	accountTypes := []models.AccountType{
@@ -196,12 +196,12 @@ func ValidateFinanceSeeder() error {
 			return fmt.Errorf("failed to check %s accounts: %w", accType, err)
 		}
 		if count == 0 {
-			log.Printf("    ⚠ WARNING: No active %s accounts found", accType)
+			log.Printf("     WARNING: No active %s accounts found", accType)
 		}
 	}
-	log.Println("    ✓ Account type coverage looks good")
+	log.Println("     Account type coverage looks good")
 
-	log.Println("✓ Finance Seeder validation PASSED - all invariants satisfied")
+	log.Println(" Finance Seeder validation PASSED - all invariants satisfied")
 	return nil
 }
 
@@ -322,3 +322,6 @@ func QuickValidateSettingValue(settingKey, expectedCOACode string) error {
 
 	return nil
 }
+
+
+

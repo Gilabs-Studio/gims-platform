@@ -1,4 +1,4 @@
-package repositories
+﻿package repositories
 
 import (
 	"context"
@@ -168,7 +168,7 @@ func (r *chartOfAccountRepository) GetByCode(ctx context.Context, code string) (
 }
 
 func (r *chartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
-	return r.FindByCode(ctx, "3-9999")
+	return r.FindByCode(ctx, "39999")
 }
 
 func (r *chartOfAccountRepository) HasChildren(ctx context.Context, id string) (bool, error) {
@@ -227,3 +227,4 @@ func (r *chartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context)
 func (r *chartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {
 	return r.getDB(ctx)
 }
+

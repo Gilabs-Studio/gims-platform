@@ -26,6 +26,8 @@ const EXTRA_VALID_ROUTES = [
   "/finance/accounting/journal-entries",
   "/finance/accounting/journal-entries/purchase",
   "/finance/accounting/journal-entries/adjustment",
+  "/finance/fixed-assets",
+  "/finance/settings",
   "/finance/ar/customer-invoices",
   "/finance/ar/customer-payments",
   "/finance/ar/credit-notes",

@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"log"
@@ -10,26 +10,26 @@ import (
 
 func SeedSystemAccountMappings() error {
 	mappings := []models.SystemAccountMapping{
-		{Key: "purchase.inventory_asset", COACode: "1-1310", Label: "Purchase Inventory Asset"},
-		{Key: "purchase.gr_ir_clearing", COACode: "1-1440", Label: "Purchase GR/IR Clearing"},
-		{Key: "purchase.tax_input", COACode: "1-1420", Label: "Purchase Tax Input"},
-		{Key: "purchase.accounts_payable", COACode: "2-1100", Label: "Purchase Accounts Payable"},
-		{Key: "sales.accounts_receivable", COACode: "1-1210", Label: "Sales Accounts Receivable"},
-		{Key: "sales.revenue", COACode: "4-1100", Label: "Sales Revenue"},
-		{Key: "sales.tax_output", COACode: "2-1210", Label: "Sales Tax Output"},
-		{Key: "sales.cogs", COACode: "5-1000", Label: "Sales Cost of Goods Sold"},
-		{Key: "sales.sales_return", COACode: "4-1200", Label: "Sales Return"},
-		{Key: "inventory.adjustment_gain", COACode: "4-2400", Label: "Inventory Adjustment Gain"},
-		{Key: "inventory.adjustment_loss", COACode: "5-2100", Label: "Inventory Adjustment Loss"},
-		{Key: "asset.accumulated_depreciation", COACode: "1-2241", Label: "Asset Accumulated Depreciation"},
-		{Key: "asset.depreciation_expense", COACode: "6-2430", Label: "Asset Depreciation Expense"},
-		{Key: "finance.opening_balance_equity", COACode: "3-9999", Label: "Finance Opening Balance Equity"},
-		{Key: "finance.bank_default", COACode: "1-1111", Label: "Finance Bank Default"},
-		{Key: "finance.cash_default", COACode: "1-1101", Label: "Finance Cash Default"},
-		{Key: "payroll.salary_expense", COACode: "6-2100", Label: "Payroll Salary Expense"},
-		{Key: "payroll.allowance_expense", COACode: "6-2110", Label: "Payroll Allowance Expense"},
-		{Key: "payroll.payable_salary", COACode: "2-1300", Label: "Payroll Salary Payable"},
-		{Key: "payroll.tax_pph21", COACode: "2-1220", Label: "Payroll Tax PPh21"},
+		{Key: "purchase.inventory_asset", COACode: "11310", Label: "Purchase Inventory Asset"},
+		{Key: "purchase.gr_ir_clearing", COACode: "11440", Label: "Purchase GR/IR Clearing"},
+		{Key: "purchase.tax_input", COACode: "11420", Label: "Purchase Tax Input"},
+		{Key: "purchase.accounts_payable", COACode: "21100", Label: "Purchase Accounts Payable"},
+		{Key: "sales.accounts_receivable", COACode: "11210", Label: "Sales Accounts Receivable"},
+		{Key: "sales.revenue", COACode: "41100", Label: "Sales Revenue"},
+		{Key: "sales.tax_output", COACode: "21210", Label: "Sales Tax Output"},
+		{Key: "sales.cogs", COACode: "51000", Label: "Sales Cost of Goods Sold"},
+		{Key: "sales.sales_return", COACode: "41200", Label: "Sales Return"},
+		{Key: "inventory.adjustment_gain", COACode: "71300", Label: "Inventory Adjustment Gain"},
+		{Key: "inventory.adjustment_loss", COACode: "52100", Label: "Inventory Adjustment Loss"},
+		{Key: "asset.accumulated_depreciation", COACode: "12241", Label: "Asset Accumulated Depreciation"},
+		{Key: "asset.depreciation_expense", COACode: "62430", Label: "Asset Depreciation Expense"},
+		{Key: "finance.opening_balance_equity", COACode: "39999", Label: "Finance Opening Balance Equity"},
+		{Key: "finance.bank_default", COACode: "11111", Label: "Finance Bank Default"},
+		{Key: "finance.cash_default", COACode: "11101", Label: "Finance Cash Default"},
+		{Key: "payroll.salary_expense", COACode: "62100", Label: "Payroll Salary Expense"},
+		{Key: "payroll.allowance_expense", COACode: "62110", Label: "Payroll Allowance Expense"},
+		{Key: "payroll.payable_salary", COACode: "21300", Label: "Payroll Salary Payable"},
+		{Key: "payroll.tax_pph21", COACode: "21220", Label: "Payroll Tax PPh21"},
 	}
 
 	for _, m := range mappings {
@@ -50,3 +50,4 @@ func SeedSystemAccountMappings() error {
 
 	return nil
 }
+

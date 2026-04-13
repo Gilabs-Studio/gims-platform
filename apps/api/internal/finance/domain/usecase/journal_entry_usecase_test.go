@@ -135,13 +135,7 @@ func TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain(t *testi
 func TestBuildOpeningBalanceLines_ShouldDebitAccountCreditEquity_ForAsset(t *testing.T) {
 	t.Parallel()
 
-	account := &financeModels.ChartOfAccount{
-		ID:             "coa-asset",
-		Code:           "1-1101",
-		Type:           financeModels.AccountTypeAsset,
-		OpeningBalance: 1000,
-	}
-	lines := buildOpeningBalanceLines(account, "coa-equity")
+	lines := buildOpeningBalanceLines("coa-asset", financeModels.AccountTypeAsset, 1000, "coa-equity")
 
 	require.Len(t, lines, 2)
 	require.Equal(t, "coa-asset", lines[0].ChartOfAccountID)
@@ -155,13 +149,7 @@ func TestBuildOpeningBalanceLines_ShouldDebitAccountCreditEquity_ForAsset(t *tes
 func TestBuildOpeningBalanceLines_ShouldDebitEquityCreditAccount_ForLiability(t *testing.T) {
 	t.Parallel()
 
-	account := &financeModels.ChartOfAccount{
-		ID:             "coa-liability",
-		Code:           "2-1100",
-		Type:           financeModels.AccountTypeLiability,
-		OpeningBalance: 2500,
-	}
-	lines := buildOpeningBalanceLines(account, "coa-equity")
+	lines := buildOpeningBalanceLines("coa-liability", financeModels.AccountTypeLiability, 2500, "coa-equity")
 
 	require.Len(t, lines, 2)
 	require.Equal(t, "coa-equity", lines[0].ChartOfAccountID)
@@ -223,7 +211,7 @@ func (s stubChartOfAccountRepository) GetByCode(ctx context.Context, code string
 
 func (s stubChartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
 	for _, item := range s.items {
-		if item.Code == "3-9999" {
+		if item.Code == "39999" {
 			return &item, nil
 		}
 	}

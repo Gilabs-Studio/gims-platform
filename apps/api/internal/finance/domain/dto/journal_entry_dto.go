@@ -43,6 +43,15 @@ type CreateAdjustmentJournalRequest struct {
 	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
 }
 
+// CreateOpeningBalanceJournalRequest is an internal command payload for opening balance journals.
+// Opening balances are journal-driven and are not persisted on Chart of Account rows.
+type CreateOpeningBalanceJournalRequest struct {
+	AccountID   string  `json:"account_id" binding:"required,uuid"`
+	Amount      float64 `json:"amount" binding:"required"`
+	EntryDate   *string `json:"entry_date"`
+	Description *string `json:"description"`
+}
+
 type ListJournalEntriesRequest struct {
 	Page          int                          `form:"page" binding:"omitempty,min=1"`
 	PerPage       int                          `form:"per_page" binding:"omitempty,min=1,max=100"`

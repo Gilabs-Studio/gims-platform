@@ -12,8 +12,6 @@ type CreateChartOfAccountRequest struct {
 	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive       *bool                     `json:"is_active"`
-	OpeningBalance float64                   `json:"opening_balance"`
-	OpeningDate    *string                   `json:"opening_date"`
 }
 
 type UpdateChartOfAccountRequest struct {
@@ -22,8 +20,6 @@ type UpdateChartOfAccountRequest struct {
 	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive       *bool                     `json:"is_active"`
-	OpeningBalance float64                   `json:"opening_balance"`
-	OpeningDate    *string                   `json:"opening_date"`
 }
 
 type ListChartOfAccountsRequest struct {
@@ -47,8 +43,6 @@ type ChartOfAccountResponse struct {
 	IsPostable     bool                      `json:"is_postable"`
 	IsProtected    bool                      `json:"is_protected"`
 	Level          int                       `json:"level"`
-	OpeningBalance float64                   `json:"opening_balance"`
-	OpeningDate    *string                   `json:"opening_date"`
 	CreatedAt      time.Time                 `json:"created_at"`
 	UpdatedAt      time.Time                 `json:"updated_at"`
 }
@@ -63,8 +57,6 @@ type ChartOfAccountTreeNode struct {
 	IsPostable     bool                      `json:"is_postable"`
 	IsProtected    bool                      `json:"is_protected"`
 	Level          int                       `json:"level"`
-	OpeningBalance float64                   `json:"opening_balance"`
-	OpeningDate    *string                   `json:"opening_date"`
 	Children       []ChartOfAccountTreeNode  `json:"children"`
 }
 

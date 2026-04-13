@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -20,6 +19,7 @@ var (
 	ErrCOAProtected         = errors.New("chart of account is protected")
 	ErrCOAHasChildren       = errors.New("chart of account has child accounts")
 	ErrCOAHasTransactions   = errors.New("chart of account already used in transactions")
+	ErrCOATypeLocked        = errors.New("account type cannot be changed after account is used in transactions")
 )
 
 type ChartOfAccountUsecase interface {
@@ -33,24 +33,14 @@ type ChartOfAccountUsecase interface {
 	RecalculateAllIsPostable(ctx context.Context) error
 }
 
-type openingBalanceJournalManager interface {
-	CreateOpeningBalanceJournal(ctx context.Context, account *financeModels.ChartOfAccount) (*dto.JournalEntryResponse, error)
-	ReverseOpeningBalance(ctx context.Context, accountID string) (*dto.JournalEntryResponse, error)
-}
-
 type chartOfAccountUsecase struct {
-	db             *gorm.DB
-	repo           repositories.ChartOfAccountRepository
-	mapper         *mapper.ChartOfAccountMapper
-	journalManager openingBalanceJournalManager
+	db     *gorm.DB
+	repo   repositories.ChartOfAccountRepository
+	mapper *mapper.ChartOfAccountMapper
 }
 
-func NewChartOfAccountUsecase(db *gorm.DB, repo repositories.ChartOfAccountRepository, mapper *mapper.ChartOfAccountMapper, journalManagers ...openingBalanceJournalManager) ChartOfAccountUsecase {
-	uc := &chartOfAccountUsecase{db: db, repo: repo, mapper: mapper}
-	if len(journalManagers) > 0 {
-		uc.journalManager = journalManagers[0]
-	}
-	return uc
+func NewChartOfAccountUsecase(db *gorm.DB, repo repositories.ChartOfAccountRepository, mapper *mapper.ChartOfAccountMapper) ChartOfAccountUsecase {
+	return &chartOfAccountUsecase{db: db, repo: repo, mapper: mapper}
 }
 
 func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChartOfAccountRequest) (*dto.ChartOfAccountResponse, error) {
@@ -79,11 +69,6 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 			return nil, err
 		}
 	}
-	openingDate, err := parseDateOptional(req.OpeningDate)
-	if err != nil {
-		return nil, err
-	}
-
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -98,14 +83,12 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 	}
 
 	item := &financeModels.ChartOfAccount{
-		Code:           req.Code,
-		Name:           req.Name,
-		Type:           req.Type,
-		ParentID:       parentID,
-		IsActive:       isActive,
-		IsPostable:     true,
-		OpeningBalance: req.OpeningBalance,
-		OpeningDate:    openingDate,
+		Code:       req.Code,
+		Name:       req.Name,
+		Type:       req.Type,
+		ParentID:   parentID,
+		IsActive:   isActive,
+		IsPostable: true,
 	}
 	if err := uc.repo.Create(ctx, item); err != nil {
 		return nil, err
@@ -115,9 +98,6 @@ func (uc *chartOfAccountUsecase) Create(ctx context.Context, req *dto.CreateChar
 	}
 	created, err := uc.repo.FindByID(ctx, item.ID)
 	if err != nil {
-		return nil, err
-	}
-	if err := uc.handleOpeningBalance(ctx, created, 0); err != nil {
 		return nil, err
 	}
 	resp := uc.mapper.ToResponse(created)
@@ -149,9 +129,15 @@ func (uc *chartOfAccountUsecase) Update(ctx context.Context, id string, req *dto
 	if existing.IsProtected {
 		return nil, ErrCOAProtected
 	}
-	oldOpeningBalance := existing.OpeningBalance
-	oldOpeningDate := cloneDatePtr(existing.OpeningDate)
-
+	if existing.Type != req.Type {
+		usedInJournal, checkErr := uc.repo.IsUsedInJournal(ctx, id)
+		if checkErr != nil {
+			return nil, checkErr
+		}
+		if usedInJournal {
+			return nil, ErrCOATypeLocked
+		}
+	}
 	excludeID := existing.ID
 	exists, err := uc.repo.ExistsByCode(ctx, req.Code, &excludeID)
 	if err != nil {
@@ -180,11 +166,6 @@ func (uc *chartOfAccountUsecase) Update(ctx context.Context, id string, req *dto
 			parentID = &p
 		}
 	}
-	openingDate, err := parseDateOptional(req.OpeningDate)
-	if err != nil {
-		return nil, err
-	}
-
 	isActive := existing.IsActive
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -195,8 +176,6 @@ func (uc *chartOfAccountUsecase) Update(ctx context.Context, id string, req *dto
 	existing.Type = req.Type
 	existing.ParentID = parentID
 	existing.IsActive = isActive
-	existing.OpeningBalance = req.OpeningBalance
-	existing.OpeningDate = openingDate
 
 	if err := uc.repo.Update(ctx, existing); err != nil {
 		return nil, err
@@ -207,11 +186,6 @@ func (uc *chartOfAccountUsecase) Update(ctx context.Context, id string, req *dto
 	updated, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
-	}
-	if oldOpeningBalance != updated.OpeningBalance || !sameDate(oldOpeningDate, updated.OpeningDate) {
-		if err := uc.handleOpeningBalance(ctx, updated, oldOpeningBalance); err != nil {
-			return nil, err
-		}
 	}
 	resp := uc.mapper.ToResponse(updated)
 	resp.Level = uc.calculateLevel(ctx, updated)
@@ -357,17 +331,15 @@ func (uc *chartOfAccountUsecase) Tree(ctx context.Context, onlyActive bool) ([]d
 			}
 			visited[it.ID] = true
 			node := dto.ChartOfAccountTreeNode{
-				ID:             it.ID,
-				Code:           it.Code,
-				Name:           it.Name,
-				Type:           it.Type,
-				ParentID:       it.ParentID,
-				IsActive:       it.IsActive,
-				IsPostable:     it.IsPostable,
-				IsProtected:    it.IsProtected,
-				Level:          depth,
-				OpeningBalance: it.OpeningBalance,
-				OpeningDate:    formatDatePtr(it.OpeningDate),
+				ID:          it.ID,
+				Code:        it.Code,
+				Name:        it.Name,
+				Type:        it.Type,
+				ParentID:    it.ParentID,
+				IsActive:    it.IsActive,
+				IsPostable:  it.IsPostable,
+				IsProtected: it.IsProtected,
+				Level:       depth,
 			}
 			cid := it.ID
 			node.Children = buildTree(&cid, visited, depth+1)
@@ -380,18 +352,16 @@ func (uc *chartOfAccountUsecase) Tree(ctx context.Context, onlyActive bool) ([]d
 	if len(orphans) > 0 {
 		for _, it := range orphans {
 			node := dto.ChartOfAccountTreeNode{
-				ID:             it.ID,
-				Code:           it.Code,
-				Name:           it.Name,
-				Type:           it.Type,
-				ParentID:       it.ParentID,
-				IsActive:       it.IsActive,
-				IsPostable:     it.IsPostable,
-				IsProtected:    it.IsProtected,
-				Level:          uc.calculateLevel(ctx, &it),
-				OpeningBalance: it.OpeningBalance,
-				OpeningDate:    formatDatePtr(it.OpeningDate),
-				Children:       nil,
+				ID:          it.ID,
+				Code:        it.Code,
+				Name:        it.Name,
+				Type:        it.Type,
+				ParentID:    it.ParentID,
+				IsActive:    it.IsActive,
+				IsPostable:  it.IsPostable,
+				IsProtected: it.IsProtected,
+				Level:       uc.calculateLevel(ctx, &it),
+				Children:    nil,
 			}
 			cid := it.ID
 			node.Children = buildTree(&cid, map[string]bool{it.ID: true}, node.Level+1)
@@ -422,34 +392,6 @@ func (uc *chartOfAccountUsecase) RecalculateAllIsPostable(ctx context.Context) e
 	return uc.repo.RecalculateAllIsPostable(ctx)
 }
 
-func (uc *chartOfAccountUsecase) handleOpeningBalance(ctx context.Context, account *financeModels.ChartOfAccount, oldBalance float64) error {
-	if account == nil {
-		return nil
-	}
-	if account.OpeningBalance == 0 && oldBalance == 0 {
-		return nil
-	}
-	if !account.IsPostable {
-		return errors.New("opening balance can only be set for postable accounts")
-	}
-	if uc.journalManager == nil {
-		return errors.New("opening balance journal manager is not configured")
-	}
-	if _, err := uc.repo.FindOpeningBalanceEquity(ctx); err != nil {
-		return errors.New("akun Saldo Awal Ekuitas (3-9999) belum dikonfigurasi")
-	}
-	if oldBalance != 0 {
-		if _, err := uc.journalManager.ReverseOpeningBalance(ctx, account.ID); err != nil {
-			return err
-		}
-	}
-	if account.OpeningBalance != 0 {
-		_, err := uc.journalManager.CreateOpeningBalanceJournal(ctx, account)
-		return err
-	}
-	return nil
-}
-
 func (uc *chartOfAccountUsecase) validateNoCircularParent(ctx context.Context, accountID, parentID string) error {
 	current := strings.TrimSpace(parentID)
 	for current != "" {
@@ -469,32 +411,6 @@ func (uc *chartOfAccountUsecase) validateNoCircularParent(ctx context.Context, a
 		current = strings.TrimSpace(*item.ParentID)
 	}
 	return nil
-}
-
-func formatDatePtr(value *time.Time) *string {
-	if value == nil {
-		return nil
-	}
-	v := value.Format("2006-01-02")
-	return &v
-}
-
-func cloneDatePtr(value *time.Time) *time.Time {
-	if value == nil {
-		return nil
-	}
-	v := *value
-	return &v
-}
-
-func sameDate(a, b *time.Time) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return a.Format("2006-01-02") == b.Format("2006-01-02")
 }
 
 func (uc *chartOfAccountUsecase) calculateLevel(ctx context.Context, item *financeModels.ChartOfAccount) int {

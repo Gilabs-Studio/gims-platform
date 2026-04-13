@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"log"
@@ -27,7 +27,7 @@ func SeedBankAccounts() error {
 	if isMinimalSeedMode() {
 		db := database.DB
 		// Minimal bank account + corresponding COA.
-		coa := financeModels.ChartOfAccount{Code: "1-1101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
+		coa := financeModels.ChartOfAccount{Code: "11101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
 			return err
 		}
@@ -67,17 +67,17 @@ func SeedBankAccounts() error {
 		{
 			name: "Bank Mandiri - Main Account", accountNumber: "1234567890",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "1-1112", coaName: "Bank Mandiri",
+			coaCode: "11112", coaName: "Bank Mandiri",
 		},
 		{
 			name: "Bank BCA - Operating Account", accountNumber: "0987654321",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "1-1111", coaName: "Bank BCA",
+			coaCode: "11111", coaName: "Bank BCA",
 		},
 		{
 			name: "Bank BRI - USD Account", accountNumber: "1122334455",
 			accountHolder: "PT. ERP Company", currency: "USD", isActive: true,
-			coaCode: "1-1113", coaName: "Bank BRI",
+			coaCode: "11113", coaName: "Bank BRI",
 		},
 	}
 
@@ -145,3 +145,4 @@ func SeedBankAccounts() error {
 	log.Println("Bank accounts seeded with linked COA entries.")
 	return nil
 }
+

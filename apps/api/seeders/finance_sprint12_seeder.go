@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"fmt"
@@ -20,13 +20,13 @@ func SeedFinanceSprint12() error {
 	log.Println("Seeding finance (Sprint 12): assets, closing, tax invoice, non-trade payable...")
 
 	var fixedAssetCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "1-2240").First(&fixedAssetCOA).Error
+	_ = db.Where("code = ?", "12240").First(&fixedAssetCOA).Error
 	var accumDepCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "1-2241").First(&accumDepCOA).Error
+	_ = db.Where("code = ?", "12241").First(&accumDepCOA).Error
 	var depExpenseCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "6-2430").First(&depExpenseCOA).Error
+	_ = db.Where("code = ?", "62430").First(&depExpenseCOA).Error
 	var officeExpenseCOA financeModels.ChartOfAccount
-	_ = db.Where("code = ?", "6-2600").First(&officeExpenseCOA).Error
+	_ = db.Where("code = ?", "62600").First(&officeExpenseCOA).Error
 
 	// 2) Seed Asset Locations
 	locations := []financeModels.AssetLocation{
@@ -90,7 +90,7 @@ func SeedFinanceSprint12() error {
 	var vehiclesCat financeModels.AssetCategory
 	_ = db.Where("name = ?", "Vehicles").First(&vehiclesCat).Error
 
-	// 4) Seed Assets – includes Phase 2 extended fields
+	// 4) Seed Assets  includes Phase 2 extended fields
 	warrantyStart := time.Now().AddDate(0, -10, 0)
 	warrantyEnd := warrantyStart.AddDate(2, 0, 0)
 	insStart := warrantyStart
@@ -447,7 +447,7 @@ func SeedFinanceSprint12() error {
 	var budgetCount int64
 	db.Model(&financeModels.Budget{}).Count(&budgetCount)
 	if budgetCount == 0 {
-		marketingCoa := "6300" // Office/General as fallback
+		marketingCoa := "61200" // Marketing expense fallback (PSAK numbering)
 		budget := financeModels.Budget{
 			Name:        fmt.Sprintf("Operational Budget %d", now.Year()),
 			Description: "Annual operational and marketing budget",
@@ -484,7 +484,7 @@ func SeedFinanceSprint12() error {
 	if paymentCount == 0 {
 		var ba coreModels.BankAccount
 		if err := db.First(&ba).Error; err == nil {
-			arCoa := "1100" // AR
+			arCoa := "11210" // AR (PSAK numbering)
 			var ar financeModels.ChartOfAccount
 			if err := db.Where("code = ?", arCoa).First(&ar).Error; err == nil {
 				payment := financeModels.Payment{
@@ -539,3 +539,6 @@ func SeedFinanceSprint12() error {
 
 	return nil
 }
+
+
+

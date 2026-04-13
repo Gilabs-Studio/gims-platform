@@ -188,8 +188,8 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 	)
 	require.NoError(t, err)
 
-	openingEquity := models.ChartOfAccount{Code: "3-9999", Name: "Opening Balance Equity", Type: models.AccountTypeEquity, IsActive: true, IsPostable: true}
-	account := models.ChartOfAccount{Code: "1-1101", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true, IsPostable: true, OpeningBalance: 1000}
+	openingEquity := models.ChartOfAccount{Code: "39999", Name: "Opening Balance Equity", Type: models.AccountTypeEquity, IsActive: true, IsPostable: true}
+	account := models.ChartOfAccount{Code: "1-1101", Name: "Cash", Type: models.AccountTypeAsset, IsActive: true, IsPostable: true}
 	require.NoError(t, db.Create(&openingEquity).Error)
 	require.NoError(t, db.Create(&account).Error)
 
@@ -200,7 +200,10 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 
 	ctx := context.WithValue(context.Background(), "user_id", "00000000-0000-0000-0000-000000000001")
 
-	first, err := uc.CreateOpeningBalanceJournal(ctx, &account)
+	first, err := uc.CreateOpeningBalanceJournal(ctx, &dto.CreateOpeningBalanceJournalRequest{
+		AccountID: account.ID,
+		Amount:    1000,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, first)
 
@@ -208,8 +211,10 @@ func TestJournalEntry_ShouldReverseAndRecreateOpeningBalanceReference(t *testing
 	require.NoError(t, err)
 	require.NotNil(t, reversal)
 
-	account.OpeningBalance = 1500
-	second, err := uc.CreateOpeningBalanceJournal(ctx, &account)
+	second, err := uc.CreateOpeningBalanceJournal(ctx, &dto.CreateOpeningBalanceJournalRequest{
+		AccountID: account.ID,
+		Amount:    1500,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, second)
 

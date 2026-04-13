@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -67,9 +67,9 @@ func SeedOpeningBalances() error {
 
 	if totalInventoryValue == 0 {
 		if batchCount == 0 {
-			log.Println("  ⚠ No inventory batches found, skipping opening balance")
+			log.Println("   No inventory batches found, skipping opening balance")
 		} else {
-			log.Println("  ⚠ Inventory batches found but total value is still zero, skipping opening balance")
+			log.Println("   Inventory batches found but total value is still zero, skipping opening balance")
 		}
 		return nil
 	}
@@ -97,39 +97,19 @@ func SeedOpeningBalances() error {
 		return nil, fmt.Errorf("failed to find %s COA using candidates %v", label, codes)
 	}
 
-	// Canonical inventory account is 1-1310 in current COA hierarchy.
-	inventoryAssetCOA, err := findCOAByCandidates("inventory asset", "1-1310", "1-1300", "1400")
+	// Canonical inventory account is 11310 in current COA hierarchy.
+	inventoryAssetCOA, err := findCOAByCandidates("inventory asset", "11310", "11300", "1400")
 	if err != nil {
 		return err
 	}
 
 	// Canonical retained earnings/opening equity accounts in current hierarchy.
-	retainedEarningsCOA, err := findCOAByCandidates("retained earnings", "3-9999", "3-3000", "3200")
+	retainedEarningsCOA, err := findCOAByCandidates("retained earnings", "39999", "33000", "3200")
 	if err != nil {
 		return err
 	}
 
 	now := apptime.Now()
-
-	// Keep COA opening balance fields in sync with seeded opening journals
-	// so finance COA list and related UI do not show all zeros.
-	if err := db.Model(&models.ChartOfAccount{}).
-		Where("id = ?", inventoryAssetCOA.ID).
-		Updates(map[string]interface{}{
-			"opening_balance": totalInventoryValue,
-			"opening_date":    now,
-		}).Error; err != nil {
-		return fmt.Errorf("failed to sync opening balance for inventory account %s: %w", inventoryAssetCOA.Code, err)
-	}
-
-	if err := db.Model(&models.ChartOfAccount{}).
-		Where("id = ?", retainedEarningsCOA.ID).
-		Updates(map[string]interface{}{
-			"opening_balance": totalInventoryValue,
-			"opening_date":    now,
-		}).Error; err != nil {
-		return fmt.Errorf("failed to sync opening balance for equity account %s: %w", retainedEarningsCOA.Code, err)
-	}
 
 	// ============================================================================
 	// Step 3: Check if opening balance journal already exists
@@ -140,7 +120,7 @@ func SeedOpeningBalances() error {
 		return fmt.Errorf("failed to check existing opening balance: %w", err)
 	}
 	if existingJournal != nil {
-		log.Println("  ℹ Opening balance journal already exists, skipping")
+		log.Println("   Opening balance journal already exists, skipping")
 		return nil
 	}
 
@@ -195,6 +175,9 @@ func SeedOpeningBalances() error {
 		return fmt.Errorf("failed to create opening balance journal: %w", err)
 	}
 
-	log.Printf("  ✓ Opening balance journal created (%.2f)", totalInventoryValue)
+	log.Printf("   Opening balance journal created (%.2f)", totalInventoryValue)
 	return nil
 }
+
+
+

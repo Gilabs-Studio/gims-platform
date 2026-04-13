@@ -116,7 +116,7 @@ func (r *inMemoryCOARepo) GetByCode(ctx context.Context, code string) (*financeM
 }
 
 func (r *inMemoryCOARepo) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
-	return r.FindByCode(ctx, "3-9999")
+	return r.FindByCode(ctx, "39999")
 }
 
 func (r *inMemoryCOARepo) HasChildren(ctx context.Context, id string) (bool, error) {
@@ -169,26 +169,6 @@ func (r *inMemoryCOARepo) RecalculateAllIsPostable(ctx context.Context) error {
 func (r *inMemoryCOARepo) GetDB(ctx context.Context) *gorm.DB {
 	_ = ctx
 	return nil
-}
-
-type openingBalanceJournalStub struct {
-	createCalls  int
-	reverseCalls int
-	lastAccount  string
-}
-
-func (s *openingBalanceJournalStub) CreateOpeningBalanceJournal(ctx context.Context, account *financeModels.ChartOfAccount) (*dto.JournalEntryResponse, error) {
-	_ = ctx
-	s.createCalls++
-	s.lastAccount = account.ID
-	return &dto.JournalEntryResponse{ID: "opening-created"}, nil
-}
-
-func (s *openingBalanceJournalStub) ReverseOpeningBalance(ctx context.Context, accountID string) (*dto.JournalEntryResponse, error) {
-	_ = ctx
-	s.reverseCalls++
-	s.lastAccount = accountID
-	return &dto.JournalEntryResponse{ID: "opening-reversed"}, nil
 }
 
 func TestChartOfAccountCreate_ShouldSetParentNonPostable_WhenChildAdded(t *testing.T) {
@@ -259,55 +239,3 @@ func TestChartOfAccountUpdate_ShouldRejectCircularParentReference(t *testing.T) 
 	require.ErrorIs(t, err, ErrCOAInvalidParent)
 }
 
-func TestChartOfAccountCreate_ShouldCreateOpeningBalanceJournal_WhenOpeningBalanceSet(t *testing.T) {
-	t.Parallel()
-
-	rootID := "root"
-	parentID := "parent"
-	repo := newInMemoryCOARepo(
-		financeModels.ChartOfAccount{ID: rootID, Code: "1-0000", Name: "Assets", Type: financeModels.AccountTypeAsset, IsActive: true, IsPostable: false},
-		financeModels.ChartOfAccount{ID: parentID, Code: "1-1000", Name: "Current Assets", Type: financeModels.AccountTypeAsset, ParentID: &rootID, IsActive: true, IsPostable: true},
-		financeModels.ChartOfAccount{ID: "opening-equity", Code: "3-9999", Name: "Saldo Awal Ekuitas", Type: financeModels.AccountTypeEquity, ParentID: nil, IsActive: true, IsPostable: true, IsProtected: true},
-	)
-	journalStub := &openingBalanceJournalStub{}
-	uc := NewChartOfAccountUsecase(nil, repo, mapper.NewChartOfAccountMapper(), journalStub)
-
-	_, err := uc.Create(context.Background(), &dto.CreateChartOfAccountRequest{
-		Code:           "1-1101",
-		Name:           "Cash",
-		Type:           financeModels.AccountTypeCashBank,
-		ParentID:       &parentID,
-		OpeningBalance: 1500,
-	})
-	require.NoError(t, err)
-	require.Equal(t, 1, journalStub.createCalls)
-	require.Equal(t, 0, journalStub.reverseCalls)
-}
-
-func TestChartOfAccountUpdate_ShouldReverseAndCreateOpeningJournal_WhenOpeningBalanceChanged(t *testing.T) {
-	t.Parallel()
-
-	rootID := "root"
-	parentID := "parent"
-	accountID := "cash"
-	repo := newInMemoryCOARepo(
-		financeModels.ChartOfAccount{ID: rootID, Code: "1-0000", Name: "Assets", Type: financeModels.AccountTypeAsset, IsActive: true, IsPostable: false},
-		financeModels.ChartOfAccount{ID: parentID, Code: "1-1000", Name: "Current Assets", Type: financeModels.AccountTypeAsset, ParentID: &rootID, IsActive: true, IsPostable: false},
-		financeModels.ChartOfAccount{ID: accountID, Code: "1-1101", Name: "Cash", Type: financeModels.AccountTypeCashBank, ParentID: &parentID, IsActive: true, IsPostable: true, OpeningBalance: 1000},
-		financeModels.ChartOfAccount{ID: "opening-equity", Code: "3-9999", Name: "Saldo Awal Ekuitas", Type: financeModels.AccountTypeEquity, IsActive: true, IsPostable: true, IsProtected: true},
-	)
-	journalStub := &openingBalanceJournalStub{}
-	uc := NewChartOfAccountUsecase(nil, repo, mapper.NewChartOfAccountMapper(), journalStub)
-
-	_, err := uc.Update(context.Background(), accountID, &dto.UpdateChartOfAccountRequest{
-		Code:           "1-1101",
-		Name:           "Cash",
-		Type:           financeModels.AccountTypeCashBank,
-		ParentID:       &parentID,
-		OpeningBalance: 2000,
-	})
-	require.NoError(t, err)
-	require.Equal(t, 1, journalStub.reverseCalls)
-	require.Equal(t, 1, journalStub.createCalls)
-	require.Equal(t, accountID, journalStub.lastAccount)
-}

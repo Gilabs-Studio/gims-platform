@@ -35,22 +35,9 @@ type Props = {
     parent_id?: string | null;
     is_active: boolean;
     is_protected?: boolean;
-    opening_balance?: number;
-    opening_date?: string | null;
   } | null;
   parentOptions: Array<Pick<ChartOfAccount, "id" | "code" | "name">>;
 };
-
-function toDateInputValue(value?: string | null): string {
-  if (!value) return "";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toISOString().slice(0, 10);
-}
 
 const COA_TYPES: Array<{ value: CoaType; labelKey: string }> = [
   { value: "ASSET", labelKey: "asset" },
@@ -82,8 +69,6 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
       type: initialData?.type ?? "ASSET",
       parent_id: initialData?.parent_id ?? null,
       is_active: initialData?.is_active ?? true,
-      opening_balance: initialData?.opening_balance ?? 0,
-      opening_date: toDateInputValue(initialData?.opening_date),
     }),
     [initialData],
   );
@@ -111,8 +96,6 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
         type: values.type,
         parent_id: values.parent_id ?? null,
         is_active: values.is_active ?? true,
-        opening_balance: values.opening_balance ?? 0,
-        opening_date: values.opening_date?.trim() ? values.opening_date : null,
       };
 
       if (mode === "create") {
@@ -217,35 +200,6 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
               </Select>
               {form.formState.errors.parent_id && (
                 <p className="text-sm text-destructive">{form.formState.errors.parent_id.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="opening_balance">{t("fields.openingBalance")}</Label>
-              <Input
-                id="opening_balance"
-                type="number"
-                step="0.01"
-                {...form.register("opening_balance")}
-                disabled={isProtected}
-              />
-              {form.formState.errors.opening_balance && (
-                <p className="text-sm text-destructive">{form.formState.errors.opening_balance.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="opening_date">{t("fields.openingDate")}</Label>
-              <Input
-                id="opening_date"
-                type="date"
-                {...form.register("opening_date")}
-                disabled={isProtected}
-              />
-              {form.formState.errors.opening_date && (
-                <p className="text-sm text-destructive">{form.formState.errors.opening_date.message}</p>
               )}
             </div>
           </div>
