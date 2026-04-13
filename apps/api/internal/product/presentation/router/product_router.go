@@ -13,7 +13,10 @@ func RegisterProductRoutes(rg *gin.RouterGroup, h *handler.ProductHandler) {
 		g.GET("", middleware.RequirePermission("product.read"), h.List)
 		// Recipe endpoints BEFORE /:id to avoid Gin route conflict
 		g.GET("/:id/recipe", middleware.RequirePermission("product.read"), h.GetRecipe)
-		g.PUT("/:id/recipe", middleware.RequirePermission("product.update"), h.UpdateRecipe)
+		g.PUT("/:id/recipe", middleware.RequirePermission("product.recipe.update"), h.UpdateRecipe)
+		g.GET("/:id/recipe/versions", middleware.RequirePermission("product.read"), h.ListRecipeVersions)
+		g.POST("/:id/recipe/clone", middleware.RequirePermission("product.recipe.update"), h.CloneRecipeFromVersion)
+		g.GET("/:id/recipe/compare", middleware.RequirePermission("product.read"), h.CompareRecipeVersions)
 		g.GET("/:id", middleware.RequirePermission("product.read"), h.GetByID)
 		g.PUT("/:id", middleware.RequirePermission("product.update"), h.Update)
 		g.DELETE("/:id", middleware.RequirePermission("product.delete"), h.Delete)

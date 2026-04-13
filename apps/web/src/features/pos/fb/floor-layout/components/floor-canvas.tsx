@@ -9,6 +9,8 @@ import type { useCanvasEditor } from "../hooks/use-canvas-editor";
 
 type CanvasEditorReturn = ReturnType<typeof useCanvasEditor>;
 
+import "@/features/pos/fb/pos-fb-theme.module.css";
+
 interface FloorCanvasProps {
   readonly editor: CanvasEditorReturn;
 }
@@ -870,7 +872,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
           {/* Infinite dot-grid background */}
           <defs>
             <pattern id="grid-dots" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
-              <circle cx={gridSize / 2} cy={gridSize / 2} r={0.8} fill="#cbd5e1" />
+              <circle cx={gridSize / 2} cy={gridSize / 2} r={0.8} fill="var(--pos-grid-dot)" />
             </pattern>
           </defs>
           <rect
@@ -878,7 +880,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
             y={-INFINITE_SIZE / 2}
             width={INFINITE_SIZE}
             height={INFINITE_SIZE}
-            fill={editor.snapToGrid ? "url(#grid-dots)" : "white"}
+            fill={editor.snapToGrid ? "url(#grid-dots)" : "var(--pos-bg-fill)"}
             className="canvas-bg"
           />
 
@@ -902,7 +904,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               cx={ep.x}
               cy={ep.y}
               r={4}
-              fill="#0ea5e9"
+              fill="var(--pos-grid-highlight)"
               opacity={0.8}
               className="pointer-events-none"
             />
@@ -915,8 +917,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={junction.x}
                 cy={junction.y}
                 r={6}
-                fill="#ffffff"
-                stroke="#0284c7"
+                fill="var(--pos-handle-fill)"
+                stroke="var(--pos-grid-highlight)"
                 strokeWidth={1.5}
                 opacity={0.9}
                 style={{ cursor: "move" }}
@@ -926,7 +928,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={junction.x}
                 cy={junction.y}
                 r={2.2}
-                fill="#0284c7"
+                fill="var(--pos-grid-highlight)"
                 className="pointer-events-none"
               />
             </g>
@@ -940,7 +942,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                 cx={activeWallState.startX}
                 cy={activeWallState.startY}
                 r={5}
-                fill="#3b82f6"
+                fill="var(--pos-accent)"
                 opacity={0.9}
                 className="pointer-events-none"
               />
@@ -951,7 +953,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                     y1={activeWallState.startY}
                     x2={activeWallState.currentX}
                     y2={activeWallState.currentY}
-                    stroke="#475569"
+                    stroke="var(--pos-wall-fill)"
                     strokeWidth={WALL_THICKNESS}
                     strokeLinecap="square"
                     opacity={0.45}
@@ -962,7 +964,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
                     cx={activeWallState.currentX}
                     cy={activeWallState.currentY}
                     r={4}
-                    fill="#475569"
+                    fill="var(--pos-wall-fill)"
                     opacity={0.7}
                     className="pointer-events-none"
                   />
@@ -978,8 +980,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               y={bsRect.y}
               width={bsRect.width}
               height={bsRect.height}
-              fill="rgba(59,130,246,0.08)"
-              stroke="#3b82f6"
+              fill="var(--pos-zone-preview-fill)"
+              stroke="var(--pos-zone-preview-stroke)"
               strokeWidth={1}
               strokeDasharray="4 2"
               className="pointer-events-none"
@@ -993,8 +995,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               y={zoneRect.y}
               width={Math.max(1, zoneRect.width)}
               height={Math.max(1, zoneRect.height)}
-              fill="rgba(59,130,246,0.12)"
-              stroke="#3b82f6"
+              fill="var(--pos-zone-preview-fill)"
+              stroke="var(--pos-zone-preview-stroke)"
               strokeWidth={1.5}
               strokeDasharray="5 3"
               className="pointer-events-none"

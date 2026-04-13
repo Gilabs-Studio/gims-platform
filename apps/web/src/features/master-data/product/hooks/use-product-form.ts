@@ -226,6 +226,7 @@ export function useProductForm({ open, onOpenChange, editingItem, onCreated, def
         supplier_id: data.supplier_id || null,
         business_unit_id: data.business_unit_id || null,
         tax_type: data.tax_type || undefined,
+        is_ingredient: data.is_ingredient ?? false,
       };
 
       if (isEditing && editingItem) {

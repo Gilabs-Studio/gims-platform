@@ -27,14 +27,15 @@ import (
 
 // ChatEngineUsecase implements the new AI chat interface using the conversation engine.
 type ChatEngineUsecase struct {
-	sessionRepo    repositories.ChatSessionRepository
-	messageRepo    repositories.ChatMessageRepository
-	actionRepo     repositories.ActionLogRepository
-	cerebrasClient *cerebras.Client
-	contextBuilder *aiContext.Builder
-	engine         *engine.Engine
-	toolRegistry   *tools.Registry
-	entityResolver *EntityResolver
+	sessionRepo      repositories.ChatSessionRepository
+	messageRepo      repositories.ChatMessageRepository
+	actionRepo       repositories.ActionLogRepository
+	cerebrasClient   *cerebras.Client
+	contextBuilder   *aiContext.Builder
+	engine           *engine.Engine
+	toolRegistry     *tools.Registry
+	entityResolver   *EntityResolver
+	requestValidator *RequestValidator
 }
 
 // NewChatEngineUsecase creates the engine-based usecase.
@@ -47,15 +48,21 @@ func NewChatEngineUsecase(
 	contextBuilder *aiContext.Builder,
 	entityResolver *EntityResolver,
 ) *ChatEngineUsecase {
+	var requestValidator *RequestValidator
+	if entityResolver != nil && entityResolver.db != nil {
+		requestValidator = NewRequestValidator(entityResolver.db, entityResolver)
+	}
+
 	return &ChatEngineUsecase{
-		sessionRepo:    sessionRepo,
-		messageRepo:    messageRepo,
-		actionRepo:     actionRepo,
-		cerebrasClient: cerebrasClient,
-		contextBuilder: contextBuilder,
-		engine:         engine.NewEngine(cerebrasClient, toolRegistry, contextBuilder),
-		toolRegistry:   toolRegistry,
-		entityResolver: entityResolver,
+		sessionRepo:      sessionRepo,
+		messageRepo:      messageRepo,
+		actionRepo:       actionRepo,
+		cerebrasClient:   cerebrasClient,
+		contextBuilder:   contextBuilder,
+		engine:           engine.NewEngine(cerebrasClient, toolRegistry, contextBuilder),
+		toolRegistry:     toolRegistry,
+		entityResolver:   entityResolver,
+		requestValidator: requestValidator,
 	}
 }
 
@@ -81,7 +88,8 @@ func (u *ChatEngineUsecase) SendMessage(ctx context.Context, req *dto.SendMessag
 	// Check for pending action confirmation/cancellation
 	if req.SessionID != nil && *req.SessionID != "" {
 		pendingAction, pendingErr := u.actionRepo.FindPendingBySessionID(ctx, session.ID)
-		if pendingErr == nil && pendingAction != nil {
+		hasPendingAction := pendingErr == nil && pendingAction != nil
+		if hasPendingAction {
 			if isAffirmativeMessage(req.Message) {
 				return u.ConfirmAction(ctx, &dto.ConfirmActionRequest{
 					ActionID:  pendingAction.ID,
@@ -97,6 +105,10 @@ func (u *ChatEngineUsecase) SendMessage(ctx context.Context, req *dto.SendMessag
 			// Cancel stale pending action and process as new request
 			pendingAction.Status = models.ActionStatusCancelled
 			_ = u.actionRepo.Update(ctx, pendingAction)
+		}
+
+		if !hasPendingAction && isStandaloneConfirmationReply(req.Message) {
+			return u.handleOrphanConfirmationSync(ctx, session, req.Message, req.Model, userID, userPermissions, isAdmin, start)
 		}
 	}
 
@@ -188,7 +200,8 @@ func (u *ChatEngineUsecase) SendMessageStream(ctx context.Context, req *dto.Send
 	// a new NeedsConfirmation loop instead of executing the already-queued action.
 	if req.SessionID != nil && *req.SessionID != "" {
 		pendingAction, pendingErr := u.actionRepo.FindPendingBySessionID(ctx, session.ID)
-		if pendingErr == nil && pendingAction != nil {
+		hasPendingAction := pendingErr == nil && pendingAction != nil
+		if hasPendingAction {
 			model := u.cerebrasClient.GetDefaultModel()
 			if req.Model != "" {
 				model = req.Model
@@ -206,6 +219,14 @@ func (u *ChatEngineUsecase) SendMessageStream(ctx context.Context, req *dto.Send
 			// Unrecognised reply — cancel stale action and continue as a new request
 			pendingAction.Status = models.ActionStatusCancelled
 			_ = u.actionRepo.Update(ctx, pendingAction)
+		}
+
+		if !hasPendingAction && isStandaloneConfirmationReply(req.Message) {
+			eventChan <- tools.StreamEvent{
+				Type: tools.EventMessageStart,
+				Data: map[string]string{"session_id": session.ID},
+			}
+			return u.handleOrphanConfirmationStream(ctx, session, req.Message, req.Model, userID, userPermissions, isAdmin, eventChan)
 		}
 	}
 
@@ -239,8 +260,103 @@ func (u *ChatEngineUsecase) SendMessageStream(ctx context.Context, req *dto.Send
 	start := apptime.Now()
 	result, processErr := u.engine.ProcessMessageStream(ctx, req.Message, engineHistory, userCtx, model, eventChan)
 	if processErr != nil {
+		if isModelNotAvailableError(processErr) {
+			fallbackModel := u.pickAlternativeModel(model)
+			if fallbackModel != "" {
+				log.Printf(
+					"[AI] selected model unavailable, retrying with fallback model session_id=%s user_id=%s from=%s to=%s err=%v",
+					session.ID,
+					userID,
+					model,
+					fallbackModel,
+					processErr,
+				)
+				model = fallbackModel
+				result, processErr = u.engine.ProcessMessageStream(ctx, req.Message, engineHistory, userCtx, model, eventChan)
+			}
+		}
+
+		if processErr == nil {
+			// Continue with normal persistence path below if retry succeeded.
+			goto persistResult
+		}
+
+		log.Printf(
+			"[AI] stream failed, attempting fallback session_id=%s user_id=%s model=%s err=%v",
+			session.ID,
+			userID,
+			model,
+			processErr,
+		)
+
+		fallbackResult, fallbackErr := u.engine.ProcessMessage(ctx, req.Message, engineHistory, userCtx, model)
+		if fallbackErr != nil {
+			log.Printf(
+				"[AI] fallback failed session_id=%s user_id=%s model=%s stream_err=%v fallback_err=%v",
+				session.ID,
+				userID,
+				model,
+				processErr,
+				fallbackErr,
+			)
+			interruptionMessage := buildStreamInterruptionMessage(processErr, model)
+			if _, saveErr := u.saveSimpleResponse(ctx, session, interruptionMessage, start); saveErr != nil {
+				log.Printf("[AI] warning: failed to save interruption response: %v", saveErr)
+			}
+			return processErr
+		}
+
+		log.Printf(
+			"[AI] fallback succeeded session_id=%s user_id=%s model=%s",
+			session.ID,
+			userID,
+			model,
+		)
+
+		if fallbackResult != nil && fallbackResult.Response != "" {
+			eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: fallbackResult.Response}
+		}
+
+		durationMs := time.Since(start).Milliseconds()
+		if fallbackResult != nil {
+			if fallbackResult.RequiresConfirmation && fallbackResult.PendingToolCall != nil {
+				eventChan <- tools.StreamEvent{
+					Type: tools.EventMessageEnd,
+					Data: map[string]interface{}{
+						"requires_confirmation": true,
+						"pending_tool_call":     fallbackResult.PendingToolCall,
+						"duration_ms":           durationMs,
+						"turn_count":            fallbackResult.TurnCount,
+						"fallback":              true,
+					},
+				}
+				if _, saveErr := u.createPendingToolAction(ctx, session, fallbackResult, userID, start); saveErr != nil {
+					log.Printf("[AI] warning: failed to create pending tool action after fallback: %v", saveErr)
+				}
+				return nil
+			}
+
+			eventChan <- tools.StreamEvent{
+				Type: tools.EventMessageEnd,
+				Data: map[string]interface{}{
+					"duration_ms": durationMs,
+					"turn_count":  fallbackResult.TurnCount,
+					"fallback":    true,
+				},
+			}
+
+			if fallbackResult.Response != "" {
+				if _, saveErr := u.saveEngineResponse(ctx, session, fallbackResult, start); saveErr != nil {
+					log.Printf("[AI] warning: failed to save fallback response: %v", saveErr)
+				}
+			}
+			return nil
+		}
+
 		return processErr
 	}
+
+persistResult:
 
 	// Persist the assistant response so it appears in subsequent session reads
 	if result != nil {
@@ -257,6 +373,42 @@ func (u *ChatEngineUsecase) SendMessageStream(ctx context.Context, req *dto.Send
 	}
 
 	return nil
+}
+
+func isModelNotAvailableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "model_not_found") ||
+		strings.Contains(errMsg, "does not exist or you do not have access to it")
+}
+
+func (u *ChatEngineUsecase) pickAlternativeModel(currentModel string) string {
+	available := u.cerebrasClient.AvailableModels()
+	for _, model := range available {
+		if strings.TrimSpace(model.ID) == "" {
+			continue
+		}
+		if model.ID != currentModel {
+			return model.ID
+		}
+	}
+	return ""
+}
+
+func buildStreamInterruptionMessage(streamErr error, model string) string {
+	if isModelNotAvailableError(streamErr) {
+		return fmt.Sprintf("Model '%s' tidak tersedia. Silakan pilih model lain lalu kirim ulang permintaan Anda.", model)
+	}
+
+	if streamErr != nil {
+		if strings.Contains(streamErr.Error(), "context_length_exceeded") {
+			return "Respons terhenti karena konteks percakapan terlalu panjang. Silakan mulai chat baru atau ringkas permintaan Anda."
+		}
+	}
+
+	return "Respons sebelumnya terputus sebelum selesai. Silakan kirim ulang permintaan terakhir Anda agar saya lanjutkan."
 }
 
 // ConfirmAction processes user confirmation of a pending tool action.
@@ -298,6 +450,13 @@ func (u *ChatEngineUsecase) ConfirmAction(ctx context.Context, req *dto.ConfirmA
 	var storedParams map[string]interface{}
 	if action.RequestPayload != nil {
 		_ = json.Unmarshal([]byte(*action.RequestPayload), &storedParams)
+	}
+
+	if validationMsg := u.validateActionPayloadAgainstFacts(ctx, session.ID, action.Intent, string(action.Action), storedParams); validationMsg != "" {
+		action.Status = models.ActionStatusCancelled
+		action.ErrorMessage = validationMsg
+		_ = u.actionRepo.Update(ctx, action)
+		return u.saveSimpleResponse(ctx, session, validationMsg, start)
 	}
 
 	execCtx := &tools.ExecutionContext{
@@ -569,7 +728,7 @@ func (u *ChatEngineUsecase) saveEngineResponse(ctx context.Context, session *mod
 			title = title[:50] + "..."
 		}
 		session.Title = title
-		_ = u.sessionRepo.Update(ctx, session)
+		_ = u.sessionRepo.UpdateTitle(ctx, session.ID, session.Title)
 	}
 
 	return &dto.ChatResponse{
@@ -656,6 +815,17 @@ func (u *ChatEngineUsecase) confirmActionStream(
 		_ = json.Unmarshal([]byte(*action.RequestPayload), &storedParams)
 	}
 
+	if validationMsg := u.validateActionPayloadAgainstFacts(ctx, session.ID, action.Intent, string(action.Action), storedParams); validationMsg != "" {
+		action.Status = models.ActionStatusCancelled
+		action.ErrorMessage = validationMsg
+		_ = u.actionRepo.Update(ctx, action)
+		eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: validationMsg}
+		eventChan <- tools.StreamEvent{Type: tools.EventMessageEnd, Data: map[string]interface{}{"duration_ms": time.Since(start).Milliseconds()}}
+		result := &engine.EngineResult{Response: validationMsg, TurnCount: 1, TotalDurationMs: time.Since(start).Milliseconds()}
+		_, _ = u.saveEngineResponse(ctx, session, result, start)
+		return nil
+	}
+
 	execCtx := &tools.ExecutionContext{
 		UserID:          userID,
 		UserPermissions: userPermissions,
@@ -721,7 +891,7 @@ func (u *ChatEngineUsecase) confirmActionStream(
 		Model:       model,
 		Messages:    messages,
 		Temperature: 0.3,
-		MaxTokens:   2048,
+		MaxTokens:   1024,
 	}, func(chunk string) error {
 		fullResponse.WriteString(chunk)
 		current := fullResponse.String()
@@ -786,16 +956,24 @@ func (u *ChatEngineUsecase) cancelActionStream(
 
 func (u *ChatEngineUsecase) createPendingToolAction(ctx context.Context, session *models.AIChatSession, result *engine.EngineResult, userID string, start time.Time) (*dto.ChatResponse, error) {
 	tc := result.PendingToolCall
-	requestJSON, _ := json.Marshal(tc.Parameters)
-	reqPayload := string(requestJSON)
+	if tc == nil {
+		return nil, fmt.Errorf("AI_CHAT_FAILED: pending tool call is nil")
+	}
 
 	tool := u.toolRegistry.Get(tc.Name)
-	entityType := ""
 	actionType := ""
+	entityType := ""
 	if tool != nil {
-		entityType = tool.Module()
 		actionType = tool.Category()
+		entityType = tool.Module()
 	}
+
+	if validationMsg := u.validateActionPayloadAgainstFacts(ctx, session.ID, tc.Name, actionType, tc.Parameters); validationMsg != "" {
+		return u.saveSimpleResponse(ctx, session, validationMsg, start)
+	}
+
+	requestJSON, _ := json.Marshal(tc.Parameters)
+	reqPayload := string(requestJSON)
 
 	actionLog := &models.AIActionLog{
 		SessionID:      session.ID,
@@ -829,7 +1007,7 @@ func (u *ChatEngineUsecase) createPendingToolAction(ctx context.Context, session
 	_ = u.sessionRepo.UpdateLastActivity(ctx, session.ID)
 
 	return &dto.ChatResponse{
-		SessionID:            session.ID,
+		SessionID: session.ID,
 		Message: dto.MessageResponse{
 			ID:         assistantMsg.ID,
 			Role:       string(assistantMsg.Role),
@@ -881,6 +1059,476 @@ func (u *ChatEngineUsecase) logToolCall(ctx context.Context, sessionID, userID s
 	}
 
 	_ = u.actionRepo.Create(ctx, actionLog)
+}
+
+func (u *ChatEngineUsecase) validateActionPayloadAgainstFacts(ctx context.Context, sessionID string, intentCode string, actionType string, params map[string]interface{}) string {
+	normalizedIntent := strings.ToUpper(strings.TrimSpace(intentCode))
+	normalizedAction := strings.ToUpper(strings.TrimSpace(actionType))
+	if normalizedAction == "" {
+		switch {
+		case strings.HasPrefix(normalizedIntent, "CREATE_"):
+			normalizedAction = "CREATE"
+		case strings.HasPrefix(normalizedIntent, "UPDATE_"):
+			normalizedAction = "UPDATE"
+		case strings.HasPrefix(normalizedIntent, "DELETE_"):
+			normalizedAction = "DELETE"
+		}
+	}
+
+	if params == nil {
+		params = map[string]interface{}{}
+	}
+
+	if u.requestValidator != nil {
+		validation := u.requestValidator.Validate(ctx, &IntentResult{
+			IntentCode: normalizedIntent,
+			ActionType: normalizedAction,
+			Parameters: params,
+		}, params)
+		if validation != nil && !validation.Valid {
+			return buildValidationGuardMessage(normalizedIntent, validation, nil)
+		}
+	}
+
+	if normalizedIntent == "CREATE_SALES_ORDER" {
+		evidence := u.loadUserFactEvidence(ctx, sessionID)
+		ungrounded := collectUngroundedSalesOrderFields(params, evidence)
+		if len(ungrounded) > 0 {
+			return buildValidationGuardMessage(normalizedIntent, nil, ungrounded)
+		}
+	}
+
+	return ""
+}
+
+func (u *ChatEngineUsecase) loadUserFactEvidence(ctx context.Context, sessionID string) string {
+	messages, err := u.messageRepo.FindBySessionID(ctx, sessionID, 100)
+	if err != nil || len(messages) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(messages))
+	for _, msg := range messages {
+		if msg.Role != models.MessageRoleUser {
+			continue
+		}
+		content := strings.TrimSpace(msg.Content)
+		if content == "" || isAffirmativeMessage(content) || isNegativeMessage(content) {
+			continue
+		}
+		normalized := normalizeFactText(content)
+		if normalized != "" {
+			parts = append(parts, normalized)
+		}
+	}
+
+	return strings.Join(parts, " ")
+}
+
+func collectUngroundedSalesOrderFields(params map[string]interface{}, evidence string) []string {
+	evidence = normalizeFactText(evidence)
+	stringFields := []string{
+		"customer_name",
+		"sales_rep_name",
+		"payment_terms_name",
+		"business_unit_name",
+	}
+
+	ungrounded := collectUngroundedNamedFields(params, evidence, stringFields)
+	ungrounded = append(ungrounded, collectUngroundedProductItems(params["items"], evidence)...)
+
+	return uniqueStrings(ungrounded)
+}
+
+func collectUngroundedNamedFields(params map[string]interface{}, evidence string, fields []string) []string {
+	ungrounded := make([]string, 0)
+
+	for _, field := range fields {
+		value := strings.TrimSpace(getStringParam(params, field))
+		if value == "" {
+			continue
+		}
+		if !isValueGroundedInEvidence(evidence, value) {
+			ungrounded = append(ungrounded, fmt.Sprintf("%s=%q", field, value))
+		}
+	}
+
+	return ungrounded
+}
+
+func collectUngroundedProductItems(rawItems interface{}, evidence string) []string {
+	ungrounded := make([]string, 0)
+	items := toInterfaceSlice(rawItems)
+	for idx, item := range items {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		productName := strings.TrimSpace(getStringParam(itemMap, "product_name"))
+		if productName == "" {
+			continue
+		}
+		if !isValueGroundedInEvidence(evidence, productName) {
+			ungrounded = append(ungrounded, fmt.Sprintf("items[%d].product_name=%q", idx, productName))
+		}
+	}
+
+	return ungrounded
+}
+
+func toInterfaceSlice(value interface{}) []interface{} {
+	if value == nil {
+		return nil
+	}
+
+	if items, ok := value.([]interface{}); ok {
+		return items
+	}
+
+	if strValue, ok := value.(string); ok {
+		trimmed := strings.TrimSpace(strValue)
+		if trimmed == "" {
+			return nil
+		}
+		var parsed []interface{}
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+			return parsed
+		}
+	}
+
+	return nil
+}
+
+func normalizeFactText(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	lastSpace := true
+	for _, ch := range value {
+		isAlphaNumeric := (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')
+		if isAlphaNumeric {
+			b.WriteRune(ch)
+			lastSpace = false
+			continue
+		}
+		if !lastSpace {
+			b.WriteRune(' ')
+			lastSpace = true
+		}
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
+func isValueGroundedInEvidence(evidence string, value string) bool {
+	normalizedValue := normalizeFactText(value)
+	if normalizedValue == "" {
+		return true
+	}
+	if evidence == "" {
+		return false
+	}
+	if strings.Contains(evidence, normalizedValue) {
+		return true
+	}
+
+	tokens := strings.Fields(normalizedValue)
+	if len(tokens) <= 1 {
+		return strings.Contains(evidence, normalizedValue)
+	}
+
+	significant := 0
+	matched := 0
+	for _, token := range tokens {
+		if len(token) < 3 {
+			continue
+		}
+		significant++
+		if strings.Contains(evidence, token) {
+			matched++
+		}
+	}
+
+	if significant == 0 {
+		return strings.Contains(evidence, normalizedValue)
+	}
+
+	requiredMatches := 1
+	if significant >= 3 {
+		requiredMatches = 2
+	}
+
+	return matched >= requiredMatches
+}
+
+func buildValidationGuardMessage(intentCode string, validation *ValidationResult, ungrounded []string) string {
+	normalizedIntent := strings.ToLower(intentCode)
+	appendTemplate := strings.EqualFold(intentCode, "CREATE_SALES_ORDER")
+
+	if len(ungrounded) > 0 {
+		message := fmt.Sprintf(
+			"Saya belum bisa mengeksekusi **%s** karena ada nilai yang tidak ditemukan di percakapan.\n\nPeriksa nilai berikut:\n%s\n\nMohon kirim data faktual dari Anda. Jika belum ada nilainya, isi null.",
+			normalizedIntent,
+			toMarkdownBulletList(ungrounded),
+		)
+		if appendTemplate {
+			message += "\n\n" + salesOrderInputTemplateMarkdown()
+		}
+		return message
+	}
+
+	if validation != nil && len(validation.Errors) > 0 {
+		messages := make([]string, 0, len(validation.Errors))
+		seen := make(map[string]bool)
+		for _, issue := range validation.Errors {
+			msg := strings.TrimSpace(issue.Message)
+			if msg == "" || seen[msg] {
+				continue
+			}
+			seen[msg] = true
+			messages = append(messages, msg)
+		}
+
+		if len(messages) > 0 {
+			message := fmt.Sprintf(
+				"Saya belum bisa mengeksekusi **%s** karena data belum lengkap/valid.\n\nLengkapi field berikut:\n%s\n\nMohon kirim nilai yang faktual. Jika belum ada nilainya, isi null.",
+				normalizedIntent,
+				toMarkdownBulletList(messages),
+			)
+			if appendTemplate {
+				message += "\n\n" + salesOrderInputTemplateMarkdown()
+			}
+			return message
+		}
+	}
+
+	return fmt.Sprintf(
+		"Saya belum bisa mengeksekusi **%s** karena data belum cukup jelas. Mohon kirim data faktual yang lengkap. Jika ada nilai yang belum tersedia, isi null.",
+		normalizedIntent,
+	)
+}
+
+func isStandaloneConfirmationReply(message string) bool {
+	if !(isAffirmativeMessage(message) || isNegativeMessage(message)) {
+		return false
+	}
+
+	wordCount := len(strings.Fields(strings.TrimSpace(message)))
+	return wordCount > 0 && wordCount <= 3
+}
+
+func (u *ChatEngineUsecase) handleOrphanConfirmationSync(
+	ctx context.Context,
+	session *models.AIChatSession,
+	userMessage string,
+	model string,
+	userID string,
+	userPermissions map[string]bool,
+	isAdmin bool,
+	start time.Time,
+) (*dto.ChatResponse, error) {
+	userMsg := &models.AIChatMessage{
+		SessionID: session.ID,
+		Role:      models.MessageRoleUser,
+		Content:   userMessage,
+	}
+	if err := u.messageRepo.Create(ctx, userMsg); err != nil {
+		return nil, fmt.Errorf("AI_CHAT_FAILED: failed to save user message: %w", err)
+	}
+
+	if recovered, err := u.tryRecoverOrphanConfirmation(ctx, session, model, userID, userPermissions, isAdmin, start); recovered != nil || err != nil {
+		return recovered, err
+	}
+
+	response := orphanConfirmationMessage()
+	return u.saveSimpleResponse(ctx, session, response, start)
+}
+
+func (u *ChatEngineUsecase) handleOrphanConfirmationStream(
+	ctx context.Context,
+	session *models.AIChatSession,
+	userMessage string,
+	model string,
+	userID string,
+	userPermissions map[string]bool,
+	isAdmin bool,
+	eventChan chan<- tools.StreamEvent,
+) error {
+	start := apptime.Now()
+
+	userMsg := &models.AIChatMessage{
+		SessionID: session.ID,
+		Role:      models.MessageRoleUser,
+		Content:   userMessage,
+	}
+	_ = u.messageRepo.Create(ctx, userMsg)
+
+	if recovered, err := u.tryRecoverOrphanConfirmation(ctx, session, model, userID, userPermissions, isAdmin, start); err != nil {
+		log.Printf("[AI] orphan confirmation recovery failed session_id=%s user_id=%s err=%v", session.ID, userID, err)
+	} else if recovered != nil {
+		eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: recovered.Message.Content}
+		eventChan <- tools.StreamEvent{
+			Type: tools.EventMessageEnd,
+			Data: map[string]interface{}{"duration_ms": time.Since(start).Milliseconds(), "recovered": true},
+		}
+		return nil
+	}
+
+	response := orphanConfirmationMessage()
+	eventChan <- tools.StreamEvent{Type: tools.EventContentDelta, Content: response}
+	eventChan <- tools.StreamEvent{
+		Type: tools.EventMessageEnd,
+		Data: map[string]interface{}{"duration_ms": time.Since(start).Milliseconds()},
+	}
+
+	_, _ = u.saveSimpleResponse(ctx, session, response, start)
+	return nil
+}
+
+func orphanConfirmationMessage() string {
+	return "Saat ini belum ada tindakan yang menunggu konfirmasi.\n\nKemungkinan respons sebelumnya terpotong sehingga action belum terbentuk.\n\nSilakan kirim ulang detail yang ingin dieksekusi dalam satu pesan. Jika ada nilai yang belum tersedia, isi null."
+}
+
+func (u *ChatEngineUsecase) tryRecoverOrphanConfirmation(
+	ctx context.Context,
+	session *models.AIChatSession,
+	model string,
+	userID string,
+	userPermissions map[string]bool,
+	isAdmin bool,
+	start time.Time,
+) (*dto.ChatResponse, error) {
+	history, err := u.messageRepo.FindBySessionID(ctx, session.ID, 8)
+	if err != nil || len(history) == 0 {
+		return nil, nil
+	}
+
+	if !hasRecentConfirmationPrompt(history) {
+		return nil, nil
+	}
+
+	engineHistory := u.toEngineMessages(history)
+	userCtx := u.buildUserContext(userID, userPermissions, isAdmin, session.ID)
+	selectedModel := model
+	if strings.TrimSpace(selectedModel) == "" {
+		selectedModel = u.cerebrasClient.GetDefaultModel()
+	}
+
+	recoveryMessage := buildOrphanRecoveryMessage(history)
+	result, processErr := u.engine.ProcessMessage(ctx, recoveryMessage, engineHistory, userCtx, selectedModel)
+	if processErr != nil || result == nil {
+		if processErr != nil {
+			log.Printf("[AI] orphan confirmation recovery process failed session_id=%s user_id=%s err=%v", session.ID, userID, processErr)
+		}
+		return nil, nil
+	}
+
+	if result.RequiresConfirmation && result.PendingToolCall != nil {
+		if _, err := u.createPendingToolAction(ctx, session, result, userID, start); err != nil {
+			log.Printf("[AI] orphan confirmation recovery failed to create pending action session_id=%s user_id=%s err=%v", session.ID, userID, err)
+			return nil, nil
+		}
+
+		pendingAction, pendingErr := u.actionRepo.FindPendingBySessionID(ctx, session.ID)
+		if pendingErr != nil || pendingAction == nil {
+			return nil, nil
+		}
+
+		return u.ConfirmAction(ctx, &dto.ConfirmActionRequest{
+			ActionID:  pendingAction.ID,
+			Confirmed: true,
+		}, userID, userPermissions, isAdmin)
+	}
+
+	if strings.TrimSpace(result.Response) == "" {
+		return nil, nil
+	}
+
+	return u.saveEngineResponse(ctx, session, result, start)
+}
+
+func hasRecentConfirmationPrompt(messages []models.AIChatMessage) bool {
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		if msg.Role != models.MessageRoleAssistant {
+			continue
+		}
+
+		content := strings.ToLower(strings.TrimSpace(msg.Content))
+		if content == "" {
+			continue
+		}
+
+		if strings.Contains(content, "konfirmasi") ||
+			strings.Contains(content, "apakah data di atas sudah benar") ||
+			strings.Contains(content, "siap untuk dibuatkan") ||
+			strings.Contains(content, "sebelum saya proses") {
+			return true
+		}
+
+		break
+	}
+
+	return false
+}
+
+func buildOrphanRecoveryMessage(messages []models.AIChatMessage) string {
+	lastDetail := ""
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		if msg.Role != models.MessageRoleUser {
+			continue
+		}
+
+		content := strings.TrimSpace(msg.Content)
+		if content == "" {
+			continue
+		}
+
+		if isStandaloneConfirmationReply(content) {
+			continue
+		}
+
+		lastDetail = content
+		break
+	}
+
+	if lastDetail == "" {
+		return "Konfirmasi pengguna sudah diberikan (ya). Lanjutkan aksi terakhir yang sudah diringkas. Jika data sudah cukup, hasilkan tool_call yang valid dan lanjutkan alur eksekusi."
+	}
+
+	return fmt.Sprintf(
+		"Konfirmasi pengguna sudah diberikan (ya). Gunakan ulang detail terakhir ini sebagai sumber fakta utama dan lanjutkan eksekusi tanpa meminta ulang field yang sudah ada:\n\n%s\n\nJika data sudah cukup, hasilkan tool_call valid untuk aksi terakhir dan lanjutkan.",
+		lastDetail,
+	)
+}
+
+func toMarkdownBulletList(items []string) string {
+	if len(items) == 0 {
+		return "- (tidak ada detail)"
+	}
+
+	lines := make([]string, 0, len(items))
+	for _, item := range items {
+		trimmed := strings.TrimSpace(item)
+		if trimmed == "" {
+			continue
+		}
+		lines = append(lines, "- "+trimmed)
+	}
+
+	if len(lines) == 0 {
+		return "- (tidak ada detail)"
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func salesOrderInputTemplateMarkdown() string {
+	return "Template input Sales Order (isi null jika belum ada):\n```json\n{\n  \"customer_name\": null,\n  \"order_date\": null,\n  \"payment_terms_name\": null,\n  \"business_unit_name\": null,\n  \"sales_rep_name\": null,\n  \"items\": [\n    {\"product_name\": null, \"quantity\": null, \"price\": null, \"discount\": 0}\n  ],\n  \"notes\": null\n}\n```"
 }
 
 func formatTimePtr(t *time.Time) string {

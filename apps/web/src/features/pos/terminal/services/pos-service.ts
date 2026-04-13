@@ -13,6 +13,10 @@ import type {
   POSPayment,
   ProcessPaymentRequest,
   POSConfig,
+  XenditConfig,
+  XenditConnectionStatusResponse,
+  ConnectXenditRequest,
+  UpdateXenditConfigRequest,
 } from "../types";
 
 const BASE = "/pos";
@@ -113,9 +117,9 @@ export const posPaymentService = {
       .then((r) => r.data);
   },
 
-  initiateMidtrans(orderId: string, data: ProcessPaymentRequest) {
+  initiateDigital(orderId: string, data: ProcessPaymentRequest) {
     return apiClient
-      .post<ApiResponse<POSPayment>>(`${BASE}/orders/${orderId}/payments/midtrans`, data)
+      .post<ApiResponse<POSPayment>>(`${BASE}/orders/${orderId}/payments/digital`, data)
       .then((r) => r.data);
   },
 
@@ -132,6 +136,40 @@ export const posConfigService = {
   getByOutlet(outletId: string) {
     return apiClient
       .get<ApiResponse<POSConfig>>(`${BASE}/config/outlet/${outletId}`)
+      .then((r) => r.data);
+  },
+};
+
+// ─── Xendit Payment Config ─────────────────────────────────────────────────────
+
+export const xenditConfigService = {
+  getConnectionStatus() {
+    return apiClient
+      .get<ApiResponse<XenditConnectionStatusResponse>>(`${BASE}/payment/status`)
+      .then((r) => r.data);
+  },
+
+  getConfig() {
+    return apiClient
+      .get<ApiResponse<XenditConfig>>(`${BASE}/payment/config`)
+      .then((r) => r.data);
+  },
+
+  connect(data: ConnectXenditRequest) {
+    return apiClient
+      .post<ApiResponse<XenditConfig>>(`${BASE}/payment/config/connect`, data)
+      .then((r) => r.data);
+  },
+
+  update(data: UpdateXenditConfigRequest) {
+    return apiClient
+      .patch<ApiResponse<XenditConfig>>(`${BASE}/payment/config`, data)
+      .then((r) => r.data);
+  },
+
+  disconnect() {
+    return apiClient
+      .delete<ApiResponse<XenditConfig>>(`${BASE}/payment/config/disconnect`)
       .then((r) => r.data);
   },
 };

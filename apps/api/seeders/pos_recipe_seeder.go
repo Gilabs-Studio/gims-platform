@@ -25,18 +25,18 @@ const (
 	RecipeEsTehManisID = "e1000001-0000-0000-0000-000000000003"
 
 	// Service products
-	ServiceDeliveryFeeID   = "e2000001-0000-0000-0000-000000000001"
-	ServiceChargeID        = "e2000001-0000-0000-0000-000000000002"
+	ServiceDeliveryFeeID = "e2000001-0000-0000-0000-000000000001"
+	ServiceChargeID      = "e2000001-0000-0000-0000-000000000002"
 
 	// Recipe items (BOM lines)
 	RecItemNGRiceID   = "a1000001-0000-0000-0000-000000000001"
 	RecItemNGEggID    = "a1000001-0000-0000-0000-000000000002"
 	RecItemNGOilID    = "a1000001-0000-0000-0000-000000000003"
 	RecItemNGGarlicID = "a1000001-0000-0000-0000-000000000004"
-	RecItemKSCoffeeID = "a1000001-0000-0000-0000-000000000005"  // NOTE: no such ingredient yet, we use a placeholder
+	RecItemKSCoffeeID = "a1000001-0000-0000-0000-000000000005" // NOTE: no such ingredient yet, we use a placeholder
 	RecItemKSMilkID   = "a1000001-0000-0000-0000-000000000006"
 	RecItemKSSugarID  = "a1000001-0000-0000-0000-000000000007"
-	RecItemETTeaID    = "a1000001-0000-0000-0000-000000000008"  // NOTE: no tea ingredient exists, skip or create
+	RecItemETTeaID    = "a1000001-0000-0000-0000-000000000008" // NOTE: no tea ingredient exists, skip or create
 	RecItemETSugarID  = "a1000001-0000-0000-0000-000000000009"
 )
 
@@ -95,6 +95,7 @@ func SeedPosRecipeProducts() error {
 			Code:               "MENU-NG-001",
 			Name:               "Nasi Goreng Special",
 			Description:        "Nasi goreng with egg and special seasoning",
+			ImageURL:           seedPosHardcodedImage("MENU-NG-001"),
 			CategoryID:         strPtr(FnbMainCourseCategoryID),
 			TypeID:             strPtr(FnbFoodTypeID),
 			UomID:              strPtr(uomIDs["Piece"]),
@@ -113,6 +114,7 @@ func SeedPosRecipeProducts() error {
 			Code:               "MENU-KS-001",
 			Name:               "Kopi Susu",
 			Description:        "Coffee with fresh milk",
+			ImageURL:           seedPosHardcodedImage("MENU-KS-001"),
 			CategoryID:         strPtr(FnbBeverageCategoryID),
 			TypeID:             strPtr(FnbDrinkTypeID),
 			UomID:              strPtr(uomIDs["Piece"]),
@@ -131,6 +133,7 @@ func SeedPosRecipeProducts() error {
 			Code:               "MENU-ET-001",
 			Name:               "Es Teh Manis",
 			Description:        "Iced sweet tea",
+			ImageURL:           seedPosHardcodedImage("MENU-ET-001"),
 			CategoryID:         strPtr(FnbBeverageCategoryID),
 			TypeID:             strPtr(FnbDrinkTypeID),
 			UomID:              strPtr(uomIDs["Piece"]),
@@ -149,7 +152,7 @@ func SeedPosRecipeProducts() error {
 		if err := db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "code"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"name", "description", "selling_price", "product_kind",
+				"name", "description", "image_url", "selling_price", "product_kind",
 				"is_inventory_tracked", "is_pos_available", "updated_at",
 			}),
 		}).Create(&r).Error; err != nil {

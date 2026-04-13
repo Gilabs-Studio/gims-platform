@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Link } from "@/i18n/routing";
+import L from "leaflet";
 import {
   Plus,
   Search,
@@ -34,14 +35,32 @@ import { NotificationBadge } from "@/features/notifications/components/notificat
 import { useOutletMapView } from "../../hooks/use-outlet-map-view";
 import type { Outlet } from "../../types";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
+import { useUpdateOutlet } from "../../hooks/use-outlets";
+import { toast } from "sonner";
 
 const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
+
+const getMarkerIcon = (isActive: boolean) => {
+  const color = isActive ? "#2563eb" : "#94a3b8";
+  return L.icon({
+    iconUrl: `data:image/svg+xml;base64,${btoa(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 40" width="25" height="40">
+        <path fill="${color}" d="M12.5,1 C6,1 1,6 1,12.5 C1,20 12.5,39 12.5,39 C12.5,39 24,20 24,12.5 C24,6 19,1 12.5,1 Z" />
+        <circle cx="12.5" cy="12" r="4" fill="white" />
+      </svg>`
+    )}`,
+    iconSize: [25, 40],
+    iconAnchor: [12, 40],
+    popupAnchor: [1, -34],
+  });
+};
 
 export function OutletMapView() {
   const { state, actions, data, permissions, layout, translations } = useOutletMapView();
   const { isMobile } = layout;
   const { t } = translations;
+  const updateOutlet = useUpdateOutlet();
   const { data: warehousesResp } = useWarehouses({ per_page: 100, is_active: true });
 
   const renderMarkers = (markerList: MapMarker<Outlet>[]) => (
@@ -52,6 +71,7 @@ export function OutletMapView() {
           <Marker
             key={marker.id}
             position={[marker.latitude, marker.longitude]}
+            icon={getMarkerIcon(outlet.is_active)}
             eventHandlers={{
               click: () => actions.setSelectedOutletId(String(marker.id)),
             }}
@@ -257,8 +277,24 @@ export function OutletMapView() {
                   onDetail={() => actions.handleView(outlet)}
                   onEdit={() => actions.handleEdit(outlet)}
                   onDelete={() => actions.setDeletingId(outlet.id)}
+                  onStatusChange={permissions.canUpdate ? (isActive) => {
+                    updateOutlet.mutate(
+                      { id: outlet.id, data: { is_active: isActive } },
+                      {
+                        onSuccess: () => {
+                          toast.success(
+                            isActive ? t("outlet.updateSuccess") : t("outlet.updateSuccess")
+                          );
+                        },
+                        onError: () => {
+                          toast.error(t("outlet.saveError"));
+                        },
+                      }
+                    );
+                  } : undefined}
                   canUpdate={permissions.canUpdate}
                   canDelete={permissions.canDelete}
+                  isStatusChanging={updateOutlet.isPending}
                 />
               ))}
             </>

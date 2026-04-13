@@ -19,6 +19,8 @@ type OutletRepository interface {
 	List(ctx context.Context, params OutletListParams) ([]*models.Outlet, int64, error)
 	Update(ctx context.Context, outlet *models.Outlet) error
 	Delete(ctx context.Context, id string) error
+	FindByCompanyID(ctx context.Context, companyID string) ([]*models.Outlet, error)
+	UpdateIsActiveByCompanyID(ctx context.Context, companyID string, isActive bool) error
 }
 
 // OutletListParams defines parameters for listing outlets
@@ -30,6 +32,7 @@ type OutletListParams struct {
 	Offset    int
 	IsActive  *bool
 	CompanyID string
+	UserID    string // Optional: if set, filter by user-warehouse permissions (RBAC)
 }
 
 type outletRepository struct {
@@ -89,6 +92,13 @@ func (r *outletRepository) List(ctx context.Context, params OutletListParams) ([
 	var total int64
 
 	query := r.db.WithContext(ctx).Model(&models.Outlet{})
+
+	// RBAC: Filter by user-warehouse assignments if UserID is provided
+	if params.UserID != "" {
+		// Filter outlets by user-assigned warehouses
+		// SELECT outlets WHERE warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)
+		query = query.Where("warehouse_id IN (SELECT warehouse_id FROM user_warehouses WHERE user_id = ?)", params.UserID)
+	}
 
 	// Apply search filter
 	if params.Search != "" {
@@ -160,4 +170,25 @@ func (r *outletRepository) Update(ctx context.Context, outlet *models.Outlet) er
 // Delete soft deletes an outlet
 func (r *outletRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.Outlet{}, "id = ?", id).Error
+}
+
+// FindByCompanyID retrieves all outlets for a specific company
+func (r *outletRepository) FindByCompanyID(ctx context.Context, companyID string) ([]*models.Outlet, error) {
+	var outlets []*models.Outlet
+	err := r.db.WithContext(ctx).
+		Where("company_id = ?", companyID).
+		Preload("Company").
+		Find(&outlets).Error
+	if err != nil {
+		return nil, err
+	}
+	return outlets, nil
+}
+
+// UpdateIsActiveByCompanyID updates is_active status for all outlets of a company
+func (r *outletRepository) UpdateIsActiveByCompanyID(ctx context.Context, companyID string, isActive bool) error {
+	return r.db.WithContext(ctx).
+		Model(&models.Outlet{}).
+		Where("company_id = ?", companyID).
+		Update("is_active", isActive).Error
 }

@@ -189,6 +189,8 @@ export function SalesPaymentsList() {
                 const status = (item.status ?? "").toUpperCase();
                 const isConfirmed = status === "CONFIRMED";
                 const isPending = !isConfirmed;
+                const methodLabel = item.method?.toUpperCase() === "CASH" ? t("method.cash") : t("method.bank");
+                const showBankAccount = item.method?.toUpperCase() !== "CASH";
 
                 return (
                   <TableRow key={item.id}>
@@ -206,9 +208,9 @@ export function SalesPaymentsList() {
                     >
                       {item.invoice?.code} {item.invoice?.invoice_number ? `(${item.invoice?.invoice_number})` : ""}
                     </TableCell>
-                    <TableCell>{item.bank_account?.name ?? "-"}</TableCell>
+                    <TableCell>{showBankAccount ? (item.bank_account?.name ?? "-") : "-"}</TableCell>
                     <TableCell>{safeDate(item.payment_date)}</TableCell>
-                    <TableCell>{item.method}</TableCell>
+                    <TableCell className="text-xs capitalize">{methodLabel}</TableCell>
                     <TableCell>
                       {isConfirmed ? (
                         <Badge variant="success" className="text-xs font-medium">

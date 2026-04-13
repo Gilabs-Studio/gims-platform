@@ -11,11 +11,12 @@ import (
 type POSPaymentMethod string
 
 const (
-	POSPaymentMethodCash     POSPaymentMethod = "CASH"
-	POSPaymentMethodCard     POSPaymentMethod = "CARD"
-	POSPaymentMethodQris     POSPaymentMethod = "QRIS"
+	POSPaymentMethodCash    POSPaymentMethod = "CASH"
+	POSPaymentMethodCard    POSPaymentMethod = "CARD"
+	POSPaymentMethodQris    POSPaymentMethod = "QRIS"
 	POSPaymentMethodTransfer POSPaymentMethod = "TRANSFER"
-	POSPaymentMethodMidtrans POSPaymentMethod = "MIDTRANS"
+	// DIGITAL covers all gateway-routed payments (Xendit QRIS / VA / e-wallet)
+	POSPaymentMethodDigital POSPaymentMethod = "DIGITAL"
 )
 
 // POSPaymentStatus represents the lifecycle status of a POS payment
@@ -39,19 +40,20 @@ type POSPayment struct {
 	TenderAmount    float64          `gorm:"type:decimal(15,2);default:0" json:"tender_amount"`
 	ChangeAmount    float64          `gorm:"type:decimal(15,2);default:0" json:"change_amount"`
 	ReferenceNumber *string          `gorm:"type:varchar(100)" json:"reference_number"`
-	// Midtrans fields
-	MidtransOrderID *string `gorm:"type:varchar(100);uniqueIndex" json:"midtrans_order_id"`
-	TransactionID   *string `gorm:"type:varchar(100)" json:"transaction_id"`
-	PaymentType     *string `gorm:"type:varchar(50)" json:"payment_type"`
-	VaNumber        *string `gorm:"type:varchar(100)" json:"va_number"`
-	QrCode          *string `gorm:"type:text" json:"qr_code"`
-	RedirectURL     *string `gorm:"type:text" json:"redirect_url"`
-	ExpiresAt       *time.Time `json:"expires_at"`
-	PaidAt          *time.Time `json:"paid_at"`
-	Notes           *string    `gorm:"type:text" json:"notes"`
-	CreatedBy       string     `gorm:"type:uuid;not null;index" json:"created_by"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	// Digital gateway fields (Xendit)
+	ExternalOrderID  *string    `gorm:"type:varchar(100);uniqueIndex" json:"external_order_id"`
+	XenditInvoiceID  *string    `gorm:"type:varchar(100)" json:"xendit_invoice_id"`
+	TransactionID    *string    `gorm:"type:varchar(100)" json:"transaction_id"`
+	PaymentType      *string    `gorm:"type:varchar(50)" json:"payment_type"`
+	VaNumber         *string    `gorm:"type:varchar(100)" json:"va_number"`
+	QrCode           *string    `gorm:"type:text" json:"qr_code"`
+	PaymentURL       *string    `gorm:"type:text" json:"payment_url"`
+	ExpiresAt        *time.Time `json:"expires_at"`
+	PaidAt           *time.Time `json:"paid_at"`
+	Notes            *string    `gorm:"type:text" json:"notes"`
+	CreatedBy        string     `gorm:"type:uuid;not null;index" json:"created_by"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 func (POSPayment) TableName() string {

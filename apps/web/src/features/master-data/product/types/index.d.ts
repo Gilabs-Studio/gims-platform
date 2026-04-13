@@ -432,6 +432,56 @@ export interface RecipeItemResponse {
   sort_order: number;
 }
 
+export interface CloneRecipeRequest {
+  source_version_id?: string;
+  notes?: string;
+}
+
+export interface RecipeVersionItemResponse {
+  ingredient_product_id: string;
+  ingredient?: RecipeIngredientBasic | null;
+  quantity: number;
+  uom_id?: string | null;
+  uom?: UnitOfMeasureBasic | null;
+  notes: string;
+  sort_order: number;
+}
+
+export interface RecipeVersionResponse {
+  id: string;
+  version_number: number;
+  change_type: string;
+  notes: string;
+  source_version_id?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  items: RecipeVersionItemResponse[];
+}
+
+export interface RecipeVersionCompareDiff {
+  ingredient_product_id: string;
+  ingredient?: RecipeIngredientBasic | null;
+  uom?: UnitOfMeasureBasic | null;
+  from_quantity: number;
+  to_quantity: number;
+  delta_quantity: number;
+  type: "ADDED" | "REMOVED" | "CHANGED" | "UNCHANGED";
+}
+
+export interface RecipeVersionCompareResponse {
+  from_version_id: string;
+  to_version_id: string;
+  from_version: number;
+  to_version: number;
+  summary: {
+    added: number;
+    removed: number;
+    changed: number;
+    unchanged: number;
+  };
+  diffs: RecipeVersionCompareDiff[];
+}
+
 export interface LookupListParams {
   page?: number;
   per_page?: number;

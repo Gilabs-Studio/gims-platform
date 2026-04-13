@@ -147,7 +147,11 @@ func buildStaticSections() string {
 	sb.WriteString(sectionSecurity)
 	sb.WriteString("\n\n")
 
-	// Section 6: Application Navigation (links to frontend pages)
+	// Section 6: Payload Templates (correct JSON format for complex CREATE tools)
+	sb.WriteString(sectionPayloadTemplates)
+	sb.WriteString("\n\n")
+
+	// Section 7: Application Navigation (links to frontend pages)
 	sb.WriteString(sectionNavigation)
 
 	return sb.String()

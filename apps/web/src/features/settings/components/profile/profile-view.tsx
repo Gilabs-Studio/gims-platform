@@ -10,7 +10,9 @@ import { ProfileForm } from "./profile-form";
 import { PasswordForm } from "./password-form";
 import { AvatarUpload } from "./avatar-upload";
 import { PreferencesForm } from "./preferences-form";
+import { PaymentSettings } from "./payment-settings";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 
 // Dynamic imports for lazy loading
 const DashboardMetrics = dynamic(() =>
@@ -140,6 +142,7 @@ function ProfileSidebar() {
 export function ProfileView() {
   const t = useTranslations("profile");
   const [activeTab, setActiveTab] = useState("overview");
+  const canManagePayment = useHasPermission("pos.payment.manage");
 
   return (
     <div className="space-y-6 max-w-[1400px] w-full mx-auto">
@@ -170,6 +173,14 @@ export function ProfileView() {
             >
               {t("security")}
             </TabsTrigger>
+            {canManagePayment && (
+              <TabsTrigger
+                value="payment"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+              >
+                Payment
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -202,6 +213,14 @@ export function ProfileView() {
                 >
                   {t("security")}
                 </TabsTrigger>
+                {canManagePayment && (
+                  <TabsTrigger
+                    value="payment"
+                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground text-muted-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground rounded-none px-1 pb-3 pt-2 font-medium text-[14px] cursor-pointer border-b-2 border-transparent transition-none"
+                  >
+                    Payment
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
             <TabsContent value="overview" className="mt-0 space-y-10 animate-in fade-in-50 duration-500">
@@ -258,6 +277,12 @@ export function ProfileView() {
                 <PasswordForm />
               </div>
             </TabsContent>
+
+            {canManagePayment && (
+              <TabsContent value="payment" className="mt-0 space-y-6 animate-in fade-in-50 duration-500">
+                <PaymentSettings />
+              </TabsContent>
+            )}
           </div>
         </div>
       </Tabs>

@@ -23,7 +23,7 @@ export const navigationConfig: NavItem[] = [
     url: "/pos",
     children: [
       {
-        name: "Floor & Layout Designer",
+        name: "Floor & Layout",
         i18nKey: "floorLayoutDesigner",
         url: "/pos/fb/floor-layout",
         icon: "layout-list",

@@ -120,6 +120,8 @@ func AutoMigrate() error {
 		&product.ProcurementType{},
 		&product.Product{},
 		&product.ProductRecipeItem{},
+		&product.ProductRecipeVersion{},
+		&product.ProductRecipeVersionItem{},
 		// Warehouse entities (Sprint 4)
 		&warehouse.Warehouse{},
 		// Outlet entity (Organization)
@@ -290,7 +292,7 @@ func AutoMigrate() error {
 		&pos.PosOrderItem{},
 		&pos.POSPayment{},
 		&pos.POSConfig{},
-		&pos.MidtransConfig{},
+		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
 	)
 	if err != nil {

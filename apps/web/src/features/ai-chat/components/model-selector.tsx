@@ -25,7 +25,15 @@ export function ModelSelector() {
 
   // Auto-select default model on first load
   useEffect(() => {
-    if (!selectedModel && models.length > 0) {
+    if (models.length === 0) {
+      return;
+    }
+
+    const selectedStillAvailable = selectedModel
+      ? models.some((model) => model.id === selectedModel)
+      : false;
+
+    if (!selectedModel || !selectedStillAvailable) {
       const defaultModel = models.find((m) => m.is_default) ?? models[0];
       setSelectedModel(defaultModel.id);
     }

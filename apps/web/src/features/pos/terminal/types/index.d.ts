@@ -158,8 +158,18 @@ export interface POSCatalogItem {
 
 // ─── Payment ─────────────────────────────────────────────────────────────────
 
-export type POSPaymentMethod = "CASH" | "CARD" | "QRIS" | "TRANSFER" | "MIDTRANS";
+export type POSPaymentMethod = "CASH" | "CARD" | "QRIS" | "TRANSFER" | "DIGITAL";
 export type POSPaymentStatus = "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
+
+// Xendit payment channel categories for Indonesia
+export type XenditChannelCategory = "QR_CODE" | "EWALLET" | "BANK_TRANSFER" | "CARDS";
+
+export interface XenditPaymentChannel {
+  code: string;
+  name: string;
+  category: XenditChannelCategory;
+  icon?: string;
+}
 
 export interface POSPayment {
   id: string;
@@ -169,12 +179,14 @@ export interface POSPayment {
   amount: number;
   tender_amount: number;
   change_amount: number;
-  midtrans_order_id?: string | null;
+  external_order_id?: string | null;
+  xendit_invoice_id?: string | null;
   transaction_id?: string | null;
   payment_type?: string | null;
   va_number?: string | null;
   qr_code?: string | null;
-  redirect_url?: string | null;
+  payment_url?: string | null;
+  channel_code?: string | null;
   expires_at?: string | null;
   paid_at?: string | null;
   notes?: string | null;
@@ -186,6 +198,41 @@ export interface ProcessPaymentRequest {
   amount: number;
   notes?: string;
   customer_name?: string;
+  channel_code?: string;
+}
+
+// ─── Xendit Payment Config ────────────────────────────────────────────────────
+
+export type XenditConnectionStatus = "not_connected" | "connected" | "suspended";
+
+export interface XenditConnectionStatusResponse {
+  is_connected: boolean;
+  status: XenditConnectionStatus;
+}
+
+export interface XenditConfig {
+  id: string;
+  company_id: string;
+  xendit_account_id: string;
+  business_name: string;
+  environment: "sandbox" | "production";
+  connection_status: XenditConnectionStatus;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export interface ConnectXenditRequest {
+  secret_key: string;
+  xendit_account_id?: string;
+  business_name?: string;
+  environment: "sandbox" | "production";
+  webhook_token?: string;
+}
+
+export interface UpdateXenditConfigRequest {
+  environment?: "sandbox" | "production";
+  business_name?: string;
+  is_active?: boolean;
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────

@@ -15,10 +15,10 @@ type POSConfigRepository interface {
 	Upsert(ctx context.Context, cfg *models.POSConfig) error
 }
 
-// MidtransConfigRepository defines data access for Midtrans gateway settings
-type MidtransConfigRepository interface {
-	FindByCompanyID(ctx context.Context, companyID string) (*models.MidtransConfig, error)
-	Upsert(ctx context.Context, cfg *models.MidtransConfig) error
+// XenditConfigRepository defines data access for Xendit gateway settings per company
+type XenditConfigRepository interface {
+	FindByCompanyID(ctx context.Context, companyID string) (*models.XenditConfig, error)
+	Upsert(ctx context.Context, cfg *models.XenditConfig) error
 }
 
 // ─── POSConfig implementation ──────────────────────────────────────────────
@@ -53,18 +53,18 @@ func (r *posConfigRepository) Upsert(ctx context.Context, cfg *models.POSConfig)
 	}).Create(cfg).Error
 }
 
-// ─── MidtransConfig implementation ─────────────────────────────────────────
+// ─── XenditConfig implementation ─────────────────────────────────────────────
 
-type midtransConfigRepository struct {
+type xenditConfigRepository struct {
 	db *gorm.DB
 }
 
-func NewMidtransConfigRepository(db *gorm.DB) MidtransConfigRepository {
-	return &midtransConfigRepository{db: db}
+func NewXenditConfigRepository(db *gorm.DB) XenditConfigRepository {
+	return &xenditConfigRepository{db: db}
 }
 
-func (r *midtransConfigRepository) FindByCompanyID(ctx context.Context, companyID string) (*models.MidtransConfig, error) {
-	var cfg models.MidtransConfig
+func (r *xenditConfigRepository) FindByCompanyID(ctx context.Context, companyID string) (*models.XenditConfig, error) {
+	var cfg models.XenditConfig
 	err := r.db.WithContext(ctx).
 		Where("company_id = ? AND deleted_at IS NULL", companyID).
 		First(&cfg).Error
@@ -77,12 +77,13 @@ func (r *midtransConfigRepository) FindByCompanyID(ctx context.Context, companyI
 	return &cfg, nil
 }
 
-func (r *midtransConfigRepository) Upsert(ctx context.Context, cfg *models.MidtransConfig) error {
+func (r *xenditConfigRepository) Upsert(ctx context.Context, cfg *models.XenditConfig) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "company_id"}},
+		Columns: []clause.Column{{Name: "company_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"server_key", "client_key", "merchant_id",
-			"environment", "is_active", "updated_by", "updated_at",
+			"secret_key", "xendit_account_id", "business_name",
+			"environment", "connection_status", "is_active",
+			"webhook_token", "updated_by", "updated_at",
 		}),
 	}).Create(cfg).Error
 }

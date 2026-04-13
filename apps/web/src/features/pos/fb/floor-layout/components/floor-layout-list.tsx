@@ -17,6 +17,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/routing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,6 +138,12 @@ export function FloorLayoutList({ onOpenEditor }: FloorLayoutListProps) {
         <div className="text-center py-16">
           <LayoutIcon className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-sm text-muted-foreground">{t("noResults")}</p>
+          <p className="mt-2 text-xs text-muted-foreground/80">
+            {t("noResultsHint")}
+          </p>
+          <Button asChild variant="outline" className="mt-4 cursor-pointer">
+            <Link href="/master-data/outlet">{t("addOutlet")}</Link>
+          </Button>
         </div>
       )}
 

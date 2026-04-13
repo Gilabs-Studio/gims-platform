@@ -264,32 +264,28 @@ func (v *RequestValidator) validateSalesOrderFields(result *ValidationResult, pa
 		})
 	}
 
-	if strings.TrimSpace(getStringParam(params, "payment_terms_id")) == "" && strings.TrimSpace(getStringParam(params, "payment_terms_name")) == "" {
+	orderDate := strings.TrimSpace(getStringParam(params, "order_date"))
+	if orderDate == "" {
 		result.Valid = false
 		result.Errors = append(result.Errors, ValidationError{
-			Field:   "payment_terms",
+			Field:   "order_date",
 			Code:    "REQUIRED",
-			Message: "Field 'payment_terms_id' atau 'payment_terms_name' diperlukan untuk membuat Sales Order",
+			Message: "Field 'order_date' diperlukan untuk membuat Sales Order",
+		})
+	} else if _, err := time.Parse("2006-01-02", orderDate); err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Field:   "order_date",
+			Code:    "INVALID_FORMAT",
+			Message: "Field 'order_date' harus berformat YYYY-MM-DD",
 		})
 	}
 
-	if strings.TrimSpace(getStringParam(params, "business_unit_id")) == "" && strings.TrimSpace(getStringParam(params, "business_unit_name")) == "" {
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Field:   "business_unit",
-			Code:    "REQUIRED",
-			Message: "Field 'business_unit_id' atau 'business_unit_name' diperlukan untuk membuat Sales Order",
-		})
-	}
-
-	if strings.TrimSpace(getStringParam(params, "sales_rep_id")) == "" && strings.TrimSpace(getStringParam(params, "sales_rep_name")) == "" {
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Field:   "sales_rep",
-			Code:    "REQUIRED",
-			Message: "Field 'sales_rep_id' atau 'sales_rep_name' diperlukan untuk membuat Sales Order",
-		})
-	}
+	// NOTE:
+	// payment_terms, business_unit, and sales_rep may be filled by execution defaults
+	// (name→ID resolution, current-user sales rep fallback, default active business unit).
+	// We intentionally avoid hard-blocking at this pre-confirmation stage so pending
+	// actions can still be created and resolved during execution.
 
 	itemsRaw, hasItems := params["items"]
 	if !hasItems || itemsRaw == nil {
@@ -310,6 +306,49 @@ func (v *RequestValidator) validateSalesOrderFields(result *ValidationResult, pa
 			Code:    "REQUIRED",
 			Message: "Field 'items' diperlukan untuk membuat Sales Order (minimal 1 item)",
 		})
+		return
+	}
+
+	for idx, rawItem := range items {
+		item, ok := rawItem.(map[string]interface{})
+		if !ok {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "items",
+				Code:    "INVALID_FORMAT",
+				Message: fmt.Sprintf("Item ke-%d harus berupa object dengan product_name, quantity, dan price", idx+1),
+			})
+			continue
+		}
+
+		productName := strings.TrimSpace(getStringParam(item, "product_name"))
+		productID := strings.TrimSpace(getStringParam(item, "product_id"))
+		if productName == "" && productID == "" {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "items.product",
+				Code:    "REQUIRED",
+				Message: fmt.Sprintf("Item ke-%d wajib memiliki product_name atau product_id", idx+1),
+			})
+		}
+
+		if getFloatParam(item, "quantity") <= 0 {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "items.quantity",
+				Code:    "REQUIRED",
+				Message: fmt.Sprintf("Item ke-%d wajib memiliki quantity > 0", idx+1),
+			})
+		}
+
+		if getFloatParam(item, "price") <= 0 {
+			result.Valid = false
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   "items.price",
+				Code:    "REQUIRED",
+				Message: fmt.Sprintf("Item ke-%d wajib memiliki price > 0", idx+1),
+			})
+		}
 	}
 }
 

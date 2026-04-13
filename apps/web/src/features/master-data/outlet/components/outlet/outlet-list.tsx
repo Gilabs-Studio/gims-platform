@@ -2,9 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -32,12 +34,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageMotion } from "@/components/motion";
 import { useOutletList } from "../../hooks/use-outlet-list";
+import { useUpdateOutlet } from "../../hooks/use-outlets";
 import { OutletDialog } from "./outlet-dialog";
 import { OutletDetailDialog } from "./outlet-detail-dialog";
 
 export function OutletList() {
   const t = useTranslations("outlet");
   const { state, actions, data, permissions } = useOutletList();
+  const updateOutlet = useUpdateOutlet();
 
   return (
     <PageMotion>
@@ -118,9 +122,33 @@ export function OutletList() {
                     <TableCell>{item.manager?.name ?? "-"}</TableCell>
                     <TableCell>{item.company?.name ?? "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={item.is_active ? "default" : "secondary"}>
-                        {item.is_active ? t("common.active") : t("common.inactive")}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={item.is_active}
+                          onCheckedChange={(checked) => {
+                            updateOutlet.mutate(
+                              { id: item.id, data: { is_active: checked } },
+                              {
+                                onSuccess: () => {
+                                  toast.success(
+                                    checked
+                                      ? t("outlet.activeSuccess")
+                                      : t("outlet.inactiveSuccess")
+                                  );
+                                },
+                                onError: () => {
+                                  toast.error(t("outlet.updateError"));
+                                },
+                              }
+                            );
+                          }}
+                          disabled={!permissions.canUpdate || updateOutlet.isPending}
+                          className="cursor-pointer"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {item.is_active ? t("common.active") : t("common.inactive")}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

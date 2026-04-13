@@ -126,6 +126,16 @@ const nextConfig: NextConfig = {
         hostname: "127.0.0.1",
         pathname: "/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "source.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
     ],
   },
 

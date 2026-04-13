@@ -38,6 +38,8 @@ type FormDataOption struct {
 	Code string
 }
 
+var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
+
 // EntityResolver resolves natural language entity references to database IDs
 type EntityResolver struct {
 	db *gorm.DB
@@ -141,6 +143,47 @@ func (r *EntityResolver) ResolveProduct(ctx context.Context, nameOrCode string) 
 			EntityType:  "product",
 			Code:        result.SKU,
 		}, nil
+	}
+
+	// Try normalized search to handle user variants like:
+	// "paracetamol 500mg" -> "Paracetamol 500 mg Tablet"
+	normalizedSearch := normalizeAlphaNum(searchTerm)
+	if normalizedSearch != "" {
+		err = r.db.WithContext(ctx).Table("products").
+			Select("id, sku, name").
+			Where("deleted_at IS NULL").
+			Where("regexp_replace(LOWER(name), '[^a-z0-9]+', '', 'g') LIKE ?", normalizedSearch+"%").
+			Order("LENGTH(name) ASC").
+			Limit(1).Scan(&result).Error
+		if err != nil {
+			return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: product normalized search error: %w", err)
+		}
+		if result.ID != "" {
+			return &ResolvedEntity{
+				ID:          result.ID,
+				DisplayName: result.Name,
+				EntityType:  "product",
+				Code:        result.SKU,
+			}, nil
+		}
+
+		err = r.db.WithContext(ctx).Table("products").
+			Select("id, sku, name").
+			Where("deleted_at IS NULL").
+			Where("regexp_replace(LOWER(name), '[^a-z0-9]+', '', 'g') LIKE ?", "%"+normalizedSearch+"%").
+			Order("LENGTH(name) ASC").
+			Limit(1).Scan(&result).Error
+		if err != nil {
+			return nil, fmt.Errorf("ENTITY_RESOLUTION_FAILED: product fuzzy search error: %w", err)
+		}
+		if result.ID != "" {
+			return &ResolvedEntity{
+				ID:          result.ID,
+				DisplayName: result.Name,
+				EntityType:  "product",
+				Code:        result.SKU,
+			}, nil
+		}
 	}
 
 	return nil, fmt.Errorf("ENTITY_NOT_FOUND: product '%s' not found", nameOrCode)
@@ -856,6 +899,27 @@ func (r *EntityResolver) ResolveBusinessUnit(ctx context.Context, name string) (
 	return "", fmt.Errorf("ENTITY_NOT_FOUND: business unit '%s' not found", name)
 }
 
+// ResolveDefaultBusinessUnit returns the first active business unit as a fallback.
+func (r *EntityResolver) ResolveDefaultBusinessUnit(ctx context.Context) (string, error) {
+	var result struct {
+		ID string
+	}
+
+	err := r.db.WithContext(ctx).Table("business_units").
+		Select("id").
+		Where("deleted_at IS NULL AND is_active = true").
+		Order("name ASC").
+		Limit(1).Scan(&result).Error
+	if err != nil {
+		return "", fmt.Errorf("ENTITY_RESOLUTION_FAILED: default business unit query error: %w", err)
+	}
+	if strings.TrimSpace(result.ID) == "" {
+		return "", fmt.Errorf("ENTITY_NOT_FOUND: no active business unit available")
+	}
+
+	return result.ID, nil
+}
+
 // ResolveProductByName resolves a product name to its database UUID and selling price
 func (r *EntityResolver) ResolveProductByName(ctx context.Context, name string) (id string, price float64, err error) {
 	var result struct {
@@ -891,7 +955,46 @@ func (r *EntityResolver) ResolveProductByName(ctx context.Context, name string) 
 		return result.ID, result.SellingPrice, nil
 	}
 
+	// Try normalized prefix match to support common medicine naming variations.
+	normalizedSearch := normalizeAlphaNum(searchTerm)
+	if normalizedSearch != "" {
+		err = r.db.WithContext(ctx).Table("products").
+			Select("id, name, selling_price").
+			Where("deleted_at IS NULL").
+			Where("regexp_replace(LOWER(name), '[^a-z0-9]+', '', 'g') LIKE ?", normalizedSearch+"%").
+			Order("LENGTH(name) ASC").
+			Limit(1).Scan(&result).Error
+		if err != nil {
+			return "", 0, fmt.Errorf("ENTITY_RESOLUTION_FAILED: product normalized search error: %w", err)
+		}
+		if result.ID != "" {
+			return result.ID, result.SellingPrice, nil
+		}
+
+		// Last fallback: normalized contains search.
+		err = r.db.WithContext(ctx).Table("products").
+			Select("id, name, selling_price").
+			Where("deleted_at IS NULL").
+			Where("regexp_replace(LOWER(name), '[^a-z0-9]+', '', 'g') LIKE ?", "%"+normalizedSearch+"%").
+			Order("LENGTH(name) ASC").
+			Limit(1).Scan(&result).Error
+		if err != nil {
+			return "", 0, fmt.Errorf("ENTITY_RESOLUTION_FAILED: product fuzzy search error: %w", err)
+		}
+		if result.ID != "" {
+			return result.ID, result.SellingPrice, nil
+		}
+	}
+
 	return "", 0, fmt.Errorf("ENTITY_NOT_FOUND: product '%s' not found", name)
+}
+
+func normalizeAlphaNum(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "" {
+		return ""
+	}
+	return nonAlphaNumPattern.ReplaceAllString(lower, "")
 }
 
 // FetchFormDataOptions queries the database for available form options based on intent

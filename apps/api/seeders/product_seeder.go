@@ -59,6 +59,7 @@ func SeedProduct() error {
 		product := models.Product{
 			Code:                  "PROD-MIN-001",
 			Name:                  "Sample Product",
+			ImageURL:              seedUnsplashImage("pharmacy medicine capsule"),
 			CategoryID:            &cat.ID,
 			BrandID:               &brand.ID,
 			SegmentID:             &segment.ID,
@@ -76,7 +77,7 @@ func SeedProduct() error {
 			Status:                models.ProductStatusApproved,
 			IsApproved:            true,
 		}
-		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "category_id", "brand_id", "segment_id", "type_id", "uom_id", "purchase_uom_id", "purchase_uom_conversion", "packaging_id", "procurement_type_id", "cost_price", "selling_price", "tax_type", "is_tax_inclusive", "is_active", "status", "is_approved", "updated_at"})}).Create(&product).Error; err != nil {
+		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "image_url", "category_id", "brand_id", "segment_id", "type_id", "uom_id", "purchase_uom_id", "purchase_uom_conversion", "packaging_id", "procurement_type_id", "cost_price", "selling_price", "tax_type", "is_tax_inclusive", "is_active", "status", "is_approved", "updated_at"})}).Create(&product).Error; err != nil {
 			return err
 		}
 		return nil
@@ -331,6 +332,7 @@ func SeedProduct() error {
 				Code:                  "PRE-20240101-001",
 				Name:                  "Amoxicillin 500mg Capsule",
 				Description:           "Antibiotic for bacterial infections",
+				ImageURL:              seedUnsplashImage("amoxicillin capsules pharmacy"),
 				CategoryID:            strPtr(prescriptionCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(ethicalSegment.ID),
@@ -355,6 +357,7 @@ func SeedProduct() error {
 				Code:                  "PRE-20240101-002",
 				Name:                  "Azithromycin 500mg Tablet",
 				Description:           "Macrolide antibiotic",
+				ImageURL:              seedUnsplashImage("azithromycin tablets pharmacy"),
 				CategoryID:            strPtr(prescriptionCategory.ID),
 				BrandID:               strPtr(kimiaFarmaBrand.ID),
 				SegmentID:             strPtr(ethicalSegment.ID),
@@ -379,6 +382,7 @@ func SeedProduct() error {
 				Code:                  "MED-20240101-001",
 				Name:                  "Blood Pressure Monitor",
 				Description:           "Digital blood pressure measuring device",
+				ImageURL:              seedUnsplashImage("blood pressure monitor medical device"),
 				CategoryID:            strPtr(medDeviceCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -402,6 +406,7 @@ func SeedProduct() error {
 				Code:                  "OVE-20240101-001",
 				Name:                  "Cetirizine 10mg Tablet",
 				Description:           "Antihistamine for allergies",
+				ImageURL:              seedUnsplashImage("cetirizine tablets allergy medicine"),
 				CategoryID:            strPtr(otcCategory.ID),
 				BrandID:               strPtr(kimiaFarmaBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -426,6 +431,7 @@ func SeedProduct() error {
 				Code:                  "OVE-20240101-002",
 				Name:                  "Ibuprofen 400mg Tablet",
 				Description:           "NSAID for pain and inflammation",
+				ImageURL:              seedUnsplashImage("ibuprofen tablets pain relief"),
 				CategoryID:            strPtr(otcCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -450,6 +456,7 @@ func SeedProduct() error {
 				Code:                  "PRE-20240101-003",
 				Name:                  "Omeprazole 20mg Capsule",
 				Description:           "Proton pump inhibitor for GERD",
+				ImageURL:              seedUnsplashImage("omeprazole capsules medicine"),
 				CategoryID:            strPtr(prescriptionCategory.ID),
 				BrandID:               strPtr(kimiaFarmaBrand.ID),
 				SegmentID:             strPtr(ethicalSegment.ID),
@@ -474,6 +481,7 @@ func SeedProduct() error {
 				Code:                  "OVE-20240101-003",
 				Name:                  "Paracetamol 500mg Tablet",
 				Description:           "Analgesic and antipyretic",
+				ImageURL:              seedUnsplashImage("paracetamol tablets medicine"),
 				CategoryID:            strPtr(otcCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -498,6 +506,7 @@ func SeedProduct() error {
 				Code:                  "MED-20240101-002",
 				Name:                  "Stethoscope Classic III",
 				Description:           "Professional-grade stethoscope",
+				ImageURL:              seedUnsplashImage("stethoscope medical device"),
 				CategoryID:            strPtr(medDeviceCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -521,6 +530,7 @@ func SeedProduct() error {
 				Code:                  "MED-20240101-003",
 				Name:                  "Thermometer Digital",
 				Description:           "Digital thermometer for body temperature",
+				ImageURL:              seedUnsplashImage("digital thermometer medical"),
 				CategoryID:            strPtr(medDeviceCategory.ID),
 				BrandID:               strPtr(kimiaFarmaBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
@@ -544,6 +554,7 @@ func SeedProduct() error {
 				Code:                  "OVE-20240101-004",
 				Name:                  "Vitamin C 500mg",
 				Description:           "Vitamin C supplement tablets",
+				ImageURL:              seedUnsplashImage("vitamin c supplement tablets"),
 				CategoryID:            strPtr(otcCategory.ID),
 				BrandID:               strPtr(kalbeBrand.ID),
 				SegmentID:             strPtr(otcSegment.ID),
