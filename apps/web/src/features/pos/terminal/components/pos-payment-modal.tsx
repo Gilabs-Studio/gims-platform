@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -109,6 +109,15 @@ function PaymentChannelLogo({ channel }: { channel: XenditPaymentChannel }) {
   );
 }
 
+function formatCountdown(totalSeconds: number): string {
+  const safeSeconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
 export function POSPaymentModal({
   open,
   onOpenChange,
@@ -123,6 +132,7 @@ export function POSPaymentModal({
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
   const hasCompletedDigitalPaymentRef = useRef(false);
+  const autoOpenedPaymentUrlRef = useRef<string | null>(null);
 
   const t = useTranslations("posTerminal.payment");
 
@@ -153,6 +163,18 @@ export function POSPaymentModal({
       onSuccess(customerName.trim() || undefined);
     }
   }, [paymentsData, onSuccess, customerName]);
+
+  useEffect(() => {
+    const paymentUrl = digitalPayment?.payment_url?.trim() ?? "";
+    const hasGatewayUrl = paymentUrl !== "";
+    const hasHostedFlow = hasGatewayUrl && !digitalPayment?.qr_code && !digitalPayment?.va_number;
+
+    if (!open || tab !== "DIGITAL" || !hasHostedFlow) return;
+    if (autoOpenedPaymentUrlRef.current === paymentUrl) return;
+
+    autoOpenedPaymentUrlRef.current = paymentUrl;
+    window.open(paymentUrl, "_blank", "noopener,noreferrer");
+  }, [digitalPayment, open, tab]);
 
   function handleNumpad(key: string) {
     if (key === "⌫") {
@@ -213,6 +235,7 @@ export function POSPaymentModal({
     setDigitalPayment(null);
     setPollingEnabled(false);
     hasCompletedDigitalPaymentRef.current = false;
+    autoOpenedPaymentUrlRef.current = null;
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
@@ -221,6 +244,7 @@ export function POSPaymentModal({
       setDigitalPayment(null);
       setPollingEnabled(false);
       hasCompletedDigitalPaymentRef.current = false;
+      autoOpenedPaymentUrlRef.current = null;
     }
     onOpenChange(nextOpen);
   }
@@ -493,6 +517,66 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
   const t = useTranslations("posTerminal.payment");
   const isPaid = payment.status === "PAID";
   const isFailed = payment.status === "FAILED" || payment.status === "EXPIRED";
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const createdAtDate = useMemo(() => {
+    if (!payment.created_at) return null;
+    const parsedDate = new Date(payment.created_at);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }, [payment.created_at]);
+
+  const expiresAtDate = useMemo(() => {
+    if (!payment.expires_at) return null;
+    const parsedDate = new Date(payment.expires_at);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }, [payment.expires_at]);
+
+  const remainingMs = useMemo(() => {
+    if (!expiresAtDate) return null;
+    return Math.max(0, expiresAtDate.getTime() - nowMs);
+  }, [expiresAtDate, nowMs]);
+
+  const countdownLabel = useMemo(() => {
+    if (remainingMs === null) return null;
+    return formatCountdown(remainingMs / 1000);
+  }, [remainingMs]);
+
+  const expiresAtLabel = useMemo(() => {
+    if (!expiresAtDate) return null;
+    return expiresAtDate.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }, [expiresAtDate]);
+
+  const progressPercent = useMemo(() => {
+    if (!expiresAtDate) return 100;
+
+    const fallbackTotalMs = 24 * 60 * 60 * 1000;
+    const totalMs = createdAtDate ? Math.max(1, expiresAtDate.getTime() - createdAtDate.getTime()) : fallbackTotalMs;
+    const leftMs = remainingMs ?? totalMs;
+    const normalized = Math.max(0, Math.min(1, leftMs / totalMs));
+    return normalized * 100;
+  }, [createdAtDate, expiresAtDate, remainingMs]);
+
+  const statusCircleRadius = 5;
+  const statusCircleCircumference = 2 * Math.PI * statusCircleRadius;
+  const statusCircleOffset = statusCircleCircumference * (1 - progressPercent / 100);
+
+  useEffect(() => {
+    if (!expiresAtDate) return;
+    if (isPaid || isFailed) return;
+    if ((remainingMs ?? 0) <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [expiresAtDate, isPaid, isFailed, remainingMs]);
 
   const handleCopyVa = useCallback(() => {
     if (payment.va_number) {
@@ -516,7 +600,33 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
           </Badge>
         ) : (
           <Badge variant="secondary" className="gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" /> {t("status.pending")}
+            <svg className="h-3 w-3" viewBox="0 0 16 16" aria-hidden="true">
+              <circle
+                cx="8"
+                cy="8"
+                r={statusCircleRadius}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.25"
+                strokeWidth="2"
+              />
+              <circle
+                cx="8"
+                cy="8"
+                r={statusCircleRadius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray={statusCircleCircumference}
+                strokeDashoffset={statusCircleOffset}
+                transform="rotate(-90 8 8)"
+              />
+            </svg>
+            {t("status.pending")}
+            {countdownLabel ? (
+              <span className="font-mono tabular-nums">{countdownLabel}</span>
+            ) : null}
           </Badge>
         )}
       </div>
@@ -575,8 +685,14 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
         <span className="font-mono font-bold text-lg">{formatCurrency(payment.amount)}</span>
       </div>
 
+      {expiresAtLabel ? (
+        <p className="text-xs text-muted-foreground text-center">
+          {t("expires")} {expiresAtLabel}
+        </p>
+      ) : null}
+
       {/* Payment URL fallback */}
-      {payment.payment_url && !payment.qr_code && !payment.va_number && (
+      {payment.payment_url ? (
         <Button
           variant="outline"
           className="w-full cursor-pointer gap-2"
@@ -585,13 +701,8 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
           <ExternalLink className="h-4 w-4" />
           {t("openPage")}
         </Button>
-      )}
+      ) : null}
 
-      {payment.expires_at && (
-        <p className="text-xs text-muted-foreground text-center">
-          {t("expires")} {new Date(payment.expires_at).toLocaleTimeString()}
-        </p>
-      )}
     </div>
   );
 }
