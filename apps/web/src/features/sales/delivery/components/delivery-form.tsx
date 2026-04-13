@@ -592,7 +592,7 @@ function BatchSelectionField({ control, index, error, t, open }: {
 
   return (
     <Field orientation="vertical">
-      <FieldLabel>{t("item.batch")}</FieldLabel>
+      <FieldLabel className="required">{t("item.batch")}</FieldLabel>
       <Controller
         name={`items.${index}.inventory_batch_id`}
         control={control}

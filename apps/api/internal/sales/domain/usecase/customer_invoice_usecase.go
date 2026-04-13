@@ -284,7 +284,10 @@ func (uc *customerInvoiceUsecase) buildSalesOrderItemMapForCreate(
 
 	salesOrder, err := uc.salesOrderRepo.FindByID(ctx, *req.SalesOrderID)
 	if err != nil {
-		return nil, fmt.Errorf("sales order not found: %w", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSalesOrderNotFound
+		}
+		return nil, err
 	}
 
 	if req.DeliveryOrderID != nil {

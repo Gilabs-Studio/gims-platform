@@ -29,8 +29,8 @@
 - **Medium Priority:** 7
 - **Backend Issues:** 3
 - **Frontend Issues:** 13
-- **Fixed:** 11
-- **New (Unfixed):** 5
+- **Fixed:** 13
+- **New (Unfixed):** 3
 
 ---
 
@@ -262,7 +262,7 @@ Customer Invoice DP (CIDP) entries show statuses `Unpaid` and `Paid`, but there 
 
 **Priority:** Medium  
 **Type:** Frontend / UX  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 When converting a Sales Order to a Delivery Order, the **Batch** field is not marked with a red asterisk (indicating optional), but the backend returns a validation error if it is left empty.
@@ -277,6 +277,9 @@ Either the field should be marked required, or the backend should allow empty va
 
 ### Actual Result
 A validation error is returned because Batch is required but not visually indicated as such.
+
+### Fix Applied
+- In `delivery-form.tsx`, added `className="required"` to the Batch field `FieldLabel` so the red asterisk is rendered, matching the existing Zod schema and backend `binding:"required"` validation.
 
 ---
 
@@ -332,7 +335,7 @@ The items table is completely empty; the user must manually re-add every item.
 
 **Priority:** High  
 **Type:** Backend / API  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 After filling all required fields in the **Add Invoice** dialog (opened from a Sales Order) and clicking **Create**, the server responds with a `500 Internal Server Error`, preventing invoice creation entirely.
@@ -348,6 +351,11 @@ Invoice is created successfully and linked to the SO.
 
 ### Actual Result
 A `500 Internal Server Error` toast appears; no invoice is created.
+
+### Fix Applied
+- In `customer_invoice_handler.go`, added `errors.Is(err, usecase.ErrSalesOrderNotFound)` error mapping so a missing SO returns HTTP 400 instead of 500.
+- In `customer_invoice_usecase.go`, updated `buildSalesOrderItemMapForCreate` to return `ErrSalesOrderNotFound` when the referenced Sales Order is not found.
+- In `use-invoice-form.ts`, included `sales_order_item_id: item.id` in the SO-to-invoice item mapping so backend quantity validation and SO item update triggers work correctly.
 
 ---
 
@@ -382,7 +390,7 @@ Cancelled customer invoices do not show a **Delete** action in their dropdown me
 
 **Priority:** High  
 **Type:** Backend / API  
-**Status:** Unfixed
+**Status:** Fixed
 
 ### Description
 Clicking **Convert to SO** on an approved quotation returns a `500 Internal Server Error` toast. However, the Sales Order is actually created in the database (visible in the Sales Orders list), meaning the mutation is not idempotent and leaves the system in an inconsistent state if the user retries.
@@ -397,6 +405,9 @@ Sales Order is created successfully with a `200/201` response.
 
 ### Actual Result
 A `500 Internal Server Error` appears, yet a new Sales Order (`SO-20260406-XXXX`) is created and linked to the quotation.
+
+### Fix Applied
+- In `sales_order_usecase.go`, `ConvertFromQuotation` now falls back to `mapper.ToSalesOrderResponse(order, nil)` if `FindByID` fails after the order is created. This prevents a 500 response when the SO exists but post-create eager loading encounters an issue.
 
 ---
 
@@ -552,7 +563,7 @@ Processed returns only show a **View** action. There is no **Delete** option, ev
 
 ## Open Items / Not Tested
 
-- **End-to-end chain** (Quotation → Order → DO → Invoice → Payment) — **Tested 2026-04-06.** Full chain succeeds for new records. Only Bug #10 (invoice items not auto-populated) remains as active friction. Bugs #11, #13, and #14 did not reproduce on fresh data.
+- **End-to-end chain** (Quotation → Order → DO → Invoice → Payment) — **Tested 2026-04-06.** Full chain succeeds for new records. Bug #10 (invoice items not auto-populated) and Bug #14 (DO items not auto-populated) remain as active friction for some older records. Bugs #11 and #13 are now fixed.
 - **CIDP full workflow** (Draft → Submit → Approve → Pay) — **Fixed 2026-04-08.** Approve action now present (Bug #7).
 - **Payment Reverse / Delete** — **Fixed 2026-04-08.** Reverse and Delete actions now present for Confirmed payments (Bug #6).
 - **Returns Edit** — Still blocked by missing backend `update` endpoint (Bug #15).

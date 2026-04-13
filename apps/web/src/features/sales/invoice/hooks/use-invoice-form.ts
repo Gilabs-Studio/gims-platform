@@ -269,6 +269,7 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
       replace(
         order.items.map((item) => ({
           product_id: item.product_id,
+          sales_order_item_id: item.id,
           quantity: item.quantity,
           price: item.price,
           discount: item.discount ?? 0,
