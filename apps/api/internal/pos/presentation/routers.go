@@ -1,11 +1,15 @@
 package presentation
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	invDataRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -22,6 +26,11 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
 }) {
+	credentialCipher, err := securityInfra.NewCredentialCipher(config.AppConfig.Security.XenditCredentialEncryptionKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize Xendit credential cipher: %v", err))
+	}
+
 	// ─── Repositories ────────────────────────────────────────────────────────
 
 	floorPlanRepo := repositories.NewFloorPlanRepository(db)
@@ -44,9 +53,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
 	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
-	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo)
+	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo, credentialCipher)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
-	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo)
+	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
 
 	// ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -71,4 +80,3 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Xendit webhook is unauthenticated (token verified inside the handler by Xendit signature)
 	r.POST("/api/v1/pos/payments/xendit/webhook", paymentH.XenditWebhook)
 }
-

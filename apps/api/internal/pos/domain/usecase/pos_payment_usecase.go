@@ -8,6 +8,7 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -44,6 +45,7 @@ type posPaymentUsecase struct {
 	invoiceRepo      salesRepos.CustomerInvoiceRepository
 	salesPaymentRepo salesRepos.SalesPaymentRepository
 	bankAccountRepo  coreRepos.BankAccountRepository
+	cipher           *securityInfra.CredentialCipher
 }
 
 const maxXenditDescriptionLen = 200
@@ -59,6 +61,7 @@ func NewPOSPaymentUsecase(
 	invoiceRepo salesRepos.CustomerInvoiceRepository,
 	salesPaymentRepo salesRepos.SalesPaymentRepository,
 	bankAccountRepo coreRepos.BankAccountRepository,
+	cipher *securityInfra.CredentialCipher,
 ) POSPaymentUsecase {
 	return &posPaymentUsecase{
 		paymentRepo:      paymentRepo,
@@ -70,6 +73,7 @@ func NewPOSPaymentUsecase(
 		invoiceRepo:      invoiceRepo,
 		salesPaymentRepo: salesPaymentRepo,
 		bankAccountRepo:  bankAccountRepo,
+		cipher:           cipher,
 	}
 }
 
@@ -100,16 +104,16 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 	now := apptime.Now()
 	change := req.Amount - order.TotalAmount
 	payment := &models.POSPayment{
-		OrderID:      orderID,
-		Method:       models.POSPaymentMethod(req.Method),
-		Status:       models.POSPaymentStatusPaid,
-		Amount:       req.Amount,
-		TenderAmount: req.Amount,
-		ChangeAmount: change,
+		OrderID:         orderID,
+		Method:          models.POSPaymentMethod(req.Method),
+		Status:          models.POSPaymentStatusPaid,
+		Amount:          req.Amount,
+		TenderAmount:    req.Amount,
+		ChangeAmount:    change,
 		ReferenceNumber: req.ReferenceNumber,
-		Notes: req.Notes,
-		PaidAt:       &now,
-		CreatedBy:    cashierID,
+		Notes:           req.Notes,
+		PaidAt:          &now,
+		CreatedBy:       cashierID,
 	}
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
@@ -144,6 +148,11 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
 	}
 
+	decryptedSecretKey, err := u.cipher.Decrypt(xenditCfg.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
+	}
+
 	// Persist customer name from payment form if provided
 	if req.CustomerName != nil {
 		trimmedName := strings.TrimSpace(*req.CustomerName)
@@ -172,7 +181,7 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 	}
 
 	// Create Xendit invoice routed to the merchant's sub-account
-	xenditProvider := provider.NewXenditProvider(xenditCfg.SecretKey, xenditCfg.XenditAccountID)
+	xenditProvider := provider.NewXenditProvider(decryptedSecretKey, xenditCfg.XenditAccountID)
 	invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
 	if err != nil {
 		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
