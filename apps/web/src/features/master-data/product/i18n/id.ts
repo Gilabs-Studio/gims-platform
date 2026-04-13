@@ -294,8 +294,6 @@ export const productId = {
       RECIPE: "Resep (Menu BOM)",
       SERVICE: "Layanan (Non-Fisik)",
     },
-    isIngredient: "Bahan Baku",
-    isIngredientHint: "Produk ini adalah bahan baku yang digunakan dalam resep F&B",
     isInventoryTracked: "Lacak Inventori",
     isInventoryTrackedHint: "Melacak batch inventori dan pergerakan stok",
     isPosAvailable: "Tersedia di POS",
