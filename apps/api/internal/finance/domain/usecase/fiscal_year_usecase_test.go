@@ -132,6 +132,13 @@ func (r *inMemoryOpeningBalanceRepo) HasPostedOpeningJournal(ctx context.Context
 	return r.hasPosted, nil
 }
 
+func (r *inMemoryOpeningBalanceRepo) GetPostedOpeningJournalID(ctx context.Context, companyID, fiscalYearID string) (*string, error) {
+	_ = ctx
+	_ = companyID
+	_ = fiscalYearID
+	return nil, nil
+}
+
 func (r *inMemoryOpeningBalanceRepo) HasPostedOperationalJournalInRange(ctx context.Context, startDate, endDate string) (bool, error) {
 	_ = ctx
 	_ = startDate

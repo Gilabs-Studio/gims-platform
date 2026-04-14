@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type JournalEntryListParams struct {
@@ -59,11 +60,19 @@ func (r *journalEntryRepository) FindByID(ctx context.Context, id string, withLi
 	return &item, nil
 }
 
-var journalAllowedSort = map[string]string{
-	"created_at": "journal_entries.created_at",
-	"updated_at": "journal_entries.updated_at",
-	"entry_date": "journal_entries.entry_date",
-	"status":     "journal_entries.status",
+var journalAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "journal_entries", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "journal_entries", Name: "updated_at"},
+	},
+	"entry_date": {
+		Column: clause.Column{Table: "journal_entries", Name: "entry_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "journal_entries", Name: "status"},
+	},
 }
 
 func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryListParams) ([]financeModels.JournalEntry, int64, error) {
@@ -118,14 +127,16 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 	}
 
 	sortCol := journalAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = journalAllowedSort["entry_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

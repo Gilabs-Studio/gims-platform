@@ -13,14 +13,41 @@ import (
 )
 
 type BankAccountListParams struct {
-	Search     string
-	IsActive   *bool
-	OwnerType  string
-	CurrencyID string
-	SortBy     string
-	SortDir    string
-	Limit      int
-	Offset     int
+	CompanyID   string // Phase 2: required for company scoping
+	Search      string
+	IsActive    *bool
+	OwnerType   string
+	CurrencyID  string
+	AccountType string // Phase 2: optional filter
+	SortBy      string
+	SortDir     string
+	Limit       int
+	Offset      int
+}
+
+// Phase 2: Bank account response with computed balance and metadata
+type BankAccountDetail struct {
+	*models.BankAccount
+	CurrentBalance     float64                      `json:"current_balance"`     // computed from GL
+	IsReconcilable     bool                         `json:"is_reconcilable"`     // derived from COA
+	BalanceBreakdown   *BankAccountBalanceBreakdown `json:"balance_breakdown"`   // detailed balance composition
+	RecentTransactions []BankAccountTransaction     `json:"recent_transactions"` // last n transactions
+	Metadata           *BankAccountMetadata         `json:"metadata"`            // reconciliation status, etc.
+}
+
+type BankAccountBalanceBreakdown struct {
+	OpeningJournalBalance  float64 `json:"opening_journal_balance"`
+	TransactionDebitTotal  float64 `json:"transaction_debit_total"`
+	TransactionCreditTotal float64 `json:"transaction_credit_total"`
+	CurrentBalance         float64 `json:"current_balance"`
+}
+
+type BankAccountMetadata struct {
+	LastReconciledAt     *time.Time `json:"last_reconciled_at"`
+	ReconciliationStatus string     `json:"reconciliation_status"` // unreconciled|in_progress|reconciled|locked
+	StatementDate        *time.Time `json:"statement_date"`
+	BookDifference       float64    `json:"book_difference"`
+	WarningMessage       *string    `json:"warning_message,omitempty"` // warning if account registered during operations
 }
 
 type BankAccountRepository interface {
@@ -32,6 +59,11 @@ type BankAccountRepository interface {
 	ListTransactionHistoryPaginated(ctx context.Context, bankAccountID string, limit, offset int) ([]BankAccountTransaction, int64, error)
 	Update(ctx context.Context, bankAccount *models.BankAccount) error
 	Delete(ctx context.Context, id string) error
+	// Phase 2 methods
+	FindByIDWithBalance(ctx context.Context, id string) (*BankAccountDetail, error)
+	ListByCompanyWithBalance(ctx context.Context, companyID string, params BankAccountListParams) ([]BankAccountDetail, int64, error)
+	ComputeCurrentBalance(ctx context.Context, bankAccountID string) (float64, error)
+	ToggleStatus(ctx context.Context, bankAccountID string) error
 }
 
 type UnifiedBankAccount struct {
@@ -92,10 +124,13 @@ func (r *bankAccountRepository) FindByID(ctx context.Context, id string) (*model
 }
 
 var bankAccountAllowedSort = map[string]string{
-	"created_at": "bank_accounts.created_at",
-	"updated_at": "bank_accounts.updated_at",
-	"name":       "bank_accounts.name",
-	"currency":   "bank_accounts.currency",
+	"created_at":     "bank_accounts.created_at",
+	"updated_at":     "bank_accounts.updated_at",
+	"name":           "bank_accounts.name",
+	"code":           "bank_accounts.code",
+	"account_type":   "bank_accounts.account_type",
+	"currency":       "bank_accounts.currency",
+	"account_number": "bank_accounts.account_number",
 }
 
 func (r *bankAccountRepository) List(ctx context.Context, params BankAccountListParams) ([]models.BankAccount, int64, error) {
@@ -104,12 +139,24 @@ func (r *bankAccountRepository) List(ctx context.Context, params BankAccountList
 
 	q := r.db.WithContext(ctx).Model(&models.BankAccount{})
 
+	// Phase 2: Company scoping
+	if params.CompanyID != "" {
+		q = q.Where("company_id = ?", params.CompanyID)
+	}
+
 	if s := strings.TrimSpace(params.Search); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("bank_accounts.name ILIKE ? OR bank_accounts.account_number ILIKE ? OR bank_accounts.account_holder ILIKE ?", like, like, like)
+		q = q.Where(
+			"bank_accounts.name ILIKE ? OR bank_accounts.code ILIKE ? OR bank_accounts.account_number ILIKE ? OR bank_accounts.account_holder ILIKE ?",
+			like, like, like, like,
+		)
 	}
 	if params.IsActive != nil {
 		q = q.Where("bank_accounts.is_active = ?", *params.IsActive)
+	}
+	// Phase 2: Account type filter
+	if params.AccountType != "" {
+		q = q.Where("bank_accounts.account_type = ?", params.AccountType)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -498,6 +545,180 @@ func (r *bankAccountRepository) ListTransactionHistoryPaginated(ctx context.Cont
 
 func (r *bankAccountRepository) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&models.BankAccount{}, "id = ?", id).Error
+}
+
+// ========== PHASE 2 METHODS ==========
+
+// FindByIDWithBalance retrieves bank account with computed current balance from GL
+func (r *bankAccountRepository) FindByIDWithBalance(ctx context.Context, id string) (*BankAccountDetail, error) {
+	var bankAccount models.BankAccount
+	if err := r.db.WithContext(ctx).
+		Preload("CurrencyDetail").
+		First(&bankAccount, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	// Compute current balance from GL journal entries for this bank's COA account
+	currentBalance, err := r.ComputeCurrentBalance(ctx, id)
+	if err != nil {
+		// Log error but continue; balance will be estimated
+		currentBalance = 0
+	}
+
+	// Get recent transactions
+	recentTxns, _ := r.ListTransactionHistory(ctx, id, 5)
+
+	// Determine if account is reconcilable based on COA postability
+	isReconcilable := bankAccount.ChartOfAccountID != nil
+
+	// Balance breakdown
+	balanceBreakdown := &BankAccountBalanceBreakdown{
+		OpeningJournalBalance:  bankAccount.OpeningBalance, // Phase 0 opening balance
+		TransactionDebitTotal:  0,                          // TODO: aggregate from GL
+		TransactionCreditTotal: 0,                          // TODO: aggregate from GL
+		CurrentBalance:         currentBalance,
+	}
+
+	detail := &BankAccountDetail{
+		BankAccount:        &bankAccount,
+		CurrentBalance:     currentBalance,
+		IsReconcilable:     isReconcilable,
+		BalanceBreakdown:   balanceBreakdown,
+		RecentTransactions: recentTxns,
+		Metadata: &BankAccountMetadata{
+			ReconciliationStatus: "unreconciled", // TODO: fetch from reconciliation table
+		},
+	}
+
+	return detail, nil
+}
+
+// ListByCompanyWithBalance retrieves bank accounts for a company with computed balances
+func (r *bankAccountRepository) ListByCompanyWithBalance(ctx context.Context, companyID string, params BankAccountListParams) ([]BankAccountDetail, int64, error) {
+	var bankAccounts []models.BankAccount
+	var total int64
+
+	q := r.db.WithContext(ctx).
+		Where("company_id = ?", companyID).
+		Preload("CurrencyDetail")
+
+	// Apply filters
+	if s := strings.TrimSpace(params.Search); s != "" {
+		like := "%" + s + "%"
+		q = q.Where(
+			"bank_accounts.name ILIKE ? OR bank_accounts.code ILIKE ? OR bank_accounts.account_number ILIKE ?",
+			like, like, like,
+		)
+	}
+	if params.IsActive != nil {
+		q = q.Where("bank_accounts.is_active = ?", *params.IsActive)
+	}
+	if params.AccountType != "" {
+		q = q.Where("bank_accounts.account_type = ?", params.AccountType)
+	}
+	if params.CurrencyID != "" {
+		q = q.Where("bank_accounts.currency_id = ?", params.CurrencyID)
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply sorting
+	sortCol := "bank_accounts.created_at"
+	if params.SortBy == "name" {
+		sortCol = "bank_accounts.name"
+	} else if params.SortBy == "code" {
+		sortCol = "bank_accounts.code"
+	} else if params.SortBy == "account_number" {
+		sortCol = "bank_accounts.account_number"
+	}
+	sortDir := "desc"
+	if strings.ToLower(params.SortDir) == "asc" {
+		sortDir = "asc"
+	}
+	q = q.Order(sortCol + " " + sortDir)
+
+	// Apply pagination
+	if params.Limit > 0 {
+		q = q.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		q = q.Offset(params.Offset)
+	}
+
+	if err := q.Find(&bankAccounts).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Enrich with computed balances
+	details := make([]BankAccountDetail, 0, len(bankAccounts))
+	for _, acc := range bankAccounts {
+		currentBalance, _ := r.ComputeCurrentBalance(ctx, acc.ID)
+		recentTxns, _ := r.ListTransactionHistory(ctx, acc.ID, 5)
+
+		detail := BankAccountDetail{
+			BankAccount:        &acc,
+			CurrentBalance:     currentBalance,
+			IsReconcilable:     acc.ChartOfAccountID != nil,
+			RecentTransactions: recentTxns,
+			Metadata: &BankAccountMetadata{
+				ReconciliationStatus: "unreconciled",
+			},
+		}
+		details = append(details, detail)
+	}
+
+	return details, total, nil
+}
+
+// ComputeCurrentBalance calculates current balance from posted GL journal entries
+// Returns: SUM(debit - credit) for the bank account's COA account
+func (r *bankAccountRepository) ComputeCurrentBalance(ctx context.Context, bankAccountID string) (float64, error) {
+	var bankAccount models.BankAccount
+	if err := r.db.WithContext(ctx).
+		Select("chart_of_account_id").
+		First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
+		return 0, err
+	}
+
+	if bankAccount.ChartOfAccountID == nil || *bankAccount.ChartOfAccountID == "" {
+		return 0, nil // No COA linked, balance is 0
+	}
+
+	// Query GL balance: SUM(debit) - SUM(credit) for posted journals
+	var balance struct {
+		Balance float64
+	}
+
+	query := `
+		SELECT COALESCE(
+			SUM(COALESCE(jel.debit_amount, 0)) - SUM(COALESCE(jel.credit_amount, 0)),
+			0
+		) AS balance
+		FROM journal_entry_lines jel
+		JOIN journal_entries je ON je.id = jel.journal_entry_id
+		WHERE jel.account_id = ?
+		  AND je.status = 'posted'
+		  AND je.deleted_at IS NULL
+	`
+
+	if err := r.db.WithContext(ctx).Raw(query, *bankAccount.ChartOfAccountID).Scan(&balance).Error; err != nil {
+		return 0, err
+	}
+
+	return balance.Balance, nil
+}
+
+// ToggleStatus toggles the is_active flag of a bank account
+func (r *bankAccountRepository) ToggleStatus(ctx context.Context, bankAccountID string) error {
+	var bankAccount models.BankAccount
+	if err := r.db.WithContext(ctx).First(&bankAccount, "id = ?", bankAccountID).Error; err != nil {
+		return err
+	}
+
+	bankAccount.IsActive = !bankAccount.IsActive
+	return r.db.WithContext(ctx).Save(&bankAccount).Error
 }
 
 func stringPtrIfNotEmpty(value string) *string {

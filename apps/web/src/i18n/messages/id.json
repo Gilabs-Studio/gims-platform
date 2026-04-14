@@ -206,6 +206,7 @@
     "accountsReceivable": "Piutang (AR)",
     "accountsPayable": "Hutang (AP)",
     "cashBank": "Kas & Bank",
+    "cashBankTransactions": "Transaksi Kas-Bank",
     "bankTransfers": "Transfer Bank",
     "bankReconciliation": "Rekonsiliasi Bank",
     "fixedAssets": "Aset Tetap",

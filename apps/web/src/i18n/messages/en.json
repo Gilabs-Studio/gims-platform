@@ -207,6 +207,7 @@
     "accountsReceivable": "Accounts Receivable (AR)",
     "accountsPayable": "Accounts Payable (AP)",
     "cashBank": "Cash & Bank",
+    "cashBankTransactions": "Cash-Bank Transactions",
     "bankTransfers": "Bank Transfers",
     "bankReconciliation": "Bank Reconciliation",
     "fixedAssets": "Fixed Assets",

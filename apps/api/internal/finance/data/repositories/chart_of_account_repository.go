@@ -1,4 +1,4 @@
-﻿package repositories
+package repositories
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type chartOfAccountRepository struct {
@@ -75,12 +76,22 @@ func (r *chartOfAccountRepository) FindAll(ctx context.Context, onlyActive bool)
 	return items, nil
 }
 
-var coaAllowedSort = map[string]string{
-	"created_at": "chart_of_accounts.created_at",
-	"updated_at": "chart_of_accounts.updated_at",
-	"code":       "chart_of_accounts.code",
-	"name":       "chart_of_accounts.name",
-	"type":       "chart_of_accounts.type",
+var coaAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "updated_at"},
+	},
+	"code": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "code"},
+	},
+	"name": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "name"},
+	},
+	"type": {
+		Column: clause.Column{Table: "chart_of_accounts", Name: "type"},
+	},
 }
 
 func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccountListParams) ([]financeModels.ChartOfAccount, int64, error) {
@@ -108,14 +119,16 @@ func (r *chartOfAccountRepository) List(ctx context.Context, params ChartOfAccou
 	}
 
 	sortCol := coaAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = coaAllowedSort["code"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
@@ -227,4 +240,3 @@ func (r *chartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context)
 func (r *chartOfAccountRepository) GetDB(ctx context.Context) *gorm.DB {
 	return r.getDB(ctx)
 }
-

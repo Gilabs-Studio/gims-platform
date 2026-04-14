@@ -26,6 +26,8 @@ type bankAccountSeed struct {
 func SeedBankAccounts() error {
 	if isMinimalSeedMode() {
 		db := database.DB
+		companyID := GiLabsCompanyID
+		actorID := AdminEmployeeID
 		// Minimal bank account + corresponding COA.
 		coa := financeModels.ChartOfAccount{Code: "11101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
@@ -37,11 +39,15 @@ func SeedBankAccounts() error {
 		}
 
 		account := coreModels.BankAccount{
+			CompanyID:        companyID,
+			Code:             "BA-MIN-001",
 			Name:             "Minimal Bank Account",
 			AccountNumber:    "0000000001",
 			AccountHolder:    "PT. Minimal",
 			Currency:         "IDR",
 			IsActive:         true,
+			CreatedBy:        actorID,
+			UpdatedBy:        actorID,
 			ChartOfAccountID: &existingID,
 		}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "account_number"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "account_holder", "currency", "is_active", "chart_of_account_id", "updated_at"})}).Create(&account).Error; err != nil {
@@ -113,15 +119,21 @@ func SeedBankAccounts() error {
 	}
 
 	// 5) Upsert bank accounts with resolved ChartOfAccountID.
+	companyID := GiLabsCompanyID
+	actorID := AdminEmployeeID
 	for _, s := range seeds {
 		coaID := coaByCode[s.coaCode]
 		account := coreModels.BankAccount{
 			ID:            uuid.New().String(),
+			CompanyID:     companyID,
+			Code:          "BA-" + s.coaCode,
 			Name:          s.name,
 			AccountNumber: s.accountNumber,
 			AccountHolder: s.accountHolder,
 			Currency:      s.currency,
 			IsActive:      s.isActive,
+			CreatedBy:     actorID,
+			UpdatedBy:     actorID,
 		}
 		if coaID != "" {
 			account.ChartOfAccountID = &coaID

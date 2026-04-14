@@ -651,10 +651,10 @@ func SeedMenus() error {
 		url   string
 		order int
 	}{
-		{"Bank Accounts", "landmark", "/finance/cash-bank/bank-accounts", 1},
-		{"Cash & Bank Journal", "book-open", "/finance/cash-bank/journals", 2},
-		{"Bank Transfers", "arrow-right-left", "/finance/cash-bank/transfers", 3},
-		{"Bank Reconciliation", "scale", "/finance/cash-bank/reconciliation", 4},
+		{"Bank Accounts", "landmark", "/finance/bank-accounts", 1},
+		{"Cash-Bank Transactions", "book-open", "/finance/journals/cash-bank", 2},
+		{"Bank Transfers", "arrow-right-left", "/finance/bank-transfer", 3},
+		{"Bank Reconciliation", "scale", "/finance/bank-reconciliation", 4},
 	}
 	for _, child := range cashBankChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &cashBankMenu.ID, child.order); err != nil {

@@ -412,7 +412,7 @@ func main() {
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)
 		bankAccountRepo := coreRepos.NewBankAccountRepository(database.DB)
-		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(database.DB, bankAccountRepo, currencyRepo)
 
 		cerebrasClient := cerebras.NewClient(
 			config.AppConfig.Cerebras.BaseURL,

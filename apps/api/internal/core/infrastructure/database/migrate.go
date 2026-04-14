@@ -147,6 +147,10 @@ func AutoMigrate() error {
 		&finance.BudgetItem{},
 		&finance.CashBankJournal{},
 		&finance.CashBankJournalLine{},
+		&finance.CashBankTransaction{},
+		&finance.BankTransfer{},
+		&finance.BankReconciliation{},
+		&finance.BankStatementLine{},
 		// Finance entities (Sprint 12)
 		&finance.AssetCategory{},
 		&finance.AssetLocation{},
