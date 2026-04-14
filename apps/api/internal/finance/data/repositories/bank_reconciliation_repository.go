@@ -1,0 +1,137 @@
+package repositories
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	"gorm.io/gorm"
+)
+
+type BankReconciliationListParams struct {
+	CompanyID     string
+	BankAccountID string
+	Status        *financeModels.BankReconciliationStatus
+	StartDate     *time.Time
+	EndDate       *time.Time
+	SortBy        string
+	SortDir       string
+	Limit         int
+	Offset        int
+}
+
+type BankReconciliationRepository interface {
+	Create(ctx context.Context, item *financeModels.BankReconciliation) error
+	FindByID(ctx context.Context, id string, preloadLines bool) (*financeModels.BankReconciliation, error)
+	List(ctx context.Context, params BankReconciliationListParams) ([]financeModels.BankReconciliation, int64, error)
+	Update(ctx context.Context, item *financeModels.BankReconciliation) error
+	CreateStatementLines(ctx context.Context, lines []financeModels.BankStatementLine) error
+	UpdateStatementLine(ctx context.Context, item *financeModels.BankStatementLine) error
+	FindStatementLineByID(ctx context.Context, reconciliationID, lineID string) (*financeModels.BankStatementLine, error)
+}
+
+type bankReconciliationRepository struct {
+	db *gorm.DB
+}
+
+func NewBankReconciliationRepository(db *gorm.DB) BankReconciliationRepository {
+	return &bankReconciliationRepository{db: db}
+}
+
+func (r *bankReconciliationRepository) Create(ctx context.Context, item *financeModels.BankReconciliation) error {
+	return r.db.WithContext(ctx).Create(item).Error
+}
+
+func (r *bankReconciliationRepository) FindByID(ctx context.Context, id string, preloadLines bool) (*financeModels.BankReconciliation, error) {
+	var item financeModels.BankReconciliation
+	q := r.db.WithContext(ctx)
+	if preloadLines {
+		q = q.Preload("Lines")
+	}
+	if err := q.First(&item, "id = ?", strings.TrimSpace(id)).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+var bankReconciliationAllowedSort = map[string]string{
+	"created_at":     "bank_reconciliations.created_at",
+	"updated_at":     "bank_reconciliations.updated_at",
+	"statement_date": "bank_reconciliations.statement_date",
+	"status":         "bank_reconciliations.status",
+}
+
+func (r *bankReconciliationRepository) List(ctx context.Context, params BankReconciliationListParams) ([]financeModels.BankReconciliation, int64, error) {
+	var items []financeModels.BankReconciliation
+	var total int64
+
+	q := r.db.WithContext(ctx).Model(&financeModels.BankReconciliation{})
+
+	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {
+		q = q.Where("company_id = ?", companyID)
+	}
+	if bankAccountID := strings.TrimSpace(params.BankAccountID); bankAccountID != "" {
+		q = q.Where("bank_account_id = ?", bankAccountID)
+	}
+	if params.Status != nil {
+		q = q.Where("status = ?", *params.Status)
+	}
+	if params.StartDate != nil {
+		q = q.Where("statement_date >= ?", *params.StartDate)
+	}
+	if params.EndDate != nil {
+		q = q.Where("statement_date <= ?", *params.EndDate)
+	}
+
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	sortCol := bankReconciliationAllowedSort[params.SortBy]
+	if sortCol == "" {
+		sortCol = bankReconciliationAllowedSort["statement_date"]
+	}
+	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
+	if sortDir != "asc" {
+		sortDir = "desc"
+	}
+	q = q.Order(sortCol + " " + sortDir)
+
+	if params.Limit > 0 {
+		q = q.Limit(params.Limit)
+	}
+	if params.Offset > 0 {
+		q = q.Offset(params.Offset)
+	}
+
+	if err := q.Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
+}
+
+func (r *bankReconciliationRepository) Update(ctx context.Context, item *financeModels.BankReconciliation) error {
+	return r.db.WithContext(ctx).Save(item).Error
+}
+
+func (r *bankReconciliationRepository) CreateStatementLines(ctx context.Context, lines []financeModels.BankStatementLine) error {
+	if len(lines) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Create(&lines).Error
+}
+
+func (r *bankReconciliationRepository) UpdateStatementLine(ctx context.Context, item *financeModels.BankStatementLine) error {
+	return r.db.WithContext(ctx).Save(item).Error
+}
+
+func (r *bankReconciliationRepository) FindStatementLineByID(ctx context.Context, reconciliationID, lineID string) (*financeModels.BankStatementLine, error) {
+	var item financeModels.BankStatementLine
+	if err := r.db.WithContext(ctx).
+		First(&item, "id = ? AND bank_reconciliation_id = ?", strings.TrimSpace(lineID), strings.TrimSpace(reconciliationID)).Error; err != nil {
+		return nil, err
+	}
+	return &item, nil
+}

@@ -179,8 +179,8 @@ function SelectContent({
     if (!selectedValue) return true;
 
     return childArray.slice(0, localVisibleCount).some((child) => {
-      if (!React.isValidElement(child)) return false;
-      return child.props?.value === selectedValue;
+      if (!React.isValidElement<{ value?: string }>(child)) return false;
+      return child.props.value === selectedValue;
     });
   }, [childArray, localVisibleCount, selectedValue]);
   const localHasMore = !isSearching && childArray.length > localVisibleCount;

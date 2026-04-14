@@ -393,14 +393,23 @@ func SeedPermissions() error {
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
 
-		// Cash & Bank Journal — read-only monitoring for cash/bank transactions
-		{"/finance/cash-bank/journals", "cash_bank_journal.read", "View Cash & Bank Journal", "VIEW", "cash_bank_journal"},
-		{"/finance/cash-bank/journals", "cash_bank_journal.export", "Export Cash & Bank Journal", "EXPORT", "cash_bank_journal"},
+		// Cash & Bank journal/transactions
+		{ "/finance/journals/cash-bank", "cash_bank_transaction.read", "View Cash-Bank Transactions", "VIEW", "cash_bank_transaction"},
+		{ "/finance/journals/cash-bank", "cash_bank_transaction.write", "Create Cash-Bank Transactions", "CREATE", "cash_bank_transaction"},
+		{ "/finance/journals/cash-bank", "cash_bank_transaction.reverse", "Reverse Cash-Bank Transactions", "REVERSE", "cash_bank_transaction"},
+		{ "/finance/journals/cash-bank", "cash_bank_transaction.export", "Export Cash-Bank Transactions", "EXPORT", "cash_bank_transaction"},
 
-		{"/finance/cash-bank/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
-		{"/finance/cash-bank/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
-		{"/finance/cash-bank/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
-		{"/finance/cash-bank/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
+		{ "/finance/bank-accounts", "bank_account.read", "View Bank Accounts", "VIEW", "bank_account"},
+		{ "/finance/bank-accounts", "bank_account.create", "Create Bank Accounts", "CREATE", "bank_account"},
+		{ "/finance/bank-accounts", "bank_account.update", "Edit Bank Accounts", "EDIT", "bank_account"},
+		{ "/finance/bank-accounts", "bank_account.delete", "Delete Bank Accounts", "DELETE", "bank_account"},
+		{ "/finance/bank-transfer", "bank_transfer.read", "View Bank Transfers", "VIEW", "bank_transfer"},
+		{ "/finance/bank-transfer", "bank_transfer.write", "Create and Complete Bank Transfers", "EDIT", "bank_transfer"},
+		{ "/finance/bank-transfer", "bank_transfer.cancel", "Cancel Bank Transfers", "DELETE", "bank_transfer"},
+		{ "/finance/bank-reconciliation", "bank_reconciliation.read", "View Bank Reconciliations", "VIEW", "bank_reconciliation"},
+		{ "/finance/bank-reconciliation", "bank_reconciliation.write", "Import and Match Bank Reconciliations", "EDIT", "bank_reconciliation"},
+		{ "/finance/bank-reconciliation", "bank_reconciliation.reconcile", "Confirm Bank Reconciliations", "APPROVE", "bank_reconciliation"},
+		{ "/finance/bank-reconciliation", "bank_reconciliation.lock", "Lock Bank Reconciliations", "LOCK", "bank_reconciliation"},
 
 		{"/finance/settings", "finance_settings.read", "View Finance Settings", "VIEW", "finance_settings"},
 		{"/finance/settings", "finance_settings.update", "Edit Finance Settings", "EDIT", "finance_settings"},

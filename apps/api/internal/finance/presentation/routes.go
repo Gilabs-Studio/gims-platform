@@ -67,6 +67,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	taxConfigurationRepo := repositories.NewTaxConfigurationRepository(db)
 	inventorySettingsRepo := repositories.NewInventorySettingsRepository(db)
 	openingBalanceRepo := repositories.NewOpeningBalanceRepository(db)
+	cashBankTransactionRepo := repositories.NewCashBankTransactionRepository(db)
+	bankTransferRepo := repositories.NewBankTransferRepository(db)
+	bankReconciliationRepo := repositories.NewBankReconciliationRepository(db)
 
 	coaMapper := mapper.NewChartOfAccountMapper()
 	journalMapper := mapper.NewJournalEntryMapper(coaMapper)
@@ -120,6 +123,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	salaryUC := usecase.NewSalaryStructureUsecase(db, salaryRepo, salaryMapper)
 	reportUC := usecase.NewFinanceReportUsecase(db, coaRepo, reportRepo)
 	valuationRunUC := usecase.NewValuationRunUsecase(db, valuationRunRepo, journalUC, settingsService, accountingEngine)
+	cashBankTransactionUC := usecase.NewCashBankTransactionUsecase(db, cashBankTransactionRepo, journalUC)
+	bankTransferUC := usecase.NewBankTransferUsecase(db, bankTransferRepo, journalUC)
+	bankReconciliationUC := usecase.NewBankReconciliationUsecase(db, bankReconciliationRepo)
 
 	arapReconciliationUC := usecase.NewARAPReconciliationUsecase(db, agingRepo, coaRepo, settingsService, accountingEngine)
 
@@ -155,6 +161,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	upCountryCostH := handler.NewUpCountryCostHandler(upCountryCostUC)
 	reportH := handler.NewFinanceReportHandler(reportUC)
 	arapReconciliationH := handler.NewARAPReconciliationHandler(arapReconciliationUC)
+	cashBankTransactionH := handler.NewCashBankTransactionHandler(cashBankTransactionUC)
+	bankTransferH := handler.NewBankTransferHandler(bankTransferUC)
+	bankReconciliationH := handler.NewBankReconciliationHandler(bankReconciliationUC)
 
 	group := api.Group("/finance")
 	group.Use(middleware.AuthMiddleware(jwtManager, permService))
@@ -178,6 +187,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterUpCountryCostRoutes(group, upCountryCostH)
 	router.RegisterFinanceReportExRoutes(group, reportH)
 	router.RegisterARAPReconciliationRoutes(group, arapReconciliationH)
+	router.RegisterCashBankTransactionRoutes(group, cashBankTransactionH)
+	router.RegisterBankTransferRoutes(group, bankTransferH)
+	router.RegisterBankReconciliationRoutes(group, bankReconciliationH)
 	router.RegisterFinanceSettingsRoutes(group, settingsH)
 	router.RegisterSystemAccountMappingRoutes(group, systemAccountMappingH)
 	router.RegisterLegacyFinanceRouteBridges(group)
