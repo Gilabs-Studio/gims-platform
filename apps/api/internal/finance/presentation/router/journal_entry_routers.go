@@ -11,6 +11,12 @@ import (
 
 const (
 	journalRead              = "journal.read"
+	journalCreate            = "journal.create"
+	journalUpdate            = "journal.update"
+	journalDelete            = "journal.delete"
+	journalPost              = "journal.post"
+	journalCancel            = "journal.cancel"
+	journalReverse           = "journal.reverse"
 	salesJournalRead         = "sales_journal.read"
 	purchaseJournalRead      = "purchase_journal.read"
 	adjustmentJournalRead    = "adjustment_journal.read"
@@ -41,16 +47,20 @@ func deprecatedJournalRoute(message string, replacement string) gin.HandlerFunc 
 
 func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHandler) {
 	registerJournalEntryRoutesInGroup(rg.Group("/journal-entries"), h)
+	registerJournalEntryRoutesInGroup(rg.Group("/journals"), h)
 	registerJournalEntryRoutesInGroup(rg.Group("/accounting/journal-entries"), h)
+	registerJournalEntryRoutesInGroup(rg.Group("/accounting/journals"), h)
 }
 
 func registerJournalEntryRoutesInGroup(g *gin.RouterGroup, h *handler.JournalEntryHandler) {
+	g.Use(middleware.CheckActiveFiscalYear())
+
 	// CRITICAL: Place form-data BEFORE parameterized routes (/:id) for route specificity
 	g.GET("/form-data", middleware.RequirePermission(journalRead), h.GetFormData)
 	g.GET("", middleware.RequirePermission(journalRead), h.List)
 	g.GET("/", middleware.RequirePermission(journalRead), h.List)
-	g.POST("", deprecatedJournalRoute("Direct journal entry creation from Finance is deprecated. Use Adjustment Journal for manual entries.", "/finance/accounting/journal-entries/adjustment"))
-	g.POST("/", deprecatedJournalRoute("Direct journal entry creation from Finance is deprecated. Use Adjustment Journal for manual entries.", "/finance/accounting/journal-entries/adjustment"))
+	g.POST("", middleware.RequirePermission(journalCreate), h.Create)
+	g.POST("/", middleware.RequirePermission(journalCreate), h.Create)
 
 	// Domain-specific read-only journal endpoints
 	g.GET("/sales", middleware.RequirePermission(salesJournalRead), h.ListSalesJournals)
@@ -68,8 +78,12 @@ func registerJournalEntryRoutesInGroup(g *gin.RouterGroup, h *handler.JournalEnt
 	g.POST("/adjustment/:id/post", middleware.RequirePermission(adjustmentJournalPost), h.PostAdjustment)
 	g.POST("/adjustment/:id/reverse", middleware.RequirePermission(adjustmentJournalReverse), h.ReverseAdjustment)
 	g.GET("/:id", middleware.RequirePermission(journalRead), h.GetByID)
-	g.PUT("/:id", deprecatedJournalRoute("Direct journal entry update from Finance is deprecated. Use Adjustment Journal workflow.", "/finance/accounting/journal-entries/adjustment"))
-	g.DELETE("/:id", deprecatedJournalRoute("Direct journal entry deletion from Finance is deprecated. Use reversal workflow.", "/finance/accounting/journal-entries/adjustment"))
-	g.POST("/:id/post", deprecatedJournalRoute("Direct journal entry posting from this endpoint is deprecated.", "/finance/accounting/journal-entries/adjustment"))
-	g.POST("/:id/reverse", deprecatedJournalRoute("Direct journal entry reversal from this endpoint is deprecated.", "/finance/accounting/journal-entries/adjustment"))
+	g.PUT("/:id", middleware.RequirePermission(journalUpdate), h.Update)
+	g.DELETE("/:id", middleware.RequirePermission(journalDelete), h.Delete)
+	g.POST("/:id/post", middleware.RequirePermission(journalPost), h.Post)
+	g.PATCH("/:id/post", middleware.RequirePermission(journalPost), h.Post)
+	g.PATCH("/:id/cancel", middleware.RequirePermission(journalCancel), h.Cancel)
+	g.POST("/:id/cancel", middleware.RequirePermission(journalCancel), h.Cancel)
+	g.POST("/:id/reverse", middleware.RequirePermission(journalReverse), h.Reverse)
+	g.PATCH("/:id/reverse", middleware.RequirePermission(journalReverse), h.Reverse)
 }

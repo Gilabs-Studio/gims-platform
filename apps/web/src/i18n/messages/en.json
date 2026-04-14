@@ -202,6 +202,8 @@
     "bankAccounts": "Bank Accounts",
     "financeSettings": "Finance Settings",
     "accountingMapping": "Accounting Mapping",
+    "inventorySettings": "Inventory Settings",
+    "openingBalance": "Opening Balance",
     "accountsReceivable": "Accounts Receivable (AR)",
     "accountsPayable": "Accounts Payable (AP)",
     "cashBank": "Cash & Bank",

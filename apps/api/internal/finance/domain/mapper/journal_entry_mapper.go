@@ -112,7 +112,11 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 
 	res := dto.JournalEntryResponse{
 		ID:                item.ID,
+		CompanyID:         item.CompanyID,
+		FiscalYearID:      item.FiscalYearID,
+		JournalNumber:     item.JournalNumber,
 		EntryDate:         item.EntryDate,
+		Reference:         item.Reference,
 		Description:       item.Description,
 		ReferenceType:     item.ReferenceType,
 		ReferenceID:       item.ReferenceID,
@@ -130,6 +134,10 @@ func (m *JournalEntryMapper) ToResponse(item *financeModels.JournalEntry) dto.Jo
 		Lines:             lines,
 		DebitTotal:        finalDebit,
 		CreditTotal:       finalCredit,
+		CurrencyCode:      item.CurrencyCode,
+		ExchangeRate:      item.ExchangeRate,
+		IsReversal:        item.IsReversal,
+		ReversedFrom:      item.ReversedFrom,
 		IsValuation:       item.IsValuation,
 		Source:            string(item.Source),
 		ValuationRunID:    item.ValuationRunID,
@@ -176,7 +184,11 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 
 	res := dto.JournalEntryResponse{
 		ID:                item.ID,
+		CompanyID:         item.CompanyID,
+		FiscalYearID:      item.FiscalYearID,
+		JournalNumber:     item.JournalNumber,
 		EntryDate:         item.EntryDate,
+		Reference:         item.Reference,
 		Description:       item.Description,
 		ReferenceType:     item.ReferenceType,
 		ReferenceID:       item.ReferenceID,
@@ -194,6 +206,10 @@ func (m *JournalEntryMapper) ToSummaryResponse(item *financeModels.JournalEntry)
 		Lines:             nil, // Summary should not include lines for performance
 		DebitTotal:        finalDebit,
 		CreditTotal:       finalCredit,
+		CurrencyCode:      item.CurrencyCode,
+		ExchangeRate:      item.ExchangeRate,
+		IsReversal:        item.IsReversal,
+		ReversedFrom:      item.ReversedFrom,
 		IsValuation:       item.IsValuation,
 		Source:            string(item.Source),
 		ValuationRunID:    item.ValuationRunID,

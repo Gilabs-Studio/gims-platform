@@ -708,6 +708,8 @@ func SeedMenus() error {
 		{"Accounting Mapping", "file-text", "/finance/settings/accounting-mapping", 1},
 		{"Fiscal Years", "calendar", "/finance/settings/fiscal-years", 2},
 		{"Tax Configuration", "receipt", "/finance/settings/tax-config", 3},
+		{"Inventory Settings", "boxes", "/finance/settings/inventory", 4},
+		{"Opening Balance", "wallet", "/finance/settings/opening-balance", 5},
 	}
 	for _, child := range financeSettingsChildren {
 		if _, err := createChildMenu(child.name, child.icon, child.url, &financeSettingsMenu.ID, child.order); err != nil {

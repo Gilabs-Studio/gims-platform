@@ -25,6 +25,7 @@ export const financeJournalsEn = {
     updated: "Journal updated",
     deleted: "Journal deleted",
     posted: "Journal posted",
+    cancelled: "Journal cancelled",
     reversed: "Journal reversed",
     failed: "Something went wrong",
     unbalanced: "Journal must be balanced (debit = credit)",
@@ -35,6 +36,7 @@ export const financeJournalsEn = {
     export: "Export",
     edit: "Edit",
     delete: "Delete",
+    cancel: "Cancel",
     post: "Post",
     reverse: "Reverse",
     view: "View",
@@ -63,6 +65,7 @@ export const financeJournalsEn = {
   status: {
     draft: "Draft",
     posted: "Posted",
+    cancelled: "Cancelled",
     reversed: "Reversed",
   },
   form: {

@@ -1,4 +1,4 @@
-﻿package seeders
+package seeders
 
 import (
 	"errors"
@@ -45,6 +45,12 @@ func SeedIntegrationFlow() error {
 		adminID := adminUser.ID
 		if adminID == "" {
 			adminID = "00000000-0000-0000-0000-000000000000"
+		}
+
+		companyID, err := findPTGiLabsCompanyID(tx)
+		if err != nil {
+			log.Printf("Skipping integration_flow_seeder.go due to missing company dependency: %v", err)
+			return nil
 		}
 
 		// 2) Get common dependencies
@@ -217,6 +223,7 @@ func SeedIntegrationFlow() error {
 			grirCoa := getCOA(tx, "11440")
 			if invCoa != "" && grirCoa != "" {
 				je := financeModels.JournalEntry{
+					CompanyID:     companyID,
 					EntryDate:     receiptDate,
 					Description:   fmt.Sprintf("Accrual for %s", gr.Code),
 					ReferenceType: stringPtr("GoodsReceipt"),
@@ -267,6 +274,7 @@ func SeedIntegrationFlow() error {
 			vatCoa := getCOA(tx, "11420")
 			if apCoa != "" && grirCoa != "" && vatCoa != "" {
 				je := financeModels.JournalEntry{
+					CompanyID:     companyID,
 					EntryDate:     receiptDate,
 					Description:   fmt.Sprintf("AP Invoice %s", si.Code),
 					ReferenceType: stringPtr("SupplierInvoice"),
@@ -319,6 +327,7 @@ func SeedIntegrationFlow() error {
 
 				if apCoa != "" && cashCoa != "" {
 					je := financeModels.JournalEntry{
+						CompanyID:     companyID,
 						EntryDate:     now,
 						Description:   fmt.Sprintf("Payment for %s", si.Code),
 						ReferenceType: stringPtr("PurchasePayment"),
@@ -486,8 +495,14 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 			adminID = "00000000-0000-0000-0000-000000000000"
 		}
 
+		companyID, err := findPTGiLabsCompanyID(tx)
+		if err != nil {
+			return err
+		}
+
 		refType := "SupplierInvoice"
 		je := financeModels.JournalEntry{
+			CompanyID:     companyID,
 			EntryDate:     time.Now(),
 			Description:   "Integration seed(backfill): Supplier invoice journal",
 			ReferenceType: &refType,
@@ -502,6 +517,3 @@ func ensureIntegrationFinanceArtifacts(db *gorm.DB) error {
 		return tx.Create(&je).Error
 	})
 }
-
-
-

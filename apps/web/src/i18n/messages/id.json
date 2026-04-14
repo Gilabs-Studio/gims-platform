@@ -201,6 +201,8 @@
     "bankAccounts": "Akun Bank",
     "financeSettings": "Pengaturan Finance",
     "accountingMapping": "Accounting Mapping",
+    "inventorySettings": "Pengaturan Inventori",
+    "openingBalance": "Saldo Awal",
     "accountsReceivable": "Piutang (AR)",
     "accountsPayable": "Hutang (AP)",
     "cashBank": "Kas & Bank",

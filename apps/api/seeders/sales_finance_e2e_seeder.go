@@ -1,4 +1,4 @@
-﻿package seeders
+package seeders
 
 import (
 	"context"
@@ -35,7 +35,7 @@ func SeedSalesFinanceE2E() error {
 	log.Println("  SEEDING: Sales  Finance End-to-End Integration")
 	log.Println("")
 
-	//  Resolve dependencies 
+	//  Resolve dependencies
 
 	// Admin user
 	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
@@ -78,7 +78,7 @@ func SeedSalesFinanceE2E() error {
 		return nil
 	}
 
-	//  Setup Chart of Accounts (COA) 
+	//  Setup Chart of Accounts (COA)
 	log.Println("  Setting up COAs for Finance Integration...")
 
 	ensureCOA := func(code, name, coaType string) financeModels.ChartOfAccount {
@@ -102,15 +102,19 @@ func SeedSalesFinanceE2E() error {
 	dpAdvanceCOA := ensureCOA("21400", "Uang Muka Penjualan", "LIABILITY")
 	revenueCOA := ensureCOA("41100", "Penjualan", "REVENUE")
 
-	// 
+	//
 	// SCENARIO 1: Full flow with Down Payment (SQ  SO  DO  DP  INV  PAY  JE)
-	// 
+	//
 	log.Println(" Scenario 1: Down Payment & Integration ")
 
 	invoiceRepo := repositories.NewCustomerInvoiceRepository(db)
 	ctx := context.Background()
 	now := time.Now()
 	taxRate := 11.0
+	companyID, err := findPTGiLabsCompanyID(db)
+	if err != nil {
+		return err
+	}
 
 	// 1. Sales Quotation
 	sqDate := now.AddDate(0, 0, -30)
@@ -197,6 +201,7 @@ func SeedSalesFinanceE2E() error {
 	// Trigger Journal for DP
 	jeDP := financeModels.JournalEntry{}
 	jeDP.ID = uuid.New().String()
+	jeDP.CompanyID = companyID
 	jeDP.EntryDate = dpInv.InvoiceDate
 	jeDP.Description = "DP Payment - " + so.Code
 	jeDP.Status = financeModels.JournalStatus("posted")
@@ -230,9 +235,9 @@ func SeedSalesFinanceE2E() error {
 
 	log.Printf("   S1 Success: SQ %s -> SO %s -> DP %s (Paid) -> INV %s (Reduced Amount)", sq.Code, so.Code, dpInv.Code, regInv.Code)
 
-	// 
+	//
 	// SCENARIO 2: Partial Payment & Outstanding Receivable (SO  INV  PAY  Recap)
-	// 
+	//
 	log.Println(" Scenario 2: Partial Payment & Receivables ")
 
 	so2 := salesModels.SalesOrder{
@@ -266,6 +271,7 @@ func SeedSalesFinanceE2E() error {
 	// Journal for Partial Payment
 	je2 := financeModels.JournalEntry{}
 	je2.ID = uuid.New().String()
+	je2.CompanyID = companyID
 	je2.EntryDate = inv2.InvoiceDate
 	je2.Description = "Partial Payment - " + so2.Code
 	je2.Status = financeModels.JournalStatus("posted")
@@ -281,9 +287,9 @@ func SeedSalesFinanceE2E() error {
 
 	log.Printf("   S2 Success: SO %s -> INV %s (Partial) -> Payment Confirmed. Outstanding: 3,000,000", so2.Code, inv2.Code)
 
-	// 
+	//
 	// SCENARIO 3: Full Integration with Journal Revenue (SO  INV  PAY  SO Closed)
-	// 
+	//
 	log.Println(" Scenario 3: Full Payment & SO Auto-Close ")
 
 	so3 := salesModels.SalesOrder{
@@ -306,6 +312,7 @@ func SeedSalesFinanceE2E() error {
 	// Journal for Full Payment
 	je3 := financeModels.JournalEntry{}
 	je3.ID = uuid.New().String()
+	je3.CompanyID = companyID
 	je3.EntryDate = inv3.InvoiceDate
 	je3.Description = "Full Payment & Revenue - " + so3.Code
 	je3.Status = financeModels.JournalStatus("posted")
@@ -327,6 +334,3 @@ func SeedSalesFinanceE2E() error {
 
 	return nil
 }
-
-
-

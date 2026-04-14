@@ -1,4 +1,4 @@
-﻿package usecase
+package usecase
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,6 +64,7 @@ type JournalEntryUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	List(ctx context.Context, req *dto.ListJournalEntriesRequest) ([]dto.JournalEntryResponse, int64, error)
 	Post(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	Cancel(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	Reverse(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	ReverseWithReason(ctx context.Context, id string, reason string) (*dto.JournalEntryResponse, error)
 	TrialBalance(ctx context.Context, startDate, endDate *time.Time) (*dto.TrialBalanceResponse, error)
@@ -202,10 +204,125 @@ func parseJournalType(value *string) financeModels.JournalType {
 	if v == "" {
 		return financeModels.JournalTypeGeneral
 	}
-	if financeModels.JournalType(v) == financeModels.JournalTypeOpeningBalance {
-		return financeModels.JournalTypeOpeningBalance
+	switch financeModels.JournalType(v) {
+	case financeModels.JournalTypeGeneral,
+		financeModels.JournalTypeAdjustment,
+		financeModels.JournalTypeSales,
+		financeModels.JournalTypePurchase,
+		financeModels.JournalTypeOpeningBalance,
+		financeModels.JournalTypeClosing:
+		return financeModels.JournalType(v)
 	}
 	return financeModels.JournalTypeGeneral
+}
+
+func journalPrefixByType(journalType financeModels.JournalType) string {
+	switch journalType {
+	case financeModels.JournalTypeSales:
+		return "SJ"
+	case financeModels.JournalTypePurchase:
+		return "PJ"
+	case financeModels.JournalTypeAdjustment:
+		return "AJ"
+	case financeModels.JournalTypeOpeningBalance:
+		return "OB"
+	case financeModels.JournalTypeClosing:
+		return "CL"
+	default:
+		return "GJ"
+	}
+}
+
+func (uc *journalEntryUsecase) generateJournalNumber(ctx context.Context, tx *gorm.DB, companyID string, journalType financeModels.JournalType, entryDate time.Time) (string, error) {
+	prefix := journalPrefixByType(journalType)
+	year := entryDate.Year()
+	basePattern := fmt.Sprintf("%s/%d/", prefix, year)
+
+	var lastEntry financeModels.JournalEntry
+	query := tx.WithContext(ctx).
+		Model(&financeModels.JournalEntry{}).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("journal_number LIKE ?", basePattern+"%")
+	if strings.TrimSpace(companyID) != "" {
+		query = query.Where("company_id = ?", strings.TrimSpace(companyID))
+	}
+
+	err := query.Order("journal_number desc").Take(&lastEntry).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return "", err
+	}
+
+	seq := 1
+	if err == nil {
+		parts := strings.Split(strings.TrimSpace(lastEntry.JournalNumber), "/")
+		if len(parts) == 3 {
+			if parsed, parseErr := strconv.Atoi(parts[2]); parseErr == nil {
+				seq = parsed + 1
+			}
+		}
+	}
+
+	if journalType == financeModels.JournalTypeOpeningBalance || journalType == financeModels.JournalTypeClosing {
+		seq = 1
+	}
+
+	return fmt.Sprintf("%s/%d/%04d", prefix, year, seq), nil
+}
+
+func (uc *journalEntryUsecase) resolveFiscalYearID(ctx context.Context, tx *gorm.DB, companyID string, fiscalYearID *string, entryDate time.Time) (*string, error) {
+	trimmedCompanyID := strings.TrimSpace(companyID)
+	if trimmedCompanyID == "" {
+		return fiscalYearID, nil
+	}
+
+	if fiscalYearID != nil && strings.TrimSpace(*fiscalYearID) != "" {
+		fyID := strings.TrimSpace(*fiscalYearID)
+		var fy financeModels.FiscalYear
+		if err := tx.WithContext(ctx).First(&fy, "id = ?", fyID).Error; err != nil {
+			return nil, err
+		}
+		if fy.CompanyID != trimmedCompanyID {
+			return nil, errors.New("fiscal year does not belong to company")
+		}
+		if entryDate.Before(fy.StartDate) || entryDate.After(fy.EndDate) {
+			return nil, errors.New("journal date is outside fiscal year range")
+		}
+		return &fyID, nil
+	}
+
+	var fy financeModels.FiscalYear
+	err := tx.WithContext(ctx).
+		Where("company_id = ?", trimmedCompanyID).
+		Where("status = ?", financeModels.FiscalYearStatusActive).
+		Where("? BETWEEN start_date AND end_date", entryDate).
+		Order("start_date desc").
+		Take(&fy).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	fyID := fy.ID
+	return &fyID, nil
+}
+
+func (uc *journalEntryUsecase) validatePostingFiscalYear(ctx context.Context, tx *gorm.DB, entry *financeModels.JournalEntry) error {
+	if entry == nil || entry.FiscalYearID == nil || strings.TrimSpace(*entry.FiscalYearID) == "" {
+		return nil
+	}
+
+	var fy financeModels.FiscalYear
+	if err := tx.WithContext(ctx).First(&fy, "id = ?", strings.TrimSpace(*entry.FiscalYearID)).Error; err != nil {
+		return err
+	}
+	if fy.Status != financeModels.FiscalYearStatusActive {
+		return errors.New("fiscal year is not active")
+	}
+	if entry.EntryDate.Before(fy.StartDate) || entry.EntryDate.After(fy.EndDate) {
+		return errors.New("journal date is outside fiscal year range")
+	}
+	return nil
 }
 
 func validatePostingCOA(coa *financeModels.ChartOfAccount) error {
@@ -240,6 +357,10 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		return nil, errors.New("request is required")
 	}
 
+	if parseJournalType(req.JournalType) == financeModels.JournalTypeOpeningBalance {
+		return nil, errors.New("opening journal must be created via opening balance posting endpoint")
+	}
+
 	entryDate, err := parseDate(req.EntryDate)
 	if err != nil {
 		return nil, err
@@ -266,6 +387,11 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 			return err
 		}
+
+		resolvedFiscalYearID, err := uc.resolveFiscalYearID(ctx, tx, req.CompanyID, req.FiscalYearID, entryDate)
+		if err != nil {
+			return err
+		}
 		coaIDs := make([]string, 0, len(req.Lines))
 		for _, ln := range req.Lines {
 			coaIDs = append(coaIDs, strings.TrimSpace(ln.ChartOfAccountID))
@@ -289,16 +415,36 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 		}
 
 		debitT, creditT, _ := validateLines(req.Lines)
+		journalType := parseJournalType(req.JournalType)
+		journalNumber, err := uc.generateJournalNumber(ctx, tx, req.CompanyID, journalType, entryDate)
+		if err != nil {
+			return err
+		}
+
+		exchangeRate := 1.0
+		if req.ExchangeRate != nil && *req.ExchangeRate > 0 {
+			exchangeRate = *req.ExchangeRate
+		}
+		currencyCode := strings.TrimSpace(req.CurrencyCode)
+		if currencyCode == "" {
+			currencyCode = "IDR"
+		}
 
 		entry := &financeModels.JournalEntry{
+			CompanyID:         strings.TrimSpace(req.CompanyID),
+			FiscalYearID:      resolvedFiscalYearID,
+			JournalNumber:     journalNumber,
 			EntryDate:         entryDate,
+			Reference:         strings.TrimSpace(req.Reference),
 			Description:       strings.TrimSpace(req.Description),
 			ReferenceType:     refTypePtr,
 			ReferenceID:       req.ReferenceID,
-			JournalType:       parseJournalType(req.JournalType),
+			JournalType:       journalType,
 			Status:            financeModels.JournalStatusDraft,
 			DebitTotal:        debitT,
 			CreditTotal:       creditT,
+			CurrencyCode:      currencyCode,
+			ExchangeRate:      exchangeRate,
 			CreatedBy:         &actorID,
 			IsSystemGenerated: req.IsSystemGenerated,
 			SourceDocumentURL: req.SourceDocumentURL,
@@ -347,6 +493,10 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		return nil, errors.New("request is required")
 	}
 
+	if parseJournalType(req.JournalType) == financeModels.JournalTypeOpeningBalance {
+		return nil, errors.New("opening journal cannot be updated via manual journal endpoint")
+	}
+
 	entry, err := uc.repo.FindByID(ctx, id, true)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -354,7 +504,7 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 		}
 		return nil, err
 	}
-	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed || entry.Status == financeModels.JournalStatusCancelled {
 		return nil, ErrJournalPostedImmutable
 	}
 	if entry.IsSystemGenerated {
@@ -379,6 +529,16 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 			return err
 		}
 
+		companyID := strings.TrimSpace(req.CompanyID)
+		if companyID == "" {
+			companyID = strings.TrimSpace(entry.CompanyID)
+		}
+
+		resolvedFiscalYearID, err := uc.resolveFiscalYearID(ctx, tx, companyID, req.FiscalYearID, entryDate)
+		if err != nil {
+			return err
+		}
+
 		existingLineSnapshot := make(map[string]financeModels.JournalLine)
 		for _, ln := range entry.Lines {
 			key := strings.TrimSpace(ln.ChartOfAccountID) + "|" + strings.TrimSpace(ln.Memo) + "|" + formatFloatKey(ln.Debit) + "|" + formatFloatKey(ln.Credit)
@@ -392,14 +552,31 @@ func (uc *journalEntryUsecase) Update(ctx context.Context, id string, req *dto.U
 
 		debitT, creditT, _ := validateLines(req.Lines)
 
+		exchangeRate := entry.ExchangeRate
+		if req.ExchangeRate != nil && *req.ExchangeRate > 0 {
+			exchangeRate = *req.ExchangeRate
+		}
+		currencyCode := strings.TrimSpace(req.CurrencyCode)
+		if currencyCode == "" {
+			currencyCode = entry.CurrencyCode
+		}
+		if currencyCode == "" {
+			currencyCode = "IDR"
+		}
+
 		if err := tx.Model(&financeModels.JournalEntry{}).
 			Where("id = ?", id).
 			Updates(map[string]interface{}{
+				"company_id":     companyID,
+				"fiscal_year_id": resolvedFiscalYearID,
 				"entry_date":     entryDate,
+				"reference":      strings.TrimSpace(req.Reference),
 				"description":    strings.TrimSpace(req.Description),
 				"reference_type": refTypePtr,
 				"reference_id":   req.ReferenceID,
 				"journal_type":   parseJournalType(req.JournalType),
+				"currency_code":  currencyCode,
+				"exchange_rate":  exchangeRate,
 				"debit_total":    debitT,
 				"credit_total":   creditT,
 			}).Error; err != nil {
@@ -487,7 +664,7 @@ func (uc *journalEntryUsecase) Delete(ctx context.Context, id string) error {
 		}
 		return err
 	}
-	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed {
+	if entry.Status == financeModels.JournalStatusPosted || entry.Status == financeModels.JournalStatusReversed || entry.Status == financeModels.JournalStatusCancelled {
 		return ErrJournalPostedImmutable
 	}
 	if entry.IsSystemGenerated {
@@ -545,6 +722,8 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 	params := repositories.JournalEntryListParams{
 		Search:         req.Search,
 		Status:         req.Status,
+		CompanyID:      req.CompanyID,
+		FiscalYearID:   req.FiscalYearID,
 		StartDate:      startDate,
 		EndDate:        endDate,
 		SortBy:         req.SortBy,
@@ -553,6 +732,10 @@ func (uc *journalEntryUsecase) List(ctx context.Context, req *dto.ListJournalEnt
 		Offset:         (page - 1) * perPage,
 		ReferenceType:  req.ReferenceType,
 		ReferenceTypes: journalReferenceTypesForDomain(req.Domain),
+	}
+	if req.JournalType != nil {
+		jt := parseJournalType(req.JournalType)
+		params.JournalType = &jt
 	}
 
 	log.Printf("journal_observability: List domain=%v refTypes=%v search=%q startDate=%v endDate=%v", req.Domain, params.ReferenceTypes, params.Search, params.StartDate, params.EndDate)
@@ -598,6 +781,9 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 		resp := uc.mapper.ToResponse(entry)
 		return &resp, nil
 	}
+	if entry.Status == financeModels.JournalStatusCancelled || entry.Status == financeModels.JournalStatusReversed {
+		return nil, ErrJournalPostedImmutable
+	}
 
 	var debitTotal float64
 	var creditTotal float64
@@ -612,6 +798,10 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 	now := apptime.Now()
 	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, entry.EntryDate); err != nil {
+			return err
+		}
+
+		if err := uc.validatePostingFiscalYear(ctx, tx, entry); err != nil {
 			return err
 		}
 
@@ -645,9 +835,11 @@ func (uc *journalEntryUsecase) Post(ctx context.Context, id string) (*dto.Journa
 		if err := tx.Model(&financeModels.JournalEntry{}).
 			Where("id = ? AND status = ?", id, financeModels.JournalStatusDraft).
 			Updates(map[string]interface{}{
-				"status":    financeModels.JournalStatusPosted,
-				"posted_at": &now,
-				"posted_by": &actorID,
+				"debit_total":  debitTotal,
+				"credit_total": creditTotal,
+				"status":       financeModels.JournalStatusPosted,
+				"posted_at":    &now,
+				"posted_by":    &actorID,
 			}).Error; err != nil {
 			return err
 		}
@@ -944,6 +1136,66 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 	return out, nil
 }
 
+func (uc *journalEntryUsecase) Cancel(ctx context.Context, id string) (*dto.JournalEntryResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, errors.New("id is required")
+	}
+
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
+	entry, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrJournalNotFound
+		}
+		return nil, err
+	}
+
+	if entry.Status == financeModels.JournalStatusCancelled {
+		resp := uc.mapper.ToResponse(entry)
+		return &resp, nil
+	}
+
+	if entry.IsSystemGenerated {
+		return nil, errors.New("system-generated journal entries cannot be cancelled")
+	}
+
+	reason := "Manual cancellation"
+	if entry.Status == financeModels.JournalStatusPosted {
+		if _, err := uc.reverse(ctx, id, reason); err != nil {
+			return nil, fmt.Errorf("failed to reverse posted entry before cancellation: %w", err)
+		}
+	}
+
+	now := apptime.Now()
+	if err := uc.db.WithContext(ctx).Model(&financeModels.JournalEntry{}).
+		Where("id = ?", id).
+		Updates(map[string]interface{}{
+			"status":          financeModels.JournalStatusCancelled,
+			"reversal_reason": reason,
+			"reversed_at":     &now,
+			"reversed_by":     &actorID,
+		}).Error; err != nil {
+		return nil, err
+	}
+
+	uc.auditService.LogWithReason(ctx, "journal.cancel", entry.ID, reason, map[string]interface{}{
+		"previous_status": entry.Status,
+	})
+
+	full, err := uc.repo.FindByID(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	resp := uc.mapper.ToResponse(full)
+	return &resp, nil
+}
+
 // ReverseWithReason creates a new reversing journal entry with a specific reason.
 func (uc *journalEntryUsecase) ReverseWithReason(ctx context.Context, id string, reason string) (*dto.JournalEntryResponse, error) {
 	return uc.reverse(ctx, id, reason)
@@ -978,6 +1230,9 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 	if entry.Status != financeModels.JournalStatusPosted {
 		return nil, errors.New("only posted journal entries can be reversed")
 	}
+	if entry.JournalType == financeModels.JournalTypeOpeningBalance {
+		return nil, errors.New("opening journal cannot be reversed directly; use adjustment journal")
+	}
 
 	var existingReversal financeModels.JournalReversal
 	err = uc.db.WithContext(ctx).
@@ -1003,10 +1258,15 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 
 	refType := "reversal"
 	reversalReq := &dto.CreateJournalEntryRequest{
+		CompanyID:         entry.CompanyID,
+		FiscalYearID:      entry.FiscalYearID,
 		EntryDate:         apptime.Now().Format("2006-01-02"),
+		Reference:         entry.Reference,
 		Description:       "Reversal of: " + entry.Description,
 		ReferenceType:     &refType,
 		ReferenceID:       &entry.ID,
+		CurrencyCode:      entry.CurrencyCode,
+		ExchangeRate:      &entry.ExchangeRate,
 		Lines:             reversedLines,
 		IsSystemGenerated: true,
 	}
@@ -1058,6 +1318,8 @@ func (uc *journalEntryUsecase) reverse(ctx context.Context, id string, reason st
 		Where("id = ?", posted.ID).
 		Updates(map[string]interface{}{
 			"original_journal_id": &entry.ID,
+			"is_reversal":         true,
+			"reversed_from":       &entry.ID,
 			"reversal_reason":     reason,
 			"reversed_at":         &now, // The reversal itself is "reversed" impact
 			"reversed_by":         &actorID,
@@ -1257,11 +1519,18 @@ func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req 
 	}
 
 	refType := "MANUAL_ADJUSTMENT"
+	journalType := string(financeModels.JournalTypeAdjustment)
 	baseReq := &dto.CreateJournalEntryRequest{
+		CompanyID:         req.CompanyID,
+		FiscalYearID:      req.FiscalYearID,
 		EntryDate:         req.EntryDate,
+		Reference:         req.Reference,
 		Description:       req.Description,
 		ReferenceType:     &refType,
 		ReferenceID:       nil,
+		JournalType:       &journalType,
+		CurrencyCode:      req.CurrencyCode,
+		ExchangeRate:      req.ExchangeRate,
 		Lines:             req.Lines,
 		IsSystemGenerated: false,
 		SourceDocumentURL: req.SourceDocumentURL,
@@ -1292,8 +1561,10 @@ func (uc *journalEntryUsecase) UpdateAdjustmentJournal(ctx context.Context, id s
 	}
 
 	refType := "MANUAL_ADJUSTMENT"
+	journalType := string(financeModels.JournalTypeAdjustment)
 	req.ReferenceType = &refType
 	req.ReferenceID = entry.ReferenceID
+	req.JournalType = &journalType
 
 	return uc.Update(ctx, id, req)
 }
@@ -1432,4 +1703,3 @@ func (uc *journalEntryUsecase) validateControlAccountsForLines(ctx context.Conte
 
 	return nil
 }
-

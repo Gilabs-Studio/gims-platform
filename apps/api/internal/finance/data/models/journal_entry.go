@@ -11,9 +11,10 @@ import (
 type JournalStatus string
 
 const (
-	JournalStatusDraft    JournalStatus = "draft"
-	JournalStatusPosted   JournalStatus = "posted"
-	JournalStatusReversed JournalStatus = "reversed"
+	JournalStatusDraft     JournalStatus = "draft"
+	JournalStatusPosted    JournalStatus = "posted"
+	JournalStatusReversed  JournalStatus = "reversed"
+	JournalStatusCancelled JournalStatus = "cancelled"
 )
 
 type ReferenceType string
@@ -51,13 +52,21 @@ type JournalType string
 
 const (
 	JournalTypeGeneral        JournalType = "GENERAL"
+	JournalTypeAdjustment     JournalType = "ADJUSTMENT"
+	JournalTypeSales          JournalType = "SALES"
+	JournalTypePurchase       JournalType = "PURCHASE"
 	JournalTypeOpeningBalance JournalType = "OPENING_BALANCE"
+	JournalTypeClosing        JournalType = "CLOSING"
 )
 
 type JournalEntry struct {
-	ID          string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	EntryDate   time.Time `gorm:"type:date;not null;index" json:"entry_date"`
-	Description string    `gorm:"type:text" json:"description"`
+	ID            string    `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CompanyID     string    `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	FiscalYearID  *string   `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	JournalNumber string    `gorm:"type:varchar(32);index" json:"journal_number,omitempty"`
+	EntryDate     time.Time `gorm:"type:date;not null;index" json:"entry_date"`
+	Reference     string    `gorm:"type:varchar(255)" json:"reference,omitempty"`
+	Description   string    `gorm:"type:text" json:"description"`
 
 	ReferenceType *string `gorm:"type:varchar(50);index;uniqueIndex:idx_journal_entry_reference" json:"reference_type"`
 	ReferenceID   *string `gorm:"type:varchar(255);index;uniqueIndex:idx_journal_entry_reference" json:"reference_id"`
@@ -70,11 +79,15 @@ type JournalEntry struct {
 	ReversedBy *string    `gorm:"type:uuid" json:"reversed_by,omitempty"`
 	ReversedAt *time.Time `json:"reversed_at,omitempty"`
 
-	DebitTotal  float64 `gorm:"type:decimal(18,2);default:0" json:"debit_total"`
-	CreditTotal float64 `gorm:"type:decimal(18,2);default:0" json:"credit_total"`
+	DebitTotal   float64 `gorm:"type:decimal(18,2);default:0" json:"debit_total"`
+	CreditTotal  float64 `gorm:"type:decimal(18,2);default:0" json:"credit_total"`
+	CurrencyCode string  `gorm:"type:varchar(10);default:'IDR'" json:"currency_code"`
+	ExchangeRate float64 `gorm:"type:decimal(15,6);default:1" json:"exchange_rate"`
 
 	OriginalJournalID *string `gorm:"type:uuid;index" json:"original_journal_id,omitempty"`
 	ReversalReason    string  `gorm:"type:text" json:"reversal_reason,omitempty"`
+	IsReversal        bool    `gorm:"default:false;index" json:"is_reversal"`
+	ReversedFrom      *string `gorm:"type:uuid;index" json:"reversed_from,omitempty"`
 
 	CreatedBy *string `gorm:"type:uuid" json:"created_by"`
 

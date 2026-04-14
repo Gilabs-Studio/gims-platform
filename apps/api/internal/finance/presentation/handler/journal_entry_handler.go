@@ -533,6 +533,16 @@ func (h *JournalEntryHandler) Post(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *JournalEntryHandler) Cancel(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.Cancel(c.Request.Context(), id)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "JOURNAL_CANCEL_FAILED")
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *JournalEntryHandler) Reverse(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.Reverse(c.Request.Context(), id)

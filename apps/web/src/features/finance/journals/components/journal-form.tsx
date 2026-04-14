@@ -33,6 +33,7 @@ import {
   useUpdateFinanceAdjustmentJournal
 } from "../hooks/use-finance-journals";
 import { COAValidationError } from "./coa-validation-error";
+import { BalanceIndicator } from "./balance-indicator";
 import { isCOAValidationError, parseApiError } from "../utils/error-parser";
 
 type Props = {
@@ -93,8 +94,11 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
       if (d) {
         return {
           entry_date: d.entry_date,
+          reference: d.reference ?? "",
           description: d.description ?? "",
           journal_type: d.journal_type ?? (isAdjustment ? "ADJUSTMENT" : "GENERAL"),
+          currency_code: d.currency_code ?? "IDR",
+          exchange_rate: d.exchange_rate ?? 1,
           lines: (d.lines ?? []).map((ln) => ({
             chart_of_account_id: ln.chart_of_account_id,
             debit: ln.debit,
@@ -107,8 +111,11 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
     return {
       entry_date: todayISO(),
+      reference: "",
       description: "",
       journal_type: isAdjustment ? "ADJUSTMENT" : "GENERAL",
+      currency_code: "IDR",
+      exchange_rate: 1,
       lines: [
         { chart_of_account_id: "", debit: 0, credit: 0, memo: "" },
         { chart_of_account_id: "", debit: 0, credit: 0, memo: "" },
@@ -128,6 +135,13 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
     name: "lines",
   });
 
+  const watchedLines = form.watch("lines");
+  const totals = useMemo(() => {
+    const debit = (watchedLines ?? []).reduce((acc, line) => acc + (line.debit ?? 0), 0);
+    const credit = (watchedLines ?? []).reduce((acc, line) => acc + (line.credit ?? 0), 0);
+    return { debit, credit, difference: debit - credit };
+  }, [watchedLines]);
+
   useEffect(() => {
     if (open) {
       form.reset(defaultValues);
@@ -146,11 +160,14 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
     try {
       const payload = {
         entry_date: values.entry_date,
+        reference: values.reference ?? "",
         description: values.description ?? "",
         journal_type:
           values.journal_type ??
           currentJournal?.journal_type ??
           (isAdjustment ? "ADJUSTMENT" : "GENERAL"),
+        currency_code: values.currency_code ?? "IDR",
+        exchange_rate: values.exchange_rate ?? 1,
         lines: values.lines.map((ln) => ({
           chart_of_account_id: ln.chart_of_account_id,
           debit: ln.debit ?? 0,
@@ -214,8 +231,71 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                 <Input id="entry_date" type="date" {...form.register("entry_date")} disabled={isLockedJournal} />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="journal_type">{t("fields.journalType")}</Label>
+                <Controller
+                  control={form.control}
+                  name="journal_type"
+                  render={({ field }) => (
+                    <Select
+                      value={(field.value as string) || (isAdjustment ? "ADJUSTMENT" : "GENERAL")}
+                      onValueChange={field.onChange}
+                      disabled={isLockedJournal || isAdjustment}
+                    >
+                      <SelectTrigger id="journal_type" className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.select")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GENERAL" className="cursor-pointer">GENERAL</SelectItem>
+                        <SelectItem value="ADJUSTMENT" className="cursor-pointer">ADJUSTMENT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reference">Reference</Label>
+                <Input id="reference" {...form.register("reference")} disabled={isLockedJournal} />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="description">{t("fields.description")}</Label>
                 <Input id="description" {...form.register("description")} disabled={isLockedJournal} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency_code">Currency</Label>
+                <Controller
+                  control={form.control}
+                  name="currency_code"
+                  render={({ field }) => (
+                    <Select
+                      value={(field.value as string) || "IDR"}
+                      onValueChange={field.onChange}
+                      disabled={isLockedJournal}
+                    >
+                      <SelectTrigger id="currency_code" className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.select")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IDR" className="cursor-pointer">IDR</SelectItem>
+                        <SelectItem value="USD" className="cursor-pointer">USD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exchange_rate">Exchange Rate</Label>
+                <Controller
+                  control={form.control}
+                  name="exchange_rate"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(value)}
+                      placeholder="1"
+                      disabled={isLockedJournal}
+                    />
+                  )}
+                />
               </div>
             </div>
 
@@ -312,6 +392,11 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                 {form.formState.errors.root?.message ? (
                   <div className="text-sm text-destructive">{t("toast.unbalanced")}</div>
                 ) : null}
+
+                <BalanceIndicator
+                  totalDebit={totals.debit}
+                  totalCredit={totals.credit}
+                />
               </div>
             </div>
 

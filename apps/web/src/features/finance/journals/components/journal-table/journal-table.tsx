@@ -228,7 +228,7 @@ export function mapJournalToUnifiedRow<
     isSystemGenerated: item.is_system_generated ?? false,
     createdAt,
     updatedAt,
-    detailHref: `/finance/journal-entries/${item.id}`,
+    detailHref: `/finance/journals/${item.id}`,
     sourceHref: getSourceHref(item.reference_type, item.reference_id),
     original: item,
   };
@@ -402,6 +402,8 @@ function renderCell<T>(
             <Badge variant="secondary" className="text-xs uppercase">Draft</Badge>
           ) : row.status.toLowerCase() === "reversed" ? (
             <Badge variant="destructive" className="text-xs uppercase">Reversed</Badge>
+          ) : row.status.toLowerCase() === "cancelled" ? (
+            <Badge variant="outline" className="text-xs uppercase border-amber-500 text-amber-600">Cancelled</Badge>
           ) : (
             <Badge variant="outline" className="text-xs uppercase">{row.status}</Badge>
           )}

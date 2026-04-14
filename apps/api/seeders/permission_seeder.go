@@ -375,6 +375,12 @@ func SeedPermissions() error {
 		{"/finance/accounting/coa", "coa.delete", "Delete Chart of Accounts", "DELETE", "coa"},
 
 		{"/finance/accounting/journal-entries", "journal.read", "View Journal Entries", "VIEW", "journal"},
+		{"/finance/accounting/journal-entries", "journal.create", "Create Journal Entries", "CREATE", "journal"},
+		{"/finance/accounting/journal-entries", "journal.update", "Edit Journal Entries", "EDIT", "journal"},
+		{"/finance/accounting/journal-entries", "journal.delete", "Delete Journal Entries", "DELETE", "journal"},
+		{"/finance/accounting/journal-entries", "journal.post", "Post Journal Entries", "POST", "journal"},
+		{"/finance/accounting/journal-entries", "journal.cancel", "Cancel Journal Entries", "EDIT", "journal"},
+		{"/finance/accounting/journal-entries", "journal.reverse", "Reverse Journal Entries", "REVERSE", "journal"},
 
 		// Purchase Journal — read-only monitoring for purchase transactions
 		{"/finance/accounting/journal-entries/purchase", "purchase_journal.read", "View Purchase Journal", "VIEW", "purchase_journal"},
@@ -402,10 +408,14 @@ func SeedPermissions() error {
 		{"/finance/settings/accounting-mapping", "account_mappings.update", "Edit Account Mappings", "EDIT", "account_mappings"},
 		{"/finance/settings/accounting-mapping", "account_mappings.delete", "Delete Account Mappings", "DELETE", "account_mappings"},
 
-		{"/finance/settings/tax-config", "tax_invoice.read", "View Tax Invoices", "VIEW", "tax_invoice"},
-		{"/finance/settings/tax-config", "tax_invoice.create", "Create Tax Invoices", "CREATE", "tax_invoice"},
-		{"/finance/settings/tax-config", "tax_invoice.update", "Edit Tax Invoices", "EDIT", "tax_invoice"},
-		{"/finance/settings/tax-config", "tax_invoice.delete", "Delete Tax Invoices", "DELETE", "tax_invoice"},
+		{"/finance/settings/tax-config", "tax_configuration.read", "View Tax Configuration", "VIEW", "tax_configuration"},
+		{"/finance/settings/tax-config", "tax_configuration.write", "Edit Tax Configuration", "EDIT", "tax_configuration"},
+		{"/finance/settings/inventory", "inventory_settings.read", "View Inventory Settings", "VIEW", "inventory_settings"},
+		{"/finance/settings/inventory", "inventory_settings.write", "Edit Inventory Settings", "EDIT", "inventory_settings"},
+		{"/finance/settings/opening-balance", "opening_balance.read", "View Opening Balance", "VIEW", "opening_balance"},
+		{"/finance/settings/opening-balance", "opening_balance.write", "Edit Opening Balance", "EDIT", "opening_balance"},
+		{"/finance/settings/opening-balance", "opening_balance.validate", "Validate Opening Balance", "VALIDATE", "opening_balance"},
+		{"/finance/settings/opening-balance", "opening_balance.post", "Post Opening Balance", "POST", "opening_balance"},
 
 		{"/finance/ap/non-trade-payables", "non_trade_payable.read", "View Non-Trade Payables", "VIEW", "non_trade_payable"},
 		{"/finance/ap/non-trade-payables", "non_trade_payable.create", "Create Non-Trade Payables", "CREATE", "non_trade_payable"},
@@ -743,11 +753,6 @@ func SeedPermissions() error {
 		"sales_estimation.update",
 		"sales_estimation.delete",
 		"journal_line.read",
-		"journal.create",
-		"journal.update",
-		"journal.delete",
-		"journal.post",
-		"journal.reverse",
 		"journal_valuation.read",
 		"journal_valuation.run",
 		"journal_valuation.approve",

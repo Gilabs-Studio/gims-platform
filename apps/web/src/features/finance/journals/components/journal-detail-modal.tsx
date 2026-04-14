@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/utils";
 
 import { useFinanceJournal } from "../hooks/use-finance-journals";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
+import { BalanceIndicator } from "./balance-indicator";
 import type { UnifiedJournalRow } from "./journal-table";
 
 type Props = {
@@ -95,7 +96,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">{t("fields.status")}</div>
                 <div className="text-sm font-medium">
-                  <Badge variant={journal.status === "posted" ? "default" : "secondary"}>
+                  <Badge variant={journal.status === "posted" ? "default" : journal.status === "cancelled" ? "outline" : "secondary"}>
                     {t(`status.${journal.status}`)}
                   </Badge>
                 </div>
@@ -168,7 +169,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="secondary">Draft</Badge>
                 <span className="text-muted-foreground">created by {journal.created_by_name ?? journal.created_by ?? "system"}</span>
-                {journal.status === "posted" || journal.status === "reversed" ? (
+                {journal.status === "posted" || journal.status === "reversed" || journal.status === "cancelled" ? (
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="success">Posted</Badge>
@@ -181,6 +182,15 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                   <>
                     <span className="text-muted-foreground">-&gt;</span>
                     <Badge variant="destructive">Reversed</Badge>
+                    <span className="text-muted-foreground">
+                      at {safeDate(journal.reversed_at ?? null)} by {journal.reversed_by_name ?? journal.reversed_by ?? "system"}
+                    </span>
+                  </>
+                ) : null}
+                {journal.status === "cancelled" ? (
+                  <>
+                    <span className="text-muted-foreground">-&gt;</span>
+                    <Badge variant="outline">Cancelled</Badge>
                     <span className="text-muted-foreground">
                       at {safeDate(journal.reversed_at ?? null)} by {journal.reversed_by_name ?? journal.reversed_by ?? "system"}
                     </span>
@@ -246,6 +256,11 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
                 <div className="text-sm font-medium">{formatNumber(journal.credit_total)}</div>
               </div>
             </div>
+
+            <BalanceIndicator
+              totalDebit={journal.debit_total ?? 0}
+              totalCredit={journal.credit_total ?? 0}
+            />
           </div>
         )}
       </DialogContent>

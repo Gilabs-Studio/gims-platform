@@ -76,6 +76,9 @@ type AccountingEngine interface {
 
 	// GetAccountBalance calculates the running balance of a COA account as of a specific date.
 	GetAccountBalance(ctx context.Context, coaID string, asOf time.Time) (float64, error)
+
+	// GetAccountBalanceInRange calculates net movement (debit-credit) for a COA account within an inclusive date range.
+	GetAccountBalanceInRange(ctx context.Context, coaID string, fromDate, toDate time.Time) (float64, error)
 }
 
 type accountingEngine struct {
@@ -220,6 +223,28 @@ func (e *accountingEngine) GetAccountBalance(ctx context.Context, coaID string, 
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate account balance: %w", err)
 	}
+	return balance, nil
+}
+
+func (e *accountingEngine) GetAccountBalanceInRange(ctx context.Context, coaID string, fromDate, toDate time.Time) (float64, error) {
+	if fromDate.After(toDate) {
+		return 0, fmt.Errorf("invalid date range: from_date is after to_date")
+	}
+
+	var balance float64
+	err := e.coaRepo.GetDB(ctx).Table("journal_lines jl").
+		Select("COALESCE(SUM(jl.debit - jl.credit), 0)").
+		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
+		Where("je.status = ? AND jl.chart_of_account_id = ? AND je.entry_date BETWEEN ? AND ?",
+			financeModels.JournalStatusPosted,
+			coaID,
+			fromDate.Format("2006-01-02"),
+			toDate.Format("2006-01-02")).
+		Scan(&balance).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate account balance in range: %w", err)
+	}
+
 	return balance, nil
 }
 

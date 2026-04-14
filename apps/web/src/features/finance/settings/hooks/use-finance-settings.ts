@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { financeSettingsService } from "../services/finance-settings-service";
-import { BatchUpsertFinanceSettingsRequest } from "../types";
+import {
+  BatchUpsertFinanceSettingsRequest,
+  CreateFiscalYearInput,
+  CreateTaxConfigurationInput,
+  ListFiscalYearParams,
+  ListTaxConfigurationParams,
+  UpdateFiscalYearInput,
+  UpdateInventorySettingsInput,
+  UpdateTaxConfigurationInput,
+  UpsertOpeningBalanceInput,
+} from "../types";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -126,5 +136,179 @@ export const useBatchUpsertFinanceSettings = () => {
     onError: (error: unknown) => {
       toast.error(resolveErrorMessage(error));
     },
+  });
+};
+
+export const useFiscalYears = (params: ListFiscalYearParams) => {
+  return useQuery({
+    queryKey: ["financeSettings", "fiscalYears", params],
+    queryFn: () => financeSettingsService.listFiscalYears(params),
+    enabled: Boolean(params.company_id),
+  });
+};
+
+export const useCreateFiscalYear = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateFiscalYearInput) => financeSettingsService.createFiscalYear(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
+      toast.success("Fiscal year created");
+    },
+  });
+};
+
+export const useUpdateFiscalYear = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId, payload }: { id: string; companyId: string; payload: UpdateFiscalYearInput }) =>
+      financeSettingsService.updateFiscalYear(id, companyId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
+      toast.success("Fiscal year updated");
+    },
+  });
+};
+
+export const useActivateFiscalYear = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
+      financeSettingsService.activateFiscalYear(id, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
+      toast.success("Fiscal year activated");
+    },
+  });
+};
+
+export const useLockFiscalYear = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId }: { id: string; companyId: string }) =>
+      financeSettingsService.lockFiscalYear(id, companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "fiscalYears"] });
+      toast.success("Fiscal year locked");
+    },
+  });
+};
+
+export const useTaxConfigurations = (params: ListTaxConfigurationParams) => {
+  return useQuery({
+    queryKey: ["financeSettings", "taxConfigurations", params],
+    queryFn: () => financeSettingsService.listTaxConfigurations(params),
+    enabled: Boolean(params.company_id),
+  });
+};
+
+export const useCreateTaxConfiguration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateTaxConfigurationInput) =>
+      financeSettingsService.createTaxConfiguration(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
+      toast.success("Tax configuration created");
+    },
+  });
+};
+
+export const useUpdateTaxConfiguration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId, payload }: { id: string; companyId: string; payload: UpdateTaxConfigurationInput }) =>
+      financeSettingsService.updateTaxConfiguration(id, companyId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
+      toast.success("Tax configuration updated");
+    },
+  });
+};
+
+export const useToggleTaxConfigurationStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, companyId, isActive }: { id: string; companyId: string; isActive: boolean }) =>
+      financeSettingsService.toggleTaxConfigurationStatus(id, companyId, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "taxConfigurations"] });
+      toast.success("Tax configuration status updated");
+    },
+  });
+};
+
+export const useInventorySettings = (companyId: string) => {
+  return useQuery({
+    queryKey: ["financeSettings", "inventorySettings", companyId],
+    queryFn: () => financeSettingsService.getInventorySettings(companyId),
+    enabled: Boolean(companyId),
+  });
+};
+
+export const useUpdateInventorySettings = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateInventorySettingsInput) =>
+      financeSettingsService.updateInventorySettings(payload),
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "inventorySettings", payload.company_id] });
+      toast.success("Inventory settings updated");
+    },
+  });
+};
+
+export const useOpeningBalance = (companyId: string, fiscalYearId: string) => {
+  return useQuery({
+    queryKey: ["financeSettings", "openingBalance", companyId, fiscalYearId],
+    queryFn: () => financeSettingsService.getOpeningBalance(companyId, fiscalYearId),
+    enabled: Boolean(companyId && fiscalYearId),
+  });
+};
+
+export const useUpsertOpeningBalance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpsertOpeningBalanceInput) =>
+      financeSettingsService.upsertOpeningBalance(payload),
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalance", payload.company_id, payload.fiscal_year_id] });
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalanceSummary", payload.company_id, payload.fiscal_year_id] });
+    },
+  });
+};
+
+export const useValidateOpeningBalance = () => {
+  return useMutation({
+    mutationFn: ({ companyId, fiscalYearId }: { companyId: string; fiscalYearId: string }) =>
+      financeSettingsService.validateOpeningBalance(companyId, fiscalYearId),
+  });
+};
+
+export const useSimulateOpeningBalance = () => {
+  return useMutation({
+    mutationFn: ({ companyId, fiscalYearId }: { companyId: string; fiscalYearId: string }) =>
+      financeSettingsService.simulateOpeningBalance(companyId, fiscalYearId),
+  });
+};
+
+export const usePostOpeningBalance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { company_id: string; fiscal_year_id: string }) =>
+      financeSettingsService.postOpeningBalance(payload),
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalance", payload.company_id, payload.fiscal_year_id] });
+      queryClient.invalidateQueries({ queryKey: ["financeSettings", "openingBalanceSummary", payload.company_id, payload.fiscal_year_id] });
+      toast.success("Opening balance posted");
+    },
+  });
+};
+
+export const useOpeningBalanceSummary = (companyId: string, fiscalYearId: string) => {
+  return useQuery({
+    queryKey: ["financeSettings", "openingBalanceSummary", companyId, fiscalYearId],
+    queryFn: () => financeSettingsService.getOpeningBalanceSummary(companyId, fiscalYearId),
+    enabled: Boolean(companyId && fiscalYearId),
   });
 };

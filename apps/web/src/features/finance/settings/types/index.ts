@@ -36,8 +36,183 @@ export interface UpsertFinanceSettingRequest {
   category?: string;
 }
 
+export type FiscalYearStatus = "draft" | "active" | "locked";
+
+export interface FiscalYear {
+  id: string;
+  company_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  status: FiscalYearStatus;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListFiscalYearParams {
+  company_id: string;
+  status?: FiscalYearStatus;
+  page?: number;
+  per_page?: number;
+}
+
+export interface CreateFiscalYearInput {
+  company_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface UpdateFiscalYearInput {
+  name: string;
+  start_date: string;
+  end_date: string;
+}
+
+export type TaxType = "vat" | "income_tax" | "withholding_tax";
+
+export interface TaxConfiguration {
+  id: string;
+  company_id: string;
+  tax_code: string;
+  tax_name: string;
+  tax_type: TaxType;
+  rate: number;
+  is_inclusive: boolean;
+  account_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListTaxConfigurationParams {
+  company_id: string;
+  type?: TaxType;
+  is_active?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+export interface CreateTaxConfigurationInput {
+  company_id: string;
+  tax_code: string;
+  tax_name: string;
+  tax_type: TaxType;
+  rate: number;
+  is_inclusive: boolean;
+  account_id: string;
+  is_active?: boolean;
+}
+
+export interface UpdateTaxConfigurationInput {
+  tax_code: string;
+  tax_name: string;
+  tax_type: TaxType;
+  rate: number;
+  is_inclusive: boolean;
+  account_id: string;
+}
+
 export interface BatchUpsertFinanceSettingsRequest {
   settings: UpsertFinanceSettingRequest[];
+}
+
+export type InventoryValuationMethod = "average_cost" | "fifo" | "specific_identification";
+
+export interface InventorySettings {
+  id: string;
+  company_id: string;
+  valuation_method: InventoryValuationMethod;
+  is_locked: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateInventorySettingsInput {
+  company_id: string;
+  valuation_method: InventoryValuationMethod;
+}
+
+export interface InventoryAverageCost {
+  company_id: string;
+  product_id: string;
+  average_cost: number;
+  total_quantity: number;
+  total_value: number;
+  last_updated: string;
+}
+
+export interface OpeningBalanceLineInput {
+  account_id: string;
+  debit_amount: number;
+  credit_amount: number;
+  description?: string;
+  product_id?: string;
+  product_qty?: number;
+  product_avg_cost?: number;
+}
+
+export interface UpsertOpeningBalanceInput {
+  company_id: string;
+  fiscal_year_id: string;
+  lines: OpeningBalanceLineInput[];
+}
+
+export interface OpeningBalanceValidation {
+  total_debit: number;
+  total_credit: number;
+  difference: number;
+  is_balanced: boolean;
+  has_existing_txns: boolean;
+  warnings: string[];
+}
+
+export interface OpeningBalanceSummary {
+  company_id: string;
+  fiscal_year_id: string;
+  total_debit: number;
+  total_credit: number;
+  difference: number;
+  is_balanced: boolean;
+  is_posted: boolean;
+  posted_journal_id?: string | null;
+  total_lines: number;
+  inventory_lines: number;
+}
+
+export interface OpeningBalanceSimulationLine {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  debit_amount: number;
+  credit_amount: number;
+  status: string;
+  action: string;
+}
+
+export interface OpeningBalanceSimulation {
+  company_id: string;
+  fiscal_year_id: string;
+  total_debit: number;
+  total_credit: number;
+  difference: number;
+  is_balanced: boolean;
+  valuation_status: string;
+  recommendation: string;
+  lines: OpeningBalanceSimulationLine[];
+}
+
+export interface PostOpeningBalanceInput {
+  company_id: string;
+  fiscal_year_id: string;
+}
+
+export interface PostOpeningBalanceResult {
+  journal_id: string;
+  journal_status: string;
+  journal_type: string;
+  posted_at: string;
 }
 
 export interface SystemAccountMappingDefinition {

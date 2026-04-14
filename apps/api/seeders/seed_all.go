@@ -161,6 +161,20 @@ func SeedAll() error {
 	if err := ValidateFinanceSeeder(); err != nil {
 		return err
 	}
+
+	// 5. Finance Foundation Phase 0 defaults for PT. GiLabs
+	if err := SeedFinanceFoundationFiscalYear(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationTaxConfiguration(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationInventorySettings(); err != nil {
+		return err
+	}
+	if err := SeedFinanceFoundationOpeningBalance(); err != nil {
+		return err
+	}
 	// ================================================================
 
 	// Bank account seed depends on canonical chart_of_accounts records.
@@ -477,6 +491,22 @@ func seedMasterData() error {
 	}
 
 	if err := ValidateFinanceSeeder(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationFiscalYear(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationTaxConfiguration(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationInventorySettings(); err != nil {
+		return err
+	}
+
+	if err := SeedFinanceFoundationOpeningBalance(); err != nil {
 		return err
 	}
 

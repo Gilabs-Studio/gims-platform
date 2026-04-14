@@ -51,6 +51,8 @@ const EXTRA_VALID_ROUTES = [
   "/finance/settings/accounting-mapping",
   "/finance/settings/fiscal-years",
   "/finance/settings/tax-config",
+  "/finance/settings/inventory",
+  "/finance/settings/opening-balance",
   "/finance/reports/general-ledger",
   "/finance/reports/trial-balance",
   "/finance/reports/balance-sheet",
