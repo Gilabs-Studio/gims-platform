@@ -374,6 +374,7 @@ func main() {
 			JournalUC:   financeDeps.JournalUC,
 			CoaUC:       financeDeps.CoaUC,
 			Engine:      financeDeps.Engine,
+			SettingsUC:  financeDeps.SettingsUC,
 		})
 
 		// HRD module (Sprint 13 - Attendance)
@@ -388,7 +389,7 @@ func main() {
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// Stock Opname module (Sprint 9) — depends on inventory for stock movement on Post
-		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.SettingsUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -406,7 +407,7 @@ func main() {
 		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)

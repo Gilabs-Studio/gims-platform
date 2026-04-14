@@ -74,6 +74,28 @@ export interface UpdateStockOpnameStatusRequest {
     status: StockOpnameStatus;
 }
 
+export interface ProductStockLedgerFilter {
+  page?: number;
+  limit?: number;
+  transaction_type?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface ProductStockLedgerItem {
+  id: string;
+  product_id: string;
+  transaction_id: string;
+  transaction_type: string;
+  transaction_type_label: string;
+  qty: number;
+  unit_cost: number;
+  average_cost: number;
+  stock_value: number;
+  running_qty: number;
+  created_at: string;
+}
+
 export interface PaginationMeta {
     page: number;
     per_page: number;
@@ -94,3 +116,7 @@ export interface ApiResponse<T> {
 export type StockOpnameListResponse = ApiResponse<StockOpname[]>;
 export type StockOpnameSingleResponse = ApiResponse<StockOpname>;
 export type StockOpnameItemsListResponse = ApiResponse<StockOpnameItem[]>;
+export type ProductStockLedgerListResponse = ApiResponse<{
+  data: ProductStockLedgerItem[];
+  meta: PaginationMeta;
+}>;

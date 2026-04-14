@@ -14,6 +14,9 @@ import (
 type JournalEntryListParams struct {
 	Search         string
 	Status         *financeModels.JournalStatus
+	CompanyID      string
+	FiscalYearID   *string
+	JournalType    *financeModels.JournalType
 	StartDate      *time.Time
 	EndDate        *time.Time
 	SortBy         string
@@ -83,6 +86,15 @@ func (r *journalEntryRepository) List(ctx context.Context, params JournalEntryLi
 	}
 	if params.Status != nil {
 		q = q.Where("journal_entries.status = ?", *params.Status)
+	}
+	if strings.TrimSpace(params.CompanyID) != "" {
+		q = q.Where("journal_entries.company_id = ?", strings.TrimSpace(params.CompanyID))
+	}
+	if params.FiscalYearID != nil && strings.TrimSpace(*params.FiscalYearID) != "" {
+		q = q.Where("journal_entries.fiscal_year_id = ?", strings.TrimSpace(*params.FiscalYearID))
+	}
+	if params.JournalType != nil {
+		q = q.Where("journal_entries.journal_type = ?", *params.JournalType)
 	}
 	if params.StartDate != nil {
 		q = q.Where("journal_entries.entry_date >= ?", params.StartDate.Format("2006-01-02"))

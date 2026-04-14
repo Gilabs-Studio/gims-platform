@@ -2,7 +2,7 @@
 
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -11,12 +11,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { StockOpnameItem, StockOpnameItemRequest, StockOpnameStatus } from "../types";
 import { 
     useStockOpname, 
     useStockOpnameItems, 
     useUpdateStockOpnameStatus,
-    useSaveStockOpnameItems
+        useSaveStockOpnameItems,
+        useProductStockLedgers,
 } from "../hooks/use-stock-opnames";
 import { StockOpnameStatusBadge } from "./stock-opname-status-badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -58,6 +66,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   // Permissions
   const canUpdate = useUserPermission("stock_opname.update");
   const canApprove = useUserPermission("stock_opname.approve");
+    const canPost = useUserPermission("stock_opname.post");
   
   // Queries & Mutations
   const opnameQuery = useStockOpname(opnameId);
@@ -84,6 +93,64 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const totalItems = items.length;
   const totalImpact = items.reduce((sum, item) => sum + (item.variance_qty * (item.unit_cost || 0)), 0);
 
+    const [ledgerProductId, setLedgerProductId] = useState<string | null>(null);
+    const [ledgerPage, setLedgerPage] = useState(1);
+
+    useEffect(() => {
+        if (items.length === 0) {
+            setLedgerProductId(null);
+            return;
+        }
+
+        if (!ledgerProductId || !items.some((item) => item.product_id === ledgerProductId)) {
+            setLedgerProductId(items[0]?.product_id ?? null);
+        }
+    }, [items, ledgerProductId]);
+
+    const ledgersQuery = useProductStockLedgers(ledgerProductId, {
+        page: ledgerPage,
+        limit: 10,
+    });
+
+    const ledgerData = ledgersQuery.data?.data?.data ?? [];
+    const ledgerMeta = ledgersQuery.data?.data?.meta;
+
+    const resolveStatusErrorMessage = (error: unknown): string => {
+        if (error && typeof error === "object" && "response" in error) {
+            const payload = (
+                error as {
+                    response?: {
+                        data?: {
+                            code?: string;
+                            error?: string;
+                        };
+                    };
+                }
+            ).response?.data;
+
+            const code = payload?.code?.toUpperCase();
+            if (code) {
+                const knownMessages: Record<string, string> = {
+                    ACCOUNT_NOT_POSTABLE: t("errors.accountNotPostable"),
+                    ACCOUNT_INACTIVE: t("errors.accountInactive"),
+                    PERIOD_CLOSED: t("errors.periodClosed"),
+                    MAPPING_NOT_CONFIGURED: t("errors.mappingRequired"),
+                    CONCURRENT_LOCK_CONFLICT: t("errors.concurrentLockConflict"),
+                };
+
+                if (knownMessages[code]) {
+                    return knownMessages[code];
+                }
+            }
+
+            if (typeof payload?.error === "string" && payload.error.trim().length > 0) {
+                return payload.error;
+            }
+        }
+
+        return tCommon("error");
+    };
+
   // Handlers
   const handleStatusChange = async (newStatus: StockOpnameStatus) => {
       if (!opnameId) return;
@@ -93,8 +160,8 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
               data: { status: newStatus }
           });
           toast.success(tCommon("saved"));
-      } catch {
-          toast.error(tCommon("error"));
+      } catch (error) {
+          toast.error(resolveStatusErrorMessage(error));
       }
   };
 
@@ -248,7 +315,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                  </>
                              )}
 
-                             {opname.status === 'approved' && canUpdate && (
+                             {opname.status === 'approved' && canPost && (
                                   <Button 
                                         size="sm" 
                                         className="cursor-pointer"
@@ -339,6 +406,12 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                     className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 bg-transparent font-medium"
                                 >
                                     {t("dialog.tabs.info")}
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="ledger"
+                                    className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 bg-transparent font-medium"
+                                >
+                                    {t("dialog.tabs.ledger")}
                                 </TabsTrigger>
                             </TabsList>
                             
@@ -495,6 +568,103 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </ScrollArea>
+                        </TabsContent>
+
+                        <TabsContent value="ledger" className="flex-1 min-h-0 m-0 border-none p-0">
+                            <ScrollArea className="h-full">
+                                <div className="p-6 space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                        <div className="md:col-span-2 space-y-1.5">
+                                            <p className="text-sm font-medium">{t("dialog.ledger.product")}</p>
+                                            <Select
+                                                value={ledgerProductId ?? ""}
+                                                onValueChange={(value) => {
+                                                    setLedgerProductId(value);
+                                                    setLedgerPage(1);
+                                                }}
+                                                disabled={items.length === 0}
+                                            >
+                                                <SelectTrigger className="cursor-pointer">
+                                                    <SelectValue placeholder={t("dialog.ledger.selectProduct")} />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {items.map((item) => (
+                                                        <SelectItem key={item.product_id} value={item.product_id} className="cursor-pointer">
+                                                            {item.product_name ?? item.product_code ?? item.product_id}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                                            <p className="text-muted-foreground">{t("dialog.ledger.totalRecords")}</p>
+                                            <p className="font-semibold">{ledgerMeta?.total ?? 0}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="bg-muted/50">
+                                                    <TableHead>{t("dialog.ledger.columns.date")}</TableHead>
+                                                    <TableHead>{t("dialog.ledger.columns.type")}</TableHead>
+                                                    <TableHead>{t("dialog.ledger.columns.transaction")}</TableHead>
+                                                    <TableHead className="text-right">{t("dialog.ledger.columns.qty")}</TableHead>
+                                                    <TableHead className="text-right">{t("dialog.ledger.columns.unitCost")}</TableHead>
+                                                    <TableHead className="text-right">{t("dialog.ledger.columns.averageCost")}</TableHead>
+                                                    <TableHead className="text-right">{t("dialog.ledger.columns.runningQty")}</TableHead>
+                                                    <TableHead className="text-right">{t("dialog.ledger.columns.stockValue")}</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {ledgersQuery.isLoading ? (
+                                                    <TableRow>
+                                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                                            {tCommon("loading")}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ) : ledgerData.length === 0 ? (
+                                                    <TableRow>
+                                                        <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                                                            {t("dialog.ledger.empty")}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ) : (
+                                                    ledgerData.map((ledger) => (
+                                                        <TableRow key={ledger.id}>
+                                                            <TableCell className="text-sm">{formatDate(ledger.created_at)}</TableCell>
+                                                            <TableCell>
+                                                                <Badge variant="outline">{ledger.transaction_type_label}</Badge>
+                                                            </TableCell>
+                                                            <TableCell className="font-mono text-xs">{ledger.transaction_id}</TableCell>
+                                                            <TableCell className="text-right font-mono">{ledger.qty}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(ledger.unit_cost)}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(ledger.average_cost)}</TableCell>
+                                                            <TableCell className="text-right font-mono">{ledger.running_qty}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(ledger.stock_value)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+
+                                    {(ledgerMeta?.total ?? 0) > 0 && (
+                                        <DataTablePagination
+                                            pageIndex={ledgerPage}
+                                            pageSize={ledgerMeta?.per_page ?? 10}
+                                            rowCount={ledgerMeta?.total ?? 0}
+                                            onPageChange={setLedgerPage}
+                                                                                        onPageSizeChange={(newPageSize) => {
+                                                                                            void newPageSize;
+                                              // Fixed page size to match backend defaults for this tab.
+                                            }}
+                                                                                        showPageSize={false}
+                                            pageSizeOptions={[10]}
+                                        />
+                                    )}
                                 </div>
                             </ScrollArea>
                         </TabsContent>

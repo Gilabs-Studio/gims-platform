@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -24,11 +24,11 @@ import (
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	// "gorm.io/gorm/clause"
 )
 
 // SeedSalesIntegrationFlow creates a coherent dataset that demonstrates cross-module
-// relations SQ → SO → DO → INV → PAY → Finance.
+// relations SQ  SO  DO  INV  PAY  Finance.
 func SeedSalesIntegrationFlow() error {
 	db := database.DB
 
@@ -41,7 +41,7 @@ func SeedSalesIntegrationFlow() error {
 		return nil
 	}
 
-	log.Println("Seeding sales integration flow (SQ → SO → DO → INV → PAY → Finance)...")
+	log.Println("Seeding sales integration flow (SQ  SO  DO  INV  PAY  Finance)...")
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		// 1) Resolve common dependencies
@@ -50,17 +50,6 @@ func SeedSalesIntegrationFlow() error {
 		// Minimal seed mode: just one fully traced sales flow
 		if isMinimalSeedMode() {
 			return seedSalesMinimalFlow(tx, adminID)
-		}
-
-		// Ensure 21500 (VAT Output) exists
-		extraCOA := []financeModels.ChartOfAccount{
-			{Code: "21500", Name: "VAT Output", Type: financeModels.AccountTypeLiability, IsActive: true},
-		}
-		for i := range extraCOA {
-			tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "code"}},
-				DoUpdates: clause.AssignmentColumns([]string{"type", "name", "is_active"}),
-			}).Create(&extraCOA[i])
 		}
 
 		var customer customerModels.Customer
@@ -93,11 +82,11 @@ func SeedSalesIntegrationFlow() error {
 		}
 
 		// COAs
-		cashCOA := getCOAID(tx, "11100")
-		receivableCOA := getCOAID(tx, "1100") // Mapped to 1100 in sprint 12
-		revenueCOA := getCOAID(tx, "4100")
-		taxCOA := getCOAID(tx, "21500") // VAT Output
-		dpAdvanceCOA := getCOAID(tx, "21200")
+		cashCOA := getCOAID(tx, "11101")
+		receivableCOA := getCOAID(tx, "11210")
+		revenueCOA := getCOAID(tx, "41100")
+		taxCOA := getCOAID(tx, "21210")
+		dpAdvanceCOA := getCOAID(tx, "21400")
 
 		now := time.Now()
 
@@ -420,7 +409,7 @@ func seedSalesPartialFlow(tx *gorm.DB, in salesFlowInput) error {
 }
 
 func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
-	// Minimal sales flow: 1x SQ → 1x SO → 1x DO → 1x INV → 1x PAY
+	// Minimal sales flow: 1x SQ  1x SO  1x DO  1x INV  1x PAY
 	// Uses deterministic codes for easy tracing.
 	var customer customerModels.Customer
 	if err := tx.Where("is_active = ?", true).First(&customer).Error; err != nil {
@@ -447,11 +436,11 @@ func seedSalesMinimalFlow(tx *gorm.DB, adminID string) error {
 		return err
 	}
 
-	cashCOA := getCOAID(tx, "11100")
-	receivableCOA := getCOAID(tx, "1100")
-	revenueCOA := getCOAID(tx, "4100")
-	taxCOA := getCOAID(tx, "21500")
-	dpAdvanceCOA := getCOAID(tx, "21200")
+	cashCOA := getCOAID(tx, "11101")
+	receivableCOA := getCOAID(tx, "11210")
+	revenueCOA := getCOAID(tx, "41100")
+	taxCOA := getCOAID(tx, "21210")
+	dpAdvanceCOA := getCOAID(tx, "21400")
 
 	now := time.Now()
 	return seedSalesFullFlowDP(tx, salesFlowInput{
@@ -527,3 +516,6 @@ func createJournalEntry(tx *gorm.DB, date time.Time, desc, refType, refID, admin
 		log.Printf("SUCCESS: Created journal entry via usecase for %s (%s)", refType, refID)
 	}
 }
+
+
+

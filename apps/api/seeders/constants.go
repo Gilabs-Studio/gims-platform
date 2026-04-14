@@ -7,7 +7,13 @@ const (
 	StaffRoleID          = "c3f3b4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d" // Reusing ID for stability
 	ViewerRoleID         = "d4a4c5d6-f7a8-4b9c-0d1e-2f3a4b5c6d7e"
 	AreaSupervisorRoleID = "e5b5d6e7-a8b9-4c0d-1e2f-3a4b5c6d7e8f"
+	SalesDirectorRoleID  = "f6c6e7f8-b9c0-4d1e-2f3a-4b5c6d7e8f9a"
+	FinanceManagerRoleID = "a7d7f8a9-c0d1-4e2f-3a4b-5c6d7e8f9a0b"
+	AccountantRoleID     = "b8e8a9b0-d1e2-4f3a-5b6c-7d8e9f0a1b2c"
 	AuditorRoleID        = "c9f9b0c1-e2f3-4a5b-6c7d-8e9f0a1b2c3d"
+	AROfficerRoleID      = "d1a1c2d3-e4f5-4a6b-8c9d-0e1f2a3b4c5d"
+	APOfficerRoleID      = "e2b2d3e4-f5a6-4b7c-9d0e-1f2a3b4c5d6e"
+	CashierRoleID        = "f3c3e4f5-a6b7-4c8d-0e1f-2a3b4c5d6e7f"
 	OutletManagerRoleID  = "da0ab1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c" // Outlet-scoped manager role
 )
 
@@ -26,8 +32,8 @@ const (
 // Organization IDs (Fixed)
 const (
 	// Company
-	GiLabsCompanyID    = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
-	MieGacoanCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
+	GiLabsCompanyID     = "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+	MieGacoanCompanyID  = "1a2b3c4d-5e6f-7a8b-9c0d-000000000001"
 	KimiaFarmaCompanyID = "1a2b3c4d-5e6f-7a8b-9c0d-000000000002"
 
 	// Divisions

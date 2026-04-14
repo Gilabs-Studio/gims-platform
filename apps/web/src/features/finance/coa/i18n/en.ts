@@ -12,6 +12,8 @@ export const financeCoaEn = {
     create: "Create",
     edit: "Edit",
     delete: "Delete",
+    showChildren: "Show children",
+    hideChildren: "Hide children",
   },
   form: {
     createTitle: "Create Account",
@@ -25,6 +27,19 @@ export const financeCoaEn = {
     type: "Type",
     parent: "Parent",
     isActive: "Active",
+    openingBalance: "Opening Balance",
+    openingDate: "Opening Date",
+    status: "Status",
+  },
+  status: {
+    postable: "Postable",
+    nonPostable: "Non-postable",
+    protected: "Protected",
+  },
+  messages: {
+    protectedAccount: "This account is protected and cannot be modified.",
+    protectedAction: "Protected account cannot be updated.",
+    protectedDelete: "Protected account cannot be deleted",
   },
   placeholders: {
     select: "Select...",

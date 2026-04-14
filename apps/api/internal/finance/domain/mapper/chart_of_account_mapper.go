@@ -16,13 +16,15 @@ func (m *ChartOfAccountMapper) ToResponse(item *financeModels.ChartOfAccount) dt
 		return dto.ChartOfAccountResponse{}
 	}
 	return dto.ChartOfAccountResponse{
-		ID:        item.ID,
-		Code:      item.Code,
-		Name:      item.Name,
-		Type:      item.Type,
-		ParentID:  item.ParentID,
-		IsActive:  item.IsActive,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:          item.ID,
+		Code:        item.Code,
+		Name:        item.Name,
+		Type:        item.Type,
+		ParentID:    item.ParentID,
+		IsActive:    item.IsActive,
+		IsPostable:  item.IsPostable,
+		IsProtected: item.IsProtected,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}
 }

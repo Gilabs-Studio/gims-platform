@@ -22,6 +22,7 @@ export interface UnifiedJournalRow<T = unknown> {
   entryDate: string;
   description: string | null;
   journalType?: string | null;
+  sourceDocumentUrl?: string | null;
   referenceType: string | null;
   referenceTypeBadge?: JournalReferenceTypeBadgeMeta | null;
   referenceId: string | null;

@@ -127,3 +127,41 @@ export function getFirstFormErrorMessage(errors: unknown): string | undefined {
 
   return undefined;
 }
+
+export function isAccountingMappingError(error: unknown): boolean {
+  if (!(error && typeof error === "object" && "response" in error)) {
+    return false;
+  }
+
+  const responseData = (
+    error as {
+      response?: { data?: ApiErrorPayload };
+    }
+  ).response?.data;
+
+  const errorCode = responseData?.error?.code?.toUpperCase();
+  if (errorCode) {
+    const mappingCodes = ["MAPPING", "COA", "ACCOUNT", "SETTING"];
+    if (mappingCodes.some((code) => errorCode.includes(code))) {
+      return true;
+    }
+  }
+
+  const allMessages = [
+    responseData?.error?.message,
+    responseData?.error?.details?.message,
+    responseData?.message,
+  ]
+    .filter((message): message is string => typeof message === "string")
+    .map((message) => message.toLowerCase());
+
+  return allMessages.some((message) =>
+    [
+      "missing required coa settings",
+      "account mapping",
+      "coa setting",
+      "finance settings validation failed",
+      "chart of account",
+    ].some((needle) => message.includes(needle)),
+  );
+}

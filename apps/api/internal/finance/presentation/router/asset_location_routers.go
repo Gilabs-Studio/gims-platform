@@ -14,7 +14,11 @@ const (
 )
 
 func RegisterAssetLocationRoutes(r *gin.RouterGroup, h *handler.AssetLocationHandler) {
-	g := r.Group("/asset-locations")
+	registerAssetLocationRoutesInGroup(r.Group("/asset-locations"), h)
+	registerAssetLocationRoutesInGroup(r.Group("/fixed-assets/locations"), h)
+}
+
+func registerAssetLocationRoutesInGroup(g *gin.RouterGroup, h *handler.AssetLocationHandler) {
 	g.GET("", middleware.RequirePermission(assetLocationRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetLocationRead), h.List)
 	g.POST("", middleware.RequirePermission(assetLocationCreate), h.Create)

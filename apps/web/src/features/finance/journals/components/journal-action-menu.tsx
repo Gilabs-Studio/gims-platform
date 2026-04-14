@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import {
-  useDeleteFinanceJournal,
+  useCancelFinanceJournal,
   usePostFinanceJournal,
   useReverseFinanceJournal,
 } from "../hooks/use-finance-journals";
+import { getErrorMessage, parseApiError } from "../utils/error-parser";
 import type { UnifiedJournalRow } from "./journal-table";
 
 interface JournalActionMenuProps {
@@ -36,20 +37,24 @@ export function JournalActionMenu({
   onSourceDetail,
 }: JournalActionMenuProps) {
   const t = useTranslations("financeJournals");
-  const item = row.original as any;
+  const item = row.original as { is_system_generated?: boolean };
   const status = (row.status || "").toLowerCase();
 
   const canUpdate = useUserPermission("journal.update");
   const canDelete = useUserPermission("journal.delete");
   const canPost = useUserPermission("journal.post");
+  const canCancel = useUserPermission("journal.cancel");
   const canReverse = useUserPermission("journal.reverse");
 
   const postMutation = usePostFinanceJournal();
+  const cancelMutation = useCancelFinanceJournal();
   const reverseMutation = useReverseFinanceJournal();
 
   const isDraft = status === "draft";
   const isPosted = status === "posted";
+  const isCancelled = status === "cancelled";
   const isSystemGenerated = !!item.is_system_generated;
+  const isBalanced = Math.abs((row.debit ?? 0) - (row.credit ?? 0)) <= 0.01;
 
   return (
     <DropdownMenu>
@@ -91,13 +96,15 @@ export function JournalActionMenu({
 
         {isDraft && canPost && (
           <DropdownMenuItem
-            className="cursor-pointer text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
+            className="cursor-pointer text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!isBalanced}
             onClick={async () => {
               try {
                 await postMutation.mutateAsync(row.id);
                 toast.success(t("toast.posted"));
-              } catch (error: any) {
-                toast.error(error.message || t("toast.failed"));
+              } catch (error: unknown) {
+                const parsedError = parseApiError(error);
+                toast.error(getErrorMessage(parsedError, (key) => t(key)));
               }
             }}
           >
@@ -106,13 +113,31 @@ export function JournalActionMenu({
           </DropdownMenuItem>
         )}
 
-        {isDraft && !isSystemGenerated && canDelete && (
+        {isDraft && !isSystemGenerated && canDelete && !isCancelled && (
           <DropdownMenuItem
             className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5"
             onClick={() => onDelete?.(row.id)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             {t("actions.delete")}
+          </DropdownMenuItem>
+        )}
+
+        {(isDraft || isPosted) && canCancel && !isSystemGenerated && (
+          <DropdownMenuItem
+            className="cursor-pointer text-amber-600 focus:text-amber-600 focus:bg-amber-50"
+            onClick={async () => {
+              try {
+                await cancelMutation.mutateAsync(row.id);
+                toast.success(t("toast.cancelled"));
+              } catch (error: unknown) {
+                const parsedError = parseApiError(error);
+                toast.error(getErrorMessage(parsedError, (key) => t(key)));
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {t("actions.cancel")}
           </DropdownMenuItem>
         )}
 
@@ -123,8 +148,9 @@ export function JournalActionMenu({
               try {
                 await reverseMutation.mutateAsync(row.id);
                 toast.success(t("toast.reversed"));
-              } catch (error: any) {
-                toast.error(error.message || t("toast.failed"));
+              } catch (error: unknown) {
+                const parsedError = parseApiError(error);
+                toast.error(getErrorMessage(parsedError, (key) => t(key)));
               }
             }}
           >

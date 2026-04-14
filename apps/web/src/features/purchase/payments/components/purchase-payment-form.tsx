@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { useRouter } from "@/i18n/routing";
 
 import { purchasePaymentSchema } from "../schemas/purchase-payment.schema";
 import { useCreatePurchasePayment } from "../hooks/use-purchase-payments";
@@ -30,7 +31,7 @@ import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 import { supplierInvoicesService } from "@/features/purchase/supplier-invoices/services/supplier-invoices-service";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
-import { getPurchaseErrorMessage } from "@/features/purchase/utils/error-utils";
+import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -66,6 +67,7 @@ function isPayableInvoiceStatus(status?: string | null): boolean {
 
 export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: PurchasePaymentFormProps) {
   const t = useTranslations("purchasePayment");
+  const router = useRouter();
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
@@ -281,7 +283,19 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
               toast.success(t("toast.created"));
               onClose();
             } catch (error) {
-              toast.error(getPurchaseErrorMessage(error, t("toast.failed") ?? "Failed to save payment"));
+              if (isAccountingMappingError(error)) {
+                const mappingMessage = t("errors.mappingRequired");
+                toast.error(mappingMessage, {
+                  action: {
+                    label: t("actions.openMapping"),
+                    onClick: () => router.push("/finance/settings/accounting-mapping"),
+                  },
+                });
+                return;
+              }
+
+              const errorMessage = getPurchaseErrorMessage(error, t("toast.failed"));
+              toast.error(errorMessage);
             }
           }, (formErrors) => {
             const firstErrorField = Object.values(formErrors)[0];

@@ -154,6 +154,20 @@ export function usePostFinanceJournal() {
   });
 }
 
+export function useCancelFinanceJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.cancel(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: financeJournalKeys.detail(id),
+      });
+    },
+  });
+}
+
 export function useReverseFinanceJournal() {
   const queryClient = useQueryClient();
 

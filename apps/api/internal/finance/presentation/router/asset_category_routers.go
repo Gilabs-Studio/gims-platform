@@ -14,7 +14,11 @@ const (
 )
 
 func RegisterAssetCategoryRoutes(r *gin.RouterGroup, h *handler.AssetCategoryHandler) {
-	g := r.Group("/asset-categories")
+	registerAssetCategoryRoutesInGroup(r.Group("/asset-categories"), h)
+	registerAssetCategoryRoutesInGroup(r.Group("/fixed-assets/categories"), h)
+}
+
+func registerAssetCategoryRoutesInGroup(g *gin.RouterGroup, h *handler.AssetCategoryHandler) {
 	g.GET("", middleware.RequirePermission(assetCategoryRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetCategoryRead), h.List)
 	g.POST("", middleware.RequirePermission(assetCategoryCreate), h.Create)
