@@ -7,6 +7,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CashBankTransactionListParams struct {
@@ -50,12 +51,22 @@ func (r *cashBankTransactionRepository) FindByID(ctx context.Context, id string)
 	return &item, nil
 }
 
-var cashBankTransactionAllowedSort = map[string]string{
-	"created_at": "cash_bank_transactions.created_at",
-	"updated_at": "cash_bank_transactions.updated_at",
-	"date":       "cash_bank_transactions.date",
-	"amount":     "cash_bank_transactions.amount",
-	"status":     "cash_bank_transactions.status",
+var cashBankTransactionAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "cash_bank_transactions", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "cash_bank_transactions", Name: "updated_at"},
+	},
+	"date": {
+		Column: clause.Column{Table: "cash_bank_transactions", Name: "date"},
+	},
+	"amount": {
+		Column: clause.Column{Table: "cash_bank_transactions", Name: "amount"},
+	},
+	"status": {
+		Column: clause.Column{Table: "cash_bank_transactions", Name: "status"},
+	},
 }
 
 func (r *cashBankTransactionRepository) List(ctx context.Context, params CashBankTransactionListParams) ([]financeModels.CashBankTransaction, int64, error) {
@@ -92,14 +103,16 @@ func (r *cashBankTransactionRepository) List(ctx context.Context, params CashBan
 	}
 
 	sortCol := cashBankTransactionAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = cashBankTransactionAllowedSort["date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

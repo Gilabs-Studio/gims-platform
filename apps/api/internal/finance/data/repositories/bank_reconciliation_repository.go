@@ -7,6 +7,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type BankReconciliationListParams struct {
@@ -55,11 +56,19 @@ func (r *bankReconciliationRepository) FindByID(ctx context.Context, id string, 
 	return &item, nil
 }
 
-var bankReconciliationAllowedSort = map[string]string{
-	"created_at":     "bank_reconciliations.created_at",
-	"updated_at":     "bank_reconciliations.updated_at",
-	"statement_date": "bank_reconciliations.statement_date",
-	"status":         "bank_reconciliations.status",
+var bankReconciliationAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "bank_reconciliations", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "bank_reconciliations", Name: "updated_at"},
+	},
+	"statement_date": {
+		Column: clause.Column{Table: "bank_reconciliations", Name: "statement_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "bank_reconciliations", Name: "status"},
+	},
 }
 
 func (r *bankReconciliationRepository) List(ctx context.Context, params BankReconciliationListParams) ([]financeModels.BankReconciliation, int64, error) {
@@ -89,14 +98,16 @@ func (r *bankReconciliationRepository) List(ctx context.Context, params BankReco
 	}
 
 	sortCol := bankReconciliationAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = bankReconciliationAllowedSort["statement_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

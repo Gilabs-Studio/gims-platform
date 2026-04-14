@@ -7,6 +7,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type BankTransferListParams struct {
@@ -50,12 +51,22 @@ func (r *bankTransferRepository) FindByID(ctx context.Context, id string) (*fina
 	return &item, nil
 }
 
-var bankTransferAllowedSort = map[string]string{
-	"created_at": "bank_transfers.created_at",
-	"updated_at": "bank_transfers.updated_at",
-	"date":       "bank_transfers.date",
-	"amount":     "bank_transfers.amount",
-	"status":     "bank_transfers.status",
+var bankTransferAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "bank_transfers", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "bank_transfers", Name: "updated_at"},
+	},
+	"date": {
+		Column: clause.Column{Table: "bank_transfers", Name: "date"},
+	},
+	"amount": {
+		Column: clause.Column{Table: "bank_transfers", Name: "amount"},
+	},
+	"status": {
+		Column: clause.Column{Table: "bank_transfers", Name: "status"},
+	},
 }
 
 func (r *bankTransferRepository) List(ctx context.Context, params BankTransferListParams) ([]financeModels.BankTransfer, int64, error) {
@@ -92,14 +103,16 @@ func (r *bankTransferRepository) List(ctx context.Context, params BankTransferLi
 	}
 
 	sortCol := bankTransferAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = bankTransferAllowedSort["date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
