@@ -251,25 +251,37 @@ export function POSPaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md gap-5">
         <DialogHeader>
-          <DialogTitle>Payment</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-tight">{t("title")}</DialogTitle>
         </DialogHeader>
 
-        {/* Order total summary */}
-        <div className="bg-muted rounded-lg px-4 py-3 flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Order #{order.order_number}</span>
-          <span className="text-lg font-bold">{formatCurrency(totalAmount)}</span>
+        {/* Order summary */}
+        <div className="rounded-2xl border border-border/70 bg-linear-to-b from-background to-muted/30 px-4 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                {t("orderLabel")} #{order.order_number}
+              </p>
+              <p className="text-sm text-muted-foreground">{t("readyForPayment")}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("amountDue")}</p>
+              <p className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {formatCurrency(totalAmount)}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Optional customer name — used on receipt */}
         <div className="space-y-1">
           <Label htmlFor="customerName" className="text-xs text-muted-foreground">
-            Customer name <span className="text-muted-foreground/60">(optional)</span>
+            {t("customerName")} <span className="text-muted-foreground/60">({t("optional")})</span>
           </Label>
           <Input
             id="customerName"
-            placeholder="e.g. Budi"
+            placeholder={t("exampleCustomer")}
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             className="h-8 text-sm"
@@ -278,8 +290,8 @@ export function POSPaymentModal({
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="w-full">
-            <TabsTrigger className="flex-1" value="CASH">Cash</TabsTrigger>
-            <TabsTrigger className="flex-1" value="DIGITAL">Digital Payment</TabsTrigger>
+            <TabsTrigger className="flex-1" value="CASH">{t("tab.cash")}</TabsTrigger>
+            <TabsTrigger className="flex-1" value="DIGITAL">{t("tab.digital")}</TabsTrigger>
           </TabsList>
 
           {/* CASH TAB */}
@@ -306,22 +318,22 @@ export function POSPaymentModal({
 
             {/* Exact / Reset row */}
             <div className="grid grid-cols-2 gap-1.5">
-              <Button
+                <Button
                 size="sm"
                 variant="secondary"
                 className="cursor-pointer text-xs"
                 onClick={() => setTenderInput(String(totalAmount))}
               >
-                Exact {formatCurrency(totalAmount)}
+                {t("exact")} {formatCurrency(totalAmount)}
               </Button>
-              <Button
+                <Button
                 size="sm"
                 variant="ghost"
                 className="cursor-pointer text-xs text-muted-foreground"
                 disabled={tenderInput === ""}
                 onClick={() => setTenderInput("")}
               >
-                Reset
+                {t("reset")}
               </Button>
             </div>
 
@@ -351,9 +363,9 @@ export function POSPaymentModal({
             {/* Change display */}
             {tenderInput !== "" && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Change</span>
+                <span className="text-muted-foreground">{t("change")}</span>
                 <span className={insufficientCash ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
-                  {insufficientCash ? `Short ${formatCurrency(Math.abs(change))}` : formatCurrency(change)}
+                  {insufficientCash ? `${t("short")} ${formatCurrency(Math.abs(change))}` : formatCurrency(change)}
                 </span>
               </div>
             )}
@@ -369,12 +381,12 @@ export function POSPaymentModal({
               {processCash.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
-              Confirm Cash Payment
+              {t("confirmCash")}
             </Button>
           </TabsContent>
 
           {/* DIGITAL PAYMENT TAB */}
-          <TabsContent value="DIGITAL" className="mt-3 space-y-3">
+          <TabsContent value="DIGITAL" className="mt-4 space-y-3">
             {xenditStatusLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -384,9 +396,7 @@ export function POSPaymentModal({
                 <WifiOff className="h-10 w-10 text-muted-foreground" />
                 <div>
                   <p className="font-medium">{t("digitalNotAvailable")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t("digitalNotAvailableDesc")}
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{t("digitalNotAvailableDesc")}</p>
                 </div>
               </div>
             ) : digitalPayment ? (
@@ -439,7 +449,7 @@ function ChannelPicker({
         <Input
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search channel (DANA, GOPAY, BRI...)"
+          placeholder={t("searchChannelPlaceholder")}
           className="h-12 text-sm bg-background/80 border-border/80"
         />
         <p className="text-xs text-muted-foreground">{t("selectChannel")}</p>
@@ -506,7 +516,7 @@ function ChannelPicker({
           });
           return channels.length === 0;
         }) ? (
-          <p className="text-sm text-muted-foreground text-center py-3">No channel found.</p>
+          <p className="text-sm text-muted-foreground text-center py-3">{t("noChannelFound")}</p>
         ) : null}
       </div>
     </ScrollArea>

@@ -54,7 +54,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// ─── Usecases ────────────────────────────────────────────────────────────
 
 	floorPlanUC := usecase.NewFloorPlanUsecase(floorPlanRepo, outletRepo)
-	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, recipeService)
+	orderUC := usecase.NewPOSOrderUsecase(db, orderRepo, outletRepo, productRepo, configRepo, recipeService)
 	paymentUC := usecase.NewPOSPaymentUsecase(paymentRepo, orderRepo, configRepo, xenditRepo, orderUC, salesOrderRepo, invoiceRepo, salesPaymentRepo, bankAccountRepo, credentialCipher)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
@@ -383,8 +384,8 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 			order.CustomerInvoiceID = &invoiceID
 			_ = u.orderRepo.Update(ctx, order)
 
-			// For POS cash payments, also generate a confirmed Sales Payment detail record.
-			if payment != nil && payment.Method == models.POSPaymentMethodCash {
+			// Record settlement into sales payments for every successfully paid POS transaction.
+			if payment != nil {
 				_ = u.createSalesPaymentFromPOS(ctx, invoiceID, payment, order, userID)
 			}
 		}
@@ -422,6 +423,12 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		customerName = *order.CustomerName
 	}
 
+	taxRatePercent := deriveTaxRatePercent(order)
+	serviceCharge := order.ServiceCharge
+	if serviceCharge < 0 {
+		serviceCharge = 0
+	}
+
 	actor := optionalActorIDPointer(userID)
 	so := &salesModels.SalesOrder{
 		Code:             code,
@@ -429,8 +436,9 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		CustomerName:     customerName,
 		Subtotal:         order.Subtotal,
 		DiscountAmount:   order.DiscountAmount,
-		TaxRate:          0,
+		TaxRate:          taxRatePercent,
 		TaxAmount:        order.TaxAmount,
+		OtherCost:        serviceCharge,
 		TotalAmount:      order.TotalAmount,
 		Status:           salesModels.SalesOrderStatusClosed,
 		Notes:            notesVal,
@@ -639,4 +647,18 @@ func optionalActorIDPointer(raw string) *string {
 	}
 	normalized := normalizedActorID(trimmed)
 	return &normalized
+}
+
+func deriveTaxRatePercent(order *models.PosOrder) float64 {
+	taxableBase := order.Subtotal - order.DiscountAmount
+	if taxableBase <= 0 || order.TaxAmount <= 0 {
+		return 0
+	}
+
+	ratePercent := (order.TaxAmount / taxableBase) * 100
+	if ratePercent < 0 {
+		return 0
+	}
+
+	return math.Round(ratePercent*100) / 100
 }

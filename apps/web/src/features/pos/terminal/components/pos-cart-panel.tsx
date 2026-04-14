@@ -7,6 +7,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatCurrency } from "@/lib/utils";
 import type { CartItem, POSConfig } from "../types";
 
+function normalizeRate(rate: number | undefined, fallback: number): number {
+  if (rate === undefined || Number.isNaN(rate)) return fallback;
+  if (rate <= 0) return 0;
+  if (rate > 1) return rate / 100;
+  return rate;
+}
+
+function formatRatePercent(rate: number): string {
+  const percent = rate * 100;
+  if (Number.isInteger(percent)) return `${percent}`;
+  return percent.toFixed(2).replace(/\.?0+$/, "");
+}
+
 interface POSCartPanelProps {
   items: CartItem[];
   config?: POSConfig;
@@ -27,8 +40,8 @@ export function POSCartPanel({
   isPending,
 }: POSCartPanelProps) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-  const taxRate = config?.tax_rate ?? 0.11;
-  const serviceRate = config?.service_charge_rate ?? 0;
+  const taxRate = normalizeRate(config?.tax_rate, 0.11);
+  const serviceRate = normalizeRate(config?.service_charge_rate, 0);
   const taxAmount = subtotal * taxRate;
   const serviceAmount = subtotal * serviceRate;
   const total = subtotal + taxAmount + serviceAmount;
@@ -111,13 +124,13 @@ export function POSCartPanel({
         </div>
         {taxAmount > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>Tax ({(taxRate * 100).toFixed(0)}%)</span>
+            <span>Tax ({formatRatePercent(taxRate)}%)</span>
             <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
           </div>
         )}
         {serviceAmount > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>Service ({(serviceRate * 100).toFixed(0)}%)</span>
+            <span>Service ({formatRatePercent(serviceRate)}%)</span>
             <span className="tabular-nums">{formatCurrency(serviceAmount)}</span>
           </div>
         )}
