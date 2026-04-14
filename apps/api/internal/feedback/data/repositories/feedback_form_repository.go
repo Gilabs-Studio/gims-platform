@@ -12,7 +12,7 @@ type FeedbackFormRepository interface {
 	FindByID(ctx context.Context, id string) (*models.FeedbackForm, error)
 	FindActiveByOutletID(ctx context.Context, outletID string) (*models.FeedbackForm, error)
 	FindByOutletID(ctx context.Context, outletID string) ([]models.FeedbackForm, error)
-	List(ctx context.Context, page, perPage int) ([]models.FeedbackForm, int64, error)
+	List(ctx context.Context, page, perPage int, outletIDs []string) ([]models.FeedbackForm, int64, error)
 	Create(ctx context.Context, form *models.FeedbackForm) error
 	Update(ctx context.Context, form *models.FeedbackForm) error
 	DeactivateAllForOutlet(ctx context.Context, outletID string) error
@@ -60,12 +60,15 @@ func (r *feedbackFormRepository) FindByOutletID(ctx context.Context, outletID st
 	return forms, nil
 }
 
-func (r *feedbackFormRepository) List(ctx context.Context, page, perPage int) ([]models.FeedbackForm, int64, error) {
+func (r *feedbackFormRepository) List(ctx context.Context, page, perPage int, outletIDs []string) ([]models.FeedbackForm, int64, error) {
 	var forms []models.FeedbackForm
 	var total int64
 	offset := (page - 1) * perPage
 
 	q := r.db_(ctx).Model(&models.FeedbackForm{}).Where("deleted_at IS NULL")
+	if len(outletIDs) > 0 {
+		q = q.Where("outlet_id IN ?", outletIDs)
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

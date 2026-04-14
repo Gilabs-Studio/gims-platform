@@ -10,6 +10,7 @@ import (
 // FeedbackResponseFilter holds query filter parameters for listing responses.
 type FeedbackResponseFilter struct {
 	OutletID  string
+	OutletIDs []string
 	FormID    string
 	StartDate string // YYYY-MM-DD
 	EndDate   string // YYYY-MM-DD
@@ -61,7 +62,9 @@ func (r *feedbackResponseRepository) List(ctx context.Context, f FeedbackRespons
 
 	q := r.db.WithContext(ctx).Model(&models.FeedbackResponse{})
 
-	if f.OutletID != "" {
+	if len(f.OutletIDs) > 0 {
+		q = q.Where("outlet_id IN ?", f.OutletIDs)
+	} else if f.OutletID != "" {
 		q = q.Where("outlet_id = ?", f.OutletID)
 	}
 	if f.FormID != "" {

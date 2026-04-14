@@ -16,6 +16,7 @@ func RegisterFeedbackRoutes(group *gin.RouterGroup, h *handler.FeedbackHandler) 
 	forms.GET("/by-outlet", middleware.RequirePermission("feedback.read"), h.GetFormsByOutlet)
 	forms.GET("/:id", middleware.RequirePermission("feedback.read"), h.GetForm)
 	forms.POST("", middleware.RequirePermission("feedback.create"), h.CreateForm)
+	forms.POST("/:id/copy", middleware.RequirePermission("feedback.create"), h.CopyForm)
 	forms.PUT("/:id", middleware.RequirePermission("feedback.update"), h.UpdateForm)
 	forms.DELETE("/:id", middleware.RequirePermission("feedback.delete"), h.DeleteForm)
 

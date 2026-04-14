@@ -855,6 +855,7 @@ func SeedPermissions() error {
 		"sales":  "OUTLET",
 		"stock":  "OUTLET",
 		"crm":    "OUTLET",
+		"feedback": "OUTLET",
 	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { feedbackService } from "../services/feedback-service";
 import type {
+  CopyFeedbackFormRequest,
   CreateFeedbackFormRequest,
   FeedbackFormListParams,
   FeedbackListParams,
@@ -76,6 +77,22 @@ export function useDeleteFeedbackForm() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => feedbackService.deleteForm(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [FORMS_KEY] });
+    },
+  });
+}
+
+export function useCopyFeedbackForm() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: CopyFeedbackFormRequest;
+    }) => feedbackService.copyForm(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [FORMS_KEY] });
     },

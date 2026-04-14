@@ -158,6 +158,7 @@ export function FeedbackResponseList() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("customer")}</TableHead>
+              <TableHead>{t("outlet")}</TableHead>
               <TableHead>{t("orderId")}</TableHead>
               <TableHead>{t("avgScore")}</TableHead>
               <TableHead>{t("submittedAt")}</TableHead>
@@ -170,6 +171,9 @@ export function FeedbackResponseList() {
                   <TableRow key={idx}>
                     <TableCell>
                       <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-4 w-24" />
@@ -189,7 +193,7 @@ export function FeedbackResponseList() {
               ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center py-12 text-muted-foreground"
                     >
                       {t("empty")}
@@ -199,6 +203,7 @@ export function FeedbackResponseList() {
               : items.map((item: FeedbackResponseItem) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.customer_name ?? "—"}</TableCell>
+                    <TableCell>{item.outlet_name ?? item.outlet_id ?? "—"}</TableCell>
                     <TableCell>
                       {item.pos_order_id ? (
                         <SalesOrderLink
@@ -326,6 +331,8 @@ function DetailContent({ item }: { item: FeedbackResponseItem }) {
       <div className="grid grid-cols-2 gap-2">
         <span className="text-muted-foreground">{t("customer")}</span>
         <span>{item.customer_name ?? "—"}</span>
+        <span className="text-muted-foreground">{t("outlet")}</span>
+        <span>{item.outlet_name ?? item.outlet_id ?? "—"}</span>
         {item.pos_order_id && (
           <>
             <span className="text-muted-foreground">{t("orderId")}</span>

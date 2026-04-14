@@ -90,9 +90,9 @@ type GenerateTokenRequest struct {
 }
 
 type FeedbackTokenResponse struct {
-	Token     string    `json:"token"`
-	FeedbackURL string  `json:"feedback_url"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Token       string    `json:"token"`
+	FeedbackURL string    `json:"feedback_url"`
+	ExpiresAt   time.Time `json:"expires_at"`
 }
 
 // ─── Public Form ───────────────────────────────────────────────────────────────
@@ -110,9 +110,9 @@ type PublicFormResponse struct {
 // ─── Submission ────────────────────────────────────────────────────────────────
 
 type SubmitFeedbackRequest struct {
-	CustomerName *string         `json:"customer_name"`
+	CustomerName *string `json:"customer_name"`
 	// Answers must be an object keyed by question ID, e.g. {"q1":4,"q2":["Enak"],"q3":"Bagus!"}
-	Answers      json.RawMessage `json:"answers" binding:"required"`
+	Answers json.RawMessage `json:"answers" binding:"required"`
 }
 
 // ─── Response (admin list) ─────────────────────────────────────────────────────
@@ -122,11 +122,27 @@ type FeedbackResponseItem struct {
 	FormID       string          `json:"form_id"`
 	FormTitle    string          `json:"form_title"`
 	OutletID     string          `json:"outlet_id"`
+	OutletName   string          `json:"outlet_name"`
 	PosOrderID   *string         `json:"pos_order_id,omitempty"`
 	CustomerName *string         `json:"customer_name,omitempty"`
 	Answers      json.RawMessage `json:"answers"`
 	AvgScore     *float64        `json:"avg_score,omitempty"`
 	SubmittedAt  time.Time       `json:"submitted_at"`
+}
+
+// CopyFeedbackFormRequest allows cloning an existing form to one or more outlets.
+// If ApplyToAllOutlets is true, OutletIDs is ignored.
+type CopyFeedbackFormRequest struct {
+	OutletIDs         []string `json:"outlet_ids"`
+	ApplyToAllOutlets bool     `json:"apply_to_all_outlets"`
+	IsActive          bool     `json:"is_active"`
+	Title             *string  `json:"title"`
+}
+
+// CopyFeedbackFormResponse returns clone operation summary.
+type CopyFeedbackFormResponse struct {
+	CopiedCount int                    `json:"copied_count"`
+	Forms       []FeedbackFormResponse `json:"forms"`
 }
 
 // ─── List Responses Request ────────────────────────────────────────────────────

@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, Code2, Eye, FileQuestion, Pencil, Plus, Save, Settings2, Trash2, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { AlertCircle, Code2, Copy, Eye, FileQuestion, Pencil, Plus, Save, Settings2, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteDialog } from "@/components/ui/delete-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -19,6 +20,7 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 
 import {
+  useCopyFeedbackForm,
   useCreateFeedbackForm,
   useDeleteFeedbackForm,
   useFeedbackForms,
@@ -282,12 +284,8 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
   const updateMutation = useUpdateFeedbackForm();
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  // Sync visual → json when visual changes
-  useEffect(() => {
-    if (activeTab === "visual") {
-      setJsonText(schemaToJson({ questions: formQuestions }));
-    }
-  }, [formQuestions, activeTab]);
+  // Derive JSON text from visual schema when visual tab is active
+  const derivedJsonText = useMemo(() => schemaToJson({ questions: formQuestions }), [formQuestions]);
 
   // Sync json → visual when switching to visual tab
   function handleTabChange(tab: string) {
@@ -501,10 +499,15 @@ function FormEditorPanel({ editingItem, onSaved, onCancel }: FormEditorPanelProp
             )}
             <Textarea
               className="font-mono text-xs min-h-[400px] resize-y"
-              value={jsonText}
+              value={activeTab === "visual" ? derivedJsonText : jsonText}
               onChange={(e) => {
-                setJsonText(e.target.value);
-                setJsonError(null);
+                // Allow editing only when in JSON tab; changes while in visual
+                // are reflected by derivedJsonText and should not overwrite
+                // the user's edited jsonText until they switch to JSON tab.
+                if (activeTab === "json") {
+                  setJsonText(e.target.value);
+                  setJsonError(null);
+                }
               }}
               spellCheck={false}
             />
@@ -531,13 +534,19 @@ export function FeedbackFormBuilder() {
   const [selectedItem, setSelectedItem] = useState<FeedbackForm | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [deleteItem, setDeleteItem] = useState<FeedbackForm | null>(null);
+  const [copyItem, setCopyItem] = useState<FeedbackForm | null>(null);
+  const [copyOutletId, setCopyOutletId] = useState("");
+  const [copyAllOutlets, setCopyAllOutlets] = useState(false);
 
   const { data, isLoading, isError, refetch } = useFeedbackForms({
     page,
     per_page: 50,
   });
+  const { data: outletsData } = useOutlets({ per_page: 100 });
+  const outlets = outletsData?.data ?? [];
 
   const deleteMutation = useDeleteFeedbackForm();
+  const copyMutation = useCopyFeedbackForm();
   const items = data?.data ?? [];
 
   function startCreate() {
@@ -557,6 +566,38 @@ export function FeedbackFormBuilder() {
       toast.success(t("deleted"));
       if (selectedItem?.id === deleteItem.id) closeEditor();
       setDeleteItem(null);
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  }
+
+  function openCopyDialog(item: FeedbackForm) {
+    setCopyItem(item);
+    setCopyAllOutlets(false);
+    setCopyOutletId("");
+  }
+
+  async function handleCopy() {
+    if (!copyItem) return;
+    if (!copyAllOutlets && !copyOutletId) {
+      toast.error(t("copy.selectOutlet"));
+      return;
+    }
+
+    try {
+      await copyMutation.mutateAsync({
+        id: copyItem.id,
+        data: {
+          apply_to_all_outlets: copyAllOutlets,
+          outlet_ids: copyAllOutlets ? undefined : [copyOutletId],
+          is_active: copyItem.is_active,
+        },
+      });
+      toast.success(t("copied"));
+      setCopyItem(null);
+      setCopyOutletId("");
+      setCopyAllOutlets(false);
+      refetch();
     } catch {
       toast.error(tCommon("error"));
     }
@@ -653,6 +694,18 @@ export function FeedbackFormBuilder() {
                           <Trash2 className="h-3 w-3" />
                         </button>
                       )}
+                      {canCreate && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCopyDialog(item);
+                          }}
+                          className="p-0.5 rounded hover:text-primary text-muted-foreground transition-colors cursor-pointer"
+                          aria-label={t("copy.action")}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -693,6 +746,82 @@ export function FeedbackFormBuilder() {
         description={t("deleteConfirm")}
         isLoading={deleteMutation.isPending}
       />
+
+      <Dialog
+        open={!!copyItem}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCopyItem(null);
+            setCopyOutletId("");
+            setCopyAllOutlets(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("copy.title")}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("copy.description")}</p>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="copy-all-outlets"
+                checked={copyAllOutlets}
+                onCheckedChange={setCopyAllOutlets}
+              />
+              <Label htmlFor="copy-all-outlets" className="cursor-pointer">
+                {t("copy.allOutlets")}
+              </Label>
+            </div>
+
+            {!copyAllOutlets && (
+              <div className="space-y-1.5">
+                <Label htmlFor="copy-outlet-select">{t("copy.targetOutlet")}</Label>
+                <select
+                  id="copy-outlet-select"
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-background cursor-pointer"
+                  value={copyOutletId}
+                  onChange={(e) => setCopyOutletId(e.target.value)}
+                >
+                  <option value="">{t("copy.selectOutlet")}</option>
+                  {outlets
+                    .filter((outlet) => outlet.id !== copyItem?.outlet_id)
+                    .map((outlet) => (
+                      <option key={outlet.id} value={outlet.id}>
+                        {outlet.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => {
+                  setCopyItem(null);
+                  setCopyOutletId("");
+                  setCopyAllOutlets(false);
+                }}
+              >
+                {tCommon("cancel")}
+              </Button>
+              <Button
+                type="button"
+                className="cursor-pointer"
+                onClick={handleCopy}
+                disabled={copyMutation.isPending}
+              >
+                {copyMutation.isPending ? tCommon("saving") : t("copy.submit")}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

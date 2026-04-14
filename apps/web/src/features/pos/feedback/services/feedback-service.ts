@@ -1,6 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import type {
   ApiResponse,
+  CopyFeedbackFormRequest,
+  CopyFeedbackFormResponse,
   CreateFeedbackFormRequest,
   FeedbackForm,
   FeedbackFormListParams,
@@ -69,6 +71,17 @@ export const feedbackService = {
   deleteForm: async (id: string): Promise<ApiResponse<null>> => {
     const response = await apiClient.delete<ApiResponse<null>>(
       `${BASE_URL}/forms/${id}`
+    );
+    return response.data;
+  },
+
+  copyForm: async (
+    id: string,
+    data: CopyFeedbackFormRequest
+  ): Promise<ApiResponse<CopyFeedbackFormResponse>> => {
+    const response = await apiClient.post<ApiResponse<CopyFeedbackFormResponse>>(
+      `${BASE_URL}/forms/${id}/copy`,
+      data
     );
     return response.data;
   },

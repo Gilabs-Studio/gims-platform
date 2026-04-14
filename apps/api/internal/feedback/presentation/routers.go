@@ -46,6 +46,7 @@ func RegisterRoutes(
 	// Protected routes (require auth + permissions)
 	protected := api.Group("/")
 	protected.Use(middleware.AuthMiddleware(jwtManager, permService))
+	protected.Use(middleware.ScopeMiddleware(db))
 	feedbackRouter.RegisterFeedbackRoutes(protected, h)
 
 	// Public routes (no auth — customer feedback submission)

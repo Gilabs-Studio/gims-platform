@@ -126,6 +126,27 @@ func (h *FeedbackHandler) GetFormsByOutlet(c *gin.Context) {
 	response.SuccessResponse(c, forms, nil)
 }
 
+// CopyForm clones an existing feedback form to one or more outlets.
+func (h *FeedbackHandler) CopyForm(c *gin.Context) {
+	formID := c.Param("id")
+	var req dto.CopyFeedbackFormRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationErrorResponse(c, nil)
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	createdBy, _ := userID.(string)
+
+	copyResp, err := h.uc.CopyForm(c.Request.Context(), formID, createdBy, &req)
+	if err != nil {
+		handleFeedbackError(c, err)
+		return
+	}
+
+	response.SuccessResponseCreated(c, copyResp, nil)
+}
+
 // ─── Token ────────────────────────────────────────────────────────────────────
 
 // GenerateToken generates a one-time feedback token for a POS transaction.
@@ -190,11 +211,7 @@ func (h *FeedbackHandler) ListResponses(c *gin.Context) {
 		req.PerPage = 20
 	}
 
-	// Outlet-scoped users (outlet managers) are restricted to their outlet only.
-	outletScope, _ := c.Get("outlet_scope")
-	outletScopeStr, _ := outletScope.(string)
-
-	items, pagination, err := h.uc.ListResponses(c.Request.Context(), &req, outletScopeStr)
+	items, pagination, err := h.uc.ListResponses(c.Request.Context(), &req)
 	if err != nil {
 		handleFeedbackError(c, err)
 		return
@@ -234,8 +251,12 @@ func handleFeedbackError(c *gin.Context, err error) {
 		response.ErrorResponse(c, http.StatusNotFound, "NO_ACTIVE_FEEDBACK_FORM", "No active feedback form configured for this outlet", nil, nil)
 	case errors.Is(err, usecase.ErrInvalidFormSchema):
 		response.ErrorResponse(c, http.StatusBadRequest, "INVALID_FORM_SCHEMA", err.Error(), nil, nil)
+	case errors.Is(err, usecase.ErrInvalidCopyRequest):
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid copy request: provide outlet_ids or apply_to_all_outlets", nil, nil)
+	case errors.Is(err, usecase.ErrFeedbackForbidden):
+		response.ErrorResponse(c, http.StatusForbidden, "FORBIDDEN", "You do not have permission to access this outlet feedback data", nil, nil)
 	default:
-		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil, nil)
+		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_SERVER_ERROR", "An internal server error occurred. Our team has been notified", nil, nil)
 	}
 }
 

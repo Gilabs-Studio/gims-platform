@@ -79,13 +79,25 @@ export interface SubmitFeedbackRequest {
 export interface FeedbackResponseItem {
   id: string;
   form_id: string;
-  token_id: string;
   outlet_id: string;
+  outlet_name?: string;
   pos_order_id?: string;
   customer_name?: string;
   answers: Record<string, AnswerValue>;
   avg_score?: number;
   submitted_at: string;
+}
+
+export interface CopyFeedbackFormRequest {
+  outlet_ids?: string[];
+  apply_to_all_outlets?: boolean;
+  is_active?: boolean;
+  title?: string;
+}
+
+export interface CopyFeedbackFormResponse {
+  copied_count: number;
+  forms: FeedbackForm[];
 }
 
 export interface FeedbackListParams {
