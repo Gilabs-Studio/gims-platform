@@ -65,8 +65,6 @@ export const posTerminalId = {
       cash: "Tunai",
       midtrans: "Pembayaran Digital",
       tenderedAmount: "Jumlah Bayar",
-      change: "Kembalian",
-      short: "Kurang",
       confirmCash: "Konfirmasi Pembayaran Tunai",
       generateLink: "Buat Link Pembayaran",
       vatNumber: "Nomor Virtual Account",

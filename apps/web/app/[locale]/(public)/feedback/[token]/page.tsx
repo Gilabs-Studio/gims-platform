@@ -135,7 +135,7 @@ function ErrorState({
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
       <div
-        className={`rounded-full p-3 pb-6 ${
+        className={`rounded-full p-3 ${
           icon === "check"
             ? "bg-success/10 text-success"
             : "bg-destructive/10 text-destructive"

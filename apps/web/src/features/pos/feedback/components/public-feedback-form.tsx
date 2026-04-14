@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { CheckCircle2, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { Confetti } from "@/components/ui/confetti";
+import type { ConfettiRef } from "@/components/ui/confetti";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -39,8 +41,58 @@ export function PublicFeedbackForm({
   const submitMutation = useSubmitFeedback(token);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [submitted, setSubmitted] = useState(false);
+  const confettiRef = useRef<ConfettiRef>(null);
 
   const questions = schema.questions ?? [];
+
+  const triggerConfetti = useCallback(() => {
+    const fire = confettiRef.current?.fire;
+    if (!fire) {
+      return;
+    }
+
+    fire({
+      particleCount: 50,
+      spread: 180,
+      startVelocity: 42,
+      decay: 0.92,
+      origin: { x: 0.5, y: 0.5 },
+    });
+
+    window.setTimeout(() => {
+      fire({
+        particleCount: 40,
+        spread: 360,
+        startVelocity: 52,
+        decay: 0.9,
+        scalar: 0.95,
+        origin: { x: 0.5, y: 0.5 },
+      });
+
+      window.setTimeout(() => {
+        fire({
+          particleCount: 20,
+          spread: 360,
+          startVelocity: 30,
+          decay: 0.94,
+          scalar: 1.1,
+          origin: { x: 0.5, y: 0.5 },
+        });
+      }, 130);
+    }, 140);
+  }, []);
+
+  useEffect(() => {
+    if (!submitted) {
+      return;
+    }
+
+    const id = window.requestAnimationFrame(() => {
+      triggerConfetti();
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, [submitted, triggerConfetti]);
 
   function setAnswer(questionId: string, value: AnswerValue) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -90,13 +142,28 @@ export function PublicFeedbackForm({
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-        <CheckCircle2 className="h-16 w-16 text-green-500" />
-        <h2 className="text-xl font-semibold">Thank you for your feedback!</h2>
-        <p className="text-muted-foreground text-sm">
-          Your response has been recorded. We appreciate your time.
-        </p>
-      </div>
+      <>
+        <Confetti
+          ref={confettiRef}
+          manualstart={true}
+          options={{
+            particleCount: 150,
+            spread: 90,
+            origin: { y: 0.6 },
+          }}
+          className="fixed inset-0 z-[5] h-full w-full pointer-events-none"
+        />
+        <div className="relative z-[10] flex min-h-[300px] flex-col items-center justify-center gap-4 py-12 text-center">
+          <div className="flex flex-col items-center justify-center gap-4">
+            <CheckCircle2 className="h-16 w-16 text-green-500" />
+            <h2 className="text-xl font-semibold">Thank you for your feedback!</h2>
+            <p className="text-sm text-muted-foreground">
+              Your response has been recorded. We appreciate your time.
+            </p>
+            
+          </div>
+        </div>
+      </>
     );
   }
 

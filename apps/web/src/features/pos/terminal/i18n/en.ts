@@ -65,8 +65,6 @@ export const posTerminalEn = {
       cash: "Cash",
       midtrans: "Digital Payment",
       tenderedAmount: "Tendered Amount",
-      change: "Change",
-      short: "Short",
       confirmCash: "Confirm Cash Payment",
       generateLink: "Generate Payment Link",
       vatNumber: "Virtual Account Number",
