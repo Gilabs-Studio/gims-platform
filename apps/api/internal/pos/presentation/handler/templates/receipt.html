@@ -124,6 +124,34 @@
   </div>
   {{end}}
 
+  {{if .ShowLoyaltySection}}
+  <hr class="dash">
+  <div class="center" style="margin-top:4px;">
+    <span style="background:{{.LoyaltyBadgeColor}};color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:bold;">{{.LoyaltyTier}}</span>
+  </div>
+  <div class="row" style="margin-top:3px;"><span>No. Member</span><span class="bold">{{.LoyaltyMemberCode}}</span></div>
+  {{if gt .LoyaltyPointsEarned 0}}<div class="row"><span>Poin Didapat</span><span class="bold">+{{.LoyaltyPointsEarned}} poin</span></div>{{end}}
+  <div class="row"><span>Saldo Poin</span><span class="bold">{{.LoyaltyTotalBalance}} poin</span></div>
+  {{end}}
+
+  {{if .ShowLoyaltyInvite}}
+  <hr class="dash">
+  <div class="center small" style="margin-top:4px;">
+    <div class="bold">Kumpulkan Poin, Dapatkan Hadiah!</div>
+    <div style="margin-top:2px;">Daftar member dan klaim poin transaksi ini.</div>
+    <div style="margin-top:3px;">Scan QR untuk daftar:</div>
+    <img id="loyalty-qr" style="width:90px;height:90px;margin-top:4px;" alt="Loyalty QR">
+  </div>
+  <script>
+    (function(){
+      var url = "{{.LoyaltyRegisterURL}}";
+      if (!url) return;
+      document.getElementById("loyalty-qr").src =
+        "https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=" + encodeURIComponent(url);
+    })();
+  </script>
+  {{end}}
+
   {{if .PrintReceiptAuto}}
   <script>window.addEventListener('load', function() { window.print(); });</script>
   {{end}}

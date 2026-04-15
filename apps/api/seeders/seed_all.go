@@ -356,6 +356,16 @@ func SeedAll() error {
 		return err
 	}
 
+	// Loyalty seeder (default programs with Bronze/Silver/Gold/Platinum tiers)
+	if err := SeedLoyalty(); err != nil {
+		return err
+	}
+
+	// Loyalty member seeder (demo registered customers for POS lookup/redeem flows)
+	if err := SeedLoyaltyMembers(); err != nil {
+		return err
+	}
+
 	// Opening Balances seeder: Creates GL entries for inventory to match subledger
 	// (Must come BEFORE SeedJournalReconciliation)
 	if err := SeedOpeningBalances(); err != nil {

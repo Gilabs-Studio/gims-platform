@@ -262,6 +262,10 @@
     "visitReport": "Visit Report",
     "chatbot": "Chatbot",
     "settings": "Settings"
+    ,
+    "loyalty": "Loyalty",
+    "loyaltyConfig": "Loyalty Programs",
+    "loyaltyMembers": "Loyalty Members"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

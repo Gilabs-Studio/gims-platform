@@ -10,6 +10,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
 	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	loyaltyDTO "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
+	loyaltyUC "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -47,6 +49,14 @@ type posPaymentUsecase struct {
 	salesPaymentRepo salesRepos.SalesPaymentRepository
 	bankAccountRepo  coreRepos.BankAccountRepository
 	cipher           *securityInfra.CredentialCipher
+	// loyaltyUC is optional; when nil loyalty point accrual is skipped.
+	loyaltyUC loyaltyUC.LoyaltyUsecase
+}
+
+// WithLoyaltyUsecase injects the loyalty usecase for post-payment point accrual.
+func (u *posPaymentUsecase) WithLoyaltyUsecase(uc loyaltyUC.LoyaltyUsecase) *posPaymentUsecase {
+	u.loyaltyUC = uc
+	return u
 }
 
 const maxXenditDescriptionLen = 200
@@ -63,7 +73,7 @@ func NewPOSPaymentUsecase(
 	salesPaymentRepo salesRepos.SalesPaymentRepository,
 	bankAccountRepo coreRepos.BankAccountRepository,
 	cipher *securityInfra.CredentialCipher,
-) POSPaymentUsecase {
+) *posPaymentUsecase {
 	return &posPaymentUsecase{
 		paymentRepo:      paymentRepo,
 		orderRepo:        orderRepo,
@@ -395,6 +405,19 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	// stock discrepancies are reconciled by operations via an adjustment entry.
 	if err := u.orderUsecase.DeductStock(ctx, order, order.OrderNumber, userID); err != nil {
 		_ = err
+	}
+
+	// Award loyalty points when the order is linked to a loyalty member.
+	// Failures are non-blocking — the payment is the source of truth.
+	if u.loyaltyUC != nil && order.LoyaltyMemberID != nil {
+		processedBy := userID
+		_, _ = u.loyaltyUC.EarnPoints(ctx, &loyaltyDTO.EarnPointsRequest{
+			MemberID:        *order.LoyaltyMemberID,
+			TransactionID:   order.ID,
+			TransactionType: "pos_order",
+			TotalAmount:     order.TotalAmount,
+			ProcessedBy:     &processedBy,
+		})
 	}
 
 	return nil

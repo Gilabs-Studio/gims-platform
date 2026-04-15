@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatCurrency } from "@/lib/utils";
+import { PosLoyaltyLookup } from "@/features/loyalty/components/pos-loyalty-lookup";
 import type { CartItem, POSConfig } from "../types";
+import type { LoyaltyMemberLookup } from "@/features/loyalty/types";
 
 function normalizeRate(rate: number | undefined, fallback: number): number {
   if (rate === undefined || Number.isNaN(rate)) return fallback;
@@ -23,6 +25,11 @@ function formatRatePercent(rate: number): string {
 interface POSCartPanelProps {
   items: CartItem[];
   config?: POSConfig;
+  outletId?: string;
+  loyaltyLookup?: LoyaltyMemberLookup;
+  onLoyaltyMemberFound?: (lookup: LoyaltyMemberLookup) => void;
+  onLoyaltyEnrollRequest?: (name: string) => void;
+  onLoyaltyClear?: () => void;
   onIncrement: (productId: string) => void;
   onDecrement: (productId: string) => void;
   onRemove: (productId: string) => void;
@@ -33,6 +40,11 @@ interface POSCartPanelProps {
 export function POSCartPanel({
   items,
   config,
+  outletId,
+  loyaltyLookup,
+  onLoyaltyMemberFound,
+  onLoyaltyEnrollRequest,
+  onLoyaltyClear,
   onIncrement,
   onDecrement,
   onRemove,
@@ -48,13 +60,27 @@ export function POSCartPanel({
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-3 p-6">
-        <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center">
-          <ShoppingCart className="h-6 w-6 opacity-40" />
-        </div>
-        <div className="text-center">
-          <p className="text-sm font-medium">Cart is empty</p>
-          <p className="text-xs text-muted-foreground/70 mt-0.5">Tap a product to add it</p>
+      <div className="flex flex-col h-full overflow-hidden">
+        {outletId && onLoyaltyMemberFound && onLoyaltyEnrollRequest && onLoyaltyClear && (
+          <>
+            <PosLoyaltyLookup
+              outletId={outletId}
+              onMemberFound={onLoyaltyMemberFound}
+              onEnrollRequest={onLoyaltyEnrollRequest}
+              onClear={onLoyaltyClear}
+              selectedMemberId={loyaltyLookup?.member?.id}
+            />
+            <Separator />
+          </>
+        )}
+        <div className="flex flex-col flex-1 items-center justify-center text-muted-foreground gap-3 p-6">
+          <div className="h-14 w-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+            <ShoppingCart className="h-6 w-6 opacity-40" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium">Cart is empty</p>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">Tap a product to add it</p>
+          </div>
         </div>
       </div>
     );
@@ -62,6 +88,20 @@ export function POSCartPanel({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {/* Loyalty member lookup */}
+      {outletId && onLoyaltyMemberFound && onLoyaltyEnrollRequest && onLoyaltyClear && (
+        <>
+          <PosLoyaltyLookup
+            outletId={outletId}
+            onMemberFound={onLoyaltyMemberFound}
+            onEnrollRequest={onLoyaltyEnrollRequest}
+            onClear={onLoyaltyClear}
+            selectedMemberId={loyaltyLookup?.member?.id}
+          />
+          <Separator />
+        </>
+      )}
+
       {/* Item list */}
       <ScrollArea className="flex-1">
         <div className="px-3 py-2 space-y-0.5">

@@ -58,6 +58,28 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
+      {
+        name: "Loyalty",
+        i18nKey: "loyalty",
+        url: "/pos/loyalty",
+        icon: "star",
+        children: [
+          {
+            name: "Programs",
+            i18nKey: "loyaltyConfig",
+            url: "/pos/loyalty/config",
+            icon: "settings",
+            permission: "loyalty.manage",
+          },
+          {
+            name: "Members",
+            i18nKey: "loyaltyMembers",
+            url: "/pos/loyalty/members",
+            icon: "users",
+            permission: "loyalty.read",
+          },
+        ],
+      },
     ],
   },
   // CRM before Sales (lead -> opportunity -> order flow)

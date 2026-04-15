@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	feedbackDTO "github.com/gilabs/gims/api/internal/feedback/domain/dto"
 	feedbackUsecase "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
+	loyaltyUC "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
@@ -28,7 +29,9 @@ type POSReceiptHandler struct {
 	configRepo  repositories.POSConfigRepository
 	outletRepo  orgRepos.OutletRepository
 	// feedbackUC is optional; when nil the QR code section is omitted from the receipt.
-	feedbackUC  feedbackUsecase.FeedbackUsecase
+	feedbackUC feedbackUsecase.FeedbackUsecase
+	// loyaltyUC is optional; when nil the loyalty section is omitted from the receipt.
+	loyaltyUC loyaltyUC.LoyaltyUsecase
 }
 
 // NewPOSReceiptHandler constructs the receipt handler.
@@ -49,6 +52,11 @@ func NewPOSReceiptHandler(
 // WithFeedbackUsecase attaches the feedback usecase to enable QR code generation.
 func (h *POSReceiptHandler) WithFeedbackUsecase(uc feedbackUsecase.FeedbackUsecase) *POSReceiptHandler {
 	h.feedbackUC = uc
+	return h
+}
+
+func (h *POSReceiptHandler) WithLoyaltyUsecase(uc loyaltyUC.LoyaltyUsecase) *POSReceiptHandler {
+	h.loyaltyUC = uc
 	return h
 }
 
@@ -94,6 +102,17 @@ type receiptTemplateData struct {
 	// FeedbackQRBase64 is a data URI (image/png) of the QR code for FeedbackURL.
 	// When empty the QR section is hidden in the template.
 	FeedbackQRBase64 template.URL
+
+	// Loyalty fields — populated when the customer is a loyalty member.
+	LoyaltyMemberCode   string
+	LoyaltyTier         string
+	LoyaltyBadgeColor   string
+	LoyaltyPointsEarned int64
+	LoyaltyTotalBalance int64
+	ShowLoyaltySection  bool
+	// ShowLoyaltyInvite is true when the customer is not yet a member.
+	ShowLoyaltyInvite  bool
+	LoyaltyRegisterURL string
 }
 
 // ─── HTML template ────────────────────────────────────────────────────────────
@@ -227,6 +246,25 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 			}
 		}
 		// Non-fatal: silently skip QR code when no active form exists or generation fails.
+	}
+
+	// ── Loyalty section ───────────────────────────────────────────────────────
+	// Show member tier + points earned when the order is linked to a loyalty member,
+	// or show a "join loyalty" invite when the customer is not yet a member.
+	if h.loyaltyUC != nil && orderResp.LoyaltyMemberID != nil {
+		if memberResp, errLoyalty := h.loyaltyUC.GetMember(c.Request.Context(), *orderResp.LoyaltyMemberID); errLoyalty == nil {
+			data.ShowLoyaltySection = true
+			data.LoyaltyMemberCode = memberResp.MemberCode
+			data.LoyaltyTier = memberResp.CurrentTier
+			data.LoyaltyBadgeColor = memberResp.TierBadgeColor
+			data.LoyaltyTotalBalance = memberResp.PointBalance
+		}
+	} else if h.loyaltyUC != nil {
+		// Invite non-members to self-register via QR code on the public page.
+		appBaseURL := strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
+		data.ShowLoyaltyInvite = true
+		data.LoyaltyRegisterURL = fmt.Sprintf("%s/en/public/loyalty/register?order=%s&outlet=%s",
+			appBaseURL, orderResp.ID, orderResp.OutletID)
 	}
 
 	// ── Render ───────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import (
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	loyalty "github.com/gilabs/gims/api/internal/loyalty/data/models"
 	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
@@ -298,6 +299,10 @@ func AutoMigrate() error {
 		&feedback.FeedbackForm{},
 		&feedback.FeedbackToken{},
 		&feedback.FeedbackResponse{},
+		// Loyalty module
+		&loyalty.LoyaltyProgram{},
+		&loyalty.LoyaltyMember{},
+		&loyalty.LoyaltyPointLedger{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

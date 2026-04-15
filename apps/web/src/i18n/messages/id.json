@@ -261,6 +261,10 @@
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
+    ,
+    "loyalty": "Loyalitas",
+    "loyaltyConfig": "Program Loyalitas",
+    "loyaltyMembers": "Anggota Loyalitas"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

@@ -87,6 +87,9 @@ const EXTRA_VALID_ROUTES = [
   "/pos/goods/returns-exchange",
   "/pos/feedback/response",
   "/pos/feedback/forms",
+  "/pos/loyalty",
+  "/pos/loyalty/config",
+  "/pos/loyalty/members",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

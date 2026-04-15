@@ -532,6 +532,27 @@ func SeedMenus() error {
 		}
 	}
 
+	// Loyalty (POS member lookup, enrollment, and member management)
+	loyaltyMenu, err := createChildMenu("Loyalty", "star", "/pos/loyalty", &posMenu.ID, 4)
+	if err != nil {
+		return err
+	}
+
+	loyaltyChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Programs", "settings", "/pos/loyalty/config", 1},
+		{"Members", "users", "/pos/loyalty/members", 2},
+	}
+	for _, child := range loyaltyChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &loyaltyMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
 	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
 	journalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
 	if err != nil {

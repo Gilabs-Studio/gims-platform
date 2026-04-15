@@ -16,6 +16,8 @@ import { useProcessCashPayment, useInitiateDigitalPayment, usePOSPayments, useXe
 import type { POSOrder, POSConfig, POSPayment, XenditPaymentChannel, XenditChannelCategory } from "../types";
 import { Loader2, CheckCircle2, XCircle, WifiOff, ArrowLeft, QrCode, Landmark, Wallet, CreditCard, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PosLoyaltyRedeemPanel } from "@/features/loyalty/components/pos-loyalty-redeem-panel";
+import type { LoyaltyMember, RewardConfig } from "@/features/loyalty/types";
 
 interface POSPaymentModalProps {
   open: boolean;
@@ -24,6 +26,14 @@ interface POSPaymentModalProps {
   config?: POSConfig;
   onSuccess: (customerName?: string, tenderAmount?: number) => void;
   onPaymentError?: () => void;
+  /** Loyalty member linked to this transaction (optional) */
+  loyaltyMember?: LoyaltyMember;
+  /** Available rewards for the loyalty member */
+  loyaltyRewards?: RewardConfig[];
+  /** Called when a reward is redeemed */
+  onLoyaltyRedeem?: (reward: RewardConfig) => void;
+  /** Already-redeemed reward ID for this session */
+  redeemedRewardId?: string;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -124,6 +134,10 @@ export function POSPaymentModal({
   order,
   onSuccess,
   onPaymentError,
+  loyaltyMember,
+  loyaltyRewards = [],
+  onLoyaltyRedeem,
+  redeemedRewardId,
 }: POSPaymentModalProps) {
   const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
@@ -287,6 +301,16 @@ export function POSPaymentModal({
             className="h-8 text-sm"
           />
         </div>
+
+        {/* Loyalty redemption panel — visible only when a loyalty member is linked */}
+        {loyaltyMember && loyaltyRewards.length > 0 && onLoyaltyRedeem && (
+          <PosLoyaltyRedeemPanel
+            member={loyaltyMember}
+            availableRewards={loyaltyRewards}
+            onRedeemed={onLoyaltyRedeem}
+            redeemedRewardId={redeemedRewardId}
+          />
+        )}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="w-full">

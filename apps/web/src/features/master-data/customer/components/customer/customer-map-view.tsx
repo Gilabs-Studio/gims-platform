@@ -227,6 +227,7 @@ export function CustomerMapView() {
                   onDelete={() => actions.setDeletingId(customer.id)}
                   canUpdate={permissions.canUpdate}
                   canDelete={permissions.canDelete}
+                  canReadLoyalty={permissions.canReadLoyalty}
                 />
               ))}
             </>

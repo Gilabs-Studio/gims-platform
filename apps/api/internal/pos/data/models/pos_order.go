@@ -72,7 +72,10 @@ type PosOrder struct {
 	VoidReason        *string        `gorm:"type:text" json:"void_reason"`
 	SalesOrderID      *string        `gorm:"type:uuid;index" json:"sales_order_id"`
 	CustomerInvoiceID *string        `gorm:"type:uuid;index" json:"customer_invoice_id"`
-	CreatedBy         string         `gorm:"type:uuid;not null;index" json:"created_by"`
+	// LoyaltyMemberID and LoyaltyRewardID link an applied loyalty reward to the order.
+	LoyaltyMemberID *string `gorm:"type:uuid;index" json:"loyalty_member_id,omitempty"`
+	LoyaltyRewardID *string `gorm:"type:varchar(100)" json:"loyalty_reward_id,omitempty"`
+	CreatedBy        string  `gorm:"type:uuid;not null;index" json:"created_by"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`

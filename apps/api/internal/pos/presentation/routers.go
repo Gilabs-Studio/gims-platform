@@ -15,6 +15,7 @@ import (
 	feedbackUC "github.com/gilabs/gims/api/internal/feedback/domain/usecase"
 	invDataRepos "github.com/gilabs/gims/api/internal/inventory/data/repositories"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
+	loyaltyUsecasePkg "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	orgRepo "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/usecase"
@@ -24,10 +25,11 @@ import (
 )
 
 // RegisterRoutes registers all POS domain routes under /api/v1/pos.
+// loyaltyUC is optional; pass nil to disable loyalty integration.
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}) {
+}, loyaltyUC loyaltyUsecasePkg.LoyaltyUsecase) {
 	credentialCipher, err := securityInfra.NewCredentialCipher(config.AppConfig.Security.XenditCredentialEncryptionKey)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize Xendit credential cipher: %v", err))
@@ -74,6 +76,10 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 		outletRepo,
 	)
 	receiptH = receiptH.WithFeedbackUsecase(fbUC)
+	if loyaltyUC != nil {
+		receiptH = receiptH.WithLoyaltyUsecase(loyaltyUC)
+		paymentUC = paymentUC.WithLoyaltyUsecase(loyaltyUC)
+	}
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)
