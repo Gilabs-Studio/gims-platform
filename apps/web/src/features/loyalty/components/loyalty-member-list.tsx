@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
-import { Search } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, ArrowRightLeft } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
   Table,
@@ -15,11 +21,14 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 import { useLoyaltyMembers } from "../hooks/use-loyalty";
 import { LoyaltyTierBadge } from "./loyalty-tier-badge";
 import { LoyaltyMemberDetailDialog } from "./loyalty-member-detail-dialog";
+import { LoyaltyEnrollDialog } from "./loyalty-enroll-dialog";
+import { LoyaltyChangeProgramDialog } from "./loyalty-change-program-dialog";
 import type { LoyaltyMember } from "../types";
 
 export function LoyaltyMemberList() {
@@ -27,6 +36,8 @@ export function LoyaltyMemberList() {
   const tCommon = useTranslations("common");
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<LoyaltyMember | null>(null);
+  const [changeProgramMember, setChangeProgramMember] = useState<LoyaltyMember | null>(null);
+  const [enrollOpen, setEnrollOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   // The members hook doesn't accept `search` in its params type — pass pagination only.
@@ -47,6 +58,13 @@ export function LoyaltyMemberList() {
             Manage your loyalty program members
           </p>
         </div>
+        <Button
+          className="cursor-pointer gap-1.5"
+          onClick={() => setEnrollOpen(true)}
+        >
+          <UserPlus className="h-4 w-4" />
+          {t("members.enroll")}
+        </Button>
       </div>
 
       {/* Search */}
@@ -76,6 +94,7 @@ export function LoyaltyMemberList() {
               <TableHead className="text-right">{t("members.pointBalance")}</TableHead>
               <TableHead className="text-right">{t("members.totalTransactions")}</TableHead>
               <TableHead>{t("members.joinedAt")}</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -92,7 +111,7 @@ export function LoyaltyMemberList() {
               ))
             ) : members.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   {t("members.empty")}
                 </TableCell>
               </TableRow>
@@ -121,6 +140,22 @@ export function LoyaltyMemberList() {
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(member.joined_at), "dd MMM yyyy")}
                   </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setChangeProgramMember(member)}>
+                          <ArrowRightLeft className="mr-2 h-4 w-4" />
+                          Change Program
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -145,6 +180,16 @@ export function LoyaltyMemberList() {
       <LoyaltyMemberDetailDialog
         member={selectedMember}
         onClose={() => setSelectedMember(null)}
+      />
+
+      <LoyaltyEnrollDialog
+        open={enrollOpen}
+        onOpenChange={setEnrollOpen}
+      />
+
+      <LoyaltyChangeProgramDialog
+        member={changeProgramMember}
+        onClose={() => setChangeProgramMember(null)}
       />
     </div>
   );

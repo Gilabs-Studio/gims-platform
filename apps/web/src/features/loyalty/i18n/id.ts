@@ -65,6 +65,17 @@ export const loyaltyId = {
       joinedAt: "Bergabung Sejak",
       enroll: "Daftarkan Anggota",
       enrolled: "Anggota berhasil didaftarkan",
+      enrollError: "Gagal mendaftarkan anggota. Silakan coba lagi.",
+      enrollSelectProgram: "Pilih program loyalitas terlebih dahulu.",
+      enrollDialog: {
+        program: "Program Loyalitas",
+        selectProgram: "Pilih program...",
+        tabExisting: "Pelanggan Lama",
+        tabNew: "Pelanggan Baru",
+        selectedCustomer: "Dipilih",
+        select: "Select",
+        selected: "Dipilih",
+      },
       filters: {
         tier: "Filter Tier",
         allTiers: "Semua Tier",

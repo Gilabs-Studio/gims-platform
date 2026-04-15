@@ -43,6 +43,7 @@ type LoyaltyUsecase interface {
 
 	// Member management
 	EnrollMember(ctx context.Context, enrolledBy string, req *dto.EnrollMemberRequest) (*dto.LoyaltyMemberResponse, error)
+	ChangeProgram(ctx context.Context, id, updatedBy string, req *dto.ChangeProgramRequest) (*dto.LoyaltyMemberResponse, error)
 	GetMember(ctx context.Context, id string) (*dto.LoyaltyMemberResponse, error)
 	GetMemberByCustomerID(ctx context.Context, customerID string) (*dto.LoyaltyMemberResponse, error)
 	LookupMember(ctx context.Context, name, outletID string) (*dto.LookupMemberResponse, error)
@@ -206,7 +207,10 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 	if req.ProgramID != nil {
 		programID = *req.ProgramID
 	} else {
-		prog, err := u.programRepo.FindActiveForOutlet(ctx, req.OutletID)
+		if req.OutletID == nil || *req.OutletID == "" {
+			return nil, errors.New("PROGRAM_OR_OUTLET_REQUIRED")
+		}
+		prog, err := u.programRepo.FindActiveForOutlet(ctx, *req.OutletID)
 		if err != nil {
 			return nil, err
 		}
@@ -235,8 +239,8 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 			Code: code,
 			Name: req.Name,
 		}
-		if req.Phone != "" {
-			newCustomer.ContactPerson = req.Phone
+		if req.Phone != nil && *req.Phone != "" {
+			newCustomer.ContactPerson = *req.Phone
 		}
 		if req.Email != nil {
 			newCustomer.Email = *req.Email
@@ -280,7 +284,7 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 		CustomerID:       customerID,
 		ProgramID:        programID,
 		MemberCode:       memberCode,
-		EnrolledOutletID: &req.OutletID,
+		EnrolledOutletID: req.OutletID,
 		CurrentTier:      tier.Name,
 		TierBadgeColor:   tier.BadgeColor,
 		LifetimePoints:   0,
@@ -302,11 +306,58 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 			TransactionType: "pos_order",
 			ProcessedBy:     &enrolledBy,
 		})
-		// Re-fetch member to get updated balances.
+	}
+
+	// If an existing customer is being enrolled for the first time, backfill historical
+	// purchase points from previously completed POS orders.
+	if req.CustomerID != nil {
+		u.backfillHistoricalPoints(ctx, member, cfg, customerID, enrolledBy)
+	}
+
+	// Re-fetch member to reflect any points earned or backfilled above.
+	if req.PosOrderID != nil || req.CustomerID != nil {
 		member, _ = u.memberRepo.GetByID(ctx, member.ID)
 	}
 
 	return u.buildMemberResponse(ctx, member, customerRecord)
+}
+
+func (u *loyaltyUsecase) ChangeProgram(ctx context.Context, id, updatedBy string, req *dto.ChangeProgramRequest) (*dto.LoyaltyMemberResponse, error) {
+	member, err := u.memberRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, ErrLoyaltyMemberNotFound
+	}
+
+	if member.ProgramID == req.ProgramID {
+		return u.GetMember(ctx, id)
+	}
+
+	program, err := u.programRepo.GetByID(ctx, req.ProgramID)
+	if err != nil || program == nil {
+		return nil, ErrLoyaltyProgramNotFound
+	}
+
+	cfg, err := parseConfig(program)
+	if err != nil {
+		return nil, err
+	}
+
+	tier := computeTier(member.LifetimePoints, cfg.Tiers)
+
+	err = u.db.WithContext(ctx).Model(&models.LoyaltyMember{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"program_id":       req.ProgramID,
+		"current_tier":     tier.Name,
+		"tier_badge_color": tier.BadgeColor,
+		"updated_by":       &updatedBy,
+	}).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return u.GetMember(ctx, id)
 }
 
 func (u *loyaltyUsecase) GetMember(ctx context.Context, id string) (*dto.LoyaltyMemberResponse, error) {
@@ -588,6 +639,55 @@ func (u *loyaltyUsecase) AdjustPoints(ctx context.Context, req *dto.AdjustPoints
 	})
 }
 
+// backfillHistoricalPoints awards adjusted points for a newly enrolled customer based on
+// the total revenue of their previously completed POS orders. This is best-effort:
+// errors are silently ignored so that enrollment itself always succeeds.
+func (u *loyaltyUsecase) backfillHistoricalPoints(ctx context.Context, member *models.LoyaltyMember, cfg *dto.LoyaltyConfigJSON, customerID, enrolledBy string) {
+	if cfg.PointRules.AmountPerPoint <= 0 || cfg.PointRules.PointsPerAmount <= 0 {
+		return
+	}
+
+	var totalRevenue float64
+	if err := u.db.WithContext(ctx).
+		Table("pos_orders").
+		Where("customer_id = ? AND status IN ?", customerID, []string{"PAID", "COMPLETED"}).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&totalRevenue).Error; err != nil || totalRevenue <= 0 {
+		return
+	}
+
+	backfillPoints := int64(math.Floor(totalRevenue / cfg.PointRules.AmountPerPoint * cfg.PointRules.PointsPerAmount))
+	if backfillPoints <= 0 {
+		return
+	}
+
+	note := "Historical purchase backfill"
+	_ = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		entry := &models.LoyaltyPointLedger{
+			MemberID:      member.ID,
+			EntryType:     models.LedgerEntryTypeAdjusted,
+			Points:        backfillPoints,
+			BalanceAfter:  member.PointBalance + backfillPoints,
+			LifetimeAfter: member.LifetimePoints + backfillPoints,
+			Notes:         &note,
+			ProcessedBy:   &enrolledBy,
+		}
+		if err := tx.Create(entry).Error; err != nil {
+			return err
+		}
+
+		newLifetime := member.LifetimePoints + backfillPoints
+		newTier := computeTier(newLifetime, cfg.Tiers)
+
+		return tx.Model(&models.LoyaltyMember{}).Where("id = ?", member.ID).Updates(map[string]interface{}{
+			"point_balance":   gorm.Expr("point_balance + ?", backfillPoints),
+			"lifetime_points": gorm.Expr("lifetime_points + ?", backfillPoints),
+			"current_tier":    newTier.Name,
+			"tier_badge_color": newTier.BadgeColor,
+		}).Error
+	})
+}
+
 func (u *loyaltyUsecase) ListLedger(ctx context.Context, params repositories.LedgerListParams) ([]dto.PointLedgerResponse, *utils.PaginationResult, error) {
 	entries, total, err := u.ledgerRepo.ListByMember(ctx, params)
 	if err != nil {
@@ -613,10 +713,11 @@ func (u *loyaltyUsecase) ListLedger(ctx context.Context, params repositories.Led
 
 // PublicSelfRegister allows a walk-in customer to self-register via a QR code on their receipt.
 func (u *loyaltyUsecase) PublicSelfRegister(ctx context.Context, req *dto.PublicSelfRegisterRequest) (*dto.PublicSelfRegisterResponse, error) {
+	phone := req.Phone
 	enrollReq := &dto.EnrollMemberRequest{
-		OutletID:   req.OutletID,
+		OutletID:   &req.OutletID,
 		Name:       req.Name,
-		Phone:      req.Phone,
+		Phone:      &phone,
 		Email:      req.Email,
 		PosOrderID: &req.OrderID,
 	}

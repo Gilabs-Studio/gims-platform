@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useProcessCashPayment, useInitiateDigitalPayment, usePOSPayments, useXenditConnectionStatus } from "../hooks/use-pos";
@@ -17,6 +18,7 @@ import type { POSOrder, POSConfig, POSPayment, XenditPaymentChannel, XenditChann
 import { Loader2, CheckCircle2, XCircle, WifiOff, ArrowLeft, QrCode, Landmark, Wallet, CreditCard, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PosLoyaltyRedeemPanel } from "@/features/loyalty/components/pos-loyalty-redeem-panel";
+import { useEnrollLoyaltyMember } from "@/features/loyalty/hooks/use-loyalty";
 import type { LoyaltyMember, RewardConfig } from "@/features/loyalty/types";
 
 interface POSPaymentModalProps {
@@ -145,10 +147,14 @@ export function POSPaymentModal({
   const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
+  const [enrollLoyalty, setEnrollLoyalty] = useState(false);
+  const [loyaltyPhone, setLoyaltyPhone] = useState("");
+  const [loyaltyEmail, setLoyaltyEmail] = useState("");
   const hasCompletedDigitalPaymentRef = useRef(false);
   const autoOpenedPaymentUrlRef = useRef<string | null>(null);
 
   const t = useTranslations("posTerminal.payment");
+  const enrollMutation = useEnrollLoyaltyMember();
 
   const { data: paymentsData } = usePOSPayments(order.id, {
     // Only fetch payments list when polling for digital payment status confirmation.
@@ -174,9 +180,22 @@ export function POSPaymentModal({
     const latestPayment = payments[0];
     if (latestPayment?.status === "PAID") {
       hasCompletedDigitalPaymentRef.current = true;
+      // Fire-and-forget loyalty enrollment after digital payment
+      if (enrollLoyalty && customerName.trim()) {
+        enrollMutation.mutateAsync({
+          outlet_id: order.outlet_id,
+          name: customerName.trim(),
+          phone: loyaltyPhone || undefined,
+          email: loyaltyEmail || undefined,
+        }).then(() => {
+          toast.success(t("enrollSuccess"));
+        }).catch(() => {
+          toast.error(t("enrollError"));
+        });
+      }
       onSuccess(customerName.trim() || undefined);
     }
-  }, [paymentsData, onSuccess, customerName]);
+  }, [paymentsData, onSuccess, customerName, enrollLoyalty, loyaltyPhone, loyaltyEmail, order.outlet_id, enrollMutation, t]);
 
   useEffect(() => {
     const paymentUrl = digitalPayment?.payment_url?.trim() ?? "";
@@ -210,6 +229,19 @@ export function POSPaymentModal({
           customer_name: customerName.trim() || undefined,
         },
       });
+      // Fire-and-forget loyalty enrollment after successful cash payment
+      if (enrollLoyalty && customerName.trim()) {
+        enrollMutation.mutateAsync({
+          outlet_id: order.outlet_id,
+          name: customerName.trim(),
+          phone: loyaltyPhone || undefined,
+          email: loyaltyEmail || undefined,
+        }).then(() => {
+          toast.success(t("enrollSuccess"));
+        }).catch(() => {
+          toast.error(t("enrollError"));
+        });
+      }
       onSuccess(customerName.trim() || undefined, tenderAmount);
     } catch {
       toast.error("Payment failed. Please try again.");
@@ -259,13 +291,16 @@ export function POSPaymentModal({
       setPollingEnabled(false);
       hasCompletedDigitalPaymentRef.current = false;
       autoOpenedPaymentUrlRef.current = null;
+      setEnrollLoyalty(false);
+      setLoyaltyPhone("");
+      setLoyaltyEmail("");
     }
     onOpenChange(nextOpen);
   }
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-md gap-5">
+      <DialogContent size="lg" className="gap-5">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold tracking-tight">{t("title")}</DialogTitle>
         </DialogHeader>
@@ -274,11 +309,11 @@ export function POSPaymentModal({
         <div className="rounded-2xl border border-border/70 bg-linear-to-b from-background to-muted/30 px-4 py-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 space-y-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {t("orderLabel")} #{order.order_number}
-              </p>
-              <p className="text-sm text-muted-foreground">{t("readyForPayment")}</p>
-            </div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  {t("orderLabel")} #{order.order_number}
+                </p>
+                <p className="text-sm text-muted-foreground hidden sm:block">{t("readyForPayment")}</p>
+              </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("amountDue")}</p>
               <p className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -289,17 +324,62 @@ export function POSPaymentModal({
         </div>
 
         {/* Optional customer name — used on receipt */}
-        <div className="space-y-1">
-          <Label htmlFor="customerName" className="text-xs text-muted-foreground">
-            {t("customerName")} <span className="text-muted-foreground/60">({t("optional")})</span>
-          </Label>
-          <Input
-            id="customerName"
-            placeholder={t("exampleCustomer")}
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="h-8 text-sm"
-          />
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <Label htmlFor="customerName" className="text-xs text-muted-foreground">
+              {t("customerName")} <span className="text-muted-foreground/60">({t("optional")})</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="customerName"
+                placeholder={t("exampleCustomer")}
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Checkbox
+                  id="enrollLoyalty"
+                  checked={enrollLoyalty}
+                  onCheckedChange={(checked) => {
+                    setEnrollLoyalty(checked === true);
+                    if (!checked) {
+                      setLoyaltyPhone("");
+                      setLoyaltyEmail("");
+                    }
+                  }}
+                />
+                <Label htmlFor="enrollLoyalty" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                  {t("enrollLoyalty")}
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {enrollLoyalty && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("enrollPhone")}</Label>
+                <Input
+                  type="tel"
+                  placeholder="081234567890"
+                  value={loyaltyPhone}
+                  onChange={(e) => setLoyaltyPhone(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">{t("enrollEmail")}</Label>
+                <Input
+                  type="email"
+                  placeholder="email@example.com"
+                  value={loyaltyEmail}
+                  onChange={(e) => setLoyaltyEmail(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Loyalty redemption panel — visible only when a loyalty member is linked */}

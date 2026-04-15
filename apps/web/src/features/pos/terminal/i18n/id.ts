@@ -82,6 +82,11 @@ export const posTerminalId = {
       channel: "Channel",
       amountToPay: "Jumlah yang Harus Dibayar",
       vaCopied: "Nomor virtual account disalin",
+      enrollLoyalty: "Daftarkan ke program loyalitas",
+      enrollPhone: "Nomor telepon",
+      enrollEmail: "Email (opsional)",
+      enrollSuccess: "Pelanggan berhasil didaftarkan ke program loyalitas",
+      enrollError: "Gagal mendaftar loyalitas. Pembayaran tetap berhasil.",
       status: {
         pending: "Menunggu",
         paid: "Lunas",

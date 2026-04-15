@@ -135,7 +135,21 @@ return
 }
 response.SuccessResponseCreated(c, resp, nil)
 }
-
+func (h *LoyaltyHandler) ChangeProgram(c *gin.Context) {
+	id := c.Param("id")
+	var req dto.ChangeProgramRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ValidationErrorResponse(c, nil)
+		return
+	}
+	userID := extractUserID(c)
+	resp, err := h.uc.ChangeProgram(c.Request.Context(), id, userID, &req)
+	if err != nil {
+		handleLoyaltyError(c, err)
+		return
+	}
+	response.SuccessResponse(c, resp, nil)
+}
 func (h *LoyaltyHandler) GetMember(c *gin.Context) {
 id := c.Param("id")
 resp, err := h.uc.GetMember(c.Request.Context(), id)

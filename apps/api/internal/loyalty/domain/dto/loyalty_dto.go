@@ -68,14 +68,16 @@ type LoyaltyProgramResponse struct {
 // ─── Member DTOs ──────────────────────────────────────────────────────────────
 
 // EnrollMemberRequest registers a customer into a loyalty program from POS.
-// If CustomerID is empty, a new customer record will be created from Name + Phone.
+// If CustomerID is provided, the existing customer record is used and Phone/Email are optional.
+// If CustomerID is empty, a new customer is created — Name is still required.
 type EnrollMemberRequest struct {
 	CustomerID *string `json:"customer_id"`
 	ProgramID  *string `json:"program_id"` // resolved from outlet if omitted
-	OutletID   string  `json:"outlet_id" binding:"required"`
+	OutletID   *string `json:"outlet_id"`
 	Name       string  `json:"name" binding:"required,max=255"`
-	Phone      string  `json:"phone" binding:"required,max=30"`
-	Email      *string `json:"email"`
+	// Phone is optional when CustomerID is provided; the backend looks up the customer record.
+	Phone *string `json:"phone" binding:"omitempty,max=30"`
+	Email  *string `json:"email"`
 	// PosOrderID links the enrollment to the current transaction so points can be credited immediately.
 	PosOrderID *string `json:"pos_order_id"`
 }
@@ -96,6 +98,10 @@ type LoyaltyMemberResponse struct {
 	// CustomerName is joined from the customers table for display purposes.
 	CustomerName  string  `json:"customer_name"`
 	CustomerPhone *string `json:"customer_phone,omitempty"`
+}
+
+type ChangeProgramRequest struct {
+	ProgramID string `json:"program_id" binding:"required"`
 }
 
 // LookupMemberResponse is the lightweight response used by the POS terminal

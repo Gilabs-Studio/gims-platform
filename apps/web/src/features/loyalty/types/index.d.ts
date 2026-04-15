@@ -96,7 +96,7 @@ export interface UpdateLoyaltyProgramRequest {
 
 export interface EnrollMemberRequest {
   program_id?: string;
-  outlet_id: string;
+  outlet_id?: string;
   customer_id?: string;
   name: string;
   phone?: string;

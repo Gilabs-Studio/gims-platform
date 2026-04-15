@@ -73,6 +73,13 @@
     "complete": "Complete",
     "reset": "Reset",
     "clearAll": "Clear All"
+    ,
+    "name": "Name",
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "select": "Select"
   },
   "notFound": {
     "label": "404",
@@ -266,6 +273,12 @@
     "loyalty": "Loyalty",
     "loyaltyConfig": "Loyalty Programs",
     "loyaltyMembers": "Loyalty Members"
+  },
+  "loyalty": {
+    "members": {
+      "changeProgram": "Change Program",
+      "changeProgramSuccess": "Program changed successfully"
+    }
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

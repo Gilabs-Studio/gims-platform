@@ -82,6 +82,11 @@ export const posTerminalEn = {
       channel: "Channel",
       amountToPay: "Amount to Pay",
       vaCopied: "Virtual account number copied",
+      enrollLoyalty: "Enroll as loyalty member",
+      enrollPhone: "Phone number",
+      enrollEmail: "Email (optional)",
+      enrollSuccess: "Customer enrolled in loyalty program",
+      enrollError: "Failed to enroll in loyalty. Payment was completed.",
       status: {
         pending: "Waiting",
         paid: "Paid",

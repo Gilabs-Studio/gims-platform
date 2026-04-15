@@ -71,7 +71,12 @@
     "systemInfo": "Informasi Sistem",
     "description": "Deskripsi",
     "amount": "Jumlah",
-    "match": "Cocok"
+    "match": "Cocok",
+    "name": "Nama",
+    "actions": {
+      "cancel": "Batal",
+      "save": "Simpan"
+    }
   },
   "notFound": {
     "label": "404",
@@ -146,6 +151,11 @@
     "product": "Produk",
     "products": "Produk",
     "categories": "Kategori",
+    "loyalty": {
+      "members": {
+        "changeProgram": "Pindah Program"
+      }
+    },
     "brands": "Merek",
     "segments": "Segmen",
     "types": "Jenis",

@@ -27,6 +27,7 @@ func RegisterLoyaltyRoutes(group *gin.RouterGroup, h *handler.LoyaltyHandler) {
 	members.GET("/lookup", middleware.RequirePermission("loyalty.read"), h.LookupMember)
 	members.GET("/by-customer/:customer_id", middleware.RequirePermission("loyalty.read"), h.GetMemberByCustomer)
 	members.GET("/:id", middleware.RequirePermission("loyalty.read"), h.GetMember)
+	members.PUT("/:id/program", middleware.RequirePermission("loyalty.update"), h.ChangeProgram)
 
 	// Points ledger
 	loyalty.GET("/ledger/:member_id", middleware.RequirePermission("loyalty.read"), h.ListLedger)

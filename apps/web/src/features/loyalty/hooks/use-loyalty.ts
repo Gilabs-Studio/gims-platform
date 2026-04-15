@@ -118,6 +118,17 @@ export function useEnrollLoyaltyMember() {
   });
 }
 
+export function useChangeMemberProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ memberId, programId }: { memberId: string; programId: string }) => 
+      loyaltyService.changeMemberProgram(memberId, programId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [MEMBERS_KEY] });
+    },
+  });
+}
+
 // ── Points ────────────────────────────────────────────────────────────────────
 
 export function useRedeemPoints() {

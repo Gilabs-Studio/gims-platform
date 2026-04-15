@@ -79,6 +79,11 @@ export const loyaltyService = {
     return r.data;
   },
 
+  changeMemberProgram: async (memberId: string, programId: string): Promise<ApiResponse<LoyaltyMember>> => {
+    const r = await apiClient.put(`${BASE}/members/${memberId}/program`, { program_id: programId });
+    return r.data;
+  },
+
   // ── Points (protected) ────────────────────────────────────────────────────
   redeemPoints: async (data: RedeemPointsRequest): Promise<ApiResponse<RedeemPointsResponse>> => {
     const r = await apiClient.post(`${BASE}/redeem`, data);

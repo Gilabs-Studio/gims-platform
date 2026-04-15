@@ -65,6 +65,17 @@ export const loyaltyEn = {
       joinedAt: "Member Since",
       enroll: "Enroll Member",
       enrolled: "Member enrolled successfully",
+      enrollError: "Failed to enroll member. Please try again.",
+      enrollSelectProgram: "Please select a loyalty program first.",
+      enrollDialog: {
+        program: "Loyalty Program",
+        selectProgram: "Select a program...",
+        tabExisting: "Existing Customer",
+        tabNew: "New Customer",
+        selectedCustomer: "Selected",
+        select: "Select",
+        selected: "Selected",
+      },
       filters: {
         tier: "Filter by Tier",
         allTiers: "All Tiers",
