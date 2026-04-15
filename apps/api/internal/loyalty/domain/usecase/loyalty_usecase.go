@@ -298,12 +298,18 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 		return nil, err
 	}
 
+	linkedOrderTotalAmount := 0.0
+	if req.PosOrderID != nil && *req.PosOrderID != "" {
+		linkedOrderTotalAmount = u.linkCustomerToPOSOrderAndSalesOrder(ctx, *req.PosOrderID, customerRecord)
+	}
+
 	// If a POS order was linked, credit points for it immediately.
-	if req.PosOrderID != nil {
+	if req.PosOrderID != nil && *req.PosOrderID != "" {
 		_, _ = u.EarnPoints(ctx, &dto.EarnPointsRequest{
 			MemberID:        member.ID,
 			TransactionID:   *req.PosOrderID,
 			TransactionType: "pos_order",
+			TotalAmount:     linkedOrderTotalAmount,
 			ProcessedBy:     &enrolledBy,
 		})
 	}
@@ -311,7 +317,7 @@ func (u *loyaltyUsecase) EnrollMember(ctx context.Context, enrolledBy string, re
 	// If an existing customer is being enrolled for the first time, backfill historical
 	// purchase points from previously completed POS orders.
 	if req.CustomerID != nil {
-		u.backfillHistoricalPoints(ctx, member, cfg, customerID, enrolledBy)
+		u.backfillHistoricalPoints(ctx, member, cfg, customerID, enrolledBy, req.PosOrderID)
 	}
 
 	// Re-fetch member to reflect any points earned or backfilled above.
@@ -474,7 +480,12 @@ func (u *loyaltyUsecase) EarnPoints(ctx context.Context, req *dto.EarnPointsRequ
 	}
 
 	// Skip if transaction is below minimum amount.
-	if req.TotalAmount < cfg.PointRules.MinTransactionAmount {
+	effectiveTotalAmount := req.TotalAmount
+	if effectiveTotalAmount <= 0 {
+		effectiveTotalAmount = u.resolveTransactionAmount(ctx, req.TransactionType, req.TransactionID)
+	}
+
+	if effectiveTotalAmount < cfg.PointRules.MinTransactionAmount {
 		return 0, nil
 	}
 
@@ -486,7 +497,7 @@ func (u *loyaltyUsecase) EarnPoints(ctx context.Context, req *dto.EarnPointsRequ
 
 	basePoints := int64(0)
 	if cfg.PointRules.AmountPerPoint > 0 {
-		basePoints = int64(math.Floor(req.TotalAmount / cfg.PointRules.AmountPerPoint * cfg.PointRules.PointsPerAmount))
+		basePoints = int64(math.Floor(effectiveTotalAmount / cfg.PointRules.AmountPerPoint * cfg.PointRules.PointsPerAmount))
 	}
 	earnedPoints := int64(math.Floor(float64(basePoints) * multiplier))
 	if earnedPoints <= 0 {
@@ -642,15 +653,21 @@ func (u *loyaltyUsecase) AdjustPoints(ctx context.Context, req *dto.AdjustPoints
 // backfillHistoricalPoints awards adjusted points for a newly enrolled customer based on
 // the total revenue of their previously completed POS orders. This is best-effort:
 // errors are silently ignored so that enrollment itself always succeeds.
-func (u *loyaltyUsecase) backfillHistoricalPoints(ctx context.Context, member *models.LoyaltyMember, cfg *dto.LoyaltyConfigJSON, customerID, enrolledBy string) {
+func (u *loyaltyUsecase) backfillHistoricalPoints(ctx context.Context, member *models.LoyaltyMember, cfg *dto.LoyaltyConfigJSON, customerID, enrolledBy string, excludePosOrderID *string) {
 	if cfg.PointRules.AmountPerPoint <= 0 || cfg.PointRules.PointsPerAmount <= 0 {
 		return
 	}
 
 	var totalRevenue float64
-	if err := u.db.WithContext(ctx).
+	query := u.db.WithContext(ctx).
 		Table("pos_orders").
-		Where("customer_id = ? AND status IN ?", customerID, []string{"PAID", "COMPLETED"}).
+		Where("customer_id = ? AND status IN ?", customerID, []string{"PAID", "COMPLETED"})
+
+	if excludePosOrderID != nil && *excludePosOrderID != "" {
+		query = query.Where("id <> ?", *excludePosOrderID)
+	}
+
+	if err := query.
 		Select("COALESCE(SUM(total_amount), 0)").
 		Scan(&totalRevenue).Error; err != nil || totalRevenue <= 0 {
 		return
@@ -686,6 +703,70 @@ func (u *loyaltyUsecase) backfillHistoricalPoints(ctx context.Context, member *m
 			"tier_badge_color": newTier.BadgeColor,
 		}).Error
 	})
+}
+
+func (u *loyaltyUsecase) linkCustomerToPOSOrderAndSalesOrder(ctx context.Context, posOrderID string, customer *customerModels.Customer) float64 {
+	if posOrderID == "" || customer == nil {
+		return 0
+	}
+
+	now := apptime.Now()
+	orderUpdates := map[string]interface{}{
+		"customer_id":    customer.ID,
+		"customer_name":  customer.Name,
+		"customer_phone": customer.ContactPerson,
+		"customer_email": customer.Email,
+		"updated_at":     now,
+	}
+	_ = u.db.WithContext(ctx).Table("pos_orders").Where("id = ?", posOrderID).Updates(orderUpdates).Error
+
+	salesOrderUpdates := map[string]interface{}{
+		"customer_id":    customer.ID,
+		"customer_name":  customer.Name,
+		"customer_phone": customer.ContactPerson,
+		"customer_email": customer.Email,
+		"updated_at":     now,
+	}
+	_ = u.db.WithContext(ctx).Table("sales_orders").Where("source_pos_order_id = ?", posOrderID).Updates(salesOrderUpdates).Error
+
+	var totalAmount float64
+	if err := u.db.WithContext(ctx).
+		Table("pos_orders").
+		Where("id = ? AND status IN ?", posOrderID, []string{"PAID", "COMPLETED"}).
+		Select("COALESCE(total_amount, 0)").
+		Scan(&totalAmount).Error; err != nil {
+		return 0
+	}
+
+	return totalAmount
+}
+
+func (u *loyaltyUsecase) resolveTransactionAmount(ctx context.Context, transactionType, transactionID string) float64 {
+	if transactionID == "" {
+		return 0
+	}
+
+	var totalAmount float64
+	var tableName string
+
+	switch transactionType {
+	case "pos_order":
+		tableName = "pos_orders"
+	case "sales_order":
+		tableName = "sales_orders"
+	default:
+		return 0
+	}
+
+	if err := u.db.WithContext(ctx).
+		Table(tableName).
+		Where("id = ?", transactionID).
+		Select("COALESCE(total_amount, 0)").
+		Scan(&totalAmount).Error; err != nil {
+		return 0
+	}
+
+	return totalAmount
 }
 
 func (u *loyaltyUsecase) ListLedger(ctx context.Context, params repositories.LedgerListParams) ([]dto.PointLedgerResponse, *utils.PaginationResult, error) {

@@ -184,6 +184,7 @@ export function POSPaymentModal({
       if (enrollLoyalty && customerName.trim()) {
         enrollMutation.mutateAsync({
           outlet_id: order.outlet_id,
+          pos_order_id: order.id,
           name: customerName.trim(),
           phone: loyaltyPhone || undefined,
           email: loyaltyEmail || undefined,
@@ -195,7 +196,7 @@ export function POSPaymentModal({
       }
       onSuccess(customerName.trim() || undefined);
     }
-  }, [paymentsData, onSuccess, customerName, enrollLoyalty, loyaltyPhone, loyaltyEmail, order.outlet_id, enrollMutation, t]);
+  }, [paymentsData, onSuccess, customerName, enrollLoyalty, loyaltyPhone, loyaltyEmail, order.id, order.outlet_id, enrollMutation, t]);
 
   useEffect(() => {
     const paymentUrl = digitalPayment?.payment_url?.trim() ?? "";
@@ -235,6 +236,7 @@ export function POSPaymentModal({
       if (enrollLoyalty && customerName.trim()) {
         enrollMutation.mutateAsync({
           outlet_id: order.outlet_id,
+          pos_order_id: order.id,
           name: customerName.trim(),
           phone: loyaltyPhone || undefined,
           email: loyaltyEmail || undefined,

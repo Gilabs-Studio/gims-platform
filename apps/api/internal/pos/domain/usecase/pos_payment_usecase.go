@@ -496,6 +496,7 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 	so := &salesModels.SalesOrder{
 		Code:             code,
 		OrderDate:        now,
+		CustomerID:       order.CustomerID,
 		CustomerName:     customerName,
 		CustomerPhone:    customerPhone,
 		CustomerEmail:    customerEmail,
