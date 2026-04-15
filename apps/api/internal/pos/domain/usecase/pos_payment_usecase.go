@@ -103,12 +103,26 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}
 
-	// Update customer name on the order if provided (used on receipt/invoice)
+	// Update customer info on the order if provided (used on receipt/invoice/SO)
 	if req.CustomerName != nil {
 		trimmedName := strings.TrimSpace(*req.CustomerName)
 		if trimmedName != "" {
 			order.CustomerName = &trimmedName
 		}
+	}
+	if req.CustomerPhone != nil {
+		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
+		if trimmedPhone != "" {
+			order.CustomerPhone = &trimmedPhone
+		}
+	}
+	if req.CustomerEmail != nil {
+		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
+		if trimmedEmail != "" {
+			order.CustomerEmail = &trimmedEmail
+		}
+	}
+	if req.CustomerName != nil || req.CustomerPhone != nil || req.CustomerEmail != nil {
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
@@ -164,13 +178,31 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
 	}
 
-	// Persist customer name from payment form if provided
+	// Persist customer info from payment form if provided
+	needsUpdate := false
 	if req.CustomerName != nil {
 		trimmedName := strings.TrimSpace(*req.CustomerName)
 		if trimmedName != "" {
 			order.CustomerName = &trimmedName
-			_ = u.orderRepo.Update(ctx, order)
+			needsUpdate = true
 		}
+	}
+	if req.CustomerPhone != nil {
+		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
+		if trimmedPhone != "" {
+			order.CustomerPhone = &trimmedPhone
+			needsUpdate = true
+		}
+	}
+	if req.CustomerEmail != nil {
+		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
+		if trimmedEmail != "" {
+			order.CustomerEmail = &trimmedEmail
+			needsUpdate = true
+		}
+	}
+	if needsUpdate {
+		_ = u.orderRepo.Update(ctx, order)
 	}
 
 	// Build a unique external order ID for Xendit invoice tracking
@@ -445,6 +477,14 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 	if order.CustomerName != nil {
 		customerName = *order.CustomerName
 	}
+	customerPhone := ""
+	if order.CustomerPhone != nil {
+		customerPhone = *order.CustomerPhone
+	}
+	customerEmail := ""
+	if order.CustomerEmail != nil {
+		customerEmail = *order.CustomerEmail
+	}
 
 	taxRatePercent := deriveTaxRatePercent(order)
 	serviceCharge := order.ServiceCharge
@@ -457,6 +497,8 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		Code:             code,
 		OrderDate:        now,
 		CustomerName:     customerName,
+		CustomerPhone:    customerPhone,
+		CustomerEmail:    customerEmail,
 		Subtotal:         order.Subtotal,
 		DiscountAmount:   order.DiscountAmount,
 		TaxRate:          taxRatePercent,

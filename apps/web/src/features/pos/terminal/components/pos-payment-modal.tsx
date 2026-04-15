@@ -227,6 +227,8 @@ export function POSPaymentModal({
           method: "CASH",
           amount: tenderAmount,
           customer_name: customerName.trim() || undefined,
+          customer_phone: loyaltyPhone.trim() || undefined,
+          customer_email: loyaltyEmail.trim() || undefined,
         },
       });
       // Fire-and-forget loyalty enrollment after successful cash payment
@@ -259,6 +261,8 @@ export function POSPaymentModal({
           method: "DIGITAL",
           amount: totalAmount,
           customer_name: customerName.trim() || undefined,
+          customer_phone: loyaltyPhone.trim() || undefined,
+          customer_email: loyaltyEmail.trim() || undefined,
           channel_code: channel.code,
         },
       });

@@ -61,6 +61,8 @@ type PosOrder struct {
 	OrderType         PosOrderType   `gorm:"type:varchar(20);not null;default:'COUNTER'" json:"order_type"`
 	CustomerID        *string        `gorm:"type:uuid;index" json:"customer_id"`
 	CustomerName      *string        `gorm:"type:varchar(255)" json:"customer_name"`
+	CustomerPhone     *string        `gorm:"type:varchar(50)" json:"customer_phone"`
+	CustomerEmail     *string        `gorm:"type:varchar(255)" json:"customer_email"`
 	GuestCount        int            `gorm:"default:1" json:"guest_count"`
 	Subtotal          float64        `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
 	DiscountAmount    float64        `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`

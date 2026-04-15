@@ -97,7 +97,18 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
         description: program.description ?? "",
         outlet_id: program.outlet_id ?? "",
         is_active: program.is_active,
-        config: program.config,
+        config: {
+          ...program.config,
+          tiers: program.config.tiers.map((tier) => ({
+            ...tier,
+            min_lifetime_points: tier.min_lifetime_points ?? 0,
+            multiplier: tier.multiplier ?? 1,
+          })),
+          rewards: program.config.rewards.map((reward) => ({
+            ...reward,
+            points_cost: reward.points_cost ?? 0,
+          })),
+        },
       });
     } else {
       reset({ config: DEFAULT_CONFIG, is_active: true });

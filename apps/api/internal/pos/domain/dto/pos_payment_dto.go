@@ -10,6 +10,10 @@ type ProcessPaymentRequest struct {
 	Notes           *string `json:"notes"`
 	// CustomerName optionally captures the customer name on receipt (F&B use-case)
 	CustomerName *string `json:"customer_name"`
+	// CustomerPhone optionally captures the customer phone for SO/invoice records
+	CustomerPhone *string `json:"customer_phone"`
+	// CustomerEmail optionally captures the customer email for SO/invoice records
+	CustomerEmail *string `json:"customer_email"`
 	// ChannelCode specifies the Xendit payment channel (e.g. QRIS, BCA, DANA, OVO)
 	ChannelCode *string `json:"channel_code"`
 }

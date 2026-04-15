@@ -198,6 +198,8 @@ export interface ProcessPaymentRequest {
   amount: number;
   notes?: string;
   customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
   channel_code?: string;
 }
 

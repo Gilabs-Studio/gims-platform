@@ -57,6 +57,9 @@ export const loyaltyEn = {
     members: {
       title: "Loyalty Members",
       empty: "No members found",
+      changeProgram: "Change Program",
+      changeProgramSuccess: "Program changed successfully",
+      changeProgramError: "Failed to change program",
       memberCode: "Member Code",
       currentTier: "Tier",
       pointBalance: "Point Balance",

@@ -1,15 +1,15 @@
 package handler
 
 import (
-"errors"
-"net/http"
-"strconv"
+	"errors"
+	"net/http"
+	"strconv"
 
-"github.com/gin-gonic/gin"
-"github.com/gilabs/gims/api/internal/core/response"
-"github.com/gilabs/gims/api/internal/loyalty/data/repositories"
-"github.com/gilabs/gims/api/internal/loyalty/domain/dto"
-"github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
+	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/loyalty/data/repositories"
+	"github.com/gilabs/gims/api/internal/loyalty/domain/dto"
+	"github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
+	"github.com/gin-gonic/gin"
 )
 
 type LoyaltyHandler struct {

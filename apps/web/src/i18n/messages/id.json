@@ -73,10 +73,7 @@
     "amount": "Jumlah",
     "match": "Cocok",
     "name": "Nama",
-    "actions": {
-      "cancel": "Batal",
-      "save": "Simpan"
-    }
+    "select": "Pilih"
   },
   "notFound": {
     "label": "404",
@@ -151,11 +148,6 @@
     "product": "Produk",
     "products": "Produk",
     "categories": "Kategori",
-    "loyalty": {
-      "members": {
-        "changeProgram": "Pindah Program"
-      }
-    },
     "brands": "Merek",
     "segments": "Segmen",
     "types": "Jenis",

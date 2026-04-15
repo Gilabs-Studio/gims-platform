@@ -57,6 +57,9 @@ export const loyaltyId = {
     members: {
       title: "Anggota Loyalitas",
       empty: "Tidak ada anggota",
+      changeProgram: "Pindah Program",
+      changeProgramSuccess: "Program berhasil dipindahkan",
+      changeProgramError: "Gagal memindahkan program",
       memberCode: "Kode Anggota",
       currentTier: "Tier",
       pointBalance: "Saldo Poin",

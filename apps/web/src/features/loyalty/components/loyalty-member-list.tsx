@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 import { Search, UserPlus, MoreHorizontal, ArrowRightLeft } from "lucide-react";
+import { Link } from "@/i18n/routing";
+import { useHasPermission } from "@/features/master-data/user-management/hooks/use-has-permission";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,7 @@ import type { LoyaltyMember } from "../types";
 export function LoyaltyMemberList() {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
+  const canViewCustomerResearch = useHasPermission("report_customer_research.read");
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<LoyaltyMember | null>(null);
   const [changeProgramMember, setChangeProgramMember] = useState<LoyaltyMember | null>(null);
@@ -123,7 +126,19 @@ export function LoyaltyMemberList() {
                   onClick={() => setSelectedMember(member)}
                 >
                   <TableCell className="font-mono text-sm">{member.member_code}</TableCell>
-                  <TableCell className="font-medium">{member.customer_name}</TableCell>
+                  <TableCell className="font-medium">
+                    {canViewCustomerResearch ? (
+                      <Link
+                        href={`/reports/customer-research/${member.customer_id}`}
+                        className="text-primary hover:underline cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {member.customer_name}
+                      </Link>
+                    ) : (
+                      member.customer_name
+                    )}
+                  </TableCell>
                   <TableCell>
                     <LoyaltyTierBadge
                       tier={member.current_tier}

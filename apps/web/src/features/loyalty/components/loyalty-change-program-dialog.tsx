@@ -93,11 +93,11 @@ export function LoyaltyChangeProgramDialog({ member, onClose }: LoyaltyChangePro
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={isPending}>
-            {tCommon("actions.cancel")}
+            {tCommon("cancel")}
           </Button>
           <Button onClick={handleSave} disabled={isPending || programId === member?.program_id}>
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {tCommon("actions.save")}
+            {tCommon("save")}
           </Button>
         </div>
       </DialogContent>
