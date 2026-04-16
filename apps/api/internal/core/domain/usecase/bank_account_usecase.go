@@ -10,6 +10,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/data/repositories"
 	"github.com/gilabs/gims/api/internal/core/domain/dto"
 	"github.com/gilabs/gims/api/internal/core/domain/mapper"
+	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	"gorm.io/gorm"
 )
 
@@ -25,20 +26,25 @@ type BankAccountUsecase interface {
 	GetByID(ctx context.Context, id string) (*dto.BankAccountResponse, error)
 	Update(ctx context.Context, id string, req *dto.UpdateBankAccountRequest) (*dto.BankAccountResponse, error)
 	Delete(ctx context.Context, id string) error
+	// Phase 2 methods
+	GetByIDWithBalance(ctx context.Context, id string) (*dto.BankAccountResponse, error)
+	ListByCompanyWithBalance(ctx context.Context, companyID string, params repositories.BankAccountListParams) ([]*dto.BankAccountResponse, int64, error)
+	ToggleStatus(ctx context.Context, bankAccountID string) (*dto.ToggleStatusResponse, error)
 }
 
 type bankAccountUsecase struct {
+	db           *gorm.DB
 	repo         repositories.BankAccountRepository
 	currencyRepo repositories.CurrencyRepository
 	mapper       *mapper.BankAccountMapper
 }
 
-func NewBankAccountUsecase(repo repositories.BankAccountRepository) BankAccountUsecase {
-	return &bankAccountUsecase{repo: repo, mapper: mapper.NewBankAccountMapper()}
+func NewBankAccountUsecase(db *gorm.DB, repo repositories.BankAccountRepository) BankAccountUsecase {
+	return &bankAccountUsecase{db: db, repo: repo, mapper: mapper.NewBankAccountMapper()}
 }
 
-func NewBankAccountUsecaseWithCurrency(repo repositories.BankAccountRepository, currencyRepo repositories.CurrencyRepository) BankAccountUsecase {
-	return &bankAccountUsecase{repo: repo, currencyRepo: currencyRepo, mapper: mapper.NewBankAccountMapper()}
+func NewBankAccountUsecaseWithCurrency(db *gorm.DB, repo repositories.BankAccountRepository, currencyRepo repositories.CurrencyRepository) BankAccountUsecase {
+	return &bankAccountUsecase{db: db, repo: repo, currencyRepo: currencyRepo, mapper: mapper.NewBankAccountMapper()}
 }
 
 func (u *bankAccountUsecase) resolveCurrency(ctx context.Context, currencyID *string) (*models.Currency, error) {
@@ -70,6 +76,10 @@ func (u *bankAccountUsecase) Create(ctx context.Context, req *dto.CreateBankAcco
 	}
 
 	m := &models.BankAccount{
+		CompanyID:        strings.TrimSpace(req.CompanyID),
+		Code:             strings.TrimSpace(req.Code),
+		AccountType:      strings.TrimSpace(req.AccountType),
+		BankID:           req.BankID,
 		Name:             strings.TrimSpace(req.Name),
 		AccountNumber:    strings.TrimSpace(req.AccountNumber),
 		AccountHolder:    strings.TrimSpace(req.AccountHolder),
@@ -80,7 +90,13 @@ func (u *bankAccountUsecase) Create(ctx context.Context, req *dto.CreateBankAcco
 		VillageID:        req.VillageID,
 		BankAddress:      strings.TrimSpace(req.BankAddress),
 		BankPhone:        strings.TrimSpace(req.BankPhone),
+		CountryCode:      strings.ToUpper(strings.TrimSpace(req.CountryCode)),
+		BankBranchCode:   strings.TrimSpace(req.BankBranchCode),
+		OpeningBalance:   req.OpeningBalance,
 		IsActive:         isActive,
+	}
+	if m.AccountType == "" {
+		m.AccountType = "operational"
 	}
 	if err := u.repo.Create(ctx, m); err != nil {
 		return nil, err
@@ -233,6 +249,13 @@ func (u *bankAccountUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		currencyCode = "IDR"
 	}
 	item.Name = strings.TrimSpace(req.Name)
+	if code := strings.TrimSpace(req.Code); code != "" {
+		item.Code = code
+	}
+	if accountType := strings.TrimSpace(req.AccountType); accountType != "" {
+		item.AccountType = accountType
+	}
+	item.BankID = req.BankID
 	item.AccountNumber = strings.TrimSpace(req.AccountNumber)
 	item.AccountHolder = strings.TrimSpace(req.AccountHolder)
 	item.CurrencyID = req.CurrencyID
@@ -242,6 +265,9 @@ func (u *bankAccountUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	item.VillageID = req.VillageID
 	item.BankAddress = strings.TrimSpace(req.BankAddress)
 	item.BankPhone = strings.TrimSpace(req.BankPhone)
+	item.CountryCode = strings.ToUpper(strings.TrimSpace(req.CountryCode))
+	item.BankBranchCode = strings.TrimSpace(req.BankBranchCode)
+	item.OpeningBalance = req.OpeningBalance
 	if req.IsActive != nil {
 		item.IsActive = *req.IsActive
 	}
@@ -261,6 +287,206 @@ func (u *bankAccountUsecase) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	return u.repo.Delete(ctx, item.ID)
+}
+
+// ========== PHASE 2 METHODS ==========
+
+// GetByIDWithBalance retrieves bank account with computed balance from GL
+func (u *bankAccountUsecase) GetByIDWithBalance(ctx context.Context, id string) (*dto.BankAccountResponse, error) {
+	detail, err := u.repo.FindByIDWithBalance(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrBankAccountNotFound
+		}
+		return nil, err
+	}
+
+	// Map to response DTO
+	res := &dto.BankAccountResponse{
+		ID:               detail.BankAccount.ID,
+		CompanyID:        detail.BankAccount.CompanyID,
+		Code:             detail.BankAccount.Code,
+		Name:             detail.BankAccount.Name,
+		AccountType:      detail.BankAccount.AccountType,
+		BankID:           detail.BankAccount.BankID,
+		AccountNumber:    detail.BankAccount.AccountNumber,
+		AccountHolder:    detail.BankAccount.AccountHolder,
+		Currency:         detail.BankAccount.Currency,
+		CurrencyID:       detail.BankAccount.CurrencyID,
+		ChartOfAccountID: detail.BankAccount.ChartOfAccountID,
+		CountryCode:      detail.BankAccount.CountryCode,
+		BankBranchCode:   detail.BankAccount.BankBranchCode,
+		OpeningBalance:   detail.BankAccount.OpeningBalance,
+		CurrentBalance:   detail.CurrentBalance,
+		IsReconcilable:   detail.IsReconcilable,
+		IsActive:         detail.BankAccount.IsActive,
+		CreatedBy:        detail.BankAccount.CreatedBy,
+		UpdatedBy:        detail.BankAccount.UpdatedBy,
+		CreatedAt:        detail.BankAccount.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        detail.BankAccount.UpdatedAt.Format(time.RFC3339),
+	}
+
+	// Add balance breakdown if available
+	if detail.BalanceBreakdown != nil {
+		res.BalanceBreakdown = &dto.BankAccountBalanceBreakdown{
+			OpeningJournalBalance:  detail.BalanceBreakdown.OpeningJournalBalance,
+			TransactionDebitTotal:  detail.BalanceBreakdown.TransactionDebitTotal,
+			TransactionCreditTotal: detail.BalanceBreakdown.TransactionCreditTotal,
+			CurrentBalance:         detail.BalanceBreakdown.CurrentBalance,
+		}
+	}
+
+	// Add metadata if available
+	if detail.Metadata != nil {
+		var lastReconciledAtStr *string
+		if detail.Metadata.LastReconciledAt != nil {
+			lastReconciledStr := detail.Metadata.LastReconciledAt.Format(time.RFC3339)
+			lastReconciledAtStr = &lastReconciledStr
+		}
+		var statementDateStr *string
+		if detail.Metadata.StatementDate != nil {
+			statementStr := detail.Metadata.StatementDate.Format(time.RFC3339)
+			statementDateStr = &statementStr
+		}
+		res.Metadata = &dto.BankAccountMetadata{
+			LastReconciledAt:     lastReconciledAtStr,
+			ReconciliationStatus: detail.Metadata.ReconciliationStatus,
+			StatementDate:        statementDateStr,
+			BookDifference:       detail.Metadata.BookDifference,
+		}
+		if detail.Metadata.WarningMessage != nil && strings.TrimSpace(*detail.Metadata.WarningMessage) != "" {
+			res.Warning = &dto.BankAccountWarning{
+				Type:    "ACCOUNT_CREATED_DURING_OPERATIONS",
+				Message: strings.TrimSpace(*detail.Metadata.WarningMessage),
+				Level:   "info",
+			}
+		}
+	}
+
+	if len(detail.RecentTransactions) > 0 {
+		res.RecentTransactions = make([]dto.BankAccountTransaction, 0, len(detail.RecentTransactions))
+		for _, tx := range detail.RecentTransactions {
+			res.RecentTransactions = append(res.RecentTransactions, dto.BankAccountTransaction{
+				ID:              tx.ID,
+				ReferenceNumber: derefString(tx.ReferenceNumber),
+				Type:            tx.TransactionType,
+				Date:            tx.TransactionDate.Format(time.RFC3339),
+				Amount:          tx.Amount,
+				Status:          tx.Status,
+				Description:     tx.Description,
+			})
+		}
+	}
+
+	bankDetail, err := u.loadBankMaster(ctx, detail.BankAccount.BankID)
+	if err == nil && bankDetail != nil {
+		res.BankDetail = &dto.BankMasterResponse{
+			ID:        bankDetail.ID,
+			Code:      bankDetail.Code,
+			Name:      bankDetail.Name,
+			SwiftCode: bankDetail.SwiftCode,
+		}
+	}
+
+	return res, nil
+}
+
+// ListByCompanyWithBalance retrieves bank accounts for a company with computed balances
+func (u *bankAccountUsecase) ListByCompanyWithBalance(ctx context.Context, companyID string, params repositories.BankAccountListParams) ([]*dto.BankAccountResponse, int64, error) {
+	params.CompanyID = companyID
+
+	details, total, err := u.repo.ListByCompanyWithBalance(ctx, companyID, params)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	responses := make([]*dto.BankAccountResponse, 0, len(details))
+	for _, detail := range details {
+		res := &dto.BankAccountResponse{
+			ID:               detail.BankAccount.ID,
+			CompanyID:        detail.BankAccount.CompanyID,
+			Code:             detail.BankAccount.Code,
+			Name:             detail.BankAccount.Name,
+			AccountType:      detail.BankAccount.AccountType,
+			BankID:           detail.BankAccount.BankID,
+			AccountNumber:    detail.BankAccount.AccountNumber,
+			AccountHolder:    detail.BankAccount.AccountHolder,
+			Currency:         detail.BankAccount.Currency,
+			CurrencyID:       detail.BankAccount.CurrencyID,
+			ChartOfAccountID: detail.BankAccount.ChartOfAccountID,
+			CountryCode:      detail.BankAccount.CountryCode,
+			BankBranchCode:   detail.BankAccount.BankBranchCode,
+			OpeningBalance:   detail.BankAccount.OpeningBalance,
+			CurrentBalance:   detail.CurrentBalance,
+			IsReconcilable:   detail.IsReconcilable,
+			IsActive:         detail.BankAccount.IsActive,
+			CreatedBy:        detail.BankAccount.CreatedBy,
+			UpdatedBy:        detail.BankAccount.UpdatedBy,
+			CreatedAt:        detail.BankAccount.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:        detail.BankAccount.UpdatedAt.Format(time.RFC3339),
+		}
+
+		if detail.Metadata != nil {
+			res.Metadata = &dto.BankAccountMetadata{
+				ReconciliationStatus: detail.Metadata.ReconciliationStatus,
+			}
+		}
+
+		bankDetail, err := u.loadBankMaster(ctx, detail.BankAccount.BankID)
+		if err == nil && bankDetail != nil {
+			res.BankDetail = &dto.BankMasterResponse{
+				ID:        bankDetail.ID,
+				Code:      bankDetail.Code,
+				Name:      bankDetail.Name,
+				SwiftCode: bankDetail.SwiftCode,
+			}
+		}
+
+		responses = append(responses, res)
+	}
+
+	return responses, total, nil
+}
+
+// ToggleStatus toggles the is_active flag of a bank account
+func (u *bankAccountUsecase) ToggleStatus(ctx context.Context, bankAccountID string) (*dto.ToggleStatusResponse, error) {
+	// Verify account exists
+	_, err := u.repo.FindByID(ctx, bankAccountID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, ErrBankAccountNotFound
+		}
+		return nil, err
+	}
+
+	// Toggle status
+	if err := u.repo.ToggleStatus(ctx, bankAccountID); err != nil {
+		return nil, err
+	}
+
+	// Fetch updated account
+	updated, err := u.repo.FindByID(ctx, bankAccountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.ToggleStatusResponse{
+		ID:       updated.ID,
+		IsActive: updated.IsActive,
+	}, nil
+}
+
+func (u *bankAccountUsecase) loadBankMaster(ctx context.Context, bankID *string) (*supplierModels.Bank, error) {
+	if bankID == nil || strings.TrimSpace(*bankID) == "" {
+		return nil, nil
+	}
+
+	var bank supplierModels.Bank
+	if err := u.db.WithContext(ctx).First(&bank, "id = ?", strings.TrimSpace(*bankID)).Error; err != nil {
+		return nil, err
+	}
+
+	return &bank, nil
 }
 
 func derefString(value *string) string {

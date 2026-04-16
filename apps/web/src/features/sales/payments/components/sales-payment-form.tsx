@@ -24,6 +24,7 @@ import { toast } from "sonner";
 
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-options";
+import { useRouter } from "@/i18n/routing";
 
 import { salesPaymentSchema } from "../schemas/sales-payment.schema";
 import { useCreateSalesPayment } from "../hooks/use-sales-payments";
@@ -31,7 +32,11 @@ import { useCustomerInvoiceDP } from "@/features/sales/customer-invoice-down-pay
 import { useInvoice } from "@/features/sales/invoice/hooks/use-invoices";
 import { invoiceService } from "@/features/sales/invoice/services/invoice-service";
 import { financeBankAccountsService } from "@/features/finance/bank-accounts/services/finance-bank-accounts-service";
-import { getFirstFormErrorMessage, getSalesErrorMessage } from "@/features/sales/utils/error-utils";
+import {
+  getFirstFormErrorMessage,
+  getSalesErrorMessage,
+  isAccountingMappingError,
+} from "@/features/sales/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -65,6 +70,7 @@ function isPayableInvoiceStatus(status?: string | null): boolean {
 
 export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId }: SalesPaymentFormProps) {
   const t = useTranslations("salesPayment");
+  const router = useRouter();
 
   const isLockedToInvoice = !!defaultInvoiceId;
   const isLockedToDP = !!defaultDPId;
@@ -273,6 +279,16 @@ export function SalesPaymentForm({ open, onClose, defaultInvoiceId, defaultDPId 
               toast.success(t("toast.created"));
               onClose();
             } catch (error) {
+              if (isAccountingMappingError(error)) {
+                toast.error(t("errors.mappingRequired"), {
+                  action: {
+                    label: t("actions.openMapping"),
+                    onClick: () => router.push("/finance/settings/accounting-mapping"),
+                  },
+                });
+                return;
+              }
+
               toast.error(getSalesErrorMessage(error, t("toast.failed") ?? "Failed to save payment"));
             }
           }, (formErrors) => {

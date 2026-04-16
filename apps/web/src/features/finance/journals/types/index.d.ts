@@ -20,7 +20,18 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export type JournalStatus = "draft" | "posted" | "reversed";
+export type JournalStatus = "draft" | "posted" | "reversed" | "cancelled";
+
+export type JournalType =
+  | "GENERAL"
+  | "SALES"
+  | "PURCHASE"
+  | "INVENTORY"
+  | "ADJUSTMENT"
+  | "VALUATION"
+  | "CASH_BANK"
+  | "OPENING_BALANCE"
+  | string;
 
 export interface JournalLine {
   id: string;
@@ -34,10 +45,12 @@ export interface JournalLine {
 export interface JournalEntry {
   id: string;
   entry_date: string;
+  reference?: string | null;
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
   reference_code?: string | null;
+  journal_type?: JournalType | null;
   status: JournalStatus;
   posted_at?: string | null;
   posted_by?: string | null;
@@ -50,6 +63,8 @@ export interface JournalEntry {
   lines: JournalLine[];
   debit_total: number;
   credit_total: number;
+  currency_code?: string;
+  exchange_rate?: number;
   created_by?: string | null;
   created_by_name?: string | null;
   created_by_email?: string | null;
@@ -58,6 +73,7 @@ export interface JournalEntry {
   reversed_by_name?: string | null;
   reversed_by_email?: string | null;
   reversal_reason?: string | null;
+  source_document_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +83,7 @@ export interface ListJournalEntriesParams {
   per_page?: number;
   search?: string;
   status?: JournalStatus;
+  journal_type?: string;
   start_date?: string;
   end_date?: string;
   sort_by?: string;
@@ -82,9 +99,13 @@ export interface JournalLineInput {
 
 export interface CreateJournalEntryInput {
   entry_date: string;
+  reference?: string | null;
   description?: string | null;
   reference_type?: string | null;
   reference_id?: string | null;
+  journal_type?: JournalType;
+  currency_code?: string;
+  exchange_rate?: number;
   lines: JournalLineInput[];
 }
 

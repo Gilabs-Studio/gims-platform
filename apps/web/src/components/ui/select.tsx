@@ -24,9 +24,13 @@ const SelectContext = React.createContext<{
   incrementItemCount: () => void;
   resetItemCount: () => void;
   showSearch: boolean;
+  selectedValue: string | undefined;
 } | null>(null);
 
 function Select({
+  value,
+  defaultValue,
+  onValueChange,
   onOpenChange,
   onSearchChange,
   searchDebounceMs = 300,
@@ -37,7 +41,9 @@ function Select({
 }) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [itemCount, setItemCount] = React.useState(0);
+  const [internalValue, setInternalValue] = React.useState<string | undefined>(defaultValue);
   const showSearch = itemCount > 5;
+  const selectedValue = value ?? internalValue;
 
   React.useEffect(() => {
     if (!onSearchChange) return;
@@ -68,6 +74,16 @@ function Select({
     [onOpenChange, onSearchChange, resetItemCount],
   );
 
+  const handleValueChange = React.useCallback(
+    (nextValue: string) => {
+      if (value === undefined) {
+        setInternalValue(nextValue);
+      }
+      onValueChange?.(nextValue);
+    },
+    [onValueChange, value],
+  );
+
   return (
     <SelectContext.Provider
       value={{
@@ -77,11 +93,15 @@ function Select({
         incrementItemCount,
         resetItemCount,
         showSearch,
+        selectedValue,
       }}
     >
       <SelectPrimitive.Root
         data-slot="select"
         onOpenChange={handleOpenChange}
+        onValueChange={handleValueChange}
+        value={value}
+        defaultValue={defaultValue}
         {...props}
       />
     </SelectContext.Provider>
@@ -154,6 +174,15 @@ function SelectContent({
     [children],
   );
   const isSearching = (context?.searchQuery?.trim().length ?? 0) > 0;
+  const selectedValue = context?.selectedValue;
+  const selectedOptionIsVisible = React.useMemo(() => {
+    if (!selectedValue) return true;
+
+    return childArray.slice(0, localVisibleCount).some((child) => {
+      if (!React.isValidElement<{ value?: string }>(child)) return false;
+      return child.props.value === selectedValue;
+    });
+  }, [childArray, localVisibleCount, selectedValue]);
   const localHasMore = !isSearching && childArray.length > localVisibleCount;
   const effectiveHasMore = onLoadMore ? hasMore : localHasMore;
   const effectiveIsLoadingMore = onLoadMore ? isLoadingMore : false;
@@ -170,8 +199,9 @@ function SelectContent({
   const visibleChildren = React.useMemo(() => {
     if (isSearching) return childArray;
     if (onLoadMore) return childArray;
+    if (!selectedOptionIsVisible) return childArray;
     return childArray.slice(0, localVisibleCount);
-  }, [childArray, isSearching, localVisibleCount, onLoadMore]);
+  }, [childArray, isSearching, localVisibleCount, onLoadMore, selectedOptionIsVisible]);
 
   React.useEffect(() => {
     if (onLoadMore) return;

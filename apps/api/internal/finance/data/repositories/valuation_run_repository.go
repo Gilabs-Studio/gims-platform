@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -119,11 +120,19 @@ func (r *valuationRunRepository) ListDetails(ctx context.Context, runID string) 
 	return items, nil
 }
 
-var valuationRunAllowedSort = map[string]string{
-	"created_at":   "valuation_runs.created_at",
-	"updated_at":   "valuation_runs.updated_at",
-	"period_start": "valuation_runs.period_start",
-	"status":       "valuation_runs.status",
+var valuationRunAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "valuation_runs", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "valuation_runs", Name: "updated_at"},
+	},
+	"period_start": {
+		Column: clause.Column{Table: "valuation_runs", Name: "period_start"},
+	},
+	"status": {
+		Column: clause.Column{Table: "valuation_runs", Name: "status"},
+	},
 }
 
 func (r *valuationRunRepository) List(ctx context.Context, params ValuationRunListParams) ([]financeModels.ValuationRun, int64, error) {
@@ -150,14 +159,15 @@ func (r *valuationRunRepository) List(ctx context.Context, params ValuationRunLi
 	}
 
 	sortCol := valuationRunAllowedSort[params.SortBy]
-	if sortCol == "" {
-		sortCol = "valuation_runs.created_at"
+	if sortCol.Column.Name == "" {
+		sortCol = valuationRunAllowedSort["created_at"]
 	}
-	sortDir := "desc"
-	if params.SortDir == "asc" {
-		sortDir = "asc"
+	if strings.EqualFold(strings.TrimSpace(params.SortDir), "asc") {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

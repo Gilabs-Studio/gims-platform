@@ -16,10 +16,11 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
-	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
@@ -56,10 +57,15 @@ type purchasePaymentUsecase struct {
 	journalUC    finUsecase.JournalEntryUsecase
 	coaUC        finUsecase.ChartOfAccountUsecase
 	engine       accounting.AccountingEngine
+	settingsUC   financesettings.SettingsService
 }
 
-func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine) PurchasePaymentUsecase {
-	return &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
+func NewPurchasePaymentUsecase(db *gorm.DB, repo repositories.PurchasePaymentRepository, siRepo repositories.SupplierInvoiceRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine, settingsUC ...financesettings.SettingsService) PurchasePaymentUsecase {
+	uc := &purchasePaymentUsecase{db: db, repo: repo, siRepo: siRepo, auditService: auditService, mapper: mapper.NewPurchasePaymentMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
+	if len(settingsUC) > 0 {
+		uc.settingsUC = settingsUC[0]
+	}
+	return uc
 }
 
 func (uc *purchasePaymentUsecase) AddData(ctx context.Context) (*dto.PurchasePaymentAddResponse, error) {
@@ -621,10 +627,25 @@ func (uc *purchasePaymentUsecase) triggerJournalEntry(ctx context.Context, pay *
 
 	// Default to cash if bank account has no COA
 	if baCOAID == "" {
-		def, err := uc.coaUC.GetByCode(ctx, "11100")
-		if err == nil {
-			baCOAID = def.ID
+		if uc.settingsUC == nil {
+			return errors.New("system account mapping untuk 'finance.bank_default' belum dikonfigurasi")
 		}
+
+		defaultKey := "finance.bank_default"
+		if strings.EqualFold(string(pay.Method), string(models.PurchasePaymentMethodCash)) {
+			defaultKey = "finance.cash_default"
+		}
+
+		defaultCode, err := uc.settingsUC.GetCOAByKey(ctx, defaultKey)
+		if err != nil {
+			return err
+		}
+
+		def, err := uc.coaUC.GetByCode(ctx, defaultCode)
+		if err != nil {
+			return fmt.Errorf("account with code '%s' for mapping '%s' not found", defaultCode, defaultKey)
+		}
+		baCOAID = def.ID
 	}
 
 	reqRefNum := ""

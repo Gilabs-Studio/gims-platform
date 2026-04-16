@@ -15,7 +15,11 @@ const (
 )
 
 func RegisterAssetRoutes(r *gin.RouterGroup, h *handler.AssetHandler) {
-	g := r.Group("/assets")
+	registerAssetRoutesInGroup(r.Group("/assets"), h)
+	registerAssetRoutesInGroup(r.Group("/fixed-assets/assets"), h)
+}
+
+func registerAssetRoutesInGroup(g *gin.RouterGroup, h *handler.AssetHandler) {
 	g.GET("", middleware.RequirePermission(assetRead), h.List)
 	g.GET("/", middleware.RequirePermission(assetRead), h.List)
 	// Available assets for employee borrowing

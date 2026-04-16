@@ -10,6 +10,7 @@ export const purchasePaymentId = {
   },
   actions: {
     create: "Buat",
+    openMapping: "Buka Mapping",
     change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
@@ -102,4 +103,7 @@ export const purchasePaymentId = {
   printConfirm: "Cetak",
   printCancel: "Batal",
   printError: "Terjadi kesalahan",
+  errors: {
+    mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum melanjutkan.",
+  },
 };

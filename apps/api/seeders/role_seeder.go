@@ -55,6 +55,30 @@ func SeedRoles() error {
 			DataScope:   models.DataScopeArea,
 		},
 		{
+			ID:          SalesDirectorRoleID,
+			Name:        "Sales Director",
+			Code:        "sales_director",
+			Description: "Director role with broad commercial visibility and approval authority",
+			Status:      "active",
+			DataScope:   models.DataScopeAll,
+		},
+		{
+			ID:          FinanceManagerRoleID,
+			Name:        "Finance Manager",
+			Code:        "finance_manager",
+			Description: "Manager role for finance governance, approvals, and reporting",
+			Status:      "active",
+			DataScope:   models.DataScopeDivision,
+		},
+		{
+			ID:          AccountantRoleID,
+			Name:        "Accountant",
+			Code:        "accountant",
+			Description: "Operational accounting role for journals, reconciliation, and reporting",
+			Status:      "active",
+			DataScope:   models.DataScopeDivision,
+		},
+		{
 			ID:          AuditorRoleID,
 			Name:        "Auditor",
 			Code:        "auditor",
@@ -69,6 +93,27 @@ func SeedRoles() error {
 			Description: "Manager with outlet-scoped access to sales, purchase, POS, CRM, HRD, and reports",
 			Status:      "active",
 			DataScope:   models.DataScopeOutlet,
+		},
+		{
+			ID:          AROfficerRoleID,
+			Name:        "AR Officer",
+			Code:        "ar_officer",
+			Description: "Accounts Receivable officer for AR operations and finance reporting access",
+			Status:      "active",
+		},
+		{
+			ID:          APOfficerRoleID,
+			Name:        "AP Officer",
+			Code:        "ap_officer",
+			Description: "Accounts Payable officer for AP operations and finance reporting access",
+			Status:      "active",
+		},
+		{
+			ID:          CashierRoleID,
+			Name:        "Cashier",
+			Code:        "cashier",
+			Description: "Cash and bank operations role with restricted finance access",
+			Status:      "active",
 		},
 	}
 

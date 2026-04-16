@@ -98,6 +98,11 @@ func (h *CustomerHandler) List(c *gin.Context) {
 		CustomerTypeID: c.Query("customer_type_id"),
 	}
 
+	if isLoyaltyStr := c.Query("is_loyalty_member"); isLoyaltyStr != "" {
+		val := isLoyaltyStr == "true"
+		params.IsLoyaltyMember = &val
+	}
+
 	// Parse pagination with max enforcement
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))

@@ -39,7 +39,7 @@ export function ExportDialog({
 
     try {
       await exportProgress.runWithProgress({
-        endpoint: `/finance/journal-entries/valuation/runs/${valuationRunId}/export`,
+        endpoint: `/finance/journals/valuation/runs/${valuationRunId}/export`,
         params: { format },
       });
 

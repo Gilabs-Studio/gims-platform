@@ -233,6 +233,7 @@ export interface CustomerListParams {
   sort_dir?: "asc" | "desc";
   customer_type_id?: string;
   is_approved?: boolean;
+  is_loyalty_member?: boolean;
 }
 
 export interface PaginationMeta {

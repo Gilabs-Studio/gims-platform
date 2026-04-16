@@ -17,7 +17,7 @@ import type {
   CashBankSubLedgerApiResponse,
 } from "../types";
 
-const BASE_URL = "/finance/journal-entries";
+const BASE_URL = "/finance/journals";
 
 export const financeJournalsService = {
   list: async (
@@ -128,6 +128,14 @@ export const financeJournalsService = {
   post: async (id: string): Promise<ApiResponse<JournalEntry>> => {
     const response = await apiClient.post<ApiResponse<JournalEntry>>(
       `${BASE_URL}/${id}/post`,
+    );
+    return response.data;
+  },
+
+  cancel: async (id: string): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/cancel`,
+      null,
     );
     return response.data;
   },

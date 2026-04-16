@@ -48,6 +48,8 @@ func ToPOSOrderResponse(order *models.PosOrder) *dto.POSOrderResponse {
 		Notes:             order.Notes,
 		SalesOrderID:      order.SalesOrderID,
 		CustomerInvoiceID: order.CustomerInvoiceID,
+		LoyaltyMemberID:   order.LoyaltyMemberID,
+		LoyaltyRewardID:   order.LoyaltyRewardID,
 		Items:             items,
 		CreatedAt:         order.CreatedAt,
 		UpdatedAt:         order.UpdatedAt,

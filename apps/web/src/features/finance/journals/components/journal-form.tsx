@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -33,6 +33,7 @@ import {
   useUpdateFinanceAdjustmentJournal
 } from "../hooks/use-finance-journals";
 import { COAValidationError } from "./coa-validation-error";
+import { BalanceIndicator } from "./balance-indicator";
 import { isCOAValidationError, parseApiError } from "../utils/error-parser";
 
 type Props = {
@@ -74,6 +75,10 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
   const coaOptions = useMemo(() => flattenCoa(coaData?.data ?? []), [coaData?.data]);
 
   const journalQuery = useFinanceJournal(id ?? "", { enabled: open && mode === "edit" && !!id });
+  const currentJournal = journalQuery.data?.data;
+  const isLockedJournal =
+    mode === "edit" &&
+    ((currentJournal?.is_system_generated ?? false) || (currentJournal?.status ?? "draft").toLowerCase() !== "draft");
 
   const createMutationGen = useCreateFinanceJournal();
   const updateMutationGen = useUpdateFinanceJournal();
@@ -89,7 +94,11 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
       if (d) {
         return {
           entry_date: d.entry_date,
+          reference: d.reference ?? "",
           description: d.description ?? "",
+          journal_type: d.journal_type ?? (isAdjustment ? "ADJUSTMENT" : "GENERAL"),
+          currency_code: d.currency_code ?? "IDR",
+          exchange_rate: d.exchange_rate ?? 1,
           lines: (d.lines ?? []).map((ln) => ({
             chart_of_account_id: ln.chart_of_account_id,
             debit: ln.debit,
@@ -102,16 +111,22 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
     return {
       entry_date: todayISO(),
+      reference: "",
       description: "",
+      journal_type: isAdjustment ? "ADJUSTMENT" : "GENERAL",
+      currency_code: "IDR",
+      exchange_rate: 1,
       lines: [
         { chart_of_account_id: "", debit: 0, credit: 0, memo: "" },
         { chart_of_account_id: "", debit: 0, credit: 0, memo: "" },
       ],
     };
-  }, [mode, journalQuery.data?.data]);
+  }, [isAdjustment, mode, journalQuery.data?.data]);
+
+  type ZodResolverSchemaArg = Parameters<typeof zodResolver>[0];
 
   const form = useForm<JournalFormValues>({
-    resolver: zodResolver(journalFormSchema),
+    resolver: zodResolver(journalFormSchema as unknown as ZodResolverSchemaArg) as unknown as Resolver<JournalFormValues>,
     defaultValues,
   });
 
@@ -119,6 +134,13 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
     control: form.control,
     name: "lines",
   });
+
+  const watchedLines = form.watch("lines");
+  const totals = useMemo(() => {
+    const debit = (watchedLines ?? []).reduce((acc, line) => acc + (line.debit ?? 0), 0);
+    const credit = (watchedLines ?? []).reduce((acc, line) => acc + (line.credit ?? 0), 0);
+    return { debit, credit, difference: debit - credit };
+  }, [watchedLines]);
 
   useEffect(() => {
     if (open) {
@@ -130,10 +152,22 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
   const onSubmit = async (values: JournalFormValues) => {
     setCoaValidationError(null);
+    if (isLockedJournal) {
+      toast.error(t("messages.lockedEntry"));
+      return;
+    }
+
     try {
       const payload = {
         entry_date: values.entry_date,
+        reference: values.reference ?? "",
         description: values.description ?? "",
+        journal_type:
+          values.journal_type ??
+          currentJournal?.journal_type ??
+          (isAdjustment ? "ADJUSTMENT" : "GENERAL"),
+        currency_code: values.currency_code ?? "IDR",
+        exchange_rate: values.exchange_rate ?? 1,
         lines: values.lines.map((ln) => ({
           chart_of_account_id: ln.chart_of_account_id,
           debit: ln.debit ?? 0,
@@ -178,6 +212,12 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
           />
         )}
 
+        {isLockedJournal && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {t("messages.lockedEntry")}
+          </div>
+        )}
+
         {mode === "edit" && journalQuery.isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -188,11 +228,74 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="entry_date">{t("fields.entryDate")}</Label>
-                <Input id="entry_date" type="date" {...form.register("entry_date")} />
+                <Input id="entry_date" type="date" {...form.register("entry_date")} disabled={isLockedJournal} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="journal_type">{t("fields.journalType")}</Label>
+                <Controller
+                  control={form.control}
+                  name="journal_type"
+                  render={({ field }) => (
+                    <Select
+                      value={(field.value as string) || (isAdjustment ? "ADJUSTMENT" : "GENERAL")}
+                      onValueChange={field.onChange}
+                      disabled={isLockedJournal || isAdjustment}
+                    >
+                      <SelectTrigger id="journal_type" className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.select")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GENERAL" className="cursor-pointer">GENERAL</SelectItem>
+                        <SelectItem value="ADJUSTMENT" className="cursor-pointer">ADJUSTMENT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reference">Reference</Label>
+                <Input id="reference" {...form.register("reference")} disabled={isLockedJournal} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">{t("fields.description")}</Label>
-                <Input id="description" {...form.register("description")} />
+                <Input id="description" {...form.register("description")} disabled={isLockedJournal} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency_code">Currency</Label>
+                <Controller
+                  control={form.control}
+                  name="currency_code"
+                  render={({ field }) => (
+                    <Select
+                      value={(field.value as string) || "IDR"}
+                      onValueChange={field.onChange}
+                      disabled={isLockedJournal}
+                    >
+                      <SelectTrigger id="currency_code" className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.select")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IDR" className="cursor-pointer">IDR</SelectItem>
+                        <SelectItem value="USD" className="cursor-pointer">USD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exchange_rate">Exchange Rate</Label>
+                <Controller
+                  control={form.control}
+                  name="exchange_rate"
+                  render={({ field }) => (
+                    <NumericInput
+                      value={field.value ?? ""}
+                      onChange={(value) => field.onChange(value)}
+                      placeholder="1"
+                      disabled={isLockedJournal}
+                    />
+                  )}
+                />
               </div>
             </div>
 
@@ -204,6 +307,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                   variant="outline"
                   className="cursor-pointer"
                   onClick={() => append({ chart_of_account_id: "", debit: 0, credit: 0, memo: "" })}
+                  disabled={isLockedJournal}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {t("form.addLine")}
@@ -218,6 +322,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                       <Select
                         value={form.watch(`lines.${idx}.chart_of_account_id`) || ""}
                         onValueChange={(v) => form.setValue(`lines.${idx}.chart_of_account_id`, v, { shouldDirty: true })}
+                        disabled={isLockedJournal}
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder={t("placeholders.select")} />
@@ -242,6 +347,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                             value={field.value ?? ""}
                             onChange={(value) => field.onChange(value)}
                             placeholder="0"
+                            disabled={isLockedJournal}
                           />
                         )}
                       />
@@ -257,6 +363,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                             value={field.value ?? ""}
                             onChange={(value) => field.onChange(value)}
                             placeholder="0"
+                            disabled={isLockedJournal}
                           />
                         )}
                       />
@@ -264,7 +371,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
                     <div className="md:col-span-3 space-y-1">
                       <Label>{t("fields.memo")}</Label>
-                      <Input {...form.register(`lines.${idx}.memo`)} />
+                      <Input {...form.register(`lines.${idx}.memo`)} disabled={isLockedJournal} />
                     </div>
 
                     <div className="md:col-span-1 flex justify-end">
@@ -274,7 +381,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                         variant="outline"
                         className="cursor-pointer"
                         onClick={() => remove(idx)}
-                        disabled={fields.length <= 2}
+                        disabled={fields.length <= 2 || isLockedJournal}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -285,6 +392,11 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
                 {form.formState.errors.root?.message ? (
                   <div className="text-sm text-destructive">{t("toast.unbalanced")}</div>
                 ) : null}
+
+                <BalanceIndicator
+                  totalDebit={totals.debit}
+                  totalCredit={totals.credit}
+                />
               </div>
             </div>
 

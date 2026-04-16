@@ -29,6 +29,9 @@ export interface ChartOfAccount {
   type: CoaType;
   parent_id?: string | null;
   is_active: boolean;
+  is_postable?: boolean;
+  is_protected?: boolean;
+  level?: number;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +43,9 @@ export interface ChartOfAccountTreeNode {
   type: CoaType;
   parent_id?: string | null;
   is_active: boolean;
+  is_postable?: boolean;
+  is_protected?: boolean;
+  level?: number;
   children: ChartOfAccountTreeNode[];
 }
 

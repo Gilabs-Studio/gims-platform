@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MapPin, Edit, Landmark, Users, ExternalLink } from "lucide-react";
+import { MapPin, Edit, Landmark, Users, ExternalLink, Star } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import type { Customer } from "../../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { CustomerBankList } from "./customer-bank-list";
 import { formatCurrency } from "@/lib/utils";
+import { useLoyaltyMemberByCustomer, useLoyaltyLedger } from "@/features/loyalty/hooks/use-loyalty";
+import { LoyaltyTierBadge } from "@/features/loyalty/components/loyalty-tier-badge";
 
 interface CustomerDetailModalProps {
   readonly open: boolean;
@@ -154,6 +156,10 @@ export function CustomerDetailModal({
                     {entity.bank_accounts?.length}
                   </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="loyalty" className="flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5" />
+                Loyalty
               </TabsTrigger>
             </TabsList>
 
@@ -411,9 +417,95 @@ export function CustomerDetailModal({
             <TabsContent value="contacts" className="py-4">
               {entity.id && <CustomerContactsTab customerId={entity.id} />}
             </TabsContent>
+
+            <TabsContent value="loyalty" className="py-4">
+              <CustomerLoyaltyTab customerId={entity.id ?? ""} />
+            </TabsContent>
           </Tabs>
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Internal sub-component — fetches and renders the loyalty summary for a customer
+function CustomerLoyaltyTab({ customerId }: { customerId: string }) {
+  const { data: memberRes, isLoading: memberLoading } = useLoyaltyMemberByCustomer(customerId);
+  const member = memberRes?.data ?? null;
+
+  const { data: ledgerData, isLoading: ledgerLoading } = useLoyaltyLedger(member?.id ?? "");
+  const entries = (ledgerData?.data ?? []).slice(0, 10);
+
+  if (memberLoading) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (!member) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-muted-foreground">
+        <Star className="h-10 w-10 opacity-30" />
+        <p className="text-sm">This customer is not a loyalty member yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Member summary */}
+      <div className="grid grid-cols-2 gap-3 text-sm rounded-xl border p-4">
+        <div>
+          <p className="text-muted-foreground text-xs">Member Code</p>
+          <p className="font-mono font-semibold">{member.member_code}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground text-xs">Tier</p>
+          <LoyaltyTierBadge tier={member.current_tier} badgeColor={member.tier_badge_color} />
+        </div>
+        <div>
+          <p className="text-muted-foreground text-xs">Point Balance</p>
+          <p className="font-semibold text-primary">{member.point_balance.toLocaleString()} pts</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground text-xs">Lifetime Points</p>
+          <p className="font-medium">{member.lifetime_points.toLocaleString()}</p>
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Recent ledger */}
+      <div>
+        <p className="text-sm font-semibold mb-2">Recent Activity</p>
+        {ledgerLoading ? (
+          <div className="space-y-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 w-full" />
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No point history yet.</p>
+        ) : (
+          <div className="space-y-0.5">
+            {entries.map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                <span className="text-muted-foreground">
+                  {new Date(entry.created_at).toLocaleDateString()}
+                </span>
+                <Badge variant="outline" className="text-[10px] capitalize">{entry.entry_type}</Badge>
+                <span className={entry.points >= 0 ? "text-emerald-600 font-medium" : "text-destructive font-medium"}>
+                  {entry.points >= 0 ? "+" : ""}{entry.points} pts
+                </span>
+                <span className="text-muted-foreground tabular-nums">{entry.balance_after.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

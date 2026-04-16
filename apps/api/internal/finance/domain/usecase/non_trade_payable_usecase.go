@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
@@ -17,6 +18,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -345,48 +347,63 @@ func (uc *nonTradePayableUsecase) Approve(ctx context.Context, id string) (*dto.
 		return nil, errors.New("user not authenticated")
 	}
 
-	item, err := uc.repo.FindByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrNonTradePayableNotFound
+	var item financeModels.NonTradePayable
+	var journalID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		if err := tx.WithContext(ctx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("ChartOfAccount").
+			First(&item, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrNonTradePayableNotFound
+			}
+			return err
 		}
-		return nil, err
-	}
 
-	if item.Status != financeModels.NTPStatusSubmitted {
-		return nil, errors.New("only submitted non-trade payable can be approved")
-	}
+		if item.Status != financeModels.NTPStatusSubmitted {
+			return errors.New("only submitted non-trade payable can be approved")
+		}
 
-	txData := accounting.TransactionData{
-		ReferenceType:       reference.RefTypeNonTradePayable,
-		ReferenceID:         item.ID,
-		EntryDate:           item.TransactionDate.Format("2006-01-02"),
-		Description:         "NTP Approval: " + item.Code + " - " + item.Description,
-		TotalAmount:         item.Amount,
-		TransactionCOAID:    item.ChartOfAccountID,
-		MemoArgs:            []interface{}{item.Description},
-	}
+		txData := accounting.TransactionData{
+			ReferenceType:    reference.RefTypeNonTradePayable,
+			ReferenceID:      item.ID,
+			EntryDate:        item.TransactionDate.Format("2006-01-02"),
+			Description:      "NTP Approval: " + item.Code + " - " + item.Description,
+			TotalAmount:      item.Amount,
+			TransactionCOAID: item.ChartOfAccountID,
+			MemoArgs:         []interface{}{item.Description},
+		}
 
-	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileNonTradePayableApproval, txData)
+		journalReq, err := uc.accountingEngine.GenerateJournal(txCtx, accounting.ProfileNonTradePayableApproval, txData)
+		if err != nil {
+			return err
+		}
+
+		journalRes, err := uc.journalUC.PostOrUpdateJournal(txCtx, journalReq)
+		if err != nil {
+			return err
+		}
+		journalID = journalRes.ID
+
+		if err := tx.WithContext(ctx).Model(&financeModels.NonTradePayable{}).
+			Where("id = ? AND status = ?", id, financeModels.NTPStatusSubmitted).
+			Updates(map[string]interface{}{
+				"status": financeModels.NTPStatusApproved,
+			}).Error; err != nil {
+			return err
+		}
+
+		item.Status = financeModels.NTPStatusApproved
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status": financeModels.NTPStatusApproved,
-		// We could store journal reference here if we want
-	}).Error; err != nil {
-		return nil, err
-	}
-
-	item.Status = financeModels.NTPStatusApproved
-	res := uc.mapper.ToResponse(item)
-	res.JournalID = &journalRes.ID // Assuming we add this to DTO
+	res := uc.mapper.ToResponse(&item)
+	res.JournalID = &journalID // Assuming we add this to DTO
 	return &res, nil
 }
 
@@ -430,6 +447,9 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 	if id == "" {
 		return nil, errors.New("id is required")
 	}
+	if req == nil {
+		return nil, errors.New("request is required")
+	}
 
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
@@ -437,48 +457,62 @@ func (uc *nonTradePayableUsecase) Pay(ctx context.Context, id string, req *dto.P
 		return nil, errors.New("user not authenticated")
 	}
 
-	item, err := uc.repo.FindByID(ctx, id)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, ErrNonTradePayableNotFound
+	var item financeModels.NonTradePayable
+	var journalID string
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
+
+		if err := tx.WithContext(ctx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("ChartOfAccount").
+			First(&item, "id = ?", id).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrNonTradePayableNotFound
+			}
+			return err
 		}
-		return nil, err
-	}
 
-	if item.Status != financeModels.NTPStatusApproved {
-		return nil, errors.New("only approved non-trade payable can be paid")
-	}
+		if item.Status != financeModels.NTPStatusApproved {
+			return errors.New("only approved non-trade payable can be paid")
+		}
 
-	txData := accounting.TransactionData{
-		ReferenceType:       reference.RefTypeNTPPayment,
-		ReferenceID:         item.ID,
-		EntryDate:           req.PaymentDate,
-		Description:         "NTP Payment: " + item.Code + " - Ref: " + req.BankReference,
-		TotalAmount:         req.Amount,
-		PaymentAccountCOAID: req.ChartOfAccountID,
-		MemoArgs:            []interface{}{req.BankReference},
-	}
+		txData := accounting.TransactionData{
+			ReferenceType:       reference.RefTypeNTPPayment,
+			ReferenceID:         item.ID,
+			EntryDate:           req.PaymentDate,
+			Description:         "NTP Payment: " + item.Code + " - Ref: " + req.BankReference,
+			TotalAmount:         req.Amount,
+			PaymentAccountCOAID: req.ChartOfAccountID,
+			MemoArgs:            []interface{}{req.BankReference},
+		}
 
-	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileNonTradePayablePayment, txData)
+		journalReq, err := uc.accountingEngine.GenerateJournal(txCtx, accounting.ProfileNonTradePayablePayment, txData)
+		if err != nil {
+			return err
+		}
+
+		journalRes, err := uc.journalUC.PostOrUpdateJournal(txCtx, journalReq)
+		if err != nil {
+			return err
+		}
+		journalID = journalRes.ID
+
+		if err := tx.WithContext(ctx).Model(&financeModels.NonTradePayable{}).
+			Where("id = ? AND status = ?", id, financeModels.NTPStatusApproved).
+			Updates(map[string]interface{}{
+				"status": financeModels.NTPStatusPaid,
+			}).Error; err != nil {
+			return err
+		}
+
+		item.Status = financeModels.NTPStatusPaid
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	journalRes, err := uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update status. If payment amount == item amount, set PAID.
-	// For simplicity, we assume full payment here as per logic flow DRAFT -> APPROVED -> PAID
-	if err := uc.db.WithContext(ctx).Model(&financeModels.NonTradePayable{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status": financeModels.NTPStatusPaid,
-	}).Error; err != nil {
-		return nil, err
-	}
-
-	item.Status = financeModels.NTPStatusPaid
-	res := uc.mapper.ToResponse(item)
-	res.JournalID = &journalRes.ID
+	res := uc.mapper.ToResponse(&item)
+	res.JournalID = &journalID // Assuming we add this to DTO
 	return &res, nil
 }

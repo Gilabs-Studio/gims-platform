@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UpCountryCostListParams struct {
@@ -87,15 +88,36 @@ func (r *upCountryCostRepository) List(ctx context.Context, params UpCountryCost
 		return nil, 0, err
 	}
 
-	sortCol := "up_country_costs.created_at"
-	if params.SortBy != "" {
-		sortCol = params.SortBy
+	allowedSort := map[string]clause.OrderByColumn{
+		"created_at": {
+			Column: clause.Column{Table: "up_country_costs", Name: "created_at"},
+		},
+		"updated_at": {
+			Column: clause.Column{Table: "up_country_costs", Name: "updated_at"},
+		},
+		"start_date": {
+			Column: clause.Column{Table: "up_country_costs", Name: "start_date"},
+		},
+		"end_date": {
+			Column: clause.Column{Table: "up_country_costs", Name: "end_date"},
+		},
+		"status": {
+			Column: clause.Column{Table: "up_country_costs", Name: "status"},
+		},
+		"amount": {
+			Column: clause.Column{Table: "up_country_costs", Name: "amount"},
+		},
 	}
-	sortDir := "DESC"
-	if strings.ToUpper(params.SortDir) == "ASC" {
-		sortDir = "ASC"
+	sortCol := allowedSort[params.SortBy]
+	if sortCol.Column.Name == "" {
+		sortCol = allowedSort["created_at"]
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	if strings.EqualFold(strings.TrimSpace(params.SortDir), "asc") {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
+	}
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

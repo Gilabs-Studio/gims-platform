@@ -102,9 +102,10 @@ func (p *XenditProvider) TestConnection(ctx context.Context) error {
 	if readErr != nil {
 		return fmt.Errorf("xendit: failed to read test response: %w", readErr)
 	}
+	_ = respBody
 
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("xendit: invalid credentials or access (status %d): %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("xendit: invalid credentials or access (status %d)", resp.StatusCode)
 	}
 
 	return nil
@@ -147,9 +148,10 @@ func (p *XenditProvider) CreateInvoice(ctx context.Context, req InvoiceRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("xendit: failed to read response body: %w", err)
 	}
+	_ = respBody
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("xendit: API error (status %d): %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("xendit: API error (status %d)", resp.StatusCode)
 	}
 
 	var invoice InvoiceResponse

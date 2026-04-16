@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"log"
@@ -10,24 +10,26 @@ import (
 
 func SeedSystemAccountMappings() error {
 	mappings := []models.SystemAccountMapping{
-		// Sales
-		{Key: models.MappingKeySalesReceivable, COACode: "1210", Label: "Trade Receivables"},
-		{Key: models.MappingKeySalesRevenue, COACode: "4110", Label: "Sales Revenue"},
-		{Key: models.MappingKeySalesVatOutput, COACode: "2300", Label: "VAT Output"},
-		{Key: models.MappingKeySalesAdvance, COACode: "2400", Label: "Customer Advances"},
-		{Key: models.MappingKeySalesCogs, COACode: "5000", Label: "Cost of Goods Sold"},
-		{Key: models.MappingKeySalesInventory, COACode: "1430", Label: "Inventory (Finished Goods)"},
-
-		// Purchase
-		{Key: models.MappingKeyPurchasePayable, COACode: "2110", Label: "Trade Payables"},
-		{Key: models.MappingKeyPurchaseGrir, COACode: "2120", Label: "Goods Received Not Invoiced (GR/IR)"},
-		{Key: models.MappingKeyPurchaseVatInput, COACode: "1500", Label: "VAT Input"},
-		{Key: models.MappingKeyPurchaseDelivery, COACode: "6120", Label: "Outbound Delivery Costs"},
-		{Key: models.MappingKeyPurchaseOtherCost, COACode: "6900", Label: "Other Operating Expenses"},
-
-		// Closing
-		{Key: models.MappingKeyRetainedEarnings, COACode: "3200", Label: "Retained Earnings"},
-		{Key: models.MappingKeyClosingSuspense, COACode: "3999", Label: "Closing Suspense Account"},
+		{Key: "purchase.inventory_asset", COACode: "11310", Label: "Purchase Inventory Asset"},
+		{Key: "purchase.gr_ir_clearing", COACode: "11440", Label: "Purchase GR/IR Clearing"},
+		{Key: "purchase.tax_input", COACode: "11420", Label: "Purchase Tax Input"},
+		{Key: "purchase.accounts_payable", COACode: "21100", Label: "Purchase Accounts Payable"},
+		{Key: "sales.accounts_receivable", COACode: "11210", Label: "Sales Accounts Receivable"},
+		{Key: "sales.revenue", COACode: "41100", Label: "Sales Revenue"},
+		{Key: "sales.tax_output", COACode: "21210", Label: "Sales Tax Output"},
+		{Key: "sales.cogs", COACode: "51000", Label: "Sales Cost of Goods Sold"},
+		{Key: "sales.sales_return", COACode: "41200", Label: "Sales Return"},
+		{Key: "inventory.adjustment_gain", COACode: "71300", Label: "Inventory Adjustment Gain"},
+		{Key: "inventory.adjustment_loss", COACode: "52100", Label: "Inventory Adjustment Loss"},
+		{Key: "asset.accumulated_depreciation", COACode: "12241", Label: "Asset Accumulated Depreciation"},
+		{Key: "asset.depreciation_expense", COACode: "62430", Label: "Asset Depreciation Expense"},
+		{Key: "finance.opening_balance_equity", COACode: "39999", Label: "Finance Opening Balance Equity"},
+		{Key: "finance.bank_default", COACode: "11111", Label: "Finance Bank Default"},
+		{Key: "finance.cash_default", COACode: "11101", Label: "Finance Cash Default"},
+		{Key: "payroll.salary_expense", COACode: "62100", Label: "Payroll Salary Expense"},
+		{Key: "payroll.allowance_expense", COACode: "62110", Label: "Payroll Allowance Expense"},
+		{Key: "payroll.payable_salary", COACode: "21300", Label: "Payroll Salary Payable"},
+		{Key: "payroll.tax_pph21", COACode: "21220", Label: "Payroll Tax PPh21"},
 	}
 
 	for _, m := range mappings {
@@ -48,3 +50,4 @@ func SeedSystemAccountMappings() error {
 
 	return nil
 }
+

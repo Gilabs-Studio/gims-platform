@@ -85,6 +85,14 @@ func (r *customerRepository) List(ctx context.Context, params CustomerListParams
 		query = query.Where("customer_type_id = ?", params.CustomerTypeID)
 	}
 
+	if params.IsLoyaltyMember != nil {
+		if *params.IsLoyaltyMember {
+			query = query.Where("EXISTS (SELECT 1 FROM loyalty_members WHERE loyalty_members.customer_id = customers.id)")
+		} else {
+			query = query.Where("NOT EXISTS (SELECT 1 FROM loyalty_members WHERE loyalty_members.customer_id = customers.id)")
+		}
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

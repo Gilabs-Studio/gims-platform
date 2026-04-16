@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"log"
@@ -26,8 +26,10 @@ type bankAccountSeed struct {
 func SeedBankAccounts() error {
 	if isMinimalSeedMode() {
 		db := database.DB
+		companyID := GiLabsCompanyID
+		actorID := AdminEmployeeID
 		// Minimal bank account + corresponding COA.
-		coa := financeModels.ChartOfAccount{Code: "11100", Name: "Cash - Minimal Account", Type: financeModels.AccountTypeCashBank, IsActive: true}
+		coa := financeModels.ChartOfAccount{Code: "11101", Name: "Kas", Type: financeModels.AccountTypeCashBank, IsActive: true}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "code"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "type", "is_active"})}).Create(&coa).Error; err != nil {
 			return err
 		}
@@ -37,11 +39,15 @@ func SeedBankAccounts() error {
 		}
 
 		account := coreModels.BankAccount{
+			CompanyID:        companyID,
+			Code:             "BA-MIN-001",
 			Name:             "Minimal Bank Account",
 			AccountNumber:    "0000000001",
 			AccountHolder:    "PT. Minimal",
 			Currency:         "IDR",
 			IsActive:         true,
+			CreatedBy:        actorID,
+			UpdatedBy:        actorID,
 			ChartOfAccountID: &existingID,
 		}
 		if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "account_number"}}, DoUpdates: clause.AssignmentColumns([]string{"name", "account_holder", "currency", "is_active", "chart_of_account_id", "updated_at"})}).Create(&account).Error; err != nil {
@@ -67,22 +73,17 @@ func SeedBankAccounts() error {
 		{
 			name: "Bank Mandiri - Main Account", accountNumber: "1234567890",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "11101", coaName: "Bank Mandiri - Main Account",
+			coaCode: "11112", coaName: "Bank Mandiri",
 		},
 		{
 			name: "Bank BCA - Operating Account", accountNumber: "0987654321",
 			accountHolder: "PT. ERP Company", currency: "IDR", isActive: true,
-			coaCode: "11102", coaName: "Bank BCA - Operating Account",
+			coaCode: "11111", coaName: "Bank BCA",
 		},
 		{
 			name: "Bank BRI - USD Account", accountNumber: "1122334455",
 			accountHolder: "PT. ERP Company", currency: "USD", isActive: true,
-			coaCode: "11103", coaName: "Bank BRI - USD Account",
-		},
-		{
-			name: "Bank BNI - Inactive Account", accountNumber: "5566778899",
-			accountHolder: "PT. ERP Company", currency: "IDR", isActive: false,
-			coaCode: "11104", coaName: "Bank BNI - Inactive Account",
+			coaCode: "11113", coaName: "Bank BRI",
 		},
 	}
 
@@ -118,15 +119,21 @@ func SeedBankAccounts() error {
 	}
 
 	// 5) Upsert bank accounts with resolved ChartOfAccountID.
+	companyID := GiLabsCompanyID
+	actorID := AdminEmployeeID
 	for _, s := range seeds {
 		coaID := coaByCode[s.coaCode]
 		account := coreModels.BankAccount{
 			ID:            uuid.New().String(),
+			CompanyID:     companyID,
+			Code:          "BA-" + s.coaCode,
 			Name:          s.name,
 			AccountNumber: s.accountNumber,
 			AccountHolder: s.accountHolder,
 			Currency:      s.currency,
 			IsActive:      s.isActive,
+			CreatedBy:     actorID,
+			UpdatedBy:     actorID,
 		}
 		if coaID != "" {
 			account.ChartOfAccountID = &coaID
@@ -150,3 +157,4 @@ func SeedBankAccounts() error {
 	log.Println("Bank accounts seeded with linked COA entries.")
 	return nil
 }
+

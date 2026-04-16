@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -72,6 +73,7 @@ type posOrderUsecase struct {
 	orderRepo     repositories.PosOrderRepository
 	outletRepo    orgRepos.OutletRepository
 	productRepo   repositories.POSProductRepository
+	configRepo    repositories.POSConfigRepository
 	recipeService invUsecase.RecipeConsumptionService
 }
 
@@ -81,6 +83,7 @@ func NewPOSOrderUsecase(
 	orderRepo repositories.PosOrderRepository,
 	outletRepo orgRepos.OutletRepository,
 	productRepo repositories.POSProductRepository,
+	configRepo repositories.POSConfigRepository,
 	recipeService invUsecase.RecipeConsumptionService,
 ) POSOrderUsecase {
 	return &posOrderUsecase{
@@ -88,6 +91,7 @@ func NewPOSOrderUsecase(
 		orderRepo:     orderRepo,
 		outletRepo:    outletRepo,
 		productRepo:   productRepo,
+		configRepo:    configRepo,
 		recipeService: recipeService,
 	}
 }
@@ -249,6 +253,22 @@ func (u *posOrderUsecase) AddItem(ctx context.Context, orderID string, req *dto.
 			return nil, ErrPOSProductNotAvailable
 		}
 		return nil, err
+	}
+
+	// Merge into existing line item if the same product is already in the order.
+	for i := range order.Items {
+		if order.Items[i].ProductID == req.ProductID {
+			existing := &order.Items[i]
+			existing.Quantity += req.Quantity
+			existing.Subtotal = existing.UnitPrice * existing.Quantity
+			if err := u.orderRepo.UpdateItem(ctx, existing); err != nil {
+				return nil, err
+			}
+			if err := u.recalculateAndSave(ctx, order); err != nil {
+				return nil, err
+			}
+			return u.fetchOrderResponse(ctx, orderID)
+		}
 	}
 
 	item := &posModels.PosOrderItem{
@@ -427,9 +447,56 @@ func (u *posOrderUsecase) recalculateAndSave(ctx context.Context, order *posMode
 	for _, item := range items {
 		subtotal += item.Subtotal
 	}
-	order.Subtotal = subtotal
-	order.TotalAmount = subtotal + order.TaxAmount + order.ServiceCharge - order.DiscountAmount
+	taxRate, serviceRate, err := u.loadChargeRates(ctx, order.OutletID)
+	if err != nil {
+		return err
+	}
+
+	taxableBase := subtotal - order.DiscountAmount
+	if taxableBase < 0 {
+		taxableBase = 0
+	}
+
+	order.Subtotal = roundCurrency(subtotal)
+	order.TaxAmount = roundCurrency(taxableBase * taxRate)
+	order.ServiceCharge = roundCurrency(taxableBase * serviceRate)
+	order.TotalAmount = roundCurrency(taxableBase + order.TaxAmount + order.ServiceCharge)
 	return u.orderRepo.Update(ctx, order)
+}
+
+func (u *posOrderUsecase) loadChargeRates(ctx context.Context, outletID string) (float64, float64, error) {
+	const (
+		defaultTaxRate     = 0.11
+		defaultServiceRate = 0.0
+	)
+
+	if u.configRepo == nil {
+		return defaultTaxRate, defaultServiceRate, nil
+	}
+
+	cfg, err := u.configRepo.FindByOutletID(ctx, outletID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return defaultTaxRate, defaultServiceRate, nil
+		}
+		return 0, 0, err
+	}
+
+	return normalizeRate(cfg.TaxRate), normalizeRate(cfg.ServiceChargeRate), nil
+}
+
+func normalizeRate(rate float64) float64 {
+	if rate <= 0 {
+		return 0
+	}
+	if rate > 1 {
+		return rate / 100
+	}
+	return rate
+}
+
+func roundCurrency(value float64) float64 {
+	return math.Round(value*100) / 100
 }
 
 func (u *posOrderUsecase) fetchOrderResponse(ctx context.Context, orderID string) (*dto.POSOrderResponse, error) {

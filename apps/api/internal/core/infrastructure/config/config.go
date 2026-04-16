@@ -10,17 +10,17 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig
-	Startup   StartupConfig
-	Security  SecurityConfig
-	Database  DatabaseConfig
+	Server        ServerConfig
+	Startup       StartupConfig
+	Security      SecurityConfig
+	Database      DatabaseConfig
 	Observability ObservabilityConfig
-	JWT       JWTConfig
-	Cerebras  CerebrasConfig
-	Storage   StorageConfig
-	RateLimit RateLimitConfig
-	HSTS      HSTSConfig
-	Redis     RedisConfig
+	JWT           JWTConfig
+	Cerebras      CerebrasConfig
+	Storage       StorageConfig
+	RateLimit     RateLimitConfig
+	HSTS          HSTSConfig
+	Redis         RedisConfig
 }
 
 type StartupConfig struct {
@@ -29,16 +29,17 @@ type StartupConfig struct {
 }
 
 type SecurityConfig struct {
-	CSRFEnabled          bool
-	ProxyHeadersEnabled  bool
-	TrustedProxies       []string
+	CSRFEnabled                   bool
+	ProxyHeadersEnabled           bool
+	TrustedProxies                []string
+	XenditCredentialEncryptionKey string
 }
 
 type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int
+	Host            string
+	Port            string
+	Password        string
+	DB              int
 	DialTimeoutSec  int
 	ReadTimeoutSec  int
 	WriteTimeoutSec int
@@ -47,53 +48,55 @@ type RedisConfig struct {
 }
 
 type ServerConfig struct {
-	Port                 string
-	Env                  string
-	Timezone             string // IANA timezone name (e.g. "Asia/Jakarta")
-	ReadHeaderTimeoutSec int
-	ReadTimeoutSec       int
-	WriteTimeoutSec      int
-	IdleTimeoutSec       int
-	ShutdownTimeoutSec   int
-	MaxHeaderBytes       int
-	MaxBodyBytes         int64
-	MaxMultipartBodyBytes int64
+	Port                    string
+	Env                     string
+	Timezone                string // IANA timezone name (e.g. "Asia/Jakarta")
+	// FrontendBaseURL is the public web app origin used to build QR code / feedback URLs.
+	FrontendBaseURL         string
+	ReadHeaderTimeoutSec    int
+	ReadTimeoutSec          int
+	WriteTimeoutSec         int
+	IdleTimeoutSec          int
+	ShutdownTimeoutSec      int
+	MaxHeaderBytes          int
+	MaxBodyBytes            int64
+	MaxMultipartBodyBytes   int64
 	MaxMultipartMemoryBytes int64
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-	MaxOpenConns            int
-	MaxIdleConns            int
-	ConnMaxLifetimeMinutes  int
-	ConnMaxIdleTimeMinutes  int
-	PrepareStmt             bool
-	SkipDefaultTransaction  bool
+	Host                   string
+	Port                   string
+	User                   string
+	Password               string
+	DBName                 string
+	SSLMode                string
+	MaxOpenConns           int
+	MaxIdleConns           int
+	ConnMaxLifetimeMinutes int
+	ConnMaxIdleTimeMinutes int
+	PrepareStmt            bool
+	SkipDefaultTransaction bool
 }
 
 type ObservabilityConfig struct {
-	PprofEnabled  bool
-	PprofToken    string
+	PprofEnabled   bool
+	PprofToken     string
 	MetricsEnabled bool
 	MetricsToken   string
 }
 
 type JWTConfig struct {
-	SecretKey      string
-	AccessSecretKey string
+	SecretKey        string
+	AccessSecretKey  string
 	RefreshSecretKey string
-	AccessKeysRaw  string
-	RefreshKeysRaw string
-	AccessKID      string
-	RefreshKID     string
-	Issuer         string
-	AccessTokenTTL int // in hours
-	RefreshTokenTTL int // in days
+	AccessKeysRaw    string
+	RefreshKeysRaw   string
+	AccessKID        string
+	RefreshKID       string
+	Issuer           string
+	AccessTokenTTL   int // in hours
+	RefreshTokenTTL  int // in days
 }
 
 type CerebrasConfig struct {
@@ -116,12 +119,12 @@ type RateLimitRule struct {
 
 // RateLimitConfig defines rate limit configuration for different endpoint types
 type RateLimitConfig struct {
-	Login   RateLimitRule // Login endpoint: 5 requests per 15 minutes (Level 1 - IP)
-	Refresh RateLimitRule // Refresh token endpoint: 10 requests per hour
-	Upload  RateLimitRule // File upload endpoint: 20 requests per hour
-	General RateLimitRule // General API endpoints: 100 requests per minute
-	Public  RateLimitRule // Public endpoints: 200 requests per minute
-	FailClosedOnRedisError bool // If true, reject requests when Redis limiter is unavailable
+	Login                  RateLimitRule // Login endpoint: 5 requests per 15 minutes (Level 1 - IP)
+	Refresh                RateLimitRule // Refresh token endpoint: 10 requests per hour
+	Upload                 RateLimitRule // File upload endpoint: 20 requests per hour
+	General                RateLimitRule // General API endpoints: 100 requests per minute
+	Public                 RateLimitRule // Public endpoints: 200 requests per minute
+	FailClosedOnRedisError bool          // If true, reject requests when Redis limiter is unavailable
 	// Multi-level rate limiting for login
 	LoginByEmail RateLimitRule // Level 2: 10 attempts per 15 minutes per email
 	LoginGlobal  RateLimitRule // Level 3: 100 attempts per minute globally
@@ -151,17 +154,18 @@ func Load() error {
 
 	AppConfig = &Config{
 		Server: ServerConfig{
-			Port:                 getEnv("PORT", "8080"),
-			Env:                  envValue, // Use the env value we determined above
-			Timezone:             getEnv("APP_TIMEZONE", "Asia/Jakarta"),
-			ReadHeaderTimeoutSec: getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
-			ReadTimeoutSec:       getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
-			WriteTimeoutSec:      getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),
-			IdleTimeoutSec:       getEnvAsInt("SERVER_IDLE_TIMEOUT_SEC", 120),
-			ShutdownTimeoutSec:   getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT_SEC", 20),
-			MaxHeaderBytes:       getEnvAsInt("SERVER_MAX_HEADER_BYTES", 1<<20),
-			MaxBodyBytes:         getEnvAsInt64("SERVER_MAX_BODY_BYTES", 1<<20),               // 1MB
-			MaxMultipartBodyBytes: getEnvAsInt64("SERVER_MAX_MULTIPART_BODY_BYTES", 50<<20),   // 50MB
+			Port:                    getEnv("PORT", "8080"),
+			Env:                     envValue, // Use the env value we determined above
+			Timezone:                getEnv("APP_TIMEZONE", "Asia/Jakarta"),
+			FrontendBaseURL:         getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
+			ReadHeaderTimeoutSec:    getEnvAsInt("SERVER_READ_HEADER_TIMEOUT_SEC", 10),
+			ReadTimeoutSec:          getEnvAsInt("SERVER_READ_TIMEOUT_SEC", 30),
+			WriteTimeoutSec:         getEnvAsInt("SERVER_WRITE_TIMEOUT_SEC", 30),
+			IdleTimeoutSec:          getEnvAsInt("SERVER_IDLE_TIMEOUT_SEC", 120),
+			ShutdownTimeoutSec:      getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT_SEC", 20),
+			MaxHeaderBytes:          getEnvAsInt("SERVER_MAX_HEADER_BYTES", 1<<20),
+			MaxBodyBytes:            getEnvAsInt64("SERVER_MAX_BODY_BYTES", 1<<20),             // 1MB
+			MaxMultipartBodyBytes:   getEnvAsInt64("SERVER_MAX_MULTIPART_BODY_BYTES", 50<<20),  // 50MB
 			MaxMultipartMemoryBytes: getEnvAsInt64("SERVER_MAX_MULTIPART_MEMORY_BYTES", 8<<20), // 8MB
 		},
 		Startup: StartupConfig{
@@ -169,17 +173,18 @@ func Load() error {
 			RunSeeders:    getEnvAsBool("RUN_SEEDERS", envValue != "production"),
 		},
 		Security: SecurityConfig{
-			CSRFEnabled:         getEnvAsBool("CSRF_ENABLED", true),
-			ProxyHeadersEnabled: getEnvAsBool("PROXY_HEADERS_ENABLED", false),
-			TrustedProxies:      getEnvAsStringSlice("TRUSTED_PROXIES", nil),
+			CSRFEnabled:                   getEnvAsBool("CSRF_ENABLED", true),
+			ProxyHeadersEnabled:           getEnvAsBool("PROXY_HEADERS_ENABLED", false),
+			TrustedProxies:                getEnvAsStringSlice("TRUSTED_PROXIES", nil),
+			XenditCredentialEncryptionKey: getEnv("XENDIT_CREDENTIAL_ENCRYPTION_KEY", ""),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			DBName:   getEnv("DB_NAME", "gims_erp"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			Host:                   getEnv("DB_HOST", "localhost"),
+			Port:                   getEnv("DB_PORT", "5432"),
+			User:                   getEnv("DB_USER", "postgres"),
+			Password:               getEnv("DB_PASSWORD", "postgres"),
+			DBName:                 getEnv("DB_NAME", "gims_erp"),
+			SSLMode:                getEnv("DB_SSLMODE", "disable"),
 			MaxOpenConns:           getEnvAsInt("DB_MAX_OPEN_CONNS", 50),
 			MaxIdleConns:           getEnvAsInt("DB_MAX_IDLE_CONNS", 25),
 			ConnMaxLifetimeMinutes: getEnvAsInt("DB_CONN_MAX_LIFETIME_MINUTES", 30),
@@ -188,22 +193,22 @@ func Load() error {
 			SkipDefaultTransaction: getEnvAsBool("DB_SKIP_DEFAULT_TRANSACTION", false),
 		},
 		Observability: ObservabilityConfig{
-			PprofEnabled:  getEnvAsBool("PPROF_ENABLED", false),
-			PprofToken:    getEnv("PPROF_TOKEN", ""),
+			PprofEnabled:   getEnvAsBool("PPROF_ENABLED", false),
+			PprofToken:     getEnv("PPROF_TOKEN", ""),
 			MetricsEnabled: getEnvAsBool("METRICS_ENABLED", false),
 			MetricsToken:   getEnv("METRICS_TOKEN", ""),
 		},
 		JWT: JWTConfig{
-			SecretKey:      getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-			AccessSecretKey: getEnv("JWT_ACCESS_SECRET", ""),
+			SecretKey:        getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+			AccessSecretKey:  getEnv("JWT_ACCESS_SECRET", ""),
 			RefreshSecretKey: getEnv("JWT_REFRESH_SECRET", ""),
-			AccessKeysRaw:  getEnv("JWT_ACCESS_KEYS", ""),
-			RefreshKeysRaw: getEnv("JWT_REFRESH_KEYS", ""),
-			AccessKID:      getEnv("JWT_ACCESS_KID", ""),
-			RefreshKID:     getEnv("JWT_REFRESH_KID", ""),
-			Issuer:         getEnv("JWT_ISSUER", "template-1n"),
-			AccessTokenTTL: getEnvAsInt("JWT_ACCESS_TTL", 24), // 24 hours
-			RefreshTokenTTL: getEnvAsInt("JWT_REFRESH_TTL", 7), // 7 days
+			AccessKeysRaw:    getEnv("JWT_ACCESS_KEYS", ""),
+			RefreshKeysRaw:   getEnv("JWT_REFRESH_KEYS", ""),
+			AccessKID:        getEnv("JWT_ACCESS_KID", ""),
+			RefreshKID:       getEnv("JWT_REFRESH_KID", ""),
+			Issuer:           getEnv("JWT_ISSUER", "template-1n"),
+			AccessTokenTTL:   getEnvAsInt("JWT_ACCESS_TTL", 24), // 24 hours
+			RefreshTokenTTL:  getEnvAsInt("JWT_REFRESH_TTL", 7), // 7 days
 		},
 		Cerebras: CerebrasConfig{
 			BaseURL: getEnv("CEREBRAS_BASE_URL", "https://api.cerebras.ai"),
@@ -217,30 +222,30 @@ func Load() error {
 		},
 		RateLimit: RateLimitConfig{
 			Login: RateLimitRule{
-				Requests: getEnvAsInt("RATE_LIMIT_LOGIN_REQUESTS", 3),      //3 requests per 15 minutes (Level 1 - IP)
-				Window:   getEnvAsInt("RATE_LIMIT_LOGIN_WINDOW", 900),      // 15 minutes (900 seconds)
+				Requests: getEnvAsInt("RATE_LIMIT_LOGIN_REQUESTS", 3), //3 requests per 15 minutes (Level 1 - IP)
+				Window:   getEnvAsInt("RATE_LIMIT_LOGIN_WINDOW", 900), // 15 minutes (900 seconds)
 			},
 			Refresh: RateLimitRule{
-				Requests: getEnvAsInt("RATE_LIMIT_REFRESH_REQUESTS", 10),   // 10 requests
-				Window:   getEnvAsInt("RATE_LIMIT_REFRESH_WINDOW", 3600),  // 1 hour (3600 seconds)
+				Requests: getEnvAsInt("RATE_LIMIT_REFRESH_REQUESTS", 10), // 10 requests
+				Window:   getEnvAsInt("RATE_LIMIT_REFRESH_WINDOW", 3600), // 1 hour (3600 seconds)
 			},
 			Upload: RateLimitRule{
-				Requests: getEnvAsInt("RATE_LIMIT_UPLOAD_REQUESTS", 20),    // 20 requests
-				Window:   getEnvAsInt("RATE_LIMIT_UPLOAD_WINDOW", 3600),   // 1 hour (3600 seconds)
+				Requests: getEnvAsInt("RATE_LIMIT_UPLOAD_REQUESTS", 20), // 20 requests
+				Window:   getEnvAsInt("RATE_LIMIT_UPLOAD_WINDOW", 3600), // 1 hour (3600 seconds)
 			},
 			General: RateLimitRule{
-				Requests: getEnvAsInt("RATE_LIMIT_GENERAL_REQUESTS", 100),  // 100 requests
+				Requests: getEnvAsInt("RATE_LIMIT_GENERAL_REQUESTS", 100), // 100 requests
 				Window:   getEnvAsInt("RATE_LIMIT_GENERAL_WINDOW", 60),    // 1 minute (60 seconds)
 			},
 			Public: RateLimitRule{
-				Requests: getEnvAsInt("RATE_LIMIT_PUBLIC_REQUESTS", 200),   // 200 requests
-				Window:   getEnvAsInt("RATE_LIMIT_PUBLIC_WINDOW", 60),     // 1 minute (60 seconds)
+				Requests: getEnvAsInt("RATE_LIMIT_PUBLIC_REQUESTS", 200), // 200 requests
+				Window:   getEnvAsInt("RATE_LIMIT_PUBLIC_WINDOW", 60),    // 1 minute (60 seconds)
 			},
 			FailClosedOnRedisError: getEnvAsBool("RATE_LIMIT_FAIL_CLOSED_ON_REDIS_ERROR", envValue == "production"),
 			// Level 2: Rate limit by email/username (prevents brute force even if IP changes)
 			LoginByEmail: RateLimitRule{
 				Requests: getEnvAsInt("RATE_LIMIT_LOGIN_BY_EMAIL_REQUESTS", 5), // 5 requests per 15 minutes per email
-				Window:   getEnvAsInt("RATE_LIMIT_LOGIN_BY_EMAIL_WINDOW", 900),  // 15 minutes (900 seconds)
+				Window:   getEnvAsInt("RATE_LIMIT_LOGIN_BY_EMAIL_WINDOW", 900), // 15 minutes (900 seconds)
 			},
 			// Level 3: Global rate limit (prevents DOS on entire system)
 			LoginGlobal: RateLimitRule{
@@ -249,15 +254,15 @@ func Load() error {
 			},
 		},
 		HSTS: HSTSConfig{
-			MaxAge:            getEnvAsInt("HSTS_MAX_AGE", 31536000),        // 1 year in seconds
+			MaxAge:            getEnvAsInt("HSTS_MAX_AGE", 31536000), // 1 year in seconds
 			IncludeSubDomains: getEnv("HSTS_INCLUDE_SUBDOMAINS", "true") == "true",
 			Preload:           getEnv("HSTS_PRELOAD", "true") == "true",
 		},
 		Redis: RedisConfig{
-			Host:     getEnv("REDIS_HOST", "localhost"),
-			Port:     getEnv("REDIS_PORT", "6379"),
-			Password: getEnv("REDIS_PASSWORD", ""),
-			DB:       getEnvAsInt("REDIS_DB", 0),
+			Host:            getEnv("REDIS_HOST", "localhost"),
+			Port:            getEnv("REDIS_PORT", "6379"),
+			Password:        getEnv("REDIS_PASSWORD", ""),
+			DB:              getEnvAsInt("REDIS_DB", 0),
 			DialTimeoutSec:  getEnvAsInt("REDIS_DIAL_TIMEOUT_SEC", 10),
 			ReadTimeoutSec:  getEnvAsInt("REDIS_READ_TIMEOUT_SEC", 30),
 			WriteTimeoutSec: getEnvAsInt("REDIS_WRITE_TIMEOUT_SEC", 30),
@@ -324,6 +329,9 @@ func Load() error {
 		if strings.TrimSpace(AppConfig.JWT.Issuer) == "" {
 			return fmt.Errorf("JWT_ISSUER must be set in production environment")
 		}
+		if strings.TrimSpace(AppConfig.Security.XenditCredentialEncryptionKey) == "" {
+			return fmt.Errorf("XENDIT_CREDENTIAL_ENCRYPTION_KEY must be set in production environment")
+		}
 
 		// SAFETY: Never expose debug/observability endpoints in production.
 		if AppConfig.Observability.PprofEnabled || AppConfig.Observability.MetricsEnabled {
@@ -334,7 +342,7 @@ func Load() error {
 		if AppConfig.Startup.RunSeeders {
 			return fmt.Errorf("CRITICAL: RUN_SEEDERS must be false in production environment. Seeders are for development only and will corrupt production data")
 		}
-		
+
 		// WARNING: Manual migration approval recommended for production
 		if AppConfig.Startup.RunMigrations {
 			fmt.Println("WARNING: Auto-migrations are enabled in production. Ensure proper testing and backup procedures are in place.")

@@ -16,7 +16,11 @@ const (
 )
 
 func RegisterFinancialClosingRoutes(r *gin.RouterGroup, h *handler.FinancialClosingHandler) {
-	g := r.Group("/closing")
+	registerFinancialClosingRoutesInGroup(r.Group("/closing"), h)
+	registerFinancialClosingRoutesInGroup(r.Group("/accounting/closing"), h)
+}
+
+func registerFinancialClosingRoutesInGroup(g *gin.RouterGroup, h *handler.FinancialClosingHandler) {
 	g.GET("", middleware.RequirePermission(financialClosingRead), h.List)
 	g.GET("/", middleware.RequirePermission(financialClosingRead), h.List)
 	g.POST("", middleware.RequirePermission(financialClosingCreate), h.Create)

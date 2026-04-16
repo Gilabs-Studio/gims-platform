@@ -59,6 +59,7 @@ import (
 	notificationRepo "github.com/gilabs/gims/api/internal/notification/data/repositories"
 
 	corePresentation "github.com/gilabs/gims/api/internal/core/presentation"
+	customerRepos "github.com/gilabs/gims/api/internal/customer/data/repositories"
 	customerPresentation "github.com/gilabs/gims/api/internal/customer/presentation"
 	financePresentation "github.com/gilabs/gims/api/internal/finance/presentation"
 	geographicPresentation "github.com/gilabs/gims/api/internal/geographic/presentation"
@@ -79,7 +80,9 @@ import (
 	warehousePresentation "github.com/gilabs/gims/api/internal/warehouse/presentation"
 
 	crmPresentation "github.com/gilabs/gims/api/internal/crm/presentation"
+	feedbackPresentation "github.com/gilabs/gims/api/internal/feedback/presentation"
 	generalPresentation "github.com/gilabs/gims/api/internal/general/presentation"
+	loyaltyPresentation "github.com/gilabs/gims/api/internal/loyalty/presentation"
 	posPresentation "github.com/gilabs/gims/api/internal/pos/presentation"
 	reportPresentation "github.com/gilabs/gims/api/internal/report/presentation"
 
@@ -374,6 +377,7 @@ func main() {
 			JournalUC:   financeDeps.JournalUC,
 			CoaUC:       financeDeps.CoaUC,
 			Engine:      financeDeps.Engine,
+			SettingsUC:  financeDeps.SettingsUC,
 		})
 
 		// HRD module (Sprint 13 - Attendance)
@@ -388,10 +392,18 @@ func main() {
 		inventoryPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC)
 
 		// Stock Opname module (Sprint 9) — depends on inventory for stock movement on Post
-		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC)
+		stockOpnamePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.SettingsUC)
 
 		// CRM module (Sprint 17 - Foundation & Settings)
+		// CRM module
 		crmPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Feedback module (POS QR code feedback)
+		feedbackPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+
+		// Loyalty module
+		customerRepo := customerRepos.NewCustomerRepository(database.DB)
+		loyaltyDeps := loyaltyPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, customerRepo)
 
 		// Reports module (Sales Overview)
 		reportPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
@@ -403,15 +415,15 @@ func main() {
 		generalPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
 
 		// POS module (Floor Layout Designer)
-		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService)
+		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)
 		bankAccountRepo := coreRepos.NewBankAccountRepository(database.DB)
-		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+		bankAccountUC := coreUsecase.NewBankAccountUsecaseWithCurrency(database.DB, bankAccountRepo, currencyRepo)
 
 		cerebrasClient := cerebras.NewClient(
 			config.AppConfig.Cerebras.BaseURL,

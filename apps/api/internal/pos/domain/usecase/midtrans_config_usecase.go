@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -27,12 +28,13 @@ type XenditConfigUsecase interface {
 }
 
 type xenditConfigUsecase struct {
-	repo repositories.XenditConfigRepository
+	repo   repositories.XenditConfigRepository
+	cipher *securityInfra.CredentialCipher
 }
 
 // NewXenditConfigUsecase creates the usecase
-func NewXenditConfigUsecase(repo repositories.XenditConfigRepository) XenditConfigUsecase {
-	return &xenditConfigUsecase{repo: repo}
+func NewXenditConfigUsecase(repo repositories.XenditConfigRepository, cipher *securityInfra.CredentialCipher) XenditConfigUsecase {
+	return &xenditConfigUsecase{repo: repo, cipher: cipher}
 }
 
 func (u *xenditConfigUsecase) Get(ctx context.Context, companyID string) (*dto.XenditConfigResponse, error) {
@@ -79,6 +81,16 @@ func (u *xenditConfigUsecase) TestConnection(ctx context.Context, req *dto.TestX
 }
 
 func (u *xenditConfigUsecase) Connect(ctx context.Context, companyID string, req *dto.ConnectXenditRequest, updatedBy string) (*dto.XenditConfigResponse, error) {
+	encryptedSecret, err := u.cipher.Encrypt(req.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt xendit secret key: %w", err)
+	}
+
+	encryptedWebhookToken, err := u.cipher.Encrypt(req.WebhookToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt xendit webhook token: %w", err)
+	}
+
 	testResp, err := u.TestConnection(ctx, &dto.TestXenditConnectionRequest{
 		SecretKey:       req.SecretKey,
 		XenditAccountID: req.XenditAccountID,
@@ -95,11 +107,11 @@ func (u *xenditConfigUsecase) Connect(ctx context.Context, companyID string, req
 
 	cfg := &posModels.XenditConfig{
 		CompanyID:        companyID,
-		SecretKey:        req.SecretKey,
+		SecretKey:        encryptedSecret,
 		XenditAccountID:  req.XenditAccountID,
 		BusinessName:     req.BusinessName,
 		Environment:      posModels.XenditEnvironment(req.Environment),
-		WebhookToken:     req.WebhookToken,
+		WebhookToken:     encryptedWebhookToken,
 		ConnectionStatus: posModels.XenditStatusConnected,
 		IsActive:         true,
 		UpdatedBy:        &updatedBy,
@@ -172,4 +184,3 @@ func (u *xenditConfigUsecase) Disconnect(ctx context.Context, companyID string, 
 	}
 	return mapper.ToXenditConfigResponse(saved), nil
 }
-

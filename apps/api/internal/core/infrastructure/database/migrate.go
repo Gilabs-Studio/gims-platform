@@ -12,11 +12,13 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database/migrations"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
+	feedback "github.com/gilabs/gims/api/internal/feedback/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	general "github.com/gilabs/gims/api/internal/general/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	loyalty "github.com/gilabs/gims/api/internal/loyalty/data/models"
 	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
@@ -147,6 +149,10 @@ func AutoMigrate() error {
 		&finance.BudgetItem{},
 		&finance.CashBankJournal{},
 		&finance.CashBankJournalLine{},
+		&finance.CashBankTransaction{},
+		&finance.BankTransfer{},
+		&finance.BankReconciliation{},
+		&finance.BankStatementLine{},
 		// Finance entities (Sprint 12)
 		&finance.AssetCategory{},
 		&finance.AssetLocation{},
@@ -158,9 +164,14 @@ func AutoMigrate() error {
 		&finance.AssetAuditLog{},
 		&finance.AssetAssignmentHistory{},
 		&finance.FinancialClosing{},
+		&finance.FiscalYear{},
 		&finance.AccountingPeriod{},
 		&finance.FinancialClosingSnapshot{},
 		&finance.FinancialClosingLog{},
+		&finance.TaxConfiguration{},
+		&finance.InventorySettings{},
+		&finance.InventoryAverageCost{},
+		&finance.OpeningBalanceLine{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
@@ -234,6 +245,7 @@ func AutoMigrate() error {
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
+		&inventory.StockLedger{},
 		// Stock Opname entities (Sprint 9)
 		&stockOpname.StockOpname{},
 		&stockOpname.StockOpnameItem{},
@@ -293,6 +305,14 @@ func AutoMigrate() error {
 		&pos.POSConfig{},
 		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
+		// Feedback module
+		&feedback.FeedbackForm{},
+		&feedback.FeedbackToken{},
+		&feedback.FeedbackResponse{},
+		// Loyalty module
+		&loyalty.LoyaltyProgram{},
+		&loyalty.LoyaltyMember{},
+		&loyalty.LoyaltyPointLedger{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
@@ -339,6 +359,17 @@ func AutoMigrate() error {
 		ADD COLUMN IF NOT EXISTS scope VARCHAR(20) NOT NULL DEFAULT 'ALL'
 	`).Error; err != nil {
 		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
+	}
+
+	// Ensure multi-company uniqueness for system account mappings.
+	if err := DB.Exec(`DROP INDEX IF EXISTS idx_system_account_mappings_key`).Error; err != nil {
+		log.Printf("Warning: could not drop legacy system_account_mappings key index: %v", err)
+	}
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_account_mappings_key_company
+		ON system_account_mappings ("key", company_id)
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure composite index idx_system_account_mappings_key_company: %v", err)
 	}
 
 	// Sprint 17: Migrate area_supervisors data to employee_areas
@@ -388,6 +419,11 @@ func AutoMigrate() error {
 	// WHY: Allow storing LinkedIn profile URLs for applicants
 	if err := migrations.AddApplicantLinkedInURLMigration(DB); err != nil {
 		log.Printf("Warning: Could not add linkedin_url column: %v", err)
+	}
+
+	// Add menu metadata fields required by canonical module navigation refactor.
+	if err := migrations.AddMenuMetadataMigration(DB); err != nil {
+		return fmt.Errorf("failed to add menu metadata migration: %w", err)
 	}
 
 	// NEW: Normalize journal data (casing/consistent naming)
