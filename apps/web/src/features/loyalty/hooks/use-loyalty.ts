@@ -91,11 +91,12 @@ export function useLoyaltyMember(id: string) {
   });
 }
 
-export function useLoyaltyMemberByCustomer(customerId: string) {
+export function useLoyaltyMemberByCustomer(customerId: string, enabled = true) {
   return useQuery({
-    queryKey: [MEMBERS_KEY, "byCustomer", customerId],
+    queryKey: [MEMBERS_KEY, "by-customer", customerId],
     queryFn: () => loyaltyService.getMemberByCustomer(customerId),
-    enabled: !!customerId,
+    enabled: enabled && !!customerId,
+    staleTime: 30_000,
   });
 }
 
