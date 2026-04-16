@@ -142,6 +142,8 @@ func AutoMigrate() error {
 		&finance.JournalLine{},
 		&finance.JournalReversal{},
 		&finance.JournalAttachment{},
+		&finance.AdjustmentJournalApproval{},
+		&finance.JournalTemplate{},
 		// Finance entities (Sprint 11)
 		&finance.Payment{},
 		&finance.PaymentAllocation{},

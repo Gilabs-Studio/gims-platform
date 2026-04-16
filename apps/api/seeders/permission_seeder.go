@@ -395,9 +395,17 @@ func SeedPermissions() error {
 		// Adjustment Journal — operational Finance correction journal
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.read", "View Adjustment Journal", "VIEW", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.create", "Create Adjustment Journal", "CREATE", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.submit", "Submit Adjustment Journal", "SUBMIT", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.approve", "Approve Adjustment Journal", "APPROVE", "adjustment_journal"},
+		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reject", "Reject Adjustment Journal", "REJECT", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.update", "Edit Adjustment Journal", "EDIT", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.post", "Post Adjustment Journal", "POST", "adjustment_journal"},
 		{"/finance/accounting/journal-entries/adjustment", "adjustment_journal.reverse", "Reverse Adjustment Journal", "REVERSE", "adjustment_journal"},
+
+		// Journal Template for Adjustment Journal
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.read", "View Journal Templates", "VIEW", "journal_template"},
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.create", "Create Journal Templates", "CREATE", "journal_template"},
+		{"/finance/accounting/journal-entries/adjustment", "journal_template.use", "Use Journal Templates", "USE", "journal_template"},
 
 		// Cash & Bank journal/transactions
 		{ "/finance/journals/cash-bank", "cash_bank_transaction.read", "View Cash-Bank Transactions", "VIEW", "cash_bank_transaction"},
@@ -526,8 +534,17 @@ func SeedPermissions() error {
 		{"/finance/fixed-assets/budgets", "asset_budget.update", "Edit Asset Budgets", "EDIT", "asset_budget"},
 		{"/finance/fixed-assets/budgets", "asset_budget.delete", "Delete Asset Budgets", "DELETE", "asset_budget"},
 
-		// Asset Disposal (placeholder)
-		{"/finance/fixed-assets/disposal", "asset_disposal.read", "View Asset Disposal", "VIEW", "asset_disposal"},
+		// Asset Batch Depreciation (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Preview Batch Depreciation", "DEPRECIATE", "asset"},
+		{"/finance/fixed-assets/batch-depreciation", "asset.depreciate", "Run Batch Depreciation", "DEPRECIATE", "asset"},
+
+		// Asset Disposal (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/disposal", "asset.update", "Preview Asset Disposal", "EDIT", "asset"},
+		{"/finance/fixed-assets/disposal", "asset.update", "Confirm Asset Disposal", "EDIT", "asset"},
+
+		// Asset Revaluation (Phase 4 PSAK 16)
+		{"/finance/fixed-assets/revaluation", "asset.revalue", "Preview Asset Revaluation", "EDIT", "asset"},
+		{"/finance/fixed-assets/revaluation", "asset.revalue", "Approve Asset Revaluation", "APPROVE", "asset"},
 
 		// HRD
 		{"/hrd/attendance", "attendance.read", "View Attendance", "VIEW", "attendance"},
@@ -903,6 +920,7 @@ func SeedPermissions() error {
 		// (adjustment_journal, journal_valuation, cash_bank_journal do not share a
 		//  standard module prefix, so they must be mapped explicitly)
 		"adjustment_journal": "DIVISION",
+		"journal_template":   "DIVISION",
 		"journal_valuation":  "DIVISION",
 		"cash_bank_journal":  "DIVISION",
 	}, "ALL")
@@ -918,6 +936,7 @@ func SeedPermissions() error {
 		"stock":             "OWN",
 		// Finance journal domain pages — Accountant operates at DIVISION level
 		"adjustment_journal": "DIVISION",
+		"journal_template":   "DIVISION",
 		"journal_valuation":  "DIVISION",
 		"cash_bank_journal":  "DIVISION",
 	}, "OWN")

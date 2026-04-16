@@ -289,3 +289,49 @@ export interface CashBankSubLedgerApiResponse<T> {
   };
   error?: string;
 }
+
+export interface AdjustmentApprovalActionInput {
+  notes?: string;
+}
+
+export interface AdjustmentApprovalHistoryItem {
+  id: string;
+  journal_id: string;
+  action: "submitted" | "approved" | "rejected" | string;
+  actor_id: string;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface JournalTemplate {
+  id: string;
+  company_id: string;
+  template_name: string;
+  journal_type: JournalType;
+  description?: string | null;
+  lines: string;
+  created_by?: string | null;
+  last_used_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListJournalTemplateParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  company_id?: string;
+}
+
+export interface CreateJournalTemplateInput {
+  company_id: string;
+  template_name: string;
+  journal_type: JournalType;
+  description?: string | null;
+  lines: JournalLineInput[];
+}
+
+export interface UseJournalTemplateResponse {
+  template: JournalTemplate;
+  prefill: CreateJournalEntryInput;
+}

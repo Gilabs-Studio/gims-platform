@@ -7,7 +7,7 @@ import (
 )
 
 type CreateAssetCategoryRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string                          `json:"name" binding:"required"`
 	Type financeModels.AssetCategoryType `json:"type" binding:"omitempty,oneof=FIXED CURRENT INTANGIBLE OTHER"`
 
 	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB NONE"`
@@ -15,15 +15,17 @@ type CreateAssetCategoryRequest struct {
 	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
 	IsDepreciable      *bool                            `json:"is_depreciable"`
 
-	AssetAccountID                     string `json:"asset_account_id" binding:"required,uuid"`
-	AccumulatedDepreciationAccountID   string `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
-	DepreciationExpenseAccountID       string `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	AssetAccountID                   string  `json:"asset_account_id" binding:"required,uuid"`
+	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
+	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	DisposalGainAccountID            *string `json:"disposal_gain_account_id" binding:"omitempty,uuid"`
+	DisposalLossAccountID            *string `json:"disposal_loss_account_id" binding:"omitempty,uuid"`
 
 	IsActive *bool `json:"is_active"`
 }
 
 type UpdateAssetCategoryRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name string                          `json:"name" binding:"required"`
 	Type financeModels.AssetCategoryType `json:"type" binding:"omitempty,oneof=FIXED CURRENT INTANGIBLE OTHER"`
 
 	DepreciationMethod financeModels.DepreciationMethod `json:"depreciation_method" binding:"required,oneof=SL DB NONE"`
@@ -31,9 +33,11 @@ type UpdateAssetCategoryRequest struct {
 	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
 	IsDepreciable      *bool                            `json:"is_depreciable"`
 
-	AssetAccountID                     string `json:"asset_account_id" binding:"required,uuid"`
-	AccumulatedDepreciationAccountID   string `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
-	DepreciationExpenseAccountID       string `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	AssetAccountID                   string  `json:"asset_account_id" binding:"required,uuid"`
+	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
+	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	DisposalGainAccountID            *string `json:"disposal_gain_account_id" binding:"omitempty,uuid"`
+	DisposalLossAccountID            *string `json:"disposal_loss_account_id" binding:"omitempty,uuid"`
 
 	IsActive *bool `json:"is_active"`
 }
@@ -56,9 +60,11 @@ type AssetCategoryResponse struct {
 	DepreciationRate   float64                          `json:"depreciation_rate"`
 	IsDepreciable      bool                             `json:"is_depreciable"`
 
-	AssetAccountID                   string `json:"asset_account_id"`
-	AccumulatedDepreciationAccountID string `json:"accumulated_depreciation_account_id"`
-	DepreciationExpenseAccountID     string `json:"depreciation_expense_account_id"`
+	AssetAccountID                   string  `json:"asset_account_id"`
+	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id"`
+	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id"`
+	DisposalGainAccountID            *string `json:"disposal_gain_account_id,omitempty"`
+	DisposalLossAccountID            *string `json:"disposal_loss_account_id,omitempty"`
 
 	IsActive bool `json:"is_active"`
 

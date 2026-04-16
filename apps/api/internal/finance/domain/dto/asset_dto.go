@@ -109,6 +109,52 @@ type DepreciateAssetRequest struct {
 	AsOfDate string `json:"as_of_date" binding:"required"`
 }
 
+type BatchDepreciationRequest struct {
+	PeriodMonth int `json:"period_month" binding:"required,min=1,max=12"`
+	PeriodYear  int `json:"period_year" binding:"required,min=1900,max=3000"`
+}
+
+type BatchDepreciationPreviewItem struct {
+	AssetID            string  `json:"asset_id"`
+	AssetCode          string  `json:"asset_code"`
+	AssetName          string  `json:"asset_name"`
+	Method             string  `json:"method"`
+	OpeningBookValue   float64 `json:"opening_book_value"`
+	DepreciationAmount float64 `json:"depreciation_amount"`
+	ProjectedBookValue float64 `json:"projected_book_value"`
+	Eligible           bool    `json:"eligible"`
+	SkipReason         string  `json:"skip_reason,omitempty"`
+}
+
+type BatchDepreciationPreviewResponse struct {
+	PeriodMonth int                            `json:"period_month"`
+	PeriodYear  int                            `json:"period_year"`
+	TotalAssets int                            `json:"total_assets"`
+	Eligible    int                            `json:"eligible"`
+	Skipped     int                            `json:"skipped"`
+	Items       []BatchDepreciationPreviewItem `json:"items"`
+}
+
+type BatchDepreciationRunItem struct {
+	AssetID        string  `json:"asset_id"`
+	AssetCode      string  `json:"asset_code"`
+	AssetName      string  `json:"asset_name"`
+	Amount         float64 `json:"amount"`
+	Status         string  `json:"status"` // posted | skipped | failed
+	Reason         string  `json:"reason,omitempty"`
+	JournalEntryID *string `json:"journal_entry_id,omitempty"`
+}
+
+type BatchDepreciationRunResponse struct {
+	PeriodMonth int                        `json:"period_month"`
+	PeriodYear  int                        `json:"period_year"`
+	Processed   int                        `json:"processed"`
+	Posted      int                        `json:"posted"`
+	Skipped     int                        `json:"skipped"`
+	Failed      int                        `json:"failed"`
+	Items       []BatchDepreciationRunItem `json:"items"`
+}
+
 type TransferAssetRequest struct {
 	LocationID   string `json:"location_id" binding:"required,uuid"`
 	TransferDate string `json:"transfer_date" binding:"required"`
@@ -116,8 +162,27 @@ type TransferAssetRequest struct {
 }
 
 type DisposeAssetRequest struct {
-	DisposalDate string `json:"disposal_date" binding:"required"`
-	Description  string `json:"description"`
+	DisposalDate   string  `json:"disposal_date" binding:"required"`
+	ProceedsAmount float64 `json:"proceeds_amount" binding:"omitempty,gte=0"`
+	BankAccountID  *string `json:"bank_account_id" binding:"omitempty,uuid"`
+	Description    string  `json:"description"`
+}
+
+type PreviewDisposalRequest struct {
+	DisposalDate   string  `json:"disposal_date" binding:"required"`
+	ProceedsAmount float64 `json:"proceeds_amount" binding:"omitempty,gte=0"`
+}
+
+type PreviewDisposalResponse struct {
+	AssetID         string  `json:"asset_id"`
+	AssetCode       string  `json:"asset_code"`
+	AssetName       string  `json:"asset_name"`
+	DisposalDate    string  `json:"disposal_date"`
+	BookValue       float64 `json:"book_value"`
+	ProceedsAmount  float64 `json:"proceeds_amount"`
+	GainLossAmount  float64 `json:"gain_loss_amount"`
+	GainLossType    string  `json:"gain_loss_type"`
+	GainLossAccount *string `json:"gain_loss_account,omitempty"`
 }
 
 type SellAssetRequest struct {
@@ -175,16 +240,21 @@ type AssetDepreciationResponse struct {
 }
 
 type AssetTransactionResponse struct {
-	ID              string                             `json:"id"`
-	AssetID         string                             `json:"asset_id"`
-	Type            financeModels.AssetTransactionType `json:"type"`
-	TransactionDate time.Time                          `json:"transaction_date"`
-	Amount          float64                            `json:"amount"`
-	Description     string                             `json:"description"`
-	Status          string                             `json:"status"`
-	ReferenceType   *string                            `json:"reference_type"`
-	ReferenceID     *string                            `json:"reference_id"`
-	CreatedAt       time.Time                          `json:"created_at"`
+	ID                     string                             `json:"id"`
+	AssetID                string                             `json:"asset_id"`
+	Type                   financeModels.AssetTransactionType `json:"type"`
+	TransactionDate        time.Time                          `json:"transaction_date"`
+	Amount                 float64                            `json:"amount"`
+	Description            string                             `json:"description"`
+	Status                 string                             `json:"status"`
+	ReferenceType          *string                            `json:"reference_type"`
+	ReferenceID            *string                            `json:"reference_id"`
+	ProceedsAmount         float64                            `json:"proceeds_amount"`
+	BankAccountID          *string                            `json:"bank_account_id,omitempty"`
+	BookValueAtTransaction float64                            `json:"book_value_at_transaction"`
+	GainLossAmount         float64                            `json:"gain_loss_amount"`
+	GainLossAccountID      *string                            `json:"gain_loss_account_id,omitempty"`
+	CreatedAt              time.Time                          `json:"created_at"`
 }
 
 type AssetAttachmentResponse struct {

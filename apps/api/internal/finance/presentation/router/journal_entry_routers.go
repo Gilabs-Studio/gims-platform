@@ -21,9 +21,15 @@ const (
 	purchaseJournalRead      = "purchase_journal.read"
 	adjustmentJournalRead    = "adjustment_journal.read"
 	adjustmentJournalCreate  = "adjustment_journal.create"
+	adjustmentJournalSubmit  = "adjustment_journal.submit"
+	adjustmentJournalApprove = "adjustment_journal.approve"
+	adjustmentJournalReject  = "adjustment_journal.reject"
 	adjustmentJournalUpdate  = "adjustment_journal.update"
 	adjustmentJournalPost    = "adjustment_journal.post"
 	adjustmentJournalReverse = "adjustment_journal.reverse"
+	journalTemplateRead      = "journal_template.read"
+	journalTemplateCreate    = "journal_template.create"
+	journalTemplateUse       = "journal_template.use"
 	cashBankJournalRead      = "cash_bank_journal.read"
 )
 
@@ -50,6 +56,15 @@ func RegisterJournalEntryRoutes(rg *gin.RouterGroup, h *handler.JournalEntryHand
 	registerJournalEntryRoutesInGroup(rg.Group("/journals"), h)
 	registerJournalEntryRoutesInGroup(rg.Group("/accounting/journal-entries"), h)
 	registerJournalEntryRoutesInGroup(rg.Group("/accounting/journals"), h)
+	registerJournalTemplateRoutes(rg.Group("/journal-templates"), h)
+}
+
+func registerJournalTemplateRoutes(g *gin.RouterGroup, h *handler.JournalEntryHandler) {
+	g.GET("", middleware.RequirePermission(journalTemplateRead), h.ListJournalTemplates)
+	g.GET("/", middleware.RequirePermission(journalTemplateRead), h.ListJournalTemplates)
+	g.POST("", middleware.RequirePermission(journalTemplateCreate), h.CreateJournalTemplate)
+	g.POST("/", middleware.RequirePermission(journalTemplateCreate), h.CreateJournalTemplate)
+	g.POST("/:id/use", middleware.RequirePermission(journalTemplateUse), h.UseJournalTemplate)
 }
 
 func registerJournalEntryRoutesInGroup(g *gin.RouterGroup, h *handler.JournalEntryHandler) {
@@ -75,8 +90,16 @@ func registerJournalEntryRoutesInGroup(g *gin.RouterGroup, h *handler.JournalEnt
 	g.GET("/adjustment", middleware.RequirePermission(adjustmentJournalRead), h.ListAdjustmentJournals)
 	g.POST("/adjustment", middleware.RequirePermission(adjustmentJournalCreate), h.CreateAdjustment)
 	g.PUT("/adjustment/:id", middleware.RequirePermission(adjustmentJournalUpdate), h.UpdateAdjustment)
+	g.PATCH("/adjustment/:id/submit-approval", middleware.RequirePermission(adjustmentJournalSubmit), h.SubmitAdjustmentApproval)
+	g.PATCH("/adjustment/:id/approve", middleware.RequirePermission(adjustmentJournalApprove), h.ApproveAdjustment)
+	g.PATCH("/adjustment/:id/reject", middleware.RequirePermission(adjustmentJournalReject), h.RejectAdjustment)
+	g.GET("/adjustment/:id/approvals", middleware.RequirePermission(adjustmentJournalRead), h.GetAdjustmentApprovalHistory)
 	g.POST("/adjustment/:id/post", middleware.RequirePermission(adjustmentJournalPost), h.PostAdjustment)
 	g.POST("/adjustment/:id/reverse", middleware.RequirePermission(adjustmentJournalReverse), h.ReverseAdjustment)
+	g.PATCH("/:id/submit-approval", middleware.RequirePermission(adjustmentJournalSubmit), h.SubmitAdjustmentApproval)
+	g.PATCH("/:id/approve", middleware.RequirePermission(adjustmentJournalApprove), h.ApproveAdjustment)
+	g.PATCH("/:id/reject", middleware.RequirePermission(adjustmentJournalReject), h.RejectAdjustment)
+	g.GET("/:id/approvals", middleware.RequirePermission(adjustmentJournalRead), h.GetAdjustmentApprovalHistory)
 	g.GET("/:id", middleware.RequirePermission(journalRead), h.GetByID)
 	g.PUT("/:id", middleware.RequirePermission(journalUpdate), h.Update)
 	g.DELETE("/:id", middleware.RequirePermission(journalDelete), h.Delete)

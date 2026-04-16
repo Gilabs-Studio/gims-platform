@@ -140,14 +140,21 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		for i := range item.Transactions {
 			t := item.Transactions[i]
 			txs = append(txs, dto.AssetTransactionResponse{
-				ID:              t.ID,
-				AssetID:         t.AssetID,
-				Type:            t.Type,
-				TransactionDate: t.TransactionDate,
-				Description:     t.Description,
-				ReferenceType:   t.ReferenceType,
-				ReferenceID:     t.ReferenceID,
-				CreatedAt:       t.CreatedAt,
+				ID:                     t.ID,
+				AssetID:                t.AssetID,
+				Type:                   t.Type,
+				TransactionDate:        t.TransactionDate,
+				Amount:                 t.Amount,
+				Description:            t.Description,
+				Status:                 string(t.Status),
+				ReferenceType:          t.ReferenceType,
+				ReferenceID:            t.ReferenceID,
+				ProceedsAmount:         t.ProceedsAmount,
+				BankAccountID:          t.BankAccountID,
+				BookValueAtTransaction: t.BookValueAtTransaction,
+				GainLossAmount:         t.GainLossAmount,
+				GainLossAccountID:      t.GainLossAccountID,
+				CreatedAt:              t.CreatedAt,
 			})
 		}
 		resp.Transactions = txs
