@@ -10,6 +10,8 @@ type ProcessPaymentRequest struct {
 	Notes           *string `json:"notes"`
 	// CustomerName optionally captures the customer name on receipt (F&B use-case)
 	CustomerName *string `json:"customer_name"`
+	// CustomerID links the payment to an existing customer master record when selected.
+	CustomerID *string `json:"customer_id"`
 	// CustomerPhone optionally captures the customer phone for SO/invoice records
 	CustomerPhone *string `json:"customer_phone"`
 	// CustomerEmail optionally captures the customer email for SO/invoice records

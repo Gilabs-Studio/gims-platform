@@ -103,26 +103,8 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}
 
-	// Update customer info on the order if provided (used on receipt/invoice/SO)
-	if req.CustomerName != nil {
-		trimmedName := strings.TrimSpace(*req.CustomerName)
-		if trimmedName != "" {
-			order.CustomerName = &trimmedName
-		}
-	}
-	if req.CustomerPhone != nil {
-		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
-		if trimmedPhone != "" {
-			order.CustomerPhone = &trimmedPhone
-		}
-	}
-	if req.CustomerEmail != nil {
-		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
-		if trimmedEmail != "" {
-			order.CustomerEmail = &trimmedEmail
-		}
-	}
-	if req.CustomerName != nil || req.CustomerPhone != nil || req.CustomerEmail != nil {
+	// Update customer info on the order if provided (used on receipt/invoice/SO).
+	if applyCustomerInfoToOrder(order, req) {
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
@@ -178,30 +160,8 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
 	}
 
-	// Persist customer info from payment form if provided
-	needsUpdate := false
-	if req.CustomerName != nil {
-		trimmedName := strings.TrimSpace(*req.CustomerName)
-		if trimmedName != "" {
-			order.CustomerName = &trimmedName
-			needsUpdate = true
-		}
-	}
-	if req.CustomerPhone != nil {
-		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
-		if trimmedPhone != "" {
-			order.CustomerPhone = &trimmedPhone
-			needsUpdate = true
-		}
-	}
-	if req.CustomerEmail != nil {
-		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
-		if trimmedEmail != "" {
-			order.CustomerEmail = &trimmedEmail
-			needsUpdate = true
-		}
-	}
-	if needsUpdate {
+	// Persist customer info from payment form if provided.
+	if applyCustomerInfoToOrder(order, req) {
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
@@ -268,6 +228,41 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, err
 	}
 	return mapper.ToPOSPaymentResponse(payment), nil
+}
+
+func applyCustomerInfoToOrder(order *models.PosOrder, req *dto.ProcessPaymentRequest) bool {
+	needsUpdate := false
+
+	if req.CustomerID != nil {
+		trimmedID := strings.TrimSpace(*req.CustomerID)
+		if trimmedID != "" {
+			order.CustomerID = &trimmedID
+			needsUpdate = true
+		}
+	}
+	if req.CustomerName != nil {
+		trimmedName := strings.TrimSpace(*req.CustomerName)
+		if trimmedName != "" {
+			order.CustomerName = &trimmedName
+			needsUpdate = true
+		}
+	}
+	if req.CustomerPhone != nil {
+		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
+		if trimmedPhone != "" {
+			order.CustomerPhone = &trimmedPhone
+			needsUpdate = true
+		}
+	}
+	if req.CustomerEmail != nil {
+		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
+		if trimmedEmail != "" {
+			order.CustomerEmail = &trimmedEmail
+			needsUpdate = true
+		}
+	}
+
+	return needsUpdate
 }
 
 func buildXenditOrderDescription(order *models.PosOrder) string {
