@@ -114,6 +114,36 @@ func (h *AssetHandler) Depreciate(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *AssetHandler) PreviewBatchDepreciation(c *gin.Context) {
+	var req dto.BatchDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.PreviewBatchDepreciation(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_BATCH_DEPRECIATION_PREVIEW_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) RunBatchDepreciation(c *gin.Context) {
+	var req dto.BatchDepreciationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.RunBatchDepreciation(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_BATCH_DEPRECIATION_RUN_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *AssetHandler) Transfer(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	var req dto.TransferAssetRequest
@@ -124,6 +154,22 @@ func (h *AssetHandler) Transfer(c *gin.Context) {
 	res, err := h.uc.Transfer(c.Request.Context(), id, &req)
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_TRANSFER_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *AssetHandler) PreviewDisposal(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.PreviewDisposalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.PreviewDisposal(c.Request.Context(), id, &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "ASSET_DISPOSAL_PREVIEW_FAILED", err.Error(), nil, nil)
 		return
 	}
 	response.SuccessResponse(c, res, nil)

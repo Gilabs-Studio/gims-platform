@@ -45,6 +45,7 @@ services:
       - GIN_MODE=${GIN_MODE:-release}
       - PORT=8080
       - ENV=${ENV:-development}
+      - CGO_ENABLED=1
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}

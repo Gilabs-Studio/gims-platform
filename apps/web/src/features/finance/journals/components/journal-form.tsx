@@ -28,6 +28,8 @@ import { journalFormSchema, type JournalFormValues } from "../schemas/journal.sc
 import {
   useCreateFinanceJournal,
   useFinanceJournal,
+  useFinanceJournalTemplates,
+  useUseFinanceJournalTemplate,
   useUpdateFinanceJournal,
   useCreateFinanceAdjustmentJournal,
   useUpdateFinanceAdjustmentJournal
@@ -70,6 +72,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
   const t = useTranslations("financeJournals");
 
   const [coaValidationError, setCoaValidationError] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   const { data: coaData } = useFinanceCoaTree({ only_active: true });
   const coaOptions = useMemo(() => flattenCoa(coaData?.data ?? []), [coaData?.data]);
@@ -87,6 +90,8 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
 
   const createMutation = isAdjustment ? createMutationAdj : createMutationGen;
   const updateMutation = isAdjustment ? updateMutationAdj : updateMutationGen;
+  const templateListQuery = useFinanceJournalTemplates(undefined);
+  const useTemplateMutation = useUseFinanceJournalTemplate();
 
   const defaultValues: JournalFormValues = useMemo(() => {
     if (mode === "edit") {
@@ -130,7 +135,7 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
     defaultValues,
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "lines",
   });
@@ -226,6 +231,62 @@ export function JournalForm({ open, onOpenChange, mode, id, isAdjustment = false
         ) : (
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isAdjustment && mode === "create" && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="journal_template">{t("fields.journalTemplate")}</Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select
+                      value={selectedTemplateId}
+                      onValueChange={setSelectedTemplateId}
+                      disabled={isLockedJournal || useTemplateMutation.isPending}
+                    >
+                      <SelectTrigger id="journal_template" className="cursor-pointer">
+                        <SelectValue placeholder={t("placeholders.selectTemplate")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(templateListQuery.data?.data ?? []).map((template) => (
+                          <SelectItem
+                            key={template.id}
+                            value={template.id}
+                            className="cursor-pointer"
+                          >
+                            {template.template_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="cursor-pointer"
+                      disabled={!selectedTemplateId || isLockedJournal || useTemplateMutation.isPending}
+                      onClick={async () => {
+                        try {
+                          const result = await useTemplateMutation.mutateAsync(selectedTemplateId);
+                          const prefill = result.data.prefill;
+                          form.setValue("description", prefill.description ?? "", { shouldDirty: true });
+                          form.setValue("currency_code", prefill.currency_code ?? "IDR", { shouldDirty: true });
+                          form.setValue("exchange_rate", prefill.exchange_rate ?? 1, { shouldDirty: true });
+                          replace(
+                            (prefill.lines ?? []).map((ln) => ({
+                              chart_of_account_id: ln.chart_of_account_id,
+                              debit: ln.debit ?? 0,
+                              credit: ln.credit ?? 0,
+                              memo: ln.memo ?? "",
+                            }))
+                          );
+                          toast.success(t("toast.templateApplied"));
+                        } catch {
+                          toast.error(t("toast.failed"));
+                        }
+                      }}
+                    >
+                      {t("actions.applyTemplate")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="entry_date">{t("fields.entryDate")}</Label>
                 <Input id="entry_date" type="date" {...form.register("entry_date")} disabled={isLockedJournal} />

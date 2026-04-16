@@ -11,6 +11,9 @@ import type {
   RunValuationInput,
   UpdateJournalEntryInput,
   ListCashBankSubLedgerParams,
+  AdjustmentApprovalActionInput,
+  ListJournalTemplateParams,
+  CreateJournalTemplateInput,
 } from "../types";
 
 export const financeJournalKeys = {
@@ -39,6 +42,11 @@ export const financeJournalKeys = {
     [...financeJournalKeys.valuationRuns(), "list", params] as const,
   valuationRunDetail: (id: string) =>
     [...financeJournalKeys.valuationRuns(), "detail", id] as const,
+  adjustmentApprovalHistory: (id: string) =>
+    [...financeJournalKeys.all, "adjustment-approval-history", id] as const,
+  journalTemplates: () => [...financeJournalKeys.all, "journal-templates"] as const,
+  journalTemplateList: (params?: ListJournalTemplateParams) =>
+    [...financeJournalKeys.journalTemplates(), "list", params] as const,
 };
 
 export function useFinanceJournals(params?: ListJournalEntriesParams) {
@@ -233,6 +241,86 @@ export function useReverseFinanceAdjustmentJournal() {
       queryClient.invalidateQueries({
         queryKey: financeJournalKeys.detail(id),
       });
+    },
+  });
+}
+
+export function useSubmitFinanceAdjustmentApproval() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.submitAdjustmentApproval(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useApproveFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.approveAdjustment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useRejectFinanceAdjustmentJournal() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: AdjustmentApprovalActionInput }) =>
+      financeJournalsService.rejectAdjustment(id, data),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentList() });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.adjustmentApprovalHistory(id) });
+    },
+  });
+}
+
+export function useFinanceAdjustmentApprovalHistory(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: financeJournalKeys.adjustmentApprovalHistory(id),
+    queryFn: () => financeJournalsService.getAdjustmentApprovalHistory(id),
+    enabled: options?.enabled !== undefined ? options.enabled : !!id,
+  });
+}
+
+export function useFinanceJournalTemplates(params?: ListJournalTemplateParams) {
+  return useQuery({
+    queryKey: financeJournalKeys.journalTemplateList(params),
+    queryFn: () => financeJournalsService.listJournalTemplates(params),
+  });
+}
+
+export function useCreateFinanceJournalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateJournalTemplateInput) =>
+      financeJournalsService.createJournalTemplate(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.journalTemplates() });
+    },
+  });
+}
+
+export function useUseFinanceJournalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => financeJournalsService.useJournalTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financeJournalKeys.journalTemplates() });
     },
   });
 }

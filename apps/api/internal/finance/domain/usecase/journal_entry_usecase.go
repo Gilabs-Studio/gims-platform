@@ -72,8 +72,15 @@ type JournalEntryUsecase interface {
 	GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error)
 	CreateAdjustmentJournal(ctx context.Context, req *dto.CreateAdjustmentJournalRequest) (*dto.JournalEntryResponse, error)
 	UpdateAdjustmentJournal(ctx context.Context, id string, req *dto.UpdateJournalEntryRequest) (*dto.JournalEntryResponse, error)
+	SubmitAdjustmentJournalForApproval(ctx context.Context, id string, notes string) (*dto.JournalEntryResponse, error)
+	ApproveAdjustmentJournal(ctx context.Context, id string, notes string) (*dto.JournalEntryResponse, error)
+	RejectAdjustmentJournal(ctx context.Context, id string, notes string) (*dto.JournalEntryResponse, error)
+	GetAdjustmentApprovalHistory(ctx context.Context, id string) ([]dto.AdjustmentJournalApprovalResponse, error)
 	PostAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
 	ReverseAdjustmentJournal(ctx context.Context, id string) (*dto.JournalEntryResponse, error)
+	ListJournalTemplates(ctx context.Context, req *dto.ListJournalTemplatesRequest) ([]dto.JournalTemplateResponse, int64, error)
+	CreateJournalTemplate(ctx context.Context, req *dto.CreateJournalTemplateRequest) (*dto.JournalTemplateResponse, error)
+	UseJournalTemplate(ctx context.Context, id string) (*dto.UseJournalTemplateResponse, error)
 	RunValuation(ctx context.Context) (*dto.JournalEntryResponse, error)
 	CreateOpeningBalanceJournal(ctx context.Context, req *dto.CreateOpeningBalanceJournalRequest) (*dto.JournalEntryResponse, error)
 	ReverseOpeningBalance(ctx context.Context, accountID string) (*dto.JournalEntryResponse, error)
@@ -86,10 +93,20 @@ type journalEntryUsecase struct {
 	mapper          *mapper.JournalEntryMapper
 	auditService    audit.AuditService
 	settingsService financesettings.SettingsService
+	adjustmentApprovalRepo repositories.AdjustmentJournalApprovalRepository
+	journalTemplateRepo    repositories.JournalTemplateRepository
 }
 
 func NewJournalEntryUsecase(db *gorm.DB, coaRepo repositories.ChartOfAccountRepository, repo repositories.JournalEntryRepository, mapper *mapper.JournalEntryMapper, auditService audit.AuditService, settingsService ...financesettings.SettingsService) JournalEntryUsecase {
-	uc := &journalEntryUsecase{db: db, coaRepo: coaRepo, repo: repo, mapper: mapper, auditService: auditService}
+	uc := &journalEntryUsecase{
+		db:                     db,
+		coaRepo:                coaRepo,
+		repo:                   repo,
+		mapper:                 mapper,
+		auditService:           auditService,
+		adjustmentApprovalRepo: repositories.NewAdjustmentJournalApprovalRepository(db),
+		journalTemplateRepo:    repositories.NewJournalTemplateRepository(db),
+	}
 	if len(settingsService) > 0 {
 		uc.settingsService = settingsService[0]
 	}
@@ -1584,6 +1601,13 @@ func (uc *journalEntryUsecase) PostAdjustmentJournal(ctx context.Context, id str
 	}
 	if entry.ReferenceType == nil || *entry.ReferenceType != "MANUAL_ADJUSTMENT" {
 		return nil, errors.New("can only post manual adjustment journals")
+	}
+	latestApproval, err := uc.adjustmentApprovalRepo.GetLatestByJournalID(ctx, entry.ID)
+	if err != nil {
+		return nil, err
+	}
+	if latestApproval == nil || latestApproval.Action != financeModels.AdjustmentJournalApprovalActionApproved {
+		return nil, ErrAdjustmentNeedsApproval
 	}
 	return uc.Post(ctx, id)
 }

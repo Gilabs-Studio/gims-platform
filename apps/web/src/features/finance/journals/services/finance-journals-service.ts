@@ -15,9 +15,16 @@ import type {
   CashBankSubLedgerEntry,
   ListCashBankSubLedgerParams,
   CashBankSubLedgerApiResponse,
+  AdjustmentApprovalActionInput,
+  AdjustmentApprovalHistoryItem,
+  JournalTemplate,
+  ListJournalTemplateParams,
+  CreateJournalTemplateInput,
+  UseJournalTemplateResponse,
 } from "../types";
 
 const BASE_URL = "/finance/journals";
+const TEMPLATE_BASE_URL = "/finance/journal-templates";
 
 export const financeJournalsService = {
   list: async (
@@ -178,6 +185,77 @@ export const financeJournalsService = {
   reverseAdjustment: async (id: string): Promise<ApiResponse<JournalEntry>> => {
     const response = await apiClient.post<ApiResponse<JournalEntry>>(
       `${BASE_URL}/adjustment/${id}/reverse`,
+    );
+    return response.data;
+  },
+
+  submitAdjustmentApproval: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/submit-approval`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  approveAdjustment: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/approve`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  rejectAdjustment: async (
+    id: string,
+    data?: AdjustmentApprovalActionInput,
+  ): Promise<ApiResponse<JournalEntry>> => {
+    const response = await apiClient.patch<ApiResponse<JournalEntry>>(
+      `${BASE_URL}/${id}/reject`,
+      data ?? {},
+    );
+    return response.data;
+  },
+
+  getAdjustmentApprovalHistory: async (
+    id: string,
+  ): Promise<ApiResponse<AdjustmentApprovalHistoryItem[]>> => {
+    const response = await apiClient.get<ApiResponse<AdjustmentApprovalHistoryItem[]>>(
+      `${BASE_URL}/${id}/approvals`,
+    );
+    return response.data;
+  },
+
+  listJournalTemplates: async (
+    params?: ListJournalTemplateParams,
+  ): Promise<ApiResponse<JournalTemplate[]>> => {
+    const response = await apiClient.get<ApiResponse<JournalTemplate[]>>(
+      TEMPLATE_BASE_URL,
+      { params },
+    );
+    return response.data;
+  },
+
+  createJournalTemplate: async (
+    data: CreateJournalTemplateInput,
+  ): Promise<ApiResponse<JournalTemplate>> => {
+    const response = await apiClient.post<ApiResponse<JournalTemplate>>(
+      TEMPLATE_BASE_URL,
+      data,
+    );
+    return response.data;
+  },
+
+  useJournalTemplate: async (
+    id: string,
+  ): Promise<ApiResponse<UseJournalTemplateResponse>> => {
+    const response = await apiClient.post<ApiResponse<UseJournalTemplateResponse>>(
+      `${TEMPLATE_BASE_URL}/${id}/use`,
     );
     return response.data;
   },

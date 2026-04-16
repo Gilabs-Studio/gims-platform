@@ -189,6 +189,65 @@ func (h *JournalEntryHandler) UpdateAdjustment(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+// SubmitAdjustmentApproval handles PATCH /finance/journals/:id/submit-approval.
+func (h *JournalEntryHandler) SubmitAdjustmentApproval(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.AdjustmentApprovalActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err.Error() != "EOF" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.SubmitAdjustmentJournalForApproval(c.Request.Context(), id, req.Notes)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_SUBMIT_FAILED")
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// ApproveAdjustment handles PATCH /finance/journals/:id/approve.
+func (h *JournalEntryHandler) ApproveAdjustment(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.AdjustmentApprovalActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err.Error() != "EOF" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.ApproveAdjustmentJournal(c.Request.Context(), id, req.Notes)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_APPROVE_FAILED")
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// RejectAdjustment handles PATCH /finance/journals/:id/reject.
+func (h *JournalEntryHandler) RejectAdjustment(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	var req dto.AdjustmentApprovalActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err.Error() != "EOF" {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+	res, err := h.uc.RejectAdjustmentJournal(c.Request.Context(), id, req.Notes)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_REJECT_FAILED")
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+// GetAdjustmentApprovalHistory handles GET /finance/journals/:id/approvals.
+func (h *JournalEntryHandler) GetAdjustmentApprovalHistory(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	history, err := h.uc.GetAdjustmentApprovalHistory(c.Request.Context(), id)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "ADJUSTMENT_APPROVAL_HISTORY_FAILED")
+		return
+	}
+	response.SuccessResponse(c, history, nil)
+}
+
 // PostAdjustment handles POST /finance/journal-entries/adjustment/:id/post.
 func (h *JournalEntryHandler) PostAdjustment(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
@@ -213,6 +272,63 @@ func (h *JournalEntryHandler) ReverseAdjustment(c *gin.Context) {
 
 func (h *JournalEntryHandler) ListValuationJournals(c *gin.Context) {
 	h.listByDomain(c, "valuation")
+}
+
+// ListJournalTemplates handles GET /finance/journal-templates.
+func (h *JournalEntryHandler) ListJournalTemplates(c *gin.Context) {
+	var req dto.ListJournalTemplatesRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PerPage < 1 {
+		req.PerPage = 20
+	}
+	if req.PerPage > 100 {
+		req.PerPage = 100
+	}
+
+	items, total, err := h.uc.ListJournalTemplates(c.Request.Context(), &req)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "JOURNAL_TEMPLATE_LIST_FAILED", err.Error(), nil, nil)
+		return
+	}
+
+	meta := &response.Meta{Pagination: response.NewPaginationMeta(req.Page, req.PerPage, int(total))}
+	response.SuccessResponse(c, items, meta)
+}
+
+// CreateJournalTemplate handles POST /finance/journal-templates.
+func (h *JournalEntryHandler) CreateJournalTemplate(c *gin.Context) {
+	var req dto.CreateJournalTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil, nil)
+		return
+	}
+
+	res, err := h.uc.CreateJournalTemplate(c.Request.Context(), &req)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "JOURNAL_TEMPLATE_CREATE_FAILED")
+		return
+	}
+
+	response.SuccessResponseCreated(c, res, nil)
+}
+
+// UseJournalTemplate handles POST /finance/journal-templates/:id/use.
+func (h *JournalEntryHandler) UseJournalTemplate(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	res, err := h.uc.UseJournalTemplate(c.Request.Context(), id)
+	if err != nil {
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "JOURNAL_TEMPLATE_USE_FAILED")
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
 }
 
 // ListCashBankSubLedger handles GET /finance/journal-entries/cash-bank
