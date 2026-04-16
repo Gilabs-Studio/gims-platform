@@ -58,6 +58,11 @@ type outletRepoStub struct {
 	list []*orgModels.Outlet
 }
 
+const (
+	testCompanyID = "11111111-1111-1111-1111-111111111111"
+	testOutletID  = "22222222-2222-2222-2222-222222222222"
+)
+
 func (s *outletRepoStub) Create(_ context.Context, _ *orgModels.Outlet) error {
 	return nil
 }
@@ -101,10 +106,25 @@ func (s *outletRepoStub) Delete(_ context.Context, _ string) error {
 	return nil
 }
 
-func TestFloorPlanCreate_ShouldUseOutletScope_WhenOutletMatchesUserCompany(t *testing.T) {
+func (s *outletRepoStub) FindByCompanyID(_ context.Context, companyID string) ([]*orgModels.Outlet, error) {
+	result := make([]*orgModels.Outlet, 0, len(s.list))
+	for _, out := range s.list {
+		if out.CompanyID == nil || *out.CompanyID != companyID {
+			continue
+		}
+		result = append(result, out)
+	}
+	return result, nil
+}
+
+func (s *outletRepoStub) UpdateIsActiveByCompanyID(_ context.Context, _ string, _ bool) error {
+	return nil
+}
+
+func TestFloorPlanCreateUseOutletScopeWhenOutletMatchesUserCompany(t *testing.T) {
 	repo := &floorPlanRepoStub{}
-	companyID := "11111111-1111-1111-1111-111111111111"
-	outletID := "22222222-2222-2222-2222-222222222222"
+	companyID := testCompanyID
+	outletID := testOutletID
 	outletRepo := &outletRepoStub{
 		byID: map[string]*orgModels.Outlet{
 			outletID: {ID: outletID, CompanyID: &companyID},
@@ -126,11 +146,11 @@ func TestFloorPlanCreate_ShouldUseOutletScope_WhenOutletMatchesUserCompany(t *te
 	assert.Equal(t, companyID, *repo.lastCreated.CompanyID)
 }
 
-func TestFloorPlanCreate_ShouldReject_WhenOutletOutsideUserCompany(t *testing.T) {
+func TestFloorPlanCreateRejectWhenOutletOutsideUserCompany(t *testing.T) {
 	repo := &floorPlanRepoStub{}
-	userCompanyID := "11111111-1111-1111-1111-111111111111"
+	userCompanyID := testCompanyID
 	otherCompanyID := "44444444-4444-4444-4444-444444444444"
-	outletID := "22222222-2222-2222-2222-222222222222"
+	outletID := testOutletID
 	outletRepo := &outletRepoStub{
 		byID: map[string]*orgModels.Outlet{
 			outletID: {ID: outletID, CompanyID: &otherCompanyID},
@@ -148,16 +168,16 @@ func TestFloorPlanCreate_ShouldReject_WhenOutletOutsideUserCompany(t *testing.T)
 	assert.Nil(t, resp)
 }
 
-func TestFloorPlanList_ShouldScopeByCompany_WhenNonOwner(t *testing.T) {
+func TestFloorPlanListScopeByCompanyWhenNonOwner(t *testing.T) {
 	repo := &floorPlanRepoStub{}
 	outletRepo := &outletRepoStub{}
 	uc := NewFloorPlanUsecase(repo, outletRepo)
 
 	_, _, err := uc.List(context.Background(), repositories.FloorPlanListParams{
-		OutletID: "22222222-2222-2222-2222-222222222222",
-	}, "11111111-1111-1111-1111-111111111111", false)
+		OutletID: testOutletID,
+	}, testCompanyID, false)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "11111111-1111-1111-1111-111111111111", repo.lastList.CompanyID)
-	assert.Equal(t, "22222222-2222-2222-2222-222222222222", repo.lastList.OutletID)
+	assert.Equal(t, testCompanyID, repo.lastList.CompanyID)
+	assert.Equal(t, testOutletID, repo.lastList.OutletID)
 }
