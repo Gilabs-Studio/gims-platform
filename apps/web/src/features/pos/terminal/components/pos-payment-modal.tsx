@@ -239,6 +239,7 @@ export function POSPaymentModal({
         customer_name: selectedCustomer.name,
         customer_phone: selectedCustomer.contact_person || undefined,
         customer_email: selectedCustomer.email || undefined,
+        loyalty_member_id: existingLoyaltyMember?.id || undefined,
       };
     }
 

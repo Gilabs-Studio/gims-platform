@@ -255,6 +255,22 @@ func (u *posOrderUsecase) AddItem(ctx context.Context, orderID string, req *dto.
 		return nil, err
 	}
 
+	// Merge into existing line item if the same product is already in the order.
+	for i := range order.Items {
+		if order.Items[i].ProductID == req.ProductID {
+			existing := &order.Items[i]
+			existing.Quantity += req.Quantity
+			existing.Subtotal = existing.UnitPrice * existing.Quantity
+			if err := u.orderRepo.UpdateItem(ctx, existing); err != nil {
+				return nil, err
+			}
+			if err := u.recalculateAndSave(ctx, order); err != nil {
+				return nil, err
+			}
+			return u.fetchOrderResponse(ctx, orderID)
+		}
+	}
+
 	item := &posModels.PosOrderItem{
 		PosOrderID:  orderID,
 		ProductID:   req.ProductID,

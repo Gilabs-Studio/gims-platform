@@ -88,6 +88,14 @@ export const loyaltyEn = {
         title: "Member Detail",
         points: "Points",
         ledger: "Point History",
+        tabs: {
+          general: "General",
+          pointHistory: "Point History",
+        },
+        labels: {
+          customer: "Customer",
+          program: "Program",
+        },
       },
     },
 

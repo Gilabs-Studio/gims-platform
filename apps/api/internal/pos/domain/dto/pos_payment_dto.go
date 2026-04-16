@@ -16,6 +16,9 @@ type ProcessPaymentRequest struct {
 	CustomerPhone *string `json:"customer_phone"`
 	// CustomerEmail optionally captures the customer email for SO/invoice records
 	CustomerEmail *string `json:"customer_email"`
+	// LoyaltyMemberID links the order to an existing loyalty member so points are
+	// awarded automatically after payment.
+	LoyaltyMemberID *string `json:"loyalty_member_id"`
 	// ChannelCode specifies the Xendit payment channel (e.g. QRIS, BCA, DANA, OVO)
 	ChannelCode *string `json:"channel_code"`
 }

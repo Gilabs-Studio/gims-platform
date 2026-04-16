@@ -261,6 +261,13 @@ func applyCustomerInfoToOrder(order *models.PosOrder, req *dto.ProcessPaymentReq
 			needsUpdate = true
 		}
 	}
+	if req.LoyaltyMemberID != nil {
+		trimmedMemberID := strings.TrimSpace(*req.LoyaltyMemberID)
+		if trimmedMemberID != "" {
+			order.LoyaltyMemberID = &trimmedMemberID
+			needsUpdate = true
+		}
+	}
 
 	return needsUpdate
 }

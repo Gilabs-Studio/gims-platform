@@ -229,7 +229,10 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	// Generate a one-time token so the customer can scan the QR code on the
 	// receipt and submit feedback without logging in. We do this lazily per
 	// receipt render; if no active form is configured we silently skip.
-	if h.feedbackUC != nil {
+	// When the loyalty invite section will be shown (non-member), we omit the
+	// feedback QR to keep the receipt to a single QR code.
+	loyaltyWillInvite := h.loyaltyUC != nil && orderResp.LoyaltyMemberID == nil
+	if h.feedbackUC != nil && !loyaltyWillInvite {
 		tokenReq := &feedbackDTO.GenerateTokenRequest{
 			OutletID:   orderResp.OutletID,
 			PosOrderID: &orderResp.ID,

@@ -88,6 +88,14 @@ export const loyaltyId = {
         title: "Detail Anggota",
         points: "Poin",
         ledger: "Riwayat Poin",
+        tabs: {
+          general: "Umum",
+          pointHistory: "Riwayat Poin",
+        },
+        labels: {
+          customer: "Pelanggan",
+          program: "Program",
+        },
       },
     },
 

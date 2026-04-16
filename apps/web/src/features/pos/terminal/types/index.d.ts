@@ -201,6 +201,7 @@ export interface ProcessPaymentRequest {
   customer_name?: string;
   customer_phone?: string;
   customer_email?: string;
+  loyalty_member_id?: string;
   channel_code?: string;
 }
 
