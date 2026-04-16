@@ -23,6 +23,7 @@ export function useCustomerMapView() {
   const canCreate = useUserPermission("customer.create");
   const canUpdate = useUserPermission("customer.update");
   const canDelete = useUserPermission("customer.delete");
+  const canReadLoyalty = useUserPermission("loyalty.read");
 
   // State
   const [search, setSearch] = useState("");
@@ -148,6 +149,7 @@ export function useCustomerMapView() {
       canCreate,
       canUpdate,
       canDelete,
+      canReadLoyalty,
     },
     layout: {
       isMobile,

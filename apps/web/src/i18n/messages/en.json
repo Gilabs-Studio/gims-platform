@@ -72,7 +72,9 @@
     "years": "years",
     "complete": "Complete",
     "reset": "Reset",
-    "clearAll": "Clear All"
+    "clearAll": "Clear All",
+    "name": "Name",
+    "select": "Select"
   },
   "notFound": {
     "label": "404",
@@ -163,6 +165,9 @@
     "sOSources": "SO Sources",
     "soSources": "SO Sources",
     "leaveTypes": "Leave Types",
+    "feedback": "Feedback",
+    "feedbackResponses": "Responses",
+    "formBuilder": "Form Builder",
     "users": "Users",
     "sales": "Sales",
     "quotations": "Quotations",
@@ -280,6 +285,10 @@
     "visitReport": "Visit Report",
     "chatbot": "Chatbot",
     "settings": "Settings"
+    ,
+    "loyalty": "Loyalty",
+    "loyaltyConfig": "Loyalty Programs",
+    "loyaltyMembers": "Loyalty Members"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

@@ -71,7 +71,9 @@
     "systemInfo": "Informasi Sistem",
     "description": "Deskripsi",
     "amount": "Jumlah",
-    "match": "Cocok"
+    "match": "Cocok",
+    "name": "Nama",
+    "select": "Pilih"
   },
   "notFound": {
     "label": "404",
@@ -162,6 +164,9 @@
     "sOSources": "Sumber SO",
     "soSources": "Sumber SO",
     "leaveTypes": "Tipe Cuti",
+    "feedback": "Umpan Balik",
+    "feedbackResponses": "Respons",
+    "formBuilder": "Pembuat Formulir",
     "users": "Pengguna",
     "sales": "Penjualan",
     "quotations": "Penawaran",
@@ -279,6 +284,10 @@
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
     "settings": "Pengaturan"
+    ,
+    "loyalty": "Loyalitas",
+    "loyaltyConfig": "Program Loyalitas",
+    "loyaltyMembers": "Anggota Loyalitas"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

@@ -114,6 +114,8 @@ type POSOrderResponse struct {
 	Notes             *string                `json:"notes"`
 	SalesOrderID      *string                `json:"sales_order_id"`
 	CustomerInvoiceID *string                `json:"customer_invoice_id"`
+	LoyaltyMemberID   *string                `json:"loyalty_member_id,omitempty"`
+	LoyaltyRewardID   *string                `json:"loyalty_reward_id,omitempty"`
 	Items             []POSOrderItemResponse `json:"items"`
 	CreatedAt         time.Time              `json:"created_at"`
 	UpdatedAt         time.Time              `json:"updated_at"`

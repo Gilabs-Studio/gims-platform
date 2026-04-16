@@ -137,6 +137,18 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Employee not found",
 	},
+	"SALES_ORDER_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Sales order not found",
+	},
+	"SALES_QUOTATION_NOT_FOUND": {
+		HTTPStatus: http.StatusNotFound,
+		Message:    "Sales quotation not found",
+	},
+	"INVALID_ORDER_STATUS": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Cannot modify order in current status",
+	},
 
 	// HRD - Evaluation Errors (Sprint 15)
 	"EVALUATION_GROUP_NOT_FOUND": {

@@ -4,14 +4,133 @@ import (
 	"context"
 	"testing"
 
+	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/organization/data/models"
+	orgRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/dto"
+	orgService "github.com/gilabs/gims/api/internal/organization/domain/service"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase/mocks"
+	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
+	warehouseRepos "github.com/gilabs/gims/api/internal/warehouse/data/repositories"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 )
+
+type noopOutletRepository struct{}
+
+func (n *noopOutletRepository) Create(_ context.Context, _ *models.Outlet) error {
+	return nil
+}
+
+func (n *noopOutletRepository) GetByID(_ context.Context, _ string) (*models.Outlet, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (n *noopOutletRepository) GetByCode(_ context.Context, _ string) (*models.Outlet, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (n *noopOutletRepository) GetNextCode(_ context.Context) (string, error) {
+	return "", nil
+}
+
+func (n *noopOutletRepository) List(_ context.Context, _ orgRepos.OutletListParams) ([]*models.Outlet, int64, error) {
+	return []*models.Outlet{}, 0, nil
+}
+
+func (n *noopOutletRepository) Update(_ context.Context, _ *models.Outlet) error {
+	return nil
+}
+
+func (n *noopOutletRepository) Delete(_ context.Context, _ string) error {
+	return nil
+}
+
+func (n *noopOutletRepository) FindByCompanyID(_ context.Context, _ string) ([]*models.Outlet, error) {
+	return []*models.Outlet{}, nil
+}
+
+func (n *noopOutletRepository) UpdateIsActiveByCompanyID(_ context.Context, _ string, _ bool) error {
+	return nil
+}
+
+type noopWarehouseRepository struct{}
+
+func (n *noopWarehouseRepository) Create(_ context.Context, _ *warehouseModels.Warehouse) error {
+	return nil
+}
+
+func (n *noopWarehouseRepository) GetByID(_ context.Context, _ string) (*warehouseModels.Warehouse, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (n *noopWarehouseRepository) GetByCode(_ context.Context, _ string) (*warehouseModels.Warehouse, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (n *noopWarehouseRepository) GetNextCode(_ context.Context) (string, error) {
+	return "", nil
+}
+
+func (n *noopWarehouseRepository) List(_ context.Context, _ warehouseRepos.WarehouseListParams) ([]*warehouseModels.Warehouse, int64, error) {
+	return []*warehouseModels.Warehouse{}, 0, nil
+}
+
+func (n *noopWarehouseRepository) Update(_ context.Context, _ *warehouseModels.Warehouse) error {
+	return nil
+}
+
+func (n *noopWarehouseRepository) Delete(_ context.Context, _ string) error {
+	return nil
+}
+
+func (n *noopWarehouseRepository) HasActiveStock(_ context.Context, _ string) (bool, error) {
+	return false, nil
+}
+
+func (n *noopWarehouseRepository) FindByOutletIDs(_ context.Context, _ []string) ([]*warehouseModels.Warehouse, error) {
+	return []*warehouseModels.Warehouse{}, nil
+}
+
+func (n *noopWarehouseRepository) UpdateIsActiveByOutletIDs(_ context.Context, _ []string, _ bool) error {
+	return nil
+}
+
+type stubTimezoneService struct{}
+
+func (s *stubTimezoneService) DetectTimezoneFromCoordinates(_ context.Context, _, _ float64) (*coreModels.TimezoneInfo, error) {
+	return &coreModels.TimezoneInfo{ZoneName: "Asia/Jakarta"}, nil
+}
+
+func (s *stubTimezoneService) ValidateTimezone(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *stubTimezoneService) GetTimezoneForCompany(_ context.Context, _, _ *float64, currentTimezone string) (string, error) {
+	if currentTimezone != "" {
+		return currentTimezone, nil
+	}
+	return "Asia/Jakarta", nil
+}
+
+type companyRepositoryAdapter struct {
+	*mocks.CompanyRepository
+}
+
+func (a *companyRepositoryAdapter) FindAll(_ context.Context) ([]models.Company, error) {
+	return []models.Company{}, nil
+}
+
+func newCompanyUsecaseForTest(companyRepo *mocks.CompanyRepository) usecase.CompanyUsecase {
+	adaptedCompanyRepo := &companyRepositoryAdapter{CompanyRepository: companyRepo}
+	var outletRepo orgRepos.OutletRepository = &noopOutletRepository{}
+	var warehouseRepo warehouseRepos.WarehouseRepository = &noopWarehouseRepository{}
+	var timezoneService orgService.TimezoneService = &stubTimezoneService{}
+
+	return usecase.NewCompanyUsecase(adaptedCompanyRepo, outletRepo, warehouseRepo, timezoneService)
+}
 
 func TestCompanyUsecase_GetByID(t *testing.T) {
 	type fields struct {
@@ -71,7 +190,7 @@ func TestCompanyUsecase_GetByID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewCompanyUsecase(tt.fields.companyRepo)
+			u := newCompanyUsecaseForTest(tt.fields.companyRepo)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)
@@ -139,7 +258,7 @@ func TestCompanyUsecase_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewCompanyUsecase(tt.fields.companyRepo)
+			u := newCompanyUsecaseForTest(tt.fields.companyRepo)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)
@@ -236,7 +355,7 @@ func TestCompanyUsecase_Approve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := usecase.NewCompanyUsecase(tt.fields.companyRepo)
+			u := newCompanyUsecaseForTest(tt.fields.companyRepo)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,25 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useProcessCashPayment, useInitiateDigitalPayment, usePOSPayments, useXenditConnectionStatus } from "../hooks/use-pos";
 import type { POSOrder, POSConfig, POSPayment, XenditPaymentChannel, XenditChannelCategory } from "../types";
 import { Loader2, CheckCircle2, XCircle, WifiOff, ArrowLeft, QrCode, Landmark, Wallet, CreditCard, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PosLoyaltyRedeemPanel } from "@/features/loyalty/components/pos-loyalty-redeem-panel";
+import { useEnrollLoyaltyMember, useLoyaltyMemberByCustomer } from "@/features/loyalty/hooks/use-loyalty";
+import type { LoyaltyMember, RewardConfig } from "@/features/loyalty/types";
+import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
+import type { Customer } from "@/features/master-data/customer/types";
 
 interface POSPaymentModalProps {
   open: boolean;
@@ -24,6 +37,14 @@ interface POSPaymentModalProps {
   config?: POSConfig;
   onSuccess: (customerName?: string, tenderAmount?: number) => void;
   onPaymentError?: () => void;
+  /** Loyalty member linked to this transaction (optional) */
+  loyaltyMember?: LoyaltyMember;
+  /** Available rewards for the loyalty member */
+  loyaltyRewards?: RewardConfig[];
+  /** Called when a reward is redeemed */
+  onLoyaltyRedeem?: (reward: RewardConfig) => void;
+  /** Already-redeemed reward ID for this session */
+  redeemedRewardId?: string;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -109,22 +130,125 @@ function PaymentChannelLogo({ channel }: { channel: XenditPaymentChannel }) {
   );
 }
 
+function formatCountdown(totalSeconds: number): string {
+  const safeSeconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
 export function POSPaymentModal({
   open,
   onOpenChange,
   order,
   onSuccess,
   onPaymentError,
+  loyaltyMember,
+  loyaltyRewards = [],
+  onLoyaltyRedeem,
+  redeemedRewardId,
 }: POSPaymentModalProps) {
+  // Multi-step flow: customer-select → payment
+  const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "payment">("customer-select");
   const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
   const [digitalPayment, setDigitalPayment] = useState<POSPayment | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<XenditPaymentChannel | null>(null);
+  const [enrollLoyalty, setEnrollLoyalty] = useState(false);
+  const [loyaltyPhone, setLoyaltyPhone] = useState("");
+  const [loyaltyEmail, setLoyaltyEmail] = useState("");
+  const [customerMode, setCustomerMode] = useState<"new" | "existing">("new");
+  const [customerId, setCustomerId] = useState<string | undefined>(undefined);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [existingLoyaltyMember, setExistingLoyaltyMember] = useState<LoyaltyMember | null>(null);
   const hasCompletedDigitalPaymentRef = useRef(false);
+  const autoOpenedPaymentUrlRef = useRef<string | null>(null);
 
   const t = useTranslations("posTerminal.payment");
+  const enrollMutation = useEnrollLoyaltyMember();
+
+  // Fetch loyalty member for selected existing customer
+  const { data: loyaltyMemberData, isLoading: loyaltyLoading } = useLoyaltyMemberByCustomer(
+    selectedCustomer?.id ?? "",
+    customerMode === "existing" && !!selectedCustomer?.id
+  );
+
+  // Update existing loyalty member when fetched
+  useEffect(() => {
+    if (loyaltyMemberData?.data) {
+      setExistingLoyaltyMember(loyaltyMemberData.data);
+    } else {
+      setExistingLoyaltyMember(null);
+    }
+  }, [loyaltyMemberData]);
+
+  const customerQueryParams = useMemo(
+    () => ({
+      per_page: 10,
+      search: customerSearch || undefined,
+    }),
+    [customerSearch],
+  );
+
+  const { data: customersData } = useCustomers(customerQueryParams, {
+    enabled: open && customerMode === "existing",
+  });
+  const customers = customersData?.data ?? [];
+
+  const customerMasterSummary = selectedCustomer
+    ? `${selectedCustomer.code} • ${selectedCustomer.name}`
+    : "";
+
+  function resetCustomerSelection() {
+    setSelectedCustomer(null);
+    setCustomerId(undefined);
+    setCustomerSearch("");
+    setCustomerName("");
+    setLoyaltyPhone("");
+    setLoyaltyEmail("");
+    setExistingLoyaltyMember(null);
+    setEnrollLoyalty(false);
+  }
+
+  function handleCustomerModeChange(mode: "new" | "existing") {
+    setCustomerMode(mode);
+    resetCustomerSelection();
+  }
+
+  function handleSelectExistingCustomer(customer: Customer) {
+    setSelectedCustomer(customer);
+    setCustomerId(customer.id);
+    setCustomerName(customer.name);
+    setLoyaltyPhone(customer.contact_person ?? "");
+    setLoyaltyEmail(customer.email ?? "");
+  }
+
+  function buildCustomerPayload() {
+    if (customerMode === "existing") {
+      if (!customerId || !selectedCustomer) {
+        return null;
+      }
+
+      return {
+        customer_id: customerId,
+        customer_name: selectedCustomer.name,
+        customer_phone: selectedCustomer.contact_person || undefined,
+        customer_email: selectedCustomer.email || undefined,
+        loyalty_member_id: existingLoyaltyMember?.id || undefined,
+      };
+    }
+
+    return {
+      customer_name: customerName.trim() || undefined,
+      customer_phone: loyaltyPhone.trim() || undefined,
+      customer_email: loyaltyEmail.trim() || undefined,
+    };
+  }
 
   const { data: paymentsData } = usePOSPayments(order.id, {
     // Only fetch payments list when polling for digital payment status confirmation.
@@ -150,9 +274,37 @@ export function POSPaymentModal({
     const latestPayment = payments[0];
     if (latestPayment?.status === "PAID") {
       hasCompletedDigitalPaymentRef.current = true;
-      onSuccess(customerName.trim() || undefined);
+      const customerPayload = buildCustomerPayload();
+      // Fire-and-forget loyalty enrollment after digital payment
+      if (enrollLoyalty && customerPayload?.customer_name) {
+        enrollMutation.mutateAsync({
+          outlet_id: order.outlet_id,
+          pos_order_id: order.id,
+          customer_id: customerPayload.customer_id,
+          name: customerPayload.customer_name,
+          phone: customerPayload.customer_phone,
+          email: customerPayload.customer_email,
+        }).then(() => {
+          toast.success(t("enrollSuccess"));
+        }).catch(() => {
+          toast.error(t("enrollError"));
+        });
+      }
+      onSuccess(customerPayload?.customer_name);
     }
-  }, [paymentsData, onSuccess, customerName]);
+  }, [paymentsData, onSuccess, enrollLoyalty, order.id, order.outlet_id, enrollMutation, t, buildCustomerPayload]);
+
+  useEffect(() => {
+    const paymentUrl = digitalPayment?.payment_url?.trim() ?? "";
+    const hasGatewayUrl = paymentUrl !== "";
+    const hasHostedFlow = hasGatewayUrl && !digitalPayment?.qr_code && !digitalPayment?.va_number;
+
+    if (!open || tab !== "DIGITAL" || !hasHostedFlow) return;
+    if (autoOpenedPaymentUrlRef.current === paymentUrl) return;
+
+    autoOpenedPaymentUrlRef.current = paymentUrl;
+    window.open(paymentUrl, "_blank", "noopener,noreferrer");
+  }, [digitalPayment, open, tab]);
 
   function handleNumpad(key: string) {
     if (key === "⌫") {
@@ -166,15 +318,36 @@ export function POSPaymentModal({
 
   async function handleCashSubmit() {
     try {
+      const customerPayload = buildCustomerPayload();
+      if (!customerPayload) {
+        toast.error("Please select a customer first.");
+        return;
+      }
+
       await processCash.mutateAsync({
         orderId: order.id,
         data: {
           method: "CASH",
           amount: tenderAmount,
-          customer_name: customerName.trim() || undefined,
+          ...customerPayload,
         },
       });
-      onSuccess(customerName.trim() || undefined, tenderAmount);
+      // Fire-and-forget loyalty enrollment after successful cash payment
+      if (enrollLoyalty && customerPayload.customer_name) {
+        enrollMutation.mutateAsync({
+          outlet_id: order.outlet_id,
+          pos_order_id: order.id,
+          customer_id: customerPayload.customer_id,
+          name: customerPayload.customer_name,
+          phone: customerPayload.customer_phone,
+          email: customerPayload.customer_email,
+        }).then(() => {
+          toast.success(t("enrollSuccess"));
+        }).catch(() => {
+          toast.error(t("enrollError"));
+        });
+      }
+      onSuccess(customerPayload.customer_name, tenderAmount);
     } catch {
       toast.error("Payment failed. Please try again.");
       onPaymentError?.();
@@ -183,6 +356,12 @@ export function POSPaymentModal({
 
   async function handleDigitalSubmit(channel: XenditPaymentChannel) {
     try {
+      const customerPayload = buildCustomerPayload();
+      if (!customerPayload) {
+        toast.error("Please select a customer first.");
+        return;
+      }
+
       hasCompletedDigitalPaymentRef.current = false;
       setPollingEnabled(false);
       const result = await initiateDigital.mutateAsync({
@@ -190,7 +369,7 @@ export function POSPaymentModal({
         data: {
           method: "DIGITAL",
           amount: totalAmount,
-          customer_name: customerName.trim() || undefined,
+          ...customerPayload,
           channel_code: channel.code,
         },
       });
@@ -213,185 +392,491 @@ export function POSPaymentModal({
     setDigitalPayment(null);
     setPollingEnabled(false);
     hasCompletedDigitalPaymentRef.current = false;
+    autoOpenedPaymentUrlRef.current = null;
   }
 
   function handleDialogOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
+      // Reset semua state saat dialog ditutup
+      setPaymentFlow("customer-select");
       setSelectedChannel(null);
       setDigitalPayment(null);
       setPollingEnabled(false);
       hasCompletedDigitalPaymentRef.current = false;
+      autoOpenedPaymentUrlRef.current = null;
+      setEnrollLoyalty(false);
+      setLoyaltyPhone("");
+      setLoyaltyEmail("");
+      setCustomerMode("new");
+      resetCustomerSelection();
+      setTenderInput("");
+    } else {
+      // Saat modal dibuka, selalu mulai dari customer-select
+      setPaymentFlow("customer-select");
     }
     onOpenChange(nextOpen);
   }
 
+  function handleCustomerSelectionComplete() {
+    // Callback dari customer selection dialog untuk proceed ke payment
+    setPaymentFlow("payment");
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent size="lg" className="gap-5">
         <DialogHeader>
-          <DialogTitle>Payment</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-tight">{t("title")}</DialogTitle>
         </DialogHeader>
 
-        {/* Order total summary */}
-        <div className="bg-muted rounded-lg px-4 py-3 flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Order #{order.order_number}</span>
-          <span className="text-lg font-bold">{formatCurrency(totalAmount)}</span>
-        </div>
-
-        {/* Optional customer name — used on receipt */}
-        <div className="space-y-1">
-          <Label htmlFor="customerName" className="text-xs text-muted-foreground">
-            Customer name <span className="text-muted-foreground/60">(optional)</span>
-          </Label>
-          <Input
-            id="customerName"
-            placeholder="e.g. Budi"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="h-8 text-sm"
-          />
-        </div>
-
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="w-full">
-            <TabsTrigger className="flex-1" value="CASH">Cash</TabsTrigger>
-            <TabsTrigger className="flex-1" value="DIGITAL">Digital Payment</TabsTrigger>
-          </TabsList>
-
-          {/* CASH TAB */}
-          <TabsContent value="CASH" className="mt-3 space-y-3">
-            {/* Quick amounts — each tap ADDS to current tender */}
-            <div className="grid grid-cols-4 gap-1.5">
-              {QUICK_AMOUNTS.map((amount) => (
-                <Button
-                  key={amount}
-                  size="sm"
-                  variant="outline"
-                  className="cursor-pointer text-xs"
-                  onClick={() =>
-                    setTenderInput((prev) => {
-                      const current = parseInt(prev || "0", 10);
-                      return String(current + amount);
-                    })
-                  }
-                >
-                  +{formatCurrency(amount)}
-                </Button>
-              ))}
-            </div>
-
-            {/* Exact / Reset row */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="cursor-pointer text-xs"
-                onClick={() => setTenderInput(String(totalAmount))}
-              >
-                Exact {formatCurrency(totalAmount)}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="cursor-pointer text-xs text-muted-foreground"
-                disabled={tenderInput === ""}
-                onClick={() => setTenderInput("")}
-              >
-                Reset
-              </Button>
-            </div>
-
-            {/* Tender input display */}
-            <div className="border rounded-md px-3 py-2 text-right text-xl font-mono">
-              {tenderInput === "" ? (
-                <span className="text-muted-foreground">0</span>
-              ) : (
-                formatCurrency(tenderAmount)
-              )}
-            </div>
-
-            {/* Numpad */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {NUMPAD_KEYS.map((key) => (
-                <Button
-                  key={key}
-                  variant={key === "⌫" ? "destructive" : "outline"}
-                  className="h-11 text-base font-medium cursor-pointer"
-                  onClick={() => handleNumpad(key)}
-                >
-                  {key}
-                </Button>
-              ))}
-            </div>
-
-            {/* Change display */}
-            {tenderInput !== "" && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Change</span>
-                <span className={insufficientCash ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
-                  {insufficientCash ? `Short ${formatCurrency(Math.abs(change))}` : formatCurrency(change)}
-                </span>
-              </div>
-            )}
-
-            <Separator />
-
-            <Button
-              className="w-full cursor-pointer"
-              size="lg"
-              disabled={insufficientCash || tenderInput === "" || processCash.isPending}
-              onClick={handleCashSubmit}
-            >
-              {processCash.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
-              Confirm Cash Payment
-            </Button>
-          </TabsContent>
-
-          {/* DIGITAL PAYMENT TAB */}
-          <TabsContent value="DIGITAL" className="mt-3 space-y-3">
-            {xenditStatusLoading ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : !isXenditConnected ? (
-              <div className="flex flex-col items-center gap-3 py-6 text-center">
-                <WifiOff className="h-10 w-10 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">{t("digitalNotAvailable")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t("digitalNotAvailableDesc")}
+        {/* Order summary */}
+        <div className="rounded-lg border border-border/70 bg-linear-to-b from-background to-muted/30 px-4 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  {t("orderLabel")} #{order.order_number}
+                </p>
+                {paymentFlow === "customer-select" ? (
+                  <p className="text-sm text-muted-foreground hidden sm:block">{t("readyForPayment")}</p>
+                ) : (
+                  <p className="text-sm font-medium text-foreground hidden sm:block truncate">
+                    {customerMode === "existing" && selectedCustomer
+                      ? `${selectedCustomer.code} • ${selectedCustomer.name}`
+                      : customerName || t("readyForPayment")}
                   </p>
-                </div>
+                )}
               </div>
-            ) : digitalPayment ? (
-              <div className="space-y-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="cursor-pointer gap-1.5 text-muted-foreground -ml-2"
-                  onClick={handleBackToChannels}
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  {t("backToChannels")}
-                </Button>
-                <DigitalPaymentDetails payment={digitalPayment} />
-              </div>
-            ) : (
-              <ChannelPicker
-                isLoading={initiateDigital.isPending}
-                selectedChannel={selectedChannel}
-                onSelect={(channel) => {
-                  setSelectedChannel(channel);
-                  handleDigitalSubmit(channel);
-                }}
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("amountDue")}</p>
+              <p className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {formatCurrency(totalAmount)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 1: Customer Selection */}
+        {paymentFlow === "customer-select" ? (
+          <CustomerSelectionStep
+            customerMode={customerMode}
+            customerName={customerName}
+            selectedCustomer={selectedCustomer}
+            customers={customers}
+            customerSearch={customerSearch}
+            enrollLoyalty={enrollLoyalty}
+            loyaltyPhone={loyaltyPhone}
+            loyaltyEmail={loyaltyEmail}
+            existingLoyaltyMember={existingLoyaltyMember}
+            loyaltyLoading={loyaltyLoading}
+            onCustomerModeChange={handleCustomerModeChange}
+            onCustomerNameChange={setCustomerName}
+            onCustomerSelect={handleSelectExistingCustomer}
+            onCustomerSearchChange={setCustomerSearch}
+            onEnrollLoyaltyChange={(checked) => {
+              setEnrollLoyalty(checked === true);
+              if (!checked) {
+                setLoyaltyPhone("");
+                setLoyaltyEmail("");
+              }
+            }}
+            onPhoneChange={setLoyaltyPhone}
+            onEmailChange={setLoyaltyEmail}
+            onResetCustomer={resetCustomerSelection}
+            onNext={handleCustomerSelectionComplete}
+            t={t}
+          />
+        ) : (
+          <>
+            {/* Step 2: Payment Form */}
+            {/* Loyalty redemption panel — visible only when a loyalty member is linked */}
+            {loyaltyMember && loyaltyRewards.length > 0 && onLoyaltyRedeem && (
+              <PosLoyaltyRedeemPanel
+                member={loyaltyMember}
+                availableRewards={loyaltyRewards}
+                onRedeemed={onLoyaltyRedeem}
+                redeemedRewardId={redeemedRewardId}
               />
             )}
-          </TabsContent>
-        </Tabs>
+
+            <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+              <TabsList className="w-full">
+                <TabsTrigger className="flex-1" value="CASH">{t("tab.cash")}</TabsTrigger>
+                <TabsTrigger className="flex-1" value="DIGITAL">{t("tab.digital")}</TabsTrigger>
+              </TabsList>
+
+              {/* CASH TAB */}
+              <TabsContent value="CASH" className="mt-3 space-y-3">
+                {/* Quick amounts — each tap ADDS to current tender */}
+                <div className="grid grid-cols-4 gap-1.5">
+                  {QUICK_AMOUNTS.map((amount) => (
+                    <Button
+                      key={amount}
+                      size="sm"
+                      variant="outline"
+                      className="cursor-pointer text-xs"
+                      onClick={() =>
+                        setTenderInput((prev) => {
+                          const current = parseInt(prev || "0", 10);
+                          return String(current + amount);
+                        })
+                      }
+                    >
+                      +{formatCurrency(amount)}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Exact / Reset row */}
+                <div className="grid grid-cols-2 gap-1.5">
+                    <Button
+                    size="sm"
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => setTenderInput(String(totalAmount))}
+                  >
+                    {t("exact")} {formatCurrency(totalAmount)}
+                  </Button>
+                    <Button
+                    size="sm"
+                    variant="ghost"
+                    className="cursor-pointer text-xs text-muted-foreground"
+                    disabled={tenderInput === ""}
+                    onClick={() => setTenderInput("")}
+                  >
+                    {t("reset")}
+                  </Button>
+                </div>
+
+                {/* Tender input display */}
+                <div className="border rounded-md px-3 py-2 text-right text-xl font-mono">
+                  {tenderInput === "" ? (
+                    <span className="text-muted-foreground">0</span>
+                  ) : (
+                    formatCurrency(tenderAmount)
+                  )}
+                </div>
+
+                {/* Numpad */}
+                <div className="grid grid-cols-3 gap-1.5">
+                  {NUMPAD_KEYS.map((key) => (
+                    <Button
+                      key={key}
+                      variant={key === "⌫" ? "destructive" : "outline"}
+                      className="h-11 text-base font-medium cursor-pointer"
+                      onClick={() => handleNumpad(key)}
+                    >
+                      {key}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Change display */}
+                {tenderInput !== "" && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t("change")}</span>
+                    <span className={insufficientCash ? "text-destructive font-semibold" : "text-green-600 font-semibold"}>
+                      {insufficientCash ? `${t("short")} ${formatCurrency(Math.abs(change))}` : formatCurrency(change)}
+                    </span>
+                  </div>
+                )}
+
+                <Separator />
+
+                <Button
+                  className="w-full cursor-pointer"
+                  size="lg"
+                  disabled={insufficientCash || tenderInput === "" || processCash.isPending}
+                  onClick={handleCashSubmit}
+                >
+                  {processCash.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
+                  {t("confirmCash")}
+                </Button>
+              </TabsContent>
+
+              {/* DIGITAL PAYMENT TAB */}
+              <TabsContent value="DIGITAL" className="mt-4 space-y-3">
+                {xenditStatusLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !isXenditConnected ? (
+                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                    <WifiOff className="h-10 w-10 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{t("digitalNotAvailable")}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t("digitalNotAvailableDesc")}</p>
+                    </div>
+                  </div>
+                ) : digitalPayment ? (
+                  <div className="space-y-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="cursor-pointer gap-1.5 text-muted-foreground -ml-2"
+                      onClick={handleBackToChannels}
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      {t("backToChannels")}
+                    </Button>
+                    <DigitalPaymentDetails payment={digitalPayment} />
+                  </div>
+                ) : (
+                  <ChannelPicker
+                    isLoading={initiateDigital.isPending}
+                    selectedChannel={selectedChannel}
+                    onSelect={(channel) => {
+                      setSelectedChannel(channel);
+                      handleDigitalSubmit(channel);
+                    }}
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Back button ke customer selection */}
+            <Separator />
+            <Button
+              variant="outline"
+              className="w-full cursor-pointer"
+              onClick={() => setPaymentFlow("customer-select")}
+            >
+              {t("backToCustomer")}
+            </Button>
+          </>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Step 1: Customer Selection Component
+function CustomerSelectionStep({
+  customerMode,
+  customerName,
+  selectedCustomer,
+  customers,
+  customerSearch,
+  enrollLoyalty,
+  loyaltyPhone,
+  loyaltyEmail,
+  existingLoyaltyMember,
+  loyaltyLoading,
+  onCustomerModeChange,
+  onCustomerNameChange,
+  onCustomerSelect,
+  onCustomerSearchChange,
+  onEnrollLoyaltyChange,
+  onPhoneChange,
+  onEmailChange,
+  onResetCustomer,
+  onNext,
+  t,
+}: {
+  customerMode: "new" | "existing";
+  customerName: string;
+  selectedCustomer: Customer | null;
+  customers: Customer[];
+  customerSearch: string;
+  enrollLoyalty: boolean;
+  loyaltyPhone: string;
+  loyaltyEmail: string;
+  existingLoyaltyMember: LoyaltyMember | null;
+  loyaltyLoading: boolean;
+  onCustomerModeChange: (mode: "new" | "existing") => void;
+  onCustomerNameChange: (name: string) => void;
+  onCustomerSelect: (customer: Customer) => void;
+  onCustomerSearchChange: (search: string) => void;
+  onEnrollLoyaltyChange: (checked: boolean) => void;
+  onPhoneChange: (phone: string) => void;
+  onEmailChange: (email: string) => void;
+  onResetCustomer: () => void;
+  onNext: () => void;
+  t: any;
+}) {
+  const customerMasterSummary = selectedCustomer
+    ? `${selectedCustomer.code} • ${selectedCustomer.name}`
+    : "";
+
+  const isNextDisabled = customerMode === "new" ? !customerName.trim() : !selectedCustomer;
+
+  return (
+    <div className="space-y-4">
+      {/* Customer source section */}
+      <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Customer</p>
+          <p className="text-sm text-muted-foreground">{t("customerName")} ({t("optional")})</p>
+        </div>
+
+        <Tabs
+          value={customerMode}
+          onValueChange={(v) => onCustomerModeChange(v === "existing" ? "existing" : "new")}
+        >
+          <TabsList className="grid w-full grid-cols-2 rounded-lg">
+            <TabsTrigger value="new" className="rounded-md">{t("customerModeNew")}</TabsTrigger>
+            <TabsTrigger value="existing" className="rounded-md">{t("customerModeExisting")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {customerMode === "existing" ? (
+          <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t("customerMasterLabel")}</Label>
+              <Select
+                value={selectedCustomer?.id ?? ""}
+                onValueChange={(value) => {
+                  const selected = customers.find((customer) => customer.id === value);
+                  if (selected) {
+                    onCustomerSelect(selected);
+                  }
+                }}
+                onSearchChange={onCustomerSearchChange}
+              >
+                <SelectTrigger className="h-9 rounded-lg">
+                  <SelectValue placeholder={t("customerMasterPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent className="rounded-lg" align="start">
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.code} • {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedCustomer ? (
+              <div className="rounded-lg border border-dashed border-border/70 bg-background px-3 py-2 text-xs text-muted-foreground">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate font-medium text-foreground">{customerMasterSummary}</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs cursor-pointer"
+                    onClick={onResetCustomer}
+                  >
+                    {t("customerMasterClear")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <Label htmlFor="customerName" className="text-xs text-muted-foreground">
+              {t("customerName")}
+            </Label>
+            <Input
+              id="customerName"
+              placeholder={t("exampleCustomer")}
+              value={customerName}
+              onChange={(e) => onCustomerNameChange(e.target.value)}
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
+
+        {/* Loyalty Section */}
+        {customerMode === "existing" && selectedCustomer ? (
+          loyaltyLoading ? (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : existingLoyaltyMember ? (
+            // Already has loyalty
+            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">{t("loyaltyMember")}</p>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t("loyaltyProgram")}:</span>
+                  <span className="font-medium">{existingLoyaltyMember.program_name || "Loyalty Program"}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t("loyaltyCode")}:</span>
+                  <span className="font-medium">{existingLoyaltyMember.member_code}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t("loyaltyTier")}:</span>
+                  <Badge variant="outline" style={{ borderColor: existingLoyaltyMember.tier_badge_color }}>
+                    {existingLoyaltyMember.current_tier}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t("loyaltyPoints")}:</span>
+                  <span className="font-semibold text-primary">{existingLoyaltyMember.point_balance.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // No loyalty, show enroll option
+            <div className="flex items-center gap-1.5 shrink-0 pt-1">
+              <Checkbox
+                id="enrollLoyalty"
+                checked={enrollLoyalty}
+                onCheckedChange={onEnrollLoyaltyChange}
+              />
+              <Label htmlFor="enrollLoyalty" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                {t("enrollLoyalty")}
+              </Label>
+            </div>
+          )
+        ) : customerMode === "new" ? (
+          // New customer, show enroll option
+          <div className="flex items-center gap-1.5 shrink-0 pt-1">
+            <Checkbox
+              id="enrollLoyalty"
+              checked={enrollLoyalty}
+              onCheckedChange={onEnrollLoyaltyChange}
+            />
+            <Label htmlFor="enrollLoyalty" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+              {t("enrollLoyalty")}
+            </Label>
+          </div>
+        ) : null}
+
+        {/* Phone & Email fields — only shown when enrolling new loyalty */}
+        {((customerMode === "new" && enrollLoyalty) || (customerMode === "existing" && enrollLoyalty && !existingLoyaltyMember)) && (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t("enrollPhone")}</Label>
+              <Input
+                type="tel"
+                placeholder="081234567890"
+                value={loyaltyPhone}
+                onChange={(e) => onPhoneChange(e.target.value)}
+                readOnly={customerMode === "existing"}
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">{t("enrollEmail")}</Label>
+              <Input
+                type="email"
+                placeholder="email@example.com"
+                value={loyaltyEmail}
+                onChange={(e) => onEmailChange(e.target.value)}
+                readOnly={customerMode === "existing"}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Button
+        className="w-full cursor-pointer"
+        size="lg"
+        disabled={isNextDisabled}
+        onClick={onNext}
+      >
+        {t("nextToPayment")} →
+      </Button>
+    </div>
   );
 }
 
@@ -415,7 +900,7 @@ function ChannelPicker({
         <Input
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search channel (DANA, GOPAY, BRI...)"
+          placeholder={t("searchChannelPlaceholder")}
           className="h-12 text-sm bg-background/80 border-border/80"
         />
         <p className="text-xs text-muted-foreground">{t("selectChannel")}</p>
@@ -482,7 +967,7 @@ function ChannelPicker({
           });
           return channels.length === 0;
         }) ? (
-          <p className="text-sm text-muted-foreground text-center py-3">No channel found.</p>
+          <p className="text-sm text-muted-foreground text-center py-3">{t("noChannelFound")}</p>
         ) : null}
       </div>
     </ScrollArea>
@@ -493,6 +978,66 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
   const t = useTranslations("posTerminal.payment");
   const isPaid = payment.status === "PAID";
   const isFailed = payment.status === "FAILED" || payment.status === "EXPIRED";
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const createdAtDate = useMemo(() => {
+    if (!payment.created_at) return null;
+    const parsedDate = new Date(payment.created_at);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }, [payment.created_at]);
+
+  const expiresAtDate = useMemo(() => {
+    if (!payment.expires_at) return null;
+    const parsedDate = new Date(payment.expires_at);
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }, [payment.expires_at]);
+
+  const remainingMs = useMemo(() => {
+    if (!expiresAtDate) return null;
+    return Math.max(0, expiresAtDate.getTime() - nowMs);
+  }, [expiresAtDate, nowMs]);
+
+  const countdownLabel = useMemo(() => {
+    if (remainingMs === null) return null;
+    return formatCountdown(remainingMs / 1000);
+  }, [remainingMs]);
+
+  const expiresAtLabel = useMemo(() => {
+    if (!expiresAtDate) return null;
+    return expiresAtDate.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }, [expiresAtDate]);
+
+  const progressPercent = useMemo(() => {
+    if (!expiresAtDate) return 100;
+
+    const fallbackTotalMs = 24 * 60 * 60 * 1000;
+    const totalMs = createdAtDate ? Math.max(1, expiresAtDate.getTime() - createdAtDate.getTime()) : fallbackTotalMs;
+    const leftMs = remainingMs ?? totalMs;
+    const normalized = Math.max(0, Math.min(1, leftMs / totalMs));
+    return normalized * 100;
+  }, [createdAtDate, expiresAtDate, remainingMs]);
+
+  const statusCircleRadius = 5;
+  const statusCircleCircumference = 2 * Math.PI * statusCircleRadius;
+  const statusCircleOffset = statusCircleCircumference * (1 - progressPercent / 100);
+
+  useEffect(() => {
+    if (!expiresAtDate) return;
+    if (isPaid || isFailed) return;
+    if ((remainingMs ?? 0) <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1_000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [expiresAtDate, isPaid, isFailed, remainingMs]);
 
   const handleCopyVa = useCallback(() => {
     if (payment.va_number) {
@@ -516,7 +1061,33 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
           </Badge>
         ) : (
           <Badge variant="secondary" className="gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" /> {t("status.pending")}
+            <svg className="h-3 w-3" viewBox="0 0 16 16" aria-hidden="true">
+              <circle
+                cx="8"
+                cy="8"
+                r={statusCircleRadius}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.25"
+                strokeWidth="2"
+              />
+              <circle
+                cx="8"
+                cy="8"
+                r={statusCircleRadius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray={statusCircleCircumference}
+                strokeDashoffset={statusCircleOffset}
+                transform="rotate(-90 8 8)"
+              />
+            </svg>
+            {t("status.pending")}
+            {countdownLabel ? (
+              <span className="font-mono tabular-nums">{countdownLabel}</span>
+            ) : null}
           </Badge>
         )}
       </div>
@@ -575,8 +1146,14 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
         <span className="font-mono font-bold text-lg">{formatCurrency(payment.amount)}</span>
       </div>
 
+      {expiresAtLabel ? (
+        <p className="text-xs text-muted-foreground text-center">
+          {t("expires")} {expiresAtLabel}
+        </p>
+      ) : null}
+
       {/* Payment URL fallback */}
-      {payment.payment_url && !payment.qr_code && !payment.va_number && (
+      {payment.payment_url ? (
         <Button
           variant="outline"
           className="w-full cursor-pointer gap-2"
@@ -585,13 +1162,8 @@ function DigitalPaymentDetails({ payment }: { payment: POSPayment }) {
           <ExternalLink className="h-4 w-4" />
           {t("openPage")}
         </Button>
-      )}
+      ) : null}
 
-      {payment.expires_at && (
-        <p className="text-xs text-muted-foreground text-center">
-          {t("expires")} {new Date(payment.expires_at).toLocaleTimeString()}
-        </p>
-      )}
     </div>
   );
 }

@@ -12,11 +12,13 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database/migrations"
 	crm "github.com/gilabs/gims/api/internal/crm/data/models"
 	customer "github.com/gilabs/gims/api/internal/customer/data/models"
+	feedback "github.com/gilabs/gims/api/internal/feedback/data/models"
 	finance "github.com/gilabs/gims/api/internal/finance/data/models"
 	general "github.com/gilabs/gims/api/internal/general/data/models"
 	geographic "github.com/gilabs/gims/api/internal/geographic/data/models"
 	hrd "github.com/gilabs/gims/api/internal/hrd/data/models"
 	inventory "github.com/gilabs/gims/api/internal/inventory/data/models"
+	loyalty "github.com/gilabs/gims/api/internal/loyalty/data/models"
 	notification "github.com/gilabs/gims/api/internal/notification/data/models"
 	organization "github.com/gilabs/gims/api/internal/organization/data/models"
 	passwordReset "github.com/gilabs/gims/api/internal/password_reset/data/models"
@@ -305,6 +307,14 @@ func AutoMigrate() error {
 		&pos.POSConfig{},
 		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},
+		// Feedback module
+		&feedback.FeedbackForm{},
+		&feedback.FeedbackToken{},
+		&feedback.FeedbackResponse{},
+		// Loyalty module
+		&loyalty.LoyaltyProgram{},
+		&loyalty.LoyaltyMember{},
+		&loyalty.LoyaltyPointLedger{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

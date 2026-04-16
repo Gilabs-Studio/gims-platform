@@ -298,7 +298,9 @@ export function OrderDetailModal({
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <DialogTitle className="text-xl mb-2">{displayOrder?.code ?? t("common.view")}</DialogTitle>
+                <DialogTitle className="text-xl mb-2">
+                  {displayOrder?.code ?? displayOrder?.id ?? t("common.view")}
+                </DialogTitle>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">
                     {displayOrder?.order_date && formatDate(displayOrder.order_date)}
@@ -400,7 +402,7 @@ export function OrderDetailModal({
                     <TableBody>
                       <TableRow>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("code")}</TableCell>
-                        <TableCell>{displayOrder.code}</TableCell>
+                        <TableCell>{displayOrder.code ?? displayOrder.id ?? "-"}</TableCell>
                         <TableCell className="font-medium bg-muted/50 w-48">{t("orderDate")}</TableCell>
                         <TableCell>{formatDate(displayOrder.order_date)}</TableCell>
                       </TableRow>

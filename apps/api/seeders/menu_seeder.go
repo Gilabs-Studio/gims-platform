@@ -748,6 +748,72 @@ func SeedMenus() error {
 		return err
 	}
 
+	// Feedback (Customer Feedback via POS QR Code)
+	feedbackMenu, err := createChildMenu("Feedback", "message-square-heart", "/pos/feedback", &posMenu.ID, 3)
+	if err != nil {
+		return err
+	}
+
+	feedbackChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Feedback Responses", "message-circle", "/pos/feedback/response", 1},
+		{"Form Builder", "clipboard-pen", "/pos/feedback/forms", 2},
+	}
+	for _, child := range feedbackChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &feedbackMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Loyalty (POS member lookup, enrollment, and member management)
+	loyaltyMenu, err := createChildMenu("Loyalty", "star", "/pos/loyalty", &posMenu.ID, 4)
+	if err != nil {
+		return err
+	}
+
+	loyaltyChildren := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Programs", "settings", "/pos/loyalty/config", 1},
+		{"Members", "users", "/pos/loyalty/members", 2},
+	}
+	for _, child := range loyaltyChildren {
+		if _, err := createChildMenu(child.name, child.icon, child.url, &loyaltyMenu.ID, child.order); err != nil {
+			return err
+		}
+	}
+
+	// Journal Group (6 domain journal pages — Journal Lines removed, merged into Journal Entries)
+	financeJournalMenu, err := createChildMenu("Journal", "book-open", "", &financeMenu.ID, 2)
+	if err != nil {
+		return err
+	}
+	financeJournalSubMenus := []struct {
+		name  string
+		icon  string
+		url   string
+		order int
+	}{
+		{"Journal Entries", "file-text", "/finance/journals", 1},
+		{"Sales Journal", "receipt", "/finance/journals/sales", 2},
+		{"Purchase Journal", "shopping-cart", "/finance/journals/purchase", 3},
+		{"Adjustment Journal", "edit-3", "/finance/journals/adjustment", 4},
+		{"Journal Valuation", "calculator", "/finance/journals/valuation", 5},
+		{"Cash Transactions (Journal View)", "banknote", "/finance/journals/cash-bank", 6},
+	}
+	for _, sub := range financeJournalSubMenus {
+		if _, err := createChildMenu(sub.name, sub.icon, sub.url, &financeJournalMenu.ID, sub.order); err != nil {
+			return err
+		}
+	}
+
 	// Legacy finance menu cleanup after hierarchy refactor.
 	legacyFinanceChildURLs := []string{
 		"/finance/coa",

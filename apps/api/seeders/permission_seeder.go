@@ -267,6 +267,12 @@ func SeedPermissions() error {
 		{"/crm/targets", "yearly_target.delete", "Delete Yearly Targets", "DELETE", "yearly_target"},
 
 		// Sales Payments
+		// POS - Loyalty
+		{"/pos/loyalty/config", "loyalty.manage", "Manage Loyalty Programs", "MANAGE", "loyalty"},
+		{"/pos/loyalty/members", "loyalty.read", "View Loyalty Members", "VIEW", "loyalty"},
+		{"/pos/loyalty/enroll", "loyalty.enroll", "Enroll Loyalty Member", "CREATE", "loyalty"},
+		{"/pos/loyalty/redeem", "loyalty.redeem", "Redeem Loyalty Points", "REDEEM", "loyalty"},
+
 		{"/sales/payments", "sales_payment.read", "View Sales Payments", "VIEW", "sales_payment"},
 		{"/sales/payments", "sales_payment.create", "Create Sales Payments", "CREATE", "sales_payment"},
 		{"/sales/payments", "sales_payment.delete", "Delete Sales Payments", "DELETE", "sales_payment"},
@@ -713,6 +719,12 @@ func SeedPermissions() error {
 		// CRM Area Mapping (Sprint 24)
 		{"/crm/area-mapping", "crm_area_mapping.read", "View Area Mapping", "VIEW", "crm_area_mapping"},
 		{"/crm/area-mapping", "crm_area_mapping.create", "Capture Area Location", "CREATE", "crm_area_mapping"},
+
+		// Feedback (Customer Feedback via POS QR Code)
+		{"/pos/feedback", "feedback.read", "View Feedback Responses", "VIEW", "feedback"},
+		{"/pos/feedback", "feedback.create", "Create Feedback Forms", "CREATE", "feedback"},
+		{"/pos/feedback", "feedback.update", "Edit Feedback Forms", "EDIT", "feedback"},
+		{"/pos/feedback", "feedback.delete", "Delete Feedback Forms", "DELETE", "feedback"},
 	}
 
 	// Build menu URL to ID map
@@ -934,11 +946,13 @@ func SeedPermissions() error {
 	// Only grant OUTLET-scoped access for outlet-related operational modules.
 	// Use a conservative defaultScope (OWN) to avoid granting ALL on master-data.
 	assignScopedPermissionsToRole("outlet_manager", map[string]string{
-		"outlet": "OUTLET",
-		"pos":    "OUTLET",
-		"sales":  "OUTLET",
-		"stock":  "OUTLET",
-		"crm":    "OUTLET",
+		"outlet":   "OUTLET",
+		"pos":      "OUTLET",
+		"loyalty":  "OUTLET",
+		"sales":    "OUTLET",
+		"stock":    "OUTLET",
+		"crm":      "OUTLET",
+		"feedback": "OUTLET",
 	}, "OWN")
 
 	// Invalidate Redis permission cache to ensure fresh permissions are loaded

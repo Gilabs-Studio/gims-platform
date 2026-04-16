@@ -71,7 +71,7 @@ func (h *XenditConfigHandler) Connect(c *gin.Context) {
 	cfg, err := h.uc.Connect(c.Request.Context(), uc.companyID, &req, uc.userID)
 	if err != nil {
 		if errors.Is(err, usecase.ErrXenditConnectionValidation) {
-			coreErrors.ErrorResponse(c, "XENDIT_CONNECTION_TEST_FAILED", map[string]interface{}{"reason": err.Error()}, nil)
+			coreErrors.ErrorResponse(c, "XENDIT_CONNECTION_TEST_FAILED", map[string]interface{}{"reason": "Connection validation failed"}, nil)
 			return
 		}
 		coreErrors.InternalServerErrorResponse(c, "")
@@ -123,4 +123,3 @@ func (h *XenditConfigHandler) Disconnect(c *gin.Context) {
 	}
 	response.SuccessResponse(c, cfg, nil)
 }
-
