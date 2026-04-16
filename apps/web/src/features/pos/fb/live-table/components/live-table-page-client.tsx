@@ -93,6 +93,10 @@ function formatDuration(sec: number): string {
   return `${h}h ${m % 60}m`;
 }
 
+function formatSeatCount(count: number): string {
+  return `${count} seat${count === 1 ? "" : "s"}`;
+}
+
 // ─── Table Card ───────────────────────────────────────────────────────────────
 
 interface TableCardProps {
@@ -127,6 +131,10 @@ function TableCard({ info, onClick }: TableCardProps) {
       <div className={cn("mt-1.5 flex items-center gap-1.5 text-xs font-medium", cfg.text)}>
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span>{cfg.label}</span>
+      </div>
+      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Users className="h-3.5 w-3.5 shrink-0" />
+        <span>{formatSeatCount(info.seatCount)}</span>
       </div>
       {info.order ? (
         <div className="mt-3 space-y-0.5">
@@ -461,6 +469,7 @@ function LiveFloorView({
               : STATUS_SVG.AVAILABLE;
             const isCircle = obj.tableShape === "circle";
             const r = Math.min(obj.width, obj.height) / 2;
+            const seatCountText = formatSeatCount(info?.seatCount ?? 0);
 
             return (
               <g
@@ -492,7 +501,7 @@ function LiveFloorView({
                 )}
                 <text
                   x={obj.width / 2}
-                  y={obj.height / 2}
+                  y={obj.height * 0.43}
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={Math.min(obj.width, obj.height) * 0.28}
@@ -502,10 +511,22 @@ function LiveFloorView({
                 >
                   {label}
                 </text>
+                <text
+                  x={obj.width / 2}
+                  y={obj.height * 0.67}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={Math.min(obj.width, obj.height) * 0.14}
+                  fill={colors.text}
+                  opacity={0.8}
+                  className="select-none pointer-events-none"
+                >
+                  {seatCountText}
+                </text>
                 {info?.order && (
                   <text
                     x={obj.width / 2}
-                    y={obj.height * 0.78}
+                    y={obj.height * 0.82}
                     textAnchor="middle"
                     dominantBaseline="central"
                     fontSize={Math.min(obj.width, obj.height) * 0.18}
@@ -707,6 +728,11 @@ function TableSidebar({
                         </span>
                       </>
                     )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Users className="h-3 w-3 shrink-0" />
+                    <span>{formatSeatCount(info.seatCount)}</span>
                   </div>
 
                   {/* Customer name if any */}

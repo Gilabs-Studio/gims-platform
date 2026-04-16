@@ -11,6 +11,7 @@ export type LiveTableStatus =
 
 export interface LiveTableInfo {
   tableObj: LayoutObject;
+  seatCount: number;
   status: LiveTableStatus;
   order: POSOrder | null;
   // Duration in seconds since the order was created

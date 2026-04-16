@@ -20,6 +20,7 @@ import type {
 } from "../types";
 
 const BASE = "/pos";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8087";
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export const posOrderService = {
 
   /** Returns the absolute URL for opening the HTML receipt in a new tab. */
   getReceiptUrl(orderId: string): string {
-    return `/api/v1/pos/orders/${orderId}/receipt`;
+    return `${API_BASE_URL}/api/v1/pos/orders/${orderId}/receipt`;
   },
 
   getCatalog(outletId: string) {

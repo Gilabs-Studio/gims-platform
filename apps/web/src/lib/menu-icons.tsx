@@ -89,6 +89,9 @@ import {
   Boxes,
   ScanLine,
   ShoppingBasket,
+  MessageSquareHeart,
+  MessageCircle,
+  ClipboardPen,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -256,6 +259,14 @@ const iconMap: Record<string, React.ReactNode> = {
 
   // Overtime icon (moon for working outside regular hours)
   moon: <Moon className="h-4 w-4" />,
+
+  // Feedback icons
+  "message-square-heart": <MessageSquareHeart className="h-4 w-4" />,
+  messagesquareheart: <MessageSquareHeart className="h-4 w-4" />,
+  "message-circle": <MessageCircle className="h-4 w-4" />,
+  messagecircle: <MessageCircle className="h-4 w-4" />,
+  "clipboard-pen": <ClipboardPen className="h-4 w-4" />,
+  clipboardpen: <ClipboardPen className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

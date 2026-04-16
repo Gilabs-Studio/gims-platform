@@ -61,6 +61,8 @@ type PosOrder struct {
 	OrderType         PosOrderType   `gorm:"type:varchar(20);not null;default:'COUNTER'" json:"order_type"`
 	CustomerID        *string        `gorm:"type:uuid;index" json:"customer_id"`
 	CustomerName      *string        `gorm:"type:varchar(255)" json:"customer_name"`
+	CustomerPhone     *string        `gorm:"type:varchar(50)" json:"customer_phone"`
+	CustomerEmail     *string        `gorm:"type:varchar(255)" json:"customer_email"`
 	GuestCount        int            `gorm:"default:1" json:"guest_count"`
 	Subtotal          float64        `gorm:"type:decimal(15,2);default:0" json:"subtotal"`
 	DiscountAmount    float64        `gorm:"type:decimal(15,2);default:0" json:"discount_amount"`
@@ -72,7 +74,10 @@ type PosOrder struct {
 	VoidReason        *string        `gorm:"type:text" json:"void_reason"`
 	SalesOrderID      *string        `gorm:"type:uuid;index" json:"sales_order_id"`
 	CustomerInvoiceID *string        `gorm:"type:uuid;index" json:"customer_invoice_id"`
-	CreatedBy         string         `gorm:"type:uuid;not null;index" json:"created_by"`
+	// LoyaltyMemberID and LoyaltyRewardID link an applied loyalty reward to the order.
+	LoyaltyMemberID *string `gorm:"type:uuid;index" json:"loyalty_member_id,omitempty"`
+	LoyaltyRewardID *string `gorm:"type:varchar(100)" json:"loyalty_reward_id,omitempty"`
+	CreatedBy        string  `gorm:"type:uuid;not null;index" json:"created_by"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"index" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`

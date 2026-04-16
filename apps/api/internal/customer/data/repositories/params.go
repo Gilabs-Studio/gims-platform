@@ -12,5 +12,6 @@ type ListParams struct {
 // CustomerListParams contains customer-specific list parameters
 type CustomerListParams struct {
 	ListParams
-	CustomerTypeID string
+	CustomerTypeID  string
+	IsLoyaltyMember *bool
 }

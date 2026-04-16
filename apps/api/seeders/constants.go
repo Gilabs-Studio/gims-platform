@@ -72,17 +72,17 @@ const (
 
 // Employee IDs (Fixed)
 const (
-	AdminEmployeeID        = "11111111-1111-1111-1111-111111111111"
-	ManagerEmployeeID      = "22222222-2222-2222-2222-222222222222"
-	StaffEmployeeID        = "33333333-3333-3333-3333-333333333333"
-	SalesRep1EmployeeID    = "44444444-4444-4444-4444-444444444444"
-	SalesRep2EmployeeID    = "55555555-5555-5555-5555-555555555555"
-	FinanceStaffEmployeeID    = "66666666-6666-6666-6666-666666666666"
-	HRStaffEmployeeID         = "77777777-7777-7777-7777-777777777777"
-	OutletManager1EmployeeID  = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1 - Sudirman
-	OutletManager2EmployeeID  = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2 - Kelapa Gading
-	OutletManager3EmployeeID  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" // Outlet Manager 3 - Kimia Farma Sudirman
-	OutletManager4EmployeeID  = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" // Outlet Manager 4 - Kimia Farma Pondok Indah
+	AdminEmployeeID          = "11111111-1111-1111-1111-111111111111"
+	ManagerEmployeeID        = "22222222-2222-2222-2222-222222222222"
+	StaffEmployeeID          = "33333333-3333-3333-3333-333333333333"
+	SalesRep1EmployeeID      = "44444444-4444-4444-4444-444444444444"
+	SalesRep2EmployeeID      = "55555555-5555-5555-5555-555555555555"
+	FinanceStaffEmployeeID   = "66666666-6666-6666-6666-666666666666"
+	HRStaffEmployeeID        = "77777777-7777-7777-7777-777777777777"
+	OutletManager1EmployeeID = "88888888-8888-8888-8888-888888888888" // Outlet Manager 1 - Sudirman
+	OutletManager2EmployeeID = "99999999-9999-9999-9999-999999999999" // Outlet Manager 2 - Kelapa Gading
+	OutletManager3EmployeeID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" // Outlet Manager 3 - Kimia Farma Sudirman
+	OutletManager4EmployeeID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" // Outlet Manager 4 - Kimia Farma Pondok Indah
 )
 
 // Customer Type IDs (Fixed - hex only: 0-9, a-f)
@@ -102,6 +102,12 @@ const (
 	Customer4ID = "c0000002-0000-0000-0000-000000000004" // RS Siloam Hospitals Surabaya
 	Customer5ID = "c0000002-0000-0000-0000-000000000005" // Apotek Kimia Farma Cabang Bekasi
 	Customer6ID = "c0000002-0000-0000-0000-000000000006" // Puskesmas Cempaka Putih
+)
+
+// Loyalty member IDs (Fixed - hex only: 0-9, a-f)
+const (
+	LoyaltyMember1ID = "d0000001-0000-0000-0000-000000000001"
+	LoyaltyMember2ID = "d0000001-0000-0000-0000-000000000002"
 )
 
 // Outlet IDs (Fixed - hex only: 0-9, a-f)

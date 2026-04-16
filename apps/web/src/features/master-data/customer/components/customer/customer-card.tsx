@@ -9,6 +9,8 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
+import { useLoyaltyMemberByCustomer } from "@/features/loyalty/hooks/use-loyalty";
+import { LoyaltyTierBadge } from "@/features/loyalty/components/loyalty-tier-badge";
 import { contactService } from "@/features/crm/contact/services/contact-service";
 import type { Contact } from "@/features/crm/contact/types";
 import type { Customer } from "../../types";
@@ -23,6 +25,7 @@ interface CustomerCardProps {
   readonly onDelete?: () => void;
   readonly canUpdate?: boolean;
   readonly canDelete?: boolean;
+  readonly canReadLoyalty?: boolean;
 }
 
 /**
@@ -124,8 +127,11 @@ export function CustomerCard({
   onDelete,
   canUpdate,
   canDelete,
+  canReadLoyalty,
 }: CustomerCardProps) {
   const contactsCount = customer.contacts_count ?? 0;
+  const { data: loyaltyRes } = useLoyaltyMemberByCustomer(canReadLoyalty ? customer.id : "");
+  const loyaltyMember = loyaltyRes?.data;
 
   return (
     <div
@@ -152,10 +158,12 @@ export function CustomerCard({
             {customer.customer_type && (
               <span className="text-xs text-muted-foreground">{customer.customer_type.name}</span>
             )}
-            {customer.latitude != null && customer.longitude != null && (
-              <span className="text-xs text-muted-foreground">
-                {Number(customer.latitude).toFixed(4)}, {Number(customer.longitude).toFixed(4)}
-              </span>
+            {canReadLoyalty && loyaltyMember && (
+              <LoyaltyTierBadge
+                tier={loyaltyMember.current_tier}
+                badgeColor={loyaltyMember.tier_badge_color}
+                size="sm"
+              />
             )}
             {/* Contacts count badge with hover tooltip */}
             {contactsCount > 0 && (

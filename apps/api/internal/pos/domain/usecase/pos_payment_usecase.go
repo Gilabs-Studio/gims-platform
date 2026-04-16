@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	loyaltyDTO "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
+	loyaltyUC "github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 	"github.com/gilabs/gims/api/internal/pos/data/repositories"
 	"github.com/gilabs/gims/api/internal/pos/domain/dto"
@@ -44,7 +48,18 @@ type posPaymentUsecase struct {
 	invoiceRepo      salesRepos.CustomerInvoiceRepository
 	salesPaymentRepo salesRepos.SalesPaymentRepository
 	bankAccountRepo  coreRepos.BankAccountRepository
+	cipher           *securityInfra.CredentialCipher
+	// loyaltyUC is optional; when nil loyalty point accrual is skipped.
+	loyaltyUC loyaltyUC.LoyaltyUsecase
 }
+
+// WithLoyaltyUsecase injects the loyalty usecase for post-payment point accrual.
+func (u *posPaymentUsecase) WithLoyaltyUsecase(uc loyaltyUC.LoyaltyUsecase) *posPaymentUsecase {
+	u.loyaltyUC = uc
+	return u
+}
+
+const maxXenditDescriptionLen = 200
 
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
 func NewPOSPaymentUsecase(
@@ -57,7 +72,8 @@ func NewPOSPaymentUsecase(
 	invoiceRepo salesRepos.CustomerInvoiceRepository,
 	salesPaymentRepo salesRepos.SalesPaymentRepository,
 	bankAccountRepo coreRepos.BankAccountRepository,
-) POSPaymentUsecase {
+	cipher *securityInfra.CredentialCipher,
+) *posPaymentUsecase {
 	return &posPaymentUsecase{
 		paymentRepo:      paymentRepo,
 		orderRepo:        orderRepo,
@@ -68,6 +84,7 @@ func NewPOSPaymentUsecase(
 		invoiceRepo:      invoiceRepo,
 		salesPaymentRepo: salesPaymentRepo,
 		bankAccountRepo:  bankAccountRepo,
+		cipher:           cipher,
 	}
 }
 
@@ -86,28 +103,24 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}
 
-	// Update customer name on the order if provided (used on receipt/invoice)
-	if req.CustomerName != nil {
-		trimmedName := strings.TrimSpace(*req.CustomerName)
-		if trimmedName != "" {
-			order.CustomerName = &trimmedName
-		}
+	// Update customer info on the order if provided (used on receipt/invoice/SO).
+	if applyCustomerInfoToOrder(order, req) {
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
 	now := apptime.Now()
 	change := req.Amount - order.TotalAmount
 	payment := &models.POSPayment{
-		OrderID:      orderID,
-		Method:       models.POSPaymentMethod(req.Method),
-		Status:       models.POSPaymentStatusPaid,
-		Amount:       req.Amount,
-		TenderAmount: req.Amount,
-		ChangeAmount: change,
+		OrderID:         orderID,
+		Method:          models.POSPaymentMethod(req.Method),
+		Status:          models.POSPaymentStatusPaid,
+		Amount:          req.Amount,
+		TenderAmount:    req.Amount,
+		ChangeAmount:    change,
 		ReferenceNumber: req.ReferenceNumber,
-		Notes: req.Notes,
-		PaidAt:       &now,
-		CreatedBy:    cashierID,
+		Notes:           req.Notes,
+		PaidAt:          &now,
+		CreatedBy:       cashierID,
 	}
 	if err := u.paymentRepo.Create(ctx, payment); err != nil {
 		return nil, err
@@ -142,22 +155,20 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
 	}
 
-	// Persist customer name from payment form if provided
-	if req.CustomerName != nil {
-		trimmedName := strings.TrimSpace(*req.CustomerName)
-		if trimmedName != "" {
-			order.CustomerName = &trimmedName
-			_ = u.orderRepo.Update(ctx, order)
-		}
+	decryptedSecretKey, err := u.cipher.Decrypt(xenditCfg.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
+	}
+
+	// Persist customer info from payment form if provided.
+	if applyCustomerInfoToOrder(order, req) {
+		_ = u.orderRepo.Update(ctx, order)
 	}
 
 	// Build a unique external order ID for Xendit invoice tracking
 	externalOrderID := fmt.Sprintf("%s-%d", order.OrderNumber, apptime.Now().UnixMilli())
 
-	description := fmt.Sprintf("POS Order %s", order.OrderNumber)
-	if order.CustomerName != nil && *order.CustomerName != "" {
-		description = fmt.Sprintf("POS Order %s - %s", order.OrderNumber, *order.CustomerName)
-	}
+	description := buildXenditOrderDescription(order)
 
 	// Build Xendit invoice request with optional channel filtering
 	invoiceReq := provider.InvoiceRequest{
@@ -173,7 +184,7 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 	}
 
 	// Create Xendit invoice routed to the merchant's sub-account
-	xenditProvider := provider.NewXenditProvider(xenditCfg.SecretKey, xenditCfg.XenditAccountID)
+	xenditProvider := provider.NewXenditProvider(decryptedSecretKey, xenditCfg.XenditAccountID)
 	invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
 	if err != nil {
 		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
@@ -217,6 +228,122 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, err
 	}
 	return mapper.ToPOSPaymentResponse(payment), nil
+}
+
+func applyCustomerInfoToOrder(order *models.PosOrder, req *dto.ProcessPaymentRequest) bool {
+	needsUpdate := false
+
+	if req.CustomerID != nil {
+		trimmedID := strings.TrimSpace(*req.CustomerID)
+		if trimmedID != "" {
+			order.CustomerID = &trimmedID
+			needsUpdate = true
+		}
+	}
+	if req.CustomerName != nil {
+		trimmedName := strings.TrimSpace(*req.CustomerName)
+		if trimmedName != "" {
+			order.CustomerName = &trimmedName
+			needsUpdate = true
+		}
+	}
+	if req.CustomerPhone != nil {
+		trimmedPhone := strings.TrimSpace(*req.CustomerPhone)
+		if trimmedPhone != "" {
+			order.CustomerPhone = &trimmedPhone
+			needsUpdate = true
+		}
+	}
+	if req.CustomerEmail != nil {
+		trimmedEmail := strings.TrimSpace(*req.CustomerEmail)
+		if trimmedEmail != "" {
+			order.CustomerEmail = &trimmedEmail
+			needsUpdate = true
+		}
+	}
+	if req.LoyaltyMemberID != nil {
+		trimmedMemberID := strings.TrimSpace(*req.LoyaltyMemberID)
+		if trimmedMemberID != "" {
+			order.LoyaltyMemberID = &trimmedMemberID
+			needsUpdate = true
+		}
+	}
+
+	return needsUpdate
+}
+
+func buildXenditOrderDescription(order *models.PosOrder) string {
+	itemSummaries := make([]string, 0, len(order.Items))
+	for _, item := range order.Items {
+		name := strings.TrimSpace(item.ProductName)
+		if name == "" {
+			continue
+		}
+
+		qty := formatOrderItemQuantity(item.Quantity)
+		if qty == "" {
+			itemSummaries = append(itemSummaries, name)
+			continue
+		}
+
+		itemSummaries = append(itemSummaries, fmt.Sprintf("%sx %s", qty, name))
+	}
+
+	if len(itemSummaries) == 0 {
+		return "POS purchase"
+	}
+
+	const prefix = "POS Items: "
+	parts := make([]string, 0, len(itemSummaries))
+
+	for i, summary := range itemSummaries {
+		candidate := append(parts, summary)
+		remaining := len(itemSummaries) - (i + 1)
+		desc := prefix + strings.Join(candidate, ", ")
+		if remaining > 0 {
+			desc += fmt.Sprintf(", +%d item lainnya", remaining)
+		}
+
+		if len(desc) > maxXenditDescriptionLen {
+			break
+		}
+		parts = candidate
+	}
+
+	if len(parts) == 0 {
+		first := itemSummaries[0]
+		available := maxXenditDescriptionLen - len(prefix)
+		if available <= 0 {
+			return "POS purchase"
+		}
+		if len(first) > available {
+			first = first[:available]
+		}
+		return prefix + first
+	}
+
+	description := prefix + strings.Join(parts, ", ")
+	remaining := len(itemSummaries) - len(parts)
+	if remaining > 0 {
+		suffix := fmt.Sprintf(", +%d item lainnya", remaining)
+		if len(description)+len(suffix) <= maxXenditDescriptionLen {
+			description += suffix
+		}
+	}
+
+	return description
+}
+
+func formatOrderItemQuantity(quantity float64) string {
+	if quantity <= 0 {
+		return ""
+	}
+
+	if quantity == float64(int64(quantity)) {
+		return fmt.Sprintf("%d", int64(quantity))
+	}
+
+	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", quantity), "0"), ".")
 }
 
 func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *dto.XenditWebhookPayload) error {
@@ -301,8 +428,8 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 			order.CustomerInvoiceID = &invoiceID
 			_ = u.orderRepo.Update(ctx, order)
 
-			// For POS cash payments, also generate a confirmed Sales Payment detail record.
-			if payment != nil && payment.Method == models.POSPaymentMethodCash {
+			// Record settlement into sales payments for every successfully paid POS transaction.
+			if payment != nil {
 				_ = u.createSalesPaymentFromPOS(ctx, invoiceID, payment, order, userID)
 			}
 		}
@@ -312,6 +439,19 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 	// stock discrepancies are reconciled by operations via an adjustment entry.
 	if err := u.orderUsecase.DeductStock(ctx, order, order.OrderNumber, userID); err != nil {
 		_ = err
+	}
+
+	// Award loyalty points when the order is linked to a loyalty member.
+	// Failures are non-blocking — the payment is the source of truth.
+	if u.loyaltyUC != nil && order.LoyaltyMemberID != nil {
+		processedBy := userID
+		_, _ = u.loyaltyUC.EarnPoints(ctx, &loyaltyDTO.EarnPointsRequest{
+			MemberID:        *order.LoyaltyMemberID,
+			TransactionID:   order.ID,
+			TransactionType: "pos_order",
+			TotalAmount:     order.TotalAmount,
+			ProcessedBy:     &processedBy,
+		})
 	}
 
 	return nil
@@ -339,16 +479,34 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 	if order.CustomerName != nil {
 		customerName = *order.CustomerName
 	}
+	customerPhone := ""
+	if order.CustomerPhone != nil {
+		customerPhone = *order.CustomerPhone
+	}
+	customerEmail := ""
+	if order.CustomerEmail != nil {
+		customerEmail = *order.CustomerEmail
+	}
+
+	taxRatePercent := deriveTaxRatePercent(order)
+	serviceCharge := order.ServiceCharge
+	if serviceCharge < 0 {
+		serviceCharge = 0
+	}
 
 	actor := optionalActorIDPointer(userID)
 	so := &salesModels.SalesOrder{
 		Code:             code,
 		OrderDate:        now,
+		CustomerID:       order.CustomerID,
 		CustomerName:     customerName,
+		CustomerPhone:    customerPhone,
+		CustomerEmail:    customerEmail,
 		Subtotal:         order.Subtotal,
 		DiscountAmount:   order.DiscountAmount,
-		TaxRate:          0,
+		TaxRate:          taxRatePercent,
 		TaxAmount:        order.TaxAmount,
+		OtherCost:        serviceCharge,
 		TotalAmount:      order.TotalAmount,
 		Status:           salesModels.SalesOrderStatusClosed,
 		Notes:            notesVal,
@@ -557,4 +715,18 @@ func optionalActorIDPointer(raw string) *string {
 	}
 	normalized := normalizedActorID(trimmed)
 	return &normalized
+}
+
+func deriveTaxRatePercent(order *models.PosOrder) float64 {
+	taxableBase := order.Subtotal - order.DiscountAmount
+	if taxableBase <= 0 || order.TaxAmount <= 0 {
+		return 0
+	}
+
+	ratePercent := (order.TaxAmount / taxableBase) * 100
+	if ratePercent < 0 {
+		return 0
+	}
+
+	return math.Round(ratePercent*100) / 100
 }

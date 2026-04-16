@@ -108,10 +108,10 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
 	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
-		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"))
+		reason := "Payment gateway is not available"
 		coreErrors.ErrorResponse(c, "XENDIT_NOT_CONNECTED", map[string]interface{}{"reason": reason}, nil)
 	case strings.HasPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"):
-		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"))
+		reason := "Failed to create digital payment invoice"
 		coreErrors.ErrorResponse(c, "XENDIT_INVOICE_FAILED", map[string]interface{}{"reason": reason}, nil)
 	default:
 		coreErrors.InternalServerErrorResponse(c, "")
