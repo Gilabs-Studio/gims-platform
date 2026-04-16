@@ -10,6 +10,7 @@ export const purchasePaymentEn = {
   },
   actions: {
     create: "Create",
+    openMapping: "Open Mapping",
     change: "Change",
     export: "Export",
     confirm: "Confirm",
@@ -106,4 +107,7 @@ export const purchasePaymentEn = {
   printConfirm: "Print",
   printCancel: "Cancel",
   printError: "Something went wrong",
+  errors: {
+    mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before continuing.",
+  },
 };

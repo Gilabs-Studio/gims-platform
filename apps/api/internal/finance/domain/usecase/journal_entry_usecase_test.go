@@ -132,6 +132,34 @@ func TestJournalReferenceTypesForDomain_ShouldReturnNilForUnknownDomain(t *testi
 	require.Nil(t, types)
 }
 
+func TestBuildOpeningBalanceLines_ShouldDebitAccountCreditEquity_ForAsset(t *testing.T) {
+	t.Parallel()
+
+	lines := buildOpeningBalanceLines("coa-asset", financeModels.AccountTypeAsset, 1000, "coa-equity")
+
+	require.Len(t, lines, 2)
+	require.Equal(t, "coa-asset", lines[0].ChartOfAccountID)
+	require.Equal(t, 1000.0, lines[0].Debit)
+	require.Equal(t, 0.0, lines[0].Credit)
+	require.Equal(t, "coa-equity", lines[1].ChartOfAccountID)
+	require.Equal(t, 0.0, lines[1].Debit)
+	require.Equal(t, 1000.0, lines[1].Credit)
+}
+
+func TestBuildOpeningBalanceLines_ShouldDebitEquityCreditAccount_ForLiability(t *testing.T) {
+	t.Parallel()
+
+	lines := buildOpeningBalanceLines("coa-liability", financeModels.AccountTypeLiability, 2500, "coa-equity")
+
+	require.Len(t, lines, 2)
+	require.Equal(t, "coa-equity", lines[0].ChartOfAccountID)
+	require.Equal(t, 2500.0, lines[0].Debit)
+	require.Equal(t, 0.0, lines[0].Credit)
+	require.Equal(t, "coa-liability", lines[1].ChartOfAccountID)
+	require.Equal(t, 0.0, lines[1].Debit)
+	require.Equal(t, 2500.0, lines[1].Credit)
+}
+
 type stubChartOfAccountRepository struct {
 	items []financeModels.ChartOfAccount
 }
@@ -175,6 +203,39 @@ func (s stubChartOfAccountRepository) FindByCode(ctx context.Context, code strin
 		}
 	}
 	return nil, gorm.ErrRecordNotFound
+}
+
+func (s stubChartOfAccountRepository) GetByCode(ctx context.Context, code string) (*financeModels.ChartOfAccount, error) {
+	return s.FindByCode(ctx, code)
+}
+
+func (s stubChartOfAccountRepository) FindOpeningBalanceEquity(ctx context.Context) (*financeModels.ChartOfAccount, error) {
+	for _, item := range s.items {
+		if item.Code == "39999" {
+			return &item, nil
+		}
+	}
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (s stubChartOfAccountRepository) HasChildren(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) HasJournalLines(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) IsUsedInJournal(ctx context.Context, id string) (bool, error) {
+	return false, nil
+}
+
+func (s stubChartOfAccountRepository) UpdateIsPostable(ctx context.Context, id string, isPostable bool) error {
+	return nil
+}
+
+func (s stubChartOfAccountRepository) RecalculateAllIsPostable(ctx context.Context) error {
+	return nil
 }
 
 type stubFinanceReportRepository struct {

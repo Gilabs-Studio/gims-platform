@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type NonTradePayableListParams struct {
@@ -46,11 +47,19 @@ func (r *nonTradePayableRepository) FindByID(ctx context.Context, id string) (*f
 	return &item, nil
 }
 
-var nonTradePayableAllowedSort = map[string]string{
-	"created_at":       "non_trade_payables.created_at",
-	"updated_at":       "non_trade_payables.updated_at",
-	"transaction_date": "non_trade_payables.transaction_date",
-	"amount":           "non_trade_payables.amount",
+var nonTradePayableAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "non_trade_payables", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "non_trade_payables", Name: "updated_at"},
+	},
+	"transaction_date": {
+		Column: clause.Column{Table: "non_trade_payables", Name: "transaction_date"},
+	},
+	"amount": {
+		Column: clause.Column{Table: "non_trade_payables", Name: "amount"},
+	},
 }
 
 func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePayableListParams) ([]financeModels.NonTradePayable, int64, error) {
@@ -78,14 +87,16 @@ func (r *nonTradePayableRepository) List(ctx context.Context, params NonTradePay
 	}
 
 	sortCol := nonTradePayableAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = nonTradePayableAllowedSort["transaction_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

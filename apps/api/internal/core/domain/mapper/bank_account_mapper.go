@@ -19,7 +19,11 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 	}
 	response := &dto.BankAccountResponse{
 		ID:               model.ID,
+		CompanyID:        model.CompanyID,
+		Code:             model.Code,
 		Name:             model.Name,
+		AccountType:      model.AccountType,
+		BankID:           model.BankID,
 		AccountNumber:    model.AccountNumber,
 		AccountHolder:    model.AccountHolder,
 		CurrencyID:       model.CurrencyID,
@@ -28,6 +32,11 @@ func (m *BankAccountMapper) ToResponse(model *models.BankAccount) *dto.BankAccou
 		VillageID:        model.VillageID,
 		BankAddress:      model.BankAddress,
 		BankPhone:        model.BankPhone,
+		CountryCode:      model.CountryCode,
+		BankBranchCode:   model.BankBranchCode,
+		OpeningBalance:   model.OpeningBalance,
+		CreatedBy:        model.CreatedBy,
+		UpdatedBy:        model.UpdatedBy,
 		IsActive:         model.IsActive,
 		CreatedAt:        model.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:        model.UpdatedAt.Format(time.RFC3339),

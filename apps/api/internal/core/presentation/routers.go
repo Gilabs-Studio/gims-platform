@@ -31,7 +31,7 @@ func RegisterMasterDataRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, 
 	soSourceUC := usecase.NewSOSourceUsecase(soSourceRepo)
 	leaveTypeUC := usecase.NewLeaveTypeUsecase(leaveTypeRepo)
 	currencyUC := usecase.NewCurrencyUsecase(currencyRepo)
-	bankAccountUC := usecase.NewBankAccountUsecaseWithCurrency(bankAccountRepo, currencyRepo)
+	bankAccountUC := usecase.NewBankAccountUsecaseWithCurrency(db, bankAccountRepo, currencyRepo)
 
 	// Initialize handlers
 	paymentTermsH := handler.NewPaymentTermsHandler(paymentTermsUC)

@@ -9,6 +9,7 @@ export const stockOpnameEn = {
     reject: "Reject",
     post: "Post",
     addItem: "Add Item",
+    openMapping: "Open Mapping",
   },
   table: {
     opname_no: "Opname No",
@@ -66,6 +67,23 @@ export const stockOpnameEn = {
     tabs: {
       items: "Items",
       info: "Information",
+      ledger: "Stock Ledger",
+    },
+    ledger: {
+      product: "Product",
+      selectProduct: "Select product",
+      totalRecords: "Total Records",
+      empty: "No stock ledger entries found for this product.",
+      columns: {
+        date: "Date",
+        type: "Type",
+        transaction: "Transaction",
+        qty: "Qty",
+        unitCost: "Unit Cost",
+        averageCost: "Average Cost",
+        runningQty: "Running Qty",
+        stockValue: "Stock Value",
+      },
     },
   },
   deleteConfirmation: {
@@ -75,5 +93,12 @@ export const stockOpnameEn = {
   deleteItemConfirmation: {
     title: "Delete Item",
     description: "Are you sure you want to delete this item?",
+  },
+  errors: {
+    mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before posting stock opname.",
+    accountNotPostable: "Selected account is not postable.",
+    accountInactive: "Selected account is inactive.",
+    periodClosed: "Accounting period is closed. Posting is not allowed.",
+    concurrentLockConflict: "Another process is updating the same data. Please retry.",
   },
 };

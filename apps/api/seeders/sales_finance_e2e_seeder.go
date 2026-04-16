@@ -31,11 +31,11 @@ func SeedSalesFinanceE2E() error {
 		return nil
 	}
 
-	log.Println("═══════════════════════════════════════════════════════════")
-	log.Println("  SEEDING: Sales → Finance End-to-End Integration")
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println("")
+	log.Println("  SEEDING: Sales  Finance End-to-End Integration")
+	log.Println("")
 
-	// ── Resolve dependencies ──────────────────────────────────────────
+	//  Resolve dependencies
 
 	// Admin user
 	defaultEmail := os.Getenv("SEED_DEFAULT_EMAIL")
@@ -45,7 +45,7 @@ func SeedSalesFinanceE2E() error {
 	var admin userModels.User
 	if err := db.Where("email = ?", defaultEmail).First(&admin).Error; err != nil {
 		if err2 := db.First(&admin).Error; err2 != nil {
-			log.Println("⚠️  No admin user found, skipping Sales-Finance E2E")
+			log.Println("  No admin user found, skipping Sales-Finance E2E")
 			return nil
 		}
 	}
@@ -53,32 +53,32 @@ func SeedSalesFinanceE2E() error {
 	// Customer
 	var customer customerModels.Customer
 	if err := db.First(&customer).Error; err != nil {
-		log.Println("⚠️  No customer found, skipping Sales-Finance E2E")
+		log.Println("  No customer found, skipping Sales-Finance E2E")
 		return nil
 	}
 
 	// Products
 	var products []productModels.Product
 	if err := db.Where("is_approved = ?", true).Limit(5).Find(&products).Error; err != nil || len(products) < 2 {
-		log.Println("⚠️  Not enough approved products, skipping Sales-Finance E2E")
+		log.Println("  Not enough approved products, skipping Sales-Finance E2E")
 		return nil
 	}
 
 	// Payment terms
 	var pt coreModels.PaymentTerms
 	if err := db.Where("is_active = ?", true).First(&pt).Error; err != nil {
-		log.Println("⚠️  No payment terms found, skipping Sales-Finance E2E")
+		log.Println("  No payment terms found, skipping Sales-Finance E2E")
 		return nil
 	}
 
 	// Bank account
 	var bankAccount coreModels.BankAccount
 	if err := db.Where("is_active = ?", true).First(&bankAccount).Error; err != nil {
-		log.Println("⚠️  No active bank account found, skipping Sales-Finance E2E")
+		log.Println("  No active bank account found, skipping Sales-Finance E2E")
 		return nil
 	}
 
-	// ── Setup Chart of Accounts (COA) ──────────────────────────────────
+	//  Setup Chart of Accounts (COA)
 	log.Println("  Setting up COAs for Finance Integration...")
 
 	ensureCOA := func(code, name, coaType string) financeModels.ChartOfAccount {
@@ -97,20 +97,24 @@ func SeedSalesFinanceE2E() error {
 		return coa
 	}
 
-	cashCOA := ensureCOA("11100", "Cash on Hand", "ASSET")
-	receivableCOA := ensureCOA("11300", "Trade Receivables", "ASSET")
-	dpAdvanceCOA := ensureCOA("21200", "Sales Advances (DP)", "LIABILITY")
-	revenueCOA := ensureCOA("4100", "Sales Revenue", "REVENUE")
+	cashCOA := ensureCOA("11101", "Kas", "CASH_BANK")
+	receivableCOA := ensureCOA("11210", "Piutang Usaha (AR)", "ASSET")
+	dpAdvanceCOA := ensureCOA("21400", "Uang Muka Penjualan", "LIABILITY")
+	revenueCOA := ensureCOA("41100", "Penjualan", "REVENUE")
 
-	// ──────────────────────────────────────────────────────────────────
-	// SCENARIO 1: Full flow with Down Payment (SQ → SO → DO → DP → INV → PAY → JE)
-	// ──────────────────────────────────────────────────────────────────
-	log.Println("── Scenario 1: Down Payment & Integration ──")
+	//
+	// SCENARIO 1: Full flow with Down Payment (SQ  SO  DO  DP  INV  PAY  JE)
+	//
+	log.Println(" Scenario 1: Down Payment & Integration ")
 
 	invoiceRepo := repositories.NewCustomerInvoiceRepository(db)
 	ctx := context.Background()
 	now := time.Now()
 	taxRate := 11.0
+	companyID, err := findPTGiLabsCompanyID(db)
+	if err != nil {
+		return err
+	}
 
 	// 1. Sales Quotation
 	sqDate := now.AddDate(0, 0, -30)
@@ -183,7 +187,7 @@ func SeedSalesFinanceE2E() error {
 	}
 	db.Create(&dpInv)
 
-	// 4. Sales Payment for DP (Confirmed → Triggers Finance)
+	// 4. Sales Payment for DP (Confirmed  Triggers Finance)
 	dpPay := salesModels.SalesPayment{
 		ID:                uuid.New().String(),
 		CustomerInvoiceID: dpInv.ID,
@@ -197,6 +201,7 @@ func SeedSalesFinanceE2E() error {
 	// Trigger Journal for DP
 	jeDP := financeModels.JournalEntry{}
 	jeDP.ID = uuid.New().String()
+	jeDP.CompanyID = companyID
 	jeDP.EntryDate = dpInv.InvoiceDate
 	jeDP.Description = "DP Payment - " + so.Code
 	jeDP.Status = financeModels.JournalStatus("posted")
@@ -228,12 +233,12 @@ func SeedSalesFinanceE2E() error {
 	}
 	db.Create(&regInv)
 
-	log.Printf("  ✅ S1 Success: SQ %s -> SO %s -> DP %s (Paid) -> INV %s (Reduced Amount)", sq.Code, so.Code, dpInv.Code, regInv.Code)
+	log.Printf("   S1 Success: SQ %s -> SO %s -> DP %s (Paid) -> INV %s (Reduced Amount)", sq.Code, so.Code, dpInv.Code, regInv.Code)
 
-	// ──────────────────────────────────────────────────────────────────
-	// SCENARIO 2: Partial Payment & Outstanding Receivable (SO → INV → PAY → Recap)
-	// ──────────────────────────────────────────────────────────────────
-	log.Println("── Scenario 2: Partial Payment & Receivables ──")
+	//
+	// SCENARIO 2: Partial Payment & Outstanding Receivable (SO  INV  PAY  Recap)
+	//
+	log.Println(" Scenario 2: Partial Payment & Receivables ")
 
 	so2 := salesModels.SalesOrder{
 		ID: uuid.New().String(), Code: "SO-E2E-002", OrderDate: now.AddDate(0, 0, -15), CustomerID: &customer.ID, CustomerName: customer.Name, TotalAmount: 5000000.0, Status: salesModels.SalesOrderStatusApproved,
@@ -266,6 +271,7 @@ func SeedSalesFinanceE2E() error {
 	// Journal for Partial Payment
 	je2 := financeModels.JournalEntry{}
 	je2.ID = uuid.New().String()
+	je2.CompanyID = companyID
 	je2.EntryDate = inv2.InvoiceDate
 	je2.Description = "Partial Payment - " + so2.Code
 	je2.Status = financeModels.JournalStatus("posted")
@@ -279,12 +285,12 @@ func SeedSalesFinanceE2E() error {
 	je2.Lines = []financeModels.JournalLine{line2_1, line2_2}
 	db.Create(&je2)
 
-	log.Printf("  ✅ S2 Success: SO %s -> INV %s (Partial) -> Payment Confirmed. Outstanding: 3,000,000", so2.Code, inv2.Code)
+	log.Printf("   S2 Success: SO %s -> INV %s (Partial) -> Payment Confirmed. Outstanding: 3,000,000", so2.Code, inv2.Code)
 
-	// ──────────────────────────────────────────────────────────────────
-	// SCENARIO 3: Full Integration with Journal Revenue (SO → INV → PAY → SO Closed)
-	// ──────────────────────────────────────────────────────────────────
-	log.Println("── Scenario 3: Full Payment & SO Auto-Close ──")
+	//
+	// SCENARIO 3: Full Integration with Journal Revenue (SO  INV  PAY  SO Closed)
+	//
+	log.Println(" Scenario 3: Full Payment & SO Auto-Close ")
 
 	so3 := salesModels.SalesOrder{
 		ID: uuid.New().String(), Code: "SO-E2E-003", OrderDate: now.AddDate(0, 0, -5), CustomerID: &customer.ID, CustomerName: customer.Name, TotalAmount: 1000000.0, Status: salesModels.SalesOrderStatusClosed,
@@ -306,6 +312,7 @@ func SeedSalesFinanceE2E() error {
 	// Journal for Full Payment
 	je3 := financeModels.JournalEntry{}
 	je3.ID = uuid.New().String()
+	je3.CompanyID = companyID
 	je3.EntryDate = inv3.InvoiceDate
 	je3.Description = "Full Payment & Revenue - " + so3.Code
 	je3.Status = financeModels.JournalStatus("posted")
@@ -319,11 +326,11 @@ func SeedSalesFinanceE2E() error {
 	je3.Lines = []financeModels.JournalLine{line3_1, line3_2}
 	db.Create(&je3)
 
-	log.Printf("  ✅ S3 Success: SO %s -> INV %s -> Paid -> SO Closed. Journal Posted to Revenue.", so3.Code, inv3.Code)
+	log.Printf("   S3 Success: SO %s -> INV %s -> Paid -> SO Closed. Journal Posted to Revenue.", so3.Code, inv3.Code)
 
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println("")
 	log.Println("  SALES INTEGRATION COMPLETED SUCCESSFULLY")
-	log.Println("═══════════════════════════════════════════════════════════")
+	log.Println("")
 
 	return nil
 }

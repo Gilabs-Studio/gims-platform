@@ -34,6 +34,12 @@ type Props = {
   id?: string | null;
 };
 
+const REFERENCE_TYPE_MAPPING_PRIORITY: Record<string, string[]> = {
+  SUPPLIER_INVOICE: ["purchase.accounts_payable", "coa.purchase_payable", "coa.accounts_payable"],
+  NON_TRADE_PAYABLE: ["coa.non_trade_payable"],
+  UP_COUNTRY_COST: ["coa.travel_expense", "coa.accrued_expense"],
+};
+
 type CoaOption = { id: string; code: string; name: string };
 
 function flattenCoa(nodes: ChartOfAccountTreeNode[]): CoaOption[] {
@@ -164,25 +170,29 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
   const isLoading = 
     isCoaLoading || isAllCoaLoading || isBankAccountsLoading || isSettingsLoading || (mode === "edit" && paymentQuery.isLoading);
 
-  const getSetting = (key: string) => {
-    const setting = settings.find((s) => s.setting_key === key);
-    return setting?.value;
-  };
+  const settingsByKey = useMemo(
+    () => new Map(settings.map((setting) => [setting.key, setting.coa_code])),
+    [settings],
+  );
 
-  const getCoaIdFromMapping = (refType: string): string => {
-    let key = "";
-    if (refType === "SUPPLIER_INVOICE") key = "coa.purchase_payable";
-    else if (refType === "NON_TRADE_PAYABLE") key = "coa.non_trade_payable";
-    else if (refType === "UP_COUNTRY_COST") key = "coa.accrued_expense";
+  const getCoaIdFromMapping = useCallback(
+    (referenceType: string): string => {
+      const settingKeys = REFERENCE_TYPE_MAPPING_PRIORITY[referenceType] ?? [];
+      for (const key of settingKeys) {
+        const mappedValue = settingsByKey.get(key);
+        if (!mappedValue) continue;
 
-    if (!key) return "";
-    const val = getSetting(key);
-    if (!val) return "";
-    
-    // The setting value might be the COA CODE or COA ID. GIMS standard uses IDs in settings usually.
-    const coa = allCoas.find((c) => c.id === val || c.code === val);
-    return coa?.id ?? "";
-  };
+        // Setting value may contain COA ID or COA code.
+        const coa = allCoas.find((item) => item.id === mappedValue || item.code === mappedValue);
+        if (coa?.id) {
+          return coa.id;
+        }
+      }
+
+      return "";
+    },
+    [allCoas, settingsByKey],
+  );
 
   const defaultValues: PaymentFormValues = useMemo(() => {
     if (mode === "edit") {
@@ -255,8 +265,11 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
       }
 
       onOpenChange(false);
-    } catch (error: any) {
-      const message = error.response?.data?.message || t("toast.failed");
+    } catch (error: unknown) {
+      const message =
+        error && typeof error === "object" && "response" in error
+          ? ((error as { response?: { data?: { message?: string } } }).response?.data?.message ?? t("toast.failed"))
+          : t("toast.failed");
       toast.error(message);
     }
   };

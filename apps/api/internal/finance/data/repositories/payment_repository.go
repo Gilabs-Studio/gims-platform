@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PaymentListParams struct {
@@ -46,12 +47,22 @@ func (r *paymentRepository) FindByID(ctx context.Context, id string, withAllocat
 	return &item, nil
 }
 
-var paymentAllowedSort = map[string]string{
-	"created_at":    "payments.created_at",
-	"updated_at":    "payments.updated_at",
-	"payment_date":  "payments.payment_date",
-	"status":        "payments.status",
-	"total_amount":  "payments.total_amount",
+var paymentAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "payments", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "payments", Name: "updated_at"},
+	},
+	"payment_date": {
+		Column: clause.Column{Table: "payments", Name: "payment_date"},
+	},
+	"status": {
+		Column: clause.Column{Table: "payments", Name: "status"},
+	},
+	"total_amount": {
+		Column: clause.Column{Table: "payments", Name: "total_amount"},
+	},
 }
 
 func (r *paymentRepository) List(ctx context.Context, params PaymentListParams) ([]financeModels.Payment, int64, error) {
@@ -83,14 +94,16 @@ func (r *paymentRepository) List(ctx context.Context, params PaymentListParams) 
 	}
 
 	sortCol := paymentAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = paymentAllowedSort["payment_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

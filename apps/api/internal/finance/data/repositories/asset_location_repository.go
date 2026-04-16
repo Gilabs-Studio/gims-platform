@@ -6,6 +6,7 @@ import (
 
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AssetLocationListParams struct {
@@ -37,10 +38,16 @@ func (r *assetLocationRepository) FindByID(ctx context.Context, id string) (*fin
 	return &item, nil
 }
 
-var assetLocationAllowedSort = map[string]string{
-	"created_at": "asset_locations.created_at",
-	"updated_at": "asset_locations.updated_at",
-	"name":       "asset_locations.name",
+var assetLocationAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "asset_locations", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "asset_locations", Name: "updated_at"},
+	},
+	"name": {
+		Column: clause.Column{Table: "asset_locations", Name: "name"},
+	},
 }
 
 func (r *assetLocationRepository) List(ctx context.Context, params AssetLocationListParams) ([]financeModels.AssetLocation, int64, error) {
@@ -58,14 +65,16 @@ func (r *assetLocationRepository) List(ctx context.Context, params AssetLocation
 	}
 
 	sortCol := assetLocationAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = assetLocationAllowedSort["created_at"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)

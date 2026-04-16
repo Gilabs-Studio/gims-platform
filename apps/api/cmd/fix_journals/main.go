@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -25,19 +25,19 @@ func main() {
 
 	// Define required COAs
 	requiredCOAs := []models.ChartOfAccount{
-		{Code: "1-1110", Name: "Cash on Hand", Type: models.AccountTypeCashBank, IsActive: true},
-		{Code: "1-1130", Name: "Trade Receivables", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "1-1140", Name: "Inventory", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "1-1180", Name: "VAT Input", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "1-1190", Name: "Advances to Suppliers", Type: models.AccountTypeAsset, IsActive: true},
-		{Code: "2-2100", Name: "Trade Payables", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "2-2110", Name: "GR/IR Clearing", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "2-2120", Name: "Sales Advances", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "2-2150", Name: "VAT Output", Type: models.AccountTypeLiability, IsActive: true},
-		{Code: "4-4100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true},
-		{Code: "4-4110", Name: "Sales Discount", Type: models.AccountTypeRevenue, IsActive: true},
-		{Code: "5-5100", Name: "Cost of Goods Sold", Type: models.AccountTypeExpense, IsActive: true},
-		{Code: "6-6100", Name: "Delivery / Variance Expense", Type: models.AccountTypeExpense, IsActive: true},
+		{Code: "11110", Name: "Cash on Hand", Type: models.AccountTypeCashBank, IsActive: true},
+		{Code: "11130", Name: "Trade Receivables", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "11140", Name: "Inventory", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "11180", Name: "VAT Input", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "11190", Name: "Advances to Suppliers", Type: models.AccountTypeAsset, IsActive: true},
+		{Code: "22100", Name: "Trade Payables", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "22110", Name: "GR/IR Clearing", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "22120", Name: "Sales Advances", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "22150", Name: "VAT Output", Type: models.AccountTypeLiability, IsActive: true},
+		{Code: "44100", Name: "Sales Revenue", Type: models.AccountTypeRevenue, IsActive: true},
+		{Code: "44110", Name: "Sales Discount", Type: models.AccountTypeRevenue, IsActive: true},
+		{Code: "55100", Name: "Cost of Goods Sold", Type: models.AccountTypeExpense, IsActive: true},
+		{Code: "66100", Name: "Delivery / Variance Expense", Type: models.AccountTypeExpense, IsActive: true},
 	}
 
 	for _, coa := range requiredCOAs {
@@ -59,3 +59,4 @@ func main() {
 	log.Println("2. Since you have dummy data, try changing the status (cancel and confirm) or creating payments.")
 	log.Println("3. Future seeders will also now be able to reliably insert journal entries.")
 }
+

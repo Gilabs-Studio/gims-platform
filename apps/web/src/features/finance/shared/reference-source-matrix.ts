@@ -106,7 +106,7 @@ export const REFERENCE_SOURCE_MATRIX: readonly ReferenceSourceRule[] = [
     sourceKind: "finance-payment",
     referenceTypes: ["PAYMENT"],
     routeKey: "financeJournal",
-    routePattern: "/finance/payments",
+    routePattern: "/finance/ap/payments",
   },
   {
     sourceKind: "cash-bank",

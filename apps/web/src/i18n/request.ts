@@ -111,6 +111,12 @@ import { financeJournalsId } from "@/features/finance/journals/i18n/id";
 
 import { financeBankAccountsEn } from "@/features/finance/bank-accounts/i18n/en";
 import { financeBankAccountsId } from "@/features/finance/bank-accounts/i18n/id";
+import { financeCashBankTransactionsEn } from "@/features/finance/cash-bank-transactions/i18n/en";
+import { financeCashBankTransactionsId } from "@/features/finance/cash-bank-transactions/i18n/id";
+import { financeBankTransferEn } from "@/features/finance/bank-transfer/i18n/en";
+import { financeBankTransferId } from "@/features/finance/bank-transfer/i18n/id";
+import { financeBankReconciliationEn } from "@/features/finance/bank-reconciliation/i18n/en";
+import { financeBankReconciliationId } from "@/features/finance/bank-reconciliation/i18n/id";
 import { financePaymentsEn } from "@/features/finance/payments/i18n/en";
 import { financePaymentsId } from "@/features/finance/payments/i18n/id";
 import { financeBudgetEn } from "@/features/finance/budget/i18n/en";
@@ -241,6 +247,9 @@ const messages = {
     financeJournals: financeJournalsEn,
 
     financeBankAccounts: financeBankAccountsEn,
+    financeCashBankTransactions: financeCashBankTransactionsEn,
+    financeBankTransfer: financeBankTransferEn,
+    financeBankReconciliation: financeBankReconciliationEn,
     financePayments: financePaymentsEn,
     financeBudget: financeBudgetEn,
 
@@ -332,6 +341,9 @@ const messages = {
     financeJournals: financeJournalsId,
 
     financeBankAccounts: financeBankAccountsId,
+    financeCashBankTransactions: financeCashBankTransactionsId,
+    financeBankTransfer: financeBankTransferId,
+    financeBankReconciliation: financeBankReconciliationId,
     financePayments: financePaymentsId,
     financeBudget: financeBudgetId,
 

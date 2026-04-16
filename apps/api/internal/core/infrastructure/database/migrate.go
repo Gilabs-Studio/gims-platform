@@ -149,6 +149,10 @@ func AutoMigrate() error {
 		&finance.BudgetItem{},
 		&finance.CashBankJournal{},
 		&finance.CashBankJournalLine{},
+		&finance.CashBankTransaction{},
+		&finance.BankTransfer{},
+		&finance.BankReconciliation{},
+		&finance.BankStatementLine{},
 		// Finance entities (Sprint 12)
 		&finance.AssetCategory{},
 		&finance.AssetLocation{},
@@ -160,9 +164,14 @@ func AutoMigrate() error {
 		&finance.AssetAuditLog{},
 		&finance.AssetAssignmentHistory{},
 		&finance.FinancialClosing{},
+		&finance.FiscalYear{},
 		&finance.AccountingPeriod{},
 		&finance.FinancialClosingSnapshot{},
 		&finance.FinancialClosingLog{},
+		&finance.TaxConfiguration{},
+		&finance.InventorySettings{},
+		&finance.InventoryAverageCost{},
+		&finance.OpeningBalanceLine{},
 		&finance.TaxInvoice{},
 		&finance.NonTradePayable{},
 		&finance.SalaryStructure{},
@@ -236,6 +245,7 @@ func AutoMigrate() error {
 		// Inventory entities (Sprint 9)
 		&inventory.InventoryBatch{},
 		&inventory.StockMovement{},
+		&inventory.StockLedger{},
 		// Stock Opname entities (Sprint 9)
 		&stockOpname.StockOpname{},
 		&stockOpname.StockOpnameItem{},
@@ -351,6 +361,17 @@ func AutoMigrate() error {
 		log.Printf("Warning: could not ensure role_permissions.scope column: %v", err)
 	}
 
+	// Ensure multi-company uniqueness for system account mappings.
+	if err := DB.Exec(`DROP INDEX IF EXISTS idx_system_account_mappings_key`).Error; err != nil {
+		log.Printf("Warning: could not drop legacy system_account_mappings key index: %v", err)
+	}
+	if err := DB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_account_mappings_key_company
+		ON system_account_mappings ("key", company_id)
+	`).Error; err != nil {
+		log.Printf("Warning: could not ensure composite index idx_system_account_mappings_key_company: %v", err)
+	}
+
 	// Sprint 17: Migrate area_supervisors data to employee_areas
 	if err := migrateAreaSupervisorsToEmployeeAreas(); err != nil {
 		log.Printf("Warning: Area supervisor migration skipped or failed: %v", err)
@@ -398,6 +419,11 @@ func AutoMigrate() error {
 	// WHY: Allow storing LinkedIn profile URLs for applicants
 	if err := migrations.AddApplicantLinkedInURLMigration(DB); err != nil {
 		log.Printf("Warning: Could not add linkedin_url column: %v", err)
+	}
+
+	// Add menu metadata fields required by canonical module navigation refactor.
+	if err := migrations.AddMenuMetadataMigration(DB); err != nil {
+		return fmt.Errorf("failed to add menu metadata migration: %w", err)
 	}
 
 	// NEW: Normalize journal data (casing/consistent naming)

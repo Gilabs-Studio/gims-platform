@@ -101,7 +101,7 @@ func (h *PaymentHandler) Approve(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	res, err := h.uc.Approve(c.Request.Context(), id)
 	if err != nil {
-		response.ErrorResponse(c, http.StatusBadRequest, "PAYMENT_APPROVE_FAILED", err.Error(), nil, nil)
+		writeFinanceStandardizedError(c, err, http.StatusBadRequest, "PAYMENT_APPROVE_FAILED")
 		return
 	}
 	response.SuccessResponse(c, res, nil)

@@ -19,6 +19,7 @@ import (
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -339,57 +340,71 @@ func (uc *upCountryCostUsecase) Submit(ctx context.Context, id string) (*dto.UpC
 
 func (uc *upCountryCostUsecase) ManagerApprove(ctx context.Context, id string) (*dto.UpCountryCostResponse, error) {
 	id = strings.TrimSpace(id)
-	item, err := uc.repo.FindByID(ctx, id, true)
-	if err != nil {
-		return nil, err
-	}
-	if item.Status != financeModels.UpCountryCostStatusSubmitted {
-		return nil, errors.New("only submitted requests can be manager-approved")
-	}
-
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	now := apptime.Now()
 
-	var total float64
-	for _, it := range item.Items {
-		total += it.Amount
-	}
+	var item financeModels.UpCountryCost
+	err := uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := database.WithTx(ctx, tx)
 
-	txData := accounting.TransactionData{
-		ReferenceType: reference.RefTypeUpCountryCost,
-		ReferenceID:   item.ID,
-		EntryDate:     now.Format("2006-01-02"),
-		Description:   "Up-Country Cost Approval: " + item.Code + " - " + item.Purpose,
-		TotalAmount:   total,
-		MemoArgs:      []interface{}{item.Purpose},
-	}
+		if err := tx.WithContext(ctx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Items").
+			First(&item, "id = ?", id).Error; err != nil {
+			return err
+		}
 
-	journalReq, err := uc.accountingEngine.GenerateJournal(ctx, accounting.ProfileUpCountryApproval, txData)
+		if item.Status != financeModels.UpCountryCostStatusSubmitted {
+			return errors.New("only submitted requests can be manager-approved")
+		}
+
+		var total float64
+		for _, it := range item.Items {
+			total += it.Amount
+		}
+
+		txData := accounting.TransactionData{
+			ReferenceType: reference.RefTypeUpCountryCost,
+			ReferenceID:   item.ID,
+			EntryDate:     now.Format("2006-01-02"),
+			Description:   "Up-Country Cost Approval: " + item.Code + " - " + item.Purpose,
+			TotalAmount:   total,
+			MemoArgs:      []interface{}{item.Purpose},
+		}
+
+		journalReq, err := uc.accountingEngine.GenerateJournal(txCtx, accounting.ProfileUpCountryApproval, txData)
+		if err != nil {
+			return err
+		}
+		if _, err := uc.journalUC.PostOrUpdateJournal(txCtx, journalReq); err != nil {
+			return err
+		}
+
+		if err := tx.WithContext(ctx).Model(&financeModels.UpCountryCost{}).
+			Where("id = ? AND status = ?", id, financeModels.UpCountryCostStatusSubmitted).
+			Updates(map[string]interface{}{
+				"status":              financeModels.UpCountryCostStatusManagerApproved,
+				"manager_approved_at": &now,
+				"manager_approved_by": &actorID,
+				"manager_comment":     "",
+				// legacy fields
+				"approved_at": &now,
+				"approved_by": &actorID,
+			}).Error; err != nil {
+			return err
+		}
+
+		item.Status = financeModels.UpCountryCostStatusManagerApproved
+		item.ManagerApprovedAt = &now
+		item.ManagerApprovedBy = &actorID
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	_, err = uc.journalUC.PostOrUpdateJournal(ctx, journalReq)
-	if err != nil {
-		return nil, err
-	}
 
-	if err := uc.db.WithContext(ctx).Model(&financeModels.UpCountryCost{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":              financeModels.UpCountryCostStatusManagerApproved,
-		"manager_approved_at": &now,
-		"manager_approved_by": &actorID,
-		"manager_comment":     "",
-		// legacy fields
-		"approved_at": &now,
-		"approved_by": &actorID,
-	}).Error; err != nil {
-		return nil, err
-	}
-
-	item.Status = financeModels.UpCountryCostStatusManagerApproved
-	item.ManagerApprovedAt = &now
-	item.ManagerApprovedBy = &actorID
-	res := uc.mapper.ToResponse(item)
+	res := uc.mapper.ToResponse(&item)
 	return &res, nil
 }
 

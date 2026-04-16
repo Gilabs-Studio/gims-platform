@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TaxInvoiceListParams struct {
@@ -41,11 +42,19 @@ func (r *taxInvoiceRepository) FindByID(ctx context.Context, id string) (*financ
 	return &item, nil
 }
 
-var taxInvoiceAllowedSort = map[string]string{
-	"created_at":       "tax_invoices.created_at",
-	"updated_at":       "tax_invoices.updated_at",
-	"tax_invoice_date": "tax_invoices.tax_invoice_date",
-	"tax_invoice_number": "tax_invoices.tax_invoice_number",
+var taxInvoiceAllowedSort = map[string]clause.OrderByColumn{
+	"created_at": {
+		Column: clause.Column{Table: "tax_invoices", Name: "created_at"},
+	},
+	"updated_at": {
+		Column: clause.Column{Table: "tax_invoices", Name: "updated_at"},
+	},
+	"tax_invoice_date": {
+		Column: clause.Column{Table: "tax_invoices", Name: "tax_invoice_date"},
+	},
+	"tax_invoice_number": {
+		Column: clause.Column{Table: "tax_invoices", Name: "tax_invoice_number"},
+	},
 }
 
 func (r *taxInvoiceRepository) List(ctx context.Context, params TaxInvoiceListParams) ([]financeModels.TaxInvoice, int64, error) {
@@ -70,14 +79,16 @@ func (r *taxInvoiceRepository) List(ctx context.Context, params TaxInvoiceListPa
 	}
 
 	sortCol := taxInvoiceAllowedSort[params.SortBy]
-	if sortCol == "" {
+	if sortCol.Column.Name == "" {
 		sortCol = taxInvoiceAllowedSort["tax_invoice_date"]
 	}
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	if sortDir != "asc" {
-		sortDir = "desc"
+	if sortDir == "asc" {
+		sortCol.Desc = false
+	} else {
+		sortCol.Desc = true
 	}
-	q = q.Order(sortCol + " " + sortDir)
+	q = q.Order(sortCol)
 
 	if params.Limit > 0 {
 		q = q.Limit(params.Limit)
