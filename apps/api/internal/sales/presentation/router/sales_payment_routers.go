@@ -11,6 +11,7 @@ const (
 	salesPaymentCreate  = "sales_payment.create"
 	salesPaymentDelete  = "sales_payment.delete"
 	salesPaymentConfirm = "sales_payment.confirm"
+	salesPaymentReverse = "sales_payment.reverse"
 	salesPaymentExport  = "sales_payment.export"
 )
 
@@ -25,4 +26,5 @@ func RegisterSalesPaymentRoutes(r *gin.RouterGroup, h *handler.SalesPaymentHandl
 	g.GET("/:id/print", middleware.RequirePermission("sales_payment.print"), printH.PrintPayment)
 	g.DELETE("/:id", middleware.RequirePermission(salesPaymentDelete), h.Delete)
 	g.POST("/:id/confirm", middleware.RequirePermission(salesPaymentConfirm), h.Confirm)
+	g.POST("/:id/reverse", middleware.RequirePermission(salesPaymentReverse), h.Reverse)
 }

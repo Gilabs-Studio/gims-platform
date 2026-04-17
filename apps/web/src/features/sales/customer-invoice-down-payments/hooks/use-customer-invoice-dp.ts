@@ -216,6 +216,22 @@ export function useApproveCustomerInvoiceDP() {
   });
 }
 
+export function useCancelCustomerInvoiceDP() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => customerInvoiceDPService.cancel(id),
+    onSuccess: (response, id) => {
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.detail(id) });
+      applyDPToSalesOrderLists(queryClient, response?.data);
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to cancel down payment invoice"));
+    },
+  });
+}
+
 export function useCustomerInvoiceDPAuditTrail(
   id: string,
   params?: { page?: number; per_page?: number },

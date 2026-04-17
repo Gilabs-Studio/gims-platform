@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,6 +81,11 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
           <DialogTitle>
             {isEdit ? t("edit") : t("add")}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {isEdit
+              ? "Edit customer invoice form"
+              : "Create customer invoice form"}
+          </DialogDescription>
         </DialogHeader>
 
         {isFormLoading ? (
@@ -403,7 +408,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
               type="button"
               onClick={handleNext}
               className="cursor-pointer"
-              disabled={isValidating}
+              disabled={isValidating || isFormLoading}
             >
               <ButtonLoading loading={isValidating} loadingText={t("common.validating") || "Validating..."}>
                 {t("common.next") || "Next"}
@@ -678,12 +683,12 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                disabled={isLoading}
+                disabled={isLoading || isFormLoading}
                 className="cursor-pointer"
               >
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" disabled={isLoading} className="cursor-pointer">
+              <Button type="submit" disabled={isLoading || isFormLoading} className="cursor-pointer">
                 <ButtonLoading 
                   loading={isLoading} 
                   loadingText={t("common.saving")}

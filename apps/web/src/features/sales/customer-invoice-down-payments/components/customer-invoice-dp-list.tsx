@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
-import { runAsyncExport } from "@/lib/async-export";
 import { useExportProgress } from "@/lib/use-export-progress";
 import { CustomerInvoiceDPPrintDialog } from "./customer-invoice-dp-print-dialog";
 import { CustomerInvoiceDPDetailModal } from "./customer-invoice-dp-detail-modal";
@@ -62,6 +61,7 @@ import {
   useDeleteCustomerInvoiceDP,
   usePendingCustomerInvoiceDP,
   useApproveCustomerInvoiceDP,
+  useCancelCustomerInvoiceDP,
   useCustomerInvoiceDPs,
 } from "../hooks/use-customer-invoice-dp";
 import type { CustomerInvoiceDPListItem, CustomerInvoiceDPStatus } from "../types";
@@ -207,6 +207,7 @@ export function CustomerInvoiceDPList() {
   const deleteMutation = useDeleteCustomerInvoiceDP();
   const pendingMutation = usePendingCustomerInvoiceDP();
   const approveMutation = useApproveCustomerInvoiceDP();
+  const cancelMutation = useCancelCustomerInvoiceDP();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -562,6 +563,23 @@ export function CustomerInvoiceDPList() {
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               {t("actions.approve")}
+                            </DropdownMenuItem>
+                          ) : null}
+
+                          {(normalizeStatus(row.status) === "draft" || normalizeStatus(row.status) === "submitted") ? (
+                            <DropdownMenuItem
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await cancelMutation.mutateAsync(row.id);
+                                  toast.success(t("toast.cancelled"));
+                                } catch {
+                                  toast.error(t("toast.failed"));
+                                }
+                              }}
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              {t("actions.cancel")}
                             </DropdownMenuItem>
                           ) : null}
 

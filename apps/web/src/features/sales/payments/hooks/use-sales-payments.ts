@@ -98,6 +98,24 @@ export function useConfirmSalesPayment() {
   });
 }
 
+export function useReverseSalesPayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => salesPaymentsService.reverse(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: salesPaymentKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
+      queryClient.invalidateQueries({ queryKey: customerInvoiceDPKeys.all });
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    },
+    onError: (error) => {
+      toast.error(getSalesErrorMessage(error, "Failed to reverse payment"));
+    },
+  });
+}
+
 export function useSalesPaymentAuditTrail(
   id: string,
   params?: { page?: number; per_page?: number },

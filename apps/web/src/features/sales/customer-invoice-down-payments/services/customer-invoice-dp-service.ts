@@ -53,6 +53,11 @@ export const customerInvoiceDPService = {
     return response.data;
   },
 
+  cancel: async (id: string): Promise<ApiResponse<CustomerInvoiceDPDetail>> => {
+    const response = await apiClient.post<ApiResponse<CustomerInvoiceDPDetail>>(`${BASE_URL}/${id}/cancel`);
+    return response.data;
+  },
+
   auditTrail: async (id: string, params?: { page?: number; per_page?: number }): Promise<ApiResponse<CustomerInvoiceAuditTrailEntry[]>> => {
     const response = await apiClient.get<ApiResponse<CustomerInvoiceAuditTrailEntry[]>>(`${BASE_URL}/${id}/audit-trail`, { params });
     return response.data;

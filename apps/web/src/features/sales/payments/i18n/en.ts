@@ -5,6 +5,7 @@ export const salesPaymentEn = {
   toast: {
     created: "Payment created",
     confirmed: "Payment confirmed",
+    reversed: "Payment reversed",
     deleted: "Payment deleted",
     failed: "Something went wrong",
   },
@@ -13,6 +14,7 @@ export const salesPaymentEn = {
     change: "Change",
     export: "Export",
     confirm: "Confirm",
+    reverse: "Reverse",
     view: "View",
     auditTrail: "Audit Trail",
     delete: "Delete",

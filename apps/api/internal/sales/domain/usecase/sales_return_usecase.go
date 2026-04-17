@@ -243,6 +243,12 @@ func (u *salesReturnUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		return nil, ErrSalesReturnInvalid
 	}
 
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil, errors.New("user not authenticated")
+	}
+
 	existing, err := u.repo.GetByID(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -260,14 +266,28 @@ func (u *salesReturnUsecase) Update(ctx context.Context, id string, req *dto.Upd
 		return nil, err
 	}
 
-	warehouseID := strings.TrimSpace(req.WarehouseID)
-	if warehouseID == "" {
-		warehouseID = existing.WarehouseID
+	deliveryID := existing.DeliveryID
+	if deliveryID == nil || strings.TrimSpace(*deliveryID) == "" {
+		return nil, errors.New("delivery_id is required")
+	}
+
+	delivery, err := u.getDeliveryOrder(ctx, *deliveryID)
+	if err != nil {
+		return nil, err
+	}
+
+	warehouseID, err := u.resolveWarehouseForCreate(ctx, delivery, req.WarehouseID, *deliveryID)
+	if err != nil {
+		return nil, err
 	}
 
 	customerID := strings.TrimSpace(req.CustomerID)
 	if customerID == "" {
 		customerID = existing.CustomerID
+	}
+
+	if err := u.validateRequestedQtyForUpdate(ctx, *deliveryID, req.Items, existing.Items); err != nil {
+		return nil, err
 	}
 
 	items := make([]models.SalesReturnItem, 0, len(req.Items))
@@ -289,7 +309,8 @@ func (u *salesReturnUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	}
 
 	row := &models.SalesReturn{
-		InvoiceID:   normalizeOptionalString(req.InvoiceID),
+		InvoiceID:   existing.InvoiceID,
+		DeliveryID:  existing.DeliveryID,
 		WarehouseID: warehouseID,
 		CustomerID:  customerID,
 		Reason:      strings.TrimSpace(req.Reason),
@@ -619,6 +640,39 @@ func (u *salesReturnUsecase) validateRequestedQty(
 
 	requestedQtyByProduct := make(map[string]float64)
 	for _, item := range items {
+		productID := strings.TrimSpace(item.ProductID)
+		requestedQtyByProduct[productID] += item.Qty
+	}
+
+	for productID, requestedQty := range requestedQtyByProduct {
+		availableQty := availableQtyByProduct[productID]
+		if requestedQty <= 0 || requestedQty > availableQty+0.0001 {
+			return errors.New("return quantity exceeds available quantity from delivery order")
+		}
+	}
+
+	return nil
+}
+
+func (u *salesReturnUsecase) validateRequestedQtyForUpdate(
+	ctx context.Context,
+	deliveryID string,
+	requestedItems []dto.UpdateSalesReturnItemRequest,
+	existingItems []models.SalesReturnItem,
+) error {
+	availableQtyByProduct, err := u.getAvailableDeliveryQtyByProduct(ctx, deliveryID)
+	if err != nil {
+		return err
+	}
+
+	// Add back existing return quantities to the available pool
+	for _, item := range existingItems {
+		productID := strings.TrimSpace(item.ProductID)
+		availableQtyByProduct[productID] += item.Quantity
+	}
+
+	requestedQtyByProduct := make(map[string]float64)
+	for _, item := range requestedItems {
 		productID := strings.TrimSpace(item.ProductID)
 		requestedQtyByProduct[productID] += item.Qty
 	}

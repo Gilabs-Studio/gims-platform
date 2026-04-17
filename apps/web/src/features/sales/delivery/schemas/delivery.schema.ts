@@ -15,7 +15,9 @@ export const getDeliveryItemSchema = (t?: TranslationFn) => z.object({
   sales_order_item_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId")).optional().or(z.literal("")),
   inventory_batch_id: z.string()
     .min(1, getMsg(t, "validation.required", "Batch is required"))
-    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid batch ID")),
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, getMsg(t, "validation.invalidId", "Invalid batch ID"))
+    .optional()
+    .or(z.literal("")),
   warehouse_id: z.string().uuid().optional().or(z.literal("")),
   quantity: z.number()
     .positive(getMsg(t, "validation.quantityPositive", "Quantity must be greater than 0"))
