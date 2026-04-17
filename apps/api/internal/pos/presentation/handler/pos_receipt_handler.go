@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -82,18 +83,18 @@ type receiptTemplateData struct {
 
 	Items []receiptItemRow
 
-	Subtotal      string
-	DiscountLine  string
-	TaxLine       string
-	ServiceLine   string
-	Total         string
+	Subtotal     string
+	DiscountLine string
+	TaxLine      string
+	ServiceLine  string
+	Total        string
 
 	PaymentMethod   string
 	TenderAmount    string
 	ChangeAmount    string
 	ShowCashDetails bool
 
-	Footer        string
+	Footer           string
 	PrintReceiptAuto bool
 
 	// FeedbackURL is non-empty when a valid feedback form exists for the outlet.
@@ -165,10 +166,10 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	createdAt := orderResp.CreatedAt.In(loc)
 
 	data := receiptTemplateData{
-		OutletName:   "POS",
-		OrderNumber:  orderResp.OrderNumber,
-		OrderDate:    createdAt.Format("02/01/2006"),
-		OrderTime:    createdAt.Format("15:04"),
+		OutletName:  "POS",
+		OrderNumber: orderResp.OrderNumber,
+		OrderDate:   createdAt.Format("02/01/2006"),
+		OrderTime:   createdAt.Format("15:04"),
 	}
 
 	if outlet != nil {
@@ -232,6 +233,7 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	// When the loyalty invite section will be shown (non-member), we omit the
 	// feedback QR to keep the receipt to a single QR code.
 	loyaltyWillInvite := h.loyaltyUC != nil && orderResp.LoyaltyMemberID == nil
+	frontendBaseURL := resolveFrontendBaseURL(c)
 	if h.feedbackUC != nil && !loyaltyWillInvite {
 		tokenReq := &feedbackDTO.GenerateTokenRequest{
 			OutletID:   orderResp.OutletID,
@@ -240,7 +242,7 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 		if orderResp.CustomerName != nil {
 			tokenReq.CustomerName = orderResp.CustomerName
 		}
-		appBaseURL := strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/") + "/en"
+		appBaseURL := frontendBaseURL + "/en"
 		if tokenResp, err := h.feedbackUC.GenerateToken(c.Request.Context(), tokenReq, appBaseURL); err == nil {
 			data.FeedbackURL = tokenResp.FeedbackURL
 			// Generate QR code as base64 PNG for inline embedding — no external dependency.
@@ -264,10 +266,9 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 		}
 	} else if h.loyaltyUC != nil {
 		// Invite non-members to self-register via QR code on the public page.
-		appBaseURL := strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
 		data.ShowLoyaltyInvite = true
 		data.LoyaltyRegisterURL = fmt.Sprintf("%s/en/public/loyalty/register?order=%s&outlet=%s",
-			appBaseURL, orderResp.ID, orderResp.OutletID)
+			frontendBaseURL, orderResp.ID, orderResp.OutletID)
 	}
 
 	// ── Render ───────────────────────────────────────────────────────────────
@@ -323,4 +324,54 @@ func formatQty(q float64) string {
 		return fmt.Sprintf("%.0f", q)
 	}
 	return fmt.Sprintf("%.2f", q)
+}
+
+// resolveFrontendBaseURL derives the best frontend origin for receipt QR links.
+// Priority: Origin header -> forwarded host/proto -> request host -> config fallback.
+func resolveFrontendBaseURL(c *gin.Context) string {
+	origin := strings.TrimSpace(c.GetHeader("Origin"))
+	if origin != "" {
+		if parsed, err := url.Parse(origin); err == nil {
+			scheme := strings.ToLower(strings.TrimSpace(parsed.Scheme))
+			if (scheme == "http" || scheme == "https") && parsed.Host != "" {
+				return fmt.Sprintf("%s://%s", scheme, parsed.Host)
+			}
+		}
+	}
+
+	referer := strings.TrimSpace(c.GetHeader("Referer"))
+	if referer != "" {
+		if parsed, err := url.Parse(referer); err == nil {
+			scheme := strings.ToLower(strings.TrimSpace(parsed.Scheme))
+			if (scheme == "http" || scheme == "https") && parsed.Host != "" {
+				return fmt.Sprintf("%s://%s", scheme, parsed.Host)
+			}
+		}
+	}
+
+	forwardedProto := strings.ToLower(strings.TrimSpace(firstHeaderValue(c.GetHeader("X-Forwarded-Proto"))))
+	scheme := "http"
+	if forwardedProto == "http" || forwardedProto == "https" {
+		scheme = forwardedProto
+	} else if c.Request.TLS != nil {
+		scheme = "https"
+	}
+
+	host := strings.TrimSpace(firstHeaderValue(c.GetHeader("X-Forwarded-Host")))
+	if host == "" {
+		host = strings.TrimSpace(c.Request.Host)
+	}
+	if host != "" {
+		return fmt.Sprintf("%s://%s", scheme, host)
+	}
+
+	return strings.TrimRight(config.AppConfig.Server.FrontendBaseURL, "/")
+}
+
+func firstHeaderValue(v string) string {
+	parts := strings.Split(v, ",")
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
 }
