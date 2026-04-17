@@ -73,6 +73,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
   } = useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, defaultDeliveryOrderId });
 
   const { register, handleSubmit, control, formState: { errors } } = form;
+  const isSalesOrderLocked = !isEdit && !!defaultSalesOrderId;
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
@@ -122,16 +123,18 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
+                      disabled={isSalesOrderLocked}
                       onOpenChange={(isOpen) => {
+                        if (isSalesOrderLocked) return;
                         if (isOpen) {
                           enableReferenceOptionsFetch();
                         }
                         ordersCombobox.onOpenChange(isOpen);
                       }}
-                      onSearchChange={ordersCombobox.onSearchChange}
+                      onSearchChange={isSalesOrderLocked ? undefined : ordersCombobox.onSearchChange}
                       searchDebounceMs={300}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger disabled={isSalesOrderLocked} className={isSalesOrderLocked ? "opacity-100 disabled:opacity-100" : undefined}>
                         <SelectValue placeholder={t("salesOrder")} />
                       </SelectTrigger>
                       <SelectContent
@@ -447,6 +450,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                             variant="ghost"
                             size="icon"
                             onClick={() => remove(index)}
+                            disabled={isSalesOrderLocked}
                             className="h-7 w-7 cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -464,19 +468,22 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                               <Select
                                 value={field.value?.toString() || ""}
                                 onValueChange={(value) => {
+                                  if (isSalesOrderLocked) return;
                                   field.onChange(value);
                                   handleProductChange(index, value);
                                 }}
                                 onOpenChange={(isOpen) => {
+                                  if (isSalesOrderLocked) return;
                                   if (isOpen) {
                                     enableProductOptionsFetch();
                                   }
                                   productsCombobox.onOpenChange(isOpen);
                                 }}
-                                onSearchChange={productsCombobox.onSearchChange}
+                                onSearchChange={isSalesOrderLocked ? undefined : productsCombobox.onSearchChange}
                                 searchDebounceMs={300}
+                                disabled={isSalesOrderLocked}
                               >
-                                <SelectTrigger>
+                                <SelectTrigger disabled={isSalesOrderLocked} className={isSalesOrderLocked ? "opacity-100 disabled:opacity-100" : undefined}>
                                   <SelectValue placeholder={t("item.selectProduct")} />
                                 </SelectTrigger>
                                 <SelectContent
@@ -510,6 +517,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0.001}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -530,6 +538,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0.01}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -570,6 +579,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                                 value={field.value}
                                 onChange={field.onChange}
                                 min={0}
+                                disabled={isSalesOrderLocked}
                               />
                             )}
                           />
@@ -595,6 +605,7 @@ export function InvoiceForm({ open, onClose, invoice, defaultSalesOrderId, defau
                   variant="outline"
                   size="sm"
                   onClick={handleAddItem}
+                  disabled={isSalesOrderLocked}
                   className="w-full cursor-pointer border-dashed"
                 >
                   <Plus className="h-4 w-4 mr-2" />

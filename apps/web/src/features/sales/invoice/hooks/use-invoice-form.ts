@@ -276,9 +276,9 @@ export function useInvoiceForm({ invoice, open, onClose, defaultSalesOrderId, de
     }
     if (order.items && order.items.length > 0) {
       const normalizedItems = order.items.map((item) => {
-        const candidate = item.product_id?.trim();
-        const fallback = item.product?.id?.trim();
-        const resolvedProductId = isUuidLike(candidate) ? candidate : (isUuidLike(fallback) ? fallback : "");
+        const candidate = (item.product_id ?? "").trim();
+        const fallback = (item.product?.id ?? "").trim();
+        const resolvedProductId: string = isUuidLike(candidate) ? candidate : (isUuidLike(fallback) ? fallback : "");
 
         return {
           product_id: resolvedProductId,

@@ -26,6 +26,7 @@ Modul Sales mengelola seluruh siklus penjualan dari awal hingga pelunasan piutan
 - Delivery Order mensupport batch selection untuk mengurangi stok dari batch tertentu
 - Customer Invoice dapat dibuat dari Delivery Order atau Sales Order
 - Saat Customer Invoice dibuat dari Sales Order, item akan diprefill dari item SO dan product ID dinormalisasi ke format UUID yang valid sebelum validasi form
+- **Saat create-from-SO mode**: field-field terkait SO akan di-lock (read-only) untuk mencegah perubahan data prefill: Sales Order selection, Product items, Quantity, Price, dan HPP Amount. User masih bisa edit Discount dan Financial fields (Tax Rate, Delivery Cost, Other Cost, Notes)
 - Customer Invoice yang sudah `approved` dapat dibuatkan Sales Payment
 
 ### Approval & Status Rules
@@ -55,6 +56,7 @@ Modul Sales mengelola seluruh siklus penjualan dari awal hingga pelunasan piutan
 - **Integrasi Delivery Order dengan Inventory module untuk batch selection**: DO tidak hanya mengurangi stok abstrak, tapi memilih batch spesifik (FIFO/LIFO sesuai kebijakan). Trade-off: kompleksitas UI dan backend meningkat, tapi traceability stok lebih akurat.
 - **Customer Invoice memicu jurnal otomatis di Finance**: Saat invoice di-approve atau payment di-confirm, modul Sales memanggil `JournalEntryUsecase` dan `AccountingEngine` untuk mencatat transaksi. Trade-off: tight coupling antar domain, tapi data keuangan selalu sinkron.
 - **Customer Invoice menggunakan validasi UUID permissive untuk item dan reference ID**: Form invoice menerima UUID hex format yang sama dengan data backend dan hasil prefill dari Sales Order. Trade-off: validasi tidak seketat RFC UUID, tetapi mencegah false error pada data ERP yang memang sudah konsisten di backend.
+- **Customer Invoice field-locking saat create-from-SO**: Ketika invoice dibuat dari Sales Order (mode prefill), field Sales Order selection, Product items, Quantity, Price, dan HPP Amount di-lock (read-only/disabled) agar user tidak secara tidak sengaja mengubah data yang sudah diprefill. Trade-off: user terbatas dalam edit, tapi data integrity terjamin dan UX lebih jelas bahwa ini adalah prefill scenario bukan manual entry.
 - **Sales Return mengembalikan stok ke batch asal**: Return mencatat product dan quantity yang dikembalikan, lalu mengembalikan stok melalui `InventoryUsecase`. Trade-off: perlu menyimpan linkage ke DO/Invoice asal.
 - **Receivables Recap menggunakan read-only aggregation query**: Tidak ada CRUD langsung; data dihitung dari invoice dan payment real-time. Trade-off: query bisa berat untuk dataset besar, tapi data selalu aktual.
 - **Print handler dipisah dari main handler**: Setiap dokumen utama memiliki print handler terpisah (`*PrintHandler`) untuk PDF generation. Trade-off: lebih banyak file, tapi isolasi concern lebih baik.
