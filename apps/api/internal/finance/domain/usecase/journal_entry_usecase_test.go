@@ -249,11 +249,27 @@ func (s stubFinanceReportRepository) GetAccountBalances(context.Context, time.Ti
 	return s.balances, nil
 }
 
-func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string) ([]financeModels.JournalLine, error) {
+func (s stubFinanceReportRepository) GetAccountBalancesByAccounts(_ context.Context, accountIDs []string, _ time.Time, _ time.Time, _ *string, _ *string) (map[string]repositories.GLAccountBalance, error) {
+	result := make(map[string]repositories.GLAccountBalance, len(accountIDs))
+	byID := make(map[string]repositories.GLAccountBalance, len(s.balances))
+	for _, b := range s.balances {
+		byID[b.ChartOfAccountID] = b
+	}
+	for _, id := range accountIDs {
+		if item, ok := byID[id]; ok {
+			result[id] = item
+			continue
+		}
+		result[id] = repositories.GLAccountBalance{ChartOfAccountID: id}
+	}
+	return result, nil
+}
+
+func (s stubFinanceReportRepository) GetGLAccountTransactions(context.Context, string, time.Time, time.Time, *string, *string) ([]financeModels.JournalLine, error) {
 	return s.lines, nil
 }
 
-func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string) (float64, error) {
+func (s stubFinanceReportRepository) GetNetProfit(_ context.Context, startDate, endDate time.Time, _ *string, _ *string) (float64, error) {
 	if s.getNetProfitFn != nil {
 		return s.getNetProfitFn(startDate, endDate), nil
 	}
@@ -277,7 +293,7 @@ func TestFinanceReportUsecase_ShouldAggregateBalanceSheet_FromClosingBalances(t 
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
+	res, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, false)
 
 	require.NoError(t, err)
 	require.Len(t, res.Assets, 1)
@@ -306,7 +322,7 @@ func TestFinanceReportUsecase_ShouldCalculateProfitAndLoss_FromMovements(t *test
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil)
+	res, err := uc.GetProfitAndLoss(context.Background(), time.Now(), time.Now(), nil, nil)
 
 	require.NoError(t, err)
 	require.Len(t, res.Revenues, 1)
@@ -334,11 +350,11 @@ func TestFinanceReportUsecase_ShouldRespectIncludeZeroFlag_InBalanceSheet(t *tes
 	}}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, false)
+	hideZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, false)
 	require.NoError(t, err)
 	require.Len(t, hideZero.Assets, 1)
 
-	showZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, true)
+	showZero, err := uc.GetBalanceSheet(context.Background(), time.Now(), time.Now(), nil, nil, true)
 	require.NoError(t, err)
 	require.Len(t, showZero.Assets, 2)
 }
@@ -369,7 +385,7 @@ func TestFinanceReportUsecase_ShouldComposeFinalEquity_FromRetainedAndCurrentPro
 	}
 
 	uc := NewFinanceReportUsecase(nil, coaRepo, reportRepo)
-	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, false)
+	res, err := uc.GetBalanceSheet(context.Background(), yearStart, endDate, nil, nil, false)
 	require.NoError(t, err)
 	require.Equal(t, 700.0, res.EquityTotal)
 	require.Equal(t, 200.0, res.RetainedEarnings)

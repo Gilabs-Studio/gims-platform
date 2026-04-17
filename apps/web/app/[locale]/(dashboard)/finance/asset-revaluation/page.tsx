@@ -31,7 +31,13 @@ export default function AssetRevaluationPage() {
                   New Revaluation
                 </button>
               </div>
-              <AssetRevaluationList revaluations={revaluations} isLoading={isLoading} onApprove={approve} />
+              <AssetRevaluationList
+                revaluations={revaluations}
+                isLoading={isLoading}
+                onApprove={async (transactionId) => {
+                  await approve.mutateAsync(transactionId);
+                }}
+              />
             </div>
           ) : (
             <div>
