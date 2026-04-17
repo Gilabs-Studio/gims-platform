@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { LandingHeader } from "@/components/landing/landing-header";
 
 export default function MarketingLayout({
   children,
@@ -45,6 +46,7 @@ export default function MarketingLayout({
       <Script id="schema-org" type="application/ld+json" strategy="afterInteractive">
         {JSON.stringify(schemaOrg)}
       </Script>
+      <LandingHeader />
       {children}
     </>
   );
