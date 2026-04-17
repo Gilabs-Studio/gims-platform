@@ -46,6 +46,25 @@ func (r *loyaltyProgramRepo) List(ctx context.Context, page, perPage int) ([]mod
 	return programs, total, err
 }
 
+// ListWithOutletFilter returns global programs and programs owned by any of the given outlet IDs.
+func (r *loyaltyProgramRepo) ListWithOutletFilter(ctx context.Context, outletIDs []string, page, perPage int) ([]models.LoyaltyProgram, int64, error) {
+	var programs []models.LoyaltyProgram
+	var total int64
+
+	offset := (page - 1) * perPage
+	q := r.db.WithContext(ctx).Model(&models.LoyaltyProgram{}).
+		Where("outlet_id IS NULL OR outlet_id IN ?", outletIDs)
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.Select("loyalty_programs.*, (SELECT count(id) FROM loyalty_members lm WHERE lm.program_id = loyalty_programs.id AND lm.deleted_at IS NULL) as member_count").
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(perPage).
+		Find(&programs).Error
+	return programs, total, err
+}
+
 func (r *loyaltyProgramRepo) FindActiveForOutlet(ctx context.Context, outletID string) (*models.LoyaltyProgram, error) {
 	var program models.LoyaltyProgram
 	// Prefer outlet-specific program; fall back to global.

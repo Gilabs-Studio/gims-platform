@@ -14,6 +14,8 @@ export const loyaltyId = {
       inactive: "Tidak Aktif",
       global: "Global (Semua Outlet)",
       outletSpecific: "Spesifik Outlet",
+      scopeGlobal: "Global",
+      scopeOutlet: "Outlet",
       tab: {
         basic: "Dasar",
         config: "Konfigurasi",
@@ -75,6 +77,7 @@ export const loyaltyId = {
       lifetimePoints: "Poin Seumur Hidup",
       totalTransactions: "Transaksi",
       joinedAt: "Bergabung Sejak",
+      outletColumn: "Outlet Pendaftaran",
       enroll: "Daftarkan Anggota",
       enrolled: "Anggota berhasil didaftarkan",
       enrollError: "Gagal mendaftarkan anggota. Silakan coba lagi.",
@@ -122,6 +125,12 @@ export const loyaltyId = {
         redeemed: "Ditukar",
         expired: "Kadaluarsa",
         adjusted: "Disesuaikan",
+      },
+      transactionType: {
+        pos_order: "Pesanan POS",
+        pos_payment: "Pembayaran POS",
+        sales_order: "Pesanan Penjualan",
+        manual: "Manual",
       },
     },
 

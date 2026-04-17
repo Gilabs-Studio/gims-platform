@@ -14,6 +14,8 @@ export const loyaltyEn = {
       inactive: "Inactive",
       global: "Global (All Outlets)",
       outletSpecific: "Outlet Specific",
+      scopeGlobal: "Global",
+      scopeOutlet: "Outlet",
       tab: {
         basic: "Basic",
         config: "Config",
@@ -75,6 +77,7 @@ export const loyaltyEn = {
       lifetimePoints: "Lifetime Points",
       totalTransactions: "Transactions",
       joinedAt: "Member Since",
+      outletColumn: "Enrolled Outlet",
       enroll: "Enroll Member",
       enrolled: "Member enrolled successfully",
       enrollError: "Failed to enroll member. Please try again.",
@@ -122,6 +125,12 @@ export const loyaltyEn = {
         redeemed: "Redeemed",
         expired: "Expired",
         adjusted: "Adjusted",
+      },
+      transactionType: {
+        pos_order: "POS Order",
+        pos_payment: "POS Payment",
+        sales_order: "Sales Order",
+        manual: "Manual",
       },
     },
 

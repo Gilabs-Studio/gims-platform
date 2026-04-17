@@ -54,6 +54,8 @@ export interface LoyaltyMember {
   point_balance: number;
   lifetime_points: number;
   total_transactions: number;
+  enrolled_outlet_id?: string;
+  enrolled_outlet_name?: string;
   joined_at: string;
 }
 
@@ -73,7 +75,8 @@ export interface PointLedgerEntry {
   id: string;
   member_id: string;
   entry_type: "earned" | "redeemed" | "expired" | "adjusted";
-  transaction_type?: string;
+  /** The source of this transaction, e.g. pos_order, sales_order, manual, etc. */
+  transaction_type?: "pos_order" | "sales_order" | "manual" | string;
   transaction_id?: string;
   points: number;
   balance_after: number;

@@ -89,6 +89,7 @@ type LoyaltyMemberResponse struct {
 	ProgramID        string     `json:"program_id"`
 	MemberCode       string     `json:"member_code"`
 	EnrolledOutletID *string    `json:"enrolled_outlet_id,omitempty"`
+	EnrolledOutletName *string  `json:"enrolled_outlet_name,omitempty"`
 	CurrentTier      string     `json:"current_tier"`
 	TierBadgeColor   string     `json:"tier_badge_color"`
 	LifetimePoints   int64      `json:"lifetime_points"`

@@ -35,6 +35,7 @@ import {
   type CreateLoyaltyProgramFormValues,
 } from "../schemas/loyalty.schema";
 import { useCreateLoyaltyProgram, useUpdateLoyaltyProgram } from "../hooks/use-loyalty";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { LoyaltyProgram } from "../types";
 import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 
@@ -67,10 +68,15 @@ const DEFAULT_CONFIG: CreateLoyaltyProgramFormValues["config"] = {
 export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
+  const { user } = useAuthStore();
+  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
   const createMutation = useCreateLoyaltyProgram();
   const updateMutation = useUpdateLoyaltyProgram();
+  // Admins fetch all outlets; outlet managers get their own outlets via RBAC.
   const { data: outletRes } = useOutlets({ page: 1, per_page: 100 }, { enabled: open });
   const outlets = outletRes?.data ?? [];
+  // Stable primitive — safe as useEffect dependency (avoids infinite loop from array ref changes).
+  const firstOutletId = outlets[0]?.id;
 
   const [activeTab, setActiveTab] = useState<"basic" | "config">("basic");
 
@@ -120,9 +126,11 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
         },
       });
     } else {
-      reset({ config: DEFAULT_CONFIG, is_active: true });
+      // When an outlet manager creates a new program, pre-select their first outlet.
+      const defaultOutletId = isOutletScoped && firstOutletId ? firstOutletId : "";
+      reset({ config: DEFAULT_CONFIG, is_active: true, outlet_id: defaultOutletId });
     }
-  }, [program, reset]);
+  }, [program, reset, isOutletScoped, firstOutletId]);
 
   async function onSubmit(values: CreateLoyaltyProgramFormValues) {
     const payload = { ...values, outlet_id: values.outlet_id || undefined };
@@ -189,12 +197,16 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
                       <Select
                         value={field.value || "global"}
                         onValueChange={(value) => field.onChange(value === "global" ? "" : value)}
+                        disabled={isOutletScoped}
                       >
                         <SelectTrigger className="cursor-pointer">
                           <SelectValue placeholder={t("programs.global")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="global">{t("programs.global")}</SelectItem>
+                          {/* Outlet managers cannot create global programs. */}
+                          {!isOutletScoped && (
+                            <SelectItem value="global">{t("programs.global")}</SelectItem>
+                          )}
                           {outlets.map((outlet) => (
                             <SelectItem key={outlet.id} value={outlet.id}>
                               {outlet.name}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/gilabs/gims/api/internal/loyalty/data/repositories"
 	"github.com/gilabs/gims/api/internal/loyalty/domain/dto"
 	"github.com/gilabs/gims/api/internal/loyalty/domain/mapper"
+	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -30,6 +32,9 @@ var (
 	ErrInsufficientPoints     = errors.New("LOYALTY_INSUFFICIENT_POINTS")
 	ErrPointsAlreadyAwarded   = errors.New("LOYALTY_POINTS_ALREADY_AWARDED")
 	ErrNoActiveProgram        = errors.New("LOYALTY_NO_ACTIVE_PROGRAM")
+	// ErrLoyaltyForbidden is returned when an outlet-scoped user attempts an operation
+	// outside their permitted outlets (e.g., creating a global program).
+	ErrLoyaltyForbidden = errors.New("LOYALTY_FORBIDDEN")
 )
 
 type LoyaltyUsecase interface {
@@ -65,6 +70,7 @@ type loyaltyUsecase struct {
 	memberRepo   repositories.LoyaltyMemberRepository
 	ledgerRepo   repositories.LoyaltyPointLedgerRepository
 	customerRepo customerRepos.CustomerRepository
+	outletRepo   organizationRepos.OutletRepository
 }
 
 func NewLoyaltyUsecase(
@@ -73,6 +79,7 @@ func NewLoyaltyUsecase(
 	memberRepo repositories.LoyaltyMemberRepository,
 	ledgerRepo repositories.LoyaltyPointLedgerRepository,
 	customerRepo customerRepos.CustomerRepository,
+	outletRepo organizationRepos.OutletRepository,
 ) LoyaltyUsecase {
 	return &loyaltyUsecase{
 		db:           db,
@@ -80,12 +87,31 @@ func NewLoyaltyUsecase(
 		memberRepo:   memberRepo,
 		ledgerRepo:   ledgerRepo,
 		customerRepo: customerRepo,
+		outletRepo:   outletRepo,
 	}
 }
 
 // ─── Program Management ───────────────────────────────────────────────────────
 
 func (u *loyaltyUsecase) CreateProgram(ctx context.Context, createdBy string, req *dto.CreateLoyaltyProgramRequest) (*dto.LoyaltyProgramResponse, error) {
+	// Outlet-scoped users may only create outlet-specific programs.
+	isScoped := isOutletScopedScope(ctx)
+	outletIDs, err := u.resolveScopedOutletIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if isScoped {
+		if len(outletIDs) == 0 {
+			return nil, ErrLoyaltyForbidden
+		}
+		if req.OutletID == nil || *req.OutletID == "" {
+			return nil, ErrLoyaltyForbidden
+		}
+		if !containsString(outletIDs, *req.OutletID) {
+			return nil, ErrLoyaltyForbidden
+		}
+	}
+
 	configBytes, err := marshalAndValidateConfig(&req.Config)
 	if err != nil {
 		return nil, err
@@ -116,6 +142,20 @@ func (u *loyaltyUsecase) UpdateProgram(ctx context.Context, id, updatedBy string
 		return nil, ErrLoyaltyProgramNotFound
 	}
 
+	// Outlet-scoped users may only modify programs that belong to their outlets.
+	isScoped := isOutletScopedScope(ctx)
+	outletIDs, err := u.resolveScopedOutletIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if isScoped {
+		if len(outletIDs) == 0 {
+			return nil, ErrLoyaltyForbidden
+		}
+		if program.OutletID == nil || !containsString(outletIDs, *program.OutletID) {
+			return nil, ErrLoyaltyForbidden
+		}
+	}
 	if req.Name != nil {
 		program.Name = *req.Name
 	}
@@ -148,6 +188,22 @@ func (u *loyaltyUsecase) DeleteProgram(ctx context.Context, id string) error {
 	if program == nil {
 		return ErrLoyaltyProgramNotFound
 	}
+
+	// Outlet-scoped users may only delete programs that belong to their outlets.
+	isScoped := isOutletScopedScope(ctx)
+	outletIDs, scopeErr := u.resolveScopedOutletIDs(ctx)
+	if scopeErr != nil {
+		return scopeErr
+	}
+	if isScoped {
+		if len(outletIDs) == 0 {
+			return ErrLoyaltyForbidden
+		}
+		if program.OutletID == nil || !containsString(outletIDs, *program.OutletID) {
+			return ErrLoyaltyForbidden
+		}
+	}
+
 	return u.programRepo.Delete(ctx, id)
 }
 
@@ -163,9 +219,23 @@ func (u *loyaltyUsecase) GetProgram(ctx context.Context, id string) (*dto.Loyalt
 }
 
 func (u *loyaltyUsecase) ListPrograms(ctx context.Context, page, perPage int) ([]dto.LoyaltyProgramResponse, *utils.PaginationResult, error) {
-	programs, total, err := u.programRepo.List(ctx, page, perPage)
+	var programs []models.LoyaltyProgram
+	var total int64
+	var fetchErr error
+
+	// Outlet-scoped users see global + their outlet's programs.
+	isScoped := isOutletScopedScope(ctx)
+	outletIDs, err := u.resolveScopedOutletIDs(ctx)
 	if err != nil {
 		return nil, nil, err
+	}
+	if isScoped {
+		programs, total, fetchErr = u.programRepo.ListWithOutletFilter(ctx, outletIDs, page, perPage)
+	} else {
+		programs, total, fetchErr = u.programRepo.List(ctx, page, perPage)
+	}
+	if fetchErr != nil {
+		return nil, nil, fetchErr
 	}
 
 	resp := make([]dto.LoyaltyProgramResponse, 0, len(programs))
@@ -427,6 +497,16 @@ func (u *loyaltyUsecase) LookupMember(ctx context.Context, name, outletID string
 }
 
 func (u *loyaltyUsecase) ListMembers(ctx context.Context, params repositories.MemberListParams) ([]dto.LoyaltyMemberResponse, *utils.PaginationResult, error) {
+	// Outlet-scoped users see only members whose program belongs to their outlets.
+	isScoped := isOutletScopedScope(ctx)
+	outletIDs, err := u.resolveScopedOutletIDs(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if isScoped {
+		params.ProgramOutletIDs = outletIDs
+	}
+
 	members, total, err := u.memberRepo.List(ctx, params)
 	if err != nil {
 		return nil, nil, err
@@ -862,6 +942,7 @@ func (u *loyaltyUsecase) PublicSelfRegister(ctx context.Context, req *dto.Public
 func (u *loyaltyUsecase) buildMemberResponse(ctx context.Context, m *models.LoyaltyMember, customer *customerModels.Customer) (*dto.LoyaltyMemberResponse, error) {
 	name := ""
 	var phone *string
+	var enrolledOutletName *string
 	if customer != nil {
 		name = customer.Name
 		if customer.ContactPerson != "" {
@@ -869,7 +950,16 @@ func (u *loyaltyUsecase) buildMemberResponse(ctx context.Context, m *models.Loya
 			phone = &cp
 		}
 	}
-	return mapper.ToLoyaltyMemberResponse(m, name, phone), nil
+
+	if m.EnrolledOutletID != nil && *m.EnrolledOutletID != "" {
+		outlet, err := u.outletRepo.GetByID(ctx, *m.EnrolledOutletID)
+		if err == nil && outlet != nil {
+			outletName := outlet.Name
+			enrolledOutletName = &outletName
+		}
+	}
+
+	return mapper.ToLoyaltyMemberResponse(m, name, phone, enrolledOutletName), nil
 }
 
 func parseConfig(program *models.LoyaltyProgram) (*dto.LoyaltyConfigJSON, error) {
@@ -892,6 +982,52 @@ func marshalAndValidateConfig(cfg *dto.LoyaltyConfigJSON) ([]byte, error) {
 		return nil, ErrInvalidLoyaltyConfig
 	}
 	return b, nil
+}
+
+// resolveScopedOutletIDs returns the outlet IDs the current user is permitted to manage.
+// Returns nil, nil for admin/global users (no restriction).
+// Returns a non-empty slice for OUTLET/WAREHOUSE-scoped users.
+// Returns ErrLoyaltyForbidden when a scoped user has no warehouse IDs in context.
+func (u *loyaltyUsecase) resolveScopedOutletIDs(ctx context.Context) ([]string, error) {
+	if !isOutletScopedScope(ctx) {
+		return nil, nil
+	}
+
+	warehouseIDs, _ := ctx.Value("scope_warehouse_ids").([]string)
+	if len(warehouseIDs) == 0 {
+		log.Printf("[loyalty] scoped user has no warehouse assignments")
+		return []string{}, nil
+	}
+
+	outlets, err := u.outletRepo.FindByWarehouseIDs(ctx, warehouseIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(outlets) == 0 {
+		log.Printf("[loyalty] OUTLET-scoped user has no outlets for warehouses %v", warehouseIDs)
+		return []string{}, nil
+	}
+
+	ids := make([]string, 0, len(outlets))
+	for _, o := range outlets {
+		ids = append(ids, o.ID)
+	}
+	return ids, nil
+}
+
+func isOutletScopedScope(ctx context.Context) bool {
+	permissionScope, _ := ctx.Value("permission_scope").(string)
+	return permissionScope == "WAREHOUSE" || permissionScope == "OUTLET"
+}
+
+// containsString reports whether s is present in the slice.
+func containsString(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // computeTier returns the highest tier a member qualifies for based on lifetime points.
