@@ -191,6 +191,8 @@ import { feedbackEn } from "@/features/pos/feedback/i18n/en";
 import { feedbackId } from "@/features/pos/feedback/i18n/id";
 import { loyaltyEn } from "@/features/loyalty/i18n/en";
 import { loyaltyId } from "@/features/loyalty/i18n/id";
+import { landingEn } from "@/features/landing/i18n/en";
+import { landingId } from "@/features/landing/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -289,6 +291,7 @@ const messages = {
     ...posTerminalEn,
     ...feedbackEn,
     ...loyaltyEn,
+    ...landingEn,
   },
   id: {
     ...globalIdMessages,
@@ -384,6 +387,7 @@ const messages = {
     ...posTerminalId,
     ...feedbackId,
     ...loyaltyId,
+    ...landingId,
   },
 } as const;
 
