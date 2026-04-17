@@ -605,12 +605,48 @@ func (u *loyaltyUsecase) RedeemPoints(ctx context.Context, req *dto.RedeemPoints
 		return nil, txErr
 	}
 
+	// Apply discount to the linked POS order so total_amount reflects the loyalty reward.
+	// Merch-type rewards are physical items and do not reduce the monetary total.
+	if req.TransactionType == "pos_order" && req.TransactionID != "" && reward.Type != "merch" {
+		discountDelta := float64(reward.Value)
+
+		if reward.Type == "discount_percent" && discountDelta > 0 {
+			// Backward compatibility: legacy configs may store 5% as 5000.
+			// Normalize to a 0..100 percentage before calculating discount.
+			if discountDelta > 100 {
+				discountDelta = discountDelta / 1000
+			}
+			discountDelta = math.Min(math.Max(discountDelta, 0), 100)
+
+			var orderSubtotal float64
+			_ = u.db.WithContext(ctx).Table("pos_orders").
+				Select("subtotal").
+				Where("id = ?", req.TransactionID).
+				Scan(&orderSubtotal).Error
+			discountDelta = orderSubtotal * discountDelta / 100
+		}
+
+		if discountDelta > 0 {
+			rewardID := req.RewardID
+			memberID := req.MemberID
+			_ = u.db.WithContext(ctx).Table("pos_orders").
+				Where("id = ? AND status = 'PENDING'", req.TransactionID).
+				Updates(map[string]interface{}{
+					"discount_amount":   gorm.Expr("discount_amount + ?", discountDelta),
+					"total_amount":      gorm.Expr("GREATEST(total_amount - ?, 0)", discountDelta),
+					"loyalty_member_id": memberID,
+					"loyalty_reward_id": rewardID,
+				}).Error
+		}
+	}
+
 	return &dto.RedeemPointsResponse{
-		PointsDeducted: int64(pointsToDeduct),
-		NewBalance:     member.PointBalance - int64(pointsToDeduct),
-		DiscountAmount: reward.Value,
-		DiscountType:   reward.Type,
-		RewardName:     reward.Name,
+		PointsDeducted:   int64(pointsToDeduct),
+		NewBalance:       member.PointBalance - int64(pointsToDeduct),
+		DiscountAmount:   reward.Value,
+		DiscountType:     reward.Type,
+		RewardName:       reward.Name,
+		MerchDescription: reward.MerchDescription,
 	}, nil
 }
 

@@ -61,7 +61,11 @@ export const posTerminalId = {
       customerMasterSelected: "Customer terpilih",
       customerMasterClear: "Hapus pilihan",
       nextToPayment: "Lanjut ke Pembayaran",
+      nextToReward: "Lanjut ke Reward",
       backToCustomer: "← Kembali ke Pelanggan",
+      rewardStep: {
+        proceed: "Lanjut ke Pembayaran",
+      },
       loyaltyMember: "Anggota Loyalitas",
       loyaltyProgram: "Program",
       loyaltyCode: "Kode Member",

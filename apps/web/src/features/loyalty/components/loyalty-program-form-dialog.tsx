@@ -52,7 +52,14 @@ const DEFAULT_CONFIG: CreateLoyaltyProgramFormValues["config"] = {
     { name: "Gold", min_lifetime_points: 2000, multiplier: 2.0, badge_color: "#FFD700" },
   ],
   rewards: [
-    { id: "discount-5k", name: "Diskon Rp 5.000", points_cost: 50, description: "Potongan Rp 5.000" },
+    {
+      id: "discount-5k",
+      name: "Diskon Rp 5.000",
+      type: "discount_fixed",
+      value: 5000,
+      points_required: 50,
+      is_active: true,
+    },
   ],
   point_expiry_days: 365,
 };
@@ -106,7 +113,9 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
           })),
           rewards: program.config.rewards.map((reward) => ({
             ...reward,
-            points_cost: reward.points_cost ?? 0,
+            points_required: reward.points_required ?? 0,
+            value: reward.value ?? 0,
+            is_active: reward.is_active ?? true,
           })),
         },
       });
@@ -330,19 +339,39 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">{t("programs.tier.minLifetimePoints")}</Label>
-                  <Input
-                    className="h-8 text-sm"
-                    type="number"
-                    {...register(`config.tiers.${index}.min_lifetime_points`, { valueAsNumber: true })}
+                  <Controller
+                    control={control}
+                    name={`config.tiers.${index}.min_lifetime_points`}
+                    render={({ field: f }) => (
+                      <NumericInput
+                        ref={f.ref}
+                        name={f.name}
+                        value={f.value}
+                        onBlur={f.onBlur}
+                        onChange={f.onChange}
+                        inputMode="numeric"
+                        className="h-8 text-sm"
+                      />
+                    )}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">{t("programs.tier.multiplier")}</Label>
-                  <Input
-                    className="h-8 text-sm"
-                    type="number"
-                    step="0.1"
-                    {...register(`config.tiers.${index}.multiplier`, { valueAsNumber: true })}
+                  <Controller
+                    control={control}
+                    name={`config.tiers.${index}.multiplier`}
+                    render={({ field: f }) => (
+                      <NumericInput
+                        ref={f.ref}
+                        name={f.name}
+                        value={f.value}
+                        onBlur={f.onBlur}
+                        onChange={f.onChange}
+                        step={0.1}
+                        inputMode="decimal"
+                        className="h-8 text-sm"
+                      />
+                    )}
                   />
                 </div>
                 <div className="space-y-1">
@@ -376,41 +405,135 @@ export function LoyaltyProgramFormDialog({ open, onClose, program }: Props) {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => appendReward({ id: `reward-${Date.now()}`, name: "", points_cost: 100, description: "" })}
+                onClick={() =>
+                  appendReward({
+                    id: `reward-${Date.now()}`,
+                    name: "",
+                    type: "discount_fixed",
+                    value: 0,
+                    points_required: 100,
+                    is_active: true,
+                    merch_description: undefined,
+                  })
+                }
               >
                 <Plus className="h-3 w-3 mr-1" />
                 {t("programs.form.addReward")}
               </Button>
             </div>
-            {rewardFields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-5 gap-2 items-end border rounded p-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("programs.reward.name")}</Label>
-                  <Input className="h-8 text-sm" {...register(`config.rewards.${index}.name`)} />
+            {rewardFields.map((field, index) => {
+              const rewardType = field.type;
+              return (
+                <div key={field.id} className="space-y-2 border rounded p-2">
+                  <div className="grid grid-cols-5 gap-2 items-end">
+                    <div className="space-y-1 col-span-2">
+                      <Label className="text-xs">{t("programs.reward.name")}</Label>
+                      <Input className="h-8 text-sm" {...register(`config.rewards.${index}.name`)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("programs.reward.type")}</Label>
+                      <Controller
+                        control={control}
+                        name={`config.rewards.${index}.type`}
+                        render={({ field: f }) => (
+                          <Select value={f.value} onValueChange={f.onChange}>
+                            <SelectTrigger className="h-8 text-sm cursor-pointer">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="discount_fixed">{t("programs.reward.typeDiscountFixed")}</SelectItem>
+                              <SelectItem value="discount_percent">{t("programs.reward.typeDiscountPercent")}</SelectItem>
+                              <SelectItem value="merch">{t("programs.reward.typeMerch")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {rewardType === "merch"
+                          ? t("programs.reward.value")
+                          : rewardType === "discount_percent"
+                          ? t("programs.reward.valuePercent")
+                          : t("programs.reward.valueFixed")}
+                      </Label>
+                      <Controller
+                        control={control}
+                        name={`config.rewards.${index}.value`}
+                        render={({ field: f }) => (
+                          <NumericInput
+                            ref={f.ref}
+                            name={f.name}
+                            value={f.value}
+                            onBlur={f.onBlur}
+                            onChange={f.onChange}
+                            inputMode={rewardType === "discount_percent" ? "decimal" : "numeric"}
+                            disabled={rewardType === "merch"}
+                            className="h-8 text-sm"
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("programs.reward.pointsRequired")}</Label>
+                      <Controller
+                        control={control}
+                        name={`config.rewards.${index}.points_required`}
+                        render={({ field: f }) => (
+                          <NumericInput
+                            ref={f.ref}
+                            name={f.name}
+                            value={f.value}
+                            onBlur={f.onBlur}
+                            onChange={f.onChange}
+                            inputMode="numeric"
+                            className="h-8 text-sm"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                  {rewardType === "merch" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t("programs.reward.merchDescription")}</Label>
+                      <Input
+                        className="h-8 text-sm"
+                        placeholder={t("programs.reward.merchDescriptionPlaceholder")}
+                        {...register(`config.rewards.${index}.merch_description`)}
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Controller
+                        control={control}
+                        name={`config.rewards.${index}.is_active`}
+                        render={({ field: f }) => (
+                          <Switch
+                            id={`reward-active-${index}`}
+                            checked={!!f.value}
+                            onCheckedChange={f.onChange}
+                            className="cursor-pointer"
+                          />
+                        )}
+                      />
+                      <Label htmlFor={`reward-active-${index}`} className="text-xs cursor-pointer">
+                        {t("programs.reward.isActive")}
+                      </Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="cursor-pointer text-destructive hover:text-destructive h-8 w-8"
+                      onClick={() => removeReward(index)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-1 col-span-2">
-                  <Label className="text-xs">{t("programs.reward.description")}</Label>
-                  <Input className="h-8 text-sm" {...register(`config.rewards.${index}.description`)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("programs.reward.pointsCost")}</Label>
-                  <Input
-                    className="h-8 text-sm"
-                    type="number"
-                    {...register(`config.rewards.${index}.points_cost`, { valueAsNumber: true })}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="cursor-pointer text-destructive hover:text-destructive h-8 w-8"
-                  onClick={() => removeReward(index)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

@@ -49,8 +49,17 @@ export const loyaltyEn = {
       reward: {
         id: "Reward ID",
         name: "Reward Name",
-        pointsCost: "Points Required",
-        description: "Description",
+        type: "Type",
+        typeDiscountFixed: "Fixed Discount",
+        typeDiscountPercent: "Percent Discount",
+        typeMerch: "Merchandise",
+        value: "Value (Merch = 0)",
+        valueFixed: "Discount Amount (Rp)",
+        valuePercent: "Discount (%)",
+        pointsRequired: "Points Required",
+        isActive: "Active",
+        merchDescription: "Item Description",
+        merchDescriptionPlaceholder: "e.g. T-shirt size L",
       },
     },
 
@@ -140,6 +149,10 @@ export const loyaltyEn = {
       redeemError: "Failed to redeem points. Please try again.",
       noRewards: "No rewards available for this program",
       insufficientPoints: "Insufficient points for any reward",
+      clearSelection: "Clear selection",
+      rewardTypeDiscountFixed: "Discount",
+      rewardTypeDiscountPct: "Discount %",
+      rewardTypeMerch: "Merch",
     },
 
     public: {

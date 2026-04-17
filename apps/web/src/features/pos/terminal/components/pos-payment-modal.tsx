@@ -25,7 +25,7 @@ import type { POSOrder, POSConfig, POSPayment, XenditPaymentChannel, XenditChann
 import { Loader2, CheckCircle2, XCircle, WifiOff, ArrowLeft, QrCode, Landmark, Wallet, CreditCard, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { PosLoyaltyRedeemPanel } from "@/features/loyalty/components/pos-loyalty-redeem-panel";
-import { useEnrollLoyaltyMember, useLoyaltyMemberByCustomer } from "@/features/loyalty/hooks/use-loyalty";
+import { useEnrollLoyaltyMember, useLoyaltyMemberByCustomer, useLoyaltyProgram } from "@/features/loyalty/hooks/use-loyalty";
 import type { LoyaltyMember, RewardConfig } from "@/features/loyalty/types";
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
 import type { Customer } from "@/features/master-data/customer/types";
@@ -41,10 +41,6 @@ interface POSPaymentModalProps {
   loyaltyMember?: LoyaltyMember;
   /** Available rewards for the loyalty member */
   loyaltyRewards?: RewardConfig[];
-  /** Called when a reward is redeemed */
-  onLoyaltyRedeem?: (reward: RewardConfig) => void;
-  /** Already-redeemed reward ID for this session */
-  redeemedRewardId?: string;
 }
 
 const NUMPAD_KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "000", "0", "⌫"];
@@ -139,6 +135,24 @@ function formatCountdown(totalSeconds: number): string {
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
+function normalizeRewardPercent(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (value > 100) return Math.min(value / 1000, 100);
+  return Math.min(value, 100);
+}
+
+function calculateRewardDiscount(baseAmount: number, reward: RewardConfig | null): number {
+  if (!reward || baseAmount <= 0) return 0;
+  if (reward.type === "discount_fixed") {
+    return Math.max(Math.min(reward.value, baseAmount), 0);
+  }
+  if (reward.type === "discount_percent") {
+    const pct = normalizeRewardPercent(reward.value);
+    return Math.max((baseAmount * pct) / 100, 0);
+  }
+  return 0;
+}
+
 export function POSPaymentModal({
   open,
   onOpenChange,
@@ -147,11 +161,9 @@ export function POSPaymentModal({
   onPaymentError,
   loyaltyMember,
   loyaltyRewards = [],
-  onLoyaltyRedeem,
-  redeemedRewardId,
 }: POSPaymentModalProps) {
-  // Multi-step flow: customer-select → payment
-  const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "payment">("customer-select");
+  // Multi-step flow: customer-select → reward (if loyalty) → payment
+  const [paymentFlow, setPaymentFlow] = useState<"customer-select" | "reward" | "payment">("customer-select");
   const [tab, setTab] = useState<"CASH" | "DIGITAL">("CASH");
   const [tenderInput, setTenderInput] = useState<string>("");
   const [customerName, setCustomerName] = useState("");
@@ -165,7 +177,8 @@ export function POSPaymentModal({
   const [customerId, setCustomerId] = useState<string | undefined>(undefined);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
-  const [existingLoyaltyMember, setExistingLoyaltyMember] = useState<LoyaltyMember | null>(null);
+  const [selectedReward, setSelectedReward] = useState<RewardConfig | null>(null);
+
   const hasCompletedDigitalPaymentRef = useRef(false);
   const autoOpenedPaymentUrlRef = useRef<string | null>(null);
 
@@ -178,14 +191,26 @@ export function POSPaymentModal({
     customerMode === "existing" && !!selectedCustomer?.id
   );
 
-  // Update existing loyalty member when fetched
-  useEffect(() => {
-    if (loyaltyMemberData?.data) {
-      setExistingLoyaltyMember(loyaltyMemberData.data);
-    } else {
-      setExistingLoyaltyMember(null);
-    }
-  }, [loyaltyMemberData]);
+  // Derive existingLoyaltyMember directly from query data (no separate state needed).
+  // Becomes null automatically when selectedCustomer is cleared or mode switches.
+  const existingLoyaltyMember =
+    customerMode === "existing" && selectedCustomer
+      ? (loyaltyMemberData?.data ?? null)
+      : null;
+
+  // Fetch program config to get rewards when the modal selects an existing loyalty customer (no cart-level lookup)
+  const { data: existingProgramData } = useLoyaltyProgram(existingLoyaltyMember?.program_id ?? "");
+
+  // Prefer cart-level loyalty data (live lookup); fall back to modal-level (existing customer selected in Step 1)
+  const effectiveMember = loyaltyMember ?? existingLoyaltyMember;
+  const effectiveRewards: RewardConfig[] = loyaltyMember
+    ? loyaltyRewards
+    : (existingProgramData?.data?.config.rewards ?? []).filter((r) => r.is_active);
+  const hasRewardOptions = !!effectiveMember && effectiveRewards.length > 0;
+
+  const amountBeforeReward = Math.max(order.subtotal + order.tax_amount + order.service_charge, 0);
+  const selectedRewardDiscount = calculateRewardDiscount(amountBeforeReward, selectedReward);
+  const totalAmount = Math.max(amountBeforeReward - selectedRewardDiscount, 0);
 
   const customerQueryParams = useMemo(
     () => ({
@@ -200,10 +225,6 @@ export function POSPaymentModal({
   });
   const customers = customersData?.data ?? [];
 
-  const customerMasterSummary = selectedCustomer
-    ? `${selectedCustomer.code} • ${selectedCustomer.name}`
-    : "";
-
   function resetCustomerSelection() {
     setSelectedCustomer(null);
     setCustomerId(undefined);
@@ -211,8 +232,8 @@ export function POSPaymentModal({
     setCustomerName("");
     setLoyaltyPhone("");
     setLoyaltyEmail("");
-    setExistingLoyaltyMember(null);
     setEnrollLoyalty(false);
+    setSelectedReward(null);
   }
 
   function handleCustomerModeChange(mode: "new" | "existing") {
@@ -226,9 +247,10 @@ export function POSPaymentModal({
     setCustomerName(customer.name);
     setLoyaltyPhone(customer.contact_person ?? "");
     setLoyaltyEmail(customer.email ?? "");
+    setSelectedReward(null);
   }
 
-  function buildCustomerPayload() {
+  const buildCustomerPayload = useCallback(() => {
     if (customerMode === "existing") {
       if (!customerId || !selectedCustomer) {
         return null;
@@ -239,7 +261,7 @@ export function POSPaymentModal({
         customer_name: selectedCustomer.name,
         customer_phone: selectedCustomer.contact_person || undefined,
         customer_email: selectedCustomer.email || undefined,
-        loyalty_member_id: existingLoyaltyMember?.id || undefined,
+        loyalty_member_id: effectiveMember?.id || undefined,
       };
     }
 
@@ -248,7 +270,7 @@ export function POSPaymentModal({
       customer_phone: loyaltyPhone.trim() || undefined,
       customer_email: loyaltyEmail.trim() || undefined,
     };
-  }
+  }, [customerMode, customerId, selectedCustomer, effectiveMember, customerName, loyaltyPhone, loyaltyEmail]);
 
   const { data: paymentsData } = usePOSPayments(order.id, {
     // Only fetch payments list when polling for digital payment status confirmation.
@@ -260,7 +282,6 @@ export function POSPaymentModal({
 
   const isXenditConnected = xenditStatusData?.data?.is_connected === true;
 
-  const totalAmount = order.total_amount;
   const tenderAmount = parseInt(tenderInput || "0", 10);
   const change = tenderAmount - totalAmount;
   const insufficientCash = tenderAmount < totalAmount;
@@ -330,6 +351,8 @@ export function POSPaymentModal({
           method: "CASH",
           amount: tenderAmount,
           ...customerPayload,
+          loyalty_member_id: effectiveMember?.id || customerPayload.loyalty_member_id,
+          loyalty_reward_id: selectedReward?.id || undefined,
         },
       });
       // Fire-and-forget loyalty enrollment after successful cash payment
@@ -370,6 +393,8 @@ export function POSPaymentModal({
           method: "DIGITAL",
           amount: totalAmount,
           ...customerPayload,
+          loyalty_member_id: effectiveMember?.id || customerPayload.loyalty_member_id,
+          loyalty_reward_id: selectedReward?.id || undefined,
           channel_code: channel.code,
         },
       });
@@ -410,16 +435,22 @@ export function POSPaymentModal({
       setCustomerMode("new");
       resetCustomerSelection();
       setTenderInput("");
+      setSelectedReward(null);
     } else {
       // Saat modal dibuka, selalu mulai dari customer-select
       setPaymentFlow("customer-select");
+      setSelectedReward(null);
     }
     onOpenChange(nextOpen);
   }
 
   function handleCustomerSelectionComplete() {
-    // Callback dari customer selection dialog untuk proceed ke payment
-    setPaymentFlow("payment");
+    // Route to reward step when loyalty member has active rewards, else go directly to payment
+    if (hasRewardOptions) {
+      setPaymentFlow("reward");
+    } else {
+      setPaymentFlow("payment");
+    }
   }
 
   return (
@@ -448,9 +479,23 @@ export function POSPaymentModal({
               </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("amountDue")}</p>
-              <p className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {formatCurrency(totalAmount)}
-              </p>
+              {(selectedRewardDiscount > 0 || order.discount_amount > 0) && (
+                <p className="text-xs text-emerald-600 font-medium">
+                  -{formatCurrency(selectedRewardDiscount > 0 ? selectedRewardDiscount : order.discount_amount)} loyalty
+                </p>
+              )}
+              {selectedRewardDiscount > 0 ? (
+                <div className="space-y-0.5">
+                  <p className="text-xs text-muted-foreground line-through">{formatCurrency(amountBeforeReward)}</p>
+                  <p className="text-2xl font-semibold tracking-tight text-emerald-600 sm:text-3xl">
+                    {formatCurrency(totalAmount)}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {formatCurrency(totalAmount)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -483,21 +528,41 @@ export function POSPaymentModal({
             onEmailChange={setLoyaltyEmail}
             onResetCustomer={resetCustomerSelection}
             onNext={handleCustomerSelectionComplete}
+            nextLabel={hasRewardOptions ? t("nextToReward") : t("nextToPayment")}
             t={t}
           />
-        ) : (
+        ) : paymentFlow === "reward" ? (
           <>
-            {/* Step 2: Payment Form */}
-            {/* Loyalty redemption panel — visible only when a loyalty member is linked */}
-            {loyaltyMember && loyaltyRewards.length > 0 && onLoyaltyRedeem && (
+            {/* Step 2: Reward Claim — select a reward before proceeding to payment */}
+            {effectiveMember && (
               <PosLoyaltyRedeemPanel
-                member={loyaltyMember}
-                availableRewards={loyaltyRewards}
-                onRedeemed={onLoyaltyRedeem}
-                redeemedRewardId={redeemedRewardId}
+                member={effectiveMember}
+                availableRewards={effectiveRewards}
+                orderAmount={amountBeforeReward}
+                selectedRewardId={selectedReward?.id}
+                onSelectReward={(reward) => setSelectedReward(reward)}
               />
             )}
-
+            <Separator />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 cursor-pointer"
+                onClick={() => setPaymentFlow("customer-select")}
+              >
+                {t("backToCustomer")}
+              </Button>
+              <Button
+                className="flex-1 cursor-pointer"
+                onClick={() => setPaymentFlow("payment")}
+              >
+                {t("rewardStep.proceed")}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Step 3: Payment Form */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
               <TabsList className="w-full">
                 <TabsTrigger className="flex-1" value="CASH">{t("tab.cash")}</TabsTrigger>
@@ -635,12 +700,12 @@ export function POSPaymentModal({
               </TabsContent>
             </Tabs>
 
-            {/* Back button ke customer selection */}
+            {/* Back to reward step if member has rewards, otherwise back to customer selection */}
             <Separator />
             <Button
               variant="outline"
               className="w-full cursor-pointer"
-              onClick={() => setPaymentFlow("customer-select")}
+              onClick={() => setPaymentFlow(hasRewardOptions ? "reward" : "customer-select")}
             >
               {t("backToCustomer")}
             </Button>
@@ -657,7 +722,6 @@ function CustomerSelectionStep({
   customerName,
   selectedCustomer,
   customers,
-  customerSearch,
   enrollLoyalty,
   loyaltyPhone,
   loyaltyEmail,
@@ -672,6 +736,7 @@ function CustomerSelectionStep({
   onEmailChange,
   onResetCustomer,
   onNext,
+  nextLabel,
   t,
 }: {
   customerMode: "new" | "existing";
@@ -693,7 +758,8 @@ function CustomerSelectionStep({
   onEmailChange: (email: string) => void;
   onResetCustomer: () => void;
   onNext: () => void;
-  t: any;
+  nextLabel: string;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const customerMasterSummary = selectedCustomer
     ? `${selectedCustomer.code} • ${selectedCustomer.name}`
@@ -874,7 +940,7 @@ function CustomerSelectionStep({
         disabled={isNextDisabled}
         onClick={onNext}
       >
-        {t("nextToPayment")} →
+        {nextLabel} →
       </Button>
     </div>
   );

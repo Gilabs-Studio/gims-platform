@@ -8,8 +8,12 @@ export interface TierConfig {
 export interface RewardConfig {
   id: string;
   name: string;
-  points_cost: number;
-  description: string;
+  /** discount_fixed | discount_percent | merch */
+  type: "discount_fixed" | "discount_percent" | "merch";
+  value: number;
+  points_required: number;
+  is_active: boolean;
+  merch_description?: string;
 }
 
 export interface PointRules {
@@ -55,10 +59,14 @@ export interface LoyaltyMember {
 
 export interface LoyaltyMemberLookup {
   found: boolean;
-  member?: LoyaltyMember;
+  member_id?: string;
+  member_code?: string;
+  customer_id?: string;
+  customer_name?: string;
+  current_tier?: string;
+  tier_badge_color?: string;
+  point_balance?: number;
   available_rewards?: RewardConfig[];
-  already_member: boolean;
-  point_balance: number;
 }
 
 export interface PointLedgerEntry {
@@ -107,14 +115,17 @@ export interface EnrollMemberRequest {
 export interface RedeemPointsRequest {
   member_id: string;
   reward_id: string;
+  transaction_id: string;
+  transaction_type: string;
 }
 
 export interface RedeemPointsResponse {
-  member_id: string;
-  reward_id: string;
+  points_deducted: number;
+  new_balance: number;
+  discount_amount: number;
+  discount_type: string;
   reward_name: string;
-  points_redeemed: number;
-  point_balance: number;
+  merch_description?: string;
 }
 
 export interface AdjustPointsRequest {
