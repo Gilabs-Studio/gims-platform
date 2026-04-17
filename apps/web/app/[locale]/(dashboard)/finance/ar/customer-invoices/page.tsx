@@ -1,5 +1,13 @@
-import { redirect } from "next/navigation";
+import { PageMotion } from "@/components/motion";
+import { PermissionGuard } from "@/features/auth/components/permission-guard";
+import { SalesJournalsList } from "@/features/finance/journals/components/sales-journals-list";
 
-export default function CanonicalFinanceRouteRedirectPage() {
-  redirect("/finance/journals/sales");
+export default function FinanceARCustomerInvoicesPage() {
+  return (
+    <PermissionGuard requiredPermission="sales_journal.read">
+      <PageMotion>
+        <SalesJournalsList />
+      </PageMotion>
+    </PermissionGuard>
+  );
 }

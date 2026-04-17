@@ -60,6 +60,33 @@ function checkViewPermission(menu: MenuWithActions): boolean {
   return false;
 }
 
+function mapFinanceMenuUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+
+  const mappings: Record<string, string> = {
+    "/finance/accounting/journal-entries": "/finance/journals",
+    "/finance/accounting/journal-entries/purchase": "/finance/journals/purchase",
+    "/finance/accounting/journal-entries/adjustment": "/finance/journals/adjustment",
+    "/finance/accounting/closing": "/finance/closing",
+    "/finance/ar/customer-invoices": "/finance/journals/sales",
+    "/finance/ar/customer-payments": "/finance/ap/payments",
+    "/finance/ar/credit-notes": "/finance/journals/sales",
+    "/finance/ar/aging-reports": "/finance/aging-reports",
+    "/finance/ap/supplier-invoices": "/finance/journals/purchase",
+    "/finance/ap/debit-notes": "/finance/journals/purchase",
+    "/finance/ap/aging-reports": "/finance/aging-reports",
+    "/finance/fixed-assets/assets": "/finance/assets",
+    "/finance/fixed-assets/categories": "/finance/asset-categories",
+    "/finance/fixed-assets/locations": "/finance/asset-locations",
+    "/finance/fixed-assets/depreciation-schedule": "/finance/asset-batch-depreciation",
+    "/finance/fixed-assets/disposal": "/finance/asset-disposal",
+    "/finance/fixed-assets/revaluation": "/finance/asset-revaluation",
+    "/finance/reports/trial-balance": "/finance/reports/general-ledger",
+  };
+
+  return mappings[url] ?? url;
+}
+
 function isPathMatch(pathname: string, url: string): boolean {
   return pathname === url || pathname.startsWith(`${url}/`);
 }
@@ -69,7 +96,8 @@ function hasMatchingChildPath(
   pathname: string,
 ): boolean {
   return children.some((child) => {
-    if (child.url && isPathMatch(pathname, child.url)) return true;
+    const normalizedUrl = mapFinanceMenuUrl(child.url);
+    if (normalizedUrl && isPathMatch(pathname, normalizedUrl)) return true;
     if (child.children) return hasMatchingChildPath(child.children, pathname);
     return false;
   });
@@ -83,7 +111,8 @@ function findParentMenuByPath(
     if (!menu.children || menu.children.length === 0) continue;
 
     const hasMatch = menu.children.some((child) => {
-      if (child.url && isPathMatch(pathname, child.url)) return true;
+      const normalizedUrl = mapFinanceMenuUrl(child.url);
+      if (normalizedUrl && isPathMatch(pathname, normalizedUrl)) return true;
       if (child.children) return hasMatchingChildPath(child.children, pathname);
       return false;
     });
@@ -195,7 +224,7 @@ export const DashboardLayout = memo(function DashboardLayout({
           id: String(menu.id),
           name: menu.name,
           icon: getMenuIcon(menu.icon),
-          href: menu.url || undefined,
+          href: mapFinanceMenuUrl(menu.url),
           hasChildren: Boolean(menu.children && menu.children.length > 0),
         });
       });
@@ -212,16 +241,25 @@ export const DashboardLayout = memo(function DashboardLayout({
 
     const buildDetailItems = (
       menuItems: MenuWithActions[],
+      parentKey = "root",
     ): DetailSidebarItem[] => {
       return menuItems
         .filter((item) => checkViewPermission(item))
-        .map((item) => ({
-          id: String(item.id),
-          name: item.name,
-          href: item.url || undefined,
-          icon: getMenuIcon(item.icon),
-          children: item.children ? buildDetailItems(item.children) : undefined,
-        }));
+        .map((item, index) => {
+          const href = mapFinanceMenuUrl(item.url);
+          const rawId = String(item.id ?? "").trim();
+          // Ensure unique, stable IDs per sibling even when backend IDs/URLs collide.
+          const idBase = rawId || href || item.name || "menu-item";
+          const detailId = `${parentKey}:${idBase}:${index}`;
+
+          return {
+            id: detailId,
+            name: item.name,
+            href,
+            icon: getMenuIcon(item.icon),
+            children: item.children ? buildDetailItems(item.children, detailId) : undefined,
+          };
+        });
     };
 
     return buildDetailItems(parentMenu.children);

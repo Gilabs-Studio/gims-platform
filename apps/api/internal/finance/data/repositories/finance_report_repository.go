@@ -20,8 +20,9 @@ type GLAccountBalance struct {
 
 type FinanceReportRepository interface {
 	GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error)
-	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID *string) ([]financeModels.JournalLine, error)
-	GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID *string) (float64, error)
+	GetAccountBalancesByAccounts(ctx context.Context, accountIDs []string, startDate, endDate time.Time, companyID, fiscalYearID *string) (map[string]GLAccountBalance, error)
+	GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error)
+	GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (float64, error)
 }
 
 type financeReportRepository struct {
@@ -43,6 +44,17 @@ func normalizeCompanyID(companyID *string) *string {
 	return &trimmed
 }
 
+func normalizeFiscalYearID(fiscalYearID *string) *string {
+	if fiscalYearID == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*fiscalYearID)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
 func (r *financeReportRepository) validateCompanyFilterSupport(ctx context.Context, companyID *string) error {
 	if companyID == nil {
 		return nil
@@ -54,128 +66,145 @@ func (r *financeReportRepository) validateCompanyFilterSupport(ctx context.Conte
 	return nil
 }
 
-func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error) {
+func (r *financeReportRepository) validateFiscalYearFilterSupport(ctx context.Context, fiscalYearID *string) error {
+	if fiscalYearID == nil {
+		return nil
+	}
+	hasColumn := r.db.WithContext(ctx).Migrator().HasColumn(&financeModels.JournalEntry{}, "fiscal_year_id")
+	if !hasColumn {
+		return fmt.Errorf("fiscal_year_id filter is not supported: journal_entries.fiscal_year_id column not found")
+	}
+	return nil
+}
+
+func (r *financeReportRepository) GetAccountBalancesByAccounts(ctx context.Context, accountIDs []string, startDate, endDate time.Time, companyID, fiscalYearID *string) (map[string]GLAccountBalance, error) {
 	companyID = normalizeCompanyID(companyID)
+	fiscalYearID = normalizeFiscalYearID(fiscalYearID)
 	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
 		return nil, err
 	}
-
-	// 1. Calculate Opening Balance (posted journals before startDate)
-	type opRow struct {
-		CoAID   string  `gorm:"column:coa_id"`
-		Balance float64 `gorm:"column:balance"`
-	}
-	var ops []opRow
-	opQuery := `
-		SELECT 
-			jl.chart_of_account_id as coa_id,
-			SUM(
-				CASE 
-					WHEN coa.type IN ('ASSET', 'CASH_BANK', 'CURRENT_ASSET', 'FIXED_ASSET', 'EXPENSE', 'COST_OF_GOODS_SOLD', 'SALARY_WAGES', 'OPERATIONAL') THEN jl.debit - jl.credit
-					ELSE jl.credit - jl.debit
-				END
-			) as balance
-		FROM journal_lines jl
-		JOIN journal_entries je ON je.id = jl.journal_entry_id
-		JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id
-		WHERE je.status = 'posted'
-			AND je.entry_date < ?
-			AND je.deleted_at IS NULL
-			AND jl.deleted_at IS NULL
-			AND coa.deleted_at IS NULL
-	`
-	opArgs := []interface{}{startDate}
-	if companyID != nil {
-		opQuery += `
-			AND je.company_id = ?
-		`
-		opArgs = append(opArgs, *companyID)
-	}
-	opQuery += `
-		GROUP BY jl.chart_of_account_id
-	`
-	if err := r.db.WithContext(ctx).Raw(opQuery, opArgs...).Scan(&ops).Error; err != nil {
-		return nil, err
-	}
-	opMap := make(map[string]float64)
-	for _, o := range ops {
-		opMap[o.CoAID] = o.Balance
-	}
-
-	// 2. Calculate Periodic Movement (posted journals between startDate and endDate)
-	type moveRow struct {
-		CoAID  string  `gorm:"column:coa_id"`
-		Debit  float64 `gorm:"column:debit"`
-		Credit float64 `gorm:"column:credit"`
-	}
-	var moves []moveRow
-	moveQuery := `
-		SELECT 
-			jl.chart_of_account_id as coa_id,
-			SUM(jl.debit) as debit,
-			SUM(jl.credit) as credit
-		FROM journal_lines jl
-		JOIN journal_entries je ON je.id = jl.journal_entry_id
-		WHERE je.status = 'posted'
-			AND je.entry_date >= ?
-			AND je.entry_date <= ?
-			AND je.deleted_at IS NULL
-			AND jl.deleted_at IS NULL
-	`
-	moveArgs := []interface{}{startDate, endDate}
-	if companyID != nil {
-		moveQuery += `
-			AND je.company_id = ?
-		`
-		moveArgs = append(moveArgs, *companyID)
-	}
-	moveQuery += `
-		GROUP BY jl.chart_of_account_id
-	`
-	if err := r.db.WithContext(ctx).Raw(moveQuery, moveArgs...).Scan(&moves).Error; err != nil {
+	if err := r.validateFiscalYearFilterSupport(ctx, fiscalYearID); err != nil {
 		return nil, err
 	}
 
-	// 3. Combine with CoA list to get all balances
+	result := make(map[string]GLAccountBalance, len(accountIDs))
+	for _, id := range accountIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		result[id] = GLAccountBalance{ChartOfAccountID: id}
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("journal_lines jl").
+		Select(`
+			jl.chart_of_account_id as coa_id,
+			coa.type as account_type,
+			COALESCE(SUM(CASE
+				WHEN je.entry_date < ? THEN
+					CASE
+						WHEN coa.type IN ('ASSET', 'CASH_BANK', 'CURRENT_ASSET', 'FIXED_ASSET', 'EXPENSE', 'COST_OF_GOODS_SOLD', 'SALARY_WAGES', 'OPERATIONAL')
+						THEN jl.debit - jl.credit
+						ELSE jl.credit - jl.debit
+					END
+				ELSE 0
+			END), 0) as opening_balance,
+			COALESCE(SUM(CASE WHEN je.entry_date >= ? AND je.entry_date <= ? THEN jl.debit ELSE 0 END), 0) as debit_total,
+			COALESCE(SUM(CASE WHEN je.entry_date >= ? AND je.entry_date <= ? THEN jl.credit ELSE 0 END), 0) as credit_total
+		`, startDate, startDate, endDate, startDate, endDate).
+		Joins("JOIN journal_entries je ON je.id = jl.journal_entry_id").
+		Joins("JOIN chart_of_accounts coa ON coa.id = jl.chart_of_account_id").
+		Where("je.status = ?", financeModels.JournalStatusPosted).
+		Where("je.entry_date <= ?", endDate).
+		Where("je.deleted_at IS NULL").
+		Where("jl.deleted_at IS NULL").
+		Where("coa.deleted_at IS NULL")
+
+	if len(accountIDs) > 0 {
+		query = query.Where("jl.chart_of_account_id IN ?", accountIDs)
+	}
+	if companyID != nil {
+		query = query.Where("je.company_id = ?", *companyID)
+	}
+	if fiscalYearID != nil {
+		query = query.Where("je.fiscal_year_id = ?", *fiscalYearID)
+	}
+
+	type row struct {
+		CoAID          string  `gorm:"column:coa_id"`
+		AccountType    string  `gorm:"column:account_type"`
+		OpeningBalance float64 `gorm:"column:opening_balance"`
+		DebitTotal     float64 `gorm:"column:debit_total"`
+		CreditTotal    float64 `gorm:"column:credit_total"`
+	}
+	rows := make([]row, 0)
+	if err := query.Group("jl.chart_of_account_id, coa.type").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	for _, rrow := range rows {
+		change := 0.0
+		switch financeModels.AccountType(rrow.AccountType) {
+		case financeModels.AccountTypeAsset, financeModels.AccountTypeCashBank, financeModels.AccountTypeCurrentAsset, financeModels.AccountTypeFixedAsset,
+			financeModels.AccountTypeExpense, financeModels.AccountTypeCOGS, financeModels.AccountTypeSalaryWages, financeModels.AccountTypeOperational:
+			change = rrow.DebitTotal - rrow.CreditTotal
+		default:
+			change = rrow.CreditTotal - rrow.DebitTotal
+		}
+
+		result[rrow.CoAID] = GLAccountBalance{
+			ChartOfAccountID: rrow.CoAID,
+			OpeningBalance:   rrow.OpeningBalance,
+			DebitTotal:       rrow.DebitTotal,
+			CreditTotal:      rrow.CreditTotal,
+			ClosingBalance:   rrow.OpeningBalance + change,
+		}
+	}
+
+	return result, nil
+}
+
+func (r *financeReportRepository) GetAccountBalances(ctx context.Context, startDate, endDate time.Time, companyID *string) ([]GLAccountBalance, error) {
+	// Keep legacy behavior: return all chart of accounts in code order.
 	var allCoas []financeModels.ChartOfAccount
 	if err := r.db.WithContext(ctx).Order("code asc").Find(&allCoas).Error; err != nil {
 		return nil, err
 	}
+	accountIDs := make([]string, 0, len(allCoas))
+	for _, coa := range allCoas {
+		accountIDs = append(accountIDs, coa.ID)
+	}
 
-	moveMap := make(map[string]moveRow)
-	for _, m := range moves {
-		moveMap[m.CoAID] = m
+	balanceMap, err := r.GetAccountBalancesByAccounts(ctx, accountIDs, startDate, endDate, companyID, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	res := make([]GLAccountBalance, 0, len(allCoas))
 	for _, coa := range allCoas {
-		op := opMap[coa.ID]
-		mv := moveMap[coa.ID]
-
-		change := 0.0
-		switch coa.Type {
-		case financeModels.AccountTypeAsset, financeModels.AccountTypeCashBank, financeModels.AccountTypeCurrentAsset, financeModels.AccountTypeFixedAsset,
-			financeModels.AccountTypeExpense, financeModels.AccountTypeCOGS, financeModels.AccountTypeSalaryWages, financeModels.AccountTypeOperational:
-			change = mv.Debit - mv.Credit
-		default:
-			change = mv.Credit - mv.Debit
+		if item, ok := balanceMap[coa.ID]; ok {
+			res = append(res, item)
+			continue
 		}
-
 		res = append(res, GLAccountBalance{
 			ChartOfAccountID: coa.ID,
-			OpeningBalance:   op,
-			DebitTotal:       mv.Debit,
-			CreditTotal:      mv.Credit,
-			ClosingBalance:   op + change,
+			OpeningBalance:   0,
+			DebitTotal:       0,
+			CreditTotal:      0,
+			ClosingBalance:   0,
 		})
 	}
 
 	return res, nil
 }
 
-func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID *string) ([]financeModels.JournalLine, error) {
+func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, coaID string, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]financeModels.JournalLine, error) {
 	companyID = normalizeCompanyID(companyID)
+	fiscalYearID = normalizeFiscalYearID(fiscalYearID)
 	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
+		return nil, err
+	}
+	if err := r.validateFiscalYearFilterSupport(ctx, fiscalYearID); err != nil {
 		return nil, err
 	}
 
@@ -192,15 +221,22 @@ func (r *financeReportRepository) GetGLAccountTransactions(ctx context.Context, 
 	if companyID != nil {
 		query = query.Where("journal_entries.company_id = ?", *companyID)
 	}
+	if fiscalYearID != nil {
+		query = query.Where("journal_entries.fiscal_year_id = ?", *fiscalYearID)
+	}
 	err := query.
 		Order("journal_entries.entry_date asc, journal_entries.id asc, journal_lines.id asc").
 		Find(&lines).Error
 	return lines, err
 }
 
-func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID *string) (float64, error) {
+func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (float64, error) {
 	companyID = normalizeCompanyID(companyID)
+	fiscalYearID = normalizeFiscalYearID(fiscalYearID)
 	if err := r.validateCompanyFilterSupport(ctx, companyID); err != nil {
+		return 0, err
+	}
+	if err := r.validateFiscalYearFilterSupport(ctx, fiscalYearID); err != nil {
 		return 0, err
 	}
 
@@ -230,6 +266,10 @@ func (r *financeReportRepository) GetNetProfit(ctx context.Context, startDate, e
 	if companyID != nil {
 		query += ` AND je.company_id = ?`
 		args = append(args, *companyID)
+	}
+	if fiscalYearID != nil {
+		query += ` AND je.fiscal_year_id = ?`
+		args = append(args, *fiscalYearID)
 	}
 
 	var row result

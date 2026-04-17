@@ -70,6 +70,7 @@ services:
       - SEED_ONCE=${SEED_ONCE:-true}
       - MIGRATE_ONCE=${MIGRATE_ONCE:-true}
       - APP_TIMEZONE=${APP_TIMEZONE:-Asia/Jakarta}
+      - XENDIT_CREDENTIAL_ENCRYPTION_KEY=your-32-byte-encryption-key-here
     volumes:
       - uploads_data:/app/uploads
     depends_on:
