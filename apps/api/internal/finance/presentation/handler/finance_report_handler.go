@@ -42,13 +42,12 @@ func parseOptionalCompanyID(c *gin.Context) *string {
 	return &value
 }
 
-func parseRequiredFiscalYearID(c *gin.Context) (*string, bool) {
+func parseOptionalFiscalYearID(c *gin.Context) *string {
 	value := strings.TrimSpace(c.Query("fiscal_year_id"))
 	if value == "" {
-		response.ErrorResponse(c, http.StatusBadRequest, "REQUIRED", "fiscal_year_id is required", nil, nil)
-		return nil, false
+		return nil
 	}
-	return &value, true
+	return &value
 }
 
 func parseIncludeZero(c *gin.Context) bool {
@@ -67,10 +66,7 @@ func (h *FinanceReportHandler) GeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 
 	res, err := h.uc.GetGeneralLedger(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
@@ -84,10 +80,7 @@ func (h *FinanceReportHandler) BalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 	includeZero := parseIncludeZero(c)
 
 	res, err := h.uc.GetBalanceSheet(c.Request.Context(), startDate, endDate, companyID, fiscalYearID, includeZero)
@@ -102,10 +95,7 @@ func (h *FinanceReportHandler) ProfitAndLoss(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 
 	res, err := h.uc.GetProfitAndLoss(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
@@ -119,10 +109,7 @@ func (h *FinanceReportHandler) TrialBalance(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 
 	res, err := h.uc.GetTrialBalance(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
@@ -136,10 +123,7 @@ func (h *FinanceReportHandler) CashFlow(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 
 	res, err := h.uc.GetCashFlow(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
 	if err != nil {
@@ -153,10 +137,7 @@ func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
 		bytes, err := h.uc.ExportGeneralLedger(ctx, startDate, endDate, companyID, fiscalYearID)
 		if err != nil {
@@ -185,10 +166,7 @@ func (h *FinanceReportHandler) ExportBalanceSheet(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 	includeZero := parseIncludeZero(c)
 
 	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
@@ -219,10 +197,7 @@ func (h *FinanceReportHandler) ExportProfitAndLoss(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())
 	companyID := parseOptionalCompanyID(c)
-	fiscalYearID, ok := parseRequiredFiscalYearID(c)
-	if !ok {
-		return
-	}
+	fiscalYearID := parseOptionalFiscalYearID(c)
 
 	generator := func(ctx context.Context) (*exportjob.GeneratedFile, error) {
 		bytes, err := h.uc.ExportProfitAndLoss(ctx, startDate, endDate, companyID, fiscalYearID)
