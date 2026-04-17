@@ -1,9 +1,10 @@
-export type StockOpnameStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'posted';
+export type StockOpnameStatus = 'draft' | 'pending' | 'pending_approval' | 'approved' | 'rejected' | 'posted' | 'completed';
 
 export interface StockOpname {
   id: string;
   opname_number: string;
   warehouse_id: string;
+  journal_id?: string;
   warehouse_name?: string;
   description?: string;
   date: string;
@@ -116,6 +117,12 @@ export interface ApiResponse<T> {
 export type StockOpnameListResponse = ApiResponse<StockOpname[]>;
 export type StockOpnameSingleResponse = ApiResponse<StockOpname>;
 export type StockOpnameItemsListResponse = ApiResponse<StockOpnameItem[]>;
+export type StockOpnameGenerateJournalResponse = ApiResponse<{
+  opname: StockOpname;
+  items: StockOpnameItem[];
+  has_variance: boolean;
+  journal_status: string;
+}>;
 export type ProductStockLedgerListResponse = ApiResponse<{
   data: ProductStockLedgerItem[];
   meta: PaginationMeta;

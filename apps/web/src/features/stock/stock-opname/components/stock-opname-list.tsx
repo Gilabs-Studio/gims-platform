@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useStockOpnames, useDeleteStockOpname, useUpdateStockOpnameStatus } from "../hooks/use-stock-opnames";
+import { useGenerateStockOpnameJournal, useStockOpnames, useDeleteStockOpname, useSubmitStockOpnameApproval, useUpdateStockOpnameStatus } from "../hooks/use-stock-opnames";
 import { StockOpnameStatusBadge } from "./stock-opname-status-badge";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -107,6 +107,8 @@ export function StockOpnameList() {
   
   const deleteMutation = useDeleteStockOpname();
   const statusMutation = useUpdateStockOpnameStatus();
+    const generateJournalMutation = useGenerateStockOpnameJournal();
+    const submitApprovalMutation = useSubmitStockOpnameApproval();
 
   // Warehouses for filter
   const { data: warehouseData } = useWarehouses({ page: 1, per_page: 20 });
@@ -114,6 +116,51 @@ export function StockOpnameList() {
 
     const opnames: StockOpname[] = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+
+    const handleExport = () => {
+        if (opnames.length === 0) {
+            toast.error(t("messages.exportEmpty"));
+            return;
+        }
+
+        const escapeCSV = (value: string | number | null | undefined): string => {
+            const normalized = String(value ?? "").replace(/"/g, '""');
+            return `"${normalized}"`;
+        };
+
+        const headers = [
+            "opname_number",
+            "warehouse_name",
+            "date",
+            "status",
+            "total_items",
+            "total_variance_qty",
+            "description",
+        ];
+
+        const rows = opnames.map((item) => [
+            escapeCSV(item.opname_number),
+            escapeCSV(item.warehouse_name ?? "-"),
+            escapeCSV(item.date),
+            escapeCSV(item.status),
+            escapeCSV(item.total_items),
+            escapeCSV(item.total_variance_qty),
+            escapeCSV(item.description ?? ""),
+        ]);
+
+        const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+        link.href = url;
+        link.setAttribute("download", `stock-opname-${timestamp}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast.success(t("messages.exportSuccess"));
+    };
 
   const handleDelete = async () => {
       if (deletingId) {
@@ -129,6 +176,13 @@ export function StockOpnameList() {
 
   const handleStatusChange = async (id: string, newStatus: StockOpnameStatus) => {
       try {
+          if (newStatus === "pending_approval") {
+              await generateJournalMutation.mutateAsync(id);
+              await submitApprovalMutation.mutateAsync(id);
+              toast.success(tCommon("saved"));
+              return;
+          }
+
           await statusMutation.mutateAsync({
               id,
               data: { status: newStatus }
@@ -166,9 +220,9 @@ export function StockOpnameList() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" className="cursor-pointer">
+            <Button variant="outline" className="cursor-pointer" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                {t("actions.export")}
             </Button>
             {canCreate && (
                 <Button 
@@ -205,9 +259,9 @@ export function StockOpnameList() {
                 <SelectContent>
                     <SelectItem value="all">{t("filter.status")}</SelectItem>
                     <SelectItem value="draft">{t("status.draft")}</SelectItem>
-                    <SelectItem value="pending">{t("status.pending")}</SelectItem>
+                    <SelectItem value="pending_approval">{t("status.pending_approval")}</SelectItem>
                     <SelectItem value="approved">{t("status.approved")}</SelectItem>
-                    <SelectItem value="posted">{t("status.posted")}</SelectItem>
+                    <SelectItem value="completed">{t("status.completed")}</SelectItem>
                     <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
                 </SelectContent>
             </Select>
@@ -329,7 +383,7 @@ export function StockOpnameList() {
                                                     {t("table.edit")}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem 
-                                                    onClick={() => handleStatusChange(row.id, 'pending')}
+                                                    onClick={() => handleStatusChange(row.id, 'pending_approval')}
                                                     className="cursor-pointer"
                                                 >
                                                     <Send className="h-4 w-4 mr-2" />
@@ -338,7 +392,7 @@ export function StockOpnameList() {
                                             </>
                                        )}
 
-                                       {row.status === 'pending' && canApprove && (
+                                       {(row.status === 'pending' || row.status === 'pending_approval') && canApprove && (
                                             <>
                                                 <DropdownMenuItem 
                                                     onClick={() => handleStatusChange(row.id, 'approved')}
@@ -359,7 +413,7 @@ export function StockOpnameList() {
 
                                        {row.status === 'approved' && canPost && (
                                             <DropdownMenuItem 
-                                                onClick={() => handleStatusChange(row.id, 'posted')}
+                                                onClick={() => handleStatusChange(row.id, 'completed')}
                                                 className="cursor-pointer"
                                             >
                                                 <Archive className="h-4 w-4 mr-2" />

@@ -341,6 +341,13 @@ export const navigationConfig: NavItem[] = [
         permission: "inventory.read",
       },
       {
+        name: "Stock Ledger",
+        i18nKey: "stockLedger",
+        url: "/stock/ledger",
+        icon: "scroll-text",
+        permission: "inventory.read",
+      },
+      {
         name: "Stock Movement",
         i18nKey: "stockMovement",
         url: "/stock/movements",

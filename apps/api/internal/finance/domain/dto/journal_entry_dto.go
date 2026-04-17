@@ -14,7 +14,7 @@ type JournalLineRequest struct {
 }
 
 type CreateJournalEntryRequest struct {
-	CompanyID         string               `json:"company_id" binding:"omitempty,uuid"`
+	CompanyID         string               `json:"company_id" binding:"required,uuid"`
 	FiscalYearID      *string              `json:"fiscal_year_id"`
 	EntryDate         string               `json:"entry_date" binding:"required"`
 	Reference         string               `json:"reference"`
@@ -30,7 +30,7 @@ type CreateJournalEntryRequest struct {
 }
 
 type UpdateJournalEntryRequest struct {
-	CompanyID     string               `json:"company_id" binding:"omitempty,uuid"`
+	CompanyID     string               `json:"company_id" binding:"required,uuid"`
 	FiscalYearID  *string              `json:"fiscal_year_id"`
 	EntryDate     string               `json:"entry_date" binding:"required"`
 	Reference     string               `json:"reference"`
@@ -47,7 +47,7 @@ type UpdateJournalEntryRequest struct {
 // reference_type is always forced to "MANUAL_ADJUSTMENT" on the backend.
 // description is required for audit trail.
 type CreateAdjustmentJournalRequest struct {
-	CompanyID         string               `json:"company_id" binding:"omitempty,uuid"`
+	CompanyID         string               `json:"company_id" binding:"required,uuid"`
 	FiscalYearID      *string              `json:"fiscal_year_id"`
 	EntryDate         string               `json:"entry_date" binding:"required"`
 	Description       string               `json:"description" binding:"required,min=3"`
@@ -56,6 +56,7 @@ type CreateAdjustmentJournalRequest struct {
 	ExchangeRate      *float64             `json:"exchange_rate"`
 	SourceDocumentURL *string              `json:"source_document_url"`
 	Lines             []JournalLineRequest `json:"lines" binding:"required,min=2"`
+	SkipControlAccountValidation bool       `json:"-"`
 }
 
 // CreateOpeningBalanceJournalRequest is an internal command payload for opening balance journals.

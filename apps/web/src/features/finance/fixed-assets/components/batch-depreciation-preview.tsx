@@ -1,9 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTranslations } from "next-intl";
 import type { BatchDepreciationPreviewResponse } from "../types";
@@ -34,7 +35,6 @@ export function BatchDepreciationPreview({
 }: BatchDepreciationPreviewProps) {
   const t = useTranslations("financeFixedAssets");
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
@@ -57,35 +57,39 @@ export function BatchDepreciationPreview({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="month">Month</Label>
-              <select
-                id="month"
+              <Select
                 value={month}
-                onChange={(e) => onMonthChange(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                onValueChange={onMonthChange}
               >
-                <option value="">Select Month</option>
-                {monthOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="month" className="cursor-pointer">
+                  <SelectValue placeholder="Select Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="year">Year</Label>
-              <select
-                id="year"
+              <Select
                 value={year}
-                onChange={(e) => onYearChange(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                onValueChange={onYearChange}
               >
-                <option value="">Select Year</option>
-                {yearOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="year" className="cursor-pointer">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -175,17 +179,17 @@ export function BatchDepreciationPreview({
                         })}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            line.status === "new"
-                              ? "bg-blue-100 text-blue-800"
-                              : line.status === "skipped"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
+                          <Badge
+                            variant={
+                              line.status === "new"
+                                ? "info"
+                                : line.status === "skipped"
+                                ? "warning"
+                                : "outline"
+                            }
+                          >
                           {line.status}
-                        </span>
+                          </Badge>
                       </TableCell>
                     </TableRow>
                   ))}

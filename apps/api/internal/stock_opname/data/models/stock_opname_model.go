@@ -23,6 +23,7 @@ type StockOpname struct {
 	ID               string            `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	OpnameNumber     string            `gorm:"type:varchar(50);uniqueIndex;not null"`
 	WarehouseID      string            `gorm:"type:uuid;not null;index"`
+	JournalID        *string           `gorm:"type:uuid;index"`
 	Date             time.Time         `gorm:"type:date;not null"`
 	Status           StockOpnameStatus `gorm:"type:varchar(20);not null;default:'draft'"`
 	Description      string            `gorm:"type:text"`

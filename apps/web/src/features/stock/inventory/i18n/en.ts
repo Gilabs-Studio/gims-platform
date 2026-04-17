@@ -17,6 +17,10 @@ export const inventoryEn = {
       showLowStockOnly: "Show Low Stock",
       showAll: "Show All"
     },
+    actions: {
+      openLedger: "Open Stock Ledger",
+      ledgerHint: "Jump to the product stock ledger from here.",
+    },
     table: {
       product: "Product",
       warehouse: "Warehouse",

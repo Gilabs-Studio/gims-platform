@@ -9,6 +9,7 @@ export const stockOpnameId = {
     reject: "Tolak",
     post: "Posting",
     addItem: "Tambah Item",
+    export: "Ekspor",
     openMapping: "Buka Mapping",
   },
   table: {
@@ -29,8 +30,10 @@ export const stockOpnameId = {
   },
   status: {
     draft: "Draf",
+    pending_approval: "Menunggu Persetujuan",
     pending: "Menunggu",
     approved: "Disetujui",
+    completed: "Selesai",
     posted: "Tercatat",
     rejected: "Ditolak",
     canceled: "Dibatalkan",
@@ -100,5 +103,9 @@ export const stockOpnameId = {
     accountInactive: "Akun yang dipilih tidak aktif.",
     periodClosed: "Periode akuntansi sudah ditutup. Posting tidak diizinkan.",
     concurrentLockConflict: "Data sedang diproses oleh proses lain. Silakan coba lagi.",
+  },
+  messages: {
+    exportEmpty: "Tidak ada data stock opname untuk diekspor.",
+    exportSuccess: "Stock opname berhasil diekspor.",
   },
 };

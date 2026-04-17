@@ -280,4 +280,5 @@ User Action -> Load Period -> Check Closing Guard ->
 - [phase-1-journal-engine.md](phase-1-journal-engine.md)
 - [phase-2-operations.md](phase-2-operations.md)
 - [phase-3-adjustment-closing.md](phase-3-adjustment-closing.md)
+- [phase-5-stabilization-reporting.md](phase-5-stabilization-reporting.md)
 - [journal-architecture-blueprint.md](../finance/journal-architecture-blueprint.md)

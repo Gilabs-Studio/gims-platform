@@ -82,10 +82,8 @@ export interface DisposalRequest {
 
 // Revaluation Types
 export interface RevaluationRequest {
-  asset_id: string;
-  revaluation_amount: number;
-  delta_amount: number;
-  effective_date: string;
+  new_value: number;
+  revaluation_date: string;
   description?: string;
 }
 
@@ -97,7 +95,7 @@ export interface RevaluationTransaction {
   type: "revalue";
   amount: number;
   revaluation_delta: number;
-  status: "draft" | "approved";
+  status: "draft" | "pending" | "approved" | "rejected";
   effective_date: string;
   created_at: string;
   approved_by?: string;

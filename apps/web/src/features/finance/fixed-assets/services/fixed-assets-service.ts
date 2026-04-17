@@ -17,7 +17,7 @@ export const fixedAssetsService = {
   previewBatchDepreciation: async (month: number, year: number): Promise<ApiResponse<BatchDepreciationPreviewResponse>> => {
     const response = await apiClient.post<ApiResponse<BatchDepreciationPreviewResponse>>(
       `${BASE_URL}/depreciations/preview`,
-      { month, year }
+      { period_month: month, period_year: year }
     );
     return response.data;
   },
@@ -25,7 +25,7 @@ export const fixedAssetsService = {
   runBatchDepreciation: async (month: number, year: number): Promise<ApiResponse<BatchDepreciationRunResponse>> => {
     const response = await apiClient.post<ApiResponse<BatchDepreciationRunResponse>>(
       `${BASE_URL}/depreciations/run`,
-      { month, year }
+      { period_month: month, period_year: year }
     );
     return response.data;
   },
@@ -48,10 +48,14 @@ export const fixedAssetsService = {
   },
 
   // Revaluation
-  previewRevaluation: async (assetId: string, revaluationAmount: number): Promise<ApiResponse<DisposalPreviewResponse>> => {
-    const response = await apiClient.post<ApiResponse<DisposalPreviewResponse>>(
+  submitRevaluation: async (assetId: string, data: RevaluationRequest): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>(
       `${BASE_URL}/${assetId}/revalue`,
-      { revaluation_amount: revaluationAmount }
+      {
+        new_value: data.new_value,
+        revaluation_date: data.revaluation_date,
+        description: data.description,
+      }
     );
     return response.data;
   },

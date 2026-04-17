@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import type { InventoryStockItem, InventoryFilters, ApiResponse, PaginatedResponse, InventoryTreeWarehouse, InventoryBatchItem, InventoryBatchesResponse, InventoryMetrics, InventoryTreeProductsResponse } from "../types";
 
-const BASE_URL = "/stock/inventory";
+const BASE_URL = "/inventory/stock";
 
 export const inventoryService = {
   getInventory: async (params: InventoryFilters & { page: number; per_page: number }) => {

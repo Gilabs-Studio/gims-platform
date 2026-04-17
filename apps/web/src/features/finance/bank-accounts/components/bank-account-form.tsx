@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa";
 import { useCurrencies } from "@/features/master-data/currencies/hooks/use-currencies";
+import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { bankAccountFormSchema, type BankAccountFormValues } from "../schemas/bank-account.schema";
 import type { BankAccount } from "../types";
@@ -51,14 +52,18 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
   const updateMutation = useUpdateFinanceBankAccount();
 
   const { data: coaTree } = useFinanceCoaTree({ only_active: true });
+  const { data: companiesData } = useCompanies({ page: 1, per_page: 100 }, { enabled: open });
   const { data: currencyData } = useCurrencies({ per_page: 100, sort_by: "code", sort_dir: "asc" }, { enabled: open });
   const coaOptions = useMemo(() => flattenCoa(coaTree?.data ?? []), [coaTree?.data]);
+  const companies = companiesData?.data ?? [];
   const currencies = currencyData?.data ?? [];
 
   const initial: BankAccount | null = accountQuery.data?.data ?? null;
 
   const defaultValues: BankAccountFormValues = useMemo(
     () => ({
+      company_id: initial?.company_id ?? "",
+      code: initial?.code ?? "",
       name: initial?.name ?? "",
       account_number: initial?.account_number ?? "",
       account_holder: initial?.account_holder ?? "",
@@ -88,6 +93,8 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
   const onSubmit = async (values: BankAccountFormValues) => {
     try {
       const payload = {
+        company_id: values.company_id,
+        code: values.code,
         name: values.name,
         account_number: values.account_number,
         account_holder: values.account_holder,
@@ -123,6 +130,30 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="space-y-2">
+            <Label>{t("fields.company")}</Label>
+            <Select
+              value={form.watch("company_id") || ""}
+              onValueChange={(value) => form.setValue("company_id", value, { shouldDirty: true, shouldValidate: true })}
+            >
+              <SelectTrigger className="cursor-pointer">
+                <SelectValue placeholder={t("placeholders.selectCompany")} />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id} className="cursor-pointer">
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="code">{t("fields.code")}</Label>
+            <Input id="code" {...form.register("code")} />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">{t("fields.name")}</Label>
             <Input id="name" {...form.register("name")} />

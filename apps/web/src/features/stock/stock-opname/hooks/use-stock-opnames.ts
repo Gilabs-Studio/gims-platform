@@ -104,3 +104,26 @@ export function useSaveStockOpnameItems() {
         }
     });
 }
+
+export function useGenerateStockOpnameJournal() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => stockOpnameService.generateJournal(id),
+        onSuccess: (data) => {
+            const opnameId = data.data.id;
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(opnameId) });
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.items(opnameId) });
+        }
+    });
+}
+
+export function useSubmitStockOpnameApproval() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => stockOpnameService.submitApproval(id),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.detail(data.data.id) });
+            queryClient.invalidateQueries({ queryKey: stockOpnameKeys.lists() });
+        }
+    });
+}

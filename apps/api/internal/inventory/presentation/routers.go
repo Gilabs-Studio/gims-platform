@@ -58,6 +58,11 @@ func RegisterRoutes(
 	inventory.Use(middleware.AuthMiddleware(jwtManager, permissionService))
 	inventory.Use(middleware.ScopeMiddleware(db))
 	{
-		inventory.GET("/products/:product_id/ledgers", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetProductLedgers)
+		// Alias endpoints for new inventory namespace (kept compatible with existing /stock routes)
+		inventory.GET("/stock", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockList)
+		inventory.GET("/stock/:product_id", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockByProduct)
+		inventory.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
+
+		inventory.GET("/products/:id/ledgers", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetProductLedgers)
 	}
 }

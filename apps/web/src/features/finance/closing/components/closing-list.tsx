@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { FinanceListErrorState } from "@/features/finance/shared/components/finance-list-error-state";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import type { FinancialClosing } from "../types";
 import { useApproveFinanceClosing, useDeleteFinanceClosing, useFinanceClosings, useReopenFinanceClosing, useYearEndClose } from "../hooks/use-finance-closing";
@@ -274,8 +275,8 @@ export function ClosingList() {
             await approveMutation.mutateAsync(id);
             toast.success(t("toast.approved"));
             setApproving(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={approveMutation.isPending}
@@ -294,8 +295,8 @@ export function ClosingList() {
             await reopenMutation.mutateAsync(id);
             toast.success(t("toast.reopened"));
             setReopening(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={reopenMutation.isPending}
@@ -314,8 +315,8 @@ export function ClosingList() {
             await deleteMutation.mutateAsync(id);
             toast.success(t("toast.deleted"));
             setDeleting(null);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={deleteMutation.isPending}
@@ -329,8 +330,8 @@ export function ClosingList() {
             await yearEndMutation.mutateAsync(fiscalYear);
             toast.success(t("toast.yearEndClosed"));
             setYearEndOpen(false);
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getFinanceErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={yearEndMutation.isPending}

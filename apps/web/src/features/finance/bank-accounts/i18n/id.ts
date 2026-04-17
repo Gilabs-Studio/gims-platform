@@ -3,6 +3,8 @@ export const financeBankAccountsId = {
   description: "Kelola rekening perusahaan, customer, dan supplier dalam satu daftar.",
   search: "Cari rekening bank...",
   fields: {
+    company: "Perusahaan",
+    code: "Kode",
     name: "Nama",
     accountNumber: "Nomor Rekening",
     accountHolder: "Nama Pemilik",
@@ -52,6 +54,7 @@ export const financeBankAccountsId = {
   placeholders: {
     select: "Pilih...",
     selectCurrency: "Pilih mata uang...",
+    selectCompany: "Pilih perusahaan...",
   },
   toast: {
     created: "Rekening bank dibuat",

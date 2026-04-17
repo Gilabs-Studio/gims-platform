@@ -59,4 +59,18 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPackagingRoutes(group, packagingH)
 	router.RegisterProcurementTypeRoutes(group, procurementTypeH)
 	router.RegisterProductRoutes(group, productH)
+
+	// Inventory namespace aliases (phase inventory API compatibility)
+	inventoryGroup := api.Group("/inventory")
+	inventoryGroup.Use(middleware.AuthMiddleware(jwtManager, permService))
+
+	inventoryGroup.POST("/products", middleware.RequirePermission("product.create"), productH.Create)
+	inventoryGroup.GET("/products", middleware.RequirePermission("product.read"), productH.List)
+	inventoryGroup.GET("/products/:id", middleware.RequirePermission("product.read"), productH.GetByID)
+	inventoryGroup.PUT("/products/:id", middleware.RequirePermission("product.update"), productH.Update)
+	inventoryGroup.PATCH("/products/:id/archive", middleware.RequirePermission("product.update"), productH.Delete)
+
+	inventoryGroup.GET("/uom", uomH.List)
+	inventoryGroup.POST("/uom", uomH.Create)
+	inventoryGroup.PUT("/uom/:id", uomH.Update)
 }

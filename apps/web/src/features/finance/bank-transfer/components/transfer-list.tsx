@@ -18,6 +18,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useFinanceBankAccounts } from "@/features/finance/bank-accounts/hooks/use-finance-bank-accounts";
 import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import {
   useBankTransfers,
@@ -76,7 +77,15 @@ export function BankTransferList() {
   const pagination = data?.meta?.pagination;
 
   const companyOptions = useMemo(() => companiesData?.data ?? [], [companiesData?.data]);
-  const bankOptions = useMemo(() => bankAccountsData?.data ?? [], [bankAccountsData?.data]);
+  const bankOptions = useMemo(() => {
+    const allBanks = bankAccountsData?.data ?? [];
+    if (!createForm.company_id) {
+      return allBanks;
+    }
+    return allBanks.filter(
+      (bank) => bank.owner_type === "company" && bank.owner_id === createForm.company_id,
+    );
+  }, [bankAccountsData?.data, createForm.company_id]);
 
   const submitCreate = async () => {
     if (
@@ -95,8 +104,8 @@ export function BankTransferList() {
       toast.success(t("toast.created"));
       setCreateForm(DEFAULT_FORM);
       setIsCreateOpen(false);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -104,8 +113,8 @@ export function BankTransferList() {
     try {
       await completeMutation.mutateAsync(id);
       toast.success(t("toast.completed"));
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -124,8 +133,8 @@ export function BankTransferList() {
       setCancelDialogOpen(false);
       setCancelId("");
       setCancelReason("");
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 

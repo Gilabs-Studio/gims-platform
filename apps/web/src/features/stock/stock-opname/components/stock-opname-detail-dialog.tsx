@@ -22,6 +22,8 @@ import { StockOpnameItem, StockOpnameItemRequest, StockOpnameStatus } from "../t
 import { 
     useStockOpname, 
     useStockOpnameItems, 
+    useGenerateStockOpnameJournal,
+    useSubmitStockOpnameApproval,
     useUpdateStockOpnameStatus,
         useSaveStockOpnameItems,
         useProductStockLedgers,
@@ -71,6 +73,8 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   // Queries & Mutations
   const opnameQuery = useStockOpname(opnameId);
   const itemsQuery = useStockOpnameItems(opnameId);
+    const generateJournalMutation = useGenerateStockOpnameJournal();
+    const submitApprovalMutation = useSubmitStockOpnameApproval();
   const statusMutation = useUpdateStockOpnameStatus();
   const saveItemsMutation = useSaveStockOpnameItems();
   
@@ -155,6 +159,13 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
   const handleStatusChange = async (newStatus: StockOpnameStatus) => {
       if (!opnameId) return;
       try {
+          if (newStatus === "pending_approval") {
+              await generateJournalMutation.mutateAsync(opnameId);
+              await submitApprovalMutation.mutateAsync(opnameId);
+              toast.success(tCommon("saved"));
+              return;
+          }
+
           await statusMutation.mutateAsync({
               id: opnameId,
               data: { status: newStatus }
@@ -285,7 +296,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                     <Button 
                                         size="sm" 
                                         className="cursor-pointer"
-                                        onClick={() => handleStatusChange('pending')}
+                                        onClick={() => handleStatusChange('pending_approval')}
                                     >
                                         <Send className="h-4 w-4 mr-2" />
                                         {t("actions.submit")}
@@ -293,7 +304,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                 </>
                              )}
                              
-                             {opname.status === 'pending' && canApprove && (
+                             {(opname.status === 'pending' || opname.status === 'pending_approval') && canApprove && (
                                  <>
                                      <Button 
                                         variant="outline"
@@ -319,7 +330,7 @@ export function StockOpnameDetailDialog({ open, onOpenChange, opnameId }: Props)
                                   <Button 
                                         size="sm" 
                                         className="cursor-pointer"
-                                        onClick={() => handleStatusChange('posted')}
+                                        onClick={() => handleStatusChange('completed')}
                                     >
                                         <Archive className="h-4 w-4 mr-2" />
                                         {t("actions.post")}

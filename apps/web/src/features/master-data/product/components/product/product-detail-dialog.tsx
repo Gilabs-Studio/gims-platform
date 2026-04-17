@@ -9,7 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/routing";
 import {
   CheckCircle2,
   XCircle,
@@ -61,6 +63,7 @@ export function ProductDetailDialog({
 }: ProductDetailDialogProps) {
   const t = useTranslations("product.transaction");
   const tCommon = useTranslations("product.common");
+  const tLedger = useTranslations("stock_ledger");
 
   // Fetch stock per warehouse when dialog is open
   const { data: inventoryData, isLoading: inventoryLoading } = useInventory({
@@ -279,14 +282,21 @@ export function ProductDetailDialog({
             <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/30">
               <ScrollText className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Stock Ledger (Moving Average)
+                {tLedger("title")}
               </span>
               <Badge variant="outline" className="ml-auto h-5 text-[10px]">
-                Pending API
+                {tLedger("badge")}
               </Badge>
             </div>
-            <div className="px-4 py-3 text-xs text-muted-foreground">
-              Stock ledger timeline will be available here after backend endpoint <span className="font-mono">/stock/ledgers</span> is published.
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                {tLedger("description")}
+              </div>
+              <Button asChild size="sm" className="cursor-pointer shrink-0">
+                <Link href={`/stock/ledger?product_id=${product.id}`}>
+                  {tLedger("open")}
+                </Link>
+              </Button>
             </div>
           </div>
 

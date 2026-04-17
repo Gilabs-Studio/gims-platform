@@ -58,6 +58,8 @@ import { hrdEn } from "@/features/hrd/i18n/en";
 import { hrdId } from "@/features/hrd/i18n/id";
 import { inventoryEn } from "@/features/stock/inventory/i18n/en";
 import { inventoryId } from "@/features/stock/inventory/i18n/id";
+import { stockLedgerEn } from "@/features/stock/stock-ledger/i18n/en";
+import { stockLedgerId } from "@/features/stock/stock-ledger/i18n/id";
 import { stockOpnameEn } from "@/features/stock/stock-opname/i18n/en";
 import { stockOpnameId } from "@/features/stock/stock-opname/i18n/id";
 import { stockMovementEn } from "@/features/stock/stock-movement/i18n/en";
@@ -227,6 +229,7 @@ const messages = {
     ...targetsEn,
     ...hrdEn,
     ...inventoryEn,
+    stock_ledger: stockLedgerEn,
     stock_opname: stockOpnameEn,
     ...stockMovementEn,
     ...settingsEn,
@@ -323,6 +326,7 @@ const messages = {
     ...targetsId,
     ...hrdId,
     ...inventoryId,
+    stock_ledger: stockLedgerId,
     stock_opname: stockOpnameId,
     ...stockMovementId,
     ...settingsId,

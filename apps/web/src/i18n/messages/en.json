@@ -188,6 +188,7 @@
     "payableRecap": "Payable Recap",
     "stock": "Stock",
     "inventory": "Inventory",
+    "stockLedger": "Stock Ledger",
     "stockMovement": "Stock Movement",
     "stockOpname": "Stock Opname",
     "finance": "Finance",

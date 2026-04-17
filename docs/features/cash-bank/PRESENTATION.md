@@ -10,6 +10,8 @@
 - [Phase 1: Journal Engine](#phase-1-journal-engine) - Core accounting infrastructure
 - [Phase 2: Operations](#phase-2-operations) - Daily cash, transfers, reconciliation
 - [Phase 3: Adjustment & Closing](#phase-3-adjustment--closing) - Approval governance and period-end closing
+- [Phase 4: Closing Hard Lock](#phase-4-closing-hard-lock) - Final period lock enforcement and year-end hardening
+- [Phase 5: Stabilization & Reporting](#phase-5-stabilization--reporting) - Monitoring, report consistency, and audit snapshots
 
 ### **For Developers**
 - [Architecture at a Glance](#architecture-at-a-glance)
@@ -28,6 +30,8 @@
 | `phase-1-journal-engine.md` | GL posting infrastructure | Developers, Architects |
 | `phase-2-operations.md` | Operations workflows | Developers, QA |
 | `phase-3-adjustment-closing.md` | Adjustment approval and financial closing workflows | Developers, QA, Finance Manager |
+| `phase-4-closing-hard-lock.md` | Closing hard lock and year-end hardening | Developers, QA, Finance Manager |
+| `phase-5-stabilization-reporting.md` | Stabilization, reporting, and monitoring | Developers, QA, Finance Manager |
 | `CASH_BANK_MASTER.md` | End-to-end architecture | All stakeholders |
 
 ---
@@ -55,6 +59,16 @@ A **comprehensive cash & bank management system** that ensures financial data ac
 │ ├─ Adjustment approval workflow             │
 │ ├─ Approval history + templates             │
 │ └─ Financial closing wizard + year-end      │
+├─────────────────────────────────────────────┤
+│ Phase 4: CLOSING HARD LOCK                  │
+│ ├─ Period lock enforcement                  │
+│ ├─ Reopen flow control                      │
+│ └─ Year-end hardening                       │
+├─────────────────────────────────────────────┤
+│ Phase 5: STABILIZATION & REPORTING          │
+│ ├─ Period health dashboard                  │
+│ ├─ Mismatch monitoring                      │
+│ └─ Audit snapshots                          │
 └─────────────────────────────────────────────┘
 ```
 
@@ -96,6 +110,78 @@ POST   /api/v1/finance/closing/year-end-close
 | **Test Cases** | 24+ named scenarios |
 | **Business Rules** | 20+ enforced |
 | **Permission Gates** | 12+ distinct permissions |
+
+---
+
+## Phase 4: Closing Hard Lock
+
+### 🎯 Purpose
+Enforce the final lock on closed periods and harden year-end close behavior.
+
+### ⚡ Quick Facts
+
+| Aspect | Detail |
+|--------|--------|
+| **Scope** | Period lock enforcement + year-end hardening |
+| **Users** | Finance Manager, Accountant, Auditor |
+| **Core Controls** | Lock validation, reopen control, dry run, idempotency guard |
+| **UI Enhancement** | Final lock feedback, period state visibility |
+| **Related Doc** | `phase-4-closing-hard-lock.md` |
+
+### 🛠 Key Endpoints
+
+```
+POST  /api/v1/finance/closing/year-end-close
+POST  /api/v1/finance/closing/:id/reopen
+GET   /api/v1/finance/closing/:id/analysis
+GET   /api/v1/finance/reports/health
+GET   /api/v1/finance/reports/mismatch
+```
+
+### Key Statistics
+
+| Metric | Value |
+|--------|-------|
+| **Primary Outcome** | Period lock enforced |
+| **Audit Focus** | Reopen history + year-end trace |
+| **Target Risk Reduction** | Duplicate close, backdated posting |
+
+---
+
+## Phase 5: Stabilization & Reporting
+
+### 🎯 Purpose
+Monitor report consistency, mismatch queues, and closing health after hard lock.
+
+### ⚡ Quick Facts
+
+| Aspect | Detail |
+|--------|--------|
+| **Scope** | Monitoring, reporting, and audit snapshots |
+| **Users** | Finance Manager, Accountant, Auditor |
+| **Core Controls** | Health dashboard, mismatch queue, closing snapshot, reconciliation summary |
+| **UI Enhancement** | Period health cards, exception drilldown, audit snapshot view |
+| **Related Doc** | `phase-5-stabilization-reporting.md` |
+
+### 🛠 Key Endpoints
+
+```
+GET   /api/v1/finance/reports/general-ledger
+GET   /api/v1/finance/reports/balance-sheet
+GET   /api/v1/finance/reports/profit-loss
+GET   /api/v1/finance/reports/trial-balance
+GET   /api/v1/finance/reports/cash-flow-statement
+GET   /api/v1/finance/reports/health
+GET   /api/v1/finance/reports/mismatch
+```
+
+### Key Statistics
+
+| Metric | Value |
+|--------|-------|
+| **Primary Outcome** | Operational visibility and report consistency |
+| **Audit Focus** | Immutable snapshot and exception trace |
+| **Target Risk Reduction** | Hidden mismatches, stale report assumptions |
 
 ---
 

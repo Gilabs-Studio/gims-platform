@@ -61,10 +61,14 @@ export const financeClosingEn = {
       warning: "Warning",
       differenceWarning:
         "There are differences between opening and closing balances. Please review the trial balance.",
+      openTrialBalance: "Open Trial Balance",
     },
     review: {
       title: "Trial Balance Review",
       description: "Review account balances for the period",
+      openTrialBalance: "Open Trial Balance",
+      showDifferencesOnly: "Show Differences Only",
+      showAll: "Show All",
     },
     execute: {
       title: "Ready to Close?",

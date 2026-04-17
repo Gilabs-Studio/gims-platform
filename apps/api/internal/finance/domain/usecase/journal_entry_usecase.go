@@ -1531,8 +1531,10 @@ func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req 
 	}
 
 	// Hardening: adjustment journals must never touch trade control accounts
-	if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
-		return nil, err
+	if !req.SkipControlAccountValidation {
+		if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
+			return nil, err
+		}
 	}
 
 	refType := "MANUAL_ADJUSTMENT"

@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { assetRevaluationSchema, type AssetRevaluationValues } from "../schemas/fixed-assets.schema";
@@ -16,20 +17,28 @@ interface AssetRevaluationFormProps {
 }
 
 export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
-  const { preview, approve } = useAssetRevaluation();
+  const { assets, submit } = useAssetRevaluation();
   const form = useForm<AssetRevaluationValues>({
     resolver: zodResolver(assetRevaluationSchema),
+    defaultValues: {
+      asset_id: "",
+      new_value: 0,
+      revaluation_date: new Date().toISOString().slice(0, 10),
+      description: "",
+    },
   });
 
   const onSubmit = async (data: AssetRevaluationValues) => {
     try {
-      const previewResult = await preview.mutateAsync({
+      const submitResult = await submit.mutateAsync({
         assetId: data.asset_id,
-        revaluationAmount: data.revaluation_amount,
+        newValue: data.new_value,
+        revaluationDate: data.revaluation_date,
+        description: data.description,
       });
 
-      if (previewResult.success) {
-        toast.success("Revaluation preview generated");
+      if (submitResult.success) {
+        toast.success("Asset revaluation submitted successfully");
         form.reset();
         onSuccess?.();
       }
@@ -55,7 +64,18 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
                 <FormItem>
                   <FormLabel>Asset</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Select asset" />
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="cursor-pointer">
+                        <SelectValue placeholder="Select asset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assets.map((asset) => (
+                          <SelectItem key={asset.id} value={asset.id} className="cursor-pointer">
+                            {asset.code} - {asset.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -64,12 +84,19 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
 
             <FormField
               control={form.control}
-              name="revaluation_amount"
+              name="new_value"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Revaluation Amount</FormLabel>
+                  <FormLabel>New Asset Value</FormLabel>
                   <FormControl>
-                    <Input {...field} type="number" step="0.01" placeholder="0.00" />
+                    <Input
+                      {...field}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      onChange={(event) => field.onChange(Number(event.target.value) || 0)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -78,25 +105,10 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
 
             <FormField
               control={form.control}
-              name="delta_amount"
+              name="revaluation_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Revaluation Delta</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="number" step="0.01" placeholder="0.00" disabled />
-                  </FormControl>
-                  <FormDescription>Automatically calculated (new amount - old amount)</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="effective_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Effective Date</FormLabel>
+                  <FormLabel>Revaluation Date</FormLabel>
                   <FormControl>
                     <Input {...field} type="date" />
                   </FormControl>
@@ -119,8 +131,8 @@ export function AssetRevaluationForm({ onSuccess }: AssetRevaluationFormProps) {
               )}
             />
 
-            <Button type="submit" disabled={preview.isPending} className="w-full">
-              {preview.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={submit.isPending} className="w-full">
+              {submit.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit for Approval
             </Button>
           </form>
