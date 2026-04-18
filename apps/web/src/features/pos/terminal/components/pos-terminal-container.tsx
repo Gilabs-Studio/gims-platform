@@ -30,6 +30,28 @@ import { PosLoyaltyEnrollModal } from "@/features/loyalty/components/pos-loyalty
 import type { CartItem, POSCatalogItem, PosOrderStatus } from "../types";
 import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
 
+function mapLookupToMember(lookup: LoyaltyMemberLookup): LoyaltyMember | undefined {
+  if (!lookup.member_id || !lookup.customer_name) {
+    return undefined;
+  }
+
+  return {
+    id: lookup.member_id,
+    customer_id: lookup.customer_id ?? "",
+    customer_name: lookup.customer_name,
+    customer_phone: undefined,
+    program_id: "",
+    program_name: undefined,
+    member_code: lookup.member_code ?? "",
+    current_tier: lookup.current_tier ?? "",
+    tier_badge_color: lookup.tier_badge_color ?? "#CD7F32",
+    point_balance: lookup.point_balance ?? 0,
+    lifetime_points: 0,
+    total_transactions: 0,
+    joined_at: "",
+  };
+}
+
 interface POSTerminalContainerProps {
   outletId: string;
   initialTableId?: string;
@@ -69,7 +91,6 @@ export function POSTerminalContainer({
   const [loyaltyLookup, setLoyaltyLookup] = useState<LoyaltyMemberLookup | undefined>();
   const [loyaltyMember, setLoyaltyMember] = useState<LoyaltyMember | undefined>();
   const [loyaltyRewards, setLoyaltyRewards] = useState<RewardConfig[]>([]);
-  const [redeemedRewardId, setRedeemedRewardId] = useState<string | undefined>();
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [enrollDefaultName, setEnrollDefaultName] = useState("");
   const [linkedTable, setLinkedTable] = useState<{
@@ -122,7 +143,6 @@ export function POSTerminalContainer({
       setLoyaltyLookup(undefined);
       setLoyaltyMember(undefined);
       setLoyaltyRewards([]);
-      setRedeemedRewardId(undefined);
       // Navigation happens only when the receipt is closed (see handleReceiptClose below),
       // so the receipt dialog remains visible over the live-table background.
     },
@@ -342,10 +362,9 @@ export function POSTerminalContainer({
             loyaltyLookup={loyaltyLookup}
             onLoyaltyMemberFound={(lookup) => {
               setLoyaltyLookup(lookup);
-              if (lookup.found && lookup.member) {
-                setLoyaltyMember(lookup.member);
-                setLoyaltyRewards(lookup.available_rewards ?? []);
-              }
+              const member = lookup.found ? mapLookupToMember(lookup) : undefined;
+              setLoyaltyMember(member);
+              setLoyaltyRewards(lookup.available_rewards ?? []);
             }}
             onLoyaltyEnrollRequest={(name) => {
               setEnrollDefaultName(name);
@@ -355,7 +374,6 @@ export function POSTerminalContainer({
               setLoyaltyLookup(undefined);
               setLoyaltyMember(undefined);
               setLoyaltyRewards([]);
-              setRedeemedRewardId(undefined);
             }}
             onIncrement={handleIncrement}
             onDecrement={handleDecrement}
@@ -400,10 +418,9 @@ export function POSTerminalContainer({
               loyaltyLookup={loyaltyLookup}
               onLoyaltyMemberFound={(lookup) => {
                 setLoyaltyLookup(lookup);
-                if (lookup.found && lookup.member) {
-                  setLoyaltyMember(lookup.member);
-                  setLoyaltyRewards(lookup.available_rewards ?? []);
-                }
+                const member = lookup.found ? mapLookupToMember(lookup) : undefined;
+                setLoyaltyMember(member);
+                setLoyaltyRewards(lookup.available_rewards ?? []);
               }}
               onLoyaltyEnrollRequest={(name) => {
                 setEnrollDefaultName(name);
@@ -414,7 +431,6 @@ export function POSTerminalContainer({
                 setLoyaltyLookup(undefined);
                 setLoyaltyMember(undefined);
                 setLoyaltyRewards([]);
-                setRedeemedRewardId(undefined);
               }}
               onIncrement={handleIncrement}
               onDecrement={handleDecrement}
@@ -440,8 +456,6 @@ export function POSTerminalContainer({
             onPaymentError={handlePaymentError}
             loyaltyMember={loyaltyMember}
             loyaltyRewards={loyaltyRewards}
-            onLoyaltyRedeem={(reward) => setRedeemedRewardId(reward.id)}
-            redeemedRewardId={redeemedRewardId}
           />
 
           <VoidOrderDialog
@@ -463,7 +477,16 @@ export function POSTerminalContainer({
         defaultName={enrollDefaultName}
         onEnrolled={(member) => {
           setLoyaltyMember(member);
-          setLoyaltyLookup({ found: true, member, already_member: false, point_balance: member.point_balance });
+          setLoyaltyLookup({
+            found: true,
+            member_id: member.id,
+            member_code: member.member_code,
+            customer_id: member.customer_id,
+            customer_name: member.customer_name,
+            current_tier: member.current_tier,
+            tier_badge_color: member.tier_badge_color,
+            point_balance: member.point_balance,
+          });
         }}
       />
 

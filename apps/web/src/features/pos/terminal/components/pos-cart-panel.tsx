@@ -73,7 +73,7 @@ export function POSCartPanel({
               onMemberFound={onLoyaltyMemberFound}
               onEnrollRequest={onLoyaltyEnrollRequest}
               onClear={onLoyaltyClear}
-              selectedMemberId={loyaltyLookup?.member?.id}
+              selectedMemberId={loyaltyLookup?.member_id}
             />
             <Separator />
           </>
@@ -101,7 +101,7 @@ export function POSCartPanel({
             onMemberFound={onLoyaltyMemberFound}
             onEnrollRequest={onLoyaltyEnrollRequest}
             onClear={onLoyaltyClear}
-            selectedMemberId={loyaltyLookup?.member?.id}
+            selectedMemberId={loyaltyLookup?.member_id}
           />
           <Separator />
         </>

@@ -37,7 +37,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useCustomers } from "@/features/master-data/customer/hooks/use-customers";
-import { useLoyaltyPrograms, useEnrollLoyaltyMember } from "../hooks/use-loyalty";
+import { useLoyaltyPrograms, useEnrollLoyaltyMember, useMyOutlets } from "../hooks/use-loyalty";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { LoyaltyProgram } from "../types";
 import type { Customer } from "@/features/master-data/customer/types";
 
@@ -92,6 +93,11 @@ function ProgramSelector({
 export function LoyaltyEnrollDialog({ open, onOpenChange }: LoyaltyEnrollDialogProps) {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
+  const { user } = useAuthStore();
+  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const { data: myOutletsData } = useMyOutlets({ enabled: isOutletScoped });
+  // For outlet-scoped users, default the enrollment outlet to their first outlet.
+  const myFirstOutletId = myOutletsData?.data?.[0]?.id;
 
   const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
 
@@ -119,11 +125,13 @@ export function LoyaltyEnrollDialog({ open, onOpenChange }: LoyaltyEnrollDialogP
 
   async function handleEnrollExisting() {
     if (!selectedCustomer || !selectedProgramId) return;
+    // Prefer the program's outlet; fall back to the manager's outlet for global programs.
+    const outletId = selectedProgram?.outlet_id ?? myFirstOutletId;
     try {
       await enrollMutation.mutateAsync({
         customer_id: selectedCustomer.id,
         program_id: selectedProgramId,
-        outlet_id: selectedProgram?.outlet_id || undefined,
+        outlet_id: outletId,
         name: selectedCustomer.name,
       });
       toast.success(t("members.enrolled"));
@@ -149,7 +157,7 @@ export function LoyaltyEnrollDialog({ open, onOpenChange }: LoyaltyEnrollDialogP
     try {
       await enrollMutation.mutateAsync({
         program_id: selectedProgramId,
-        outlet_id: selectedProgram?.outlet_id || undefined,
+        outlet_id: selectedProgram?.outlet_id ?? myFirstOutletId,
         name: values.name,
         phone: values.phone,
         email: values.email || undefined,

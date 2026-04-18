@@ -8,6 +8,7 @@ import (
 	"github.com/gilabs/gims/api/internal/loyalty/domain/usecase"
 	"github.com/gilabs/gims/api/internal/loyalty/presentation/handler"
 	"github.com/gilabs/gims/api/internal/loyalty/presentation/router"
+	organizationRepos "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -31,8 +32,9 @@ func RegisterRoutes(
 	programRepo := repositories.NewLoyaltyProgramRepository(db)
 	memberRepo := repositories.NewLoyaltyMemberRepository(db)
 	ledgerRepo := repositories.NewLoyaltyPointLedgerRepository(db)
+	outletRepo := organizationRepos.NewOutletRepository(db)
 
-	uc := usecase.NewLoyaltyUsecase(db, programRepo, memberRepo, ledgerRepo, customerRepo)
+	uc := usecase.NewLoyaltyUsecase(db, programRepo, memberRepo, ledgerRepo, customerRepo, outletRepo)
 	h := handler.NewLoyaltyHandler(uc)
 
 	group := api.Group("/")
