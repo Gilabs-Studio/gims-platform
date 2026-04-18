@@ -24,13 +24,14 @@ func ToLoyaltyProgramResponse(m *models.LoyaltyProgram) *dto.LoyaltyProgramRespo
 	}
 }
 
-func ToLoyaltyMemberResponse(m *models.LoyaltyMember, customerName string, customerPhone *string) *dto.LoyaltyMemberResponse {
+func ToLoyaltyMemberResponse(m *models.LoyaltyMember, customerName string, customerPhone *string, enrolledOutletName *string) *dto.LoyaltyMemberResponse {
 	return &dto.LoyaltyMemberResponse{
 		ID:                m.ID,
 		CustomerID:        m.CustomerID,
 		ProgramID:         m.ProgramID,
 		MemberCode:        m.MemberCode,
 		EnrolledOutletID:  m.EnrolledOutletID,
+		EnrolledOutletName: enrolledOutletName,
 		CurrentTier:       m.CurrentTier,
 		TierBadgeColor:    m.TierBadgeColor,
 		LifetimePoints:    m.LifetimePoints,

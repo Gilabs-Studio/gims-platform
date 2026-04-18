@@ -90,6 +90,8 @@ export interface POSOrder {
   service_charge: number;
   discount_amount: number;
   total_amount: number;
+  loyalty_member_id?: string | null;
+  loyalty_reward_id?: string | null;
   status: PosOrderStatus;
   notes?: string | null;
   void_reason?: string | null;
@@ -202,6 +204,7 @@ export interface ProcessPaymentRequest {
   customer_phone?: string;
   customer_email?: string;
   loyalty_member_id?: string;
+  loyalty_reward_id?: string;
   channel_code?: string;
 }
 

@@ -41,7 +41,7 @@ export function PosLoyaltyLookup({
 
   // Notify parent whenever a member is found
   useEffect(() => {
-    if (lookup?.found && lookup.member) {
+    if (lookup?.found) {
       onMemberFound(lookup);
     }
   }, [lookup, onMemberFound]);
@@ -83,24 +83,24 @@ export function PosLoyaltyLookup({
       )}
 
       {/* Member found */}
-      {!isFetching && lookup?.found && lookup.member && (
+      {!isFetching && lookup?.found && lookup.customer_name && (
         <div
           className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
-            selectedMemberId === lookup.member.id
+            selectedMemberId === lookup.member_id
               ? "border-primary bg-primary/5"
               : "border-border bg-muted/30"
           }`}
         >
           <Star className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           <div className="flex-1 min-w-0">
-            <span className="font-medium truncate block">{lookup.member.customer_name}</span>
+            <span className="font-medium truncate block">{lookup.customer_name}</span>
             <span className="text-[11px] text-muted-foreground tabular-nums">
-              {lookup.member.point_balance.toLocaleString()} pts
+              {(lookup.point_balance ?? 0).toLocaleString()} pts
             </span>
           </div>
           <LoyaltyTierBadge
-            tier={lookup.member.current_tier}
-            badgeColor={lookup.member.tier_badge_color}
+            tier={lookup.current_tier ?? ""}
+            badgeColor={lookup.tier_badge_color ?? ""}
           />
         </div>
       )}

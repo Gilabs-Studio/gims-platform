@@ -21,6 +21,9 @@ type OutletRepository interface {
 	Delete(ctx context.Context, id string) error
 	FindByCompanyID(ctx context.Context, companyID string) ([]*models.Outlet, error)
 	UpdateIsActiveByCompanyID(ctx context.Context, companyID string, isActive bool) error
+	// FindByWarehouseIDs returns all outlets whose warehouse_id is in the given list.
+	// Used for OUTLET-scoped RBAC resolution.
+	FindByWarehouseIDs(ctx context.Context, warehouseIDs []string) ([]*models.Outlet, error)
 }
 
 // OutletListParams defines parameters for listing outlets
@@ -191,4 +194,17 @@ func (r *outletRepository) UpdateIsActiveByCompanyID(ctx context.Context, compan
 		Model(&models.Outlet{}).
 		Where("company_id = ?", companyID).
 		Update("is_active", isActive).Error
+}
+
+// FindByWarehouseIDs returns outlets whose warehouse_id is in the provided list.
+func (r *outletRepository) FindByWarehouseIDs(ctx context.Context, warehouseIDs []string) ([]*models.Outlet, error) {
+	if len(warehouseIDs) == 0 {
+		return []*models.Outlet{}, nil
+	}
+	var outlets []*models.Outlet
+	err := r.db.WithContext(ctx).
+		Select("id, name, warehouse_id").
+		Where("warehouse_id IN ? AND deleted_at IS NULL", warehouseIDs).
+		Find(&outlets).Error
+	return outlets, err
 }

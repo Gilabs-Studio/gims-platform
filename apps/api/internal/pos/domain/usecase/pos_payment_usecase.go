@@ -99,13 +99,23 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 	if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
 		return nil, ErrPOSOrderAlreadyPaid
 	}
-	if req.Amount < order.TotalAmount {
-		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
+
+	// Update customer/loyalty linkage before validating totals.
+	orderNeedsUpdate := applyCustomerInfoToOrder(order, req)
+
+	// Apply selected reward pricing to the order while keeping point deduction deferred
+	// until payment finalization.
+	pricingChanged, err := u.applySelectedRewardPricing(ctx, order, req)
+	if err != nil {
+		return nil, err
 	}
 
-	// Update customer info on the order if provided (used on receipt/invoice/SO).
-	if applyCustomerInfoToOrder(order, req) {
+	if orderNeedsUpdate || pricingChanged {
 		_ = u.orderRepo.Update(ctx, order)
+	}
+
+	if req.Amount < order.TotalAmount {
+		return nil, fmt.Errorf("%w: required %.2f, received %.2f", ErrPOSInvalidPayment, order.TotalAmount, req.Amount)
 	}
 
 	now := apptime.Now()
@@ -160,8 +170,13 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
 	}
 
-	// Persist customer info from payment form if provided.
-	if applyCustomerInfoToOrder(order, req) {
+	// Persist customer/loyalty info from payment form if provided.
+	orderNeedsUpdate := applyCustomerInfoToOrder(order, req)
+	pricingChanged, err := u.applySelectedRewardPricing(ctx, order, req)
+	if err != nil {
+		return nil, err
+	}
+	if orderNeedsUpdate || pricingChanged {
 		_ = u.orderRepo.Update(ctx, order)
 	}
 
@@ -268,8 +283,109 @@ func applyCustomerInfoToOrder(order *models.PosOrder, req *dto.ProcessPaymentReq
 			needsUpdate = true
 		}
 	}
+	if req.LoyaltyRewardID != nil {
+		trimmedRewardID := strings.TrimSpace(*req.LoyaltyRewardID)
+		if trimmedRewardID == "" {
+			order.LoyaltyRewardID = nil
+			needsUpdate = true
+		} else {
+			order.LoyaltyRewardID = &trimmedRewardID
+			needsUpdate = true
+		}
+	}
 
 	return needsUpdate
+}
+
+func normalizeRewardPercent(value float64) float64 {
+	if value <= 0 {
+		return 0
+	}
+	// Backward compatibility: old configs sometimes stored 5% as 5000.
+	if value > 100 {
+		value = value / 1000
+	}
+	return math.Min(math.Max(value, 0), 100)
+}
+
+func computeRewardDiscount(baseAmount float64, reward *loyaltyDTO.RewardConfig) float64 {
+	if reward == nil || baseAmount <= 0 {
+		return 0
+	}
+
+	switch reward.Type {
+	case "discount_fixed":
+		return math.Max(math.Min(reward.Value, baseAmount), 0)
+	case "discount_percent":
+		pct := normalizeRewardPercent(reward.Value)
+		return math.Max(baseAmount*pct/100, 0)
+	default:
+		return 0
+	}
+}
+
+func (u *posPaymentUsecase) applySelectedRewardPricing(ctx context.Context, order *models.PosOrder, req *dto.ProcessPaymentRequest) (bool, error) {
+	baseAmount := math.Max(order.Subtotal+order.TaxAmount+order.ServiceCharge, 0)
+
+	selectedRewardID := ""
+	if req.LoyaltyRewardID != nil {
+		selectedRewardID = strings.TrimSpace(*req.LoyaltyRewardID)
+	}
+
+	if selectedRewardID == "" {
+		updated := order.DiscountAmount != 0 || order.TotalAmount != baseAmount || order.LoyaltyRewardID != nil
+		order.DiscountAmount = 0
+		order.TotalAmount = baseAmount
+		order.LoyaltyRewardID = nil
+		return updated, nil
+	}
+
+	if u.loyaltyUC == nil {
+		return false, fmt.Errorf("%w: loyalty is not configured", ErrPOSInvalidPayment)
+	}
+	if order.LoyaltyMemberID == nil || strings.TrimSpace(*order.LoyaltyMemberID) == "" {
+		return false, fmt.Errorf("%w: loyalty member is required", ErrPOSInvalidPayment)
+	}
+
+	memberResp, err := u.loyaltyUC.GetMember(ctx, strings.TrimSpace(*order.LoyaltyMemberID))
+	if err != nil || memberResp == nil {
+		return false, fmt.Errorf("%w: loyalty member is invalid", ErrPOSInvalidPayment)
+	}
+
+	programResp, err := u.loyaltyUC.GetProgram(ctx, memberResp.ProgramID)
+	if err != nil || programResp == nil {
+		return false, fmt.Errorf("%w: loyalty program is invalid", ErrPOSInvalidPayment)
+	}
+
+	var reward *loyaltyDTO.RewardConfig
+	for i := range programResp.Config.Rewards {
+		candidate := &programResp.Config.Rewards[i]
+		if candidate.ID == selectedRewardID {
+			reward = candidate
+			break
+		}
+	}
+	if reward == nil || !reward.IsActive {
+		return false, fmt.Errorf("%w: reward is unavailable", ErrPOSInvalidPayment)
+	}
+	if memberResp.PointBalance < reward.PointsRequired {
+		return false, fmt.Errorf("%w: insufficient loyalty points", ErrPOSInvalidPayment)
+	}
+
+	discount := computeRewardDiscount(baseAmount, reward)
+	newTotal := math.Max(baseAmount-discount, 0)
+	rewardID := selectedRewardID
+
+	updated := order.DiscountAmount != discount ||
+		order.TotalAmount != newTotal ||
+		order.LoyaltyRewardID == nil ||
+		*order.LoyaltyRewardID != rewardID
+
+	order.DiscountAmount = discount
+	order.TotalAmount = newTotal
+	order.LoyaltyRewardID = &rewardID
+
+	return updated, nil
 }
 
 func buildXenditOrderDescription(order *models.PosOrder) string {
@@ -413,6 +529,22 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 // finalizeOrder marks the order Paid, deducts stock, and creates linked ERP documents.
 // Flow: POS paid -> closed Sales Order -> Customer Invoice -> Sales Payment (for CASH method).
 func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.PosOrder, userID string, payment *models.POSPayment) error {
+	// Redeem selected loyalty reward only after payment reaches final success.
+	if u.loyaltyUC != nil && order.LoyaltyMemberID != nil && order.LoyaltyRewardID != nil {
+		memberID := strings.TrimSpace(*order.LoyaltyMemberID)
+		rewardID := strings.TrimSpace(*order.LoyaltyRewardID)
+		if memberID != "" && rewardID != "" {
+			processedBy := userID
+			_, _ = u.loyaltyUC.RedeemPoints(ctx, &loyaltyDTO.RedeemPointsRequest{
+				MemberID:        memberID,
+				RewardID:        rewardID,
+				TransactionID:   order.ID,
+				TransactionType: "pos_payment",
+				ProcessedBy:     &processedBy,
+			})
+		}
+	}
+
 	order.Status = models.PosOrderStatusPaid
 	if err := u.orderRepo.Update(ctx, order); err != nil {
 		return err

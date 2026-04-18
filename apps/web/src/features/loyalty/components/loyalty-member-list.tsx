@@ -26,7 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
-import { useLoyaltyMembers } from "../hooks/use-loyalty";
+import { useLoyaltyMembers, useMyOutlets } from "../hooks/use-loyalty";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { LoyaltyTierBadge } from "./loyalty-tier-badge";
 import { LoyaltyMemberDetailDialog } from "./loyalty-member-detail-dialog";
 import { LoyaltyEnrollDialog } from "./loyalty-enroll-dialog";
@@ -36,6 +37,10 @@ import type { LoyaltyMember } from "../types";
 export function LoyaltyMemberList() {
   const t = useTranslations("loyalty");
   const tCommon = useTranslations("common");
+  const { user } = useAuthStore();
+  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  const { data: myOutletsData } = useMyOutlets({ enabled: isOutletScoped });
+  const outletNameById = new Map((myOutletsData?.data ?? []).map((outlet) => [outlet.id, outlet.name]));
   const canViewCustomerResearch = useHasPermission("report_customer_research.read");
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<LoyaltyMember | null>(null);
@@ -96,6 +101,7 @@ export function LoyaltyMemberList() {
               <TableHead>{t("members.currentTier")}</TableHead>
               <TableHead className="text-right">{t("members.pointBalance")}</TableHead>
               <TableHead className="text-right">{t("members.totalTransactions")}</TableHead>
+              {isOutletScoped && <TableHead>{t("members.outletColumn")}</TableHead>}
               <TableHead>{t("members.joinedAt")}</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
@@ -109,12 +115,13 @@ export function LoyaltyMemberList() {
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+                  {isOutletScoped && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 </TableRow>
               ))
             ) : members.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={isOutletScoped ? 8 : 7} className="h-24 text-center">
                   {t("members.empty")}
                 </TableCell>
               </TableRow>
@@ -152,6 +159,14 @@ export function LoyaltyMemberList() {
                   <TableCell className="text-right text-muted-foreground">
                     {member.total_transactions}
                   </TableCell>
+                  {isOutletScoped && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {member.enrolled_outlet_name
+                        ?? (member.enrolled_outlet_id
+                          ? (outletNameById.get(member.enrolled_outlet_id) ?? member.enrolled_outlet_id)
+                          : "—")}
+                    </TableCell>
+                  )}
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(member.joined_at), "dd MMM yyyy")}
                   </TableCell>
@@ -164,10 +179,12 @@ export function LoyaltyMemberList() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setChangeProgramMember(member)}>
-                          <ArrowRightLeft className="mr-2 h-4 w-4" />
-                          Change Program
-                        </DropdownMenuItem>
+                        {!isOutletScoped && (
+                          <DropdownMenuItem onClick={() => setChangeProgramMember(member)}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            Change Program
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

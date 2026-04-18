@@ -21,19 +21,20 @@ type PointRules struct {
 }
 
 type TierConfig struct {
-	Name       string  `json:"name"`
-	MinPoints  int64   `json:"min_points"`
-	Multiplier float64 `json:"multiplier"`
-	BadgeColor string  `json:"badge_color"`
+	Name              string  `json:"name"`
+	MinPoints         int64   `json:"min_lifetime_points"` // aligned with frontend field name
+	Multiplier        float64 `json:"multiplier"`
+	BadgeColor        string  `json:"badge_color"`
 }
 
 type RewardConfig struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Type           string  `json:"type"` // discount_percent | discount_fixed
-	Value          float64 `json:"value"`
-	PointsRequired int64   `json:"points_required"`
-	IsActive       bool    `json:"is_active"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	Type            string  `json:"type"` // discount_percent | discount_fixed | merch
+	Value           float64 `json:"value"`
+	PointsRequired  int64   `json:"points_required"`
+	IsActive        bool    `json:"is_active"`
+	MerchDescription *string `json:"merch_description,omitempty"` // used when Type = "merch"
 }
 
 // ─── Program DTOs ─────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ type LoyaltyMemberResponse struct {
 	ProgramID        string     `json:"program_id"`
 	MemberCode       string     `json:"member_code"`
 	EnrolledOutletID *string    `json:"enrolled_outlet_id,omitempty"`
+	EnrolledOutletName *string  `json:"enrolled_outlet_name,omitempty"`
 	CurrentTier      string     `json:"current_tier"`
 	TierBadgeColor   string     `json:"tier_badge_color"`
 	LifetimePoints   int64      `json:"lifetime_points"`
@@ -143,8 +145,10 @@ type RedeemPointsResponse struct {
 	PointsDeducted   int64   `json:"points_deducted"`
 	NewBalance       int64   `json:"new_balance"`
 	DiscountAmount   float64 `json:"discount_amount"`
-	DiscountType     string  `json:"discount_type"` // discount_percent | discount_fixed
+	DiscountType     string  `json:"discount_type"` // discount_percent | discount_fixed | merch
 	RewardName       string  `json:"reward_name"`
+	// MerchDescription is populated when the reward type is "merch".
+	MerchDescription *string `json:"merch_description,omitempty"`
 }
 
 // AdjustPointsRequest allows admin to manually add or subtract points.

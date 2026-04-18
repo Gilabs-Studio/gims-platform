@@ -170,6 +170,17 @@ export const deliveryId = {
       enterTrackingNumber: "Masukkan nomor pelacakan",
     },
 
+    // Stock & Financial Impact (Ship dialog)
+    stockImpact: {
+      title: "Dampak Stok & Keuangan",
+      description: "Pengiriman pesanan ini akan:",
+      items: {
+        deductStock: "Mengurangi stok dari",
+        postCOGS: "Mencatat Jurnal HPP melalui mesin akuntansi.",
+      },
+      disclaimer: "TINDAKAN BERSIFAT ATOMIK DAN TIDAK DAPAT DIBATALKAN.",
+    },
+
     // Validation
     validation: {
       required: "Kolom ini wajib diisi",

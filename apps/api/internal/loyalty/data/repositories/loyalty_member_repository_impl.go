@@ -64,11 +64,18 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 	var total int64
 
 	q := r.db.WithContext(ctx).Model(&models.LoyaltyMember{})
+
+	// Outlet-scope filter: only members whose program belongs to the given outlets (or is global).
+	if len(params.ProgramOutletIDs) > 0 {
+		q = q.Joins("JOIN loyalty_programs lp ON lp.id = loyalty_members.program_id AND lp.deleted_at IS NULL").
+			Where("lp.outlet_id IS NULL OR lp.outlet_id IN ?", params.ProgramOutletIDs)
+	}
+
 	if params.Tier != "" {
-		q = q.Where("current_tier = ?", params.Tier)
+		q = q.Where("loyalty_members.current_tier = ?", params.Tier)
 	}
 	if params.OutletID != "" {
-		q = q.Where("enrolled_outlet_id = ?", params.OutletID)
+		q = q.Where("loyalty_members.enrolled_outlet_id = ?", params.OutletID)
 	}
 
 	if err := q.Count(&total).Error; err != nil {
@@ -76,7 +83,7 @@ func (r *loyaltyMemberRepo) List(ctx context.Context, params MemberListParams) (
 	}
 
 	offset := (params.Page - 1) * params.PerPage
-	err := q.Order("lifetime_points DESC").Offset(offset).Limit(params.PerPage).Find(&members).Error
+	err := q.Order("loyalty_members.lifetime_points DESC").Offset(offset).Limit(params.PerPage).Find(&members).Error
 	return members, total, err
 }
 

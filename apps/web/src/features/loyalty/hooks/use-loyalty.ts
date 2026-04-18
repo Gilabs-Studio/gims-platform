@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { loyaltyService } from "../services/loyalty-service";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useOutlets } from "@/features/master-data/outlet/hooks/use-outlets";
 import type {
   CreateLoyaltyProgramRequest,
   UpdateLoyaltyProgramRequest,
@@ -15,6 +17,19 @@ import type {
 const PROGRAMS_KEY = "loyaltyPrograms";
 const MEMBERS_KEY = "loyaltyMembers";
 const LEDGER_KEY = "loyaltyLedger";
+
+// ── Outlet Scope ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns the outlets accessible to the current user.
+ * For OUTLET-scoped users the backend automatically filters by user-warehouse assignments.
+ * For admins/ALL-scoped users, returns all active outlets.
+ */
+export function useMyOutlets(options?: { enabled?: boolean }) {
+  const { user } = useAuthStore();
+  const isOutletScoped = user?.role.data_scope === "OUTLET" || user?.role.data_scope === "WAREHOUSE";
+  return useOutlets({ per_page: 100, is_active: true }, { enabled: options?.enabled ?? isOutletScoped });
+}
 
 // ── Programs ──────────────────────────────────────────────────────────────────
 

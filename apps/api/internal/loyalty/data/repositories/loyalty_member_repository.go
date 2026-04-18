@@ -9,8 +9,12 @@ import (
 type MemberListParams struct {
 	Page    int
 	PerPage int
-	Tier    string
+	Tier     string
 	OutletID string
+	// ProgramOutletIDs filters members to those whose program belongs to one of the
+	// given outlet IDs (or is a global program with outlet_id IS NULL).
+	// When nil, no program-scope filtering is applied (admin view).
+	ProgramOutletIDs []string
 }
 
 type LoyaltyMemberRepository interface {

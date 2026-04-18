@@ -170,6 +170,17 @@ export const deliveryEn = {
       enterTrackingNumber: "Enter tracking number",
     },
 
+    // Stock & Financial Impact (Ship dialog)
+    stockImpact: {
+      title: "Stock & Financial Impact",
+      description: "Shipping this order will:",
+      items: {
+        deductStock: "Deduct stock from",
+        postCOGS: "Post COGS Journal via Accounting Engine.",
+      },
+      disclaimer: "ACTION IS ATOMIC AND IRREVERSIBLE.",
+    },
+
     // Validation
     validation: {
       required: "This field is required",

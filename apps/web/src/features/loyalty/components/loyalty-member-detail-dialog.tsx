@@ -68,6 +68,11 @@ export function LoyaltyMemberDetailDialog({ member, onClose }: Props) {
     adjusted: "info",
   };
 
+  const getTransactionTypeLabel = (transactionType: string) => {
+    const key = `ledger.transactionType.${transactionType}`;
+    return t.has(key) ? t(key) : transactionType;
+  };
+
   return (
     <Dialog open={!!member} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent size="lg" className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -153,9 +158,16 @@ export function LoyaltyMemberDetailDialog({ member, onClose }: Props) {
                               {format(new Date(entry.created_at), "dd MMM HH:mm")}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={ENTRY_TYPE_VARIANTS[entry.entry_type] ?? "secondary"}>
-                                {t(`ledger.types.${entry.entry_type}`)}
-                              </Badge>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant={ENTRY_TYPE_VARIANTS[entry.entry_type] ?? "secondary"}>
+                                  {t(`ledger.types.${entry.entry_type}`)}
+                                </Badge>
+                                {entry.transaction_type && (
+                                  <Badge variant="outline" className="text-xs font-normal">
+                                    {getTransactionTypeLabel(entry.transaction_type)}
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               <span className={entry.points >= 0 ? "text-emerald-600" : "text-destructive"}>
