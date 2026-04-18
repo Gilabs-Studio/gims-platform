@@ -155,7 +155,7 @@ func main() {
 	case "pp": // Purchase Payment
 		ppRepo := purchRepos.NewPurchasePaymentRepository(db)
 		siRepo := purchRepos.NewSupplierInvoiceRepository(db)
-		ppUC := purchUC.NewPurchasePaymentUsecase(db, ppRepo, siRepo, auditService, journalUC, coaUC, engine, settingsService)
+		ppUC := purchUC.NewPurchasePaymentUsecase(db, ppRepo, siRepo, auditService, journalUC, coaUC, engine, settingsService, nil)
 
 		var pp purchModels.PurchasePayment
 		if err := db.Where("reference_number = ?", *targetCode).First(&pp).Error; err != nil {
@@ -171,7 +171,8 @@ func main() {
 	case "gr": // Goods Receipt
 		grRepo := purchRepos.NewGoodsReceiptRepository(db)
 		poRepo := purchRepos.NewPurchaseOrderRepository(db)
-		grUC := purchUC.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, inventoryUC, journalUC, coaUC, assetUC, engine)
+		fiscalYearRepo := finRepos.NewFiscalYearRepository(db)
+		grUC := purchUC.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, inventoryUC, journalUC, coaUC, assetUC, engine, fiscalYearRepo)
 
 		var gr purchModels.GoodsReceipt
 		if err := db.Where("code = ?", *targetCode).First(&gr).Error; err != nil {

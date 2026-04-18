@@ -10,20 +10,23 @@ type SupplierInvoiceDownPaymentRegularInvoiceMini struct {
 type SupplierInvoiceDownPaymentListResponse struct {
 	ID string `json:"id"`
 
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
+
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 
 	SupplierID   string `json:"supplier_id"`
 	SupplierName string `json:"supplier_name"`
 
-	Code          string  `json:"code"`
-	InvoiceNumber string  `json:"invoice_number"`
-	InvoiceDate   string  `json:"invoice_date"`
-	DueDate       string  `json:"due_date"`
-	Amount        float64 `json:"amount"`
-	PaidAmount    float64 `json:"paid_amount"`
+	Code            string  `json:"code"`
+	InvoiceNumber   string  `json:"invoice_number"`
+	InvoiceDate     string  `json:"invoice_date"`
+	DueDate         string  `json:"due_date"`
+	Amount          float64 `json:"amount"`
+	PaidAmount      float64 `json:"paid_amount"`
 	RemainingAmount float64 `json:"remaining_amount"`
-	Status        string  `json:"status"`
-	Notes         *string `json:"notes"`
+	Status          string  `json:"status"`
+	Notes           *string `json:"notes"`
 
 	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
 
@@ -39,20 +42,23 @@ type SupplierInvoiceDownPaymentListResponse struct {
 type SupplierInvoiceDownPaymentDetailResponse struct {
 	ID string `json:"id"`
 
+	CompanyID    *string `json:"company_id"`
+	FiscalYearID *string `json:"fiscal_year_id"`
+
 	PurchaseOrder *SupplierInvoicePurchaseOrderMini `json:"purchase_order,omitempty"`
 
 	SupplierID   string `json:"supplier_id"`
 	SupplierName string `json:"supplier_name"`
 
-	Code          string  `json:"code"`
-	InvoiceNumber string  `json:"invoice_number"`
-	InvoiceDate   string  `json:"invoice_date"`
-	DueDate       string  `json:"due_date"`
-	Amount        float64 `json:"amount"`
-	PaidAmount    float64 `json:"paid_amount"`
+	Code            string  `json:"code"`
+	InvoiceNumber   string  `json:"invoice_number"`
+	InvoiceDate     string  `json:"invoice_date"`
+	DueDate         string  `json:"due_date"`
+	Amount          float64 `json:"amount"`
+	PaidAmount      float64 `json:"paid_amount"`
 	RemainingAmount float64 `json:"remaining_amount"`
-	Status        string  `json:"status"`
-	Notes         *string `json:"notes"`
+	Status          string  `json:"status"`
+	Notes           *string `json:"notes"`
 
 	RegularInvoices []SupplierInvoiceDownPaymentRegularInvoiceMini `json:"regular_invoices,omitempty"`
 

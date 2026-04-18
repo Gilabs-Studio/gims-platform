@@ -11,6 +11,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -102,6 +103,12 @@ func (uc *purchaseRequisitionUsecase) Create(ctx context.Context, req *dto.Creat
 		OtherCost:      math.Max(0, req.OtherCost),
 		Items:          make([]models.PurchaseRequisitionItem, 0, len(req.Items)),
 	}
+	companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, req.RequestDate)
+	if err != nil {
+		return nil, err
+	}
+	pr.CompanyID = &companyID
+	pr.FiscalYearID = &fiscalYearID
 
 	for _, it := range req.Items {
 		discount := clamp(it.Discount, 0, 100)

@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invDto "github.com/gilabs/gims/api/internal/inventory/domain/dto"
@@ -21,6 +22,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -39,6 +41,8 @@ type purchaseReturnCreateContext struct {
 	GoodsReceiptID string
 	WarehouseID    string
 	SupplierID     string
+	CompanyID      *string
+	FiscalYearID   *string
 	Action         models.PurchaseReturnAction
 }
 
@@ -54,13 +58,14 @@ type PurchaseReturnUsecase interface {
 }
 
 type purchaseReturnUsecase struct {
-	db           *gorm.DB
-	repo         repositories.PurchaseReturnRepository
-	invUC        invUsecase.InventoryUsecase
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	auditService audit.AuditService
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.PurchaseReturnRepository
+	invUC              invUsecase.InventoryUsecase
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	auditService       audit.AuditService
+	engine             accounting.AccountingEngine
+	purchaseJournalSvc purchaseService.PurchaseJournalService
 }
 
 func NewPurchaseReturnUsecase(
@@ -73,13 +78,14 @@ func NewPurchaseReturnUsecase(
 	engine accounting.AccountingEngine,
 ) PurchaseReturnUsecase {
 	return &purchaseReturnUsecase{
-		db:           db,
-		repo:         repo,
-		invUC:        invUC,
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		auditService: auditService,
-		engine:       engine,
+		db:                 db,
+		repo:               repo,
+		invUC:              invUC,
+		journalUC:          journalUC,
+		coaUC:              coaUC,
+		auditService:       auditService,
+		engine:             engine,
+		purchaseJournalSvc: purchaseService.NewPurchaseJournalService(db, journalUC, engine),
 	}
 }
 
@@ -189,6 +195,8 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		Status:          models.PurchaseReturnStatusDraft,
 		Notes:           req.Notes,
 		CreatedBy:       actorID,
+		CompanyID:       createCtx.CompanyID,
+		FiscalYearID:    createCtx.FiscalYearID,
 	}
 
 	items := make([]models.PurchaseReturnItem, 0, len(req.Items))
@@ -248,15 +256,15 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 		err = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			actorID, _ := ctx.Value("user_id").(string)
 			actorID = strings.TrimSpace(actorID)
-			
+
 			// 1. Create Stock Movements
 			if err := u.createStockMovementsFromRows(database.WithTx(ctx, tx), row.Items, row.WarehouseID, row.Code, actorID); err != nil {
 				return err
 			}
 
-			// 2. Trigger Journal Entry
+			// 2. Trigger Journal Entry (must be atomic with status update and stock movement)
 			if err := u.TriggerJournalForReturn(database.WithTx(ctx, tx), row); err != nil {
-				log.Printf("⚠️ Failed to trigger journal for purchase return %s: %v\n", id, err)
+				return fmt.Errorf("failed to trigger journal for purchase return %s: %w", id, err)
 			}
 
 			// 3. Update Related Invoices (The Business Fix)
@@ -264,11 +272,11 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 			var invoices []models.SupplierInvoice
 			query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 				Where("purchase_order_id = ? AND status NOT IN ?", row.PurchaseOrderID, []models.SupplierInvoiceStatus{models.SupplierInvoiceStatusPaid, models.SupplierInvoiceStatusCancelled, models.SupplierInvoiceStatusRejected})
-			
+
 			if row.GoodsReceiptID != "" {
 				query = query.Where("goods_receipt_id = ?", row.GoodsReceiptID)
 			}
-			
+
 			if err := query.Find(&invoices).Error; err != nil {
 				return err
 			}
@@ -304,7 +312,7 @@ func (u *purchaseReturnUsecase) UpdateStatus(ctx context.Context, id string, sta
 				if err := tx.Model(inv).Updates(updates).Error; err != nil {
 					return err
 				}
-				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f", 
+				log.Printf("business_validation event=return.apply_to_invoice invoice_code=%s return_code=%s deduction=%.2f new_remaining=%.2f",
 					inv.Code, row.Code, deduction, newRemaining)
 			}
 
@@ -468,10 +476,27 @@ func (u *purchaseReturnUsecase) prepareCreateContext(
 		return nil, errors.New("supplier_id is required")
 	}
 
+	companyID := goodsReceipt.CompanyID
+	fiscalYearID := goodsReceipt.FiscalYearID
+	if companyID == nil || fiscalYearID == nil {
+		receiptDate := ""
+		if goodsReceipt.ReceiptDate != nil {
+			receiptDate = goodsReceipt.ReceiptDate.Format("2006-01-02")
+		}
+		resolvedCompanyID, resolvedFiscalYearID, err := newPurchaseFiscalYearResolver(u.db, financeRepositories.NewFiscalYearRepository(u.db)).Resolve(ctx, receiptDate)
+		if err != nil {
+			return nil, err
+		}
+		companyID = &resolvedCompanyID
+		fiscalYearID = &resolvedFiscalYearID
+	}
+
 	return &purchaseReturnCreateContext{
 		GoodsReceiptID: goodsReceiptID,
 		WarehouseID:    warehouseID,
 		SupplierID:     supplierID,
+		CompanyID:      companyID,
+		FiscalYearID:   fiscalYearID,
 		Action:         action,
 	}, nil
 }
@@ -803,14 +828,38 @@ func (u *purchaseReturnUsecase) TriggerJournalForReturn(ctx context.Context, ret
 		return nil
 	}
 
+	referenceDate := ret.CreatedAt.Format("2006-01-02")
+	if strings.TrimSpace(referenceDate) == "" || ret.CreatedAt.IsZero() {
+		referenceDate = apptime.Now().Format("2006-01-02")
+	}
+
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, u.db, ret.CompanyID, ret.FiscalYearID, referenceDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve purchase return journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
 		ReferenceType:   "PURCHASE_RETURN",
 		ReferenceID:     ret.ID,
+		CompanyID:       companyID,
+		FiscalYearID:    fiscalYearID,
 		EntryDate:       apptime.Now().Format("2006-01-02"),
 		Description:     fmt.Sprintf("Purchase Return %s", ret.Code),
 		TotalAmount:     ret.TotalAmount,
 		SubTotal:        ret.TotalAmount, // Assuming no tax split on return for now
 		DescriptionArgs: []interface{}{ret.Code},
+	}
+
+	if u.purchaseJournalSvc != nil {
+		if _, err := u.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: accounting.ProfilePurchaseReturn,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post purchase return journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success module=purchase_return reference_id=%s", ret.ID)
+		return nil
 	}
 
 	req, err := u.engine.GenerateJournal(ctx, accounting.ProfilePurchaseReturn, data)
@@ -860,6 +909,8 @@ func mapPurchaseReturnRow(row *models.PurchaseReturn) *dto.PurchaseReturnRespons
 		GoodsReceiptID:    row.GoodsReceiptID,
 		PurchaseOrderID:   row.PurchaseOrderID,
 		SupplierID:        row.SupplierID,
+		CompanyID:         row.CompanyID,
+		FiscalYearID:      row.FiscalYearID,
 		WarehouseID:       row.WarehouseID,
 		Reason:            row.Reason,
 		Action:            string(row.Action),

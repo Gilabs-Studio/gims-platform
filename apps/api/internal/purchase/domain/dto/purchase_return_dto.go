@@ -13,10 +13,10 @@ type ReturnWarehouseOption struct {
 }
 
 type PurchaseReturnFormDataResponse struct {
-	Warehouses    []ReturnWarehouseOption `json:"warehouses"`
-	ReturnReasons []ReturnOption          `json:"return_reasons"`
-	ItemConditions []ReturnOption         `json:"item_conditions"`
-	Actions       []ReturnOption          `json:"actions"`
+	Warehouses     []ReturnWarehouseOption `json:"warehouses"`
+	ReturnReasons  []ReturnOption          `json:"return_reasons"`
+	ItemConditions []ReturnOption          `json:"item_conditions"`
+	Actions        []ReturnOption          `json:"actions"`
 }
 
 type CreatePurchaseReturnItemRequest struct {
@@ -30,14 +30,14 @@ type CreatePurchaseReturnItemRequest struct {
 }
 
 type CreatePurchaseReturnRequest struct {
-	GoodsReceiptID string                           `json:"goods_receipt_id" binding:"required"`
-	PurchaseOrderID *string                         `json:"purchase_order_id"`
-	SupplierID    string                            `json:"supplier_id"`
-	WarehouseID   string                            `json:"warehouse_id" binding:"required"`
-	Reason        string                            `json:"reason" binding:"required"`
-	Action        string                            `json:"action" binding:"required"`
-	Notes         *string                           `json:"notes"`
-	Items         []CreatePurchaseReturnItemRequest `json:"items" binding:"required,min=1"`
+	GoodsReceiptID  string                            `json:"goods_receipt_id" binding:"required"`
+	PurchaseOrderID *string                           `json:"purchase_order_id"`
+	SupplierID      string                            `json:"supplier_id"`
+	WarehouseID     string                            `json:"warehouse_id" binding:"required"`
+	Reason          string                            `json:"reason" binding:"required"`
+	Action          string                            `json:"action" binding:"required"`
+	Notes           *string                           `json:"notes"`
+	Items           []CreatePurchaseReturnItemRequest `json:"items" binding:"required,min=1"`
 }
 
 type UpdatePurchaseReturnStatusRequest struct {
@@ -45,15 +45,15 @@ type UpdatePurchaseReturnStatusRequest struct {
 }
 
 type PurchaseReturnItemResponse struct {
-	ID               string  `json:"id"`
+	ID                 string  `json:"id"`
 	GoodsReceiptItemID *string `json:"goods_receipt_item_id,omitempty"`
-	ProductID        string  `json:"product_id"`
-	UOMID            *string `json:"uom_id,omitempty"`
-	Condition        string  `json:"condition"`
-	Notes            *string `json:"notes,omitempty"`
-	Qty              float64 `json:"qty"`
-	UnitCost         float64 `json:"unit_cost"`
-	Subtotal         float64 `json:"subtotal"`
+	ProductID          string  `json:"product_id"`
+	UOMID              *string `json:"uom_id,omitempty"`
+	Condition          string  `json:"condition"`
+	Notes              *string `json:"notes,omitempty"`
+	Qty                float64 `json:"qty"`
+	UnitCost           float64 `json:"unit_cost"`
+	Subtotal           float64 `json:"subtotal"`
 }
 
 type PurchaseReturnResponse struct {
@@ -62,6 +62,8 @@ type PurchaseReturnResponse struct {
 	GoodsReceiptID    string                       `json:"goods_receipt_id"`
 	PurchaseOrderID   *string                      `json:"purchase_order_id,omitempty"`
 	SupplierID        string                       `json:"supplier_id"`
+	CompanyID         *string                      `json:"company_id"`
+	FiscalYearID      *string                      `json:"fiscal_year_id"`
 	WarehouseID       string                       `json:"warehouse_id"`
 	Reason            string                       `json:"reason"`
 	Action            string                       `json:"action"`

@@ -3,6 +3,8 @@ package models
 import (
 	"time"
 
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -28,6 +30,10 @@ type PurchaseReturn struct {
 	ID string `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 
 	Code           string               `gorm:"type:varchar(50);uniqueIndex;not null" json:"code"`
+	CompanyID      *string              `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company        *orgModels.Company   `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID   *string              `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	FiscalYear     *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 	GoodsReceiptID string               `gorm:"type:uuid;index;not null" json:"goods_receipt_id"`
 	PurchaseOrderID *string             `gorm:"type:uuid;index" json:"purchase_order_id,omitempty"`
 	SupplierID     string               `gorm:"type:uuid;index;not null" json:"supplier_id"`

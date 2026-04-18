@@ -12,6 +12,7 @@ import (
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
 	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	productModels "github.com/gilabs/gims/api/internal/product/data/models"
@@ -48,20 +49,22 @@ type PurchaseOrderUsecase interface {
 }
 
 type purchaseOrderUsecase struct {
-	db           *gorm.DB
-	repo         repositories.PurchaseOrderRepository
-	prRepo       repositories.PurchaseRequisitionRepository
-	mapper       *mapper.PurchaseOrderMapper
-	auditService audit.AuditService
+	db                 *gorm.DB
+	repo               repositories.PurchaseOrderRepository
+	prRepo             repositories.PurchaseRequisitionRepository
+	fiscalYearResolver *purchaseFiscalYearResolver
+	mapper             *mapper.PurchaseOrderMapper
+	auditService       audit.AuditService
 }
 
-func NewPurchaseOrderUsecase(db *gorm.DB, repo repositories.PurchaseOrderRepository, prRepo repositories.PurchaseRequisitionRepository, auditService audit.AuditService) PurchaseOrderUsecase {
+func NewPurchaseOrderUsecase(db *gorm.DB, repo repositories.PurchaseOrderRepository, prRepo repositories.PurchaseRequisitionRepository, auditService audit.AuditService, fiscalYearRepo financeRepositories.FiscalYearRepository) PurchaseOrderUsecase {
 	return &purchaseOrderUsecase{
-		db:           db,
-		repo:         repo,
-		prRepo:       prRepo,
-		mapper:       mapper.NewPurchaseOrderMapper(),
-		auditService: auditService,
+		db:                db,
+		repo:              repo,
+		prRepo:            prRepo,
+		fiscalYearResolver: newPurchaseFiscalYearResolver(db, fiscalYearRepo),
+		mapper:            mapper.NewPurchaseOrderMapper(),
+		auditService:      auditService,
 	}
 }
 
@@ -154,6 +157,12 @@ func (uc *purchaseOrderUsecase) Create(ctx context.Context, req *dto.CreatePurch
 		OtherCost:             math.Max(0, req.OtherCost),
 		Items:                 make([]models.PurchaseOrderItem, 0, len(req.Items)),
 	}
+	companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, req.OrderDate)
+	if err != nil {
+		return nil, err
+	}
+	po.CompanyID = &companyID
+	po.FiscalYearID = &fiscalYearID
 
 	for _, it := range req.Items {
 		discount := clampPO(it.Discount, 0, 100)
@@ -309,6 +318,12 @@ func (uc *purchaseOrderUsecase) CreateFromPurchaseRequisition(ctx context.Contex
 			OtherCost:             math.Max(0, pr.OtherCost),
 			Items:                 make([]models.PurchaseOrderItem, 0, len(pr.Items)),
 		}
+		companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, po.OrderDate)
+		if err != nil {
+			return err
+		}
+		po.CompanyID = &companyID
+		po.FiscalYearID = &fiscalYearID
 
 		for _, it := range pr.Items {
 			discount := clampPO(it.Discount, 0, 100)

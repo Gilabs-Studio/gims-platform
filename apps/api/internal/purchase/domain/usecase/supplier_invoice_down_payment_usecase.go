@@ -14,6 +14,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -21,6 +22,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	"github.com/gilabs/gims/api/internal/purchase/domain/mapper"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -42,18 +44,24 @@ type SupplierInvoiceDownPaymentUsecase interface {
 }
 
 type supplierInvoiceDownPaymentUsecase struct {
-	db           *gorm.DB
-	repo         repositories.SupplierInvoiceRepository
-	poRepo       repositories.PurchaseOrderRepository
-	auditService audit.AuditService
-	mapper       *mapper.SupplierInvoiceMapper
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.SupplierInvoiceRepository
+	poRepo             repositories.PurchaseOrderRepository
+	auditService       audit.AuditService
+	mapper             *mapper.SupplierInvoiceMapper
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	engine             accounting.AccountingEngine
+	purchaseJournalSvc purchaseService.PurchaseJournalService
 }
 
-func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine) SupplierInvoiceDownPaymentUsecase {
-	return &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine}
+func NewSupplierInvoiceDownPaymentUsecase(db *gorm.DB, repo repositories.SupplierInvoiceRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, engine accounting.AccountingEngine, purchaseJournalSvc ...purchaseService.PurchaseJournalService) SupplierInvoiceDownPaymentUsecase {
+	uc := &supplierInvoiceDownPaymentUsecase{db: db, repo: repo, poRepo: poRepo, auditService: auditService, mapper: mapper.NewSupplierInvoiceMapper(), journalUC: journalUC, coaUC: coaUC, engine: engine, purchaseJournalSvc: purchaseService.NewPurchaseJournalService(db, journalUC, engine)}
+	if len(purchaseJournalSvc) > 0 && purchaseJournalSvc[0] != nil {
+		uc.purchaseJournalSvc = purchaseJournalSvc[0]
+	}
+
+	return uc
 }
 
 func (uc *supplierInvoiceDownPaymentUsecase) AddData(ctx context.Context) (*dto.SupplierInvoiceDownPaymentAddResponse, error) {
@@ -181,6 +189,16 @@ func (uc *supplierInvoiceDownPaymentUsecase) Create(ctx context.Context, req *dt
 			Notes:           req.Notes,
 			CreatedBy:       creatorID,
 		}
+		si.CompanyID = po.CompanyID
+		si.FiscalYearID = po.FiscalYearID
+		if si.CompanyID == nil || si.FiscalYearID == nil {
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, req.InvoiceDate)
+			if err != nil {
+				return err
+			}
+			si.CompanyID = &companyID
+			si.FiscalYearID = &fiscalYearID
+		}
 		if err := tx.Create(&si).Error; err != nil {
 			return err
 		}
@@ -250,11 +268,21 @@ func (uc *supplierInvoiceDownPaymentUsecase) Update(ctx context.Context, id stri
 		updates := map[string]interface{}{
 			"purchase_order_id": po.ID,
 			"supplier_id":       *po.SupplierID,
+			"company_id":        po.CompanyID,
+			"fiscal_year_id":    po.FiscalYearID,
 			"invoice_date":      req.InvoiceDate,
 			"due_date":          req.DueDate,
 			"amount":            req.Amount,
 			"notes":             req.Notes,
 			"updated_at":        apptime.Now(),
+		}
+		if po.CompanyID == nil || po.FiscalYearID == nil {
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, req.InvoiceDate)
+			if err != nil {
+				return err
+			}
+			updates["company_id"] = &companyID
+			updates["fiscal_year_id"] = &fiscalYearID
 		}
 		if err := tx.Model(&si).Updates(updates).Error; err != nil {
 			return err
@@ -563,13 +591,32 @@ func (uc *supplierInvoiceDownPaymentUsecase) triggerDPJournalEntry(ctx context.C
 		return nil
 	}
 
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve supplier invoice DP journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
 		ReferenceType:   "SUPPLIER_INVOICE_DP",
 		ReferenceID:     si.ID,
+		CompanyID:       companyID,
+		FiscalYearID:    fiscalYearID,
 		EntryDate:       si.InvoiceDate,
 		Description:     fmt.Sprintf("Purchase Down Payment %s (%s)", si.InvoiceNumber, si.Code),
 		TotalAmount:     si.Amount,
 		DescriptionArgs: []interface{}{si.InvoiceNumber, si.Code},
+	}
+
+	if uc.purchaseJournalSvc != nil {
+		if _, err := uc.purchaseJournalSvc.GenerateDPJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: accounting.ProfileSupplierInvoiceDP,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post supplier invoice DP journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success module=purchase_supplier_invoice_dp reference_id=%s", si.ID)
+		return nil
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoiceDP, data)

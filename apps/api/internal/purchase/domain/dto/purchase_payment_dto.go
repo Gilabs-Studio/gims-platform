@@ -24,21 +24,24 @@ type PurchasePaymentBankAccountSummary struct {
 }
 
 type PurchasePaymentListResponse struct {
-	ID          string                             `json:"id"`
-	Invoice     *PurchasePaymentInvoiceSummary     `json:"invoice,omitempty"`
-	BankAccount *PurchasePaymentBankAccountSummary `json:"bank_account,omitempty"`
-	PaymentDate string                             `json:"payment_date"`
-	Amount      float64                            `json:"amount"`
-	Method      string                             `json:"method"`
-	Status      string                             `json:"status"`
-	CreatedAt   time.Time                          `json:"created_at"`
-	UpdatedAt   time.Time                          `json:"updated_at"`
+	ID           string                             `json:"id"`
+	CompanyID    *string                            `json:"company_id"`
+	FiscalYearID *string                            `json:"fiscal_year_id"`
+	Invoice      *PurchasePaymentInvoiceSummary     `json:"invoice,omitempty"`
+	BankAccount  *PurchasePaymentBankAccountSummary `json:"bank_account,omitempty"`
+	PaymentDate  string                             `json:"payment_date"`
+	Amount       float64                            `json:"amount"`
+	Method       string                             `json:"method"`
+	Status       string                             `json:"status"`
+	CreatedAt    time.Time                          `json:"created_at"`
+	UpdatedAt    time.Time                          `json:"updated_at"`
 }
 
 type PurchasePaymentDetailResponse struct {
 	PurchasePaymentListResponse
-	ReferenceNumber *string `json:"reference_number,omitempty"`
-	Notes           *string `json:"notes,omitempty"`
+	ReferenceNumber       *string `json:"reference_number,omitempty"`
+	Notes                 *string `json:"notes,omitempty"`
+	CashBankTransactionID *string `json:"cash_bank_transaction_id,omitempty"`
 }
 
 type PurchasePaymentAddInvoiceItem struct {
@@ -71,6 +74,30 @@ type CreatePurchasePaymentRequest struct {
 	Method          string  `json:"method" binding:"required"`
 	ReferenceNumber *string `json:"reference_number,omitempty"`
 	Notes           *string `json:"notes,omitempty"`
+}
+
+type CreatePurchasePaymentBatchItemRequest struct {
+	InvoiceID string  `json:"invoice_id" binding:"required"`
+	Amount    float64 `json:"amount" binding:"required,gt=0"`
+}
+
+type CreatePurchasePaymentBatchRequest struct {
+	BankAccountID   string                                  `json:"bank_account_id" binding:"required"`
+	PaymentDate     string                                  `json:"payment_date" binding:"required"`
+	Method          string                                  `json:"method" binding:"required"`
+	ReferenceNumber *string                                 `json:"reference_number,omitempty"`
+	Notes           *string                                 `json:"notes,omitempty"`
+	Items           []CreatePurchasePaymentBatchItemRequest `json:"items" binding:"required,min=1,dive"`
+}
+
+type ConfirmPurchasePaymentBatchRequest struct {
+	PaymentIDs []string `json:"payment_ids" binding:"required,min=1,max=100,dive"`
+}
+
+type PurchasePaymentBatchResponse struct {
+	Payments    []*PurchasePaymentDetailResponse `json:"payments"`
+	TotalAmount float64                          `json:"total_amount"`
+	Count       int                              `json:"count"`
 }
 
 type PurchasePaymentAuditTrailEntry struct {

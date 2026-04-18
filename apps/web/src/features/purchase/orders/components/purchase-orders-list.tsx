@@ -379,6 +379,7 @@ export function PurchaseOrdersList() {
             ) : (
               items.map((it) => {
                 const status = normalStatus(it);
+                const hasGoodsReceipt = (it.goods_receipts?.length ?? 0) > 0;
                 const hasRowActions =
                   canView || canEdit || canSubmit || canApprove ||
                   canReject || canClose || canDelete || canPrint;
@@ -610,7 +611,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSI && status === "APPROVED" && (
+                            {canCreateSI && status === "APPROVED" && hasGoodsReceipt && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {
@@ -623,7 +624,7 @@ export function PurchaseOrdersList() {
                               </DropdownMenuItem>
                             )}
 
-                            {canCreateSIDP && status === "APPROVED" && (
+                            {canCreateSIDP && status === "APPROVED" && hasGoodsReceipt && (
                               <DropdownMenuItem
                                 className="cursor-pointer text-success focus:text-success"
                                 onClick={() => {

@@ -15,6 +15,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	finDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
@@ -60,6 +61,7 @@ type goodsReceiptUsecase struct {
 	db           *gorm.DB
 	repo         repositories.GoodsReceiptRepository
 	poRepo       repositories.PurchaseOrderRepository
+	fiscalYearResolver *purchaseFiscalYearResolver
 	mapper       *mapper.GoodsReceiptMapper
 	auditService audit.AuditService
 	inventoryUC  invUsecase.InventoryUsecase
@@ -69,18 +71,19 @@ type goodsReceiptUsecase struct {
 	engine       accounting.AccountingEngine
 }
 
-func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, inventoryUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine) GoodsReceiptUsecase {
+func NewGoodsReceiptUsecase(db *gorm.DB, repo repositories.GoodsReceiptRepository, poRepo repositories.PurchaseOrderRepository, auditService audit.AuditService, inventoryUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine, fiscalYearRepo financeRepositories.FiscalYearRepository) GoodsReceiptUsecase {
 	return &goodsReceiptUsecase{
-		db:           db,
-		repo:         repo,
-		poRepo:       poRepo,
-		mapper:       mapper.NewGoodsReceiptMapper(),
-		auditService: auditService,
-		inventoryUC:  inventoryUC,
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		assetUC:      assetUC,
-		engine:       engine,
+		db:                db,
+		repo:              repo,
+		poRepo:            poRepo,
+		fiscalYearResolver: newPurchaseFiscalYearResolver(db, fiscalYearRepo),
+		mapper:            mapper.NewGoodsReceiptMapper(),
+		auditService:      auditService,
+		inventoryUC:       inventoryUC,
+		journalUC:         journalUC,
+		coaUC:             coaUC,
+		assetUC:           assetUC,
+		engine:            engine,
 	}
 }
 
@@ -183,6 +186,16 @@ func (uc *goodsReceiptUsecase) Create(ctx context.Context, req *dto.CreateGoodsR
 			Status:          models.GoodsReceiptStatusDraft,
 			CreatedBy:       actorID,
 			Items:           make([]models.GoodsReceiptItem, 0, len(req.Items)),
+		}
+		gr.CompanyID = po.CompanyID
+		gr.FiscalYearID = po.FiscalYearID
+		if gr.CompanyID == nil || gr.FiscalYearID == nil {
+			companyID, fiscalYearID, err := uc.fiscalYearResolver.Resolve(ctx, po.OrderDate)
+			if err != nil {
+				return err
+			}
+			gr.CompanyID = &companyID
+			gr.FiscalYearID = &fiscalYearID
 		}
 
 		poItemByID := make(map[string]*models.PurchaseOrderItem, len(po.Items))
@@ -577,7 +590,6 @@ func (uc *goodsReceiptUsecase) triggerStockUpdate(ctx context.Context, gr *model
 
 	return uc.inventoryUC.ReceiveStockFromGR(ctx, req)
 }
-
 
 func (uc *goodsReceiptUsecase) AddData(ctx context.Context) (*dto.GoodsReceiptAddResponse, error) {
 	// Eligible: purchase orders in APPROVED status

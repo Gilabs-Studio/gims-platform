@@ -4,6 +4,8 @@ import (
 	"time"
 
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
+	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	supplierModels "github.com/gilabs/gims/api/internal/supplier/data/models"
 	userModels "github.com/gilabs/gims/api/internal/user/data/models"
 	"github.com/google/uuid"
@@ -39,6 +41,11 @@ type SupplierInvoice struct {
 
 	PurchaseOrderID string         `gorm:"type:uuid;index;not null" json:"purchase_order_id"`
 	PurchaseOrder   *PurchaseOrder `gorm:"foreignKey:PurchaseOrderID" json:"purchase_order,omitempty"`
+
+	CompanyID *string              `gorm:"type:uuid;index" json:"company_id,omitempty"`
+	Company   *orgModels.Company   `gorm:"foreignKey:CompanyID" json:"company,omitempty"`
+	FiscalYearID *string                 `gorm:"type:uuid;index" json:"fiscal_year_id,omitempty"`
+	FiscalYear   *financeModels.FiscalYear `gorm:"foreignKey:FiscalYearID" json:"fiscal_year,omitempty"`
 
 	SupplierID           string                   `gorm:"type:uuid;index;not null" json:"supplier_id"`
 	Supplier             *supplierModels.Supplier `gorm:"foreignKey:SupplierID" json:"supplier,omitempty"`

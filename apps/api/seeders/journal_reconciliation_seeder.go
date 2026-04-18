@@ -69,12 +69,13 @@ func SeedJournalReconciliation() error {
 	siRepo := purchaseRepos.NewSupplierInvoiceRepository(db)
 	poRepo := purchaseRepos.NewPurchaseOrderRepository(db)
 	grRepo := purchaseRepos.NewGoodsReceiptRepository(db)
+	fiscalYearRepo := financeRepos.NewFiscalYearRepository(db)
 	purchaseInvoiceUC := purchaseUsecase.NewSupplierInvoiceUsecase(db, siRepo, poRepo, grRepo, auditSvc, journalUC, coaUC, engine)
 	purchaseInvoiceDpUC := purchaseUsecase.NewSupplierInvoiceDownPaymentUsecase(db, siRepo, poRepo, auditSvc, journalUC, coaUC, engine)
 	purchaseReturnRepo := purchaseRepos.NewPurchaseReturnRepository(db)
 	purchaseReturnUC := purchaseUsecase.NewPurchaseReturnUsecase(db, purchaseReturnRepo, inventoryUC, journalUC, coaUC, auditSvc, engine)
 	purchasePaymentRepo := purchaseRepos.NewPurchasePaymentRepository(db)
-	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine, settingsService)
+	purchasePaymentUC := purchaseUsecase.NewPurchasePaymentUsecase(db, purchasePaymentRepo, siRepo, auditSvc, journalUC, coaUC, engine, settingsService, nil)
 
 	financePaymentRepo := financeRepos.NewPaymentRepository(db)
 	financePaymentUC := financeUsecase.NewPaymentUsecase(db, coaRepo, financePaymentRepo, journalUC, financeMapper.NewPaymentMapper(financeMapper.NewChartOfAccountMapper()))
@@ -93,7 +94,7 @@ func SeedJournalReconciliation() error {
 
 	assetUC := financeUsecase.NewAssetUsecase(db, coaRepo, assetCatRepo, assetLocRepo, assetRepo, assetMapper, assetAttachmentRepo, assetAuditLogRepo, assetAssignmentRepo, journalUC)
 
-	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine)
+	grUC := purchaseUsecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditSvc, inventoryUC, journalUC, coaUC, assetUC, engine, fiscalYearRepo)
 
 	adminID := getAdminID(db)
 	ctx := context.WithValue(context.Background(), "user_id", adminID)

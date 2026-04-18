@@ -14,8 +14,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/audit"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
-	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	notificationService "github.com/gilabs/gims/api/internal/notification/service"
@@ -23,6 +24,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	"github.com/gilabs/gims/api/internal/purchase/domain/mapper"
+	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -53,15 +55,16 @@ type SupplierInvoiceUsecase interface {
 }
 
 type supplierInvoiceUsecase struct {
-	db           *gorm.DB
-	repo         repositories.SupplierInvoiceRepository
-	poRepo       repositories.PurchaseOrderRepository
-	grRepo       repositories.GoodsReceiptRepository
-	auditService audit.AuditService
-	mapper       *mapper.SupplierInvoiceMapper
-	journalUC    finUsecase.JournalEntryUsecase
-	coaUC        finUsecase.ChartOfAccountUsecase
-	engine       accounting.AccountingEngine
+	db                 *gorm.DB
+	repo               repositories.SupplierInvoiceRepository
+	poRepo             repositories.PurchaseOrderRepository
+	grRepo             repositories.GoodsReceiptRepository
+	auditService       audit.AuditService
+	mapper             *mapper.SupplierInvoiceMapper
+	journalUC          finUsecase.JournalEntryUsecase
+	coaUC              finUsecase.ChartOfAccountUsecase
+	engine             accounting.AccountingEngine
+	purchaseJournalSvc purchaseService.PurchaseJournalService
 }
 
 func NewSupplierInvoiceUsecase(
@@ -73,18 +76,25 @@ func NewSupplierInvoiceUsecase(
 	journalUC finUsecase.JournalEntryUsecase,
 	coaUC finUsecase.ChartOfAccountUsecase,
 	engine accounting.AccountingEngine,
+	purchaseJournalSvc ...purchaseService.PurchaseJournalService,
 ) SupplierInvoiceUsecase {
-	return &supplierInvoiceUsecase{
-		db:           db,
-		repo:         repo,
-		poRepo:       poRepo,
-		grRepo:       grRepo,
-		auditService: auditService,
-		mapper:       mapper.NewSupplierInvoiceMapper(),
-		journalUC:    journalUC,
-		coaUC:        coaUC,
-		engine:       engine,
+	uc := &supplierInvoiceUsecase{
+		db:                 db,
+		repo:               repo,
+		poRepo:             poRepo,
+		grRepo:             grRepo,
+		auditService:       auditService,
+		mapper:             mapper.NewSupplierInvoiceMapper(),
+		journalUC:          journalUC,
+		coaUC:              coaUC,
+		engine:             engine,
+		purchaseJournalSvc: purchaseService.NewPurchaseJournalService(db, journalUC, engine),
 	}
+	if len(purchaseJournalSvc) > 0 && purchaseJournalSvc[0] != nil {
+		uc.purchaseJournalSvc = purchaseJournalSvc[0]
+	}
+
+	return uc
 }
 
 func (uc *supplierInvoiceUsecase) List(ctx context.Context, params repositories.SupplierInvoiceListParams) ([]*dto.SupplierInvoiceListResponse, int64, error) {
@@ -414,6 +424,16 @@ func (uc *supplierInvoiceUsecase) Create(ctx context.Context, req *dto.CreateSup
 			Notes:                req.Notes,
 			CreatedBy:            creatorID,
 			Items:                items,
+		}
+		si.CompanyID = po.CompanyID
+		si.FiscalYearID = po.FiscalYearID
+		if si.CompanyID == nil || si.FiscalYearID == nil {
+			companyID, fiscalYearID, err := newPurchaseFiscalYearResolver(uc.db, financeRepositories.NewFiscalYearRepository(uc.db)).Resolve(ctx, req.InvoiceDate)
+			if err != nil {
+				return err
+			}
+			si.CompanyID = &companyID
+			si.FiscalYearID = &fiscalYearID
 		}
 
 		if err := snapshotSupplierInvoice(ctx, tx, &si, nil); err != nil {
@@ -1082,17 +1102,36 @@ func (uc *supplierInvoiceUsecase) triggerJournalEntry(ctx context.Context, si *m
 		return nil
 	}
 
+	companyID, fiscalYearID, err := resolvePurchaseJournalScope(ctx, uc.db, si.CompanyID, si.FiscalYearID, si.InvoiceDate)
+	if err != nil {
+		return fmt.Errorf("failed to resolve supplier invoice journal scope: %w", err)
+	}
+
 	data := accounting.TransactionData{
-		ReferenceType: reference.RefTypeSupplierInvoice,
-		ReferenceID:   si.ID,
-		EntryDate:     si.InvoiceDate,
-		Description:   fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
-		TotalAmount:   si.Amount,
-		SubTotal:      si.SubTotal,
-		TaxTotal:      si.TaxAmount,
-		DepositTotal:  si.DownPaymentAmount,
-		OtherTotal:    si.DeliveryCost + si.OtherCost,
+		ReferenceType:   reference.RefTypeSupplierInvoice,
+		ReferenceID:     si.ID,
+		CompanyID:       companyID,
+		FiscalYearID:    fiscalYearID,
+		EntryDate:       si.InvoiceDate,
+		Description:     fmt.Sprintf("Purchase Invoice %s (%s)", si.InvoiceNumber, si.Code),
+		TotalAmount:     si.Amount,
+		SubTotal:        si.SubTotal,
+		TaxTotal:        si.TaxAmount,
+		DepositTotal:    si.DownPaymentAmount,
+		OtherTotal:      si.DeliveryCost + si.OtherCost,
 		DescriptionArgs: []interface{}{si.InvoiceNumber, si.SupplierNameSnapshot},
+	}
+
+	if uc.purchaseJournalSvc != nil {
+		if _, err := uc.purchaseJournalSvc.GeneratePurchaseJournal(ctx, purchaseService.PurchaseJournalTxn{
+			Profile: accounting.ProfileSupplierInvoice,
+			Data:    data,
+		}); err != nil {
+			return fmt.Errorf("failed to post supplier invoice journal: %w", err)
+		}
+
+		log.Printf("journal_observability event=trigger.success reference_type=%s reference_id=%s", reference.RefTypeSupplierInvoice, si.ID)
+		return nil
 	}
 
 	req, err := uc.engine.GenerateJournal(ctx, accounting.ProfileSupplierInvoice, data)
@@ -1163,24 +1202,30 @@ func (uc *supplierInvoiceUsecase) reverse(ctx context.Context, id string, reason
 			return err
 		}
 
-		// Find the journal for this invoice
-		var journal financeModels.JournalEntry
-		refType := reference.RefTypeSupplierInvoice
-		err := tx.Where("reference_type = ? AND reference_id = ?", refType, si.ID).
-			Where("status = ?", financeModels.JournalStatusPosted).
-			First(&journal).Error
-
-		if err == nil {
-			// Trigger journal reversal
-			txCtx := database.WithTx(ctx, tx)
-			// Exempt from closing guard if we are doing a reversal
-			revCtx := finUsecase.WithReversalFlag(txCtx)
-
-			if _, err := uc.journalUC.ReverseWithReason(revCtx, journal.ID, reason); err != nil {
+		txCtx := database.WithTx(ctx, tx)
+		if uc.purchaseJournalSvc != nil {
+			if err := uc.purchaseJournalSvc.ReversePurchaseJournal(txCtx, reference.RefTypeSupplierInvoice, si.ID, reason); err != nil {
 				return fmt.Errorf("failed to reverse journal: %w", err)
 			}
-		} else if err != gorm.ErrRecordNotFound {
-			return err
+		} else {
+			// Find the journal for this invoice
+			var journal financeModels.JournalEntry
+			refType := reference.RefTypeSupplierInvoice
+			err := tx.Where("reference_type = ? AND reference_id = ?", refType, si.ID).
+				Where("status = ?", financeModels.JournalStatusPosted).
+				First(&journal).Error
+
+			if err == nil {
+				// Trigger journal reversal
+				// Exempt from closing guard if we are doing a reversal
+				revCtx := finUsecase.WithReversalFlag(txCtx)
+
+				if _, err := uc.journalUC.ReverseWithReason(revCtx, journal.ID, reason); err != nil {
+					return fmt.Errorf("failed to reverse journal: %w", err)
+				}
+			} else if err != gorm.ErrRecordNotFound {
+				return err
+			}
 		}
 
 		// Sync Goods Receipt status (to release the quantity for new invoicing)

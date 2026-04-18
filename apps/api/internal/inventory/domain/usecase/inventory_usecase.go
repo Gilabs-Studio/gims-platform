@@ -65,6 +65,31 @@ type inventoryUsecase struct {
 	engine    accounting.AccountingEngine
 }
 
+func (u *inventoryUsecase) resolveCompanyIDFromActor(ctx context.Context) (string, error) {
+	actorID, _ := ctx.Value("user_id").(string)
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return "", errors.New("user not authenticated")
+	}
+
+	var companyID string
+	if err := database.GetDB(ctx, u.db).
+		WithContext(ctx).
+		Table("employees").
+		Select("company_id").
+		Where("user_id = ? AND deleted_at IS NULL", actorID).
+		Limit(1).
+		Scan(&companyID).Error; err != nil {
+		return "", err
+	}
+	companyID = strings.TrimSpace(companyID)
+	if companyID == "" {
+		return "", errors.New("employee company not found")
+	}
+
+	return companyID, nil
+}
+
 func NewInventoryUsecase(db *gorm.DB, repo repository.InventoryRepository, journalUC finUC.JournalEntryUsecase, engine accounting.AccountingEngine) InventoryUsecase {
 	return &inventoryUsecase{
 		db:        db,
@@ -837,6 +862,11 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 		return fmt.Errorf("journaling engine not configured: physical movement (ID: %s) cancelled", movementID)
 	}
 
+	companyID, err := u.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return err
+	}
+
 	// 1. Fetch the movement with product info
 	var movement models.StockMovement
 	if err := tx.Preload("Product").First(&movement, "id = ?", movementID).Error; err != nil {
@@ -896,6 +926,7 @@ func (u *inventoryUsecase) triggerInventoryJournal(ctx context.Context, tx *gorm
 	if err != nil {
 		return fmt.Errorf("accounting engine: %w", err)
 	}
+	genReq.CompanyID = companyID
 
 	// 6. Post Journal (Idempotent via reference_type + reference_id)
 	// Passing tx via context to ensure the usecase uses the same transaction.
@@ -918,6 +949,11 @@ func (u *inventoryUsecase) TriggerMovementJournal(ctx context.Context, movementI
 func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.DB, refType, refID string) error {
 	if tx == nil {
 		tx = database.GetDB(ctx, u.db)
+	}
+
+	companyID, err := u.resolveCompanyIDFromActor(ctx)
+	if err != nil {
+		return err
 	}
 
 	// 1. Fetch all movements for this document
@@ -1007,6 +1043,7 @@ func (u *inventoryUsecase) TriggerDocumentJournal(ctx context.Context, tx *gorm.
 	if err != nil {
 		return fmt.Errorf("accounting engine: %w", err)
 	}
+	genReq.CompanyID = companyID
 
 	// 6. Post Journal
 	journal, err := u.journalUC.PostOrUpdateJournal(database.WithTx(ctx, tx), genReq)

@@ -418,7 +418,7 @@ func main() {
 		posPresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, loyaltyDeps.Usecase)
 
 		// Purchase module (Sprint 8 - Purchase Requisitions)
-		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC)
+		purchaseDeps := purchasePresentation.RegisterRoutes(r, v1, database.DB, jwtManager, permissionService, invUC, financeDeps.JournalUC, financeDeps.CoaUC, financeDeps.AssetUC, financeDeps.Engine, financeDeps.SettingsUC, financeDeps.CashBankTransactionUC)
 
 		// AI Assistant module
 		currencyRepo := coreRepos.NewCurrencyRepository(database.DB)

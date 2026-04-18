@@ -5,6 +5,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	"github.com/gilabs/gims/api/internal/finance/domain/accounting"
+	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	invUsecase "github.com/gilabs/gims/api/internal/inventory/domain/usecase"
@@ -27,7 +28,7 @@ type PurchaseDeps struct {
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager *jwt.JWTManager, permService interface {
 	GetPermissions(roleCode string) ([]string, error)
 	GetPermissionsWithScope(roleCode string) (map[string]string, error)
-}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine, settingsUC financesettings.SettingsService) *PurchaseDeps {
+}, invUC invUsecase.InventoryUsecase, journalUC finUsecase.JournalEntryUsecase, coaUC finUsecase.ChartOfAccountUsecase, assetUC finUsecase.AssetUsecase, engine accounting.AccountingEngine, settingsUC financesettings.SettingsService, cashBankTransactionUC finUsecase.CashBankTransactionUsecase) *PurchaseDeps {
 	_ = r
 
 	prRepo := repositories.NewPurchaseRequisitionRepository(db)
@@ -38,8 +39,9 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	returnRepo := repositories.NewPurchaseReturnRepository(db)
 	recapRepo := repositories.NewPayableRecapRepository(db)
 	auditService := audit.NewAuditService(db)
+	fiscalYearRepo := financeRepositories.NewFiscalYearRepository(db)
 
-	poUc := usecase.NewPurchaseOrderUsecase(db, poRepo, prRepo, auditService)
+	poUc := usecase.NewPurchaseOrderUsecase(db, poRepo, prRepo, auditService, fiscalYearRepo)
 	poH := handler.NewPurchaseOrderHandler(poUc)
 	poPrintH := handler.NewPurchaseOrderPrintHandler(poUc, db)
 
@@ -47,7 +49,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	prH := handler.NewPurchaseRequisitionHandler(prUc, poUc)
 	prPrintH := handler.NewPurchaseRequisitionPrintHandler(prUc, db)
 
-	grUc := usecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, invUC, journalUC, coaUC, assetUC, engine)
+	grUc := usecase.NewGoodsReceiptUsecase(db, grRepo, poRepo, auditService, invUC, journalUC, coaUC, assetUC, engine, fiscalYearRepo)
 	grH := handler.NewGoodsReceiptHandler(grUc)
 	grPrintH := handler.NewGoodsReceiptPrintHandler(grUc, db)
 
@@ -59,7 +61,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	siDpH := handler.NewSupplierInvoiceDownPaymentHandler(siDpUc)
 	siDpPrintH := handler.NewSupplierInvoiceDPPrintHandler(siDpUc, db)
 
-	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC, engine, settingsUC)
+	payUc := usecase.NewPurchasePaymentUsecase(db, payRepo, siRepo, auditService, journalUC, coaUC, engine, settingsUC, cashBankTransactionUC)
 	payH := handler.NewPurchasePaymentHandler(payUc)
 	payPrintH := handler.NewPurchasePaymentPrintHandler(payUc, db)
 
