@@ -38,7 +38,9 @@ export const bankReconciliationService = {
     formData.append("company_id", payload.company_id);
     formData.append("bank_account_id", payload.bank_account_id);
     formData.append("statement_date", payload.statement_date);
-    formData.append("statement_balance", String(payload.statement_balance));
+    if (typeof payload.statement_balance === "number" && Number.isFinite(payload.statement_balance)) {
+      formData.append("statement_balance", String(payload.statement_balance));
+    }
     formData.append("file_format", payload.file_format);
     formData.append("file", payload.file);
 

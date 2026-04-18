@@ -15,14 +15,28 @@ export default function AssetBatchDepreciationPage() {
   const [activeTab, setActiveTab] = useState<"preview" | "results">("preview");
   const { preview, run, previewData, runData, isLoadingPreview, isRunning } = useBatchDepreciation();
 
+  const getValidatedPeriod = (): { month: number; year: number } | null => {
+    const parsedMonth = Number(month);
+    const parsedYear = Number(year);
+    if (!Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+      return null;
+    }
+    if (!Number.isInteger(parsedYear) || parsedYear < 2000 || parsedYear > 2100) {
+      return null;
+    }
+    return { month: parsedMonth, year: parsedYear };
+  };
+
   const handlePreview = async () => {
-    if (!month || !year) return;
-    await preview.mutateAsync({ month: parseInt(month), year: parseInt(year) });
+    const period = getValidatedPeriod();
+    if (!period) return;
+    await preview.mutateAsync(period);
   };
 
   const handleRun = async () => {
-    if (!month || !year || !previewData) return;
-    const result = await run.mutateAsync({ month: parseInt(month), year: parseInt(year) });
+    const period = getValidatedPeriod();
+    if (!period || !previewData) return;
+    const result = await run.mutateAsync(period);
     if (result?.success) {
       setActiveTab("results");
     }

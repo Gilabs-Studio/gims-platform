@@ -9,6 +9,7 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
+  TrialBalanceParams,
   UpdateJournalEntryInput,
   ListCashBankSubLedgerParams,
   AdjustmentApprovalActionInput,
@@ -35,7 +36,7 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "cash-bank-subledger", params] as const,
   details: () => [...financeJournalKeys.all, "detail"] as const,
   detail: (id: string) => [...financeJournalKeys.details(), id] as const,
-  trialBalance: (params?: { start_date?: string; end_date?: string }) =>
+  trialBalance: (params?: TrialBalanceParams) =>
     [...financeJournalKeys.all, "trial-balance", params] as const,
   valuationRuns: () => [...financeJournalKeys.all, "valuation-runs"] as const,
   valuationRunList: (params?: ListValuationRunsParams) =>
@@ -47,12 +48,20 @@ export const financeJournalKeys = {
   journalTemplates: () => [...financeJournalKeys.all, "journal-templates"] as const,
   journalTemplateList: (params?: ListJournalTemplateParams) =>
     [...financeJournalKeys.journalTemplates(), "list", params] as const,
+  formData: () => [...financeJournalKeys.all, "form-data"] as const,
 };
 
 export function useFinanceJournals(params?: ListJournalEntriesParams) {
   return useQuery({
     queryKey: financeJournalKeys.list(params),
     queryFn: () => financeJournalsService.list(params),
+  });
+}
+
+export function useFinanceJournalFormData() {
+  return useQuery({
+    queryKey: financeJournalKeys.formData(),
+    queryFn: () => financeJournalsService.getFormData(),
   });
 }
 
@@ -379,7 +388,7 @@ export function useValuationRunDetail(id: string) {
 }
 
 export function useTrialBalance(
-  params?: { start_date?: string; end_date?: string },
+  params?: TrialBalanceParams,
   options?: { enabled?: boolean },
 ) {
   return useQuery({

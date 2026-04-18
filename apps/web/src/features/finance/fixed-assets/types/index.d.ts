@@ -24,6 +24,7 @@ export interface BatchDepreciationPreviewLine {
   asset_id: string;
   asset_code: string;
   asset_name: string;
+  currency_code?: string;
   period: string;
   method: "SL" | "DB" | "NONE";
   depreciation_amount: number;
@@ -35,6 +36,7 @@ export interface BatchDepreciationPreviewLine {
 
 export interface BatchDepreciationPreviewResponse {
   preview_lines: BatchDepreciationPreviewLine[];
+  currency_code?: string;
   total_lines: number;
   successful: number;
   failed: number;
@@ -45,6 +47,7 @@ export interface BatchDepreciationPreviewResponse {
 
 export interface BatchDepreciationRunResponse {
   journal_ids: string[];
+  currency_code?: string;
   total_assets: number;
   successful: number;
   failed: number;
@@ -52,6 +55,16 @@ export interface BatchDepreciationRunResponse {
   total_amount: number;
   errors: string[];
   completed_at: string;
+  items?: Array<{
+    asset_id?: string;
+    asset_code?: string;
+    asset_name?: string;
+    currency_code?: string;
+    amount?: number;
+    status?: string;
+    reason?: string;
+    journal_entry_id?: string;
+  }>;
 }
 
 // Disposal Types

@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 
 import { useTrialBalance } from "../hooks/use-finance-journals";
 
@@ -28,13 +30,18 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
 
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [companyId, setCompanyId] = useState<string>("");
+
+  const { data: companiesData } = useCompanies({ page: 1, per_page: 100, is_active: true });
+  const companies = companiesData?.data ?? [];
 
   const params = useMemo(() => {
-    const p: { start_date?: string; end_date?: string } = {};
+    const p: { start_date?: string; end_date?: string; company_id?: string } = {};
     if (startDate.trim()) p.start_date = startDate.trim();
     if (endDate.trim()) p.end_date = endDate.trim();
+    if (companyId.trim()) p.company_id = companyId.trim();
     return p;
-  }, [startDate, endDate]);
+  }, [startDate, endDate, companyId]);
 
   const query = useTrialBalance(params, { enabled: open });
   const rows = query.data?.data?.rows ?? [];
@@ -51,7 +58,24 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
           <DialogTitle>{t("actions.trialBalance")}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="company_id">{t("fields.company")}</Label>
+            <Select value={companyId || "all"} onValueChange={(value) => setCompanyId(value === "all" ? "" : value)}>
+              <SelectTrigger id="company_id" className="cursor-pointer">
+                <SelectValue placeholder={t("fields.company")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="cursor-pointer">All Company</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id} className="cursor-pointer">
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="start_date">{t("fields.startDate")}</Label>
             <Input id="start_date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />

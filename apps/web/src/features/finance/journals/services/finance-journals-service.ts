@@ -7,6 +7,7 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
+  TrialBalanceParams,
   TrialBalanceResponse,
   UpdateJournalEntryInput,
   ValuationPreview,
@@ -21,6 +22,7 @@ import type {
   ListJournalTemplateParams,
   CreateJournalTemplateInput,
   UseJournalTemplateResponse,
+  JournalEntryFormDataResponse,
 } from "../types";
 
 const BASE_URL = "/finance/journals";
@@ -310,10 +312,9 @@ export const financeJournalsService = {
     return response.data;
   },
 
-  trialBalance: async (params?: {
-    start_date?: string;
-    end_date?: string;
-  }): Promise<ApiResponse<TrialBalanceResponse>> => {
+  trialBalance: async (
+    params?: TrialBalanceParams,
+  ): Promise<ApiResponse<TrialBalanceResponse>> => {
     const response = await apiClient.get<ApiResponse<TrialBalanceResponse>>(
       `/finance/reports/trial-balance`,
       {
@@ -372,6 +373,15 @@ export const financeJournalsService = {
       `${BASE_URL}/valuation/runs/bulk-approve`,
       { run_ids: runIds },
     );
+    return response.data;
+  },
+
+  getFormData: async (): Promise<
+    ApiResponse<JournalEntryFormDataResponse>
+  > => {
+    const response = await apiClient.get<
+      ApiResponse<JournalEntryFormDataResponse>
+    >(`${BASE_URL}/form-data`);
     return response.data;
   },
 };

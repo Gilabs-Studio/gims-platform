@@ -52,6 +52,7 @@ export const financeJournalsId = {
     openSourceDocument: "Buka Dokumen Sumber",
   },
   fields: {
+    company: "Perusahaan",
     entryDate: "Tanggal",
     description: "Deskripsi",
     status: "Status",

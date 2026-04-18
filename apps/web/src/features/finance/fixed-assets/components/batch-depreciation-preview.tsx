@@ -10,6 +10,23 @@ import { useTranslations } from "next-intl";
 import type { BatchDepreciationPreviewResponse } from "../types";
 import { Loader2 } from "lucide-react";
 
+function normalizeCurrencyCode(currencyCode: string | undefined | null): string {
+  const normalized = (currencyCode ?? "").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(normalized)) {
+    return normalized;
+  }
+  return "IDR";
+}
+
+function formatCurrency(value: number | undefined | null, currencyCode?: string): string {
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const currency = normalizeCurrencyCode(currencyCode);
+  return safeValue.toLocaleString("en-US", {
+    style: "currency",
+    currency,
+  });
+}
+
 interface BatchDepreciationPreviewProps {
   month: string;
   year: string;
@@ -35,6 +52,12 @@ export function BatchDepreciationPreview({
 }: BatchDepreciationPreviewProps) {
   const t = useTranslations("financeFixedAssets");
   const currentYear = new Date().getFullYear();
+  const previewLines = previewData?.preview_lines ?? [];
+  const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);
+  const totalDepreciationAmount =
+    previewData?.total_depreciation_amount ??
+    (previewData as (BatchDepreciationPreviewResponse & { total_amount?: number }) | null)?.total_amount ??
+    0;
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
@@ -128,10 +151,7 @@ export function BatchDepreciationPreview({
                 <div>
                   <p className="text-muted-foreground">Total Amount</p>
                   <p className="text-lg font-semibold">
-                    {previewData.total_depreciation_amount.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
+                    {formatCurrency(totalDepreciationAmount, defaultCurrencyCode)}
                   </p>
                 </div>
                 <div>
@@ -157,7 +177,7 @@ export function BatchDepreciationPreview({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewData.preview_lines.slice(0, 10).map((line, idx) => (
+                  {previewLines.slice(0, 10).map((line, idx) => (
                     <TableRow key={idx}>
                       <TableCell>
                         <div>
@@ -167,16 +187,10 @@ export function BatchDepreciationPreview({
                       </TableCell>
                       <TableCell>{line.method}</TableCell>
                       <TableCell className="text-right">
-                        {line.depreciation_amount.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        })}
+                        {formatCurrency(line.depreciation_amount, line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {line.book_value.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        })}
+                        {formatCurrency(line.book_value, line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell>
                           <Badge
@@ -197,9 +211,9 @@ export function BatchDepreciationPreview({
               </Table>
             </div>
 
-            {previewData.preview_lines.length > 10 && (
+            {previewLines.length > 10 && (
               <p className="text-sm text-muted-foreground mt-2">
-                ... and {previewData.preview_lines.length - 10} more assets
+                ... and {previewLines.length - 10} more assets
               </p>
             )}
           </CardContent>

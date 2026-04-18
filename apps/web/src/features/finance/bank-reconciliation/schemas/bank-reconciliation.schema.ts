@@ -4,7 +4,7 @@ export const importBankStatementSchema = z.object({
   company_id: z.string().min(1),
   bank_account_id: z.string().min(1),
   statement_date: z.string().min(1),
-  statement_balance: z.number(),
+  statement_balance: z.number().optional(),
   file_format: z.enum(["csv", "mt940", "ofx"]),
 });
 

@@ -66,6 +66,7 @@ export interface CreateChartOfAccountInput {
   type: CoaType;
   parent_id?: string | null;
   is_active?: boolean;
+  is_postable?: boolean;
 }
 
 export type UpdateChartOfAccountInput = CreateChartOfAccountInput;

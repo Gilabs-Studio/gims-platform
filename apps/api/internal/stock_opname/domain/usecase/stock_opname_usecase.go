@@ -306,16 +306,22 @@ func (u *stockOpnameUsecase) GenerateJournal(ctx context.Context, id string) (*d
 	}
 
 	reference := opname.OpnameNumber
-	journalReq := &finDTO.CreateAdjustmentJournalRequest{
-		CompanyID:   companyID,
-		EntryDate:   opname.Date.Format("2006-01-02"),
-		Description: fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
-		Reference:   reference,
-		Lines:       lines,
+	refType := "STOCK_OPNAME"
+	refID := opname.ID
+	journalReq := &finDTO.CreateJournalEntryRequest{
+		CompanyID:         companyID,
+		EntryDate:         opname.Date.Format("2006-01-02"),
+		Description:       fmt.Sprintf("Stock opname adjustment %s", opname.OpnameNumber),
+		Reference:         reference,
+		ReferenceType:     &refType,
+		ReferenceID:       &refID,
+		Lines:             lines,
+		IsSystemGenerated: true,
 		SkipControlAccountValidation: true,
 	}
 
-	journal, err := u.journalUC.CreateAdjustmentJournal(ctx, journalReq)
+	// Use PostOrUpdateJournal to auto-create AND auto-post the journal
+	journal, err := u.journalUC.PostOrUpdateJournal(ctx, journalReq)
 	if err != nil {
 		return nil, err
 	}
@@ -345,12 +351,20 @@ func (u *stockOpnameUsecase) SubmitApproval(ctx context.Context, id string) (*dt
 		return nil, ErrInvalidStatus
 	}
 
+	// Ensure journal is generated for non-zero variance scenarios.
+	// For zero-variance opname, journal generation is a no-op and submission should still proceed.
 	if opname.JournalID == nil || *opname.JournalID == "" {
-		return nil, ErrJournalNotGenerated
-	}
+		if _, err := u.GenerateJournal(ctx, id); err != nil {
+			return nil, err
+		}
 
-	if _, err := u.journalUC.SubmitAdjustmentJournalForApproval(ctx, *opname.JournalID, fmt.Sprintf("Stock opname %s submitted for approval", opname.OpnameNumber)); err != nil {
-		return nil, err
+		opname, err = u.repo.FindByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrStockOpnameNotFound
+			}
+			return nil, err
+		}
 	}
 
 	updated, err := u.updateStatus(ctx, id, models.StockOpnameStatusPending, nil)
@@ -478,9 +492,9 @@ func (u *stockOpnameUsecase) Post(ctx context.Context, id string, postedBy *stri
 		}
 
 		if opname.JournalID != nil && *opname.JournalID != "" {
-			if _, err := u.journalUC.PostAdjustmentJournal(ctx, *opname.JournalID); err != nil {
-				return nil, fmt.Errorf("failed to post stock opname adjustment journal: %w", err)
-			}
+			// Journal is already posted by GenerateJournal via PostOrUpdateJournal
+			// No need to post again - it's idempotent via triggerStockOpnameJournal
+			// Skip PostAdjustmentJournal since journal reference_type is STOCK_OPNAME, not MANUAL_ADJUSTMENT
 		} else {
 			if err := u.triggerStockOpnameJournal(ctx, opname, items); err != nil {
 				return nil, fmt.Errorf("failed to post stock opname journal: %w", err)

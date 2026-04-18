@@ -6,7 +6,7 @@ type ImportBankStatementRequest struct {
 	CompanyID        string  `json:"company_id" form:"company_id" binding:"required,uuid"`
 	BankAccountID    string  `json:"bank_account_id" form:"bank_account_id" binding:"required,uuid"`
 	StatementDate    string  `json:"statement_date" form:"statement_date" binding:"required"`
-	StatementBalance float64 `json:"statement_balance" form:"statement_balance" binding:"required"`
+	StatementBalance *float64 `json:"statement_balance" form:"statement_balance" binding:"omitempty"`
 	FileFormat       string  `json:"file_format" form:"file_format" binding:"required,oneof=csv mt940 ofx"`
 }
 

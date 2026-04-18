@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gilabs/gims/api/internal/core/apptime"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"gorm.io/gorm"
 )
@@ -42,25 +41,7 @@ func ensureNotClosed(ctx context.Context, tx *gorm.DB, entryDate time.Time) erro
 		return err
 	}
 
-	// Fallback: older behavior based on financial closings (for backward compatibility)
-	var closing financeModels.FinancialClosing
-	err = tx.WithContext(ctx).
-		Where("status = ?", financeModels.FinancialClosingStatusApproved).
-		Order("period_end_date desc").
-		First(&closing).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil
-		}
-		return err
-	}
-	
-	// Prevent entries on/before latest closed period end date, evaluated in application time
-	entryLocal := entryDate.In(apptime.Location())
-	closingLocal := closing.PeriodEndDate.In(apptime.Location())
-	if !entryLocal.After(closingLocal) {
-		return errors.New("period is closed")
-	}
+	// No explicitly-closed accounting period matched this date, so posting may continue.
 	return nil
 }
 

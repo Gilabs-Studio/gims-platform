@@ -44,6 +44,8 @@ export interface JournalLine {
 
 export interface JournalEntry {
   id: string;
+  company_id?: string;
+  fiscal_year_id?: string | null;
   entry_date: string;
   reference?: string | null;
   description?: string | null;
@@ -98,6 +100,8 @@ export interface JournalLineInput {
 }
 
 export interface CreateJournalEntryInput {
+  company_id: string;
+  fiscal_year_id?: string | null;
   entry_date: string;
   reference?: string | null;
   description?: string | null;
@@ -110,6 +114,12 @@ export interface CreateJournalEntryInput {
 }
 
 export type UpdateJournalEntryInput = CreateJournalEntryInput;
+
+export interface TrialBalanceParams {
+  start_date?: string;
+  end_date?: string;
+  company_id?: string;
+}
 
 export interface TrialBalanceRow {
   chart_of_account_id: string;
@@ -334,4 +344,26 @@ export interface CreateJournalTemplateInput {
 export interface UseJournalTemplateResponse {
   template: JournalTemplate;
   prefill: CreateJournalEntryInput;
+
+// ===== Form Data Types =====
+
+export interface COAFormOption {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+}
+
+export interface EnumOption {
+  value: string;
+  label: string;
+}
+
+export interface JournalEntryFormDataResponse {
+  chart_of_accounts: COAFormOption[];
+  journal_types: EnumOption[];
+  reference_types: EnumOption[];
+  currencies: EnumOption[];
+  statuses: EnumOption[];
+}
 }

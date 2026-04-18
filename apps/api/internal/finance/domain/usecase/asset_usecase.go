@@ -111,6 +111,69 @@ func round2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
+func normalizeCurrencyCode(raw string) string {
+	code := strings.ToUpper(strings.TrimSpace(raw))
+	if len(code) != 3 {
+		return "IDR"
+	}
+	for _, ch := range code {
+		if ch < 'A' || ch > 'Z' {
+			return "IDR"
+		}
+	}
+	return code
+}
+
+func currencyCodeFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return "IDR"
+	}
+	ctxCurrencyCode, _ := ctx.Value("currency_code").(string)
+	return normalizeCurrencyCode(ctxCurrencyCode)
+}
+
+func (uc *assetUsecase) resolveCompanyIDForDepreciation(
+	ctx context.Context,
+	assetCompanyID *string,
+	actorID string,
+) (string, error) {
+	candidateIDs := make([]string, 0, 3)
+
+	if assetCompanyID != nil {
+		candidateIDs = append(candidateIDs, strings.TrimSpace(*assetCompanyID))
+	}
+
+	ctxCompanyID, _ := ctx.Value("company_id").(string)
+	candidateIDs = append(candidateIDs, strings.TrimSpace(ctxCompanyID))
+
+	if actorID != "" {
+		var employee struct {
+			CompanyID *string `gorm:"column:company_id"`
+		}
+		err := uc.db.WithContext(ctx).
+			Table("employees").
+			Select("company_id").
+			Where("user_id = ? AND deleted_at IS NULL", actorID).
+			Order("updated_at desc").
+			Limit(1).
+			Take(&employee).Error
+		if err == nil && employee.CompanyID != nil {
+			candidateIDs = append(candidateIDs, strings.TrimSpace(*employee.CompanyID))
+		}
+	}
+
+	for _, candidateID := range candidateIDs {
+		if candidateID == "" {
+			continue
+		}
+		if _, err := uuid.Parse(candidateID); err == nil {
+			return candidateID, nil
+		}
+	}
+
+	return "", errors.New("asset company_id is required for depreciation journal")
+}
+
 func batchDepreciationDate(year int, month int) (time.Time, error) {
 	if month < 1 || month > 12 {
 		return time.Time{}, errors.New("period_month must be between 1 and 12")
@@ -125,11 +188,13 @@ func (uc *assetUsecase) computeBatchDepreciationPreviewItem(
 	ctx context.Context,
 	asset *financeModels.Asset,
 	period string,
+	currencyCode string,
 ) dto.BatchDepreciationPreviewItem {
 	item := dto.BatchDepreciationPreviewItem{
-		AssetID:   asset.ID,
-		AssetCode: asset.Code,
-		AssetName: asset.Name,
+		AssetID:      asset.ID,
+		AssetCode:    asset.Code,
+		AssetName:    asset.Name,
+		CurrencyCode: currencyCode,
 	}
 
 	if asset.Category == nil {
@@ -656,8 +721,9 @@ func (uc *assetUsecase) PreviewBatchDepreciation(ctx context.Context, req *dto.B
 	items := make([]dto.BatchDepreciationPreviewItem, 0, len(assets))
 	eligible := 0
 	skipped := 0
+	currencyCode := currencyCodeFromContext(ctx)
 	for i := range assets {
-		item := uc.computeBatchDepreciationPreviewItem(ctx, &assets[i], period)
+		item := uc.computeBatchDepreciationPreviewItem(ctx, &assets[i], period, currencyCode)
 		if item.Eligible {
 			eligible++
 		} else {
@@ -669,6 +735,7 @@ func (uc *assetUsecase) PreviewBatchDepreciation(ctx context.Context, req *dto.B
 	return &dto.BatchDepreciationPreviewResponse{
 		PeriodMonth: req.PeriodMonth,
 		PeriodYear:  req.PeriodYear,
+		CurrencyCode: currencyCode,
 		TotalAssets: len(items),
 		Eligible:    eligible,
 		Skipped:     skipped,
@@ -702,13 +769,21 @@ func (uc *assetUsecase) RunBatchDepreciation(ctx context.Context, req *dto.Batch
 	posted := 0
 	skipped := 0
 	failed := 0
+	currencyCode := preview.CurrencyCode
+	if currencyCode == "" {
+		currencyCode = currencyCodeFromContext(ctx)
+	}
 
 	for _, p := range preview.Items {
 		runItem := dto.BatchDepreciationRunItem{
-			AssetID:   p.AssetID,
-			AssetCode: p.AssetCode,
-			AssetName: p.AssetName,
-			Amount:    p.DepreciationAmount,
+			AssetID:      p.AssetID,
+			AssetCode:    p.AssetCode,
+			AssetName:    p.AssetName,
+			CurrencyCode: p.CurrencyCode,
+			Amount:       p.DepreciationAmount,
+		}
+		if runItem.CurrencyCode == "" {
+			runItem.CurrencyCode = currencyCode
 		}
 
 		if !p.Eligible {
@@ -763,6 +838,7 @@ func (uc *assetUsecase) RunBatchDepreciation(ctx context.Context, req *dto.Batch
 	return &dto.BatchDepreciationRunResponse{
 		PeriodMonth: req.PeriodMonth,
 		PeriodYear:  req.PeriodYear,
+		CurrencyCode: currencyCode,
 		Processed:   len(items),
 		Posted:      posted,
 		Skipped:     skipped,
@@ -798,6 +874,35 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		return nil, err
 	}
 
+	companyID, err := uc.resolveCompanyIDForDepreciation(ctx, asset.CompanyID, actorID)
+	if err != nil {
+		return nil, err
+	}
+
+	expenseAccountID := strings.TrimSpace(cat.DepreciationExpenseAccountID)
+	accumulatedDepreciationAccountID := strings.TrimSpace(cat.AccumulatedDepreciationAccountID)
+	if expenseAccountID == "" || accumulatedDepreciationAccountID == "" {
+		return nil, errors.New("asset category depreciation accounts are not configured")
+	}
+	if _, err := uuid.Parse(expenseAccountID); err != nil {
+		return nil, errors.New("depreciation expense account id is invalid")
+	}
+	if _, err := uuid.Parse(accumulatedDepreciationAccountID); err != nil {
+		return nil, errors.New("accumulated depreciation account id is invalid")
+	}
+
+	currencyCode := "IDR"
+	if ctxCurrencyCode, ok := ctx.Value("currency_code").(string); ok {
+		if normalizedCurrency := strings.ToUpper(strings.TrimSpace(ctxCurrencyCode)); normalizedCurrency != "" {
+			currencyCode = normalizedCurrency
+		}
+	}
+
+	var actorIDPtr *string
+	if _, err := uuid.Parse(actorID); err == nil {
+		actorIDPtr = &actorID
+	}
+
 	err = uc.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := ensureNotClosed(ctx, tx, dep.DepreciationDate); err != nil {
 			return err
@@ -807,14 +912,20 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 		refType := reference.RefTypeAssetDepreciation
 
 		je := &financeModels.JournalEntry{
+			CompanyID:     companyID,
 			EntryDate:     dep.DepreciationDate,
 			Description:   fmt.Sprintf("Asset depreciation %s (%s)", asset.Code, dep.Period),
 			ReferenceType: &refType,
 			ReferenceID:   &dep.ID,
 			Status:        financeModels.JournalStatusPosted,
+			JournalType:   financeModels.JournalTypeGeneral,
+			DebitTotal:    dep.Amount,
+			CreditTotal:   dep.Amount,
+			CurrencyCode:  currencyCode,
+			ExchangeRate:  1,
 			PostedAt:      &now,
-			PostedBy:      &actorID,
-			CreatedBy:     &actorID,
+			PostedBy:      actorIDPtr,
+			CreatedBy:     actorIDPtr,
 		}
 		if err := tx.Create(je).Error; err != nil {
 			return err
@@ -822,18 +933,22 @@ func (uc *assetUsecase) ApproveDepreciation(ctx context.Context, id string) (*dt
 
 		debit := &financeModels.JournalLine{
 			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.DepreciationExpenseAccountID,
+			ChartOfAccountID: expenseAccountID,
 			Debit:            dep.Amount,
 			Memo:             "Depreciation expense",
 		}
-		tx.Create(debit)
+		if err := tx.Create(debit).Error; err != nil {
+			return err
+		}
 		credit := &financeModels.JournalLine{
 			JournalEntryID:   je.ID,
-			ChartOfAccountID: cat.AccumulatedDepreciationAccountID,
+			ChartOfAccountID: accumulatedDepreciationAccountID,
 			Credit:           dep.Amount,
 			Memo:             "Accumulated depreciation",
 		}
-		tx.Create(credit)
+		if err := tx.Create(credit).Error; err != nil {
+			return err
+		}
 
 		if err := tx.Model(&financeModels.AssetDepreciation{}).Where("id = ?", dep.ID).Updates(map[string]interface{}{
 			"status":           financeModels.AssetDepreciationStatusApproved,

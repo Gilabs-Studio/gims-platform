@@ -87,12 +87,12 @@ type JournalEntryUsecase interface {
 }
 
 type journalEntryUsecase struct {
-	db              *gorm.DB
-	coaRepo         repositories.ChartOfAccountRepository
-	repo            repositories.JournalEntryRepository
-	mapper          *mapper.JournalEntryMapper
-	auditService    audit.AuditService
-	settingsService financesettings.SettingsService
+	db                     *gorm.DB
+	coaRepo                repositories.ChartOfAccountRepository
+	repo                   repositories.JournalEntryRepository
+	mapper                 *mapper.JournalEntryMapper
+	auditService           audit.AuditService
+	settingsService        financesettings.SettingsService
 	adjustmentApprovalRepo repositories.AdjustmentJournalApprovalRepository
 	journalTemplateRepo    repositories.JournalTemplateRepository
 }
@@ -387,7 +387,7 @@ func (uc *journalEntryUsecase) Create(ctx context.Context, req *dto.CreateJourna
 	}
 
 	// Hardening: block manual journals from using trade control accounts (AR/AP/Inventory)
-	if !req.IsSystemGenerated {
+	if !req.IsSystemGenerated && !req.SkipControlAccountValidation {
 		if err := uc.validateControlAccountsForLines(ctx, req.Lines); err != nil {
 			return nil, err
 		}
@@ -945,6 +945,12 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		return nil, errors.New("reference type and reference id are required for PostOrUpdateJournal")
 	}
 
+	entryDate, err := parseDate(req.EntryDate)
+	if err != nil {
+		return nil, err
+	}
+	journalType := parseJournalType(req.JournalType)
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 	traceKey := journalTraceKey(req.ReferenceType, req.ReferenceID)
@@ -954,7 +960,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 
 	var out *dto.JournalEntryResponse
 	// We use a single transaction for the entire lookup-then-upsert-then-post flow to ensure atomicity.
-	err := database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
+	err = database.GetDB(ctx, uc.db).Transaction(func(tx *gorm.DB) error {
 		// 1. Acquire an advisory lock scoped to this specific reference to prevent concurrent processes
 		// from attempting to create/update the same journal simultaneously.
 		lockKey := fmt.Sprintf("journal:%s:%s", refTypeNormalized, refID)
@@ -987,14 +993,29 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 			return nil
 		}
 
+		resolvedCompanyID := strings.TrimSpace(req.CompanyID)
+		if lookupErr == nil && resolvedCompanyID == "" {
+			resolvedCompanyID = strings.TrimSpace(existing.CompanyID)
+		}
+
+		resolvedFiscalYearID, err := uc.resolveFiscalYearID(ctx, tx, resolvedCompanyID, req.FiscalYearID, entryDate)
+		if err != nil {
+			return err
+		}
+
+		exchangeRate := 1.0
+		if req.ExchangeRate != nil && *req.ExchangeRate > 0 {
+			exchangeRate = *req.ExchangeRate
+		}
+		currencyCode := strings.TrimSpace(req.CurrencyCode)
+		if currencyCode == "" {
+			currencyCode = "IDR"
+		}
+
 		// 4. Create or Update draft
 		var entryID string
+		var journalNumber string
 		if lookupErr == gorm.ErrRecordNotFound {
-			// Create new draft
-			entryDate, err := parseDate(req.EntryDate)
-			if err != nil {
-				return err
-			}
 			if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 				return err
 			}
@@ -1003,16 +1024,33 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 			if err != nil {
 				return err
 			}
+
+			journalNumber, err = uc.generateJournalNumber(ctx, tx, resolvedCompanyID, journalType, entryDate)
+			if err != nil {
+				return err
+			}
+
+			var createdBy *string
+			if actorID != "" {
+				createdBy = &actorID
+			}
+
 			entry := &financeModels.JournalEntry{
+				CompanyID:         resolvedCompanyID,
+				FiscalYearID:      resolvedFiscalYearID,
+				JournalNumber:     journalNumber,
 				EntryDate:         entryDate,
+				Reference:         strings.TrimSpace(req.Reference),
 				Description:       strings.TrimSpace(req.Description),
 				ReferenceType:     &refTypeNormalized,
 				ReferenceID:       &refID,
-				JournalType:       parseJournalType(req.JournalType),
+				JournalType:       journalType,
 				Status:            financeModels.JournalStatusDraft,
 				DebitTotal:        debitT,
 				CreditTotal:       creditT,
-				CreatedBy:         &actorID,
+				CurrencyCode:      currencyCode,
+				ExchangeRate:      exchangeRate,
+				CreatedBy:         createdBy,
 				IsSystemGenerated: req.IsSystemGenerated,
 				SourceDocumentURL: req.SourceDocumentURL,
 			}
@@ -1032,9 +1070,10 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 			}
 
 			for _, ln := range req.Lines {
-				coa := coaByID[ln.ChartOfAccountID]
+				lineCOAID := strings.TrimSpace(ln.ChartOfAccountID)
+				coa := coaByID[lineCOAID]
 				if coa == nil {
-					return fmt.Errorf("chart of account %s not found", ln.ChartOfAccountID)
+					return fmt.Errorf("chart of account %s not found", lineCOAID)
 				}
 				if err := validatePostingCOA(coa); err != nil {
 					return err
@@ -1042,7 +1081,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 				warnAbnormalPostingSide(coa, ln)
 				line := &financeModels.JournalLine{
 					JournalEntryID:             entryID,
-					ChartOfAccountID:           ln.ChartOfAccountID,
+					ChartOfAccountID:           lineCOAID,
 					ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
 					ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
 					ChartOfAccountTypeSnapshot: string(coa.Type),
@@ -1057,13 +1096,6 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 		} else {
 			// Update existing draft
 			entryID = existing.ID
-
-			// Note: We manually perform the update logic to stay within this advisory lock transaction.
-
-			entryDate, err := parseDate(req.EntryDate)
-			if err != nil {
-				return err
-			}
 			if err := ensureNotClosed(ctx, tx, entryDate); err != nil {
 				return err
 			}
@@ -1072,14 +1104,35 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 			if err != nil {
 				return err
 			}
+
+			existingDate := existing.EntryDate.Format("2006-01-02")
+			requestedDate := entryDate.Format("2006-01-02")
+			journalNumber = strings.TrimSpace(existing.JournalNumber)
+			if journalNumber == "" ||
+				existingDate != requestedDate ||
+				existing.JournalType != journalType ||
+				strings.TrimSpace(existing.CompanyID) != resolvedCompanyID {
+				journalNumber, err = uc.generateJournalNumber(ctx, tx, resolvedCompanyID, journalType, entryDate)
+				if err != nil {
+					return err
+				}
+			}
+
 			if err := tx.Model(&financeModels.JournalEntry{}).Where("id = ?", entryID).Updates(map[string]interface{}{
-				"entry_date":     entryDate,
-				"description":    strings.TrimSpace(req.Description),
-				"debit_total":    debitT,
-				"credit_total":   creditT,
-				"reference_type": refTypeNormalized,
-				"reference_id":   refID,
-				"journal_type":   parseJournalType(req.JournalType),
+				"company_id":          resolvedCompanyID,
+				"fiscal_year_id":      resolvedFiscalYearID,
+				"journal_number":      journalNumber,
+				"entry_date":          entryDate,
+				"reference":           strings.TrimSpace(req.Reference),
+				"description":         strings.TrimSpace(req.Description),
+				"debit_total":         debitT,
+				"credit_total":        creditT,
+				"reference_type":      refTypeNormalized,
+				"reference_id":        refID,
+				"journal_type":        journalType,
+				"currency_code":       currencyCode,
+				"exchange_rate":       exchangeRate,
+				"source_document_url": req.SourceDocumentURL,
 			}).Error; err != nil {
 				return err
 			}
@@ -1098,9 +1151,10 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 			}
 
 			for _, ln := range req.Lines {
-				coa := coaByID[ln.ChartOfAccountID]
+				lineCOAID := strings.TrimSpace(ln.ChartOfAccountID)
+				coa := coaByID[lineCOAID]
 				if coa == nil {
-					return fmt.Errorf("chart of account %s not found", ln.ChartOfAccountID)
+					return fmt.Errorf("chart of account %s not found", lineCOAID)
 				}
 				if err := validatePostingCOA(coa); err != nil {
 					return err
@@ -1108,7 +1162,7 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 				warnAbnormalPostingSide(coa, ln)
 				line := &financeModels.JournalLine{
 					JournalEntryID:             entryID,
-					ChartOfAccountID:           ln.ChartOfAccountID,
+					ChartOfAccountID:           lineCOAID,
 					ChartOfAccountCodeSnapshot: strings.TrimSpace(coa.Code),
 					ChartOfAccountNameSnapshot: strings.TrimSpace(coa.Name),
 					ChartOfAccountTypeSnapshot: string(coa.Type),
@@ -1124,10 +1178,14 @@ func (uc *journalEntryUsecase) PostOrUpdateJournal(ctx context.Context, req *dto
 
 		// 5. Post it
 		now := apptime.Now()
+		var postedBy interface{}
+		if actorID != "" {
+			postedBy = actorID
+		}
 		if err := tx.Model(&financeModels.JournalEntry{}).Where("id = ?", entryID).Updates(map[string]interface{}{
 			"status":    financeModels.JournalStatusPosted,
 			"posted_at": &now,
-			"posted_by": &actorID,
+			"posted_by": postedBy,
 		}).Error; err != nil {
 			return err
 		}
@@ -1496,7 +1554,7 @@ func isDebitNormalAccountType(accountType financeModels.AccountType) bool {
 	}
 }
 
-// GetFormData returns dropdown options for journal entry forms (COA list).
+// GetFormData returns dropdown options for journal entry forms (COA list, enums, currencies).
 func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEntryFormDataResponse, error) {
 	coas, err := uc.coaRepo.FindAll(ctx, true)
 	if err != nil {
@@ -1516,8 +1574,66 @@ func (uc *journalEntryUsecase) GetFormData(ctx context.Context) (*dto.JournalEnt
 		})
 	}
 
+	// Journal Types
+	journalTypes := []dto.EnumOption{
+		{Value: string(financeModels.JournalTypeGeneral), Label: "General Journal"},
+		{Value: string(financeModels.JournalTypeAdjustment), Label: "Adjustment Journal"},
+		{Value: string(financeModels.JournalTypeSales), Label: "Sales Journal"},
+		{Value: string(financeModels.JournalTypePurchase), Label: "Purchase Journal"},
+		{Value: string(financeModels.JournalTypeOpeningBalance), Label: "Opening Balance"},
+		{Value: string(financeModels.JournalTypeClosing), Label: "Closing Journal"},
+	}
+
+	// Reference Types
+	referenceTypes := []dto.EnumOption{
+		{Value: string(financeModels.RefSO), Label: "Sales Order"},
+		{Value: string(financeModels.RefPO), Label: "Purchase Order"},
+		{Value: string(financeModels.RefDO), Label: "Delivery Order"},
+		{Value: string(financeModels.RefGR), Label: "Goods Receipt"},
+		{Value: string(financeModels.RefStockOpname), Label: "Stock Opname"},
+		{Value: string(financeModels.RefAdjustment), Label: "Adjustment"},
+		{Value: string(financeModels.RefNonTradePayable), Label: "Non-Trade Payable"},
+		{Value: string(financeModels.RefPayment), Label: "Payment"},
+		{Value: string(financeModels.RefAssetTransaction), Label: "Asset Transaction"},
+		{Value: string(financeModels.RefAssetDepreciation), Label: "Asset Depreciation"},
+		{Value: string(financeModels.RefCashBank), Label: "Cash Bank"},
+		{Value: string(financeModels.RefUpCountryCost), Label: "Up Country Cost"},
+		{Value: string(financeModels.RefInventoryVal), Label: "Inventory Valuation"},
+		{Value: string(financeModels.RefCurrencyReval), Label: "Currency Revaluation"},
+		{Value: string(financeModels.RefCostAdjustment), Label: "Cost Adjustment"},
+		{Value: string(financeModels.RefDepreciation), Label: "Depreciation Valuation"},
+		{Value: string(financeModels.RefOpeningBalance), Label: "Opening Balance"},
+		{Value: string(financeModels.RefOpeningBalanceRev), Label: "Opening Balance Reversed"},
+	}
+
+	// Currencies (supported currencies)
+	currencies := []dto.EnumOption{
+		{Value: "IDR", Label: "Indonesian Rupiah (IDR)"},
+		{Value: "USD", Label: "US Dollar (USD)"},
+		{Value: "EUR", Label: "Euro (EUR)"},
+		{Value: "GBP", Label: "British Pound (GBP)"},
+		{Value: "SGD", Label: "Singapore Dollar (SGD)"},
+		{Value: "MYR", Label: "Malaysian Ringgit (MYR)"},
+		{Value: "THB", Label: "Thai Baht (THB)"},
+		{Value: "PHP", Label: "Philippine Peso (PHP)"},
+		{Value: "VND", Label: "Vietnamese Dong (VND)"},
+		{Value: "JPY", Label: "Japanese Yen (JPY)"},
+	}
+
+	// Statuses
+	statuses := []dto.EnumOption{
+		{Value: string(financeModels.JournalStatusDraft), Label: "Draft"},
+		{Value: string(financeModels.JournalStatusPosted), Label: "Posted"},
+		{Value: string(financeModels.JournalStatusReversed), Label: "Reversed"},
+		{Value: string(financeModels.JournalStatusCancelled), Label: "Cancelled"},
+	}
+
 	return &dto.JournalEntryFormDataResponse{
 		ChartOfAccounts: coaOptions,
+		JournalTypes:    journalTypes,
+		ReferenceTypes:  referenceTypes,
+		Currencies:      currencies,
+		Statuses:        statuses,
 	}, nil
 }
 
@@ -1540,19 +1656,20 @@ func (uc *journalEntryUsecase) CreateAdjustmentJournal(ctx context.Context, req 
 	refType := "MANUAL_ADJUSTMENT"
 	journalType := string(financeModels.JournalTypeAdjustment)
 	baseReq := &dto.CreateJournalEntryRequest{
-		CompanyID:         req.CompanyID,
-		FiscalYearID:      req.FiscalYearID,
-		EntryDate:         req.EntryDate,
-		Reference:         req.Reference,
-		Description:       req.Description,
-		ReferenceType:     &refType,
-		ReferenceID:       nil,
-		JournalType:       &journalType,
-		CurrencyCode:      req.CurrencyCode,
-		ExchangeRate:      req.ExchangeRate,
-		Lines:             req.Lines,
-		IsSystemGenerated: false,
-		SourceDocumentURL: req.SourceDocumentURL,
+		CompanyID:                    req.CompanyID,
+		FiscalYearID:                 req.FiscalYearID,
+		EntryDate:                    req.EntryDate,
+		Reference:                    req.Reference,
+		Description:                  req.Description,
+		ReferenceType:                &refType,
+		ReferenceID:                  nil,
+		JournalType:                  &journalType,
+		CurrencyCode:                 req.CurrencyCode,
+		ExchangeRate:                 req.ExchangeRate,
+		Lines:                        req.Lines,
+		IsSystemGenerated:            false,
+		SkipControlAccountValidation: req.SkipControlAccountValidation,
+		SourceDocumentURL:            req.SourceDocumentURL,
 	}
 
 	return uc.Create(ctx, baseReq)

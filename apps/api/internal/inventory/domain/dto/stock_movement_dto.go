@@ -13,7 +13,7 @@ type GetStockMovementsRequest struct {
 
 // StockMovementRequest represents the request to create a stock movement
 type StockMovementRequest struct {
-	InventoryBatchID string  `json:"inventory_batch_id" binding:"required,uuid"`
+	InventoryBatchID string  `json:"inventory_batch_id" binding:"omitempty,uuid"`
 	ProductID        string  `json:"product_id" binding:"required,uuid"`
 	WarehouseID      string  `json:"warehouse_id" binding:"required,uuid"`
 	Type             string  `json:"type" binding:"required,oneof=IN OUT ADJUST TRANSFER"`

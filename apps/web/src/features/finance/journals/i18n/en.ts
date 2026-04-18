@@ -52,6 +52,7 @@ export const financeJournalsEn = {
     openSourceDocument: "Open Source Document",
   },
   fields: {
+    company: "Company",
     entryDate: "Entry Date",
     description: "Description",
     status: "Status",

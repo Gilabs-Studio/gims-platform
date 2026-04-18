@@ -3,7 +3,7 @@
 > **Module:** Stock & Inventory Management  
 > **Phase:** 5 - Stabilization & Reporting  
 > **Version:** 1.0  
-> **Status:** Planned  
+> **Status:** In Progress  
 > **Last Updated:** April 2026
 
 ---
@@ -26,6 +26,12 @@
 ## Overview
 
 **Phase 5** fokus pada stabilisasi dan monitoring pasca implementasi core stock/inventory (phases 0-4). Setelah phase 4 memastikan posting stock dan stock opname berjalan konsisten, phase 5 memastikan tim operations & warehouse punya visibilitas penuh terhadap kualitas data, akurasi stok, anomali ledger, dan kesehatan process stock opname.
+
+### Current Implementation Notes (April 2026)
+
+- Journal adjustment untuk stock opname sudah dibuat melalui alur auto-post saat `GenerateJournal`.
+- Action `Post` pada stock opname tetap wajib karena proses ini mengeksekusi adjustment inventory (stock movement), bukan hanya jurnal finance.
+- Alur approval untuk manual adjustment journal tidak lagi dipakai untuk journal system-generated dari stock opname.
 
 ### Scope
 - **Operational Monitoring**
@@ -80,6 +86,19 @@
 ```text
 MONITOR LEDGER -> DETECT VARIANCE -> INVESTIGATE SOURCE ->
 CREATE ADJUSTMENT/OPNAME -> APPROVAL WORKFLOW -> SNAPSHOT -> CONTINUE
+```
+
+### Stock Opname End-to-End Flow (Current)
+
+```text
+DRAFT -> SUBMIT (PENDING) -> APPROVE -> POST
+
+On SUBMIT:
+- Generate journal (system-generated, posted)
+
+On POST:
+- Apply inventory adjustment movement
+- Mark stock opname status to POSTED
 ```
 
 ---
@@ -454,6 +473,8 @@ Snapshot -> Close Cycle
 12. **Timestamp semua** report mengikuti timezone aplikasi via `apptime` per company.
 13. **Reconciliation queue** harus include user assignment + SLA tracking (default 7 hari untuk resolve).
 14. **Snapshot immutable** setelah opname cycle close, hanya untuk audit reference.
+15. **Stock opname journal** yang dibuat sistem boleh auto-post, namun status stock opname tidak boleh otomatis menjadi `posted` tanpa action `Post`.
+16. **Action `Post`** wajib menjadi titik eksekusi final inventory adjustment untuk mencegah mismatch antara ledger finance dan kuantitas fisik.
 
 ---
 
@@ -574,6 +595,6 @@ Snapshot -> Close Cycle
 
 ## Related Documents
 
-- [phase-4-stock-opname-journal-integration.md](phase-4-stock-opname-journal-integration.md) *(linked when created)*
-- [hrd-attendance.md](../hrd/hrd-attendance.md) *(for reference on documentation pattern)*
-- [../cash-bank/phase-5-stabilization-reporting.md](../cash-bank/phase-5-stabilization-reporting.md) *(parallel finance stabilization)*
+- [phase-5-stock-inventory-developer-reference.md](phase-5-stock-inventory-developer-reference.md)
+- [phase-5-stock-inventory-qa-test-guide.md](phase-5-stock-inventory-qa-test-guide.md)
+- [../cash-bank/phase-5-stabilization-reporting.md](../cash-bank/phase-5-stabilization-reporting.md)
