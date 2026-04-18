@@ -69,6 +69,10 @@ func (h *StockOpnameHandler) Update(c *gin.Context) {
 			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if err == usecase.ErrJournalWorkflowUnavailable {
+			errors.ErrorResponse(c, "JOURNAL_WORKFLOW_UNAVAILABLE", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -223,15 +227,16 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
+	actionStatus := strings.ToLower(strings.TrimSpace(req.Status))
 	requiredPermission := ""
-	switch req.Status {
-	case "pending":
+	switch actionStatus {
+	case "pending", "pending_approval":
 		requiredPermission = "stock_opname.update"
 	case "approved":
 		requiredPermission = "stock_opname.approve"
 	case "rejected":
 		requiredPermission = "stock_opname.reject"
-	case "posted":
+	case "posted", "completed":
 		requiredPermission = "stock_opname.post"
 	default:
 		errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": "Status action not found"}, nil)
@@ -253,14 +258,14 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 	var res *dto.StockOpnameResponse
 	var err error
 
-	switch req.Status {
-	case "pending":
+	switch actionStatus {
+	case "pending", "pending_approval":
 		res, err = h.usecase.Submit(c.Request.Context(), id)
 	case "approved":
 		res, err = h.usecase.Approve(c.Request.Context(), id, userID)
 	case "rejected":
 		res, err = h.usecase.Reject(c.Request.Context(), id, userID)
-	case "posted":
+	case "posted", "completed":
 		res, err = h.usecase.Post(c.Request.Context(), id, userID)
 	}
 
@@ -271,6 +276,53 @@ func (h *StockOpnameHandler) UpdateStatus(c *gin.Context) {
 		}
 		if err == usecase.ErrInvalidStatus {
 			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+// GenerateJournal creates (or returns existing) draft adjustment journal linked to stock opname.
+func (h *StockOpnameHandler) GenerateJournal(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.usecase.GenerateJournal(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrStockOpnameNotFound {
+			errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidStatus {
+			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *StockOpnameHandler) SubmitApproval(c *gin.Context) {
+	id := c.Param("id")
+	res, err := h.usecase.SubmitApproval(c.Request.Context(), id)
+	if err != nil {
+		if err == usecase.ErrStockOpnameNotFound {
+			errors.ErrorResponse(c, "STOCK_OPNAME_NOT_FOUND", map[string]interface{}{"id": id}, nil)
+			return
+		}
+		if err == usecase.ErrInvalidStatus {
+			errors.ErrorResponse(c, "INVALID_STATUS", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err == usecase.ErrJournalNotGenerated {
+			errors.ErrorResponse(c, "JOURNAL_NOT_GENERATED", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if err == usecase.ErrJournalWorkflowUnavailable {
+			errors.ErrorResponse(c, "JOURNAL_WORKFLOW_UNAVAILABLE", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())

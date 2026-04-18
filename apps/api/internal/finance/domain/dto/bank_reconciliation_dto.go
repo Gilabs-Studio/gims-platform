@@ -3,11 +3,11 @@ package dto
 import financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 
 type ImportBankStatementRequest struct {
-	CompanyID        string  `form:"company_id" binding:"required,uuid"`
-	BankAccountID    string  `form:"bank_account_id" binding:"required,uuid"`
-	StatementDate    string  `form:"statement_date" binding:"required"`
-	StatementBalance float64 `form:"statement_balance" binding:"required"`
-	FileFormat       string  `form:"file_format" binding:"required,oneof=csv mt940 ofx"`
+	CompanyID        string  `json:"company_id" form:"company_id" binding:"required,uuid"`
+	BankAccountID    string  `json:"bank_account_id" form:"bank_account_id" binding:"required,uuid"`
+	StatementDate    string  `json:"statement_date" form:"statement_date" binding:"required"`
+	StatementBalance *float64 `json:"statement_balance" form:"statement_balance" binding:"omitempty"`
+	FileFormat       string  `json:"file_format" form:"file_format" binding:"required,oneof=csv mt940 ofx"`
 }
 
 type ListBankReconciliationsRequest struct {

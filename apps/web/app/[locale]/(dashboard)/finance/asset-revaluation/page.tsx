@@ -1,12 +1,14 @@
 "use client";
 
 import { PageMotion } from "@/components/motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { useAssetRevaluation } from "@/features/finance/fixed-assets/hooks/use-asset-revaluation";
 import { AssetRevaluationForm } from "@/features/finance/fixed-assets/components/asset-revaluation-form";
 import { AssetRevaluationList } from "@/features/finance/fixed-assets/components/asset-revaluation-list";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function AssetRevaluationPage() {
   const [showForm, setShowForm] = useState(false);
@@ -24,29 +26,36 @@ export default function AssetRevaluationPage() {
           {!showForm ? (
             <div className="space-y-4">
               <div>
-                <button
+                <Button
                   onClick={() => setShowForm(true)}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 cursor-pointer"
+                  className="cursor-pointer"
                 >
                   New Revaluation
-                </button>
+                </Button>
               </div>
               <AssetRevaluationList
                 revaluations={revaluations}
                 isLoading={isLoading}
+                isApproving={approve.isPending}
                 onApprove={async (transactionId) => {
-                  await approve.mutateAsync(transactionId);
+                  try {
+                    await approve.mutateAsync(transactionId);
+                    toast.success("Revaluation approved");
+                  } catch (error) {
+                    toast.error(getFinanceErrorMessage(error, "Failed to approve revaluation"));
+                  }
                 }}
               />
             </div>
           ) : (
             <div>
-              <button
+              <Button
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 border border-input text-foreground rounded-md hover:bg-accent cursor-pointer mb-4"
+                variant="outline"
+                className="cursor-pointer mb-4"
               >
                 Back to List
-              </button>
+              </Button>
               <AssetRevaluationForm onSuccess={() => setShowForm(false)} />
             </div>
           )}

@@ -1,7 +1,7 @@
-# GIMS Cash-Bank Module: Master Documentation (Phase 0-3)
+# GIMS Cash-Bank Module: Master Documentation (Phase 0-5)
 
 > **Module:** Finance / Cash & Bank  
-> **Scope:** End-to-End Journey from Phase 0 to Phase 3  
+> **Scope:** End-to-End Journey from Phase 0 to Phase 5  
 > **Version:** 1.0  
 > **Status:** Complete  
 > **Last Updated:** April 2026
@@ -24,7 +24,7 @@
 
 ## Executive Summary
 
-The **Cash-Bank Module** is a four-phase system for managing enterprise-level cash and bank operations:
+The **Cash-Bank Module** is a six-stage system for managing enterprise-level cash and bank operations:
 
 | Phase | Name | Purpose | When |
 |-------|------|---------|------|
@@ -32,6 +32,8 @@ The **Cash-Bank Module** is a four-phase system for managing enterprise-level ca
 | **1** | Journal Engine | Core accounting infrastructure for all GL posting | Underlying all operations (not end-user feature) |
 | **2** | Daily Operations | Cash-bank transactions, transfers, reconciliation | Every business day during fiscal year |
 | **3** | Adjustment & Closing | Approval governance and period-end closing controls | Month-end and year-end governance window |
+| **4** | Closing Hard Lock | Final enforcement for locked periods and year-end hardening | After closing approval, before next cycle |
+| **5** | Stabilization & Reporting | Monitoring, report consistency, and audit snapshots | Ongoing post-launch / month-end review |
 
 **Key Principle**: All financial transactions are represented in the General Ledger via the Journal Engine. No balance is calculated from module data; all balances derive from GL posting.
 
@@ -215,6 +217,67 @@ Related Pages:
 - /finance/journals/adjustment
 - /finance/closing
 - /finance/accounting/closing
+```
+
+### Phase 4: Closing Hard Lock
+**File**: [phase-4-closing-hard-lock.md](phase-4-closing-hard-lock.md)
+
+```
+Purpose: Final enforcement for closed periods and year-end hardening
+
+Who: Finance Manager, Accountant, Auditor
+When: After closing approval and during year-end hardening
+Duration: 10-30 min per validation cycle
+Output: Locked periods, controlled reopen flow, audit-safe close results
+
+Key Features:
+- Period lock enforcement across all posting flows
+- Backdated posting and reversal rejection for closed periods
+- Year-end close dry run and idempotency guard
+- Reopen only for latest approved closing
+
+Business Logic:
+1. System checks fiscal period state before every posting action
+2. Locked periods reject create/update/post/reverse as appropriate
+3. Year-end close runs dry run first, then final execute
+4. Reopen is allowed only for the latest approved closing
+5. All lock decisions are audit logged
+
+Related Pages:
+- /finance/closing
+- /finance/journals
+- /finance/bank-reconciliation
+```
+
+### Phase 5: Stabilization & Reporting
+**File**: [phase-5-stabilization-reporting.md](phase-5-stabilization-reporting.md)
+
+```
+Purpose: Monitor report health, mismatch queues, and closing stability after hard lock
+
+Who: Finance Manager, Accountant, Auditor
+When: Ongoing after go-live and month-end close
+Duration: Continuous monitoring with daily review windows
+Output: Health dashboard, mismatch queue, closing snapshots, reconciliation summaries
+
+Key Features:
+- Period health dashboard with lock and backlog indicators
+- Posting mismatch monitoring and drilldown
+- Report consistency validation across GL, TB, BS, PL, and cash flow
+- Closing audit snapshots and reconciliation summary
+
+Business Logic:
+1. Phase 5 reads data from phase 0-4 only
+2. Reports stay posted-only and must not mutate source state
+3. Any mismatch is pushed into an exception queue
+4. Closing snapshots are immutable once generated
+5. Health score reflects open issues before next cycle starts
+
+Related Pages:
+- /finance/reports/general-ledger
+- /finance/reports/balance-sheet
+- /finance/reports/profit-loss
+- /finance/reports/trial-balance
 ```
 
 ---

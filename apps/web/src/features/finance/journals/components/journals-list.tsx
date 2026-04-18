@@ -47,6 +47,7 @@ function getInitialOpenJournalFromURL(): string | null {
 export function JournalsList() {
   const t = useTranslations("financeJournals");
   const tCommon = useTranslations("common");
+  const initialOpenJournalId = getInitialOpenJournalFromURL();
 
   const canCreate = useUserPermission("journal.create");
   const canViewTrialBalance = useUserPermission("trial_balance_report.read");
@@ -69,11 +70,12 @@ export function JournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(getInitialOpenJournalFromURL);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(initialOpenJournalId);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
-  const [viewOpen, setViewOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState<boolean>(!!initialOpenJournalId);
   const [trialBalanceOpen, setTrialBalanceOpen] = useState(false);
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
@@ -94,12 +96,6 @@ export function JournalsList() {
   const pagination = data?.meta?.pagination;
 
   const deleteMutation = useDeleteFinanceJournal();
-
-  useEffect(() => {
-    if (selectedId) {
-      setViewOpen(true);
-    }
-  }, [selectedId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -139,8 +135,9 @@ export function JournalsList() {
             {canCreate && (
               <Button
                 onClick={() => {
+                  setViewOpen(false);
                   setFormMode("create");
-                  setSelectedId(null);
+                  setSelectedFormId(null);
                   setFormOpen(true);
                 }}
                 className="cursor-pointer"
@@ -242,12 +239,15 @@ export function JournalsList() {
           <JournalActionMenu
             row={row}
             onView={(id: string) => {
-              setSelectedId(id);
+              setFormOpen(false);
+              setSelectedViewId(id);
               setViewOpen(true);
             }}
             onEdit={(id: string) => {
+              setViewOpen(false);
+              setSelectedViewId(null);
               setFormMode("edit");
-              setSelectedId(id);
+              setSelectedFormId(id);
               setFormOpen(true);
             }}
             onDelete={(id: string) => {
@@ -273,15 +273,15 @@ export function JournalsList() {
         }}
       />
 
-      <JournalForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedId} />
+      <JournalForm open={formOpen} onOpenChange={setFormOpen} mode={formMode} id={selectedFormId} />
 
       <JournalDetailModal
         open={viewOpen}
         onOpenChange={(open) => {
           setViewOpen(open);
-          if (!open) setSelectedId(null);
+          if (!open) setSelectedViewId(null);
         }}
-        id={selectedId}
+        id={selectedViewId}
       />
 
       <JournalSourceDetailModal

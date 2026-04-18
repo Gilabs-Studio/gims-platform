@@ -12,7 +12,8 @@ import type {
   ProductStockLedgerListResponse,
 } from "../types";
 
-const BASE_PATH = "/stock-opnames";
+const BASE_PATH = "/inventory/opname";
+const LEGACY_BASE_PATH = "/stock-opnames";
 
 export const stockOpnameService = {
   async list(
@@ -65,8 +66,22 @@ export const stockOpnameService = {
     data: UpdateStockOpnameStatusRequest
   ): Promise<StockOpnameSingleResponse> {
     const response = await apiClient.post<StockOpnameSingleResponse>(
-      `${BASE_PATH}/${id}/status`,
+      `${LEGACY_BASE_PATH}/${id}/status`,
       data
+    );
+    return response.data;
+  },
+
+  async generateJournal(id: string): Promise<StockOpnameSingleResponse> {
+    const response = await apiClient.post<StockOpnameSingleResponse>(
+      `${BASE_PATH}/${id}/generate-journal`
+    );
+    return response.data;
+  },
+
+  async submitApproval(id: string): Promise<StockOpnameSingleResponse> {
+    const response = await apiClient.post<StockOpnameSingleResponse>(
+      `${BASE_PATH}/${id}/submit-approval`
     );
     return response.data;
   },

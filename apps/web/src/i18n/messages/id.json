@@ -187,6 +187,7 @@
     "payableRecap": "Rekap Hutang",
     "stock": "Stok",
     "inventory": "Inventaris",
+    "stockLedger": "Buku Besar Persediaan",
     "stockMovement": "Pergerakan Stok",
     "stockOpname": "Opname Stok",
     "finance": "Keuangan",

@@ -10,10 +10,11 @@ import type { RevaluationTransaction } from "../types";
 interface AssetRevaluationListProps {
   revaluations: RevaluationTransaction[];
   isLoading: boolean;
+  isApproving?: boolean;
   onApprove?: (transactionId: string) => Promise<void>;
 }
 
-export function AssetRevaluationList({ revaluations, isLoading, onApprove }: AssetRevaluationListProps) {
+export function AssetRevaluationList({ revaluations, isLoading, isApproving = false, onApprove }: AssetRevaluationListProps) {
   if (isLoading) {
     return (
       <Card>
@@ -73,6 +74,11 @@ export function AssetRevaluationList({ revaluations, isLoading, onApprove }: Ass
                             <CheckCircle className="h-4 w-4 text-green-600" />
                             <span className="text-sm font-medium text-green-600">Approved</span>
                           </>
+                        ) : revaluation.status === "rejected" ? (
+                          <>
+                            <Clock className="h-4 w-4 text-destructive" />
+                            <span className="text-sm font-medium text-destructive">Rejected</span>
+                          </>
                         ) : (
                           <>
                             <Clock className="h-4 w-4 text-yellow-600" />
@@ -83,10 +89,12 @@ export function AssetRevaluationList({ revaluations, isLoading, onApprove }: Ass
                     </TableCell>
                     <TableCell>{new Date(revaluation.effective_date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      {revaluation.status === "draft" && onApprove && (
+                      {(revaluation.status === "draft" || revaluation.status === "pending") && onApprove && (
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={isApproving}
+                          className="cursor-pointer"
                           onClick={() => onApprove(revaluation.id)}
                         >
                           Approve

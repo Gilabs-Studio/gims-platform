@@ -7,11 +7,12 @@ import (
 )
 
 type CreateChartOfAccountRequest struct {
-	Code           string                    `json:"code" binding:"required"`
+	Code           string                    `json:"code"`
 	Name           string                    `json:"name" binding:"required"`
 	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive       *bool                     `json:"is_active"`
+	IsPostable     *bool                     `json:"is_postable"`
 }
 
 type UpdateChartOfAccountRequest struct {
@@ -20,6 +21,7 @@ type UpdateChartOfAccountRequest struct {
 	Type           financeModels.AccountType `json:"type" binding:"required,oneof=ASSET LIABILITY EQUITY REVENUE EXPENSE CASH_BANK CURRENT_ASSET FIXED_ASSET TRADE_PAYABLE COST_OF_GOODS_SOLD SALARY_WAGES OPERATIONAL"`
 	ParentID       *string                   `json:"parent_id" binding:"omitempty,uuid"`
 	IsActive       *bool                     `json:"is_active"`
+	IsPostable     *bool                     `json:"is_postable"`
 }
 
 type ListChartOfAccountsRequest struct {

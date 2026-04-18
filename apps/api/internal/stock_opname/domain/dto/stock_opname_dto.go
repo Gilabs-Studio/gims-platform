@@ -6,8 +6,10 @@ type StockOpnameStatus string
 
 const (
 	StockOpnameStatusDraft    StockOpnameStatus = "draft"
+	StockOpnameStatusPendingApproval StockOpnameStatus = "pending_approval"
 	StockOpnameStatusPending  StockOpnameStatus = "pending"
 	StockOpnameStatusApproved StockOpnameStatus = "approved"
+	StockOpnameStatusCompleted StockOpnameStatus = "completed"
 	StockOpnameStatusRejected StockOpnameStatus = "rejected"
 	StockOpnameStatusPosted   StockOpnameStatus = "posted"
 )
@@ -39,6 +41,7 @@ type StockOpnameResponse struct {
 	OpnameNumber             string            `json:"opname_number"`
 	WarehouseID              string            `json:"warehouse_id"`
 	WarehouseName            string            `json:"warehouse_name,omitempty"`
+	JournalID                *string           `json:"journal_id,omitempty"`
 	Date                     time.Time         `json:"date"`
 	Status                   StockOpnameStatus `json:"status"`
 	Description              string            `json:"description"`

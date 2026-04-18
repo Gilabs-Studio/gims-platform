@@ -1,13 +1,31 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useTranslations } from "next-intl";
 import type { BatchDepreciationPreviewResponse } from "../types";
 import { Loader2 } from "lucide-react";
+
+function normalizeCurrencyCode(currencyCode: string | undefined | null): string {
+  const normalized = (currencyCode ?? "").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(normalized)) {
+    return normalized;
+  }
+  return "IDR";
+}
+
+function formatCurrency(value: number | undefined | null, currencyCode?: string): string {
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const currency = normalizeCurrencyCode(currencyCode);
+  return safeValue.toLocaleString("en-US", {
+    style: "currency",
+    currency,
+  });
+}
 
 interface BatchDepreciationPreviewProps {
   month: string;
@@ -34,7 +52,12 @@ export function BatchDepreciationPreview({
 }: BatchDepreciationPreviewProps) {
   const t = useTranslations("financeFixedAssets");
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const previewLines = previewData?.preview_lines ?? [];
+  const defaultCurrencyCode = normalizeCurrencyCode(previewData?.currency_code);
+  const totalDepreciationAmount =
+    previewData?.total_depreciation_amount ??
+    (previewData as (BatchDepreciationPreviewResponse & { total_amount?: number }) | null)?.total_amount ??
+    0;
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: String(i + 1).padStart(2, "0"),
@@ -57,35 +80,39 @@ export function BatchDepreciationPreview({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="month">Month</Label>
-              <select
-                id="month"
+              <Select
                 value={month}
-                onChange={(e) => onMonthChange(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                onValueChange={onMonthChange}
               >
-                <option value="">Select Month</option>
-                {monthOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="month" className="cursor-pointer">
+                  <SelectValue placeholder="Select Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="year">Year</Label>
-              <select
-                id="year"
+              <Select
                 value={year}
-                onChange={(e) => onYearChange(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                onValueChange={onYearChange}
               >
-                <option value="">Select Year</option>
-                {yearOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="year" className="cursor-pointer">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="cursor-pointer">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -124,10 +151,7 @@ export function BatchDepreciationPreview({
                 <div>
                   <p className="text-muted-foreground">Total Amount</p>
                   <p className="text-lg font-semibold">
-                    {previewData.total_depreciation_amount.toLocaleString("en-US", {
-                      style: "currency",
-                      currency: "USD",
-                    })}
+                    {formatCurrency(totalDepreciationAmount, defaultCurrencyCode)}
                   </p>
                 </div>
                 <div>
@@ -153,7 +177,7 @@ export function BatchDepreciationPreview({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewData.preview_lines.slice(0, 10).map((line, idx) => (
+                  {previewLines.slice(0, 10).map((line, idx) => (
                     <TableRow key={idx}>
                       <TableCell>
                         <div>
@@ -163,29 +187,23 @@ export function BatchDepreciationPreview({
                       </TableCell>
                       <TableCell>{line.method}</TableCell>
                       <TableCell className="text-right">
-                        {line.depreciation_amount.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        })}
+                        {formatCurrency(line.depreciation_amount, line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {line.book_value.toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        })}
+                        {formatCurrency(line.book_value, line.currency_code ?? defaultCurrencyCode)}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            line.status === "new"
-                              ? "bg-blue-100 text-blue-800"
-                              : line.status === "skipped"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
+                          <Badge
+                            variant={
+                              line.status === "new"
+                                ? "info"
+                                : line.status === "skipped"
+                                ? "warning"
+                                : "outline"
+                            }
+                          >
                           {line.status}
-                        </span>
+                          </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -193,9 +211,9 @@ export function BatchDepreciationPreview({
               </Table>
             </div>
 
-            {previewData.preview_lines.length > 10 && (
+            {previewLines.length > 10 && (
               <p className="text-sm text-muted-foreground mt-2">
-                ... and {previewData.preview_lines.length - 10} more assets
+                ... and {previewLines.length - 10} more assets
               </p>
             )}
           </CardContent>

@@ -27,6 +27,7 @@ export const financeCoaId = {
     type: "Tipe",
     parent: "Induk",
     isActive: "Aktif",
+    isPostable: "Bisa diposting",
     openingBalance: "Saldo Awal",
     openingDate: "Tanggal Saldo Awal",
     status: "Status",
@@ -40,6 +41,8 @@ export const financeCoaId = {
     protectedAccount: "Akun ini terlindungi dan tidak dapat diubah.",
     protectedAction: "Akun terlindungi tidak dapat diperbarui.",
     protectedDelete: "Akun terlindungi tidak dapat dihapus",
+    autoCodeFromParent: "Otomatis dari akun induk",
+    autoCodeHint: "Kode akun akan dibuat otomatis setelah Anda memilih akun induk.",
   },
   placeholders: {
     select: "Pilih...",

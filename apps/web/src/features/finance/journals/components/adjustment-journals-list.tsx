@@ -81,7 +81,8 @@ export function AdjustmentJournalsList() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedFormId, setSelectedFormId] = useState<string | null>(null);
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
   const [selectedReferenceRow, setSelectedReferenceRow] = useState<UnifiedJournalRow<JournalEntry> | null>(null);
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
@@ -130,8 +131,9 @@ export function AdjustmentJournalsList() {
         {canCreate && (
           <Button
             onClick={() => {
+              setViewOpen(false);
               setFormMode("create");
-              setSelectedId(null);
+              setSelectedFormId(null);
               setFormOpen(true);
             }}
             className="cursor-pointer"
@@ -179,7 +181,8 @@ export function AdjustmentJournalsList() {
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={() => {
-                    setSelectedId(item.id);
+                    setFormOpen(false);
+                    setSelectedViewId(item.id);
                     setViewOpen(true);
                   }}
                 >
@@ -190,8 +193,10 @@ export function AdjustmentJournalsList() {
                   <DropdownMenuItem
                     className="cursor-pointer"
                     onClick={() => {
+                      setViewOpen(false);
+                      setSelectedViewId(null);
                       setFormMode("edit");
-                      setSelectedId(item.id);
+                      setSelectedFormId(item.id);
                       setFormOpen(true);
                     }}
                   >
@@ -324,7 +329,7 @@ export function AdjustmentJournalsList() {
         open={formOpen}
         onOpenChange={setFormOpen}
         mode={formMode}
-        id={selectedId}
+        id={selectedFormId}
         isAdjustment={true}
       />
 
@@ -332,9 +337,9 @@ export function AdjustmentJournalsList() {
         open={viewOpen}
         onOpenChange={(open) => {
           setViewOpen(open);
-          if (!open) setSelectedId(null);
+          if (!open) setSelectedViewId(null);
         }}
-        id={selectedId}
+        id={selectedViewId}
       />
 
       <JournalSourceDetailModal

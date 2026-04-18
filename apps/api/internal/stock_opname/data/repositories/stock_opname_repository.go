@@ -64,7 +64,7 @@ func (r *stockOpnameRepository) List(ctx context.Context, req *dto.ListStockOpna
 	}
 
 	if req.Status != "" {
-		query = query.Where("status = ?", req.Status)
+		query = query.Where("status = ?", normalizeStatusFilter(req.Status))
 	}
 
 	if req.StartDate != "" {
@@ -160,4 +160,15 @@ func (r *stockOpnameRepository) GetNextOpnameNumber(ctx context.Context) (string
 	}
 
 	return fmt.Sprintf("%s%04d", prefix, seq), nil
+}
+
+func normalizeStatusFilter(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "pending_approval":
+		return string(models.StockOpnameStatusPending)
+	case "completed":
+		return string(models.StockOpnameStatusPosted)
+	default:
+		return status
+	}
 }

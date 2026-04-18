@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Link } from "@/i18n/routing";
 
 import { formatCurrency } from "@/lib/utils";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 import type { FinancialClosing, FinancialClosingAnalysisResponse } from "../types";
 import {
   useApproveFinanceClosing,
@@ -91,8 +93,8 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
       try {
         await approveMutation.mutateAsync(closingId);
         setStep("complete");
-      } catch {
-        toast.error(t("toast.failed"));
+      } catch (error) {
+        toast.error(getFinanceErrorMessage(error, t("toast.failed")));
       }
     }
   };
@@ -102,8 +104,8 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
       await yearEndMutation.mutateAsync(yearEndFiscalYear);
       toast.success(t("toast.yearEndClosed"));
       onOpenChange(false);
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -379,6 +381,11 @@ function StepPreCheck({
               {t("wizard.precheck.differenceWarning") ||
                 "There are differences between opening and closing balances. Please review the trial balance."}
             </p>
+            <Button asChild variant="outline" size="sm" className="mt-3 cursor-pointer">
+              <Link href="/finance/reports/trial-balance">
+                {t("wizard.precheck.openTrialBalance") || "Open Trial Balance"}
+              </Link>
+            </Button>
           </div>
         </div>
       )}
@@ -406,6 +413,8 @@ function StepReview({
   t: ReturnType<typeof useTranslations>;
   tCommon: ReturnType<typeof useTranslations>;
 }) {
+  const [showDifferencesOnly, setShowDifferencesOnly] = useState(false);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -414,21 +423,43 @@ function StepReview({
     );
   }
 
+  const reviewRows = analysis?.rows ?? [];
+  const filteredRows = showDifferencesOnly
+    ? reviewRows.filter((row) => row.difference !== 0)
+    : reviewRows;
+
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-lg font-semibold mb-2">
           {t("wizard.review.title") || "Trial Balance Review"}
         </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          {t("wizard.review.description") ||
-            "Review account balances for the period"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant={showDifferencesOnly ? "default" : "outline"}
+            size="sm"
+            className="cursor-pointer"
+            onClick={() => setShowDifferencesOnly((prev) => !prev)}
+          >
+            {showDifferencesOnly
+              ? t("wizard.review.showAll") || "Show All"
+              : t("wizard.review.showDifferencesOnly") || "Show Differences Only"}
+          </Button>
+          <Button asChild type="button" variant="outline" size="sm" className="cursor-pointer">
+            <Link href="/finance/reports/trial-balance">
+              {t("wizard.review.openTrialBalance") || "Open Trial Balance"}
+            </Link>
+          </Button>
+        </div>
       </div>
+      <p className="text-sm text-muted-foreground">
+        {t("wizard.review.description") || "Review account balances for the period"}
+      </p>
 
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-lg border overflow-hidden max-h-[420px] overflow-y-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead>#</TableHead>
               <TableHead>{t("analysis.account_name") || "Account"}</TableHead>
@@ -444,7 +475,7 @@ function StepReview({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(analysis?.rows ?? []).map((row, idx) => (
+            {filteredRows.map((row, idx) => (
               <TableRow key={row.account_id}>
                 <TableCell className="text-muted-foreground text-sm">{idx + 1}</TableCell>
                 <TableCell className="text-sm">
@@ -466,14 +497,14 @@ function StepReview({
                 </TableCell>
               </TableRow>
             ))}
-            {(analysis?.rows?.length ?? 0) === 0 && (
+            {filteredRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   {tCommon("empty")}
                 </TableCell>
               </TableRow>
             )}
-            <TableRow className="bg-muted/50 font-semibold">
+            <TableRow className="bg-muted/50 font-semibold sticky bottom-0">
               <TableCell colSpan={2}>Total</TableCell>
               <TableCell className="text-right">
                 {formatCurrency(summary.totalClosingBalance)}

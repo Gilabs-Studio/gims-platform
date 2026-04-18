@@ -1,7 +1,8 @@
 import { apiClient as request } from "@/lib/api-client";
 import { StockMovementFilter, StockMovementResponse, CreateStockMovementRequest } from "../types";
 
-const BASE_URL = "/stock/movements";
+const BASE_URL = "/inventory/movements";
+const LEGACY_BASE_URL = "/stock/movements";
 
 export const stockMovementService = {
   getMovements: async (filter: StockMovementFilter) => {
@@ -19,6 +20,6 @@ export const stockMovementService = {
     return request.get<StockMovementResponse>(`${BASE_URL}?${params.toString()}`);
   },
   createMovement: async (data: CreateStockMovementRequest) => {
-    return request.post(BASE_URL, data);
+    return request.post(LEGACY_BASE_URL, data);
   },
 };

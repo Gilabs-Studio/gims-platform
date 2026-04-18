@@ -91,7 +91,7 @@ export interface ImportBankStatementInput {
   company_id: string;
   bank_account_id: string;
   statement_date: string;
-  statement_balance: number;
+  statement_balance?: number;
   file_format: "csv" | "mt940" | "ofx";
   file: File;
 }

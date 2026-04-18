@@ -76,6 +76,11 @@ func (u *bankReconciliationUsecase) ImportStatement(ctx context.Context, req *dt
 		return nil, err
 	}
 
+	statementBalance := bookBalance
+	if req.StatementBalance != nil {
+		statementBalance = *req.StatementBalance
+	}
+
 	actorID, _ := ctx.Value("user_id").(string)
 	actorID = strings.TrimSpace(actorID)
 
@@ -83,9 +88,9 @@ func (u *bankReconciliationUsecase) ImportStatement(ctx context.Context, req *dt
 		CompanyID:        strings.TrimSpace(req.CompanyID),
 		BankAccountID:    strings.TrimSpace(req.BankAccountID),
 		StatementDate:    statementDate,
-		StatementBalance: req.StatementBalance,
+		StatementBalance: statementBalance,
 		BookBalance:      bookBalance,
-		Difference:       req.StatementBalance - bookBalance,
+		Difference:       statementBalance - bookBalance,
 		FileFormat:       strings.ToLower(strings.TrimSpace(req.FileFormat)),
 		FileName:         strings.TrimSpace(fileName),
 		Status:           financeModels.BankReconciliationStatusInProgress,

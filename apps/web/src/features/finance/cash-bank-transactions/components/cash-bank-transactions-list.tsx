@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getFinanceErrorMessage } from "@/features/finance/shared/finance-error-utils";
 
 import { useCompanies } from "@/features/master-data/organization/hooks/use-companies";
 
@@ -113,8 +114,8 @@ export function CashBankTransactionsList() {
       if (response?.data?.journal_entry_number) {
         toast.success(`${t("fields.journal")}: ${response.data.journal_entry_number}`);
       }
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -133,8 +134,8 @@ export function CashBankTransactionsList() {
       setIsReverseOpen(false);
       setReversingId("");
       setReverseReason("");
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getFinanceErrorMessage(error, t("toast.failed")));
     }
   };
 

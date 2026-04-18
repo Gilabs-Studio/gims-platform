@@ -10,9 +10,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate, resolveImageUrl } from "@/lib/utils";
+import { Link } from "@/i18n/routing";
 import { InventoryStockItem } from "../types";
 import { useInventoryTreeBatches } from "../hooks/use-inventory-tree";
-import { Package, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle2, XCircle, ScrollText, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface InventoryDetailDialogProps {
@@ -156,7 +157,15 @@ export function InventoryDetailDialog({
                         <h3 className="font-bold text-lg">{item.product_name}</h3>
                         <p className="text-sm text-muted-foreground font-mono">{item.product_code}</p>
                       </div>
-                      {getStatusBadge(item.status)}
+                      <div className="flex flex-col items-end gap-2">
+                        {getStatusBadge(item.status)}
+                        <Button asChild size="sm" variant="outline" className="cursor-pointer">
+                          <Link href={`/stock/ledger?product_id=${item.product_id}`}>
+                            <ScrollText className="mr-2 h-4 w-4" />
+                            {t("actions.openLedger")}
+                          </Link>
+                        </Button>
+                      </div>
                   </div>
                   <div className="text-sm">
                       <span className="text-muted-foreground">Warehouse: </span>
@@ -200,4 +209,3 @@ export function InventoryDetailDialog({
     </Dialog>
   );
 }
-import { Layers } from "lucide-react";

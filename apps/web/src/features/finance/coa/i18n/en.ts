@@ -27,6 +27,7 @@ export const financeCoaEn = {
     type: "Type",
     parent: "Parent",
     isActive: "Active",
+    isPostable: "Postable",
     openingBalance: "Opening Balance",
     openingDate: "Opening Date",
     status: "Status",
@@ -40,6 +41,8 @@ export const financeCoaEn = {
     protectedAccount: "This account is protected and cannot be modified.",
     protectedAction: "Protected account cannot be updated.",
     protectedDelete: "Protected account cannot be deleted",
+    autoCodeFromParent: "Auto-generated from parent",
+    autoCodeHint: "Account code will be generated automatically after you select a parent account.",
   },
   placeholders: {
     select: "Select...",

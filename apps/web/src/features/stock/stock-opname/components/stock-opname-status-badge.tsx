@@ -19,10 +19,11 @@ export function StockOpnameStatusBadge({ status }: Props) {
         </Badge>
       );
     case "pending":
+    case "pending_approval":
       return (
         <Badge variant="warning">
           <Clock className="h-3 w-3 mr-1" />
-          {t("pending")}
+          {t("pending_approval")}
         </Badge>
       );
     case "approved":
@@ -33,10 +34,11 @@ export function StockOpnameStatusBadge({ status }: Props) {
         </Badge>
       );
     case "posted":
+    case "completed":
       return (
         <Badge variant="info">
           <Archive className="h-3 w-3 mr-1" />
-          {t("posted")}
+          {t("completed")}
         </Badge>
       );
     case "rejected":

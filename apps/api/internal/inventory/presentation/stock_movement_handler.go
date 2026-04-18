@@ -57,8 +57,18 @@ func (h *StockMovementHandler) CreateMovement(c *gin.Context) {
 		return
 	}
 
-	userId, _ := c.Get("user_id")
-	req.CreatedBy = userId.(string)
+	userIDValue, exists := c.Get("user_id")
+	if !exists {
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "User authentication context not found", nil, nil)
+		return
+	}
+
+	userID, ok := userIDValue.(string)
+	if !ok || userID == "" {
+		response.ErrorResponse(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid authenticated user context", nil, nil)
+		return
+	}
+	req.CreatedBy = userID
 
 	if err := h.inventoryUsecase.CreateManualStockMovement(c, &req); err != nil {
 		response.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create stock movement", err, nil)

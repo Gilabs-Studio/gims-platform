@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/routing";
 import { Search, AlertTriangle, CheckCircle2, XCircle, Package, Clock, Layers, TrendingDown, CalendarX, X, FlaskConical } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useInventory, useInventoryMetrics } from "../hooks/use-inventory";
 import { useWarehouses } from "@/features/master-data/warehouse/hooks/use-warehouses";
@@ -206,6 +208,18 @@ export function InventoryList() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
+        <div className="text-sm text-muted-foreground">
+          {t("actions.ledgerHint")}
+        </div>
+        <Button asChild variant="outline" size="sm" className="cursor-pointer">
+          <Link href="/stock/ledger">
+            <ScrollText className="mr-2 h-4 w-4" />
+            {t("actions.openLedger")}
+          </Link>
+        </Button>
       </div>
 
       {/* Tab switcher: All stocks vs Ingredient stocks */}

@@ -18,10 +18,10 @@ func (r *inventoryRepository) GetProductLedgers(ctx context.Context, productID s
 		query = query.Where("transaction_type = ?", strings.ToUpper(strings.TrimSpace(req.TransactionType)))
 	}
 	if req.ParsedDateFrom != nil {
-		query = query.Where("created_at >= ?", *req.ParsedDateFrom)
+		query = query.Where("DATE(created_at) >= ?", req.ParsedDateFrom.Format("2006-01-02"))
 	}
 	if req.ParsedDateTo != nil {
-		query = query.Where("created_at <= ?", *req.ParsedDateTo)
+		query = query.Where("DATE(created_at) <= ?", req.ParsedDateTo.Format("2006-01-02"))
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -30,7 +30,7 @@ func (r *inventoryRepository) GetProductLedgers(ctx context.Context, productID s
 
 	offset := (req.Page - 1) * req.Limit
 	if err := query.
-		Order("created_at DESC, id DESC").
+		Order("created_at DESC, transaction_id DESC, id DESC").
 		Limit(req.Limit).
 		Offset(offset).
 		Find(&items).Error; err != nil {

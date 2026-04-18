@@ -23,9 +23,8 @@ export type AssetDisposalValues = z.infer<typeof assetDisposalSchema>;
 // Revaluation Schemas
 export const assetRevaluationSchema = z.object({
   asset_id: z.string().uuid(),
-  revaluation_amount: z.number(),
-  delta_amount: z.number(),
-  effective_date: z.string().min(1),
+  new_value: z.number().positive(),
+  revaluation_date: z.string().min(1),
   description: z.string().optional(),
 });
 

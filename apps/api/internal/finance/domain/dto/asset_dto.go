@@ -118,6 +118,7 @@ type BatchDepreciationPreviewItem struct {
 	AssetID            string  `json:"asset_id"`
 	AssetCode          string  `json:"asset_code"`
 	AssetName          string  `json:"asset_name"`
+	CurrencyCode       string  `json:"currency_code,omitempty"`
 	Method             string  `json:"method"`
 	OpeningBookValue   float64 `json:"opening_book_value"`
 	DepreciationAmount float64 `json:"depreciation_amount"`
@@ -129,6 +130,7 @@ type BatchDepreciationPreviewItem struct {
 type BatchDepreciationPreviewResponse struct {
 	PeriodMonth int                            `json:"period_month"`
 	PeriodYear  int                            `json:"period_year"`
+	CurrencyCode string                        `json:"currency_code,omitempty"`
 	TotalAssets int                            `json:"total_assets"`
 	Eligible    int                            `json:"eligible"`
 	Skipped     int                            `json:"skipped"`
@@ -139,6 +141,7 @@ type BatchDepreciationRunItem struct {
 	AssetID        string  `json:"asset_id"`
 	AssetCode      string  `json:"asset_code"`
 	AssetName      string  `json:"asset_name"`
+	CurrencyCode   string  `json:"currency_code,omitempty"`
 	Amount         float64 `json:"amount"`
 	Status         string  `json:"status"` // posted | skipped | failed
 	Reason         string  `json:"reason,omitempty"`
@@ -148,6 +151,7 @@ type BatchDepreciationRunItem struct {
 type BatchDepreciationRunResponse struct {
 	PeriodMonth int                        `json:"period_month"`
 	PeriodYear  int                        `json:"period_year"`
+	CurrencyCode string                    `json:"currency_code,omitempty"`
 	Processed   int                        `json:"processed"`
 	Posted      int                        `json:"posted"`
 	Skipped     int                        `json:"skipped"`

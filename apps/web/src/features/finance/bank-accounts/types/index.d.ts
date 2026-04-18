@@ -22,6 +22,8 @@ export interface ApiResponse<T> {
 
 export interface BankAccount {
   id: string;
+  company_id?: string;
+  code?: string;
   name: string;
   account_number: string;
   account_holder: string;
@@ -97,6 +99,8 @@ export interface ListBankAccountsParams {
 }
 
 export interface BankAccountInput {
+  company_id: string;
+  code: string;
   name: string;
   account_number: string;
   account_holder: string;

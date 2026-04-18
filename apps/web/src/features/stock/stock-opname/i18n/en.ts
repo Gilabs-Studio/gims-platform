@@ -9,6 +9,7 @@ export const stockOpnameEn = {
     reject: "Reject",
     post: "Post",
     addItem: "Add Item",
+    export: "Export",
     openMapping: "Open Mapping",
   },
   table: {
@@ -29,8 +30,10 @@ export const stockOpnameEn = {
   },
   status: {
     draft: "Draft",
+    pending_approval: "Pending Approval",
     pending: "Pending",
     approved: "Approved",
+    completed: "Completed",
     posted: "Posted",
     rejected: "Rejected",
     canceled: "Canceled",
@@ -100,5 +103,9 @@ export const stockOpnameEn = {
     accountInactive: "Selected account is inactive.",
     periodClosed: "Accounting period is closed. Posting is not allowed.",
     concurrentLockConflict: "Another process is updating the same data. Please retry.",
+  },
+  messages: {
+    exportEmpty: "No stock opname data to export.",
+    exportSuccess: "Stock opname exported successfully.",
   },
 };

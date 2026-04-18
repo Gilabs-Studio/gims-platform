@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFinanceCoaTree } from "@/features/finance/coa/hooks/use-finance-coa";
 import type { ChartOfAccountTreeNode } from "@/features/finance/coa/types";
 import { budgetFormSchema, type BudgetFormValues } from "../schemas/budget.schema";
+import type { Budget } from "../types";
 import { useCreateFinanceBudget, useFinanceBudget, useUpdateFinanceBudget } from "../hooks/use-finance-budget";
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   mode: "create" | "edit";
   id?: string | null;
+  initialData?: Budget | null;
 };
 
 type CoaOption = { id: string; code: string; name: string };
@@ -48,7 +50,7 @@ function todayISO(): string {
   return `${y}-${m}-${day}`;
 }
 
-export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
+export function BudgetForm({ open, onOpenChange, mode, id, initialData }: Props) {
   const t = useTranslations("financeBudget");
 
   const budgetQuery = useFinanceBudget(id ?? "", { enabled: mode === "edit" && !!id && open });
@@ -60,7 +62,7 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
 
   const defaultValues: BudgetFormValues = useMemo(() => {
     if (mode === "edit") {
-      const b = budgetQuery.data?.data;
+      const b = budgetQuery.data?.data ?? initialData;
       if (b) {
         return {
           name: b.name ?? "",
@@ -87,7 +89,7 @@ export function BudgetForm({ open, onOpenChange, mode, id }: Props) {
       end_date: todayISO(),
       items: [{ chart_of_account_id: "", amount: 0, memo: "" }],
     };
-  }, [mode, budgetQuery.data?.data]);
+  }, [mode, budgetQuery.data?.data, initialData]);
 
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetFormSchema),

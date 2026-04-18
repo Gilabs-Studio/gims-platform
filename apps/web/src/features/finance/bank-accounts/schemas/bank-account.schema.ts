@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const bankAccountFormSchema = z.object({
+  company_id: z.string().uuid("Select a valid company"),
+  code: z.string().min(1),
   name: z.string().min(1),
   account_number: z.string().min(1),
   account_holder: z.string().min(1),

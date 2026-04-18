@@ -61,10 +61,14 @@ export const financeClosingId = {
       warning: "Peringatan",
       differenceWarning:
         "Terdapat selisih antara saldo awal dan saldo akhir. Silakan tinjau neraca saldo.",
+      openTrialBalance: "Buka Neraca Saldo",
     },
     review: {
       title: "Tinjau Neraca Saldo",
       description: "Tinjau saldo akun untuk periode ini",
+      openTrialBalance: "Buka Neraca Saldo",
+      showDifferencesOnly: "Tampilkan Hanya Selisih",
+      showAll: "Tampilkan Semua",
     },
     execute: {
       title: "Siap Tutup?",
