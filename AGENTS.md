@@ -70,10 +70,12 @@ Order: stdlib → external → internal. Run `go mod tidy` after new files.
 pnpm dev                  # All apps
 pnpm dev --filter=web     # Frontend only (localhost:3000)
 pnpm dev --filter=api     # Backend via Docker (localhost:8080)
+pnpm dev:api:local        # Backend via Air hot reload (recommended for daily dev)
 pnpm build && pnpm lint && pnpm type-check
 
 # Backend (cd apps/api)
-go run ./cmd/api/main.go
+air                       # Hot reload (or: make dev). Requires: docker compose up -d postgres redis
+go run ./cmd/api/main.go  # Without hot reload
 go test ./...
 go mod tidy
 

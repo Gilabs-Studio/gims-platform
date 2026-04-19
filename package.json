@@ -7,6 +7,8 @@
     "dev": "turbo run dev",
     "dev:web": "cd apps/web && pnpm install && pnpm dev",
     "dev:api": "cd apps/api && docker compose down -v && docker compose up -d --build",
+    "dev:db": "cd apps/api && docker compose up -d postgres redis",
+    "dev:local": "cd apps/api && air",
     "dev:web-api": "pnpm run dev:api & pnpm run dev:web",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

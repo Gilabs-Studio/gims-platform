@@ -1,4 +1,4 @@
-.PHONY: build run test clean docker-build docker-run docker-up docker-down migrate seed deps analyze
+.PHONY: build run dev test clean docker-build docker-run docker-up docker-down migrate seed deps analyze
 
 # Build the application
 build:
@@ -7,6 +7,11 @@ build:
 # Run the application
 run:
 	go run cmd/api/main.go
+
+# Run with hot reload (requires: go install github.com/air-verse/air@latest)
+# Prerequisites: docker compose up -d postgres redis
+dev:
+	air
 
 # Run migrations (explicit, does not start server)
 migrate:

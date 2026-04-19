@@ -95,14 +95,21 @@ For features with foreign key dropdowns, create `GET /<entity>/form-data` return
 ```bash
 cd apps/api
 
-# Dev
-go run ./cmd/api/main.go          # Run server
+# Dev (Full Docker — rebuilds container)
 pnpm dev                          # Docker + auto migrate/seed
+
+# Dev (Local Go + Air — hot reload, recommended for daily dev)
+docker compose up -d postgres redis   # Start DB + Redis only
+air                                   # Hot reload (or: make dev)
+# Or from root: pnpm dev:api:local
+
+# Run without hot reload
+go run ./cmd/api/main.go
 
 # DB
 make migrate                      # Migrations only
 make seed                         # Seeders only
-docker-compose up -d postgres     # PostgreSQL on port 5435
+docker-compose up -d postgres     # PostgreSQL on port 5434
 
 # Quality
 go test ./...
@@ -116,6 +123,12 @@ go mod tidy
 make analyze                      # Full analysis
 make analyze MODULES=finance,sales
 ```
+
+### CGO / WebP Note
+
+`kolesa-team/go-webp` requires CGO + libwebp. Air builds with `CGO_ENABLED=0` on Windows.
+Image upload works in both modes — WebP conversion is skipped when CGO is unavailable.
+See: `docs/features/core/webp-build-tags.md`
 
 ## Anti-Patterns
 
