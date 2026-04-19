@@ -45,7 +45,7 @@ Skenario harga di dokumen ini disusun supaya realistis untuk kondisi proyek ERP 
 | On-site visit luar kota | Rp7.500.000 / hari | Belum termasuk tiket dan hotel |
 | WhatsApp notification integration | Rp22.500.000 | Cocok untuk approval, reminder, dan follow-up tim lapangan |
 | Tax invoice / PPN document setup | Rp12.500.000 | Untuk penyesuaian format faktur dan dokumen pajak lokal |
-| Annual maintenance | 15% dari nilai lisensi | Untuk on-premise atau license-based project |
+| Annual maintenance | 10% dari nilai lisensi | Untuk on-premise atau license-based project (recurring). Contoh: jika nilai lisensi / total Year-1 = Rp1.200.000.000 → maintenance 10% = Rp120.000.000 / tahun |
 
 ## Scenario: Migrasi Data
 
@@ -221,7 +221,7 @@ Harga: Rp120.000.000
 | Instalasi di server client | Rp35.000.000 |
 | Security hardening on-premise | Rp15.000.000 |
 | Backup / restore procedure setup | Rp12.500.000 |
-| Annual maintenance | 15% dari nilai lisensi |
+| Annual maintenance | 10% dari nilai lisensi (recurring). Contoh: jika nilai lisensi / total Year-1 = Rp1.200.000.000 → maintenance 10% = Rp120.000.000 / tahun |
 
 ### On-Premise Subscription di Indonesia
 
@@ -245,7 +245,7 @@ Model ini cocok untuk client yang ingin license sekali bayar.
 |---|---:|
 | License on-premise | Rp449.000.000 |
 | Installation dan handover | Rp49.000.000 |
-| Annual maintenance | 15% dari nilai license |
+| Annual maintenance | 10% dari nilai license (recurring). Contoh: jika nilai lisensi / total Year-1 = Rp1.200.000.000 → maintenance 10% = Rp120.000.000 / tahun |
 | Support bulanan opsional | Rp6.500.000 / bulan |
 
 ## Scenario: Extra User, Branch, dan Company
